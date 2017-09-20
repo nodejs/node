@@ -1,6 +1,6 @@
 # onetime [![Build Status](https://travis-ci.org/sindresorhus/onetime.svg?branch=master)](https://travis-ci.org/sindresorhus/onetime)
 
-> Only call a function once
+> Ensure a function is only called once
 
 When called multiple times it will return the return value from the first call.
 
@@ -26,27 +26,40 @@ foo(); //=> 0
 foo(); //=> 0
 ```
 
+```js
+const foo = onetime(() => {}, {throw: true});
+
+foo();
+
+foo();
+//=> Error: Function `foo` can only be called once
+```
+
 
 ## API
 
-### onetime(function, [shouldThrow])
+### onetime(fn, [options])
 
-#### function
+Returns a function that only calls `fn` once.
 
-Type: `function`
+#### fn
+
+Type: `Function`
 
 Function that should only be called once.
 
-#### shouldThrow
+#### options
 
-Type: `boolean`  
+Type: `Object`
+
+##### throw
+
+Type: `boolean`<br>
 Default: `false`
 
-![](screenshot-shouldthrow.png)
-
-Set to `true` if you want it to fail with a nice and descriptive error when called more than once.
+Throw an error when called more than once.
 
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

@@ -16,9 +16,9 @@
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "Error";
-    } else {
-        return "Warning";
     }
+    return "Warning";
+
 }
 
 

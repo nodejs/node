@@ -21,17 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('This test is disabled on windows.');
+
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
 const cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
-
-if (common.isWindows) {
-  common.skip('This test is disabled on windows.');
-  return;
-}
 
 // Process relationship is:
 //

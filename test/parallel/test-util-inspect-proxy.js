@@ -4,7 +4,7 @@ require('../common');
 const assert = require('assert');
 const util = require('util');
 const processUtil = process.binding('util');
-const opts = {showProxy: true};
+const opts = { showProxy: true };
 
 const target = {};
 const handler = {
@@ -55,7 +55,9 @@ const expected6 = 'Proxy [ Proxy [ Proxy [ Proxy [Array], Proxy [Array]' +
                   ' ],\n    Proxy [ Proxy [Array], Proxy [Array] ] ],\n' +
                   '  Proxy [ Proxy [ Proxy [Array], Proxy [Array] ],\n' +
                   '    Proxy [ Proxy [Array], Proxy [Array] ] ] ]';
-assert.strictEqual(util.inspect(proxy1, opts), expected1);
+assert.strictEqual(
+  util.inspect(proxy1, { showProxy: true, depth: null }),
+  expected1);
 assert.strictEqual(util.inspect(proxy2, opts), expected2);
 assert.strictEqual(util.inspect(proxy3, opts), expected3);
 assert.strictEqual(util.inspect(proxy4, opts), expected4);

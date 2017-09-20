@@ -139,6 +139,61 @@ Returns true if the given string ends with the given suffix and false
 otherwise.
 
 
+### parseInteger(str, options)
+
+Parses the contents of `str` (a string) as an integer. On success, the integer
+value is returned (as a number). On failure, an error is **returned** describing
+why parsing failed.
+
+By default, leading and trailing whitespace characters are not allowed, nor are
+trailing characters that are not part of the numeric representation. This
+behaviour can be toggled by using the options below. The empty string (`''`) is
+not considered valid input. If the return value cannot be precisely represented
+as a number (i.e., is smaller than `Number.MIN_SAFE_INTEGER` or larger than
+`Number.MAX_SAFE_INTEGER`), an error is returned. Additionally, the string
+`'-0'` will be parsed as the integer `0`, instead of as the IEEE floating point
+value `-0`.
+
+This function accepts both upper and lowercase characters for digits, similar to
+`parseInt()`, `Number()`, and [strtol(3C)](https://illumos.org/man/3C/strtol).
+
+The following may be specified in `options`:
+
+Option             | Type    | Default | Meaning
+------------------ | ------- | ------- | ---------------------------
+base               | number  | 10      | numeric base (radix) to use, in the range 2 to 36
+allowSign          | boolean | true    | whether to interpret any leading `+` (positive) and `-` (negative) characters
+allowImprecise     | boolean | false   | whether to accept values that may have lost precision (past `MAX_SAFE_INTEGER` or below `MIN_SAFE_INTEGER`)
+allowPrefix        | boolean | false   | whether to interpret the prefixes `0b` (base 2), `0o` (base 8), `0t` (base 10), or `0x` (base 16)
+allowTrailing      | boolean | false   | whether to ignore trailing characters
+trimWhitespace     | boolean | false   | whether to trim any leading or trailing whitespace/line terminators
+leadingZeroIsOctal | boolean | false   | whether a leading zero indicates octal
+
+Note that if `base` is unspecified, and `allowPrefix` or `leadingZeroIsOctal`
+are, then the leading characters can change the default base from 10. If `base`
+is explicitly specified and `allowPrefix` is true, then the prefix will only be
+accepted if it matches the specified base. `base` and `leadingZeroIsOctal`
+cannot be used together.
+
+**Context:** It's tricky to parse integers with JavaScript's built-in facilities
+for several reasons:
+
+- `parseInt()` and `Number()` by default allow the base to be specified in the
+  input string by a prefix (e.g., `0x` for hex).
+- `parseInt()` allows trailing nonnumeric characters.
+- `Number(str)` returns 0 when `str` is the empty string (`''`).
+- Both functions return incorrect values when the input string represents a
+  valid integer outside the range of integers that can be represented precisely.
+  Specifically, `parseInt('9007199254740993')` returns 9007199254740992.
+- Both functions always accept `-` and `+` signs before the digit.
+- Some older JavaScript engines always interpret a leading 0 as indicating
+  octal, which can be surprising when parsing input from users who expect a
+  leading zero to be insignificant.
+
+While each of these may be desirable in some contexts, there are also times when
+none of them are wanted. `parseInteger()` grants greater control over what
+input's permissible.
+
 ### iso8601(date)
 
 Converts a Date object to an ISO8601 date string of the form

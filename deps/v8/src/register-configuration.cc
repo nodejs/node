@@ -22,9 +22,13 @@ static const int kAllocatableGeneralCodes[] = {
     ALLOCATABLE_GENERAL_REGISTERS(REGISTER_CODE)};
 #undef REGISTER_CODE
 
-static const int kAllocatableDoubleCodes[] = {
 #define REGISTER_CODE(R) DoubleRegister::kCode_##R,
+static const int kAllocatableDoubleCodes[] = {
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_CODE)};
+#if V8_TARGET_ARCH_ARM
+static const int kAllocatableNoVFP32DoubleCodes[] = {
+    ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_CODE)};
+#endif  // V8_TARGET_ARCH_ARM
 #undef REGISTER_CODE
 
 static const char* const kGeneralRegisterNames[] = {
@@ -70,16 +74,11 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 #if V8_TARGET_ARCH_IA32
             kMaxAllocatableGeneralRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
-#elif V8_TARGET_ARCH_X87
-            kMaxAllocatableGeneralRegisterCount,
-            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X64
             kMaxAllocatableGeneralRegisterCount,
             kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_ARM
-            FLAG_enable_embedded_constant_pool
-                ? (kMaxAllocatableGeneralRegisterCount - 1)
-                : kMaxAllocatableGeneralRegisterCount,
+            kMaxAllocatableGeneralRegisterCount,
             CpuFeatures::IsSupported(VFP32DREGS)
                 ? kMaxAllocatableDoubleRegisterCount
                 : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
@@ -101,7 +100,14 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
 #else
 #error Unsupported target architecture.
 #endif
-            kAllocatableGeneralCodes, kAllocatableDoubleCodes,
+            kAllocatableGeneralCodes,
+#if V8_TARGET_ARCH_ARM
+            CpuFeatures::IsSupported(VFP32DREGS)
+                ? kAllocatableDoubleCodes
+                : kAllocatableNoVFP32DoubleCodes,
+#else
+            kAllocatableDoubleCodes,
+#endif
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
             kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
             kSimd128RegisterNames) {

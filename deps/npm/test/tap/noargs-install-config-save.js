@@ -62,7 +62,7 @@ test('updates the package.json (adds dependencies) with an argument', function (
   t.plan(2)
 
   mr({ port: common.port }, function (er, s) {
-    common.npm(['install', 'underscore'], OPTS, function (er, code, stdout, stderr) {
+    common.npm(['install', 'underscore', '-P'], OPTS, function (er, code, stdout, stderr) {
       if (er) throw er
       t.is(code, 0)
       s.close()

@@ -106,11 +106,8 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
     struct tm *ts = NULL;
 
 #if defined(OPENSSL_THREADS) && !defined(OPENSSL_SYS_WIN32) && !defined(OPENSSL_SYS_OS2) && (!defined(OPENSSL_SYS_VMS) || defined(gmtime_r)) && !defined(OPENSSL_SYS_MACOSX) && !defined(OPENSSL_SYS_SUNOS)
-    /*
-     * should return &data, but doesn't on some systems, so we don't even
-     * look at the return value
-     */
-    gmtime_r(timer, result);
+    if (gmtime_r(timer, result) == NULL)
+        return NULL;
     ts = result;
 #elif !defined(OPENSSL_SYS_VMS) || defined(VMS_GMTIME_OK)
     ts = gmtime(timer);

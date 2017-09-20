@@ -301,7 +301,7 @@ function run_test(test_func, array, expected_result) {
   }
   assertEquals(expected_result, sum);
   %DeoptimizeFunction(test_func);
-  %ClearFunctionTypeFeedback(test_func);
+  %ClearFunctionFeedback(test_func);
 }
 
 function run_bounds_test(test_func, array, expected_result) {
@@ -350,7 +350,7 @@ for (var t = 0; t < types.length; t++) {
     %OptimizeFunctionOnNextCall(run_bounds_test);
     run_bounds_test(a);
     %DeoptimizeFunction(run_bounds_test);
-    %ClearFunctionTypeFeedback(run_bounds_test);
+    %ClearFunctionFeedback(run_bounds_test);
   }
 
   function array_load_set_smi_check(a) {
@@ -369,7 +369,7 @@ for (var t = 0; t < types.length; t++) {
   array_load_set_smi_check2(a);
   array_load_set_smi_check2(0);
   %DeoptimizeFunction(array_load_set_smi_check2);
-  %ClearFunctionTypeFeedback(array_load_set_smi_check2);
+  %ClearFunctionFeedback(array_load_set_smi_check2);
 }
 
 // Check handling of undefined in 32- and 64-bit external float arrays.
@@ -647,8 +647,8 @@ function do_tagged_index_external_array_test(constructor) {
   %OptimizeFunctionOnNextCall(boo);
   boo(t_array, 0, 15);
   assertEquals(15, goo(t_array, 0));
-  %ClearFunctionTypeFeedback(goo);
-  %ClearFunctionTypeFeedback(boo);
+  %ClearFunctionFeedback(goo);
+  %ClearFunctionFeedback(boo);
 }
 
 do_tagged_index_external_array_test(Int8Array);
@@ -667,8 +667,8 @@ assertEquals(1, goo(built_in_array, 0));
 %OptimizeFunctionOnNextCall(boo);
 boo(built_in_array, 0, 11);
 assertEquals(11, goo(built_in_array, 0));
-%ClearFunctionTypeFeedback(goo);
-%ClearFunctionTypeFeedback(boo);
+%ClearFunctionFeedback(goo);
+%ClearFunctionFeedback(boo);
 
 built_in_array = new Array(1.5, 2, 3, 4, 5, 6);
 assertEquals(1.5, goo(built_in_array, 0));
@@ -677,8 +677,8 @@ assertEquals(1.5, goo(built_in_array, 0));
 %OptimizeFunctionOnNextCall(boo);
 boo(built_in_array, 0, 2.5);
 assertEquals(2.5, goo(built_in_array, 0));
-%ClearFunctionTypeFeedback(goo);
-%ClearFunctionTypeFeedback(boo);
+%ClearFunctionFeedback(goo);
+%ClearFunctionFeedback(boo);
 
 // Check all int range edge cases
 function checkRange() {

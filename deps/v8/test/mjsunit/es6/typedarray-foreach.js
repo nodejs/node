@@ -148,6 +148,11 @@ function TestTypedArrayForEach(constructor) {
   assertEquals(Array.prototype.forEach.call(a,
       function(elt) { x += elt; }), undefined);
   assertEquals(x, 4);
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.forEach(() => true), TypeError);
 }
 
 for (i = 0; i < typedArrayConstructors.length; i++) {

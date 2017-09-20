@@ -35,6 +35,8 @@ static std::string last_path;  // NOLINT(runtime/string)
 static void (*handshake_delegate)(enum inspector_handshake_event state,
                                   const std::string& path,
                                   bool* should_continue);
+static const char SERVER_CLOSE_FRAME[] = {'\x88', '\x00'};
+
 
 struct read_expects {
   const char* expected;
@@ -138,7 +140,7 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
   EXPECT_TRUE(nread >= 0 && nread != UV_EOF);
   ssize_t i;
   char c, actual;
-  ASSERT_GT(expectation->expected_len, 0);
+  CHECK_GT(expectation->expected_len, 0);
   for (i = 0; i < nread && expectation->pos <= expectation->expected_len; i++) {
     c = expectation->expected[expectation->pos++];
     actual = buf->base[i];
@@ -333,8 +335,8 @@ static void really_close(uv_handle_t* handle) {
 // Called when the test leaves inspector socket in active state
 static void manual_inspector_socket_cleanup() {
   EXPECT_EQ(0, uv_is_active(
-                   reinterpret_cast<uv_handle_t*>(&inspector.client)));
-  really_close(reinterpret_cast<uv_handle_t*>(&inspector.client));
+                   reinterpret_cast<uv_handle_t*>(&inspector.tcp)));
+  really_close(reinterpret_cast<uv_handle_t*>(&inspector.tcp));
   delete inspector.ws_state;
   inspector.ws_state = nullptr;
   delete inspector.http_parsing_state;
@@ -344,7 +346,7 @@ static void manual_inspector_socket_cleanup() {
 
 static void assert_both_sockets_closed() {
   SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
-  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.client)));
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.tcp)));
 }
 
 static void on_connection(uv_connect_t* connect, int status) {
@@ -368,7 +370,7 @@ class InspectorSocketTest : public ::testing::Test {
     sockaddr_in addr;
     uv_tcp_init(&loop, &server);
     uv_tcp_init(&loop, &client_socket);
-    uv_ip4_addr("127.0.0.1", PORT, &addr);
+    GTEST_ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", PORT, &addr));
     uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
     GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
                                  1, on_new_connection));
@@ -879,7 +881,6 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   // 3. Close
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
                                      '\x0E', '\x1E', '\xFA'};
-  const char SERVER_CLOSE_FRAME[] = {'\x88', '\x00'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
   GTEST_ASSERT_EQ(0, uv_is_active(
@@ -904,6 +905,35 @@ TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
   do_write(NOT_A_GOOD_FRAME, sizeof(NOT_A_GOOD_FRAME));
   SPIN_WHILE(err > 0);
   EXPECT_EQ(UV_EPROTO, err);
+}
+
+static void ServerClosedByClient_cb(InspectorSocket* socket, int code) {
+  *static_cast<bool*>(socket->data) = true;
+}
+
+TEST_F(InspectorSocketTest, NoCloseResponseFromClinet) {
+  ASSERT_TRUE(connected);
+  ASSERT_FALSE(inspector_ready);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  SPIN_WHILE(!inspector_ready);
+  expect_handshake();
+
+  // 2. Brief exchange
+  const char SERVER_MESSAGE[] = "abcd";
+  const char CLIENT_FRAME[] = {'\x81', '\x04', 'a', 'b', 'c', 'd'};
+  inspector_write(&inspector, SERVER_MESSAGE, sizeof(SERVER_MESSAGE) - 1);
+  expect_on_client(CLIENT_FRAME, sizeof(CLIENT_FRAME));
+
+  bool closed = false;
+
+  inspector.data = &closed;
+  inspector_close(&inspector, ServerClosedByClient_cb);
+  expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
+  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket), nullptr);
+  SPIN_WHILE(!closed);
+  inspector.data = nullptr;
+  GTEST_ASSERT_EQ(0, uv_is_active(
+                         reinterpret_cast<uv_handle_t*>(&client_socket)));
 }
 
 }  // anonymous namespace

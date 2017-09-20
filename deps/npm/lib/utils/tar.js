@@ -1,3 +1,5 @@
+'use strict'
+
 // commands for packing and unpacking tarballs
 // this file is used by lib/cache.js
 
@@ -45,14 +47,11 @@ function pack (tarball, folder, pkg, cb) {
       // we require this at runtime due to load-order issues, because recursive
       // requires fail if you replace the exports object, and we do, not in deps, but
       // in a dep of it.
-      var recalculateMetadata = require('../install/deps.js').recalculateMetadata
+      var computeMetadata = require('../install/deps.js').computeMetadata
 
       readPackageTree(folder, pulseTillDone('pack:readTree:' + packageId(pkg), iferr(cb, function (tree) {
-        var recalcGroup = log.newGroup('pack:recalc:' + packageId(pkg))
-        recalculateMetadata(tree, recalcGroup, iferr(cb, function () {
-          recalcGroup.finish()
-          pack_(tarball, folder, tree, pkg, pulseTillDone('pack:' + packageId(pkg), cb))
-        }))
+        computeMetadata(tree)
+        pack_(tarball, folder, tree, pkg, pulseTillDone('pack:' + packageId(pkg), cb))
       })))
     }
   })
@@ -103,7 +102,9 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
       entry.match(/^\._/) ||
-      entry.match(/^.*\.orig$/)
+      entry.match(/^.*\.orig$/) ||
+      // Package locks are never allowed in tarballs -- use shrinkwrap instead
+      entry === 'package-lock.json'
     ) {
     return false
   }
@@ -136,8 +137,10 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
 
     // the package root.
     var p = this.parent
-    // the package before this one.
+    // the directory before this one.
     var pp = p && p.parent
+    // the directory before that (if this is scoped)
+    if (pp && pp.basename[0] === '@') pp = pp && pp.parent
 
     // if this entry has already been bundled, and is a symlink,
     // and it is the *same* symlink as this one, then exclude it.
@@ -182,11 +185,11 @@ function pack_ (tarball, folder, tree, pkg, cb) {
     var pkg = tree.children.filter(nameMatch(name))[0]
     if (!pkg) return false
     var requiredBy = [].concat(pkg.requiredBy)
-    var seen = {}
+    var seen = new Set()
     while (requiredBy.length) {
       var reqPkg = requiredBy.shift()
-      if (seen[reqPkg.path]) continue
-      seen[reqPkg.path] = true
+      if (seen.has(reqPkg)) continue
+      seen.add(reqPkg)
       if (!reqPkg) continue
       if (reqPkg.parent === tree && bd.indexOf(moduleName(reqPkg)) !== -1) {
         return true

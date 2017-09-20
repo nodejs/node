@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  utracimp.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -46,20 +46,6 @@
 #include <stdarg.h>
 
 U_CDECL_BEGIN
-
-/**
- * \var utrace_level
- * Trace level variable. Negative for "off".
- * Use only via UTRACE_ macros.
- * @internal
- */
-#ifdef UTRACE_IMPL
-U_EXPORT int32_t
-#else
-U_CFUNC U_COMMON_API int32_t
-#endif
-utrace_level;
-
 
 /**
  *   Traced Function Exit return types.

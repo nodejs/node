@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
@@ -113,7 +113,7 @@ typedef enum URegionType {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     URGN_LIMIT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } URegionType;
 
 #if !UCONFIG_NO_FORMATTING

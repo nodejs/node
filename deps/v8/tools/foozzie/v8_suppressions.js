@@ -8,11 +8,26 @@
 // problem is fixed.
 
 // Suppress http://crbug.com/662429
-var __real_Math_pow = Math.pow
-Math.pow = function(a, b){
-  if (b < 0) {
-    return 0.000017;
-  } else {
-    return __real_Math_pow(a, b);
+(function () {
+  var oldMathPow = Math.pow
+  Math.pow = function(a, b){
+    if (b < 0) {
+      return 0.000017;
+    } else {
+      return oldMathPow(a, b);
+    }
   }
-}
+})();
+
+// Suppress http://crbug.com/693426
+(function () {
+  var oldMathPow = Math.pow
+  Math.pow = function(a, b){
+    var s = "" + oldMathPow(a, b)
+    // Low tech precision mock. Limit digits in string representation.
+    // The phrases Infinity and NaN don't match the split("e").
+    s = s.split("e");
+    s[0] = s[0].substr(0, 17);
+    return parseFloat(s.join("e"));
+  }
+})();

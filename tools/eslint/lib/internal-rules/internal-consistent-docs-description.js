@@ -71,7 +71,7 @@ function checkMetaDocsDescription(context, exportsNode) {
     if (description === "") {
         context.report({
             node: metaDocsDescription.value,
-            message: "`meta.docs.description` should not be empty.",
+            message: "`meta.docs.description` should not be empty."
         });
         return;
     }

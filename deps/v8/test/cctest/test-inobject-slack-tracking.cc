@@ -16,10 +16,7 @@
 using namespace v8::base;
 using namespace v8::internal;
 
-
-static const int kMaxInobjectProperties =
-    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
-
+static const int kMaxInobjectProperties = JSObject::kMaxInObjectProperties;
 
 template <typename T>
 static Handle<T> OpenHandle(v8::Local<v8::Value> value) {
@@ -131,7 +128,6 @@ bool IsObjectShrinkable(JSObject* obj) {
 
 TEST(JSObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -190,7 +186,6 @@ TEST(JSObjectBasicNoInlineNew) {
 
 TEST(JSObjectComplex) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -271,7 +266,6 @@ TEST(JSObjectComplexNoInlineNew) {
 
 TEST(JSGeneratorObjectBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -338,7 +332,6 @@ TEST(JSGeneratorObjectBasicNoInlineNew) {
 
 TEST(SubclassBasicNoBaseClassInstances) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -431,7 +424,6 @@ TEST(SubclassBasicNoBaseClassInstancesNoInlineNew) {
 
 TEST(SubclassBasic) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -599,6 +591,9 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     CHECK(func->has_initial_map());
     Handle<Map> initial_map(func->initial_map());
 
+    // If the object is slow-mode already, bail out.
+    if (obj->map()->is_dictionary_map()) continue;
+
     // There must be at least some slack.
     CHECK_LT(fields_count, obj->map()->GetInObjectProperties());
 
@@ -627,7 +622,6 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
 
 static void TestSubclassChain(const std::vector<int>& hierarchy_desc) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -668,7 +662,6 @@ TEST(LongSubclassChain3) {
 
 TEST(InobjectPropetiesCountOverflowInSubclass) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -724,10 +717,135 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
   TestClassHierarchy(hierarchy_desc, kNoOverflowCount);
 }
 
+static void CheckExpectedProperties(int expected, std::ostringstream& os) {
+  Handle<HeapObject> obj = Handle<HeapObject>::cast(
+      v8::Utils::OpenHandle(*CompileRun(os.str().c_str())));
+  CHECK_EQ(expected, obj->map()->GetInObjectProperties());
+}
+
+TEST(ObjectLiteralPropertyBackingStoreSize) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+
+  std::ostringstream os;
+
+  // An index key does not require space in the property backing store.
+  os << "(function() {\n"
+        "  function f() {\n"
+        "    var o = {\n"
+        "      '-1': 42,\n"  // Allocate for non-index key.
+        "      1: 42,\n"     // Do not allocate for index key.
+        "      '2': 42\n"    // Do not allocate for index key.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  return f();\n"
+        "} )();";
+  CheckExpectedProperties(1, os);
+
+  // Avoid over-/under-allocation for computed property names.
+  os << "(function() {\n"
+        "  'use strict';\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      1: 42,\n"    // Do not allocate for index key.
+        "      '2': 42,\n"  // Do not allocate for index key.
+        "      [x]: 42,\n"  // Allocate for property with computed name.
+        "      3: 42,\n"    // Do not allocate for index key.
+        "      '4': 42\n"   // Do not allocate for index key.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  CheckExpectedProperties(1, os);
+
+  // Conversion to index key.
+  os << "(function() {\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      1: 42,\n"       // Do not allocate for index key.
+        "      '2': 42,\n"     // Do not allocate for index key.
+        "      [x]: 42,\n"     // Allocate for property with computed name.
+        "      3: 42,\n"       // Do not allocate for index key.
+        "      get 12() {}\n"  // Do not allocate for index key.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  CheckExpectedProperties(1, os);
+
+  os << "(function() {\n"
+        "  function f() {\n"
+        "    var o = {};\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  return f();\n"
+        "} )();";
+  // Empty objects have slack for 4 properties.
+  CheckExpectedProperties(4, os);
+
+  os << "(function() {\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      a: 42,\n"    // Allocate for constant property.
+        "      [x]: 42,\n"  // Allocate for property with computed name.
+        "      b: 42\n"     // Allocate for constant property.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  CheckExpectedProperties(3, os);
+
+  os << "(function() {\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      a: 42,\n"          // Allocate for constant property.
+        "      __proto__: 42,\n"  // Do not allocate for __proto__.
+        "      [x]: 42\n"         // Allocate for property with computed name.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  // __proto__ is not allocated in the backing store.
+  CheckExpectedProperties(2, os);
+
+  os << "(function() {\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      a: 42,\n"         // Allocate for constant property.
+        "      [x]: 42,\n"       // Allocate for property with computed name.
+        "      __proto__: 42\n"  // Do not allocate for __proto__.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  CheckExpectedProperties(2, os);
+}
 
 TEST(SlowModeSubclass) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -865,7 +983,6 @@ static void TestSubclassBuiltin(const char* subclass_name,
 
 TEST(SubclassObjectBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -884,7 +1001,6 @@ TEST(SubclassObjectBuiltinNoInlineNew) {
 
 TEST(SubclassFunctionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -902,7 +1018,6 @@ TEST(SubclassFunctionBuiltinNoInlineNew) {
 
 TEST(SubclassBooleanBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -920,7 +1035,6 @@ TEST(SubclassBooleanBuiltinNoInlineNew) {
 
 TEST(SubclassErrorBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -945,7 +1059,6 @@ TEST(SubclassErrorBuiltinNoInlineNew) {
 
 TEST(SubclassNumberBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -963,7 +1076,6 @@ TEST(SubclassNumberBuiltinNoInlineNew) {
 
 TEST(SubclassDateBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -980,7 +1092,6 @@ TEST(SubclassDateBuiltinNoInlineNew) {
 
 TEST(SubclassStringBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -998,7 +1109,6 @@ TEST(SubclassStringBuiltinNoInlineNew) {
 
 TEST(SubclassRegExpBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1017,7 +1127,6 @@ TEST(SubclassRegExpBuiltinNoInlineNew) {
 
 TEST(SubclassArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1034,7 +1143,6 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 
 TEST(SubclassTypedArrayBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1056,7 +1164,6 @@ TEST(SubclassTypedArrayBuiltinNoInlineNew) {
 
 TEST(SubclassCollectionBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1076,7 +1183,6 @@ TEST(SubclassCollectionBuiltinNoInlineNew) {
 
 TEST(SubclassArrayBufferBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1095,7 +1201,6 @@ TEST(SubclassArrayBufferBuiltinNoInlineNew) {
 
 TEST(SubclassPromiseBuiltin) {
   // Avoid eventual completion of in-object slack tracking.
-  FLAG_inline_construct = false;
   FLAG_always_opt = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

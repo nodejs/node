@@ -11,8 +11,8 @@ SyntaxError: Unexpected number
     at Module.load (module.js:*)
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*)
-    at Module.runMain (module.js:*)
-    at run (bootstrap_node.js:*)
+    at Function.Module.runMain (module.js:*)
+    at startup (bootstrap_node.js:*:*)
 test.vm:1
 var 5;
     ^
@@ -25,5 +25,5 @@ SyntaxError: Unexpected number
     at Module.load (module.js:*)
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*)
-    at Module.runMain (module.js:*)
-    at run (bootstrap_node.js:*)
+    at Function.Module.runMain (module.js:*)
+    at startup (bootstrap_node.js:*:*)

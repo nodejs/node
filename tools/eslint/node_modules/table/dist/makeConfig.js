@@ -97,5 +97,3 @@ exports.default = function (rows) {
 
   return config;
 };
-
-module.exports = exports['default'];

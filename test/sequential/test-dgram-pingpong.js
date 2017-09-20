@@ -15,7 +15,7 @@ function pingPongTest(port, host) {
   });
 
   server.on('listening', function() {
-    console.log('server listening on ' + port);
+    console.log(`server listening on ${port}`);
 
     const client = dgram.createSocket('udp4');
 
@@ -30,7 +30,7 @@ function pingPongTest(port, host) {
       throw e;
     });
 
-    console.log('Client sending to ' + port);
+    console.log(`Client sending to ${port}`);
 
     function clientSend() {
       client.send('PING', 0, 4, port, 'localhost');

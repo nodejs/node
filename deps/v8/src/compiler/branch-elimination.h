@@ -23,6 +23,8 @@ class V8_EXPORT_PRIVATE BranchElimination final
   BranchElimination(Editor* editor, JSGraph* js_graph, Zone* zone);
   ~BranchElimination() final;
 
+  const char* reducer_name() const override { return "BranchElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -47,6 +49,10 @@ class V8_EXPORT_PRIVATE BranchElimination final
     static const ControlPathConditions* Empty(Zone* zone);
     void Merge(const ControlPathConditions& other);
 
+    bool IsSamePath(BranchCondition* first, BranchCondition* second) const;
+    bool EqualsAfterAddingCondition(const ControlPathConditions* other,
+                                    const Node* new_condition,
+                                    bool new_branch_condition) const;
     bool operator==(const ControlPathConditions& other) const;
     bool operator!=(const ControlPathConditions& other) const {
       return !(*this == other);
@@ -69,7 +75,7 @@ class V8_EXPORT_PRIVATE BranchElimination final
    public:
     PathConditionsForControlNodes(Zone* zone, size_t size_hint)
         : info_for_node_(size_hint, nullptr, zone) {}
-    const ControlPathConditions* Get(Node* node);
+    const ControlPathConditions* Get(Node* node) const;
     void Set(Node* node, const ControlPathConditions* conditions);
 
    private:
@@ -87,6 +93,9 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction TakeConditionsFromFirstControl(Node* node);
   Reduction UpdateConditions(Node* node,
                              const ControlPathConditions* conditions);
+  Reduction UpdateConditions(Node* node,
+                             const ControlPathConditions* prev_conditions,
+                             Node* current_condition, bool is_true_branch);
 
   Node* dead() const { return dead_; }
   Graph* graph() const;

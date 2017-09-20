@@ -387,8 +387,10 @@ void Utf8ExternalStreamingStream::SearchPosition(size_t position) {
     //  checking whether the # bytes in a chunk are equal to the # chars, and if
     //  so avoid the expensive SkipToPosition.)
     bool ascii_only_chunk =
+        chunks_[chunk_no].start.incomplete_char ==
+            unibrow::Utf8::Utf8IncrementalBuffer(0) &&
         (chunks_[chunk_no + 1].start.bytes - chunks_[chunk_no].start.bytes) ==
-        (chunks_[chunk_no + 1].start.chars - chunks_[chunk_no].start.chars);
+            (chunks_[chunk_no + 1].start.chars - chunks_[chunk_no].start.chars);
     if (ascii_only_chunk) {
       size_t skip = position - chunks_[chunk_no].start.chars;
       current_ = {chunk_no,
@@ -596,6 +598,7 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
+    buffer_pos_ = position;
     buffer_cursor_ = buffer_start_;
     buffer_end_ = buffer_start_;
     return false;
@@ -698,6 +701,7 @@ bool TwoByteExternalBufferedStream::ReadBlock() {
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
+    buffer_pos_ = position;
     buffer_cursor_ = buffer_start_;
     buffer_end_ = buffer_start_;
     return false;
@@ -816,16 +820,20 @@ Utf16CharacterStream* ScannerStream::For(Handle<String> data) {
 Utf16CharacterStream* ScannerStream::For(Handle<String> data, int start_pos,
                                          int end_pos) {
   DCHECK(start_pos >= 0);
+  DCHECK(start_pos <= end_pos);
   DCHECK(end_pos <= data->length());
   if (data->IsExternalOneByteString()) {
     return new ExternalOneByteStringUtf16CharacterStream(
-        Handle<ExternalOneByteString>::cast(data), start_pos, end_pos);
+        Handle<ExternalOneByteString>::cast(data),
+        static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   } else if (data->IsExternalTwoByteString()) {
     return new ExternalTwoByteStringUtf16CharacterStream(
-        Handle<ExternalTwoByteString>::cast(data), start_pos, end_pos);
+        Handle<ExternalTwoByteString>::cast(data),
+        static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   } else {
     // TODO(vogelheim): Maybe call data.Flatten() first?
-    return new GenericStringUtf16CharacterStream(data, start_pos, end_pos);
+    return new GenericStringUtf16CharacterStream(
+        data, static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   }
 }
 

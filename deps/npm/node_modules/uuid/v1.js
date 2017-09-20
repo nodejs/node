@@ -1,6 +1,3 @@
-// Unique ID creation requires a high quality random # generator.  We feature
-// detect to determine the best RNG source, normalizing to a function that
-// returns 128-bits of randomness, since that's what's usually required
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 

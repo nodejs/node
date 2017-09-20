@@ -12,7 +12,7 @@ if (cluster.isMaster) {
 } else {
   const net = require('net');
   const server = net.createServer();
-  server.listen(common.PORT, common.mustCall(() => {
+  server.listen(0, common.mustCall(() => {
     process.disconnect();
   }));
 }

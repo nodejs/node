@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.log(
+let {session, contextGroup, Protocol} = InspectorTest.start(
     'Checks that stepInto nested arrow function doesn\'t produce crash.');
 
-InspectorTest.setupScriptMap();
-InspectorTest.addScript(`
+session.setupScriptMap();
+contextGroup.addScript(`
 const rec = (x) => (y) =>
 rec();
 //# sourceURL=test.js`);
 
 Protocol.Debugger.onPaused(message => {
   InspectorTest.log("paused");
-  InspectorTest.logCallFrames(message.params.callFrames);
+  session.logCallFrames(message.params.callFrames);
   Protocol.Debugger.stepInto();
 })
 

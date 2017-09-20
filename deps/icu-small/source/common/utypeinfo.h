@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -24,7 +24,7 @@
 #include <exception>
 using std::exception;
 #endif
-#if !defined(_MSC_VER)
+#if defined(__GLIBCXX__)
 namespace std { class type_info; } // WORKAROUND: http://llvm.org/bugs/show_bug.cgi?id=13364
 #endif
 #include <typeinfo>  // for 'typeid' to work

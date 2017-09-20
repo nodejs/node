@@ -1,19 +1,18 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 // Test interaction of compiled-in CAs with user-provided CAs.
 
 const assert = require('assert');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return fixtures.path('keys', `${n}.pem`);
 }
 
 function loadPEM(n) {
@@ -38,7 +37,7 @@ tls.connect(opts, fail).on('error', common.mustCall((err) => {
 }));
 
 function fail() {
-  common.fail('should fail to connect');
+  assert.fail('should fail to connect');
 }
 
 // New secure contexts have the well-known root CAs.

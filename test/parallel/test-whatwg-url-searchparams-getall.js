@@ -3,13 +3,15 @@
 const common = require('../common');
 const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
-const { test, assert_equals, assert_true, assert_array_equals } = common.WPT;
+const { test, assert_equals, assert_true, assert_array_equals } =
+  require('../common/wpt');
 
-/* eslint-disable */
-/* WPT Refs:
+/* The following tests are copied from WPT. Modifications to them should be
+   upstreamed first. Refs:
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-getall.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
+/* eslint-disable */
 test(function() {
     var params = new URLSearchParams('a=b&c=d');
     assert_array_equals(params.getAll('a'), ['b']);
@@ -42,10 +44,18 @@ test(function() {
   const params = new URLSearchParams();
   assert.throws(() => {
     params.getAll.call(undefined);
-  }, /^TypeError: Value of `this` is not a URLSearchParams$/);
+  }, common.expectsError({
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type URLSearchParams'
+  }));
   assert.throws(() => {
     params.getAll();
-  }, /^TypeError: "name" argument must be specified$/);
+  }, common.expectsError({
+    code: 'ERR_MISSING_ARGS',
+    type: TypeError,
+    message: 'The "name" argument must be specified'
+  }));
 
   const obj = {
     toString() { throw new Error('toString'); },

@@ -12,7 +12,7 @@ const methods = [
   'restAndConcat'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   method: methods,
   concat: [1, 0],
   n: [1000000]
@@ -21,7 +21,7 @@ var bench = common.createBenchmark(main, {
 const nullStream = createNullStream();
 
 function usingRestAndConcat(...args) {
-  nullStream.write('this is ' + args[0] + ' of ' + args[1] + '\n');
+  nullStream.write(`this is ${args[0]} of ${args[1]}\n`);
 }
 
 function usingRestAndSpreadTS(...args) {
@@ -37,15 +37,15 @@ function usingArgumentsAndApplyTS() {
 }
 
 function usingRestAndSpreadC(...args) {
-  nullStream.write(util.format(...args) + '\n');
+  nullStream.write(`${util.format(...args)}\n`);
 }
 
 function usingRestAndApplyC(...args) {
-  nullStream.write(util.format.apply(null, args) + '\n');
+  nullStream.write(`${util.format.apply(null, args)}\n`);
 }
 
 function usingArgumentsAndApplyC() {
-  nullStream.write(util.format.apply(null, arguments) + '\n');
+  nullStream.write(`${util.format.apply(null, arguments)}\n`);
 }
 
 function runUsingRestAndConcat(n) {

@@ -11,9 +11,7 @@ const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   --filter pattern          string to filter benchmark scripts
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
-`, {
-  arrayArgs: ['set']
-});
+`, { arrayArgs: ['set'] });
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
@@ -50,7 +48,7 @@ if (format === 'csv') {
     // Construct configuration string, " A=a, B=b, ..."
     let conf = '';
     for (const key of Object.keys(data.conf)) {
-      conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+      conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
     }
     // delete first space of the configuration
     conf = conf.slice(1);
@@ -60,7 +58,7 @@ if (format === 'csv') {
       console.log(`"${data.name}", "${conf}", ${data.rate}, ${data.time}`);
     } else {
       var rate = data.rate.toString().split('.');
-      rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+      rate[0] = rate[0].replace(/(\d)(?=(?:\d\d\d)+(?!\d))/g, '$1,');
       rate = (rate[1] ? rate.join('.') : rate[0]);
       console.log(`${data.name} ${conf}: ${rate}`);
     }

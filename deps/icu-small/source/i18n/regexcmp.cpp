@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //
 //  file:  regexcmp.cpp
@@ -2637,6 +2637,16 @@ void  RegexCompile::findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterCh
 }
 
 
+// Increment with overflow check.
+// val and delta will both be positive.
+
+static int32_t safeIncrement(int32_t val, int32_t delta) {
+    if (INT32_MAX - val > delta) {
+        return val + delta;
+    } else {
+        return INT32_MAX;
+    }
+}
 
 
 //------------------------------------------------------------------------------
@@ -2737,7 +2747,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->add(URX_VAL(op));
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2750,7 +2760,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->addAll(*s);
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2787,7 +2797,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->addAll(*s);
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2802,7 +2812,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->addAll(sc);
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2819,7 +2829,7 @@ void   RegexCompile::matchStartType() {
                  fRXPat->fInitialChars->addAll(s);
                  numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2836,7 +2846,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->addAll(s);
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2855,7 +2865,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->addAll(s);
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2879,7 +2889,7 @@ void   RegexCompile::matchStartType() {
                 }
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2895,7 +2905,7 @@ void   RegexCompile::matchStartType() {
                 fRXPat->fInitialChars->complement();
                 numInitialStrings += 2;
             }
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             atStart = FALSE;
             break;
 
@@ -2975,7 +2985,7 @@ void   RegexCompile::matchStartType() {
                     fRXPat->fInitialStringLen = stringLen;
                 }
 
-                currentLen += stringLen;
+                currentLen = safeIncrement(currentLen, stringLen);
                 atStart = FALSE;
             }
             break;
@@ -3000,7 +3010,7 @@ void   RegexCompile::matchStartType() {
                     fRXPat->fInitialChars->addAll(s);
                     numInitialStrings += 2;  // Matching on an initial string not possible.
                 }
-                currentLen += stringLen;
+                currentLen = safeIncrement(currentLen, stringLen);
                 atStart = FALSE;
             }
             break;
@@ -3258,7 +3268,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
         case URX_DOTANY_ALL:    // . matches one or two.
         case URX_DOTANY:
         case URX_DOTANY_UNIX:
-            currentLen++;
+            currentLen = safeIncrement(currentLen, 1);
             break;
 
 
@@ -3310,7 +3320,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
             {
                 loc++;
                 int32_t stringLenOp = (int32_t)fRXPat->fCompiledPat->elementAti(loc);
-                currentLen += URX_VAL(stringLenOp);
+                currentLen = safeIncrement(currentLen, URX_VAL(stringLenOp));
             }
             break;
 
@@ -3323,7 +3333,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
                 //       Assume a min length of one for now.  A min length of zero causes
                 //        optimization failures for a pattern like "string"+
                 // currentLen += URX_VAL(stringLenOp);
-                currentLen += 1;
+                currentLen = safeIncrement(currentLen, 1);
             }
             break;
 
@@ -3432,18 +3442,6 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
 
     return currentLen;
 }
-
-// Increment with overflow check.
-// val and delta will both be positive.
-
-static int32_t safeIncrement(int32_t val, int32_t delta) {
-    if (INT32_MAX - val > delta) {
-        return val + delta;
-    } else {
-        return INT32_MAX;
-    }
-}
-
 
 //------------------------------------------------------------------------------
 //

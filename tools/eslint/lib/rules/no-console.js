@@ -48,7 +48,7 @@ module.exports = {
         /**
          * Checks whether the given reference is 'console' or not.
          *
-         * @param {escope.Reference} reference - The reference to check.
+         * @param {eslint-scope.Reference} reference - The reference to check.
          * @returns {boolean} `true` if the reference is 'console'.
          */
         function isConsole(reference) {
@@ -74,7 +74,7 @@ module.exports = {
          * Checks whether the given reference is a member access which is not
          * allowed by options or not.
          *
-         * @param {escope.Reference} reference - The reference to check.
+         * @param {eslint-scope.Reference} reference - The reference to check.
          * @returns {boolean} `true` if the reference is a member access which
          *      is not allowed by options.
          */
@@ -92,7 +92,7 @@ module.exports = {
         /**
          * Reports the given reference as a violation.
          *
-         * @param {escope.Reference} reference - The reference to report.
+         * @param {eslint-scope.Reference} reference - The reference to report.
          * @returns {void}
          */
         function report(reference) {

@@ -7,6 +7,8 @@
 
 #include "src/counters.h"
 
+#include "src/isolate.h"
+
 namespace v8 {
 namespace internal {
 

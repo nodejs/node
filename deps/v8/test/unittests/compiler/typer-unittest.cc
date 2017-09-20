@@ -8,6 +8,8 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
+#include "src/objects-inl.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -20,8 +22,10 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
+        operation_typer_(isolate(), zone()),
         types_(zone(), isolate(), random_number_generator()),
-        javascript_(zone()) {
+        javascript_(zone()),
+        simplified_(zone()) {
     context_node_ = graph()->NewNode(common()->Parameter(2), graph()->start());
     rng_ = random_number_generator();
 
@@ -49,13 +53,39 @@ class TyperTest : public TypedGraphTest {
     }
   }
 
+  const int kRepetitions = 50;
+
+  OperationTyper operation_typer_;
   Types types_;
   JSOperatorBuilder javascript_;
+  SimplifiedOperatorBuilder simplified_;
   BinaryOperationHint const hints_ = BinaryOperationHint::kAny;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
   std::vector<double> int32s;
+
+  Type* TypeUnaryOp(const Operator* op, Type* type0) {
+    Node* p0 = Parameter(0);
+    NodeProperties::SetType(p0, type0);
+    std::vector<Node*> inputs;
+    inputs.push_back(p0);
+    if (OperatorProperties::HasContextInput(op)) {
+      inputs.push_back(context_node_);
+    }
+    for (int i = 0; i < OperatorProperties::GetFrameStateInputCount(op); i++) {
+      inputs.push_back(EmptyFrameState());
+    }
+    for (int i = 0; i < op->EffectInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    for (int i = 0; i < op->ControlInputCount(); i++) {
+      inputs.push_back(graph()->start());
+    }
+    Node* n = graph()->NewNode(op, static_cast<int>(inputs.size()),
+                               &(inputs.front()));
+    return NodeProperties::GetType(n);
+  }
 
   Type* TypeBinaryOp(const Operator* op, Type* lhs, Type* rhs) {
     Node* p0 = Parameter(0);
@@ -119,6 +149,14 @@ class TyperTest : public TypedGraphTest {
     return RandomInt(range->Min(), range->Max());
   }
 
+  Type* RandomSubtype(Type* type) {
+    Type* subtype;
+    do {
+      subtype = types_.Fuzz();
+    } while (!subtype->Is(type));
+    return subtype;
+  }
+
   // Careful, this function runs O(max_width^5) trials.
   template <class BinaryFunction>
   void TestBinaryArithOpCloseToZero(const Operator* op, BinaryFunction opfun,
@@ -161,6 +199,16 @@ class TyperTest : public TypedGraphTest {
         EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
+    // Test extreme cases.
+    double x1 = +1e-308;
+    double x2 = -1e-308;
+    Type* r1 = Type::NewConstant(isolate()->factory()->NewNumber(x1), zone());
+    Type* r2 = Type::NewConstant(isolate()->factory()->NewNumber(x2), zone());
+    Type* expected_type = TypeBinaryOp(op, r1, r2);
+    double result_value = opfun(x1, x2);
+    Type* result_type = Type::NewConstant(
+        isolate()->factory()->NewNumber(result_value), zone());
+    EXPECT_TRUE(result_type->Is(expected_type));
   }
 
   template <class BinaryFunction>
@@ -199,23 +247,49 @@ class TyperTest : public TypedGraphTest {
     }
   }
 
-  Type* RandomSubtype(Type* type) {
-    Type* subtype;
-    do {
-      subtype = types_.Fuzz();
-    } while (!subtype->Is(type));
-    return subtype;
+  typedef std::function<Type*(Type*)> UnaryTyper;
+  typedef std::function<Type*(Type*, Type*)> BinaryTyper;
+
+  void TestUnaryMonotonicity(UnaryTyper typer, Type* upper1 = Type::Any()) {
+    Type* type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
+    DCHECK(type1->Is(upper1));
+    Type* type = typer(type1);
+
+    Type* subtype1 = RandomSubtype(type1);
+    Type* subtype = typer(subtype1);
+
+    EXPECT_TRUE(subtype->Is(type));
   }
 
-  void TestBinaryMonotonicity(const Operator* op) {
-    for (int i = 0; i < 50; ++i) {
-      Type* type1 = types_.Fuzz();
-      Type* type2 = types_.Fuzz();
-      Type* type = TypeBinaryOp(op, type1, type2);
-      Type* subtype1 = RandomSubtype(type1);
-      Type* subtype2 = RandomSubtype(type2);
-      Type* subtype = TypeBinaryOp(op, subtype1, subtype2);
-      EXPECT_TRUE(subtype->Is(type));
+  void TestBinaryMonotonicity(BinaryTyper typer, Type* upper1 = Type::Any(),
+                              Type* upper2 = Type::Any()) {
+    Type* type1 = Type::Intersect(types_.Fuzz(), upper1, zone());
+    DCHECK(type1->Is(upper1));
+    Type* type2 = Type::Intersect(types_.Fuzz(), upper2, zone());
+    DCHECK(type2->Is(upper2));
+    Type* type = typer(type1, type2);
+
+    Type* subtype1 = RandomSubtype(type1);
+    Type* subtype2 = RandomSubtype(type2);
+    Type* subtype = typer(subtype1, subtype2);
+
+    EXPECT_TRUE(subtype->Is(type));
+  }
+
+  void TestUnaryMonotonicity(const Operator* op, Type* upper1 = Type::Any()) {
+    UnaryTyper typer = [&](Type* type1) { return TypeUnaryOp(op, type1); };
+    for (int i = 0; i < kRepetitions; ++i) {
+      TestUnaryMonotonicity(typer, upper1);
+    }
+  }
+
+  void TestBinaryMonotonicity(const Operator* op, Type* upper1 = Type::Any(),
+                              Type* upper2 = Type::Any()) {
+    BinaryTyper typer = [&](Type* type1, Type* type2) {
+      return TypeBinaryOp(op, type1, type2);
+    };
+    for (int i = 0; i < kRepetitions; ++i) {
+      TestBinaryMonotonicity(typer, upper1, upper2);
     }
   }
 };
@@ -238,68 +312,76 @@ int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 //   that have a direct equivalent in C++.  Also, testing is currently limited
 //   to ranges as input types.
 
-
 TEST_F(TyperTest, TypeJSAdd) {
   TestBinaryArithOp(javascript_.Add(hints_), std::plus<double>());
 }
 
-
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(hints_), std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
 }
-
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(hints_), std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
 }
-
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(hints_), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
 }
-
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(hints_), modulo);
+  TestBinaryArithOp(javascript_.Modulus(), modulo);
 }
-
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(hints_), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
 }
-
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(hints_), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
 }
-
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(hints_), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
 }
-
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(hints_), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
 }
-
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(hints_), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
 }
-
 
 TEST_F(TyperTest, TypeJSLessThan) {
   TestBinaryCompareOp(javascript_.LessThan(CompareOperationHint::kAny),
                       std::less<double>());
 }
 
+TEST_F(TyperTest, TypeNumberLessThan) {
+  TestBinaryCompareOp(simplified_.NumberLessThan(), std::less<double>());
+}
+
+TEST_F(TyperTest, TypeSpeculativeNumberLessThan) {
+  TestBinaryCompareOp(simplified_.SpeculativeNumberLessThan(
+                          NumberOperationHint::kNumberOrOddball),
+                      std::less<double>());
+}
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
   TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kAny),
                       std::less_equal<double>());
 }
 
+TEST_F(TyperTest, TypeNumberLessThanOrEqual) {
+  TestBinaryCompareOp(simplified_.NumberLessThanOrEqual(),
+                      std::less_equal<double>());
+}
+
+TEST_F(TyperTest, TypeSpeculativeNumberLessThanOrEqual) {
+  TestBinaryCompareOp(simplified_.SpeculativeNumberLessThanOrEqual(
+                          NumberOperationHint::kNumberOrOddball),
+                      std::less_equal<double>());
+}
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
   TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kAny),
@@ -313,18 +395,20 @@ TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
       std::greater_equal<double>());
 }
 
-
 TEST_F(TyperTest, TypeJSEqual) {
   TestBinaryCompareOp(javascript_.Equal(CompareOperationHint::kAny),
                       std::equal_to<double>());
 }
 
-
-TEST_F(TyperTest, TypeJSNotEqual) {
-  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHint::kAny),
-                      std::not_equal_to<double>());
+TEST_F(TyperTest, TypeNumberEqual) {
+  TestBinaryCompareOp(simplified_.NumberEqual(), std::equal_to<double>());
 }
 
+TEST_F(TyperTest, TypeSpeculativeNumberEqual) {
+  TestBinaryCompareOp(
+      simplified_.SpeculativeNumberEqual(NumberOperationHint::kNumberOrOddball),
+      std::equal_to<double>());
+}
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
@@ -332,46 +416,170 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
                       std::equal_to<double>());
 }
 
-
-TEST_F(TyperTest, TypeJSStrictNotEqual) {
-  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHint::kAny),
-                      std::not_equal_to<double>());
-}
-
-
 //------------------------------------------------------------------------------
-// Monotonicity
+// Typer Monotonicity
 
-#define TEST_BINARY_MONOTONICITY(name)                                    \
+// JS UNOPs without hint
+#define TEST_MONOTONICITY(name)                \
+  TEST_F(TyperTest, Monotonicity_##name) {     \
+    TestUnaryMonotonicity(javascript_.name()); \
+  }
+TEST_MONOTONICITY(ToInteger)
+TEST_MONOTONICITY(ToLength)
+TEST_MONOTONICITY(ToName)
+TEST_MONOTONICITY(ToNumber)
+TEST_MONOTONICITY(ToObject)
+TEST_MONOTONICITY(ToString)
+TEST_MONOTONICITY(ClassOf)
+TEST_MONOTONICITY(TypeOf)
+#undef TEST_MONOTONICITY
+
+// JS UNOPs with ToBooleanHint
+#define TEST_MONOTONICITY(name)                               \
+  TEST_F(TyperTest, Monotonicity_##name) {                    \
+    TestUnaryMonotonicity(javascript_.name(ToBooleanHint())); \
+  }
+TEST_MONOTONICITY(ToBoolean)
+#undef TEST_MONOTONICITY
+
+// JS BINOPs with CompareOperationHint
+#define TEST_MONOTONICITY(name)                                           \
   TEST_F(TyperTest, Monotonicity_##name) {                                \
     TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kAny)); \
   }
-TEST_BINARY_MONOTONICITY(Equal)
-TEST_BINARY_MONOTONICITY(NotEqual)
-TEST_BINARY_MONOTONICITY(StrictEqual)
-TEST_BINARY_MONOTONICITY(StrictNotEqual)
-TEST_BINARY_MONOTONICITY(LessThan)
-TEST_BINARY_MONOTONICITY(GreaterThan)
-TEST_BINARY_MONOTONICITY(LessThanOrEqual)
-TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
-#undef TEST_BINARY_MONOTONICITY
+TEST_MONOTONICITY(Equal)
+TEST_MONOTONICITY(StrictEqual)
+TEST_MONOTONICITY(LessThan)
+TEST_MONOTONICITY(GreaterThan)
+TEST_MONOTONICITY(LessThanOrEqual)
+TEST_MONOTONICITY(GreaterThanOrEqual)
+#undef TEST_MONOTONICITY
 
-#define TEST_BINARY_MONOTONICITY(name)                                   \
+// JS BINOPs with BinaryOperationHint
+#define TEST_MONOTONICITY(name)                                          \
   TEST_F(TyperTest, Monotonicity_##name) {                               \
     TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
   }
-TEST_BINARY_MONOTONICITY(BitwiseOr)
-TEST_BINARY_MONOTONICITY(BitwiseXor)
-TEST_BINARY_MONOTONICITY(BitwiseAnd)
-TEST_BINARY_MONOTONICITY(ShiftLeft)
-TEST_BINARY_MONOTONICITY(ShiftRight)
-TEST_BINARY_MONOTONICITY(ShiftRightLogical)
-TEST_BINARY_MONOTONICITY(Add)
-TEST_BINARY_MONOTONICITY(Subtract)
-TEST_BINARY_MONOTONICITY(Multiply)
-TEST_BINARY_MONOTONICITY(Divide)
-TEST_BINARY_MONOTONICITY(Modulus)
-#undef TEST_BINARY_MONOTONICITY
+TEST_MONOTONICITY(Add)
+#undef TEST_MONOTONICITY
+
+// JS BINOPS without hint
+#define TEST_MONOTONICITY(name)                 \
+  TEST_F(TyperTest, Monotonicity_##name) {      \
+    TestBinaryMonotonicity(javascript_.name()); \
+  }
+TEST_MONOTONICITY(BitwiseOr)
+TEST_MONOTONICITY(BitwiseXor)
+TEST_MONOTONICITY(BitwiseAnd)
+TEST_MONOTONICITY(ShiftLeft)
+TEST_MONOTONICITY(ShiftRight)
+TEST_MONOTONICITY(ShiftRightLogical)
+TEST_MONOTONICITY(Subtract)
+TEST_MONOTONICITY(Multiply)
+TEST_MONOTONICITY(Divide)
+TEST_MONOTONICITY(Modulus)
+TEST_MONOTONICITY(InstanceOf)
+TEST_MONOTONICITY(OrdinaryHasInstance)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED UNOPs without hint
+#define TEST_MONOTONICITY(name)                \
+  TEST_F(TyperTest, Monotonicity_##name) {     \
+    TestUnaryMonotonicity(simplified_.name()); \
+  }
+TEST_MONOTONICITY(ObjectIsDetectableCallable)
+TEST_MONOTONICITY(ObjectIsNaN)
+TEST_MONOTONICITY(ObjectIsNonCallable)
+TEST_MONOTONICITY(ObjectIsNumber)
+TEST_MONOTONICITY(ObjectIsReceiver)
+TEST_MONOTONICITY(ObjectIsSmi)
+TEST_MONOTONICITY(ObjectIsString)
+TEST_MONOTONICITY(ObjectIsSymbol)
+TEST_MONOTONICITY(ObjectIsUndetectable)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs without hint, with Number input restriction
+#define TEST_MONOTONICITY(name)                                \
+  TEST_F(TyperTest, Monotonicity_##name) {                     \
+    TestBinaryMonotonicity(simplified_.name(), Type::Number(), \
+                           Type::Number());                    \
+  }
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs without hint, without input restriction
+#define TEST_MONOTONICITY(name)                 \
+  TEST_F(TyperTest, Monotonicity_##name) {      \
+    TestBinaryMonotonicity(simplified_.name()); \
+  }
+TEST_MONOTONICITY(NumberLessThan)
+TEST_MONOTONICITY(NumberLessThanOrEqual)
+TEST_MONOTONICITY(NumberEqual)
+TEST_MONOTONICITY(ReferenceEqual)
+TEST_MONOTONICITY(StringEqual)
+TEST_MONOTONICITY(StringLessThan)
+TEST_MONOTONICITY(StringLessThanOrEqual)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs with NumberOperationHint, without input restriction
+#define TEST_MONOTONICITY(name)                                             \
+  TEST_F(TyperTest, Monotonicity_##name) {                                  \
+    TestBinaryMonotonicity(simplified_.name(NumberOperationHint::kNumber)); \
+  }
+TEST_MONOTONICITY(SpeculativeNumberEqual)
+TEST_MONOTONICITY(SpeculativeNumberLessThan)
+TEST_MONOTONICITY(SpeculativeNumberLessThanOrEqual)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs with NumberOperationHint, without input restriction
+#define TEST_MONOTONICITY(name)                                             \
+  TEST_F(TyperTest, Monotonicity_##name) {                                  \
+    TestBinaryMonotonicity(simplified_.name(NumberOperationHint::kNumber)); \
+  }
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
+#undef TEST_MONOTONICITY
+
+//------------------------------------------------------------------------------
+// OperationTyper Monotonicity
+
+// SIMPLIFIED UNOPs with Number input restriction
+#define TEST_MONOTONICITY(name)                      \
+  TEST_F(TyperTest, Monotonicity_Operation_##name) { \
+    UnaryTyper typer = [&](Type* type1) {            \
+      return operation_typer_.name(type1);           \
+    };                                               \
+    for (int i = 0; i < kRepetitions; ++i) {         \
+      TestUnaryMonotonicity(typer, Type::Number());  \
+    }                                                \
+  }
+SIMPLIFIED_NUMBER_UNOP_LIST(TEST_MONOTONICITY)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs with Number input restriction
+#define TEST_MONOTONICITY(name)                                      \
+  TEST_F(TyperTest, Monotonicity_Operation_##name) {                 \
+    BinaryTyper typer = [&](Type* type1, Type* type2) {              \
+      return operation_typer_.name(type1, type2);                    \
+    };                                                               \
+    for (int i = 0; i < kRepetitions; ++i) {                         \
+      TestBinaryMonotonicity(typer, Type::Number(), Type::Number()); \
+    }                                                                \
+  }
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED BINOPs without input restriction
+#define TEST_MONOTONICITY(name)                         \
+  TEST_F(TyperTest, Monotonicity_Operation_##name) {    \
+    BinaryTyper typer = [&](Type* type1, Type* type2) { \
+      return operation_typer_.name(type1, type2);       \
+    };                                                  \
+    for (int i = 0; i < kRepetitions; ++i) {            \
+      TestBinaryMonotonicity(typer);                    \
+    }                                                   \
+  }
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
+#undef TEST_MONOTONICITY
 
 }  // namespace compiler
 }  // namespace internal

@@ -15,7 +15,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/base/cpu.h"
+#include "src/code-stubs.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
 
@@ -141,13 +144,19 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
+    Isolate* isolate, Address address, ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate, pc_, sizeof(Address));
+  }
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
-                                           ICacheFlushMode flush_mode) {
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
+                                           ICacheFlushMode icache_flush_mode) {
   Memory::uint32_at(pc_) = size;
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate, pc_, sizeof(uint32_t));
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -284,12 +293,30 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
+void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  for (auto& request : heap_object_requests_) {
+    Address pc = buffer_ + request.offset();
+    switch (request.kind()) {
+      case HeapObjectRequest::kHeapNumber: {
+        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), IMMUTABLE, TENURED);
+        Memory::Object_Handle_at(pc) = object;
+        break;
+      }
+      case HeapObjectRequest::kCodeStub: {
+        request.code_stub()->set_isolate(isolate);
+        code_targets_[Memory::int32_at(pc)] = request.code_stub()->GetCode();
+        break;
+      }
+    }
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size), code_targets_(100) {
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size), code_targets_(100) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
@@ -302,11 +329,13 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 }
 
-
-void Assembler::GetCode(CodeDesc* desc) {
-  // Finalize code (at this point overflow() may be true, but the gap ensures
-  // that we are still not overlapping instructions and relocation info).
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  // At this point overflow() may be true, but the gap ensures
+  // that we are still not overlapping instructions and relocation info.
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+
+  AllocateAndInstallRequestedHeapObjects(isolate);
+
   // Set up code descriptor.
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
@@ -322,7 +351,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(base::bits::IsPowerOfTwo32(m));
+  DCHECK(base::bits::IsPowerOfTwo(m));
   int delta = (m - (pc_offset() & (m - 1))) & (m - 1);
   Nop(delta);
 }
@@ -407,9 +436,7 @@ void Assembler::GrowBuffer() {
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize ||
-      static_cast<size_t>(desc.buffer_size) >
-          isolate()->heap()->MaxOldGenerationSize()) {
+  if (desc.buffer_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
   }
 
@@ -827,6 +854,23 @@ void Assembler::bsfq(Register dst, const Operand& src) {
   emit_operand(dst, src);
 }
 
+void Assembler::pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
+  emit(shuffle);
+}
+
+void Assembler::pshufw(XMMRegister dst, const Operand& src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_operand(dst.code(), src);
+  emit(shuffle);
+}
 
 void Assembler::call(Label* L) {
   EnsureSpace ensure_space(this);
@@ -856,14 +900,19 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   emit_runtime_entry(entry, rmode);
 }
 
-
-void Assembler::call(Handle<Code> target,
-                     RelocInfo::Mode rmode,
-                     TypeFeedbackId ast_id) {
+void Assembler::call(CodeStub* stub) {
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
-  emit_code_target(target, rmode, ast_id);
+  RequestHeapObject(HeapObjectRequest(stub));
+  emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
+}
+
+void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  // 1110 1000 #32-bit disp.
+  emit(0xE8);
+  emit_code_target(target, rmode);
 }
 
 
@@ -910,7 +959,6 @@ void Assembler::cld() {
   EnsureSpace ensure_space(this);
   emit(0xFC);
 }
-
 
 void Assembler::cdq() {
   EnsureSpace ensure_space(this);
@@ -1325,15 +1373,6 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  EnsureSpace ensure_space(this);
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  emit(0xE9);
-  emit_runtime_entry(entry, rmode);
-}
-
-
 void Assembler::jmp(Register target) {
   EnsureSpace ensure_space(this);
   // Opcode FF/4 r64.
@@ -1522,6 +1561,14 @@ void Assembler::movp(Register dst, void* value, RelocInfo::Mode rmode) {
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
   emitp(value, rmode);
+}
+
+void Assembler::movp_heap_number(Register dst, double value) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, kPointerSize);
+  emit(0xB8 | dst.low_bits());
+  RequestHeapObject(HeapObjectRequest(value));
+  emitp(nullptr, RelocInfo::EMBEDDED_OBJECT);
 }
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
@@ -2173,7 +2220,12 @@ void Assembler::emit_test(const Operand& op, Register reg, int size) {
   bool byte_operand = size == sizeof(int8_t);
   if (byte_operand) {
     size = sizeof(int32_t);
-    if (!reg.is_byte_register()) emit_rex_32(reg, op);
+    if (!reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(reg, op);
+    } else {
+      emit_optional_rex_32(reg, op);
+    }
   } else {
     emit_rex(reg, op, size);
   }
@@ -2868,12 +2920,14 @@ void Assembler::pinsrw(XMMRegister dst, const Operand& src, int8_t imm8) {
 }
 
 void Assembler::pextrw(Register dst, XMMRegister src, int8_t imm8) {
+  DCHECK(IsEnabled(SSE4_1));
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(src, dst);
   emit(0x0F);
-  emit(0xC5);
+  emit(0x3A);
+  emit(0x15);
   emit_sse_operand(src, dst);
   emit(imm8);
 }
@@ -3031,7 +3085,7 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
 void Assembler::shufps(XMMRegister dst, XMMRegister src, byte imm8) {
   DCHECK(is_uint8(imm8));
   EnsureSpace ensure_space(this);
-  emit_optional_rex_32(src, dst);
+  emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xC6);
   emit_sse_operand(dst, src);
@@ -4614,6 +4668,26 @@ void Assembler::psrldq(XMMRegister dst, uint8_t shift) {
   emit(shift);
 }
 
+void Assembler::pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
+}
+
+void Assembler::pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x70);
+  emit_sse_operand(dst, src);
+  emit(shuffle);
+}
+
 void Assembler::pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
   EnsureSpace ensure_space(this);
   emit(0x66);
@@ -4662,6 +4736,13 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister dst) {
   emit(0xD8 | dst.low_bits());
+}
+
+void Assembler::RecordProtectedInstructionLanding(int pc_offset) {
+  EnsureSpace ensure_space(this);
+  RelocInfo rinfo(pc(), RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING,
+                  pc_offset, nullptr);
+  reloc_info_writer.Write(&rinfo);
 }
 
 
@@ -4716,7 +4797,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     // Don't record psuedo relocation info for code age sequence mode.
     return;
   }
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

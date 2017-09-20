@@ -40,13 +40,13 @@ let error_count = 0;
 
 
 exec(
-  '"' + process.execPath + '" -p -e process.versions',
+  `"${process.execPath}" -p -e process.versions`,
   function(err, stdout, stderr) {
     if (err) {
       error_count++;
-      console.log('error!: ' + err.code);
-      console.log('stdout: ' + JSON.stringify(stdout));
-      console.log('stderr: ' + JSON.stringify(stderr));
+      console.log(`error!: ${err.code}`);
+      console.log(`stdout: ${JSON.stringify(stdout)}`);
+      console.log(`stderr: ${JSON.stringify(stderr)}`);
       assert.strictEqual(false, err.killed);
     } else {
       success_count++;
@@ -64,9 +64,9 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
     assert.notStrictEqual(err.code, 0);
     assert.strictEqual(false, err.killed);
     assert.strictEqual(null, err.signal);
-    console.log('error code: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
+    console.log(`error code: ${err.code}`);
+    console.log(`stdout: ${JSON.stringify(stdout)}`);
+    console.log(`stderr: ${JSON.stringify(stderr)}`);
   } else {
     success_count++;
     console.dir(stdout);
@@ -90,7 +90,8 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
 
 
 const startSleep3 = new Date();
-const killMeTwice = exec(SLEEP3_COMMAND, {timeout: 1000}, killMeTwiceCallback);
+const killMeTwice = exec(SLEEP3_COMMAND, { timeout: 1000 },
+                         killMeTwiceCallback);
 
 process.nextTick(function() {
   console.log('kill pid %d', killMeTwice.pid);
@@ -117,7 +118,7 @@ function killMeTwiceCallback(err, stdout, stderr) {
 }
 
 
-exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
+exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 },
      function(err, stdout, stderr) {
        assert.ok(err);
        assert.ok(/maxBuffer/.test(err.message));

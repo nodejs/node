@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.")
+let {session, contextGroup, Protocol} = InspectorTest.start("Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.")
 
-InspectorTest.addScript(`
+contextGroup.addScript(`
   function createSet(size) {
     var s = new Set();
     var a = {};
@@ -21,6 +21,8 @@ InspectorTest.addScript(`
     return m;
   }
 `);
+
+contextGroup.setupInjectedScriptEnvironment();
 
 Protocol.Debugger.enable();
 Protocol.Runtime.enable();

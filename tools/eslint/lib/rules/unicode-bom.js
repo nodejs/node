@@ -45,7 +45,7 @@ module.exports = {
                         loc: location,
                         message: "Expected Unicode BOM (Byte Order Mark).",
                         fix(fixer) {
-                            return fixer.insertTextBefore(node, "\uFEFF");
+                            return fixer.insertTextBeforeRange([0, 1], "\uFEFF");
                         }
                     });
                 } else if (sourceCode.hasBOM && (requireBOM === "never")) {

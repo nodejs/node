@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -52,4 +54,17 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(a.length, 1);
   // Method doesn't work on other objects
   assertThrows(function() { a.sort.call([]); }, TypeError);
+
+  // Do not touch elements out of byte offset
+  var buf = new ArrayBuffer(constructor.BYTES_PER_ELEMENT * 3);
+  var a = new constructor(buf, constructor.BYTES_PER_ELEMENT);
+  var b = new constructor(buf);
+  b[0] = 3; b[1] = 2; b[2] = 1;
+  a.sort();
+  assertArrayLikeEquals(a, [1, 2], constructor);
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.sort(), TypeError);
 }

@@ -38,7 +38,7 @@ var {{=$valid}} = false;
 {{= $closingBraces }}
 
 if (!{{=$valid}}) {
-  {{# def.error:'oneOf' }}
+  {{# def.extraError:'oneOf' }}
 } else {
   {{# def.resetErrors }}
 {{? it.opts.allErrors }} } {{?}}

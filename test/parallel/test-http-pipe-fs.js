@@ -49,7 +49,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
         }
       }, function(res) {
         res.on('end', function() {
-          console.error('res' + i + ' end');
+          console.error(`res${i} end`);
           if (i === 2) {
             server.close();
           }
@@ -57,7 +57,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
         res.resume();
       });
       req.on('socket', function(s) {
-        console.error('req' + i + ' start');
+        console.error(`req${i} start`);
       });
       req.end('12345');
     }(i + 1));

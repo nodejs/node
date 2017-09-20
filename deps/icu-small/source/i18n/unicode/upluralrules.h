@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
@@ -15,6 +15,10 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/localpointer.h"
+#include "unicode/uenum.h"
+#ifndef U_HIDE_INTERNAL_API
+#include "unicode/unum.h"
+#endif  /* U_HIDE_INTERNAL_API */
 
 /**
  * \file
@@ -60,7 +64,7 @@ enum UPluralType {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UPLURAL_TYPE_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 };
 /**
  * @stable ICU 50
@@ -83,7 +87,7 @@ typedef struct UPluralRules UPluralRules;  /**< C typedef for struct UPluralRule
  * @return A UPluralRules for the specified locale, or NULL if an error occurred.
  * @stable ICU 4.8
  */
-U_STABLE UPluralRules* U_EXPORT2
+U_CAPI UPluralRules* U_EXPORT2
 uplrules_open(const char *locale, UErrorCode *status);
 
 /**
@@ -95,7 +99,7 @@ uplrules_open(const char *locale, UErrorCode *status);
  * @return A UPluralRules for the specified locale, or NULL if an error occurred.
  * @stable ICU 50
  */
-U_DRAFT UPluralRules* U_EXPORT2
+U_CAPI UPluralRules* U_EXPORT2
 uplrules_openForType(const char *locale, UPluralType type, UErrorCode *status);
 
 /**
@@ -103,7 +107,7 @@ uplrules_openForType(const char *locale, UPluralType type, UErrorCode *status);
  * @param uplrules The UPluralRules object to close.
  * @stable ICU 4.8
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 uplrules_close(UPluralRules *uplrules);
 
 
@@ -138,11 +142,54 @@ U_NAMESPACE_END
  * @return The length of keyword.
  * @stable ICU 4.8
  */
-U_STABLE int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uplrules_select(const UPluralRules *uplrules,
                double number,
                UChar *keyword, int32_t capacity,
                UErrorCode *status);
+
+#ifndef U_HIDE_INTERNAL_API
+/**
+ * Given a number, returns the keyword of the first rule that applies to the
+ * number, according to the UPluralRules object and given the number format
+ * specified by the UNumberFormat object.
+ * Note: This internal preview interface may be removed in the future if
+ * an architecturally cleaner solution reaches stable status.
+ * @param uplrules The UPluralRules object specifying the rules.
+ * @param number The number for which the rule has to be determined.
+ * @param fmt The UNumberFormat specifying how the number will be formatted
+ *        (this can affect the plural form, e.g. "1 dollar" vs "1.0 dollars").
+ *        If this is NULL, the function behaves like uplrules_select.
+ * @param keyword The keyword of the rule that applies to number.
+ * @param capacity The capacity of the keyword buffer.
+ * @param status A pointer to a UErrorCode to receive any errors.
+ * @return The length of keyword.
+ * @internal ICU 59 technology preview, may be removed in the future
+ */
+U_INTERNAL int32_t U_EXPORT2
+uplrules_selectWithFormat(const UPluralRules *uplrules,
+                          double number,
+                          const UNumberFormat *fmt,
+                          UChar *keyword, int32_t capacity,
+                          UErrorCode *status);
+
+#endif  /* U_HIDE_INTERNAL_API */
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Creates a string enumeration of all plural rule keywords used in this
+ * UPluralRules object. The rule "other" is always present by default.
+ * @param uplrules The UPluralRules object specifying the rules for
+ *        a given locale.
+ * @param status A pointer to a UErrorCode to receive any errors.
+ * @return a string enumeration over plural rule keywords, or NULL
+ * upon error. The caller is responsible for closing the result.
+ * @draft ICU 59
+ */
+U_DRAFT UEnumeration* U_EXPORT2
+uplrules_getKeywords(const UPluralRules *uplrules,
+                     UErrorCode *status);
+#endif  /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

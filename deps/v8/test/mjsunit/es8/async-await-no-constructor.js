@@ -24,4 +24,4 @@ async function bar() {
 foo();
 bar();
 %RunMicrotasks();
-assertEquals(1, count);
+assertEquals(2, count);

@@ -1,14 +1,10 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (!common.hasIPv6) {
+if (!common.hasIPv6)
   common.skip('no IPv6 support');
-  return;
-}
 
 const assert = require('assert');
 const https = require('https');
@@ -19,10 +15,10 @@ function runTest() {
   https.createServer({ ciphers }, common.mustCall(function(req, res) {
     this.close();
     res.end();
-  })).listen(common.PORT, '::1', common.mustCall(function() {
+  })).listen(0, '::1', common.mustCall(function() {
     const options = {
       host: 'localhost',
-      port: common.PORT,
+      port: this.address().port,
       family: 6,
       ciphers: ciphers,
       rejectUnauthorized: false,
@@ -35,12 +31,11 @@ function runTest() {
   }));
 }
 
-dns.lookup('localhost', {family: 6, all: true}, (err, addresses) => {
+dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
   if (err) {
-    if (err.code === 'ENOTFOUND') {
+    if (err.code === 'ENOTFOUND')
       common.skip('localhost does not resolve to ::1');
-      return;
-    }
+
     throw err;
   }
 

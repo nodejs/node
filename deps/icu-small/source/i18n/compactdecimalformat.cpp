@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -771,13 +771,22 @@ static int32_t populatePrefixSuffix(
   if (U_FAILURE(status)) {
     return 0;
   }
-  int32_t firstIdx = formatStr.indexOf(kZero, UPRV_LENGTHOF(kZero), 0);
+
+  // ICU 59 HACK: Ignore negative part of format string, mimicking ICU 58 behavior.
+  // TODO(sffc): Make sure this is fixed during the overhaul port in ICU 60.
+  int32_t semiPos = formatStr.indexOf(';', 0);
+  if (semiPos == -1) {
+    semiPos = formatStr.length();
+  }
+  UnicodeString positivePart = formatStr.tempSubString(0, semiPos);
+
+  int32_t firstIdx = positivePart.indexOf(kZero, UPRV_LENGTHOF(kZero), 0);
   // We must have 0's in format string.
   if (firstIdx == -1) {
     status = U_INTERNAL_PROGRAM_ERROR;
     return 0;
   }
-  int32_t lastIdx = formatStr.lastIndexOf(kZero, UPRV_LENGTHOF(kZero), firstIdx);
+  int32_t lastIdx = positivePart.lastIndexOf(kZero, UPRV_LENGTHOF(kZero), firstIdx);
   CDFUnit* unit = createCDFUnit(variant, log10Value, result, status);
   if (U_FAILURE(status)) {
     return 0;
@@ -790,10 +799,10 @@ static int32_t populatePrefixSuffix(
   unit->markAsSet();
 
   // Everything up to first 0 is the prefix
-  unit->prefix = formatStr.tempSubString(0, firstIdx);
+  unit->prefix = positivePart.tempSubString(0, firstIdx);
   fixQuotes(unit->prefix);
   // Everything beyond the last 0 is the suffix
-  unit->suffix = formatStr.tempSubString(lastIdx + 1);
+  unit->suffix = positivePart.tempSubString(lastIdx + 1);
   fixQuotes(unit->suffix);
 
   // If there is effectively no prefix or suffix, ignore the actual number of
@@ -804,7 +813,7 @@ static int32_t populatePrefixSuffix(
 
   // Calculate number of zeros before decimal point
   int32_t idx = firstIdx + 1;
-  while (idx <= lastIdx && formatStr.charAt(idx) == u_0) {
+  while (idx <= lastIdx && positivePart.charAt(idx) == u_0) {
     ++idx;
   }
   return (idx - firstIdx);

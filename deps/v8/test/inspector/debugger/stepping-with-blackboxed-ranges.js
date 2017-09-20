@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that blackboxed ranges are respected while stepping');
+
+contextGroup.addScript(
 `function blackboxedBoo()
 {
     var a = 42;
@@ -11,7 +13,7 @@ InspectorTest.addScript(
 }
 //# sourceURL=blackboxed-script.js`);
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function notBlackboxedFoo()
 {
     var a = 42;
@@ -34,7 +36,7 @@ function notBlackboxedBoo()
 }
 //# sourceURL=mixed-source.js`);
 
-InspectorTest.addScript(
+contextGroup.addScript(
 `function testFunction()
 {
     notBlackboxedBoo(); // for setup ranges and stepOut
@@ -90,10 +92,15 @@ function setIncorrectRanges(scriptId, response)
 function setMixedSourceRanges(scriptId)
 {
   Protocol.Debugger.onPaused(runAction);
-  Protocol.Debugger.setBlackboxedRanges({
-    scriptId: scriptId,
-    positions: [ { lineNumber: 8, columnNumber: 0 }, { lineNumber: 15, columnNumber: 0 } ] // blackbox ranges for mixed.js
-  }).then(runAction);
+  Protocol.Debugger
+      .setBlackboxedRanges({
+        scriptId: scriptId,
+        positions: [
+          {lineNumber: 6, columnNumber: 0},
+          {lineNumber: 14, columnNumber: 0}
+        ]  // blackbox ranges for mixed.js
+      })
+      .then(runAction);
 }
 
 var actions = [ "stepOut", "print", "stepOut", "print", "stepOut", "print",

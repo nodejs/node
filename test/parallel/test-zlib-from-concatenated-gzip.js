@@ -4,8 +4,8 @@
 const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const path = require('path');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
 const abcEncoded = zlib.gzipSync('abc');
 const defEncoded = zlib.gzipSync('def');
@@ -42,8 +42,8 @@ zlib.unzip(Buffer.concat([
 // files that have the "right" magic bytes for starting a new gzip member
 // in the middle of themselves, even if they are part of a single
 // regularly compressed member
-const pmmFileZlib = path.join(common.fixturesDir, 'pseudo-multimember-gzip.z');
-const pmmFileGz = path.join(common.fixturesDir, 'pseudo-multimember-gzip.gz');
+const pmmFileZlib = fixtures.path('pseudo-multimember-gzip.z');
+const pmmFileGz = fixtures.path('pseudo-multimember-gzip.gz');
 
 const pmmExpected = zlib.inflateSync(fs.readFileSync(pmmFileZlib));
 const pmmResultBuffers = [];

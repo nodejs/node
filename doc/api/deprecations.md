@@ -95,12 +95,16 @@ methods, the `options.customFds` option is deprecated. The `options.stdio`
 option should be used instead.
 
 <a id="DEP0007"></a>
-### DEP0007: cluster worker.suicide
+### DEP0007: Replace cluster worker.suicide with worker.exitedAfterDisconnect
 
-Type: Runtime
+Type: End-of-Life
 
-Within the `cluster` module, the [`worker.suicide`][] property has been
-deprecated. Please use [`worker.exitedAfterDisconnect`][] instead.
+In an earlier version of the Node.js `cluster`, a boolean property with the name
+`suicide` was added to the `Worker` object. The intent of this property was to
+provide an indication of how and why the `Worker` instance exited. In Node.js
+6.0.0, the old property was deprecated and replaced with a new
+[`worker.exitedAfterDisconnect`][] property. The old property name did not
+precisely describe the actual semantics and was unnecessarily emotion-laden.
 
 <a id="DEP0008"></a>
 ### DEP0008: require('constants')
@@ -142,13 +146,13 @@ instead.
 <a id="DEP0012"></a>
 ### DEP0012: Domain.dispose
 
-Type: Runtime
+Type: End-of-Life
 
-[`Domain.dispose()`][] is deprecated. Recover from failed I/O actions
+[`Domain.dispose()`][] is removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
-### DEP0013: fs async function without callback
+### DEP0013: fs asynchronous function without callback
 
 Type: Runtime
 
@@ -181,9 +185,10 @@ and should no longer be used.
 <a id="DEP0017"></a>
 ### DEP0017: Intl.v8BreakIterator
 
-Type: Runtime
+Type: End-of-Life
 
-The `Intl.v8BreakIterator` is deprecated and will be removed or replaced soon.
+`Intl.v8BreakIterator` was a non-standard extension and has been removed.
+See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 
 <a id="DEP0018"></a>
 ### DEP0018: Unhandled promise rejections
@@ -197,7 +202,7 @@ code.
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
 
-Type: Runtime
+Type: End-of-Life
 
 In certain cases, `require('.')` may resolve outside the package directory.
 This behavior is deprecated and will be removed in a future major Node.js
@@ -237,7 +242,7 @@ The `os.getNetworkInterfaces()` method is deprecated. Please use the
 <a id="DEP0024"></a>
 ### DEP0024: REPLServer.prototype.convertToContext()
 
-Type: Runtime
+Type: End-of-Life
 
 The `REPLServer.prototype.convertToContext()` API is deprecated and should
 not be used.
@@ -531,8 +536,8 @@ Type: Documentation-only
 The `http` module `ServerResponse.prototype.writeHeader()` API has been
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
-*Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
-as an officially supported API.
+*Note*: The `ServerResponse.prototype.writeHeader()` method was never
+documented as an officially supported API.
 
 <a id="DEP0064"></a>
 ### DEP0064: tls.createSecurePair()
@@ -568,8 +573,8 @@ properties have been deprecated. Please instead use one of the public methods
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were never
-documented as officially supported properties.
+*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were
+never documented as officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
@@ -582,14 +587,112 @@ deprecated.
 *Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
 an officially supported API.
 
-[alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
-[alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
+<a id="DEP0068"></a>
+### DEP0068: node debug
+
+Type: Runtime
+
+`node debug` corresponds to the legacy CLI debugger which has been replaced with
+a V8-inspector based CLI debugger available through `node inspect`.
+
+<a id="DEP0069"></a>
+### DEP0069: vm.runInDebugContext(string)
+
+Type: Documentation-only
+
+The DebugContext will be removed in V8 soon and will not be available in Node
+10+.
+
+*Note*: DebugContext was an experimental API.
+
+<a id="DEP0070"></a>
+### DEP0070: async_hooks.currentId()
+
+Type: End-of-Life
+
+`async_hooks.currentId()` was renamed to `async_hooks.executionAsyncId()` for
+clarity.
+
+*Note*: change was made while `async_hooks` was an experimental API.
+
+<a id="DEP0071"></a>
+### DEP0071: async_hooks.triggerId()
+
+Type: End-of-Life
+
+`async_hooks.triggerId()` was renamed to `async_hooks.triggerAsyncId()` for
+clarity.
+
+*Note*: change was made while `async_hooks` was an experimental API.
+
+<a id="DEP0072"></a>
+### DEP0072: async_hooks.AsyncResource.triggerId()
+
+Type: End-of-Life
+
+`async_hooks.AsyncResource.triggerId()` was renamed to
+`async_hooks.AsyncResource.triggerAsyncId()` for clarity.
+
+*Note*: change was made while `async_hooks` was an experimental API.
+
+<a id="DEP0073"></a>
+### DEP0073: Several internal properties of net.Server
+
+Type: Runtime
+
+Accessing several internal, undocumented properties of `net.Server` instances
+with inappropriate names has been deprecated.
+
+*Note*: As the original API was undocumented and not generally useful for
+non-internal code, no replacement API is provided.
+
+<a id="DEP0074"></a>
+### DEP0074: REPLServer.bufferedCommand
+
+Type: Runtime
+
+The `REPLServer.bufferedCommand` property was deprecated in favor of
+[`REPLServer.clearBufferedCommand()`][].
+
+<a id="DEP0075"></a>
+### DEP0075: REPLServer.parseREPLKeyword()
+
+Type: Runtime
+
+`REPLServer.parseREPLKeyword()` was removed from userland visibility.
+
+<a id="DEP00XX"></a>
+### DEP00XX: tls.parseCertString()
+
+Type: Runtime
+
+`tls.parseCertString()` is a trivial parsing helper that was made public by
+mistake. This function can usually be replaced with:
+
+```js
+const querystring = require('querystring');
+querystring.parse(str, '\n', '=');
+```
+
+*Note*: This function is not completely equivalent to `querystring.parse()`. One
+difference is that `querystring.parse()` does url encoding:
+
+```sh
+> querystring.parse('%E5%A5%BD=1', '\n', '=');
+{ '好': '1' }
+> tls.parseCertString('%E5%A5%BD=1');
+{ '%E5%A5%BD': '1' }
+```
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
-[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
-[from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
-[from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Domain.dispose()`]: domain.html#domain_domain_dispose
+[`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
+[`Server.connections`]: net.html#net_server_connections
+[`Server.getConnections()`]: net.html#net_server_getconnections_callback
+[`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`child_process`]: child_process.html
 [`console.error()`]: console.html#console_console_error_data_args
@@ -597,36 +700,29 @@ an officially supported API.
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html
-[`Domain.dispose()`]: domain.html#domain_domain_dispose
-[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_public_key_encoding
+[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
-[`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
-[`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
-[`fs.stat()`]: fs.html#fs_fs_stat_path_callback
 [`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
+[`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
 [`fs.lchmod(path, mode, callback)`]: fs.html#fs_fs_lchmod_path_mode_callback
 [`fs.lchmodSync(path, mode)`]: fs.html#fs_fs_lchmodsync_path_mode
 [`fs.lchown(path, uid, gid, callback)`]: fs.html#fs_fs_lchown_path_uid_gid_callback
 [`fs.lchownSync(path, uid, gid)`]: fs.html#fs_fs_lchownsync_path_uid_gid
 [`fs.read()`]: fs.html#fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readSync()`]: fs.html#fs_fs_readsync_fd_buffer_offset_length_position
-[`Server.connections`]: net.html#net_server_connections
-[`Server.getConnections()`]: net.html#net_server_getconnections_callback
-[`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
+[`fs.stat()`]: fs.html#fs_fs_stat_path_callback
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`punycode`]: punycode.html
-[`require.extensions`]: globals.html#globals_require_extensions
-[`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
+[`require.extensions`]: modules.html#modules_require_extensions
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
-[`tls.SecurePair`]: tls.html#tls_class_securepair
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
+[`tls.SecurePair`]: tls.html#tls_class_securepair
+[`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
-[`util`]: util.html
+[`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
-[`util.puts()`]: util.html#util_util_puts_strings
-[`util.print()`]: util.html#util_util_print_strings
 [`util.isArray()`]: util.html#util_util_isarray_object
 [`util.isBoolean()`]: util.html#util_util_isboolean_object
 [`util.isBuffer()`]: util.html#util_util_isbuffer_object
@@ -643,6 +739,12 @@ an officially supported API.
 [`util.isSymbol()`]: util.html#util_util_issymbol_object
 [`util.isUndefined()`]: util.html#util_util_isundefined_object
 [`util.log()`]: util.html#util_util_log_string
-[`util._extend()`]: util.html#util_util_extend_target_source
-[`worker.suicide`]: cluster.html#cluster_worker_suicide
+[`util.print()`]: util.html#util_util_print_strings
+[`util.puts()`]: util.html#util_util_puts_strings
+[`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
+[alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
+[alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
+[from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
+[from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand

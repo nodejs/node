@@ -16,8 +16,8 @@ const bench = common.createBenchmark(main, {
 // remains a constant in the function, so here we must use the literal
 // instead to get a LoadNamedField.
 function useLegacy(n, input) {
-  var obj = url.parse(input);
-  var noDead = {
+  const obj = url.parse(input);
+  const noDead = {
     protocol: obj.protocol,
     auth: obj.auth,
     host: obj.host,
@@ -45,10 +45,10 @@ function useLegacy(n, input) {
 }
 
 function useWHATWG(n, input) {
-  var obj = new URL(input);
-  var noDead = {
+  const obj = new URL(input);
+  const noDead = {
     protocol: obj.protocol,
-    auth: obj.username + ':' + obj.password,
+    auth: `${obj.username}:${obj.password}`,
     host: obj.host,
     hostname: obj.hostname,
     port: obj.port,
@@ -59,7 +59,7 @@ function useWHATWG(n, input) {
   bench.start();
   for (var i = 0; i < n; i += 1) {
     noDead.protocol = obj.protocol;
-    noDead.auth = obj.username + ':' + obj.password;
+    noDead.auth = `${obj.username}:${obj.password}`;
     noDead.host = obj.host;
     noDead.hostname = obj.hostname;
     noDead.port = obj.port;

@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
+#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/tracing/trace-event.h"
@@ -95,23 +96,18 @@ CodeEntry::~CodeEntry() {
 
 
 uint32_t CodeEntry::GetHash() const {
-  uint32_t hash = ComputeIntegerHash(tag(), v8::internal::kZeroHashSeed);
+  uint32_t hash = ComputeIntegerHash(tag());
   if (script_id_ != v8::UnboundScript::kNoScriptId) {
-    hash ^= ComputeIntegerHash(static_cast<uint32_t>(script_id_),
-                               v8::internal::kZeroHashSeed);
-    hash ^= ComputeIntegerHash(static_cast<uint32_t>(position_),
-                               v8::internal::kZeroHashSeed);
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(script_id_));
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(position_));
   } else {
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)),
-        v8::internal::kZeroHashSeed);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)),
-        v8::internal::kZeroHashSeed);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)),
-        v8::internal::kZeroHashSeed);
-    hash ^= ComputeIntegerHash(line_number_, v8::internal::kZeroHashSeed);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
+    hash ^= ComputeIntegerHash(line_number_);
   }
   return hash;
 }
@@ -635,18 +631,8 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   current_profiles_semaphore_.Signal();
 }
 
-ProfileGenerator::ProfileGenerator(Isolate* isolate,
-                                   CpuProfilesCollection* profiles)
-    : isolate_(isolate), profiles_(profiles) {
-  RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
-  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
-    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
-    DCHECK(counter->name());
-    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
-                               CodeEntry::kEmptyNamePrefix, "native V8Runtime");
-    code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
-  }
-}
+ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
+    : profiles_(profiles) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   std::vector<CodeEntry*> entries;

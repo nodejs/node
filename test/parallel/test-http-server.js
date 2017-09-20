@@ -58,7 +58,7 @@ const server = http.createServer(function(req, res) {
   }
 
   setTimeout(function() {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write(url.parse(req.url).pathname);
     res.end();
   }, 1);
@@ -116,10 +116,10 @@ process.on('exit', function() {
   assert.strictEqual(4, requests_sent);
 
   const hello = new RegExp('/hello');
-  assert.notStrictEqual(null, hello.exec(server_response));
+  assert.ok(hello.test(server_response));
 
   const quit = new RegExp('/quit');
-  assert.notStrictEqual(null, quit.exec(server_response));
+  assert.ok(quit.test(server_response));
 
   assert.strictEqual(true, client_got_eof);
 });

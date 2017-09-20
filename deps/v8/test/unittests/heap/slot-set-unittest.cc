@@ -150,8 +150,11 @@ TEST(SlotSet, RemoveRange) {
 
 TEST(TypedSlotSet, Iterate) {
   TypedSlotSet set(0);
-  const int kDelta = 10000001;
-  const int kHostDelta = 50001;
+  // These two constants must be static as a workaround
+  // for a MSVC++ bug about lambda captures, see the discussion at
+  // https://social.msdn.microsoft.com/Forums/SqlServer/4abf18bd-4ae4-4c72-ba3e-3b13e7909d5f
+  static const int kDelta = 10000001;
+  static const int kHostDelta = 50001;
   int added = 0;
   uint32_t j = 0;
   for (uint32_t i = 0; i < TypedSlotSet::kMaxOffset;
@@ -162,8 +165,8 @@ TEST(TypedSlotSet, Iterate) {
   }
   int iterated = 0;
   set.Iterate(
-      [&iterated, kDelta, kHostDelta](SlotType type, Address host_addr,
-                                      Address addr) {
+      [&iterated](SlotType type, Address host_addr,
+                  Address addr) {
         uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
         uint32_t j =
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));

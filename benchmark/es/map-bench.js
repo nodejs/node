@@ -16,11 +16,11 @@ function runObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + i] = i;
-    m['s' + i] = String(i);
-    assert.strictEqual(String(m['i' + i]), m['s' + i]);
-    m['i' + i] = undefined;
-    m['s' + i] = undefined;
+    m[`i${i}`] = i;
+    m[`s${i}`] = String(i);
+    assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
+    m[`i${i}`] = undefined;
+    m[`s${i}`] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -30,11 +30,11 @@ function runNullProtoObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + i] = i;
-    m['s' + i] = String(i);
-    assert.strictEqual(String(m['i' + i]), m['s' + i]);
-    m['i' + i] = undefined;
-    m['s' + i] = undefined;
+    m[`i${i}`] = i;
+    m[`s${i}`] = String(i);
+    assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
+    m[`i${i}`] = undefined;
+    m[`s${i}`] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -44,11 +44,11 @@ function runNullProtoLiteralObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + i] = i;
-    m['s' + i] = String(i);
-    assert.strictEqual(String(m['i' + i]), m['s' + i]);
-    m['i' + i] = undefined;
-    m['s' + i] = undefined;
+    m[`i${i}`] = i;
+    m[`s${i}`] = String(i);
+    assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
+    m[`i${i}`] = undefined;
+    m[`s${i}`] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -61,11 +61,11 @@ function runStorageObject(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m['i' + i] = i;
-    m['s' + i] = String(i);
-    assert.strictEqual(String(m['i' + i]), m['s' + i]);
-    m['i' + i] = undefined;
-    m['s' + i] = undefined;
+    m[`i${i}`] = i;
+    m[`s${i}`] = String(i);
+    assert.strictEqual(String(m[`i${i}`]), m[`s${i}`]);
+    m[`i${i}`] = undefined;
+    m[`s${i}`] = undefined;
   }
   bench.end(n / 1e6);
 }
@@ -73,10 +73,10 @@ function runStorageObject(n) {
 function fakeMap() {
   const m = {};
   return {
-    get(key) { return m['$' + key]; },
-    set(key, val) { m['$' + key] = val; },
+    get(key) { return m[`$${key}`]; },
+    set(key, val) { m[`$${key}`] = val; },
     get size() { return Object.keys(m).length; },
-    has(key) { return Object.prototype.hasOwnProperty.call(m, '$' + key); }
+    has(key) { return Object.prototype.hasOwnProperty.call(m, `$${key}`); }
   };
 }
 
@@ -85,11 +85,11 @@ function runFakeMap(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m.set('i' + i, i);
-    m.set('s' + i, String(i));
-    assert.strictEqual(String(m.get('i' + i)), m.get('s' + i));
-    m.set('i' + i, undefined);
-    m.set('s' + i, undefined);
+    m.set(`i${i}`, i);
+    m.set(`s${i}`, String(i));
+    assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));
+    m.set(`i${i}`, undefined);
+    m.set(`s${i}`, undefined);
   }
   bench.end(n / 1e6);
 }
@@ -99,11 +99,11 @@ function runMap(n) {
   var i = 0;
   bench.start();
   for (; i < n; i++) {
-    m.set('i' + i, i);
-    m.set('s' + i, String(i));
-    assert.strictEqual(String(m.get('i' + i)), m.get('s' + i));
-    m.set('i' + i, undefined);
-    m.set('s' + i, undefined);
+    m.set(`i${i}`, i);
+    m.set(`s${i}`, String(i));
+    assert.strictEqual(String(m.get(`i${i}`)), m.get(`s${i}`));
+    m.set(`i${i}`, undefined);
+    m.set(`s${i}`, undefined);
   }
   bench.end(n / 1e6);
 }

@@ -7,6 +7,7 @@ var isExtraneous = require('./is-extraneous.js')
 var validateAllPeerDeps = require('./deps.js').validateAllPeerDeps
 var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
+var npm = require('../npm.js')
 
 // Return true if tree is a part of a cycle that:
 //   A) Never connects to the top of the tree
@@ -69,18 +70,23 @@ module.exports.asReadInstalled = function (tree) {
 }
 
 function translateTree (tree) {
-  return translateTree_(tree, {})
+  return translateTree_(tree, new Set())
 }
 
 function translateTree_ (tree, seen) {
   var pkg = tree.package
-  if (seen[tree.path]) return pkg
-  seen[tree.path] = pkg
+  if (seen.has(tree)) return pkg
+  seen.add(tree)
   if (pkg._dependencies) return pkg
   pkg._dependencies = pkg.dependencies
   pkg.dependencies = {}
   tree.children.forEach(function (child) {
-    pkg.dependencies[moduleName(child)] = translateTree_(child, seen)
+    const dep = pkg.dependencies[moduleName(child)] = translateTree_(child, seen)
+    if (child.fakeChild) {
+      dep.missing = true
+      dep.optional = child.package._optional
+      dep.requiredBy = child.package._spec
+    }
   })
 
   function markMissing (name, requiredBy) {
@@ -128,7 +134,7 @@ function translateTree_ (tree, seen) {
   pkg.path = tree.path
 
   pkg.error = tree.error
-  pkg.extraneous = isExtraneous(tree)
+  pkg.extraneous = !tree.isTop && (!tree.parent.isTop || !tree.parent.error) && !npm.config.get('global') && isExtraneous(tree)
   if (tree.target && tree.parent && !tree.parent.target) pkg.link = tree.realpath
   return pkg
 }

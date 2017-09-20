@@ -27,8 +27,10 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   static int GetParameterCountAfterLowering(
       Signature<MachineRepresentation>* signature);
 
-  static const int kLowerWordOffset;
-  static const int kHigherWordOffset;
+  // Determine whether the given type is i64 and has to be passed via two
+  // parameters on the given machine.
+  static bool IsI64AsTwoParameters(MachineOperatorBuilder* machine,
+                                   MachineRepresentation type);
 
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
@@ -47,7 +49,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   void PrepareReplacements(Node* node);
   void PushNode(Node* node);
   void LowerNode(Node* node);
-  bool DefaultLowering(Node* node);
+  bool DefaultLowering(Node* node, bool low_word_only = false);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
   void PrepareProjectionReplacements(Node* node);

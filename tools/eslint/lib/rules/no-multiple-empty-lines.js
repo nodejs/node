@@ -5,8 +5,6 @@
  */
 "use strict";
 
-const astUtils = require("../ast-utils");
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -113,10 +111,19 @@ module.exports = {
                                 message,
                                 data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
                                 fix(fixer) {
-                                    return fixer.removeRange([
-                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lastLineNumber + 1, column: 0 }),
-                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lineNumber - maxAllowed, column: 0 })
-                                    ]);
+                                    const rangeStart = sourceCode.getIndexFromLoc({ line: lastLineNumber + 1, column: 0 });
+
+                                    /*
+                                     * The end of the removal range is usually the start index of the next line.
+                                     * However, at the end of the file there is no next line, so the end of the
+                                     * range is just the length of the text.
+                                     */
+                                    const lineNumberAfterRemovedLines = lineNumber - maxAllowed;
+                                    const rangeEnd = lineNumberAfterRemovedLines <= allLines.length
+                                        ? sourceCode.getIndexFromLoc({ line: lineNumberAfterRemovedLines, column: 0 })
+                                        : sourceCode.text.length;
+
+                                    return fixer.removeRange([rangeStart, rangeEnd]);
                                 }
                             });
                         }

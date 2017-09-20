@@ -4,6 +4,7 @@
 
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/code-generator-impl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -120,7 +120,7 @@ static void maybe_resize(uv__os390_epoll* lst, unsigned int len) {
 }
 
 
-static void epoll_init() {
+static void epoll_init(void) {
   QUEUE_INIT(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
     abort();
@@ -183,33 +183,22 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
   int pollret;
   int reventcount;
 
-  uv_mutex_lock(&global_epoll_lock);
-  uv_mutex_unlock(&global_epoll_lock);
   size = lst->size;
   pfds = lst->items;
   pollret = poll(pfds, size, timeout);
-  if(pollret == -1)
+  if (pollret <= 0)
     return pollret;
 
   reventcount = 0;
-  for (int i = 0; i < lst->size && i < maxevents; ++i) {
+  for (int i = 0; 
+       i < lst->size && i < maxevents && reventcount < pollret; ++i) {
     struct epoll_event ev;
 
-    ev.events = 0;
-    ev.fd = pfds[i].fd;
-    if(!pfds[i].revents)
+    if (pfds[i].fd == -1 || pfds[i].revents == 0)
       continue;
 
-    if(pfds[i].revents & POLLRDNORM)
-      ev.events = ev.events | POLLIN;
-
-    if(pfds[i].revents & POLLWRNORM)
-      ev.events = ev.events | POLLOUT;
-
-    if(pfds[i].revents & POLLHUP)
-      ev.events = ev.events | POLLHUP;
-
-    pfds[i].revents = 0;
+    ev.fd = pfds[i].fd;
+    ev.events = pfds[i].revents;
     events[reventcount++] = ev;
   }
 

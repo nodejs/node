@@ -6,6 +6,8 @@ changes:
     description: Accessing this module will now emit a deprecation warning.
 -->
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 0 - Deprecated
 
 **The version of the punycode module bundled in Node.js is being deprecated**.
@@ -145,5 +147,5 @@ added: v0.6.1
 
 Returns a string identifying the current [Punycode.js][] version number.
 
-[Punycode]: https://tools.ietf.org/html/rfc3492
 [Punycode.js]: https://mths.be/punycode
+[Punycode]: https://tools.ietf.org/html/rfc3492

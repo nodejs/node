@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -43,6 +44,7 @@ void CheckExceptionInfos(Handle<Object> exc,
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
 
+  exc->Print();
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
   v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);

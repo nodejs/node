@@ -42,7 +42,7 @@ const server = net.createServer(function(socket) {
     }
 
     if (socket.writable) {
-      socket.write(Date.now() + '\n');
+      socket.write(`${Date.now()}\n`);
     }
   }, 1000);
 });

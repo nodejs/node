@@ -19,18 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
-#include "node_file.h"
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_stat_watcher.h"
 
-#include "env.h"
-#include "env-inl.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
-#include "util.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -46,6 +41,7 @@
 #include <vector>
 
 namespace node {
+namespace {
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -57,6 +53,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -109,7 +106,10 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Wrap(object(), this);
   }
 
-  ~FSReqWrap() { ReleaseEarly(); }
+  ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -148,16 +148,17 @@ void FSReqWrap::Dispose() {
 }
 
 
-static void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  ClearWrap(args.This());
 }
 
 
-static inline bool IsInt64(double x) {
+inline bool IsInt64(double x) {
   return x == static_cast<double>(static_cast<int64_t>(x));
 }
 
-static void After(uv_fs_t *req) {
+void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   CHECK_EQ(req_wrap->req(), req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
@@ -172,7 +173,8 @@ static void After(uv_fs_t *req) {
   // Allocate space for two args. We may only use one depending on the case.
   // (Feel free to increase this if you need more)
   Local<Value> argv[2];
-  Local<Value> link;
+  MaybeLocal<Value> link;
+  Local<Value> error;
 
   if (req->result < 0) {
     // An error happened.
@@ -206,6 +208,7 @@ static void After(uv_fs_t *req) {
       case UV_FS_FCHMOD:
       case UV_FS_CHOWN:
       case UV_FS_FCHOWN:
+      case UV_FS_COPYFILE:
         // These, however, don't.
         argc = 1;
         break;
@@ -232,50 +235,40 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_MKDTEMP:
+      {
         link = StringBytes::Encode(env->isolate(),
                                    static_cast<const char*>(req->path),
-                                   req_wrap->encoding_);
+                                   req_wrap->encoding_,
+                                   &error);
         if (link.IsEmpty()) {
-          argv[0] = UVException(env->isolate(),
-                                UV_EINVAL,
-                                req_wrap->syscall(),
-                                "Invalid character encoding for filename",
-                                req->path,
-                                req_wrap->data());
+          argv[0] = error;
         } else {
-          argv[1] = link;
+          argv[1] = link.ToLocalChecked();
         }
         break;
+      }
 
       case UV_FS_READLINK:
         link = StringBytes::Encode(env->isolate(),
                                    static_cast<const char*>(req->ptr),
-                                   req_wrap->encoding_);
+                                   req_wrap->encoding_,
+                                   &error);
         if (link.IsEmpty()) {
-          argv[0] = UVException(env->isolate(),
-                                UV_EINVAL,
-                                req_wrap->syscall(),
-                                "Invalid character encoding for link",
-                                req->path,
-                                req_wrap->data());
+          argv[0] = error;
         } else {
-          argv[1] = link;
+          argv[1] = link.ToLocalChecked();
         }
         break;
 
       case UV_FS_REALPATH:
         link = StringBytes::Encode(env->isolate(),
                                    static_cast<const char*>(req->ptr),
-                                   req_wrap->encoding_);
+                                   req_wrap->encoding_,
+                                   &error);
         if (link.IsEmpty()) {
-          argv[0] = UVException(env->isolate(),
-                                UV_EINVAL,
-                                req_wrap->syscall(),
-                                "Invalid character encoding for link",
-                                req->path,
-                                req_wrap->data());
+          argv[0] = error;
         } else {
-          argv[1] = link;
+          argv[1] = link.ToLocalChecked();
         }
         break;
 
@@ -306,19 +299,16 @@ static void After(uv_fs_t *req) {
               break;
             }
 
-            Local<Value> filename = StringBytes::Encode(env->isolate(),
-                                                        ent.name,
-                                                        req_wrap->encoding_);
+            MaybeLocal<Value> filename =
+                StringBytes::Encode(env->isolate(),
+                                    ent.name,
+                                    req_wrap->encoding_,
+                                    &error);
             if (filename.IsEmpty()) {
-              argv[0] = UVException(env->isolate(),
-                                    UV_EINVAL,
-                                    req_wrap->syscall(),
-                                    "Invalid character encoding for filename",
-                                    req->path,
-                                    req_wrap->data());
+              argv[0] = error;
               break;
             }
-            name_argv[name_idx++] = filename;
+            name_argv[name_idx++] = filename.ToLocalChecked();
 
             if (name_idx >= arraysize(name_argv)) {
               fn->Call(env->context(), names, name_idx, name_argv)
@@ -401,7 +391,7 @@ class fs_req_wrap {
 
 #define SYNC_RESULT err
 
-static void Access(const FunctionCallbackInfo<Value>& args) {
+void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
@@ -423,7 +413,7 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Close(const FunctionCallbackInfo<Value>& args) {
+void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
@@ -440,6 +430,7 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+}  // anonymous namespace
 
 void FillStatsArray(double* fields, const uv_stat_t* s) {
   fields[0] = s->st_dev;
@@ -460,10 +451,13 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 #else
   fields[9] = -1;
 #endif
-  // Dates.
-#define X(idx, name)                                                          \
-  fields[idx] = (static_cast<double>(s->st_##name.tv_sec) * 1000) +           \
-                (static_cast<double>(s->st_##name.tv_nsec / 1000000));        \
+// Dates.
+// NO-LINT because the fields are 'long' and we just want to cast to `unsigned`
+#define X(idx, name)                                           \
+  /* NOLINTNEXTLINE(runtime/int) */                            \
+  fields[idx] = ((unsigned long)(s->st_##name.tv_sec) * 1e3) + \
+  /* NOLINTNEXTLINE(runtime/int) */                            \
+                ((unsigned long)(s->st_##name.tv_nsec) / 1e6); \
 
   X(10, atim)
   X(11, mtim)
@@ -481,6 +475,9 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
+
+  if (strlen(*path) != path.length())
+    return;  // Contains a nul byte.
 
   uv_fs_t open_req;
   const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
@@ -680,16 +677,17 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(readlink, *path, *path)
     const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
-    Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                          link_path,
-                                          encoding);
+
+    Local<Value> error;
+    MaybeLocal<Value> rc = StringBytes::Encode(env->isolate(),
+                                               link_path,
+                                               encoding,
+                                               &error);
     if (rc.IsEmpty()) {
-      return env->ThrowUVException(UV_EINVAL,
-                                   "readlink",
-                                   "Invalid character encoding for link",
-                                   *path);
+      env->isolate()->ThrowException(error);
+      return;
     }
-    args.GetReturnValue().Set(rc);
+    args.GetReturnValue().Set(rc.ToLocalChecked());
   }
 }
 
@@ -851,16 +849,17 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(realpath, *path, *path);
     const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
-    Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                          link_path,
-                                          encoding);
+
+    Local<Value> error;
+    MaybeLocal<Value> rc = StringBytes::Encode(env->isolate(),
+                                               link_path,
+                                               encoding,
+                                               &error);
     if (rc.IsEmpty()) {
-      return env->ThrowUVException(UV_EINVAL,
-                                   "realpath",
-                                   "Invalid character encoding for path",
-                                   *path);
+      env->isolate()->ThrowException(error);
+      return;
     }
-    args.GetReturnValue().Set(rc);
+    args.GetReturnValue().Set(rc.ToLocalChecked());
   }
 }
 
@@ -902,17 +901,17 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
       if (r != 0)
         return env->ThrowUVException(r, "readdir", "", *path);
 
-      Local<Value> filename = StringBytes::Encode(env->isolate(),
-                                                  ent.name,
-                                                  encoding);
+      Local<Value> error;
+      MaybeLocal<Value> filename = StringBytes::Encode(env->isolate(),
+                                                       ent.name,
+                                                       encoding,
+                                                       &error);
       if (filename.IsEmpty()) {
-        return env->ThrowUVException(UV_EINVAL,
-                                     "readdir",
-                                     "Invalid character encoding for filename",
-                                     *path);
+        env->isolate()->ThrowException(error);
+        return;
       }
 
-      name_v[name_idx++] = filename;
+      name_v[name_idx++] = filename.ToLocalChecked();
 
       if (name_idx >= arraysize(name_v)) {
         fn->Call(env->context(), names, name_idx, name_v)
@@ -955,6 +954,30 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
     args.GetReturnValue().Set(SYNC_RESULT);
+  }
+}
+
+
+static void CopyFile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  if (!args[0]->IsString())
+    return TYPE_ERROR("src must be a string");
+  if (!args[1]->IsString())
+    return TYPE_ERROR("dest must be a string");
+  if (!args[2]->IsInt32())
+    return TYPE_ERROR("flags must be an int");
+
+  BufferValue src(env->isolate(), args[0]);
+  ASSERT_PATH(src)
+  BufferValue dest(env->isolate(), args[1]);
+  ASSERT_PATH(dest)
+  int flags = args[2]->Int32Value();
+
+  if (args[3]->IsObject()) {
+    ASYNC_DEST_CALL(copyfile, args[3], *dest, UTF8, *src, *dest, flags)
+  } else {
+    SYNC_DEST_CALL(copyfile, *src, *dest, *src, *dest, flags)
   }
 }
 
@@ -1070,8 +1093,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap::Ownership ownership = FSReqWrap::COPY;
 
   // will assign buf and len if string was external
-  if (!StringBytes::GetExternalParts(env->isolate(),
-                                     string,
+  if (!StringBytes::GetExternalParts(string,
                                      const_cast<const char**>(&buf),
                                      &len)) {
     enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);
@@ -1366,14 +1388,15 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(mkdtemp, *tmpl, *tmpl);
     const char* path = static_cast<const char*>(SYNC_REQ.path);
-    Local<Value> rc = StringBytes::Encode(env->isolate(), path, encoding);
+
+    Local<Value> error;
+    MaybeLocal<Value> rc =
+        StringBytes::Encode(env->isolate(), path, encoding, &error);
     if (rc.IsEmpty()) {
-      return env->ThrowUVException(UV_EINVAL,
-                                   "mkdtemp",
-                                   "Invalid character encoding for filename",
-                                   *tmpl);
+      env->isolate()->ThrowException(error);
+      return;
     }
-    args.GetReturnValue().Set(rc);
+    args.GetReturnValue().Set(rc.ToLocalChecked());
   }
 }
 
@@ -1423,6 +1446,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "writeBuffers", WriteBuffers);
   env->SetMethod(target, "writeString", WriteString);
   env->SetMethod(target, "realpath", RealPath);
+  env->SetMethod(target, "copyFile", CopyFile);
 
   env->SetMethod(target, "chmod", Chmod);
   env->SetMethod(target, "fchmod", FChmod);
@@ -1445,9 +1469,11 @@ void InitFs(Local<Object> target,
   Local<FunctionTemplate> fst =
       FunctionTemplate::New(env->isolate(), NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
-  fst->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"),
-              fst->GetFunction());
+  AsyncWrap::AddWrapMethods(env, fst);
+  Local<String> wrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap");
+  fst->SetClassName(wrapString);
+  target->Set(wrapString, fst->GetFunction());
 }
 
 }  // end namespace node

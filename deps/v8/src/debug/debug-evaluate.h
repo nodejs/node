@@ -7,6 +7,7 @@
 
 #include "src/frames.h"
 #include "src/objects.h"
+#include "src/objects/string-table.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +23,8 @@ class DebugEvaluate : public AllStatic {
   // - The arguments object needs to materialized.
   static MaybeHandle<Object> Local(Isolate* isolate, StackFrame::Id frame_id,
                                    int inlined_jsframe_index,
-                                   Handle<String> source);
+                                   Handle<String> source,
+                                   bool throw_on_side_effect);
 
   static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
   static bool CallbackHasNoSideEffect(Address function_addr);
@@ -86,7 +88,8 @@ class DebugEvaluate : public AllStatic {
                                       Handle<SharedFunctionInfo> outer_info,
                                       Handle<Context> context,
                                       Handle<Object> receiver,
-                                      Handle<String> source);
+                                      Handle<String> source,
+                                      bool throw_on_side_effect);
 };
 
 

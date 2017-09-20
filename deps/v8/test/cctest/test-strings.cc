@@ -180,8 +180,9 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        building_blocks[i] = factory->NewStringFromAscii(
-            Vector<const char>(buf, len)).ToHandleChecked();
+        building_blocks[i] =
+            factory->NewStringFromOneByte(OneByteVector(buf, len))
+                .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -790,7 +791,6 @@ static Handle<String> BuildEdgeCaseConsString(
       }
   }
   UNREACHABLE();
-  return Handle<String>();
 }
 
 
@@ -1114,16 +1114,9 @@ TEST(CachedHashOverflow) {
   v8::HandleScope handle_scope(CcTest::isolate());
   // Lines must be executed sequentially. Combining them into one script
   // makes the bug go away.
-  const char* lines[] = {
-      "var x = [];",
-      "x[4] = 42;",
-      "var s = \"1073741828\";",
-      "x[s];",
-      "x[s] = 37;",
-      "x[4];",
-      "x[s];",
-      NULL
-  };
+  const char* lines[] = {"var x = [];", "x[4] = 42;", "var s = \"1073741828\";",
+                         "x[s];",       "x[s] = 37;", "x[4];",
+                         "x[s];"};
 
   Handle<Smi> fortytwo(Smi::FromInt(42), isolate);
   Handle<Smi> thirtyseven(Smi::FromInt(37), isolate);
@@ -1136,9 +1129,9 @@ TEST(CachedHashOverflow) {
                                thirtyseven  // Bug yielded 42 here.
   };
 
-  const char* line;
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  for (int i = 0; (line = lines[i]); i++) {
+  for (size_t i = 0; i < arraysize(lines); i++) {
+    const char* line = lines[i];
     printf("%s\n", line);
     v8::Local<v8::Value> result =
         v8::Script::Compile(context,
@@ -1195,6 +1188,37 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
   i::Vector<const char> data_;
 };
 
+TEST(InternalizeExternal) {
+  // TODO(mlippautz): Remove once we add support for forwarding ThinStrings in
+  // minor MC.
+  if (FLAG_minor_mc) return;
+  FLAG_stress_incremental_marking = false;
+  FLAG_thin_strings = true;
+  CcTest::InitializeVM();
+  i::Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  // This won't leak; the external string mechanism will call Dispose() on it.
+  OneByteVectorResource* resource =
+      new OneByteVectorResource(i::Vector<const char>("prop", 4));
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    v8::Local<v8::String> ext_string =
+        v8::String::NewExternalOneByte(CcTest::isolate(), resource)
+            .ToLocalChecked();
+    Handle<String> string = v8::Utils::OpenHandle(*ext_string);
+    CHECK(string->IsExternalString());
+    CHECK(!string->IsInternalizedString());
+    CHECK(isolate->heap()->InNewSpace(*string));
+    factory->InternalizeName(string);
+    CHECK(string->IsThinString());
+    CcTest::CollectGarbage(i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
+    CHECK(string->IsInternalizedString());
+    CHECK(!isolate->heap()->InNewSpace(*string));
+  }
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+}
 
 TEST(SliceFromExternal) {
   FLAG_string_slices = true;
@@ -1277,8 +1301,8 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1);
-  create_params.constraints.set_max_old_space_size(6);
+  create_params.constraints.set_max_semi_space_size_in_kb(1024);
+  create_params.constraints.set_max_old_space_size(7);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1472,7 +1496,7 @@ static uint16_t ConvertLatin1(uint16_t c) {
   return result[0];
 }
 
-
+#ifndef V8_INTL_SUPPORT
 static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
   if (expect > unibrow::Latin1::kMaxChar) expect = 0;
@@ -1512,7 +1536,7 @@ TEST(Latin1IgnoreCase) {
     CHECK_EQ(Min(upper, lower), test);
   }
 }
-
+#endif
 
 class DummyResource: public v8::String::ExternalStringResource {
  public:
@@ -1565,7 +1589,6 @@ TEST(InvalidExternalString) {
     dummy.Dispose();                                                           \
   }
 
-INVALID_STRING_TEST(NewStringFromAscii, char)
 INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
 

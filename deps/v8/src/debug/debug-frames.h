@@ -13,6 +13,11 @@
 namespace v8 {
 namespace internal {
 
+// Forward declaration:
+namespace wasm {
+class InterpretedFrame;
+}
+
 class FrameInspector {
  public:
   FrameInspector(StandardFrame* frame, int inlined_frame_index,
@@ -54,7 +59,8 @@ class FrameInspector {
 
   StandardFrame* frame_;
   FrameSummary frame_summary_;
-  DeoptimizedFrameInfo* deoptimized_frame_;
+  std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
+  std::unique_ptr<wasm::InterpretedFrame> wasm_interpreted_frame_;
   Isolate* isolate_;
   bool is_optimized_;
   bool is_interpreted_;

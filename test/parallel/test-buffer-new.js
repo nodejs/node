@@ -1,7 +1,10 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
-assert.throws(() => new Buffer(42, 'utf8'), /first argument must be a string/);
+assert.throws(() => new Buffer(42, 'utf8'), common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "string" argument must be of type string. Received type number'
+}));

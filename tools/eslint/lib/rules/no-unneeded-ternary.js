@@ -67,7 +67,11 @@ module.exports = {
          */
         function invertExpression(node) {
             if (node.type === "BinaryExpression" && Object.prototype.hasOwnProperty.call(OPERATOR_INVERSES, node.operator)) {
-                const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+                const operatorToken = sourceCode.getFirstTokenBetween(
+                    node.left,
+                    node.right,
+                    token => token.value === node.operator
+                );
 
                 return sourceCode.getText().slice(node.range[0], operatorToken.range[0]) + OPERATOR_INVERSES[node.operator] + sourceCode.getText().slice(operatorToken.range[1], node.range[1]);
             }
@@ -130,7 +134,17 @@ module.exports = {
                         node,
                         loc: node.consequent.loc.start,
                         message: "Unnecessary use of conditional expression for default assignment.",
-                        fix: fixer => fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${astUtils.getParenthesisedText(sourceCode, node.alternate)}`)
+                        fix: fixer => {
+                            let nodeAlternate = astUtils.getParenthesisedText(sourceCode, node.alternate);
+
+                            if (node.alternate.type === "ConditionalExpression") {
+                                const isAlternateParenthesised = astUtils.isParenthesised(sourceCode, node.alternate);
+
+                                nodeAlternate = isAlternateParenthesised ? nodeAlternate : `(${nodeAlternate})`;
+                            }
+
+                            return fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${nodeAlternate}`);
+                        }
                     });
                 }
             }

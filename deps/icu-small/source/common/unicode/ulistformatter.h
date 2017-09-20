@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
@@ -49,7 +49,7 @@ typedef struct UListFormatter UListFormatter;  /**< C typedef for struct UListFo
  *            or NULL if an error occurred.
  * @stable ICU 55
  */
-U_STABLE UListFormatter* U_EXPORT2
+U_CAPI UListFormatter* U_EXPORT2
 ulistfmt_open(const char*  locale,
               UErrorCode*  status);
 
@@ -59,7 +59,7 @@ ulistfmt_open(const char*  locale,
  *            The UListFormatter object to close.
  * @stable ICU 55
  */
-U_STABLE void U_EXPORT2
+U_CAPI void U_EXPORT2
 ulistfmt_close(UListFormatter *listfmt);
 
 
@@ -116,7 +116,7 @@ U_NAMESPACE_END
  *            total buffer size needed (e.g. for illegal arguments).
  * @stable ICU 55
  */
-U_DRAFT int32_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 ulistfmt_format(const UListFormatter* listfmt,
                 const UChar* const strings[],
                 const int32_t *    stringLengths,

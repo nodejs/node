@@ -56,7 +56,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       'upgrade': 'websocket'
     }
   };
-  const name = options.host + ':' + options.port;
+  const name = `${options.host}:${options.port}`;
 
   const req = http.request(options);
   req.end();

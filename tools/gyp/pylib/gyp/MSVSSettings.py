@@ -592,6 +592,7 @@ _Same(_compile, 'UndefinePreprocessorDefinitions', _string_list)  # /U
 _Same(_compile, 'UseFullPaths', _boolean)  # /FC
 _Same(_compile, 'WholeProgramOptimization', _boolean)  # /GL
 _Same(_compile, 'XMLDocumentationFileName', _file_name)
+_Same(_compile, 'CompileAsWinRT', _boolean)  # /ZW
 
 _Same(_compile, 'AssemblerOutput',
       _Enumeration(['NoListing',

@@ -91,7 +91,7 @@ function $DONE(arg){
 };
 
 function RealmOperators(realm) {
-  let $ = {
+  let $262 = {
     evalScript(script) {
       return Realm.eval(realm, script);
     },
@@ -100,8 +100,8 @@ function RealmOperators(realm) {
     },
     global: Realm.eval(realm, 'this')
   };
-  $.global.$ = $;
-  return $;
+  $262.global.$262 = $262;
+  return $262;
 }
 
-var $ = RealmOperators(Realm.current());
+var $262 = RealmOperators(Realm.current());

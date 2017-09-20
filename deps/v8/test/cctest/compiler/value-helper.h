@@ -300,6 +300,18 @@ class ValueHelper {
     return std::vector<double>(&values[0], &values[arraysize(values)]);
   }
 
+  static const std::vector<int16_t> int16_vector() {
+    static const int16_t kValues[] = {
+        0, 1, 2, INT16_MAX - 1, INT16_MAX, INT16_MIN, INT16_MIN + 1, -2, -1};
+    return std::vector<int16_t>(&kValues[0], &kValues[arraysize(kValues)]);
+  }
+
+  static const std::vector<int8_t> int8_vector() {
+    static const int8_t kValues[] = {
+        0, 1, 2, INT8_MAX - 1, INT8_MAX, INT8_MIN, INT8_MIN + 1, -2, -1};
+    return std::vector<int8_t>(&kValues[0], &kValues[arraysize(kValues)]);
+  }
+
   static const std::vector<uint32_t> ror_vector() {
     static const uint32_t kValues[31] = {
         1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
@@ -317,6 +329,8 @@ class ValueHelper {
 
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
 #define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)
+#define FOR_INT16_INPUTS(var) FOR_INPUTS(int16_t, int16, var)
+#define FOR_INT8_INPUTS(var) FOR_INPUTS(int8_t, int8, var)
 #define FOR_INT64_INPUTS(var) FOR_INPUTS(int64_t, int64, var)
 #define FOR_UINT64_INPUTS(var) FOR_INPUTS(uint64_t, uint64, var)
 #define FOR_FLOAT32_INPUTS(var) FOR_INPUTS(float, float32, var)

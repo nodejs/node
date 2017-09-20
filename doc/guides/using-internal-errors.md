@@ -15,9 +15,7 @@ to be breaking changes. By providing a permanent identifier for a specific
 error, we reduce the need for userland code to inspect error messages.
 
 *Note*: Switching an existing error to use the `internal/errors` module must be
-considered a `semver-major` change. However, once using `internal/errors`,
-changes to `internal/errors` error messages will be handled as `semver-minor`
-or `semver-patch`.
+considered a `semver-major` change.
 
 ## Using internal/errors.js
 
@@ -27,7 +25,7 @@ are intended to replace existing `Error` objects within the Node.js source.
 For instance, an existing `Error` such as:
 
 ```js
-  var err = new TypeError('Expected string received ' + type);
+const err = new TypeError(`Expected string received ${type}`);
 ```
 
 Can be replaced by first adding a new error key into the `internal/errors.js`
@@ -40,9 +38,9 @@ E('FOO', 'Expected string received %s');
 Then replacing the existing `new TypeError` in the code:
 
 ```js
-  const errors = require('internal/errors');
-  // ...
-  var err = new errors.TypeError('FOO', type);
+const errors = require('internal/errors');
+// ...
+const err = new errors.TypeError('FOO', type);
 ```
 
 ## Adding new errors
@@ -52,7 +50,7 @@ and appending the new error codes to the end using the utility `E()` method.
 
 ```js
 E('EXAMPLE_KEY1', 'This is the error value');
-E('EXAMPLE_KEY2', (a, b) => return `${a} ${b}`);
+E('EXAMPLE_KEY2', (a, b) => `${a} ${b}`);
 ```
 
 The first argument passed to `E()` is the static identifier. The second
@@ -69,6 +67,53 @@ for the error code should be added to the `doc/api/errors.md` file. This will
 give users a place to go to easily look up the meaning of individual error
 codes.
 
+## Testing new errors
+
+When adding a new error, corresponding test(s) for the error message
+formatting may also be required. If the message for the error is a
+constant string then no test is required for the error message formatting
+as we can trust the error helper implementation. An example of this kind of
+error would be:
+
+```js
+E('ERR_SOCKET_ALREADY_BOUND', 'Socket is already bound');
+```
+
+If the error message is not a constant string then tests to validate
+the formatting of the message based on the parameters used when
+creating the error should be added to
+`test/parallel/test-internal-errors.js`.  These tests should validate
+all of the different ways parameters can be used to generate the final
+message string. A simple example is:
+
+```js
+// Test ERR_TLS_CERT_ALTNAME_INVALID
+assert.strictEqual(
+  errors.message('ERR_TLS_CERT_ALTNAME_INVALID', ['altname']),
+  'Hostname/IP does not match certificate\'s altnames: altname');
+```
+
+In addition, there should also be tests which validate the use of the
+error based on where it is used in the codebase.  For these tests, except in
+special cases, they should only validate that the expected code is received
+and NOT validate the message.  This will reduce the amount of test change
+required when the message for an error changes.
+
+For example:
+
+```js
+assert.throws(() => {
+  socket.bind();
+}, common.expectsError({
+  code: 'ERR_SOCKET_ALREADY_BOUND',
+  type: Error
+}));
+```
+
+Avoid changing the format of the message after the error has been created.
+If it does make sense to do this for some reason, then additional tests
+validating the formatting of the error message for those cases will
+likely be required.
 
 ## API
 
@@ -80,8 +125,8 @@ codes.
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.Error('KEY', arg1, arg2);
 throw myError;
 ```
@@ -90,7 +135,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `Error[${key}]`.
+`name` property equal to `` `Error [${key}]` ``.
 
 ### Class: errors.TypeError(key[, args...])
 
@@ -100,8 +145,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.TypeError('KEY', arg1, arg2);
 throw myError;
 ```
@@ -110,7 +155,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `TypeError[${key}]`.
+`name` property equal to `` `TypeError [${key}]` ``.
 
 ### Class: errors.RangeError(key[, args...])
 
@@ -120,8 +165,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.RangeError('KEY', arg1, arg2);
 throw myError;
 ```
@@ -130,7 +175,7 @@ The specific error message for the `myError` instance will depend on the
 associated value of `KEY` (see "Adding new errors").
 
 The `myError` object will have a `code` property equal to the `key` and a
-`name` property equal to `RangeError[${key}]`.
+`name` property equal to `` `RangeError [${key}]` ``.
 
 ### Method: errors.message(key, args)
 

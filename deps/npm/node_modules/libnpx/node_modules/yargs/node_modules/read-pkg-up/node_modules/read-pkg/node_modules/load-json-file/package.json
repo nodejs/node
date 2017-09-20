@@ -1,0 +1,48 @@
+{
+  "_from": "load-json-file@^2.0.0",
+  "_id": "load-json-file@2.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-eUfkIUmvgNaWy/eXvKq8/h/inKg=",
+  "_location": "/libnpx/yargs/read-pkg-up/read-pkg/load-json-file",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "load-json-file@^2.0.0",
+    "name": "load-json-file",
+    "escapedName": "load-json-file",
+    "rawSpec": "^2.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up/read-pkg"
+  ],
+  "_resolved": "https://registry.npmjs.org/load-json-file/-/load-json-file-2.0.0.tgz",
+  "_shasum": "7947e42149af80d696cbf797bcaabcfe1fe29ca8",
+  "_shrinkwrap": null,
+  "_spec": "load-json-file@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up/node_modules/read-pkg",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "parse-json": "^2.2.0",
+    "pify": "^2.0.0",
+    "strip-bom": "^3.0.0"
+  },
+  "deprecated": false,
+  "description": "> Read and parse a JSON file",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "load-json-file",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.0.0"
+}

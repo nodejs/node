@@ -5,10 +5,15 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <map>
+#include <memory>
+#include <vector>
+
 #include "include/v8.h"
+#include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects/scope-info.h"
+#include "src/parsing/preparsed-scope-data.h"
 
 namespace v8 {
 
@@ -16,26 +21,46 @@ class Extension;
 
 namespace internal {
 
+class AccountingAllocator;
 class AstRawString;
+class AstStringConstants;
 class AstValueFactory;
 class DeclarationScope;
+class DeferredHandles;
 class FunctionLiteral;
+class RuntimeCallStats;
 class ScriptData;
 class SharedFunctionInfo;
+class SourceRangeMap;
 class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class V8_EXPORT_PRIVATE ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo : public CompileJobFinishCallback {
  public:
-  explicit ParseInfo(Zone* zone);
-  ParseInfo(Zone* zone, Handle<Script> script);
-  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
+  explicit ParseInfo(AccountingAllocator* zone_allocator);
+  ParseInfo(Handle<Script> script);
+  ParseInfo(Handle<SharedFunctionInfo> shared);
+
+  // TODO(rmcilroy): Remove once Hydrogen no longer needs this.
+  ParseInfo(Handle<SharedFunctionInfo> shared, std::shared_ptr<Zone> zone);
 
   ~ParseInfo();
 
-  Zone* zone() const { return zone_; }
+  void InitFromIsolate(Isolate* isolate);
+
+  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+
+  Zone* zone() const { return zone_.get(); }
+
+  std::shared_ptr<Zone> zone_shared() const { return zone_; }
+
+  void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
+  void set_deferred_handles(DeferredHandles* deferred_handles);
+  std::shared_ptr<DeferredHandles> deferred_handles() const {
+    return deferred_handles_;
+  }
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -53,7 +78,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
 
@@ -93,6 +117,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ScriptData** cached_data() const { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
+
+  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
+    return &consumed_preparsed_scope_data_;
+  }
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -150,6 +178,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int parameters_end_pos() const { return parameters_end_pos_; }
+  void set_parameters_end_pos(int parameters_end_pos) {
+    parameters_end_pos_ = parameters_end_pos;
+  }
+
   int function_literal_id() const { return function_literal_id_; }
   void set_function_literal_id(int function_literal_id) {
     function_literal_id_ = function_literal_id;
@@ -160,6 +193,24 @@ class V8_EXPORT_PRIVATE ParseInfo {
     max_function_literal_id_ = max_function_literal_id;
   }
 
+  const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+  void set_ast_string_constants(
+      const AstStringConstants* ast_string_constants) {
+    ast_string_constants_ = ast_string_constants;
+  }
+
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
+    runtime_call_stats_ = runtime_call_stats;
+  }
+
+  SourceRangeMap* source_range_map() const { return source_range_map_; }
+  void set_source_range_map(SourceRangeMap* source_range_map) {
+    source_range_map_ = source_range_map;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
   FunctionKind function_kind() const;
@@ -167,14 +218,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Isolate* isolate() const { return isolate_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_; }
   Handle<Script> script() const { return script_; }
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
   void clear_script() { script_ = Handle<Script>::null(); }
-  void set_isolate(Isolate* isolate) { isolate_ = isolate; }
   void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
   void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
     maybe_outer_scope_info_ = outer_scope_info;
@@ -191,13 +240,24 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    shared_ = Handle<SharedFunctionInfo>(*shared_);
-    script_ = Handle<Script>(*script_);
+    if (!script_.is_null()) {
+      script_ = Handle<Script>(*script_);
+    }
+    if (!shared_.is_null()) {
+      shared_ = Handle<SharedFunctionInfo>(*shared_);
+    }
     Handle<ScopeInfo> outer_scope_info;
     if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
       maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
     }
   }
+
+  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+
+  // The key of the map is the FunctionLiteral's start_position
+  std::map<int, ParseInfo*> child_infos() const;
+
+  void ParseFinished(std::unique_ptr<ParseInfo> info) override;
 
 #ifdef DEBUG
   bool script_is_native() const;
@@ -216,15 +276,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kCallsEval = 1 << 9,
-    kDebug = 1 << 10,
-    kSerializing = 1 << 11,
-    // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 12
+    kDebug = 1 << 9,
+    kSerializing = 1 << 10,
+    kAstValueFactoryOwned = 1 << 11,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  Zone* zone_;
+  std::shared_ptr<Zone> zone_;
   unsigned flags_;
   ScriptCompiler::ExternalSourceStream* source_stream_;
   ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
@@ -239,22 +297,30 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int parameters_end_pos_;
   int function_literal_id_;
   int max_function_literal_id_;
 
-  // TODO(titzer): Move handles and isolate out of ParseInfo.
-  Isolate* isolate_;
+  // TODO(titzer): Move handles out of ParseInfo.
   Handle<SharedFunctionInfo> shared_;
   Handle<Script> script_;
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
+  ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+  const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
+  RuntimeCallStats* runtime_call_stats_;
+  SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
+  std::shared_ptr<DeferredHandles> deferred_handles_;
+
+  std::vector<std::unique_ptr<ParseInfo>> child_infos_;
+  mutable base::Mutex child_infos_mutex_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

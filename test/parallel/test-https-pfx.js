@@ -21,16 +21,14 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 const https = require('https');
 
-const pfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
+const pfx = fs.readFileSync(`${common.fixturesDir}/test_cert.pfx`);
 
 const options = {
   host: '127.0.0.1',

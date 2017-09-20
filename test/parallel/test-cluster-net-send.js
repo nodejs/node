@@ -67,8 +67,8 @@ if (process.argv[2] !== 'child') {
     socketConnected();
   });
 
-  server.listen(common.PORT, function() {
-    socket = net.connect(common.PORT, '127.0.0.1', socketConnected);
+  server.listen(0, function() {
+    socket = net.connect(server.address().port, '127.0.0.1', socketConnected);
   });
 
   process.on('disconnect', function() {

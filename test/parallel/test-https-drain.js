@@ -21,14 +21,11 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const https = require('https');
 
+const assert = require('assert');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
@@ -64,7 +61,7 @@ server.listen(0, function() {
         return process.nextTick(send);
       }
       sent += bufSize;
-      console.error('sent: ' + sent);
+      console.error(`sent: ${sent}`);
       resumed = true;
       res.resume();
       console.error('resumed');
@@ -81,7 +78,7 @@ server.listen(0, function() {
       }
       received += data.length;
       if (received >= sent) {
-        console.error('received: ' + received);
+        console.error(`received: ${received}`);
         req.end();
         server.close();
       }

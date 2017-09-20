@@ -15,13 +15,16 @@
 #include "src/conversions-inl.h"
 #include "src/dtoa.h"
 #include "src/factory.h"
+#include "src/handles.h"
 #include "src/list-inl.h"
 #include "src/strtod.h"
 #include "src/utils.h"
 
-#ifndef _STLP_VENDOR_CSTD
+#if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
-using std::fpclassify;
+#define FPCLASSIFY_NAMESPACE
+#else
+#define FPCLASSIFY_NAMESPACE std
 #endif
 
 namespace v8 {
@@ -121,7 +124,7 @@ double StringToInt(UnicodeCache* unicode_cache,
 
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
-  switch (fpclassify(v)) {
+  switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
     case FP_NAN: return "NaN";
     case FP_INFINITE: return (v < 0.0 ? "-Infinity" : "Infinity");
     case FP_ZERO: return "0";

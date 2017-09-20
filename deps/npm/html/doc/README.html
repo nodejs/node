@@ -54,7 +54,7 @@ paths, etc.) then read on.</p>
 If you plan on hacking on npm, <code>make link</code> is your friend.</p>
 <p>If you&#39;ve got the npm source code, you can also semi-permanently set
 arbitrary config keys using the <code>./configure --key=val ...</code>, and then
-run npm commands by doing <code>node cli.js &lt;cmd&gt; &lt;args&gt;</code>.  (This is helpful
+run npm commands by doing <code>node bin/npm-cli.js &lt;command&gt; &lt;args&gt;</code>.  (This is helpful
 for testing, or running stuff without actually installing npm itself.)</p>
 <h2 id="windows-install-or-upgrade">Windows Install or Upgrade</h2>
 <p>Many improvements for Windows users have been made in npm 3 - you will have a better
@@ -62,7 +62,7 @@ experience if you run a recent version of npm. To upgrade, either use <a href="h
 upgrade tool</a>,
 <a href="https://nodejs.org/en/download/">download a new version of Node</a>,
 or follow the Windows upgrade instructions in the
-<a href="https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows">npm Troubleshooting Guide</a>.</p>
+<a href="./TROUBLESHOOTING.md">npm Troubleshooting Guide</a>.</p>
 <p>If that&#39;s not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.</p>
 <h2 id="installing-on-cygwin">Installing on Cygwin</h2>
@@ -106,8 +106,9 @@ you should <a href="https://docs.npmjs.com/misc/developers">read this</a></p>
 </ul>
 <p>Be sure to include <em>all</em> of the output from the npm command that didn&#39;t work
 as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
-<p>You can also look for isaacs in #node.js on irc://irc.freenode.net.  She
-will no doubt tell you to put the output in a gist or email.</p>
+<p>You can also find npm people in <code>#npm</code> on <a href="https://package.community/">https://package.community/</a> or
+<a href="https://twitter.com/npm_support">on Twitter</a>.  Whoever responds will no
+doubt tell you to put the output in a gist or email.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="cli/npm.html">npm(1)</a></li>
@@ -126,5 +127,5 @@ will no doubt tell you to put the output in a gist or email.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@4.2.0</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@5.3.0</p>
 

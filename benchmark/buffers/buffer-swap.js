@@ -64,16 +64,16 @@ function createBuffer(len, aligned) {
 }
 
 function genMethod(method) {
-  const fnString =
-      'return function ' + method + '(n, buf) {' +
-      '  for (var i = 0; i <= n; i++)' +
-      '    buf.' + method + '();' +
-      '}';
+  const fnString = `
+      return function ${method}(n, buf) {
+        for (var i = 0; i <= n; i++)
+          buf.${method}();
+      }`;
   return (new Function(fnString))();
 }
 
 function main(conf) {
-  const method = conf.method;
+  const method = conf.method || 'swap16';
   const len = conf.len | 0;
   const n = conf.n | 0;
   const aligned = conf.aligned || 'true';

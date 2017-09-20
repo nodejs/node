@@ -24,6 +24,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     result.contexts_disposed = 0;
     result.contexts_disposal_rate = GCIdleTimeHandler::kHighContextDisposalRate;
     result.incremental_marking_stopped = false;
+    result.size_of_objects = kSizeOfObjects;
     return result;
   }
 
@@ -149,6 +150,17 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   EXPECT_EQ(DO_INCREMENTAL_STEP, action.type);
 }
 
+TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeHeap) {
+  if (!handler()->Enabled()) return;
+  GCIdleTimeHeapState heap_state = DefaultHeapState();
+  heap_state.contexts_disposed = 1;
+  heap_state.contexts_disposal_rate = 1.0;
+  heap_state.incremental_marking_stopped = true;
+  heap_state.size_of_objects = 101 * MB;
+  double idle_time_ms = 0;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
 
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
   if (!handler()->Enabled()) return;

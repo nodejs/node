@@ -2,12 +2,11 @@
  * Sticky bottom bar user interface
  */
 
-var util = require("util");
-var through = require("through");
-var Base = require("./baseUI");
-var rlUtils = require("../utils/readline");
-var _ = require("lodash");
-
+var util = require('util');
+var through = require('through');
+var Base = require('./baseUI');
+var rlUtils = require('../utils/readline');
+var _ = require('lodash');
 
 /**
  * Module exports
@@ -19,28 +18,31 @@ module.exports = Prompt;
  * Constructor
  */
 
-function Prompt( opt ) {
+function Prompt(opt) {
   opt || (opt = {});
 
-  Base.apply( this, arguments );
+  Base.apply(this, arguments);
 
-  this.log = through( this.writeLog.bind(this) );
-  this.bottomBar = opt.bottomBar || "";
+  this.log = through(this.writeLog.bind(this));
+  this.bottomBar = opt.bottomBar || '';
   this.render();
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Render the prompt to screen
  * @return {Prompt} self
  */
 
-Prompt.prototype.render = function() {
+Prompt.prototype.render = function () {
   this.write(this.bottomBar);
   return this;
 };
 
+Prompt.prototype.clean = function () {
+  rlUtils.clearLine(this.rl, this.bottomBar.split('\n').length);
+  return this;
+};
 
 /**
  * Update the bottom bar content and rerender
@@ -48,24 +50,29 @@ Prompt.prototype.render = function() {
  * @return {Prompt}           self
  */
 
-Prompt.prototype.updateBottomBar = function( bottomBar ) {
+Prompt.prototype.updateBottomBar = function (bottomBar) {
   this.bottomBar = bottomBar;
   rlUtils.clearLine(this.rl, 1);
-  return this.render();
+  this.rl.output.unmute();
+  this.clean().render();
+  this.rl.output.mute();
+  return this;
 };
 
-
 /**
- * Rerender the prompt
+ * Write out log data
+ * @param {String} data - The log data to be output
  * @return {Prompt} self
  */
 
-Prompt.prototype.writeLog = function( data ) {
-  rlUtils.clearLine(this.rl, 1);
+Prompt.prototype.writeLog = function (data) {
+  this.rl.output.unmute();
+  this.clean();
   this.rl.output.write(this.enforceLF(data.toString()));
-  return this.render();
+  this.render();
+  this.rl.output.mute();
+  return this;
 };
-
 
 /**
  * Make sure line end on a line feed
@@ -73,8 +80,8 @@ Prompt.prototype.writeLog = function( data ) {
  * @return {String}     The input string with a final line feed
  */
 
-Prompt.prototype.enforceLF = function( str ) {
-  return str.match(/[\r\n]$/) ? str : str + "\n";
+Prompt.prototype.enforceLF = function (str) {
+  return str.match(/[\r\n]$/) ? str : str + '\n';
 };
 
 /**
@@ -87,12 +94,12 @@ Prompt.prototype.write = function (message) {
   this.height = msgLines.length;
 
   // Write message to screen and setPrompt to control backspace
-  this.rl.setPrompt( _.last(msgLines) );
+  this.rl.setPrompt(_.last(msgLines));
 
-  if ( this.rl.output.rows === 0 && this.rl.output.columns === 0 ) {
+  if (this.rl.output.rows === 0 && this.rl.output.columns === 0) {
     /* When it's a tty through serial port there's no terminal info and the render will malfunction,
        so we need enforce the cursor to locate to the leftmost position for rendering. */
-    rlUtils.left( this.rl, message.length + this.rl.line.length );
+    rlUtils.left(this.rl, message.length + this.rl.line.length);
   }
-  this.rl.output.write( message );
+  this.rl.output.write(message);
 };

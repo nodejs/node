@@ -19,26 +19,33 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowAtRootLevel: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
     },
 
     create(context) {
+        const selector = context.options[0] && context.options[0].allowAtRootLevel
+            ? ":function MemberExpression[property.name=/.*Sync$/]"
+            : "MemberExpression[property.name=/.*Sync$/]";
 
         return {
-
-            MemberExpression(node) {
-                const propertyName = node.property.name,
-                    syncRegex = /.*Sync$/;
-
-                if (syncRegex.exec(propertyName) !== null) {
-                    context.report({
-                        node,
-                        message: "Unexpected sync method: '{{propertyName}}'.",
-                        data: {
-                            propertyName
-                        }
-                    });
-                }
+            [selector](node) {
+                context.report({
+                    node,
+                    message: "Unexpected sync method: '{{propertyName}}'.",
+                    data: {
+                        propertyName: node.property.name
+                    }
+                });
             }
         };
 

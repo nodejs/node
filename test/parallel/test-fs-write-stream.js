@@ -44,7 +44,7 @@ common.refreshTmpDir();
   const stream = fs.createWriteStream(file);
 
   stream.on('drain', function() {
-    common.fail('\'drain\' event must not be emitted before ' +
+    assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });
   stream.destroy();

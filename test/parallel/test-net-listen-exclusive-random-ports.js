@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -20,7 +20,7 @@ if (cluster.isMaster) {
     });
   });
 } else {
-  const server = net.createServer(common.noop);
+  const server = net.createServer(() => {});
 
   server.on('error', function(err) {
     process.send(err.code);

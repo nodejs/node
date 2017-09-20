@@ -24,4 +24,4 @@ if (cluster.isMaster) {
 
 const server = net.createServer();
 
-server.listen(common.PORT);
+server.listen(0);

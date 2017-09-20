@@ -1,83 +1,66 @@
 'use strict';
 
 const common = require('../common');
-const util = require('util');
-const URL = require('url').URL;
-const path = require('path');
-const assert = require('assert');
-
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
   common.skip('missing Intl');
-  return;
 }
+
+const util = require('util');
+const URL = require('url').URL;
+const assert = require('assert');
 
 // Tests below are not from WPT.
-const tests = require(path.join(common.fixturesDir, 'url-tests'));
-const additional_tests = require(
-  path.join(common.fixturesDir, 'url-tests-additional'));
+const url = new URL('https://username:password@host.name:8080/path/name/?que=ry#hash');
 
-const allTests = additional_tests.slice();
-for (const test of tests) {
-  if (test.failure || typeof test === 'string') continue;
-  allTests.push(test);
-}
+assert.strictEqual(
+  util.inspect(url),
+  `URL {
+  href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
+  origin: 'https://host.name:8080',
+  protocol: 'https:',
+  username: 'username',
+  password: 'password',
+  host: 'host.name:8080',
+  hostname: 'host.name',
+  port: '8080',
+  pathname: '/path/name/',
+  search: '?que=ry',
+  searchParams: URLSearchParams { 'que' => 'ry' },
+  hash: '#hash' }`);
 
-for (const test of allTests) {
-  const url = test.url ? new URL(test.url) : new URL(test.input, test.base);
+assert.strictEqual(
+  util.inspect(url, { showHidden: true }),
+  `URL {
+  href: 'https://username:password@host.name:8080/path/name/?que=ry#hash',
+  origin: 'https://host.name:8080',
+  protocol: 'https:',
+  username: 'username',
+  password: 'password',
+  host: 'host.name:8080',
+  hostname: 'host.name',
+  port: '8080',
+  pathname: '/path/name/',
+  search: '?que=ry',
+  searchParams: URLSearchParams { 'que' => 'ry' },
+  hash: '#hash',
+  cannotBeBase: false,
+  special: true,
+  [Symbol(context)]:\x20
+   URLContext {
+     flags: 2032,
+     scheme: 'https:',
+     username: 'username',
+     password: 'password',
+     host: 'host.name',
+     port: 8080,
+     path: [ 'path', 'name', '', [length]: 3 ],
+     query: 'que=ry',
+     fragment: 'hash' } }`);
 
-  for (const showHidden of [true, false]) {
-    const res = util.inspect(url, {
-      showHidden
-    });
+assert.strictEqual(
+  util.inspect({ a: url }, { depth: 0 }),
+  '{ a: [Object] }');
 
-    const lines = res.split('\n');
-
-    const firstLine = lines[0];
-    assert.strictEqual(firstLine, 'URL {');
-
-    const lastLine = lines[lines.length - 1];
-    assert.strictEqual(lastLine, '}');
-
-    const innerLines = lines.slice(1, lines.length - 1);
-    const keys = new Set();
-    for (const line of innerLines) {
-      const i = line.indexOf(': ');
-      const k = line.slice(0, i).trim();
-      const v = line.slice(i + 2);
-      assert.strictEqual(keys.has(k), false, 'duplicate key found: ' + k);
-      keys.add(k);
-
-      const hidden = new Set([
-        'password',
-        'cannot-be-base',
-        'special'
-      ]);
-      if (showHidden) {
-        if (!hidden.has(k)) {
-          assert.strictEqual(v, url[k], k);
-          continue;
-        }
-
-        if (k === 'password') {
-          assert.strictEqual(v, url[k], k);
-        }
-        if (k === 'cannot-be-base') {
-          assert.ok(v.match(/^true$|^false$/), k + ' is Boolean');
-        }
-        if (k === 'special') {
-          assert.ok(v.match(/^true$|^false$/), k + ' is Boolean');
-        }
-        continue;
-      }
-
-      // showHidden is false
-      if (k === 'password') {
-        assert.strictEqual(v, '--------', k);
-        continue;
-      }
-      assert.strictEqual(hidden.has(k), false, 'no hidden keys: ' + k);
-      assert.strictEqual(v, url[k], k);
-    }
-  }
-}
+class MyURL extends URL {}
+assert(util.inspect(new MyURL(url.href)).startsWith('MyURL {'));

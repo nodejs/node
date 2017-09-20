@@ -29,7 +29,7 @@ if (process.argv[2] === 'child') {
   const fork = require('child_process').fork;
   const assert = require('assert');
 
-  const child = fork(process.argv[1], ['child'], {silent: true});
+  const child = fork(process.argv[1], ['child'], { silent: true });
   let stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {
@@ -37,11 +37,8 @@ if (process.argv[2] === 'child') {
     });
 
     child.on('close', function onChildClosed() {
-      assert.notStrictEqual(
-        stderrOutput.indexOf(domainErrHandlerExMessage),
-        -1
-      );
-      assert.strictEqual(stderrOutput.indexOf(internalExMessage), -1);
+      assert(stderrOutput.includes(domainErrHandlerExMessage));
+      assert.strictEqual(stderrOutput.includes(internalExMessage), false);
     });
 
     child.on('exit', function onChildExited(exitCode, signal) {

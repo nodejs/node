@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 23
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -21,13 +21,8 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*    8 S> */ B(LdaConstant), U8(1),
-                B(Star), R(1),
-                B(LdaZero),
-                B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
+  /*    8 S> */ B(LdaSmi), I8(1),
+  /*    8 E> */ B(StaGlobalSloppy), U8(1), U8(5),
                 B(LdaUndefined),
   /*   10 S> */ B(Return),
 ]
@@ -69,7 +64,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 29
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -78,15 +73,10 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*    8 S> */ B(LdaConstant), U8(1),
-                B(Star), R(1),
-                B(LdaZero),
-                B(Star), R(2),
-                B(LdaSmi), U8(1),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
-  /*   11 S> */ B(LdaSmi), U8(2),
-  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(4),
+  /*    8 S> */ B(LdaSmi), I8(1),
+  /*    8 E> */ B(StaGlobalSloppy), U8(1), U8(5),
+  /*   11 S> */ B(LdaSmi), I8(2),
+  /*   12 E> */ B(StaGlobalSloppy), U8(1), U8(7),
                 B(Star), R(0),
   /*   15 S> */ B(Return),
 ]
@@ -104,7 +94,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 27
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -113,11 +103,9 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*   16 S> */ B(LdaUndefined),
-                B(Star), R(2),
-                B(LdaGlobal), U8(1), U8(2),
+  /*   16 S> */ B(LdaGlobal), U8(1), U8(3),
                 B(Star), R(1),
-  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(5),
+  /*   16 E> */ B(CallUndefinedReceiver0), R(1), U8(6),
                 B(Star), R(0),
   /*   20 S> */ B(Return),
 ]

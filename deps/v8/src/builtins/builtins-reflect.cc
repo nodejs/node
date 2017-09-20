@@ -5,6 +5,10 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/counters.h"
+#include "src/keys.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {

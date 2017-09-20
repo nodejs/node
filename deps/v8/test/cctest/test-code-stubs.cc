@@ -33,8 +33,10 @@
 
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
+#include "src/double.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 

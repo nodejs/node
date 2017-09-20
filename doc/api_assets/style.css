@@ -81,6 +81,72 @@ em code {
 
 #gtoc {
   font-size: .8em;
+  margin-bottom: 1em;
+}
+
+#gtoc ul {
+  list-style: none;
+  margin-left: 0;
+}
+
+#gtoc li {
+  display: inline;
+  border-right: 1px #000 solid;
+  margin-right: 0.4em;
+  padding-right: 0.4em;
+}
+
+#gtoc li:last-child {
+  border-right: none;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+li.version-picker {
+  position: relative;
+}
+
+li.version-picker:hover > ol {
+  display: block;
+}
+
+li.version-picker a span {
+  font-size: .7em;
+}
+
+ol.version-picker {
+  background: #fff;
+  border: 1px #43853d solid;
+  border-radius: 2px;
+  display: none;
+  list-style: none;
+  position: absolute;
+  right: -2px;
+  width: 101%;
+}
+
+#gtoc ol.version-picker li {
+  display: block;
+  border-right: 0;
+  margin-right: 0;
+}
+
+ol.version-picker li a {
+  border-radius: 0;
+  display: block;
+  margin: 0;
+  padding: .1em;
+  padding-left: 1em;
+}
+
+ol.version-picker li:first-child a {
+  border-top-right-radius: 1px;
+  border-top-left-radius: 1px;
+}
+
+ol.version-picker li:last-child a {
+  border-bottom-right-radius: 1px;
+  border-bottom-left-radius: 1px;
 }
 
 .line {
@@ -93,7 +159,8 @@ em code {
   color: white !important;
   margin: 0 0 1em 0;
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-  font-weight: 700;
+  padding: 1em;
+  line-height: 1.5;
 }
 
 .api_stability * {
@@ -505,6 +572,9 @@ th > *:last-child, td > *:last-child {
 @media only screen and (max-width: 1024px) and (orientation: portrait) {
   #content {
     font-size: 3.5em;
+  }
+  #gtoc {
+    font-size: 0.6em;
   }
 }
 

@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 8
+#define NODE_MAJOR_VERSION 9
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0
 
@@ -31,6 +31,10 @@
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
+#endif
+
+#ifndef NODE_RELEASE
+#define NODE_RELEASE "node"
 #endif
 
 #ifndef NODE_TAG
@@ -73,6 +77,6 @@
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 54 /* Node.js v8.0.0 */
+#define NODE_MODULE_VERSION 58 /* Node.js v8.0.0 */
 
 #endif  // SRC_NODE_VERSION_H_

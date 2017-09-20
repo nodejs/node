@@ -37,7 +37,6 @@ namespace node {
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -47,13 +46,17 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
+
+using AsyncHooks = Environment::AsyncHooks;
 
 
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
   SendWrap(Environment* env, Local<Object> req_wrap_obj, bool have_callback);
+  ~SendWrap();
   inline bool have_callback() const;
   size_t msg_size;
   size_t self_size() const override { return sizeof(*this); }
@@ -71,6 +74,11 @@ SendWrap::SendWrap(Environment* env,
 }
 
 
+SendWrap::~SendWrap() {
+  ClearWrap(object());
+}
+
+
 inline bool SendWrap::have_callback() const {
   return have_callback_;
 }
@@ -78,10 +86,11 @@ inline bool SendWrap::have_callback() const {
 
 static void NewSendWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  ClearWrap(args.This());
 }
 
 
-UDPWrap::UDPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
+UDPWrap::UDPWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(&handle_),
@@ -98,7 +107,9 @@ void UDPWrap::Initialize(Local<Object> target,
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"));
+  Local<String> udpString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "UDP");
+  t->SetClassName(udpString);
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
@@ -120,40 +131,38 @@ void UDPWrap::Initialize(Local<Object> target,
                       GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
   env->SetProtoMethod(t, "addMembership", AddMembership);
   env->SetProtoMethod(t, "dropMembership", DropMembership);
+  env->SetProtoMethod(t, "setMulticastInterface", SetMulticastInterface);
   env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
   env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
   env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
   env->SetProtoMethod(t, "setTTL", SetTTL);
+  env->SetProtoMethod(t, "bufferSize", BufferSize);
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
+  AsyncWrap::AddWrapMethods(env, t);
+
+  target->Set(udpString, t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
 
   // Create FunctionTemplate for SendWrap
   Local<FunctionTemplate> swt =
       FunctionTemplate::New(env->isolate(), NewSendWrap);
   swt->InstanceTemplate()->SetInternalFieldCount(1);
-  swt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap"),
-              swt->GetFunction());
+  AsyncWrap::AddWrapMethods(env, swt);
+  Local<String> sendWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "SendWrap");
+  swt->SetClassName(sendWrapString);
+  target->Set(sendWrapString, swt->GetFunction());
 }
 
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  if (args.Length() == 0) {
-    new UDPWrap(env, args.This(), nullptr);
-  } else if (args[0]->IsExternal()) {
-    new UDPWrap(env,
-                args.This(),
-                static_cast<AsyncWrap*>(args[0].As<External>()->Value()));
-  } else {
-    UNREACHABLE();
-  }
+  new UDPWrap(env, args.This());
 }
 
 
@@ -216,6 +225,43 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsUint32());
+
+  if (!args[0]->IsInt32()) {
+    if (args[1].As<Uint32>()->Value() == 0)
+      return env->ThrowUVException(EINVAL, "uv_recv_buffer_size");
+    else
+      return env->ThrowUVException(EINVAL, "uv_send_buffer_size");
+  }
+
+  int err;
+  int size = static_cast<int>(args[0].As<Uint32>()->Value());
+  if (args[1].As<Uint32>()->Value() == 0) {
+    err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                              &size);
+  } else {
+    err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
+                              &size);
+  }
+
+  if (err != 0) {
+    if (args[1].As<Uint32>()->Value() == 0)
+      return env->ThrowUVException(err, "uv_recv_buffer_size");
+    else
+      return env->ThrowUVException(err, "uv_send_buffer_size");
+  }
+  args.GetReturnValue().Set(size);
+}
+
+
 #define X(name, fn)                                                           \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
@@ -232,6 +278,22 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 
 #undef X
 
+void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value iface(args.GetIsolate(), args[0]);
+
+  const char* iface_cstr = *iface;
+
+  int err = uv_udp_set_multicast_interface(&wrap->handle_, iface_cstr);
+  args.GetReturnValue().Set(err);
+}
 
 void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
                             uv_membership membership) {
@@ -293,6 +355,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
+  env->set_init_trigger_id(wrap->get_id());
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
@@ -440,11 +503,12 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope scope(env->isolate());
+  AsyncHooks::InitScope init_scope(env, parent->get_id());
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
-  Local<Value> ptr = External::New(env->isolate(), parent);
-  return scope.Escape(env->udp_constructor_function()
-      ->NewInstance(env->context(), 1, &ptr).ToLocalChecked());
+  Local<Object> instance = env->udp_constructor_function()
+      ->NewInstance(env->context()).ToLocalChecked();
+  return scope.Escape(instance);
 }
 
 

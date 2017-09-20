@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 namespace node {
+namespace {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -38,6 +39,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 const uint32_t kOnTimeout = 0;
@@ -49,12 +51,15 @@ class TimerWrap : public HandleWrap {
                          Local<Context> context) {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+    Local<String> timerString = FIXED_ONE_BYTE_STRING(env->isolate(), "Timer");
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"));
+    constructor->SetClassName(timerString);
     constructor->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnTimeout"),
                      Integer::New(env->isolate(), kOnTimeout));
 
     env->SetTemplateMethod(constructor, "now", Now);
+
+    AsyncWrap::AddWrapMethods(env, constructor);
 
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
@@ -64,8 +69,7 @@ class TimerWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
-    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Timer"),
-                constructor->GetFunction());
+    target->Set(timerString, constructor->GetFunction());
   }
 
   size_t self_size() const override { return sizeof(*this); }
@@ -132,6 +136,7 @@ class TimerWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)

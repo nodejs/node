@@ -1,13 +1,13 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 
 // Check cert chain is received by client, and is completed with the ca cert
 // known to the client.
 
-const join = require('path').join;
 const {
   assert, connect, debug, keys
-} = require(join(common.fixturesDir, 'tls-connect'));
+} = require(fixtures.path('tls-connect'));
 
 // agent6-cert.pem includes cert for agent6 and ca3
 connect({

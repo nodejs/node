@@ -58,9 +58,6 @@ TEST(NoSideEffectsToString) {
   CheckObject(isolate, factory->undefined_value(), "undefined");
   CheckObject(isolate, factory->null_value(), "null");
 
-  int lanes[] = {0, 1, 2, 3};
-  CheckObject(isolate, factory->NewInt32x4(lanes), "SIMD.Int32x4(0, 1, 2, 3)");
-
   CheckObject(isolate, factory->error_to_string(), "[object Error]");
   CheckObject(isolate, factory->stack_trace_symbol(),
               "Symbol(stack_trace_symbol)");

@@ -12,7 +12,7 @@ common.refreshTmpDir();
 
 // Make a long path.
 for (let i = 0; i < 50; i++) {
-  dir = dir + '/1234567890';
+  dir = `${dir}/1234567890`;
   try {
     fs.mkdirSync(dir, '0777');
   } catch (e) {

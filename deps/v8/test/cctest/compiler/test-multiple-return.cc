@@ -13,6 +13,7 @@
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -45,7 +46,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   const RegList kCalleeSaveRegisters = 0;
   const RegList kCalleeSaveFPRegisters = 0;
 
-  // The target for WASM calls is always a code object.
+  // The target for wasm calls is always a code object.
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(       // --

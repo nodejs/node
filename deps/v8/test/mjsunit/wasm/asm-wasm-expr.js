@@ -23,7 +23,7 @@ const assign_in_stmt = [
   "do { S } while (=)",
 ];
 const assign_in_expr = [
-  "i32_func(=)",
+  "i32_func(=) | 0",
   "(=) ? E : E",
   "E ? (=) : E",
   "E ? E : (=)",
@@ -108,9 +108,6 @@ function DoTheTests(expr, assign, stmt) {
     e = e.replace(/S/g, stmt);
     var str = main.toString().replace("FUNC_BODY", "return (" + e + ") | 0;");
     var asm_source = MODULE_TEMPLATE.toString().replace("FUNC_DECL", str);
-    // TODO(titzer): a verbosity API for these kinds of tests?
-    //    print(asm_source);
-
     doTest(asm_source, "(" + test + ") " + e);
   }
 
@@ -123,8 +120,6 @@ function DoTheTests(expr, assign, stmt) {
     e = e.replace(/S/g, stmt);
     var str = main.toString().replace("FUNC_BODY",  e + "; return 0;");
     var asm_source = MODULE_TEMPLATE.toString().replace("FUNC_DECL", str);
-//    print(asm_source);
-
     doTest(asm_source, "(" + test + ") " + e);
   }
 
@@ -134,9 +129,8 @@ function DoTheTests(expr, assign, stmt) {
     var js_module = eval("(" + nonasm_source + ")")(stdlib, {}, buffer);
     expect(js_module);
 
-    var asmfunc = eval("(" + asm_source + ")");
-
     print("Testing ASMJS: " + orig);
+    var asmfunc = eval("(" + asm_source + ")");
     var asm_module = asmfunc(stdlib, {}, buffer);
     assertTrue(%IsAsmWasmCode(asmfunc));
     expect(asm_module);

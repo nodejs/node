@@ -42,36 +42,20 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       function((FLAG_allow_natives_syntax = true,
                 NewFunction(BuildFunction(param_count).c_str()))),
       flags_(0) {
+  CHECK(!code.is_null());
   Compile(function);
   function->ReplaceCode(*code);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
 
-MaybeHandle<Object> FunctionTester::Call() {
-  return Execution::Call(isolate, function, undefined(), 0, nullptr);
-}
-
-MaybeHandle<Object> FunctionTester::Call(Handle<Object> a) {
-  Handle<Object> args[] = {a};
-  return Execution::Call(isolate, function, undefined(), 1, args);
-}
-
-MaybeHandle<Object> FunctionTester::Call(Handle<Object> a, Handle<Object> b) {
-  Handle<Object> args[] = {a, b};
-  return Execution::Call(isolate, function, undefined(), 2, args);
-}
-
-MaybeHandle<Object> FunctionTester::Call(Handle<Object> a, Handle<Object> b,
-                                         Handle<Object> c) {
-  Handle<Object> args[] = {a, b, c};
-  return Execution::Call(isolate, function, undefined(), 3, args);
-}
-
-MaybeHandle<Object> FunctionTester::Call(Handle<Object> a, Handle<Object> b,
-                                         Handle<Object> c, Handle<Object> d) {
-  Handle<Object> args[] = {a, b, c, d};
-  return Execution::Call(isolate, function, undefined(), 4, args);
+void FunctionTester::CheckThrows(Handle<Object> a) {
+  TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
+  MaybeHandle<Object> no_result = Call(a);
+  CHECK(isolate->has_pending_exception());
+  CHECK(try_catch.HasCaught());
+  CHECK(no_result.is_null());
+  isolate->OptionalRescheduleException(true);
 }
 
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
@@ -155,22 +139,21 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  ParseInfo parse_info(&zone, handle(function->shared()));
-  CompilationInfo info(&parse_info, function);
+  ParseInfo parse_info(handle(function->shared()));
+  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+                       function);
 
   info.SetOptimizing();
-  info.MarkAsDeoptimizationEnabled();
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
   }
 
   CHECK(Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   if (info.shared_info()->HasBytecodeArray()) {
+    info.MarkAsDeoptimizationEnabled();
     info.MarkAsOptimizeFromBytecode();
   } else {
-    CHECK(Compiler::ParseAndAnalyze(info.parse_info()));
-    CHECK(Compiler::EnsureDeoptimizationSupport(&info));
+    CHECK(Compiler::ParseAndAnalyze(&info));
   }
   JSFunction::EnsureLiterals(function);
 
@@ -185,11 +168,11 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
-  Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
-  ParseInfo parse_info(&zone, handle(function->shared()));
-  CompilationInfo info(&parse_info, function);
+  ParseInfo parse_info(handle(function->shared()));
+  CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+                       function);
 
-  CHECK(parsing::ParseFunction(info.parse_info()));
+  CHECK(parsing::ParseFunction(info.parse_info(), info.isolate()));
   info.SetOptimizing();
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);

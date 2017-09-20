@@ -197,19 +197,30 @@ module.exports = {
         */
         function report(node, recommendation, shouldFix) {
             shouldFix = typeof shouldFix === "undefined" ? true : shouldFix;
-            const reportObj = {
+
+            context.report({
                 node,
                 message: "use `{{recommendation}}` instead.",
                 data: {
                     recommendation
+                },
+                fix(fixer) {
+                    if (!shouldFix) {
+                        return null;
+                    }
+
+                    const tokenBefore = sourceCode.getTokenBefore(node);
+
+                    if (
+                        tokenBefore &&
+                        tokenBefore.range[1] === node.range[0] &&
+                        !astUtils.canTokensBeAdjacent(tokenBefore, recommendation)
+                    ) {
+                        return fixer.replaceText(node, ` ${recommendation}`);
+                    }
+                    return fixer.replaceText(node, recommendation);
                 }
-            };
-
-            if (shouldFix) {
-                reportObj.fix = fixer => fixer.replaceText(node, recommendation);
-            }
-
-            context.report(reportObj);
+            });
         }
 
         return {

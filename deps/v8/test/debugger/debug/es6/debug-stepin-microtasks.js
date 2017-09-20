@@ -6,7 +6,7 @@
 Debug = debug.Debug
 var exception = null;
 var break_count = 0;
-const expected_breaks = 9;
+const expected_breaks = 10;
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -47,25 +47,28 @@ Promise.resolve(42)
 
 function promise1() {
   debugger; // Break 0.
-  return exception || 1; // Break 1.
-} // Break 2. StepOver.
+  return exception || 1 // Break 1.
+  ; // Break 2. StepOver.
+}
 
 function promise2() {
   throw new Error; // Break 3.
 }
 
 function promise3() {
-  return break_count; // Break 4.
-} // Break 5.
+  return break_count // Break 4.
+  ; // Break 5.
+}
 
 function promise4() {
   finalize(); // Break 6. StepOver.
-  return 0; // Break 7.
-} // Break 8. StepOut.
+  return 0 // Break 7.
+  ; // Break 8. StepOut.
+}
 
 function finalize() {
   Promise.resolve().then(function() {
-    if (expected_breaks !== break_count) {
+    if (expected_breaks !== break_count) { // Break 9. StepOut.
       %AbortJS("FAIL: expected <" + expected_breaks + "> breaks instead of <" +
                break_count + ">");
     }

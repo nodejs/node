@@ -21,12 +21,10 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const tls = require('tls');
 
 const cacert =
@@ -71,7 +69,7 @@ let clientError = null;
 let connectError = null;
 
 const server = tls.createServer({ ca: ca, cert: cert, key: key }, () => {
-  common.fail('should be unreachable');
+  assert.fail('should be unreachable');
 }).on('tlsClientError', function(err, conn) {
   assert(!clientError && conn);
   clientError = err;

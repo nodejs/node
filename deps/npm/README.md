@@ -1,6 +1,8 @@
 npm(1) -- a JavaScript package manager
 ==============================
+
 [![Build Status](https://img.shields.io/travis/npm/npm/latest.svg)](https://travis-ci.org/npm/npm)
+
 ## SYNOPSIS
 
 This is just enough info to get you up and running.
@@ -76,7 +78,7 @@ If you plan on hacking on npm, `make link` is your friend.
 
 If you've got the npm source code, you can also semi-permanently set
 arbitrary config keys using the `./configure --key=val ...`, and then
-run npm commands by doing `node cli.js <cmd> <args>`.  (This is helpful
+run npm commands by doing `node bin/npm-cli.js <command> <args>`.  (This is helpful
 for testing, or running stuff without actually installing npm itself.)
 
 ## Windows Install or Upgrade
@@ -86,7 +88,7 @@ experience if you run a recent version of npm. To upgrade, either use [Microsoft
 upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade),
 [download a new version of Node](https://nodejs.org/en/download/),
 or follow the Windows upgrade instructions in the
-[npm Troubleshooting Guide](https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows).
+[npm Troubleshooting Guide](./TROUBLESHOOTING.md).
 
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.
@@ -156,8 +158,9 @@ When you find issues, please report them:
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
 
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  She
-will no doubt tell you to put the output in a gist or email.
+You can also find npm people in `#npm` on https://package.community/ or
+[on Twitter](https://twitter.com/npm_support).  Whoever responds will no
+doubt tell you to put the output in a gist or email.
 
 ## SEE ALSO
 

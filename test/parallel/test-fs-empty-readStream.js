@@ -22,10 +22,10 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-const emptyFile = path.join(common.fixturesDir, 'empty.txt');
+const emptyFile = fixtures.path('empty.txt');
 
 fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 

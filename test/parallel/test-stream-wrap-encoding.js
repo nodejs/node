@@ -1,23 +1,42 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 const StreamWrap = require('_stream_wrap');
 const Duplex = require('stream').Duplex;
 
-const stream = new Duplex({
-  read: function() {
-  },
-  write: function() {
-  }
-});
+{
+  const stream = new Duplex({
+    read() {},
+    write() {}
+  });
 
-stream.setEncoding('ascii');
+  stream.setEncoding('ascii');
 
-const wrap = new StreamWrap(stream);
+  const wrap = new StreamWrap(stream);
 
-wrap.on('error', common.mustCall(function(err) {
-  assert(/StringDecoder/.test(err.message));
-}));
+  wrap.on('error', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_WRAP',
+    message: 'Stream has StringDecoder set or is in objectMode'
+  }));
 
-stream.push('ohai');
+  stream.push('ohai');
+}
+
+{
+  const stream = new Duplex({
+    read() {},
+    write() {},
+    objectMode: true
+  });
+
+  const wrap = new StreamWrap(stream);
+
+  wrap.on('error', common.expectsError({
+    type: Error,
+    code: 'ERR_STREAM_WRAP',
+    message: 'Stream has StringDecoder set or is in objectMode'
+  }));
+
+  stream.push(new Error('foo'));
+}

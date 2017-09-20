@@ -1,18 +1,13 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
 
-if (!process.features.tls_sni) {
+if (!process.features.tls_sni)
   common.skip('node compiled without OpenSSL or with old OpenSSL version.');
-  return;
-}
 
 const assert = require('assert');
-
-if (!common.hasCrypto) {
-  return common.skip('missing crypto');
-}
-
 const tls = require('tls');
 
 const options = {
@@ -22,7 +17,7 @@ const options = {
 };
 
 const server = tls.createServer(options, (c) => {
-  common.fail('Should not be called');
+  assert.fail('Should not be called');
 }).on('tlsClientError', common.mustCall((err, c) => {
   assert(/SSL_use_certificate:passed a null parameter/i.test(err.message));
   server.close();

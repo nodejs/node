@@ -28,7 +28,13 @@ from gyp.common import OrderedSet
 
 
 # A list of types that are treated as linkable.
-linkable_types = ['executable', 'shared_library', 'loadable_module']
+linkable_types = [
+  'executable',
+  'shared_library',
+  'loadable_module',
+  'mac_kernel_extension',
+  'windows_driver',
+]
 
 # A list of sections that contain links to other targets.
 dependency_sections = ['dependencies', 'export_dependent_settings']
@@ -1534,11 +1540,15 @@ class DependencyGraphNode(object):
     # dependents.
     flat_list = OrderedSet()
 
+    def ExtractNodeRef(node):
+      """Extracts the object that the node represents from the given node."""
+      return node.ref
+
     # in_degree_zeros is the list of DependencyGraphNodes that have no
     # dependencies not in flat_list.  Initially, it is a copy of the children
     # of this node, because when the graph was built, nodes with no
     # dependencies were made implicit dependents of the root node.
-    in_degree_zeros = set(self.dependents[:])
+    in_degree_zeros = sorted(self.dependents[:], key=ExtractNodeRef)
 
     while in_degree_zeros:
       # Nodes in in_degree_zeros have no dependencies not in flat_list, so they
@@ -1550,12 +1560,13 @@ class DependencyGraphNode(object):
 
       # Look at dependents of the node just added to flat_list.  Some of them
       # may now belong in in_degree_zeros.
-      for node_dependent in node.dependents:
+      for node_dependent in sorted(node.dependents, key=ExtractNodeRef):
         is_in_degree_zero = True
         # TODO: We want to check through the
         # node_dependent.dependencies list but if it's long and we
         # always start at the beginning, then we get O(n^2) behaviour.
-        for node_dependent_dependency in node_dependent.dependencies:
+        for node_dependent_dependency in (sorted(node_dependent.dependencies,
+                                                 key=ExtractNodeRef)):
           if not node_dependent_dependency.ref in flat_list:
             # The dependent one or more dependencies not in flat_list.  There
             # will be more chances to add it to flat_list when examining
@@ -1568,7 +1579,7 @@ class DependencyGraphNode(object):
           # All of the dependent's dependencies are already in flat_list.  Add
           # it to in_degree_zeros where it will be processed in a future
           # iteration of the outer loop.
-          in_degree_zeros.add(node_dependent)
+          in_degree_zeros += [node_dependent]
 
     return list(flat_list)
 
@@ -1724,11 +1735,13 @@ class DependencyGraphNode(object):
       dependencies.add(self.ref)
       return dependencies
 
-    # Executables and loadable modules are already fully and finally linked.
-    # Nothing else can be a link dependency of them, there can only be
-    # dependencies in the sense that a dependent target might run an
-    # executable or load the loadable_module.
-    if not initial and target_type in ('executable', 'loadable_module'):
+    # Executables, mac kernel extensions, windows drivers and loadable modules
+    # are already fully and finally linked. Nothing else can be a link
+    # dependency of them, there can only be dependencies in the sense that a
+    # dependent target might run an executable or load the loadable_module.
+    if not initial and target_type in ('executable', 'loadable_module',
+                                       'mac_kernel_extension',
+                                       'windows_driver'):
       return dependencies
 
     # Shared libraries are already fully linked.  They should only be included
@@ -2479,7 +2492,7 @@ def ValidateTargetType(target, target_dict):
   """
   VALID_TARGET_TYPES = ('executable', 'loadable_module',
                         'static_library', 'shared_library',
-                        'none')
+                        'mac_kernel_extension', 'none', 'windows_driver')
   target_type = target_dict.get('type', None)
   if target_type not in VALID_TARGET_TYPES:
     raise GypError("Target %s has an invalid target type '%s'.  "

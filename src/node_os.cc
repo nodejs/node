@@ -19,10 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
-#include "v8.h"
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "string_bytes.h"
 
 #include <errno.h>
@@ -57,6 +54,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -339,7 +337,12 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsObject()) {
     Local<Object> options = args[0].As<Object>();
-    Local<Value> encoding_opt = options->Get(env->encoding_string());
+    MaybeLocal<Value> maybe_encoding = options->Get(env->context(),
+                                                    env->encoding_string());
+    if (maybe_encoding.IsEmpty())
+      return;
+
+    Local<Value> encoding_opt = maybe_encoding.ToLocalChecked();
     encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
   } else {
     encoding = UTF8;
@@ -351,48 +354,39 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_os_get_passwd");
   }
 
+  Local<Value> error;
+
   Local<Value> uid = Number::New(env->isolate(), pwd.uid);
   Local<Value> gid = Number::New(env->isolate(), pwd.gid);
-  Local<Value> username = StringBytes::Encode(env->isolate(),
-                                              pwd.username,
-                                              encoding);
-  Local<Value> homedir = StringBytes::Encode(env->isolate(),
-                                             pwd.homedir,
-                                             encoding);
-  Local<Value> shell;
+  MaybeLocal<Value> username = StringBytes::Encode(env->isolate(),
+                                                   pwd.username,
+                                                   encoding,
+                                                   &error);
+  MaybeLocal<Value> homedir = StringBytes::Encode(env->isolate(),
+                                                  pwd.homedir,
+                                                  encoding,
+                                                  &error);
+  MaybeLocal<Value> shell;
 
   if (pwd.shell == NULL)
     shell = Null(env->isolate());
   else
-    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding);
+    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);
 
-  uv_os_free_passwd(&pwd);
-
-  if (username.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for username");
-  }
-
-  if (homedir.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for homedir");
-  }
-
-  if (shell.IsEmpty()) {
-    return env->ThrowUVException(UV_EINVAL,
-                                 "uv_os_get_passwd",
-                                 "Invalid character encoding for shell");
+  if (username.IsEmpty() || homedir.IsEmpty() || shell.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    uv_os_free_passwd(&pwd);
+    env->isolate()->ThrowException(error);
+    return;
   }
 
   Local<Object> entry = Object::New(env->isolate());
 
   entry->Set(env->uid_string(), uid);
   entry->Set(env->gid_string(), gid);
-  entry->Set(env->username_string(), username);
-  entry->Set(env->homedir_string(), homedir);
-  entry->Set(env->shell_string(), shell);
+  entry->Set(env->username_string(), username.ToLocalChecked());
+  entry->Set(env->homedir_string(), homedir.ToLocalChecked());
+  entry->Set(env->shell_string(), shell.ToLocalChecked());
 
   args.GetReturnValue().Set(entry);
 }

@@ -157,7 +157,7 @@ module.exports = {
             }
 
             if (isConcatenation(currentNode) && hasStringLiteral(currentNode) && hasNonStringLiteral(currentNode)) {
-                const plusSign = sourceCode.getTokensBetween(currentNode.left, currentNode.right).find(token => token.value === "+");
+                const plusSign = sourceCode.getFirstTokenBetween(currentNode.left, currentNode.right, token => token.value === "+");
                 const textBeforePlus = getTextBetween(currentNode.left, plusSign);
                 const textAfterPlus = getTextBetween(plusSign, currentNode.right);
                 const leftEndsWithCurly = endsWithTemplateCurly(currentNode.left);

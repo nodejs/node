@@ -1,5 +1,7 @@
 # VM (Executing JavaScript)
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 <!--name=vm-->
@@ -116,7 +118,7 @@ const sandbox = {
 const script = new vm.Script('count += 1; name = "kitty";');
 
 const context = new vm.createContext(sandbox);
-for (var i = 0; i < 10; ++i) {
+for (let i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
 
@@ -125,7 +127,11 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
-### script.runInNewContext([sandbox][, options])
+*Note*: Using the `timeout` or `breakOnSigint` options will result in new
+event loops and corresponding threads being started, which have a non-zero
+performance overhead.
+
+### script.runInNewContext([sandbox[, options]])
 <!-- YAML
 added: v0.3.1
 -->
@@ -203,7 +209,7 @@ global.globalVar = 0;
 
 const script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
 
-for (var i = 0; i < 1000; ++i) {
+for (let i = 0; i < 1000; ++i) {
   script.runInThisContext();
 }
 
@@ -231,14 +237,14 @@ will remain unchanged.
 const util = require('util');
 const vm = require('vm');
 
-var globalVar = 3;
+global.globalVar = 3;
 
 const sandbox = { globalVar: 1 };
 vm.createContext(sandbox);
 
 vm.runInContext('globalVar *= 2;', sandbox);
 
-console.log(util.inspect(sandbox)); // 2
+console.log(util.inspect(sandbox)); // { globalVar: 2 }
 
 console.log(util.inspect(globalVar)); // 3
 ```
@@ -296,7 +302,7 @@ const vm = require('vm');
 const sandbox = { globalVar: 1 };
 vm.createContext(sandbox);
 
-for (var i = 0; i < 10; ++i) {
+for (let i = 0; i < 10; ++i) {
   vm.runInContext('globalVar *= 2;', sandbox);
 }
 console.log(util.inspect(sandbox));
@@ -308,6 +314,8 @@ console.log(util.inspect(sandbox));
 <!-- YAML
 added: v0.11.14
 -->
+
+> Stability: 0 - Deprecated. An alternative is in development.
 
 * `code` {string} The JavaScript code to compile and run.
 
@@ -399,9 +407,10 @@ local scope, but does have access to the current `global` object.
 The following example illustrates using both `vm.runInThisContext()` and
 the JavaScript [`eval()`][] function to run the same code:
 
+<!-- eslint-disable prefer-const -->
 ```js
 const vm = require('vm');
-var localVar = 'initial value';
+let localVar = 'initial value';
 
 const vmResult = vm.runInThisContext('localVar = "vm";');
 console.log('vmResult:', vmResult);
@@ -435,20 +444,19 @@ to the `http` module passed to it. For instance:
 'use strict';
 const vm = require('vm');
 
-let code =
-`(function(require) {
+const code = `
+(function(require) {
+  const http = require('http');
 
-   const http = require('http');
+  http.createServer((request, response) => {
+    response.writeHead(200, { 'Content-Type': 'text/plain' });
+    response.end('Hello World\\n');
+  }).listen(8124);
 
-   http.createServer( (request, response) => {
-     response.writeHead(200, {'Content-Type': 'text/plain'});
-     response.end('Hello World\\n');
-   }).listen(8124);
+  console.log('Server running at http://127.0.0.1:8124/');
+})`;
 
-   console.log('Server running at http://127.0.0.1:8124/');
- })`;
-
- vm.runInThisContext(code)(require);
+vm.runInThisContext(code)(require);
  ```
 
 *Note*: The `require()` in the above case shares the state with the context it
@@ -467,20 +475,20 @@ According to the [V8 Embedder's Guide][]:
 When the method `vm.createContext()` is called, the `sandbox` object that is
 passed in (or a newly created object if `sandbox` is `undefined`) is associated
 internally with a new instance of a V8 Context. This V8 Context provides the
-`code` run using the `vm` modules methods with an isolated global environment
+`code` run using the `vm` module's methods with an isolated global environment
 within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
-[indirect `eval()` call]: https://es5.github.io/#x10.4.2
-[global object]: https://es5.github.io/#x15.1
 [`Error`]: errors.html#errors_class_error
+[`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
-[`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
-[contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [command line option]: cli.html
+[contextified]: #vm_what_does_it_mean_to_contextify_an_object
+[global object]: https://es5.github.io/#x15.1
+[indirect `eval()` call]: https://es5.github.io/#x10.4.2

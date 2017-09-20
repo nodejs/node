@@ -1,3 +1,5 @@
+Tests that suspended generators produce scopes
+
 Running test: testScopesPaused
 {
     id : <messageId>
@@ -7,11 +9,11 @@ Running test: testScopesPaused
                 configurable : true
                 enumerable : true
                 isOwn : true
-                name : a
+                name : b
                 value : {
-                    description : 420
+                    description : 42
                     type : number
-                    value : 420
+                    value : 42
                 }
                 writable : true
             }
@@ -19,11 +21,11 @@ Running test: testScopesPaused
                 configurable : true
                 enumerable : true
                 isOwn : true
-                name : b
+                name : a
                 value : {
-                    description : 42
+                    description : 420
                     type : number
-                    value : 42
+                    value : 420
                 }
                 writable : true
             }
@@ -40,11 +42,9 @@ Running test: testScopesNonPaused
                 configurable : true
                 enumerable : true
                 isOwn : true
-                name : a
+                name : b
                 value : {
-                    description : 430
-                    type : number
-                    value : 430
+                    type : undefined
                 }
                 writable : true
             }
@@ -52,9 +52,11 @@ Running test: testScopesNonPaused
                 configurable : true
                 enumerable : true
                 isOwn : true
-                name : b
+                name : a
                 value : {
-                    type : undefined
+                    description : 430
+                    type : number
+                    value : 430
                 }
                 writable : true
             }

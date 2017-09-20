@@ -49,9 +49,6 @@
         'cflags': [
           '-O3',
           '-fstrict-aliasing',
-          '-fomit-frame-pointer',
-          '-fdata-sections',
-          '-ffunction-sections',
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -82,6 +79,15 @@
             'LinkIncremental': 1, # disable incremental linking
           },
         },
+        'conditions': [
+          ['OS != "os390"', {
+            'cflags': [
+              '-fomit-frame-pointer',
+              '-fdata-sections',
+              '-ffunction-sections',
+            ],
+          }],
+        ]
       }
     },
     'msvs_settings': {
@@ -180,6 +186,7 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
+            '-Wstrict-prototypes',
           ],
         },
         'conditions': [

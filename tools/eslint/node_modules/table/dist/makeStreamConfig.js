@@ -105,5 +105,3 @@ exports.default = function () {
 
   return config;
 };
-
-module.exports = exports['default'];

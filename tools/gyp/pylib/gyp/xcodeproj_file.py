@@ -1492,6 +1492,7 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
         'icns':        'image.icns',
         'java':        'sourcecode.java',
         'js':          'sourcecode.javascript',
+        'kext':        'wrapper.kext',
         'm':           'sourcecode.c.objc',
         'mm':          'sourcecode.cpp.objcpp',
         'nib':         'wrapper.nib',
@@ -1944,24 +1945,40 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
     'name':             [0, str, 0, 0],
   })
 
-  # path_tree_re matches "$(DIR)/path" or just "$(DIR)".  Match group 1 is
-  # "DIR", match group 3 is "path" or None.
-  path_tree_re = re.compile('^\\$\\((.*)\\)(/(.*)|)$')
+  # path_tree_re matches "$(DIR)/path", "$(DIR)/$(DIR2)/path" or just "$(DIR)".
+  # Match group 1 is "DIR", group 3 is "path" or "$(DIR2") or "$(DIR2)/path"
+  # or None. If group 3 is "path", group 4 will be None otherwise group 4 is
+  # "DIR2" and group 6 is "path".
+  path_tree_re = re.compile(r'^\$\((.*?)\)(/(\$\((.*?)\)(/(.*)|)|(.*)|)|)$')
 
-  # path_tree_to_subfolder maps names of Xcode variables to the associated
-  # dstSubfolderSpec property value used in a PBXCopyFilesBuildPhase object.
-  path_tree_to_subfolder = {
-    'BUILT_PRODUCTS_DIR': 16,  # Products Directory
-    # Other types that can be chosen via the Xcode UI.
-    # TODO(mark): Map Xcode variable names to these.
-    # : 1,  # Wrapper
-    # : 6,  # Executables: 6
-    # : 7,  # Resources
-    # : 15,  # Java Resources
-    # : 10,  # Frameworks
-    # : 11,  # Shared Frameworks
-    # : 12,  # Shared Support
-    # : 13,  # PlugIns
+  # path_tree_{first,second}_to_subfolder map names of Xcode variables to the
+  # associated dstSubfolderSpec property value used in a PBXCopyFilesBuildPhase
+  # object.
+  path_tree_first_to_subfolder = {
+    # Types that can be chosen via the Xcode UI.
+    'BUILT_PRODUCTS_DIR':               16,  # Products Directory
+    'BUILT_FRAMEWORKS_DIR':             10,  # Not an official Xcode macro.
+                                             # Existed before support for the
+                                             # names below was added. Maps to
+                                             # "Frameworks".
+  }
+
+  path_tree_second_to_subfolder = {
+    'WRAPPER_NAME':                      1,  # Wrapper
+    # Although Xcode's friendly name is "Executables", the destination
+    # is demonstrably the value of the build setting
+    # EXECUTABLE_FOLDER_PATH not EXECUTABLES_FOLDER_PATH.
+    'EXECUTABLE_FOLDER_PATH':            6,  # Executables.
+    'UNLOCALIZED_RESOURCES_FOLDER_PATH': 7,  # Resources
+    'JAVA_FOLDER_PATH':                 15,  # Java Resources
+    'FRAMEWORKS_FOLDER_PATH':           10,  # Frameworks
+    'SHARED_FRAMEWORKS_FOLDER_PATH':    11,  # Shared Frameworks
+    'SHARED_SUPPORT_FOLDER_PATH':       12,  # Shared Support
+    'PLUGINS_FOLDER_PATH':              13,  # PlugIns
+    # For XPC Services, Xcode sets both dstPath and dstSubfolderSpec.
+    # Note that it re-uses the BUILT_PRODUCTS_DIR value for
+    # dstSubfolderSpec. dstPath is set below.
+    'XPCSERVICES_FOLDER_PATH':          16,  # XPC Services.
   }
 
   def Name(self):
@@ -1982,14 +1999,61 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
 
     path_tree_match = self.path_tree_re.search(path)
     if path_tree_match:
-      # Everything else needs to be relative to an Xcode variable.
-      path_tree = path_tree_match.group(1)
-      relative_path = path_tree_match.group(3)
-
-      if path_tree in self.path_tree_to_subfolder:
-        subfolder = self.path_tree_to_subfolder[path_tree]
+      path_tree = path_tree_match.group(1);
+      if path_tree in self.path_tree_first_to_subfolder:
+        subfolder = self.path_tree_first_to_subfolder[path_tree]
+        relative_path = path_tree_match.group(3)
         if relative_path is None:
           relative_path = ''
+
+        if subfolder == 16 and path_tree_match.group(4) is not None:
+          # BUILT_PRODUCTS_DIR (16) is the first element in a path whose
+          # second element is possibly one of the variable names in
+          # path_tree_second_to_subfolder. Xcode sets the values of all these
+          # variables to relative paths so .gyp files must prefix them with
+          # BUILT_PRODUCTS_DIR, e.g.
+          # $(BUILT_PRODUCTS_DIR)/$(PLUGINS_FOLDER_PATH). Then
+          # xcode_emulation.py can export these variables with the same values
+          # as Xcode yet make & ninja files can determine the absolute path
+          # to the target. Xcode uses the dstSubfolderSpec value set here
+          # to determine the full path.
+          #
+          # An alternative of xcode_emulation.py setting the values to absolute
+          # paths when exporting these variables has been ruled out because
+          # then the values would be different depending on the build tool.
+          #
+          # Another alternative is to invent new names for the variables used
+          # to match to the subfolder indices in the second table. .gyp files
+          # then will not need to prepend $(BUILT_PRODUCTS_DIR) because
+          # xcode_emulation.py can set the values of those variables to
+          # the absolute paths when exporting. This is possibly the thinking
+          # behind BUILT_FRAMEWORKS_DIR which is used in exactly this manner.
+          #
+          # Requiring prepending BUILT_PRODUCTS_DIR has been chosen because
+          # this same way could be used to specify destinations in .gyp files
+          # that pre-date this addition to GYP. However they would only work
+          # with the Xcode generator. The previous version of xcode_emulation.py
+          # does not export these variables. Such files will get the benefit
+          # of the Xcode UI showing the proper destination name simply by
+          # regenerating the projects with this version of GYP.
+          path_tree = path_tree_match.group(4)
+          relative_path = path_tree_match.group(6)
+          separator = '/'
+
+          if path_tree in self.path_tree_second_to_subfolder:
+            subfolder = self.path_tree_second_to_subfolder[path_tree]
+            if relative_path is None:
+              relative_path = ''
+              separator = ''
+            if path_tree == 'XPCSERVICES_FOLDER_PATH':
+              relative_path = '$(CONTENTS_FOLDER_PATH)/XPCServices' \
+                              + separator + relative_path
+          else:
+            # subfolder = 16 from above
+            # The second element of the path is an unrecognized variable.
+            # Include it and any remaining elements in relative_path.
+            relative_path = path_tree_match.group(3);
+
       else:
         # The path starts with an unrecognized Xcode variable
         # name like $(SRCROOT).  Xcode will still handle this
@@ -2260,8 +2324,12 @@ class PBXNativeTarget(XCTarget):
                                                  '', ''],
     'com.apple.product-type.bundle.unit-test':  ['wrapper.cfbundle',
                                                  '', '.xctest'],
+    'com.apple.product-type.bundle.ui-testing':  ['wrapper.cfbundle',
+                                                  '', '.xctest'],
     'com.googlecode.gyp.xcode.bundle':          ['compiled.mach-o.dylib',
                                                  '', '.so'],
+    'com.apple.product-type.kernel-extension':  ['wrapper.kext',
+                                                 '', '.kext'],
   }
 
   def __init__(self, properties=None, id=None, parent=None,
@@ -2314,7 +2382,9 @@ class PBXNativeTarget(XCTarget):
             force_extension = suffix[1:]
 
         if self._properties['productType'] == \
-           'com.apple.product-type-bundle.unit.test':
+           'com.apple.product-type-bundle.unit.test' or \
+           self._properties['productType'] == \
+           'com.apple.product-type-bundle.ui-testing':
           if force_extension is None:
             force_extension = suffix[1:]
 

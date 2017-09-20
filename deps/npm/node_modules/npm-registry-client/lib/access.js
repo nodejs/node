@@ -125,6 +125,7 @@ function accessAssertions (subcommand, uri, params, cb) {
 function typeChecks (specs) {
   Object.keys(specs).forEach(function (key) {
     var checks = specs[key]
+    /* eslint valid-typeof:0 */
     assert(typeof checks[0] === checks[1],
            key + ' is required and must be of type ' + checks[1])
   })

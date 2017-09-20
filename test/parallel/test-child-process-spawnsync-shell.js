@@ -1,10 +1,13 @@
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
+const internalCp = require('internal/child_process');
+const oldSpawnSync = internalCp.spawnSync;
 
 // Verify that a shell is, in fact, executed
-const doesNotExist = cp.spawnSync('does-not-exist', {shell: true});
+const doesNotExist = cp.spawnSync('does-not-exist', { shell: true });
 
 assert.notStrictEqual(doesNotExist.file, 'does-not-exist');
 assert.strictEqual(doesNotExist.error, undefined);
@@ -16,21 +19,25 @@ else
   assert.strictEqual(doesNotExist.status, 127);  // Exit code of /bin/sh
 
 // Verify that passing arguments works
-const echo = cp.spawnSync('echo', ['foo'], {shell: true});
+internalCp.spawnSync = common.mustCall(function(opts) {
+  assert.strictEqual(opts.args[opts.args.length - 1].replace(/"/g, ''),
+                     'echo foo');
+  return oldSpawnSync(opts);
+});
+const echo = cp.spawnSync('echo', ['foo'], { shell: true });
+internalCp.spawnSync = oldSpawnSync;
 
-assert.strictEqual(echo.args[echo.args.length - 1].replace(/"/g, ''),
-                   'echo foo');
 assert.strictEqual(echo.stdout.toString().trim(), 'foo');
 
 // Verify that shell features can be used
 const cmd = 'echo bar | cat';
-const command = cp.spawnSync(cmd, {shell: true});
+const command = cp.spawnSync(cmd, { shell: true });
 
 assert.strictEqual(command.stdout.toString().trim(), 'bar');
 
 // Verify that the environment is properly inherited
 const env = cp.spawnSync(`"${process.execPath}" -pe process.env.BAZ`, {
-  env: Object.assign({}, process.env, {BAZ: 'buzz'}),
+  env: Object.assign({}, process.env, { BAZ: 'buzz' }),
   shell: true
 });
 
@@ -52,16 +59,18 @@ assert.strictEqual(env.stdout.toString().trim(), 'buzz');
     const shellFlags = platform === 'win32' ? ['/d', '/s', '/c'] : ['-c'];
     const outputCmd = platform === 'win32' ? `"${cmd}"` : cmd;
     const windowsVerbatim = platform === 'win32' ? true : undefined;
-    const result = cp.spawnSync(cmd, { shell });
-
-    assert.strictEqual(result.file, shellOutput);
-    assert.deepStrictEqual(result.args,
-                           [shellOutput, ...shellFlags, outputCmd]);
-    assert.strictEqual(result.options.shell, shell);
-    assert.strictEqual(result.options.file, result.file);
-    assert.deepStrictEqual(result.options.args, result.args);
-    assert.strictEqual(result.options.windowsVerbatimArguments,
-                       windowsVerbatim);
+    internalCp.spawnSync = common.mustCall(function(opts) {
+      assert.strictEqual(opts.file, shellOutput);
+      assert.deepStrictEqual(opts.args,
+                             [shellOutput, ...shellFlags, outputCmd]);
+      assert.strictEqual(opts.options.shell, shell);
+      assert.strictEqual(opts.options.file, opts.file);
+      assert.deepStrictEqual(opts.options.args, opts.args);
+      assert.strictEqual(opts.options.windowsVerbatimArguments,
+                         windowsVerbatim);
+    });
+    cp.spawnSync(cmd, { shell });
+    internalCp.spawnSync = oldSpawnSync;
   }
 
   // Test Unix platforms with the default shell.

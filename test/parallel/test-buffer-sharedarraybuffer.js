@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const Buffer = require('buffer').Buffer;
 
 const sab = new SharedArrayBuffer(24);
 const arr1 = new Uint16Array(sab);
@@ -28,4 +27,4 @@ assert.deepStrictEqual(arr_buf, ar_buf, 0);
 
 assert.strictEqual(Buffer.byteLength(sab), sab.byteLength, 0);
 
-assert.doesNotThrow(() => Buffer.from({buffer: sab}));
+assert.doesNotThrow(() => Buffer.from({ buffer: sab }));

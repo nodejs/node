@@ -15,7 +15,7 @@ let counter = 0;
 
 // Avoid conflict with listen-handle
 function randomPipePath() {
-  return common.PIPE + '-listen-path-' + (counter++);
+  return `${common.PIPE}-listen-path-${counter++}`;
 }
 
 // Test listen(path)
@@ -30,7 +30,7 @@ function randomPipePath() {
 {
   const handlePath = randomPipePath();
   net.createServer()
-    .listen({path: handlePath})
+    .listen({ path: handlePath })
     .on('listening', closeServer());
 }
 
@@ -45,5 +45,5 @@ function randomPipePath() {
 {
   const handlePath = randomPipePath();
   net.createServer()
-    .listen({path: handlePath}, closeServer());
+    .listen({ path: handlePath }, closeServer());
 }

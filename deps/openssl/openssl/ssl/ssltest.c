@@ -311,6 +311,10 @@ static const char *sn_client;
 static const char *sn_server1;
 static const char *sn_server2;
 static int sn_expect = 0;
+static int s_ticket1 = 0;
+static int s_ticket2 = 0;
+static int c_ticket = 0;
+static int ticket_expect = -1;
 
 static int servername_cb(SSL *s, int *ad, void *arg)
 {
@@ -325,6 +329,9 @@ static int servername_cb(SSL *s, int *ad, void *arg)
             !strcasecmp(servername, sn_server2)) {
             BIO_printf(bio_stdout, "Switching server context.\n");
             SSL_set_SSL_CTX(s, s_ctx2);
+            /* Copy over all the SSL_CTX options */
+            SSL_clear_options(s, 0xFFFFFFFFL);
+            SSL_set_options(s, SSL_CTX_get_options(s_ctx2));
         }
     }
     return SSL_TLSEXT_ERR_OK;
@@ -346,6 +353,21 @@ static int verify_servername(SSL *client, SSL *server)
         BIO_printf(bio_stdout, "Servername: context is 1\n");
     else
         BIO_printf(bio_stdout, "Servername: context is unknown\n");
+    return -1;
+}
+
+static int verify_ticket(SSL* ssl)
+{
+    if (ticket_expect == -1)
+        return 0;
+    if (ticket_expect == 0 &&
+        (ssl->session->tlsext_tick == NULL ||
+         ssl->session->tlsext_ticklen == 0))
+        return 1;
+    if (ticket_expect == 1 &&
+        (ssl->session->tlsext_tick != NULL &&
+         ssl->session->tlsext_ticklen != 0))
+        return 1;
     return -1;
 }
 
@@ -476,6 +498,42 @@ static int verify_alpn(SSL *client, SSL *server)
     }
     return -1;
 }
+
+#ifndef OPENSSL_NO_TLSEXT
+
+static int cb_ticket0(SSL* s, unsigned char* key_name, unsigned char *iv, EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc)
+{
+    return 0;
+}
+
+static int cb_ticket1(SSL* s, unsigned char* key_name, unsigned char *iv, EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc)
+{
+    static unsigned char key[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+    static char name[] = "ticket11ticket11";
+    if (SSL_get_options(s) & SSL_OP_NO_TICKET)
+        return 0;
+    if (enc) {
+        RAND_pseudo_bytes(iv, EVP_MAX_IV_LENGTH);
+        EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
+        HMAC_Init_ex(hctx, key, sizeof(key), EVP_sha1(), NULL);
+        memcpy(key_name, name, 16);
+        return 1;
+    } else {
+        if (memcmp(key_name, name, 16) == 0) {
+            EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv);
+            HMAC_Init_ex(hctx, key, sizeof(key), EVP_sha1(), NULL);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int cb_ticket2(SSL* s, unsigned char* key_name, unsigned char *iv, EVP_CIPHER_CTX *ctx, HMAC_CTX *hctx, int enc)
+{
+    fprintf(stderr, "ticket callback for SNI context should never be called\n");
+    EXIT(1);
+}
+#endif
 
 #define SCT_EXT_TYPE 18
 
@@ -820,6 +878,12 @@ static void sv_usage(void)
     fprintf(stderr, " -sn_server2 <string> - have server context 2 respond to this servername\n");
     fprintf(stderr, " -sn_expect1          - expected server 1\n");
     fprintf(stderr, " -sn_expect2          - expected server 2\n");
+#ifndef OPENSSL_NO_TLSEXT
+    fprintf(stderr, " -s_ticket1 <yes|no|broken> - enable/disable session tickets on context 1\n");
+    fprintf(stderr, " -s_ticket2 <yes|no>        - enable/disable session tickets on context 2\n");
+    fprintf(stderr, " -c_ticket <yes|no>         - enable/disable session tickets on the client\n");
+    fprintf(stderr, " -ticket_expect <yes|no>    - indicate that the client should (or should not) have a ticket\n");
+#endif
 }
 
 static void print_details(SSL *c_ssl, const char *prefix)
@@ -1175,13 +1239,21 @@ int main(int argc, char *argv[])
         } else if (strcmp(*argv, "-time") == 0) {
             print_time = 1;
         }
-#ifndef OPENSSL_NO_COMP
         else if (strcmp(*argv, "-zlib") == 0) {
+#ifndef OPENSSL_NO_COMP
             comp = COMP_ZLIB;
-        } else if (strcmp(*argv, "-rle") == 0) {
-            comp = COMP_RLE;
-        }
+#else
+            fprintf(stderr,
+                    "ignoring -zlib, since I'm compiled without COMP\n");
 #endif
+        } else if (strcmp(*argv, "-rle") == 0) {
+#ifndef OPENSSL_NO_COMP
+            comp = COMP_RLE;
+#else
+            fprintf(stderr,
+                    "ignoring -rle, since I'm compiled without COMP\n");
+#endif
+        }
         else if (strcmp(*argv, "-named_curve") == 0) {
             if (--argc < 1)
                 goto bad;
@@ -1241,6 +1313,36 @@ int main(int argc, char *argv[])
             sn_expect = 1;
         } else if (strcmp(*argv, "-sn_expect2") == 0) {
             sn_expect = 2;
+#ifndef OPENSSL_NO_TLSEXT
+        } else if (strcmp(*argv, "-s_ticket1") == 0) {
+            if (--argc < 1)
+                goto bad;
+            argv++;
+            if (strcmp(*argv, "yes") == 0)
+                s_ticket1 = 1;
+            if (strcmp(*argv, "broken") == 0)
+                s_ticket1 = 2;
+        } else if (strcmp(*argv, "-s_ticket2") == 0) {
+            if (--argc < 1)
+                goto bad;
+            argv++;
+            if (strcmp(*argv, "yes") == 0)
+                s_ticket2 = 1;
+        } else if (strcmp(*argv, "-c_ticket") == 0) {
+            if (--argc < 1)
+                goto bad;
+            argv++;
+            if (strcmp(*argv, "yes") == 0)
+                c_ticket = 1;
+        } else if (strcmp(*argv, "-ticket_expect") == 0) {
+            if (--argc < 1)
+                goto bad;
+            argv++;
+            if (strcmp(*argv, "yes") == 0)
+                ticket_expect = 1;
+            else if (strcmp(*argv, "no") == 0)
+                ticket_expect = 0;
+#endif
         } else {
             fprintf(stderr, "unknown option %s\n", *argv);
             badop = 1;
@@ -1679,6 +1781,24 @@ int main(int argc, char *argv[])
     if (sn_server1 || sn_server2)
         SSL_CTX_set_tlsext_servername_callback(s_ctx, servername_cb);
 
+#ifndef OPENSSL_NO_TLSEXT
+    if (s_ticket1 == 0)
+        SSL_CTX_set_options(s_ctx, SSL_OP_NO_TICKET);
+    /* always set the callback */
+    if (s_ticket1 == 2)
+        SSL_CTX_set_tlsext_ticket_key_cb(s_ctx, cb_ticket0);
+    else
+        SSL_CTX_set_tlsext_ticket_key_cb(s_ctx, cb_ticket1);
+
+    if (!s_ticket2)
+        SSL_CTX_set_options(s_ctx2, SSL_OP_NO_TICKET);
+    /* always set the callback - this should never be called */
+    SSL_CTX_set_tlsext_ticket_key_cb(s_ctx2, cb_ticket2);
+
+    if (!c_ticket)
+        SSL_CTX_set_options(c_ctx, SSL_OP_NO_TICKET);
+#endif
+
     c_ssl = SSL_new(c_ctx);
     s_ssl = SSL_new(s_ctx);
 
@@ -1741,6 +1861,8 @@ int main(int argc, char *argv[])
     if (verify_alpn(c_ssl, s_ssl) < 0)
         ret = 1;
     if (verify_servername(c_ssl, s_ssl) < 0)
+        ret = 1;
+    if (verify_ticket(c_ssl) < 0)
         ret = 1;
 
     SSL_free(s_ssl);

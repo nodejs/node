@@ -33,6 +33,8 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "code",
+
         schema: [{
             type: "object",
             properties: {
@@ -55,7 +57,15 @@ module.exports = {
             const body = node.body;
 
             if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(sourceCode, body))) {
-                context.report({ node, message: "Arrow function used ambiguously with a conditional expression." });
+                context.report({
+                    node,
+                    message: "Arrow function used ambiguously with a conditional expression.",
+                    fix(fixer) {
+
+                        // if `allowParens` is not set to true dont bother wrapping in parens
+                        return config.allowParens && fixer.replaceText(node.body, `(${sourceCode.getText(node.body)})`);
+                    }
+                });
             }
         }
 

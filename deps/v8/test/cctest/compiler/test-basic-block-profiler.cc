@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/basic-block-profiler.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 

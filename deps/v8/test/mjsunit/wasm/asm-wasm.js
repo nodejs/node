@@ -78,7 +78,7 @@ function Float64Test() {
 
   function caller() {
     var a = 0.0;
-    var ret = 0|0;
+    var ret = 0;
     a = +sum(70.1,10.2);
     if (a == 80.3) {
       ret = 1|0;
@@ -410,6 +410,22 @@ function TestContinueInNamedWhile() {
 assertWasm(20, TestContinueInNamedWhile);
 
 
+function TestContinueInDoWhileFalse() {
+  "use asm";
+
+  function caller() {
+    do {
+      continue;
+    } while (0);
+    return 47;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(47, TestContinueInDoWhileFalse);
+
+
 function TestNot() {
   "use asm";
 
@@ -533,7 +549,6 @@ function TestHeapAccessIntTypes() {
     assertValidAsm(module_decl);
     assertEquals(7, module.caller());
     assertEquals(7, memory_view[2]);
-    assertEquals(7, module_decl(stdlib).caller());
     assertValidAsm(module_decl);
   }
 }
@@ -873,7 +888,7 @@ function TestInitFunctionWithNoGlobals() {
   function caller() {
     return 51;
   }
-  return {caller};
+  return {caller:caller};
 }
 
 assertWasm(51, TestInitFunctionWithNoGlobals);
@@ -1085,7 +1100,6 @@ function TestForeignFunctionMultipleUse() {
 print("TestForeignFunctionMultipleUse...");
 TestForeignFunctionMultipleUse();
 
-
 function TestForeignVariables() {
   function AsmModule(stdlib, foreign, buffer) {
     "use asm";
@@ -1131,8 +1145,6 @@ function TestForeignVariables() {
   TestCase({baz: 345.7}, 0, NaN, 345, 345.7);
   // Check that undefined values are converted to proper defaults.
   TestCase({qux: 999}, 0, NaN, 0, NaN);
-  // Check that an undefined ffi is ok.
-  TestCase(undefined, 0, NaN, 0, NaN);
   // Check that true values are converted properly.
   TestCase({foo: true, bar: true, baz: true}, 1, 1.0, 1, 1.0);
   // Check that false values are converted properly.
@@ -1141,37 +1153,9 @@ function TestForeignVariables() {
   TestCase({foo: null, bar: null, baz: null}, 0, 0, 0, 0);
   // Check that string values are converted properly.
   TestCase({foo: 'hi', bar: 'there', baz: 'dude'}, 0, NaN, 0, NaN);
-  TestCase({foo: '0xff', bar: '234', baz: '456.1'}, 255, 234, 456, 456.1, 456);
-  // Check that Date values are converted properly.
-  TestCase({foo: new Date(123), bar: new Date(456),
-            baz: new Date(789)}, 123, 456, 789, 789);
-  // Check that list values are converted properly.
-  TestCase({foo: [], bar: [], baz: []}, 0, 0, 0, 0);
-  // Check that object values are converted properly.
-  TestCase({foo: {}, bar: {}, baz: {}}, 0, NaN, 0, NaN);
-  // Check that getter object values are converted properly.
-  var o = {
-    get foo() {
-      return 123.4;
-    }
-  };
-  TestCase({foo: o.foo, bar: o.foo, baz: o.foo}, 123, 123.4, 123, 123.4);
-  // Check that getter object values are converted properly.
-  var o = {
-    get baz() {
-      return 123.4;
-    }
-  };
-  TestCase(o, 0, NaN, 123, 123.4);
-  // Check that objects with valueOf are converted properly.
-  var o = {
-    valueOf: function() { return 99; }
-  };
-  TestCase({foo: o, bar: o, baz: o}, 99, 99, 99, 99);
+  TestCase({foo: '0xff', bar: '234', baz: '456.1'}, 255, 234, 456, 456.1);
   // Check that function values are converted properly.
   TestCase({foo: TestCase, bar: TestCase, qux: TestCase}, 0, NaN, 0, NaN);
-  // Check that a missing ffi object is safe.
-  TestCase(undefined, 0, NaN, 0, NaN);
 }
 
 print("TestForeignVariables...");
@@ -1210,8 +1194,9 @@ TestForeignVariables();
     return {load: load, iload: iload, store: store, storeb: storeb};
   }
 
+  var memory = new ArrayBuffer(1024);
   var module_decl = eval('(' + TestByteHeapAccessCompat.toString() + ')');
-  var m = module_decl(stdlib);
+  var m = module_decl(stdlib, null, memory);
   assertValidAsm(module_decl);
   m.store(0, 20);
   m.store(4, 21);
@@ -1458,7 +1443,7 @@ assertWasm(3, TestAndNegative);
 function TestNegativeDouble() {
   "use asm";
   function func() {
-    var x = -(34359738368.25);
+    var x = -34359738368.25;
     var y = -2.5;
     return +(x + y);
   }
@@ -1497,6 +1482,9 @@ assertWasm(-34359738370.75, TestNegativeDouble);
 })();
 
 
+/*
+// TODO(bradnelson): Technically invalid, but useful to cover unicode, revises
+// and re-enable.
 (function TestUnicodeExportKey() {
   function Module() {
     "use asm";
@@ -1510,6 +1498,7 @@ assertWasm(-34359738370.75, TestNegativeDouble);
   assertEquals(42, m.Ñæ());
   assertValidAsm(Module);
 })();
+*/
 
 
 function TestAndIntAndHeapValue(stdlib, foreign, buffer) {

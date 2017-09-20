@@ -77,7 +77,7 @@ fs.writeFile(filename3, n, { mode: m }, common.mustCall(function(e) {
   fs.readFile(filename3, common.mustCall(function(e, buffer) {
     assert.ifError(e);
 
-    assert.strictEqual(Buffer.byteLength('' + n), buffer.length);
+    assert.strictEqual(Buffer.byteLength(String(n)), buffer.length);
   }));
 }));
 

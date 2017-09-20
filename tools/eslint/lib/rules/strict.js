@@ -9,6 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -23,7 +25,7 @@ const messages = {
     implied: "'use strict' is unnecessary when implied strict mode is enabled.",
     unnecessaryInClasses: "'use strict' is unnecessary inside of classes.",
     nonSimpleParameterList: "'use strict' directive inside a function with non-simple parameter list throws a syntax error since ES2016.",
-    wrap: "Wrap this function in a function with 'use strict' directive."
+    wrap: "Wrap {{name}} in a function with 'use strict' directive."
 };
 
 /**
@@ -188,7 +190,11 @@ module.exports = {
                 if (isSimpleParameterList(node.params)) {
                     context.report({ node, message: messages.function });
                 } else {
-                    context.report({ node, message: messages.wrap });
+                    context.report({
+                        node,
+                        message: messages.wrap,
+                        data: { name: astUtils.getFunctionNameWithKind(node) }
+                    });
                 }
             }
 
@@ -212,8 +218,8 @@ module.exports = {
          */
         function enterFunction(node) {
             const isBlock = node.body.type === "BlockStatement",
-                useStrictDirectives = isBlock ?
-                    getUseStrictDirectives(node.body.body) : [];
+                useStrictDirectives = isBlock
+                    ? getUseStrictDirectives(node.body.body) : [];
 
             if (mode === "function") {
                 enterFunctionInFunctionMode(node, useStrictDirectives);

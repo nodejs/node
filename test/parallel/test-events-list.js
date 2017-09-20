@@ -5,7 +5,6 @@ const EventEmitter = require('events');
 const assert = require('assert');
 
 const EE = new EventEmitter();
-// Do not use common.noop here, these need to be separate listener functions
 const m = () => {};
 EE.on('foo', () => {});
 assert.deepStrictEqual(['foo'], EE.eventNames());

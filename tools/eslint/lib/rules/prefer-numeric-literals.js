@@ -6,13 +6,40 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Checks to see if a CallExpression's callee node is `parseInt` or
+ * `Number.parseInt`.
+ * @param {ASTNode} calleeNode The callee node to evaluate.
+ * @returns {boolean} True if the callee is `parseInt` or `Number.parseInt`,
+ * false otherwise.
+ */
+function isParseInt(calleeNode) {
+    switch (calleeNode.type) {
+        case "Identifier":
+            return calleeNode.name === "parseInt";
+        case "MemberExpression":
+            return calleeNode.object.type === "Identifier" &&
+                calleeNode.object.name === "Number" &&
+                calleeNode.property.type === "Identifier" &&
+                calleeNode.property.name === "parseInt";
+
+        // no default
+    }
+
+    return false;
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `parseInt()` in favor of binary, octal, and hexadecimal literals",
+            description: "disallow `parseInt()` and `Number.parseInt()` in favor of binary, octal, and hexadecimal literals",
             category: "ECMAScript 6",
             recommended: false
         },
@@ -23,6 +50,8 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
+
         const radixMap = {
             2: "binary",
             8: "octal",
@@ -35,9 +64,9 @@ module.exports = {
             16: "0x"
         };
 
-        //--------------------------------------------------------------------------
+        //----------------------------------------------------------------------
         // Public
-        //--------------------------------------------------------------------------
+        //----------------------------------------------------------------------
 
         return {
 
@@ -51,16 +80,16 @@ module.exports = {
                 // only error if the radix is 2, 8, or 16
                 const radixName = radixMap[node.arguments[1].value];
 
-                if (node.callee.type === "Identifier" &&
-                    node.callee.name === "parseInt" &&
+                if (isParseInt(node.callee) &&
                     radixName &&
                     node.arguments[0].type === "Literal"
                 ) {
                     context.report({
                         node,
-                        message: "Use {{radixName}} literals instead of parseInt().",
+                        message: "Use {{radixName}} literals instead of {{functionName}}().",
                         data: {
-                            radixName
+                            radixName,
+                            functionName: sourceCode.getText(node.callee)
                         },
                         fix(fixer) {
                             const newPrefix = prefixMap[node.arguments[1].value];

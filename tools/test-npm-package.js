@@ -24,7 +24,7 @@ const path = require('path');
 const common = require('../test/common');
 
 const projectDir = path.resolve(__dirname, '..');
-const npmBin = path.join(projectDir, 'deps', 'npm', 'cli.js');
+const npmBin = path.join(projectDir, 'deps', 'npm', 'bin', 'npm-cli.js');
 const nodePath = path.dirname(process.execPath);
 
 function spawnCopyDeepSync(source, destination) {
@@ -82,6 +82,7 @@ function runNPMPackageTests({ srcDir, install, rebuild, testArgs, logfile }) {
       npmBin,
       'install',
       '--ignore-scripts',
+      '--no-save',
     ], npmOptions);
   }
 

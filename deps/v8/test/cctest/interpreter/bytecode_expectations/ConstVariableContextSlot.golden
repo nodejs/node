@@ -17,10 +17,10 @@ bytecodes: [
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2), U8(2),
+                B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
+  /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaUndefined),
   /*   74 S> */ B(Return),
@@ -43,13 +43,13 @@ bytecodes: [
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2), U8(2),
+                B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
+  /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   74 S> */ B(LdaCurrentContextSlot), U8(4),
-  /*   84 S> */ B(Return),
+  /*   74 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+  /*   83 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -61,26 +61,23 @@ handlers: [
 snippet: "
   const x = (x = 20); function f1() {return x;}
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 31
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2), U8(2),
+                B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   47 S> */ B(LdaSmi), U8(20),
+  /*   44 S> */ B(LdaSmi), I8(20),
                 B(Star), R(2),
                 B(LdaCurrentContextSlot), U8(4),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(1),
-                B(Star), R(3),
-  /*   47 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
+  /*   47 E> */ B(ThrowReferenceErrorIfHole), U8(1),
                 B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
-  /*   47 E> */ B(StaCurrentContextSlot), U8(4),
+  /*   44 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -103,12 +100,12 @@ bytecodes: [
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2), U8(2),
+                B(CreateClosure), U8(0), U8(3), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   44 S> */ B(LdaSmi), U8(10),
+  /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   48 S> */ B(LdaSmi), U8(20),
+  /*   48 S> */ B(LdaSmi), I8(20),
   /*   50 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(LdaUndefined),
   /*   82 S> */ B(Return),

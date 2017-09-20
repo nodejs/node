@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-if (common.hasFipsCrypto) {
+
+if (common.hasFipsCrypto)
   common.skip('not supported in FIPS mode');
-  return;
-}
+
 const crypto = require('crypto');
 const assert = require('assert');
 
@@ -156,6 +154,9 @@ testCipher2(Buffer.from('0123456789abcdef'));
   const key = '0123456789';
   const aadbuf = Buffer.from('aadbuf');
   const data = Buffer.from('test-crypto-cipher-decipher');
+
+  common.expectWarning('Warning',
+                       'Use Cipheriv for counter mode of aes-256-gcm');
 
   const cipher = crypto.createCipher('aes-256-gcm', key);
   cipher.setAAD(aadbuf);

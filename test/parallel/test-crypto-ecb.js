@@ -21,16 +21,13 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-if (common.hasFipsCrypto) {
+
+if (common.hasFipsCrypto)
   common.skip('BF-ECB is not FIPS 140-2 compatible');
-  return;
-}
+
+const assert = require('assert');
 const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';

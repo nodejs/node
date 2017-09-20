@@ -1,3 +1,5 @@
+Tests that protocol works with different locales
+
 Running test: consoleLogWithDefaultLocale
 {
     method : Runtime.consoleAPICalled
@@ -34,14 +36,14 @@ set locale to fr_CA.UTF-8 (has comma as separator)
         args : [
             [0] : {
                 type : string
-                value : a: x.xms
+                value : a: 0.001ms
             }
         ]
         executionContextId : <executionContextId>
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 27
+                    columnNumber : 8
                     functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
@@ -50,7 +52,7 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             ]
         }
         timestamp : <timestamp>
-        type : debug
+        type : timeEnd
     }
 }
 
@@ -117,14 +119,14 @@ set locale to fr_CA.UTF-8 (has comma as separator)
         args : [
             [0] : {
                 type : string
-                value : a: x.xms
+                value : a: 0.001ms
             }
         ]
         executionContextId : <executionContextId>
         stackTrace : {
             callFrames : [
                 [0] : {
-                    columnNumber : 27
+                    columnNumber : 8
                     functionName : 
                     lineNumber : 0
                     scriptId : <scriptId>
@@ -133,6 +135,6 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             ]
         }
         timestamp : <timestamp>
-        type : debug
+        type : timeEnd
     }
 }

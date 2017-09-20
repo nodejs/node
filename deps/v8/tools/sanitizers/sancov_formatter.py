@@ -78,12 +78,6 @@ EXE_BLACKLIST = [
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 
-# Executable location. TODO(machenbach): Only release is supported for now.
-BUILD_DIR = os.path.join(BASE_DIR, 'out', 'Release')
-
-# Path prefix added by the llvm symbolizer including trailing slash.
-OUTPUT_PATH_PREFIX = os.path.join(BUILD_DIR, '..', '..', '')
-
 # The sancov tool location.
 SANCOV_TOOL = os.path.join(
     BASE_DIR, 'third_party', 'llvm', 'projects', 'compiler-rt',
@@ -105,17 +99,17 @@ CPUS = cpu_count()
 SANCOV_FILE_RE = re.compile(r'^(.*)\.result.sancov$')
 
 
-def executables():
+def executables(build_dir):
   """Iterates over executable files in the build directory."""
-  for f in os.listdir(BUILD_DIR):
-    file_path = os.path.join(BUILD_DIR, f)
+  for f in os.listdir(build_dir):
+    file_path = os.path.join(build_dir, f)
     if (os.path.isfile(file_path) and
         os.access(file_path, os.X_OK) and
         f not in EXE_BLACKLIST):
       yield file_path
 
 
-def process_symbolizer_output(output):
+def process_symbolizer_output(output, build_dir):
   """Post-process llvm symbolizer output.
 
   Excludes files outside the v8 checkout or given in exclusion list above
@@ -125,13 +119,16 @@ def process_symbolizer_output(output):
            have relative paths to the v8 base directory. The lists of line
            numbers don't contain duplicate lines and are sorted.
   """
+  # Path prefix added by the llvm symbolizer including trailing slash.
+  output_path_prefix = os.path.join(build_dir, '..', '..', '')
+
   # Drop path prefix when iterating lines. The path is redundant and takes
   # too much space. Drop files outside that path, e.g. generated files in
   # the build dir and absolute paths to c++ library headers.
   def iter_lines():
     for line in output.strip().splitlines():
-      if line.startswith(OUTPUT_PATH_PREFIX):
-        yield line[len(OUTPUT_PATH_PREFIX):]
+      if line.startswith(output_path_prefix):
+        yield line[len(output_path_prefix):]
 
   # Map file names to sets of instrumented line numbers.
   file_map = {}
@@ -168,7 +165,7 @@ def get_instrumented_lines(executable):
   process = subprocess.Popen(
       'objdump -d %s | '
       'grep \'^\s\+[0-9a-f]\+:.*\scall\(q\|\)\s\+[0-9a-f]\+ '
-      '<__sanitizer_cov\(_with_check\|\)\(@plt\|\)>\' | '
+      '<__sanitizer_cov\(_with_check\|\|_trace_pc_guard\)\(@plt\|\)>\' | '
       'grep \'^\s\+[0-9a-f]\+\' -o | '
       '%s | '
       '%s --obj %s -functions=none' %
@@ -181,7 +178,7 @@ def get_instrumented_lines(executable):
   )
   output, _ = process.communicate()
   assert process.returncode == 0
-  return process_symbolizer_output(output)
+  return process_symbolizer_output(output, os.path.dirname(executable))
 
 
 def merge_instrumented_line_results(exe_list, results):
@@ -216,7 +213,7 @@ def merge_instrumented_line_results(exe_list, results):
 
 def write_instrumented(options):
   """Implements the 'all' action of this tool."""
-  exe_list = list(executables())
+  exe_list = list(executables(options.build_dir))
   logging.info('Reading instrumented lines from %d executables.',
                len(exe_list))
   pool = Pool(CPUS)
@@ -242,8 +239,8 @@ def get_covered_lines(args):
 
   Called trough multiprocessing pool. The args are expected to unpack to:
     cov_dir: Folder with sancov files merged by sancov_merger.py.
-    executable: The executable that was called to produce the given coverage
-                data.
+    executable: Absolute path to the executable that was called to produce the
+                given coverage data.
     sancov_file: The merged sancov file with coverage data.
 
   Returns: A tuple of post-processed llvm output as returned by
@@ -259,7 +256,7 @@ def get_covered_lines(args):
           (SANCOV_TOOL,
            os.path.join(cov_dir, sancov_file),
            SYMBOLIZER,
-           os.path.join(BUILD_DIR, executable)),
+           executable),
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
       stdin=subprocess.PIPE,
@@ -268,7 +265,10 @@ def get_covered_lines(args):
   )
   output, _ = process.communicate()
   assert process.returncode == 0
-  return process_symbolizer_output(output), executable
+  return (
+      process_symbolizer_output(output, os.path.dirname(executable)),
+      os.path.basename(executable),
+  )
 
 
 def merge_covered_line_results(data, results):
@@ -339,12 +339,16 @@ def merge(options):
           os.path.isdir(options.coverage_dir))
 
   # Inputs for multiprocessing. List of tuples of:
-  # Coverage dir, executable name, sancov file name.
+  # Coverage dir, absoluate path to executable, sancov file name.
   inputs = []
-  for f in os.listdir(options.coverage_dir):
-    match = SANCOV_FILE_RE.match(f)
+  for sancov_file in os.listdir(options.coverage_dir):
+    match = SANCOV_FILE_RE.match(sancov_file)
     if match:
-      inputs.append((options.coverage_dir, match.group(1), f))
+      inputs.append((
+          options.coverage_dir,
+          os.path.join(options.build_dir, match.group(1)),
+          sancov_file,
+      ))
 
   logging.info('Merging %d sancov files into %s',
                len(inputs), options.json_input)
@@ -403,6 +407,10 @@ def split(options):
 
 def main(args=None):
   parser = argparse.ArgumentParser()
+  # TODO(machenbach): Make this required and deprecate the default.
+  parser.add_argument('--build-dir',
+                      default=os.path.join(BASE_DIR, 'out', 'Release'),
+                      help='Path to the build output directory.')
   parser.add_argument('--coverage-dir',
                       help='Path to the sancov output files.')
   parser.add_argument('--json-input',
@@ -415,6 +423,7 @@ def main(args=None):
                       help='Action to perform.')
 
   options = parser.parse_args(args)
+  options.build_dir = os.path.abspath(options.build_dir)
   if options.action.lower() == 'all':
     if not options.json_output:
       print '--json-output is required'

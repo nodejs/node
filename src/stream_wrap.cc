@@ -59,19 +59,28 @@ void StreamWrap::Initialize(Local<Object> target,
                             Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  auto is_construct_call_callback =
+      [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+    ClearWrap(args.This());
+  };
   Local<FunctionTemplate> sw =
-      FunctionTemplate::New(env->isolate(), ShutdownWrap::NewShutdownWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   sw->InstanceTemplate()->SetInternalFieldCount(1);
-  sw->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"),
-              sw->GetFunction());
+  Local<String> wrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap");
+  sw->SetClassName(wrapString);
+  AsyncWrap::AddWrapMethods(env, sw);
+  target->Set(wrapString, sw->GetFunction());
 
   Local<FunctionTemplate> ww =
-      FunctionTemplate::New(env->isolate(), WriteWrap::NewWriteWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   ww->InstanceTemplate()->SetInternalFieldCount(1);
-  ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
-              ww->GetFunction());
+  Local<String> writeWrapString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap");
+  ww->SetClassName(writeWrapString);
+  AsyncWrap::AddWrapMethods(env, ww);
+  target->Set(writeWrapString, ww->GetFunction());
   env->set_write_wrap_constructor_function(ww->GetFunction());
 }
 
@@ -79,13 +88,11 @@ void StreamWrap::Initialize(Local<Object> target,
 StreamWrap::StreamWrap(Environment* env,
                        Local<Object> object,
                        uv_stream_t* stream,
-                       AsyncWrap::ProviderType provider,
-                       AsyncWrap* parent)
+                       AsyncWrap::ProviderType provider)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(stream),
-                 provider,
-                 parent),
+                 provider),
       StreamBase(env),
       stream_(stream) {
   set_after_write_cb({ OnAfterWriteImpl, this });
@@ -237,13 +244,18 @@ void StreamWrap::OnReadImpl(ssize_t nread,
 }
 
 
-void StreamWrap::OnReadCommon(uv_stream_t* handle,
-                              ssize_t nread,
-                              const uv_buf_t* buf,
-                              uv_handle_type pending) {
+void StreamWrap::OnRead(uv_stream_t* handle,
+                        ssize_t nread,
+                        const uv_buf_t* buf) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   HandleScope scope(wrap->env()->isolate());
   Context::Scope context_scope(wrap->env()->context());
+  uv_handle_type type = UV_UNKNOWN_HANDLE;
+
+  if (wrap->is_named_pipe_ipc() &&
+      uv_pipe_pending_count(reinterpret_cast<uv_pipe_t*>(handle)) > 0) {
+    type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(handle));
+  }
 
   // We should not be getting this callback if someone as already called
   // uv_close() on the handle.
@@ -257,22 +269,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
     }
   }
 
-  static_cast<StreamBase*>(wrap)->OnRead(nread, buf, pending);
-}
-
-
-void StreamWrap::OnRead(uv_stream_t* handle,
-                        ssize_t nread,
-                        const uv_buf_t* buf) {
-  StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-  uv_handle_type type = UV_UNKNOWN_HANDLE;
-
-  if (wrap->is_named_pipe_ipc() &&
-      uv_pipe_pending_count(reinterpret_cast<uv_pipe_t*>(handle)) > 0) {
-    type = uv_pipe_pending_type(reinterpret_cast<uv_pipe_t*>(handle));
-  }
-
-  OnReadCommon(handle, nread, buf, type);
+  static_cast<StreamBase*>(wrap)->OnRead(nread, buf, type);
 }
 
 

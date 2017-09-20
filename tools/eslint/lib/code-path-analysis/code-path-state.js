@@ -240,7 +240,7 @@ class CodePathState {
         this.breakContext = null;
 
         this.currentSegments = [];
-        this.initialSegment = this.forkContext.head[ 0 ];
+        this.initialSegment = this.forkContext.head[0];
 
         // returnedSegments and thrownSegments push elements into finalSegments also.
         const final = this.finalSegments = [];
@@ -467,8 +467,8 @@ class CodePathState {
              * Creates the next path from own true/false fork context.
              */
             const prevForkContext =
-                context.kind === "&&" ? context.trueForkContext :
-                /* kind === "||" */ context.falseForkContext;
+                context.kind === "&&" ? context.trueForkContext
+                /* kind === "||" */ : context.falseForkContext;
 
             forkContext.replaceHead(prevForkContext.makeNext(0, -1));
             prevForkContext.clear();
@@ -988,7 +988,7 @@ class CodePathState {
         switch (context.type) {
             case "WhileStatement":
             case "ForStatement":
-                choiceContext = this.popChoiceContext();
+                this.popChoiceContext();
                 makeLooped(
                     this,
                     forkContext.head,

@@ -78,7 +78,6 @@ class ProgressIndicator(object):
     self.failed = [ ]
     self.flaky_failed = [ ]
     self.crashed = 0
-    self.flaky_crashed = 0
     self.lock = threading.Lock()
     self.shutdown_event = threading.Event()
 
@@ -156,8 +155,6 @@ class ProgressIndicator(object):
       if output.UnexpectedOutput():
         if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
           self.flaky_failed.append(output)
-          if output.HasCrashed():
-            self.flaky_crashed += 1
         else:
           self.failed.append(output)
           if output.HasCrashed():
@@ -282,9 +279,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # hard to decipher what test is running when only the filename is printed.
     prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     command = output.command[-1]
-    if command.endswith('.js'): command = command[:-3]
-    if command.startswith(prefix): command = command[len(prefix):]
-    command = command.replace('\\', '/')
+    command = NormalizePath(command, prefix)
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
@@ -337,6 +332,37 @@ class TapProgressIndicator(SimpleProgressIndicator):
         self.traceback = 'timeout'
       self._printDiagnostic(self.traceback, self.severity)
     logger.info('  ...')
+
+  def Done(self):
+    pass
+
+class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
+
+  def Starting(self):
+    pass
+
+  def AboutToRun(self, case):
+    pass
+
+  def HasRun(self, output):
+    # Print test name as (for example) "parallel/test-assert".  Tests that are
+    # scraped from the addons documentation are all named test.js, making it
+    # hard to decipher what test is running when only the filename is printed.
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
+    command = output.command[-1]
+    command = NormalizePath(command, prefix)
+
+    stdout = output.output.stdout.strip()
+    printed_file = False
+    for line in stdout.splitlines():
+      if (line.startswith("[aborted optimiz") or \
+          line.startswith("[disabled optimiz")) and \
+         ("because:" in line or "reason:" in line):
+        if not printed_file:
+          printed_file = True
+          print '==== %s ====' % command
+          self.failed.append(output)
+        print '  %s' % line
 
   def Done(self):
     pass
@@ -433,7 +459,8 @@ PROGRESS_INDICATORS = {
   'dots': DotsProgressIndicator,
   'color': ColorProgressIndicator,
   'tap': TapProgressIndicator,
-  'mono': MonochromeProgressIndicator
+  'mono': MonochromeProgressIndicator,
+  'deopts': DeoptsCheckProgressIndicator
 }
 
 
@@ -461,6 +488,7 @@ class TestCase(object):
     self.arch = arch
     self.mode = mode
     self.parallel = False
+    self.disable_core_files = False
     self.thread_id = 0
 
   def IsNegative(self):
@@ -485,7 +513,8 @@ class TestCase(object):
     output = Execute(full_command,
                      self.context,
                      self.context.GetTimeout(self.mode),
-                     env)
+                     env,
+                     disable_core_files = self.disable_core_files)
     self.Cleanup()
     return TestOutput(self,
                       full_command,
@@ -541,9 +570,6 @@ class TestOutput(object):
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
-
-  def HasPreciousOutput(self):
-    return self.UnexpectedOutput() and self.store_unexpected_output
 
   def HasCrashed(self):
     if utils.IsWindows():
@@ -617,7 +643,6 @@ def RunProcess(context, timeout, args, **rest):
   pty_out = rest.pop('pty_out')
 
   process = subprocess.Popen(
-    shell = utils.IsWindows(),
     args = popen_args,
     **rest
   )
@@ -691,7 +716,7 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env={}, faketty=False):
+def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_files=False):
   if faketty:
     import pty
     (out_master, fd_out) = pty.openpty()
@@ -713,6 +738,14 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
   for key, value in env.iteritems():
     env_copy[key] = value
 
+  preexec_fn = None
+
+  if disable_core_files and not utils.IsWindows():
+    def disableCoreFiles():
+      import resource
+      resource.setrlimit(resource.RLIMIT_CORE, (0,0))
+    preexec_fn = disableCoreFiles
+
   (process, exit_code, timed_out, output) = RunProcess(
     context,
     timeout,
@@ -722,7 +755,8 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
     stderr = fd_err,
     env = env_copy,
     faketty = faketty,
-    pty_out = pty_out
+    pty_out = pty_out,
+    preexec_fn = preexec_fn
   )
   if faketty:
     os.close(out_master)
@@ -755,7 +789,7 @@ class TestConfiguration(object):
     if len(path) > len(file):
       return False
     for i in xrange(len(path)):
-      if not path[i].match(file[i]):
+      if not path[i].match(NormalizePath(file[i])):
         return False
     return True
 
@@ -770,11 +804,6 @@ class TestSuite(object):
 
   def GetName(self):
     return self.name
-
-
-# Use this to run several variants of the tests, e.g.:
-# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[]]
 
 
 class TestRepository(TestSuite):
@@ -808,13 +837,11 @@ class TestRepository(TestSuite):
     return self.GetConfiguration(context).GetBuildRequirements()
 
   def AddTestsToList(self, result, current_path, path, context, arch, mode):
-    for v in VARIANT_FLAGS:
-      tests = self.GetConfiguration(context).ListTests(current_path, path,
-                                                       arch, mode)
-      for t in tests: t.variant_flags = v
-      result += tests
-      for i in range(1, context.repeat):
-        result += copy.deepcopy(tests)
+    tests = self.GetConfiguration(context).ListTests(current_path, path,
+                                                     arch, mode)
+    result += tests
+    for i in range(1, context.repeat):
+      result += copy.deepcopy(tests)
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -850,12 +877,6 @@ class LiteralTestSuite(TestSuite):
       test.GetTestStatus(context, sections, defs)
 
 
-SUFFIX = {
-    'debug'   : '_g',
-    'release' : '' }
-FLAGS = {
-    'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
-    'release' : []}
 TIMEOUT_SCALEFACTOR = {
     'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
     'arm'   : { 'debug' :  8, 'release' : 2 },
@@ -873,7 +894,6 @@ class Context(object):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
-    self.vm_root = vm
     self.node_args = args
     self.expect_fail = expect_fail
     self.timeout = timeout
@@ -894,19 +914,14 @@ class Context(object):
     # http://code.google.com/p/gyp/issues/detail?id=40
     # It will put the builds into Release/node.exe or Debug/node.exe
     if utils.IsWindows():
-      out_dir = os.path.join(dirname(__file__), "..", "out")
-      if not exists(out_dir):
-        if mode == 'debug':
-          name = os.path.abspath('Debug/node.exe')
-        else:
-          name = os.path.abspath('Release/node.exe')
-      else:
-        name = os.path.abspath(name + '.exe')
+      if not exists(name + '.exe'):
+        name = name.replace('out/', '')
+      name = os.path.abspath(name + '.exe')
+
+    if not exists(name):
+      raise ValueError('Could not find executable. Should be ' + name)
 
     return name
-
-  def GetVmFlags(self, testcase, mode):
-    return testcase.variant_flags + FLAGS[mode]
 
   def GetTimeout(self, mode):
     return self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
@@ -1003,18 +1018,6 @@ class ListSet(Set):
 
   def IsEmpty(self):
     return len(self.elms) == 0
-
-
-class Everything(Set):
-
-  def Intersect(self, that):
-    return that
-
-  def Union(self, that):
-    return self
-
-  def IsEmpty(self):
-    return False
 
 
 class Nothing(Set):
@@ -1241,6 +1244,7 @@ class ClassifiedTest(object):
     self.case = case
     self.outcomes = outcomes
     self.parallel = self.case.parallel
+    self.disable_core_files = self.case.disable_core_files
 
 
 class Configuration(object):
@@ -1374,7 +1378,7 @@ def BuildOptions():
   result.add_option("-s", "--suite", help="A test suite",
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
-      default=60, type="int")
+      default=120, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
       default='none')
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
@@ -1385,6 +1389,8 @@ def BuildOptions():
   result.add_option("--expect-fail", dest="expect_fail",
       help="Expect test cases to fail", default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
+      default=False, action="store_true")
+  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
@@ -1499,12 +1505,16 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
-def NormalizePath(path):
+def NormalizePath(path, prefix='test/'):
   # strip the extra path information of the specified test
-  if path.startswith('test/'):
-    path = path[5:]
+  prefix = prefix.replace('\\', '/')
+  path = path.replace('\\', '/')
+  if path.startswith(prefix):
+    path = path[len(prefix):]
   if path.endswith('.js'):
     path = path[:-3]
+  elif path.endswith('.mjs'):
+    path = path[:-4]
   return path
 
 def GetSpecialCommandProcessor(value):
@@ -1529,10 +1539,12 @@ BUILT_IN_TESTS = [
   'message',
   'internet',
   'addons',
+  'addons-napi',
   'gc',
   'debugger',
   'doctool',
   'inspector',
+  'async-hooks',
 ]
 
 
@@ -1587,6 +1599,14 @@ def Main():
   if options.valgrind:
     run_valgrind = join(workspace, "tools", "run-valgrind.py")
     options.special_command = "python -u " + run_valgrind + " @"
+
+  if options.check_deopts:
+    options.node_args.append("--trace-opt")
+    options.node_args.append("--trace-file-names")
+    # --always-opt is needed because many tests do not run long enough for the
+    # optimizer to kick in, so this flag will force it to run.
+    options.node_args.append("--always-opt")
+    options.progress = "deopts"
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)

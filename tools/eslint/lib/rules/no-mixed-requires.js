@@ -153,11 +153,11 @@ module.exports = {
 
                 // "var utils = require('./utils');"
                 return REQ_FILE;
-            } else {
-
-                // "var async = require('async');"
-                return REQ_MODULE;
             }
+
+            // "var async = require('async');"
+            return REQ_MODULE;
+
         }
 
         /**

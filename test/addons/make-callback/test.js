@@ -57,9 +57,9 @@ const forward = vm.runInNewContext(`
     })
 `);
 // Runs in outer context.
-const endpoint = function($Object) {
+function endpoint($Object) {
   if (Object === $Object)
     throw new Error('bad');
   return Object;
-};
+}
 assert.strictEqual(Object, makeCallback(process, forward, endpoint));

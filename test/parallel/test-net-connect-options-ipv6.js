@@ -21,20 +21,18 @@
 
 'use strict';
 const common = require('../common');
+if (!common.hasIPv6)
+  common.skip('no IPv6 support');
+
 const assert = require('assert');
 const net = require('net');
-
-if (!common.hasIPv6) {
-  common.skip('no IPv6 support');
-  return;
-}
 
 const hosts = common.localIPv6Hosts;
 let hostIdx = 0;
 let host = hosts[hostIdx];
 let localhostTries = 10;
 
-const server = net.createServer({allowHalfOpen: true}, function(socket) {
+const server = net.createServer({ allowHalfOpen: true }, function(socket) {
   socket.resume();
   socket.on('end', common.mustCall());
   socket.end();
@@ -81,8 +79,8 @@ function tryConnect() {
       if (host)
         tryConnect();
       else {
-        common.skip('no IPv6 localhost support');
         server.close();
+        common.skip('no IPv6 localhost support');
       }
       return;
     }

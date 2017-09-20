@@ -29,7 +29,7 @@ const cluster = require('cluster');
 let worker;
 
 worker = new cluster.Worker();
-assert.strictEqual(worker.suicide, undefined);
+assert.strictEqual(worker.exitedAfterDisconnect, undefined);
 assert.strictEqual(worker.state, 'none');
 assert.strictEqual(worker.id, 0);
 assert.strictEqual(worker.process, undefined);
@@ -39,11 +39,11 @@ worker = new cluster.Worker({
   state: 'online',
   process: process
 });
-assert.strictEqual(worker.suicide, undefined);
+assert.strictEqual(worker.exitedAfterDisconnect, undefined);
 assert.strictEqual(worker.state, 'online');
 assert.strictEqual(worker.id, 3);
 assert.strictEqual(worker.process, process);
 
-worker = cluster.Worker.call({}, {id: 5});
+worker = cluster.Worker.call({}, { id: 5 });
 assert(worker instanceof cluster.Worker);
 assert.strictEqual(worker.id, 5);

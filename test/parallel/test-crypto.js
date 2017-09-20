@@ -22,28 +22,26 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const crypto = require('crypto');
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
 // Test Certificates
-const caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');
-const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-const certPfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
-const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
+const caPem = fixtures.readSync('test_ca.pem', 'ascii');
+const certPem = fixtures.readSync('test_cert.pem', 'ascii');
+const certPfx = fixtures.readSync('test_cert.pfx');
+const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  const options = {key: keyPem, cert: certPem, ca: caPem};
+  const options = { key: keyPem, cert: certPem, ca: caPem };
   const credentials = tls.createSecureContext(options);
   const context = credentials.context;
   const notcontext = { setOptions: context.setOptions, setKey: context.setKey };
@@ -52,26 +50,29 @@ assert.throws(function() {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'sample'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 });
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx});
+  tls.createSecureContext({ pfx: certPfx });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'test'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, /^Error: mac verify failure$/);
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: 'sample', passphrase: 'test'});
+  tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, /^Error: not enough data$/);
 
 
 // update() should only take buffers / strings
-assert.throws(function() {
-  crypto.createHash('sha1').update({foo: 'bar'});
-}, /^TypeError: Data must be a string or a buffer$/);
+common.expectsError(
+  () => crypto.createHash('sha1').update({ foo: 'bar' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 
 function validateList(list) {
@@ -99,7 +100,8 @@ validateList(cryptoCiphers);
 const tlsCiphers = tls.getCiphers();
 assert(tls.getCiphers().includes('aes256-sha'));
 // There should be no capital letters in any element.
-assert(tlsCiphers.every((value) => /^[^A-Z]+$/.test(value)));
+const noCapitals = /^[^A-Z]+$/;
+assert(tlsCiphers.every((value) => noCapitals.test(value)));
 validateList(tlsCiphers);
 
 // Assert that we have sha and sha1 but not SHA and SHA1.
@@ -147,11 +149,11 @@ assert.throws(function() {
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
-  crypto.createSign('RSA-SHA1').update('0', 'hex');
+  crypto.createSign('SHA1').update('0', 'hex');
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
-  crypto.createVerify('RSA-SHA1').update('0', 'hex');
+  crypto.createVerify('SHA1').update('0', 'hex');
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
@@ -164,7 +166,7 @@ assert.throws(function() {
     '-----END RSA PRIVATE KEY-----',
     ''
   ].join('\n');
-  crypto.createSign('RSA-SHA256').update('test').sign(priv);
+  crypto.createSign('SHA256').update('test').sign(priv);
 }, /digest too big for rsa key$/);
 
 assert.throws(function() {
@@ -177,8 +179,8 @@ assert.throws(function() {
   //   $ openssl pkcs8 -topk8 -inform PEM -outform PEM -in mykey.pem \
   //     -out private_key.pem -nocrypt;
   //   Then open private_key.pem and change its header and footer.
-  const sha1_privateKey = fs.readFileSync(common.fixturesDir +
-                                        '/test_bad_rsa_privkey.pem', 'ascii');
+  const sha1_privateKey = fixtures.readSync('test_bad_rsa_privkey.pem',
+                                            'ascii');
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);

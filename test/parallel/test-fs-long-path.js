@@ -21,14 +21,12 @@
 
 'use strict';
 const common = require('../common');
+if (!common.isWindows)
+  common.skip('this test is Windows-specific.');
+
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-
-if (!common.isWindows) {
-  common.skip('this test is Windows-specific.');
-  return;
-}
 
 // make a path that will be at least 260 chars long.
 const fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);

@@ -34,7 +34,7 @@ const options = {
 };
 
 const server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': '2'});
+  res.writeHead(200, { 'Content-Length': '2' });
   res.write('*');
   server.once('timeout', common.mustCall(function() { res.end('*'); }));
 });
@@ -51,7 +51,7 @@ server.listen(0, options.host, function() {
     }));
 
     res.on('data', common.mustCall(function(data) {
-      assert.strictEqual('' + data, '*');
+      assert.strictEqual(String(data), '*');
       nchunks++;
     }, 2));
 

@@ -21,56 +21,48 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-const fs = require('fs');
-
-const hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
 const testCases =
   [{ ca: ['ca1-cert'],
      key: 'agent2-key',
      cert: 'agent2-cert',
      servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+      { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+      { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+      { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
+    ]
+  },
+
+   { ca: [],
+     key: 'agent2-key',
+     cert: 'agent2-cert',
+     servers: [
+       { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
+       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+       { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
      ]
-  },
+   },
 
-  { ca: [],
-    key: 'agent2-key',
-    cert: 'agent2-cert',
-    servers: [
-         { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-    ]
-  },
-
-  { ca: ['ca1-cert', 'ca2-cert'],
-    key: 'agent2-key',
-    cert: 'agent2-cert',
-    servers: [
-         { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
-         { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
-         { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-    ]
-  }
+   { ca: ['ca1-cert', 'ca2-cert'],
+     key: 'agent2-key',
+     cert: 'agent2-cert',
+     servers: [
+       { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
+       { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
+       { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
+     ]
+   }
   ];
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
 
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 let successfulTests = 0;
@@ -103,9 +95,9 @@ function testServers(index, servers, clientOptions, cb) {
     clientOptions.port = this.address().port;
     const client = tls.connect(clientOptions, common.mustCall(function() {
       const authorized = client.authorized ||
-                         hosterr.test(client.authorizationError);
+          (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
 
-      console.error('expected: ' + ok + ' authed: ' + authorized);
+      console.error(`expected: ${ok} authed: ${authorized}`);
 
       assert.strictEqual(ok, authorized);
       server.close();

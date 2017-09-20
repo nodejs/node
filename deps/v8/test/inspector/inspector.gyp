@@ -20,11 +20,19 @@
         '../..',
       ],
       'sources': [
-        'inspector-impl.cc',
-        'inspector-impl.h',
         'inspector-test.cc',
+        'isolate-data.cc',
+        'isolate-data.h',
         'task-runner.cc',
         'task-runner.h',
+      ],
+      'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
       ],
     },
   ],

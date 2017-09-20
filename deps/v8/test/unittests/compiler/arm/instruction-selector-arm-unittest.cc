@@ -6,6 +6,8 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -3153,7 +3155,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrAnd0xff) {
 
 
 TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrAnd0xffff) {
-  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+  TRACED_FORRANGE(int32_t, shr, 1, 2) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const r = m.Word32And(m.Word32Shr(p0, m.Int32Constant(shr * 8)),
@@ -3165,7 +3167,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrAnd0xffff) {
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(shr * 8, s.ToInt32(s[0]->InputAt(1)));
   }
-  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+  TRACED_FORRANGE(int32_t, shr, 1, 2) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const r = m.Word32And(m.Int32Constant(0xffff),

@@ -43,24 +43,45 @@ const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
     case 'headers':
       // Check that header-related functions work before setting any headers
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(res.getHeaders(), {});
+      const headers = res.getHeaders();
+      const exoticObj = Object.create(null);
+      assert.deepStrictEqual(headers, exoticObj);
       assert.deepStrictEqual(res.getHeaderNames(), []);
       assert.deepStrictEqual(res.hasHeader('Connection'), false);
       assert.deepStrictEqual(res.getHeader('Connection'), undefined);
 
-      assert.throws(() => {
-        res.setHeader();
-      }, /^TypeError: Header name must be a valid HTTP Token \["undefined"\]$/);
-      assert.throws(() => {
-        res.setHeader('someHeader');
-      }, /^Error: "value" required in setHeader\("someHeader", value\)$/);
-      assert.throws(() => {
-        res.getHeader();
-      }, /^TypeError: "name" argument must be a string$/);
-      assert.throws(() => {
-        res.removeHeader();
-      }, /^TypeError: "name" argument must be a string$/);
+      common.expectsError(
+        () => res.setHeader(),
+        {
+          code: 'ERR_INVALID_HTTP_TOKEN',
+          type: TypeError,
+          message: 'Header name must be a valid HTTP token ["undefined"]'
+        }
+      );
+      common.expectsError(
+        () => res.setHeader('someHeader'),
+        {
+          code: 'ERR_MISSING_ARGS',
+          type: TypeError,
+          message: 'The "value" argument must be specified'
+        }
+      );
+      common.expectsError(
+        () => res.getHeader(),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "name" argument must be of type string'
+        }
+      );
+      common.expectsError(
+        () => res.removeHeader(),
+        {
+          code: 'ERR_INVALID_ARG_TYPE',
+          type: TypeError,
+          message: 'The "name" argument must be of type string'
+        }
+      );
 
       const arrayValues = [1, 2, 3];
       res.setHeader('x-test-header', 'testing');
@@ -72,16 +93,14 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.strictEqual(res.getHeader('x-test-header2'), 'testing');
 
       const headersCopy = res.getHeaders();
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(headersCopy, {
+      const expected = {
         'x-test-header': 'testing',
         'x-test-header2': 'testing',
         'set-cookie': cookies,
         'x-test-array-header': arrayValues
-      });
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(headersCopy['set-cookie'], cookies);
-      assert.strictEqual(headersCopy['x-test-array-header'], arrayValues);
+      };
+      Object.setPrototypeOf(expected, null);
+      assert.deepStrictEqual(headersCopy, expected);
 
       assert.deepStrictEqual(res.getHeaderNames(),
                              ['x-test-header', 'x-test-header2',
@@ -90,18 +109,23 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.strictEqual(res.hasHeader('x-test-header2'), true);
       assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), true);
       assert.strictEqual(res.hasHeader('X-Test-Header2'), true);
-      assert.throws(() => {
-        res.hasHeader();
-      }, /^TypeError: "name" argument must be a string$/);
-      assert.throws(() => {
-        res.hasHeader(null);
-      }, /^TypeError: "name" argument must be a string$/);
-      assert.throws(() => {
-        res.hasHeader(true);
-      }, /^TypeError: "name" argument must be a string$/);
-      assert.throws(() => {
-        res.hasHeader({ toString: () => 'X-TEST-HEADER2' });
-      }, /^TypeError: "name" argument must be a string$/);
+      [
+        undefined,
+        null,
+        true,
+        {},
+        { toString: () => 'X-TEST-HEADER2' },
+        () => { }
+      ].forEach((val) => {
+        common.expectsError(
+          () => res.hasHeader(val),
+          {
+            code: 'ERR_INVALID_ARG_TYPE',
+            type: TypeError,
+            message: 'The "name" argument must be of type string'
+          }
+        );
+      });
 
       res.removeHeader('x-test-header2');
 
@@ -127,7 +151,7 @@ const s = http.createServer(common.mustCall((req, res) => {
       break;
 
     default:
-      common.fail('Unknown test');
+      assert.fail('Unknown test');
   }
 
   res.statusCode = 201;
@@ -174,7 +198,7 @@ function nextTest() {
         break;
 
       default:
-        common.fail('Unknown test');
+        assert.fail('Unknown test');
     }
 
     response.setEncoding('utf8');

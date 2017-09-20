@@ -55,10 +55,11 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
+            Program() {
+                const comments = sourceCode.getAllComments();
 
-            LineComment: testCodeAroundComment,
-            BlockComment: testCodeAroundComment
-
+                comments.filter(token => token.type !== "Shebang").forEach(testCodeAroundComment);
+            }
         };
     }
 };

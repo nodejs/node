@@ -21,20 +21,16 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const tls = require('tls');
-
-const fs = require('fs');
-
+const fixtures = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem')
 };
 
 // Contains a UTF8 only character

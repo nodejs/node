@@ -28,31 +28,17 @@ void BytecodeLoopAssignments::Add(interpreter::Register r) {
   }
 }
 
-void BytecodeLoopAssignments::AddPair(interpreter::Register r) {
+void BytecodeLoopAssignments::AddList(interpreter::Register r, uint32_t count) {
   if (r.is_parameter()) {
-    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
+    for (uint32_t i = 0; i < count; i++) {
+      DCHECK(interpreter::Register(r.index() + i).is_parameter());
+      bit_vector_->Add(r.ToParameterIndex(parameter_count_) + i);
+    }
   } else {
-    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
-    bit_vector_->Add(parameter_count_ + r.index());
-    bit_vector_->Add(parameter_count_ + r.index() + 1);
-  }
-}
-
-void BytecodeLoopAssignments::AddTriple(interpreter::Register r) {
-  if (r.is_parameter()) {
-    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
-    DCHECK(interpreter::Register(r.index() + 2).is_parameter());
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
-    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 2);
-  } else {
-    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
-    DCHECK(!interpreter::Register(r.index() + 2).is_parameter());
-    bit_vector_->Add(parameter_count_ + r.index());
-    bit_vector_->Add(parameter_count_ + r.index() + 1);
-    bit_vector_->Add(parameter_count_ + r.index() + 2);
+    for (uint32_t i = 0; i < count; i++) {
+      DCHECK(!interpreter::Register(r.index() + i).is_parameter());
+      bit_vector_->Add(parameter_count_ + r.index() + i);
+    }
   }
 }
 
@@ -90,6 +76,7 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       loop_end_index_queue_(zone),
       end_to_header_(zone),
       header_to_info_(zone),
+      osr_entry_point_(-1),
       liveness_map_(bytecode_array->length(), zone) {}
 
 namespace {
@@ -98,9 +85,8 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
                       const BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
-  AccumulatorUse accumulator_use = Bytecodes::GetAccumulatorUse(bytecode);
 
-  if (accumulator_use == AccumulatorUse::kWrite) {
+  if (Bytecodes::WritesAccumulator(bytecode)) {
     in_liveness.MarkAccumulatorDead();
   }
   for (int i = 0; i < num_operands; ++i) {
@@ -109,6 +95,17 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
         interpreter::Register r = accessor.GetRegisterOperand(i);
         if (!r.is_parameter()) {
           in_liveness.MarkRegisterDead(r.index());
+        }
+        break;
+      }
+      case OperandType::kRegOutList: {
+        interpreter::Register r = accessor.GetRegisterOperand(i++);
+        uint32_t reg_count = accessor.GetRegisterCountOperand(i);
+        if (!r.is_parameter()) {
+          for (uint32_t j = 0; j < reg_count; ++j) {
+            DCHECK(!interpreter::Register(r.index() + j).is_parameter());
+            in_liveness.MarkRegisterDead(r.index() + j);
+          }
         }
         break;
       }
@@ -138,7 +135,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
     }
   }
 
-  if (accumulator_use == AccumulatorUse::kRead) {
+  if (Bytecodes::ReadsAccumulator(bytecode)) {
     in_liveness.MarkAccumulatorLive();
   }
   for (int i = 0; i < num_operands; ++i) {
@@ -188,6 +185,10 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   if (Bytecodes::IsForwardJump(bytecode)) {
     int target_offset = accessor.GetJumpTargetOffset();
     out_liveness.Union(*liveness_map.GetInLiveness(target_offset));
+  } else if (Bytecodes::IsSwitch(bytecode)) {
+    for (const auto& entry : accessor.GetJumpTableTargetOffsets()) {
+      out_liveness.Union(*liveness_map.GetInLiveness(entry.target_offset));
+    }
   }
 
   // Update from next bytecode (unless there isn't one or this is an
@@ -223,12 +224,18 @@ void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments& assignments,
         assignments.Add(accessor.GetRegisterOperand(i));
         break;
       }
+      case OperandType::kRegOutList: {
+        interpreter::Register r = accessor.GetRegisterOperand(i++);
+        uint32_t reg_count = accessor.GetRegisterCountOperand(i);
+        assignments.AddList(r, reg_count);
+        break;
+      }
       case OperandType::kRegOutPair: {
-        assignments.AddPair(accessor.GetRegisterOperand(i));
+        assignments.AddList(accessor.GetRegisterOperand(i), 2);
         break;
       }
       case OperandType::kRegOutTriple: {
-        assignments.AddTriple(accessor.GetRegisterOperand(i));
+        assignments.AddList(accessor.GetRegisterOperand(i), 3);
         break;
       }
       default:
@@ -257,7 +264,8 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.
       int loop_end = current_offset + iterator.current_bytecode_size();
-      PushLoop(iterator.GetJumpTargetOffset(), loop_end);
+      int loop_header = iterator.GetJumpTargetOffset();
+      PushLoop(loop_header, loop_end);
 
       // Normally prefixed bytecodes are treated as if the prefix's offset was
       // the actual bytecode's offset. However, the OSR id is the offset of the
@@ -271,9 +279,10 @@ void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
       DCHECK(!is_osr_loop ||
              iterator.OffsetWithinBytecode(osr_loop_end_offset));
 
-      // OSR "assigns" everything to OSR values on entry into an OSR loop, so we
-      // need to make sure to considered everything to be assigned.
       if (is_osr_loop) {
+        osr_entry_point_ = loop_header;
+        // OSR "assigns" everything to OSR values on entry into an OSR loop, so
+        // we need to make sure to considered everything to be assigned.
         loop_stack_.top().loop_info->assignments().AddAll();
       }
 

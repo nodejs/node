@@ -48,6 +48,10 @@ Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with npm-unpublish(1).
 
+As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication. Subsequent
+installs will use the strongest supported algorithm to verify downloads.
+
 For a "dry run" that does everything except actually publishing to the
 registry, see `npm-pack(1)`, which figures out the files to be included and
 packs them into a tarball to be uploaded to the registry.

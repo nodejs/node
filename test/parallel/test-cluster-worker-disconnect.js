@@ -28,13 +28,9 @@ if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {
 
-  }).listen(common.PORT, '127.0.0.1');
-  const worker = cluster.worker;
-  assert.strictEqual(worker.exitedAfterDisconnect, worker.suicide);
+  }).listen(0, '127.0.0.1');
 
   cluster.worker.on('disconnect', common.mustCall(() => {
-    assert.strictEqual(cluster.worker.exitedAfterDisconnect,
-                       cluster.worker.suicide);
     process.exit(42);
   }));
 

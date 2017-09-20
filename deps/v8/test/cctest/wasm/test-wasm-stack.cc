@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -74,7 +74,7 @@ void CheckExceptionInfos(Handle<Object> exc,
 
 }  // namespace
 
-// Call from JS to WASM to JS and throw an Error from JS.
+// Call from JS to wasm to JS and throw an Error from JS.
 TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
@@ -119,7 +119,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
 
-// Trigger a trap in WASM, stack should be JS -> WASM -> WASM.
+// Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
 TEST(CollectDetailedWasmStack_WasmError) {
   TestSignatures sigs;
   WasmRunner<int> r(kExecuteCompiled);

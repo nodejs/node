@@ -94,6 +94,12 @@ exports.parse = function (path, map) {
       }
 
     }
+
+    // emit header
+    if (header) {
+      stream.emit('header', header);
+      header = false;
+    }
     if (j !== this.stack.length) return
 
     count ++
@@ -115,12 +121,6 @@ exports.parse = function (path, map) {
     for(var k in this.stack)
       if (!Object.isFrozen(this.stack[k]))
         this.stack[k].value = null
-
-    // emit header
-    if (header) {
-      stream.emit('header', header);
-      header = false;
-    }
   }
   parser._onToken = parser.onToken;
 

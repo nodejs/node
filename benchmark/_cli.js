@@ -88,6 +88,8 @@ CLI.prototype.benchmarks = function() {
   const filter = this.optional.filter || false;
 
   for (const category of this.items) {
+    if (benchmarks[category] === undefined)
+      continue;
     for (const scripts of benchmarks[category]) {
       if (filter && scripts.lastIndexOf(filter) === -1) continue;
 

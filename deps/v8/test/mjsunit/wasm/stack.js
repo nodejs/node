@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// clang-format off
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
@@ -25,7 +24,8 @@ function verifyStack(frames, expected) {
     assertContains(exp[4], frames[i].getFileName(), "["+i+"].getFileName()");
     var toString;
     if (exp[0]) {
-      toString = exp[1] + " (<WASM>[" + exp[2] + "]+" + exp[3] + ")";
+      toString = "wasm-function[" + exp[2] + "]:" + exp[3];
+      if (exp[1] !== null) toString = exp[1] + " (" + toString + ")";
     } else {
       toString = exp[4] + ":" + exp[2] + ":";
     }
@@ -60,7 +60,7 @@ var mem_oob_func = builder.addFunction(undefined, kSig_i_v)
   .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
   .exportAs("mem_out_of_bounds");
 
-// Call the mem_out_of_bounds function, in order to have two WASM stack frames.
+// Call the mem_out_of_bounds function, in order to have two wasm stack frames.
 builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
   .addBody([kExprCallFunction, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");
@@ -68,12 +68,12 @@ builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
 var module = builder.instantiate({mod: {func: STACK}});
 
 (function testSimpleStack() {
-  var expected_string = "Error\n" +
-    // The line numbers below will change as this test gains / loses lines..
-    "    at STACK (stack.js:39:11)\n" +           // --
-    "    at main (<WASM>[1]+1)\n" +               // --
-    "    at testSimpleStack (stack.js:78:18)\n" + // --
-    "    at stack.js:80:3";                       // --
+  var expected_string = 'Error\n' +
+      // The line numbers below will change as this test gains / loses lines..
+      '    at STACK (stack.js:39:11)\n' +            // --
+      '    at main (wasm-function[1]:1)\n' +         // --
+      '    at testSimpleStack (stack.js:78:18)\n' +  // --
+      '    at stack.js:80:3';                        // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -120,7 +120,7 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line  pos        file
-        [    true,                       "",     3,   3,       null],
+        [    true,                     null,     3,   3,       null],
         [    true, "call_mem_out_of_bounds",     4,   1,       null],
         [   false, "testWasmMemOutOfBounds",   117,   0, "stack.js"],
         [   false,                     null,   129,   0, "stack.js"]

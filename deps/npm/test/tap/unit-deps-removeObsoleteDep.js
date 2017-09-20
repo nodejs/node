@@ -7,6 +7,9 @@ var deps = requireInject('../../lib/install/deps.js', {
   '../../lib/npm.js': {
     config: {
       get: function () { return 'mock' }
+    },
+    limit: {
+      fetch: 10
     }
   }
 })
@@ -30,7 +33,7 @@ test('removeObsoleteDep', function (t) {
   removeObsoleteDep(test2)
   t.is(child2.removed, true, 'required by no other modules, removing')
 
-  var child3 = {requiredBy: ['NOTEMPTY']}
+  var child3 = {requiredBy: [{isTop: true}]}
   var test3 = {
     requires: [ child3 ]
   }

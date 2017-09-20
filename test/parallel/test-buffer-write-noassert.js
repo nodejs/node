@@ -4,7 +4,7 @@ const assert = require('assert');
 
 // testing buffer write functions
 
-const outOfRange = /^RangeError: (?:Index )?out of range(?: index)?$/;
+const outOfRange = /^RangeError\b.*\bIndex out of range$/;
 
 function write(funx, args, result, res) {
   {
@@ -18,7 +18,7 @@ function write(funx, args, result, res) {
 
   if (!/Int/.test(funx)) {
     assert.throws(
-      () => Buffer.alloc(9)[funx].apply(new Uint32Array(1), args),
+      () => Buffer.alloc(9)[funx].apply(new Map(), args),
       /^TypeError: argument should be a Buffer$/
     );
   }

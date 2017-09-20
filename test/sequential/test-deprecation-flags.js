@@ -23,17 +23,17 @@
 const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const depmod = require.resolve(common.fixturesDir + '/deprecated.js');
+const depmod = require.resolve(`${common.fixturesDir}/deprecated.js`);
 const node = process.execPath;
 
 const depUserlandFunction =
-  require.resolve(common.fixturesDir + '/deprecated-userland-function.js');
+  require.resolve(`${common.fixturesDir}/deprecated-userland-function.js`);
 
 const depUserlandClass =
-  require.resolve(common.fixturesDir + '/deprecated-userland-class.js');
+  require.resolve(`${common.fixturesDir}/deprecated-userland-class.js`);
 
 const depUserlandSubClass =
-  require.resolve(common.fixturesDir + '/deprecated-userland-subclass.js');
+  require.resolve(`${common.fixturesDir}/deprecated-userland-subclass.js`);
 
 const normal = [depmod];
 const noDep = ['--no-deprecation', depmod];

@@ -17,7 +17,11 @@ const key = 'test-key';
   const list = new SocketListSend(child, 'test');
 
   list._request('msg', 'cmd', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'child closed before reply');
+    common.expectsError({
+      code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
+      type: Error,
+      message: 'Child closed before reply received'
+    })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
 }
@@ -55,7 +59,11 @@ const key = 'test-key';
   const list = new SocketListSend(child, key);
 
   list._request('msg', 'cmd', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'child closed before reply');
+    common.expectsError({
+      code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
+      type: Error,
+      message: 'Child closed before reply received'
+    })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
 }
@@ -110,5 +118,31 @@ const key = 'test-key';
     assert.strictEqual(msg, count);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
     assert.strictEqual(child.listenerCount('disconnect'), 0);
+  }));
+}
+
+// Verify that an error will be received in callback when child is
+// disconnected after sending a message and before getting the reply.
+{
+  const count = 1;
+  const child = Object.assign(new EventEmitter(), {
+    connected: true,
+    send: function() {
+      process.nextTick(() => {
+        this.emit('disconnect');
+        this.emit('internalMessage', { key, count, cmd: 'NODE_SOCKET_COUNT' });
+      });
+    }
+  });
+
+  const list = new SocketListSend(child, key);
+
+  list.getConnections(common.mustCall((err) => {
+    common.expectsError({
+      code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
+      type: Error,
+      message: 'Child closed before reply received'
+    })(err);
+    assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
 }

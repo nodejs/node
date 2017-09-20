@@ -2,13 +2,10 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
+const assert = require('assert');
 const { createSecureContext } = require('tls');
 const { createSecurePair } = require('_tls_legacy');
 

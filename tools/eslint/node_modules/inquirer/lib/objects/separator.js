@@ -2,7 +2,6 @@
 var chalk = require('chalk');
 var figures = require('figures');
 
-
 /**
  * Separator object
  * Used to space/separate choices group

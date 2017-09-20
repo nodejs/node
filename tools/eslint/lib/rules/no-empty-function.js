@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -19,18 +25,6 @@ const ALLOW_OPTIONS = Object.freeze([
     "setters",
     "constructors"
 ]);
-const SHOW_KIND = Object.freeze({
-    functions: "function",
-    arrowFunctions: "arrow function",
-    generatorFunctions: "generator function",
-    asyncFunctions: "async function",
-    methods: "method",
-    generatorMethods: "generator method",
-    asyncMethods: "async method",
-    getters: "getter",
-    setters: "setter",
-    constructors: "constructor"
-});
 
 /**
  * Gets the kind of a given function node.
@@ -137,19 +131,22 @@ module.exports = {
          */
         function reportIfEmpty(node) {
             const kind = getKind(node);
+            const name = astUtils.getFunctionNameWithKind(node);
+            const innerComments = sourceCode.getTokens(node.body, {
+                includeComments: true,
+                filter: astUtils.isCommentToken
+            });
 
             if (allowed.indexOf(kind) === -1 &&
                 node.body.type === "BlockStatement" &&
                 node.body.body.length === 0 &&
-                sourceCode.getComments(node.body).trailing.length === 0
+                innerComments.length === 0
             ) {
                 context.report({
                     node,
                     loc: node.body.loc.start,
-                    message: "Unexpected empty {{kind}}.",
-                    data: {
-                        kind: SHOW_KIND[kind]
-                    }
+                    message: "Unexpected empty {{name}}.",
+                    data: { name }
                 });
             }
         }

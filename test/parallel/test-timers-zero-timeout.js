@@ -26,7 +26,7 @@ const assert = require('assert');
 // https://github.com/joyent/node/issues/2079 - zero timeout drops extra args
 {
   setTimeout(common.mustCall(f), 0, 'foo', 'bar', 'baz');
-  setTimeout(common.noop, 0);
+  setTimeout(() => {}, 0);
 
   function f(a, b, c) {
     assert.strictEqual(a, 'foo');
@@ -36,18 +36,14 @@ const assert = require('assert');
 }
 
 {
-  let ncalled = 0;
+  let ncalled = 3;
 
-  const iv = setInterval(f, 0, 'foo', 'bar', 'baz');
-
-  function f(a, b, c) {
+  const f = common.mustCall((a, b, c) => {
     assert.strictEqual(a, 'foo');
     assert.strictEqual(b, 'bar');
     assert.strictEqual(c, 'baz');
-    if (++ncalled === 3) clearTimeout(iv);
-  }
+    if (--ncalled === 0) clearTimeout(iv);
+  }, ncalled);
 
-  process.on('exit', function() {
-    assert.strictEqual(ncalled, 3);
-  });
+  const iv = setInterval(f, 0, 'foo', 'bar', 'baz');
 }

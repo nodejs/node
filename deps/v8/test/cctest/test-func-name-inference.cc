@@ -31,6 +31,7 @@
 
 #include "src/api.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/string-search.h"
 #include "test/cctest/cctest.h"
 

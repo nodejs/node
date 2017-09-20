@@ -34,6 +34,7 @@ import signal
 import string
 import subprocess
 import gyp.common
+import gyp.xcode_emulation
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -55,7 +56,7 @@ generator_default_variables = {
   'CONFIGURATION_NAME': '${configuration}',
 }
 
-FULL_PATH_VARS = ('${CMAKE_SOURCE_DIR}', '${builddir}', '${obj}')
+FULL_PATH_VARS = ('${CMAKE_CURRENT_LIST_DIR}', '${builddir}', '${obj}')
 
 generator_supports_multiple_toolsets = True
 generator_wants_static_library_dependencies_adjusted = True
@@ -103,7 +104,7 @@ def NormjoinPathForceCMakeSource(base_path, rel_path):
   if any([rel_path.startswith(var) for var in FULL_PATH_VARS]):
     return rel_path
   # TODO: do we need to check base_path for absolute variables as well?
-  return os.path.join('${CMAKE_SOURCE_DIR}',
+  return os.path.join('${CMAKE_CURRENT_LIST_DIR}',
                       os.path.normpath(os.path.join(base_path, rel_path)))
 
 
@@ -293,7 +294,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps,
     WriteVariable(output, inputs_name)
     output.write('\n')
 
-    output.write('  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+    output.write('  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
     output.write(path_to_gyp)
     output.write('\n')
 
@@ -398,9 +399,9 @@ def WriteRules(target_name, rules, extra_sources, extra_deps,
       output.write(NormjoinPath(path_to_gyp, rule_source))
       output.write('\n')
 
-      # CMAKE_SOURCE_DIR is where the CMakeLists.txt lives.
+      # CMAKE_CURRENT_LIST_DIR is where the CMakeLists.txt lives.
       # The cwd is the current build directory.
-      output.write('  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+      output.write('  WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
       output.write(path_to_gyp)
       output.write('\n')
 
@@ -522,7 +523,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
       WriteVariable(output, copy.inputs_name, ' ')
   output.write('\n')
 
-  output.write('WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/')
+  output.write('WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/')
   output.write(path_to_gyp)
   output.write('\n')
 
@@ -608,8 +609,8 @@ class CMakeNamer(object):
 
 
 def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
-                options, generator_flags, all_qualified_targets, output):
-
+                options, generator_flags, all_qualified_targets, flavor,
+                output):
   # The make generator does this always.
   # TODO: It would be nice to be able to tell CMake all dependencies.
   circular_libs = generator_flags.get('circular', True)
@@ -632,6 +633,10 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
 
   spec = target_dicts.get(qualified_target, {})
   config = spec.get('configurations', {}).get(config_to_use, {})
+
+  xcode_settings = None
+  if flavor == 'mac':
+    xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
 
   target_name = spec.get('target_name', '<missing target name>')
   target_type = spec.get('type', '<missing target type>')
@@ -904,10 +909,10 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
     defines = config.get('defines')
     if defines is not None:
       SetTargetProperty(output,
-                          cmake_target_name,
-                          'COMPILE_DEFINITIONS',
-                          defines,
-                          ';')
+                        cmake_target_name,
+                        'COMPILE_DEFINITIONS',
+                        defines,
+                        ';')
 
     # Compile Flags - http://www.cmake.org/Bug/view.php?id=6493
     # CMake currently does not have target C and CXX flags.
@@ -927,6 +932,13 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
     cflags = config.get('cflags', [])
     cflags_c = config.get('cflags_c', [])
     cflags_cxx = config.get('cflags_cc', [])
+    if xcode_settings:
+      cflags = xcode_settings.GetCflags(config_to_use)
+      cflags_c = xcode_settings.GetCflagsC(config_to_use)
+      cflags_cxx = xcode_settings.GetCflagsCC(config_to_use)
+      #cflags_objc = xcode_settings.GetCflagsObjC(config_to_use)
+      #cflags_objcc = xcode_settings.GetCflagsObjCC(config_to_use)
+
     if (not cflags_c or not c_sources) and (not cflags_cxx or not cxx_sources):
       SetTargetProperty(output, cmake_target_name, 'COMPILE_FLAGS', cflags, ' ')
 
@@ -964,6 +976,13 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
     ldflags = config.get('ldflags')
     if ldflags is not None:
       SetTargetProperty(output, cmake_target_name, 'LINK_FLAGS', ldflags, ' ')
+
+    # XCode settings
+    xcode_settings = config.get('xcode_settings', {})
+    for xcode_setting, xcode_value in xcode_settings.viewitems():
+      SetTargetProperty(output, cmake_target_name,
+                        "XCODE_ATTRIBUTE_%s" % xcode_setting, xcode_value,
+                        '' if isinstance(xcode_value, str) else ' ')
 
   # Note on Dependencies and Libraries:
   # CMake wants to handle link order, resolving the link line up front.
@@ -1029,7 +1048,7 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
       output.write(cmake_target_name)
       output.write('\n')
       if static_deps:
-        write_group = circular_libs and len(static_deps) > 1
+        write_group = circular_libs and len(static_deps) > 1 and flavor != 'mac'
         if write_group:
           output.write('-Wl,--start-group\n')
         for dep in gyp.common.uniquer(static_deps):
@@ -1045,9 +1064,9 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
           output.write('\n')
       if external_libs:
         for lib in gyp.common.uniquer(external_libs):
-          output.write('  ')
-          output.write(lib)
-          output.write('\n')
+          output.write('  "')
+          output.write(RemovePrefix(lib, "$(SDKROOT)"))
+          output.write('"\n')
 
       output.write(')\n')
 
@@ -1059,6 +1078,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
                             params, config_to_use):
   options = params['options']
   generator_flags = params['generator_flags']
+  flavor = gyp.common.GetFlavor(params)
 
   # generator_dir: relative path from pwd to where make puts build files.
   # Makes migrating from make to cmake easier, cmake doesn't put anything here.
@@ -1126,7 +1146,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   if cc:
     SetVariable(output, 'CMAKE_ASM_COMPILER', cc)
 
-  SetVariable(output, 'builddir', '${CMAKE_BINARY_DIR}')
+  SetVariable(output, 'builddir', '${CMAKE_CURRENT_BINARY_DIR}')
   SetVariable(output, 'obj', '${builddir}/obj')
   output.write('\n')
 
@@ -1141,7 +1161,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
 
   # Force ninja to use rsp files. Otherwise link and ar lines can get too long,
   # resulting in 'Argument list too long' errors.
-  output.write('set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1)\n')
+  # However, rsp files don't work correctly on Mac.
+  if flavor != 'mac':
+    output.write('set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1)\n')
   output.write('\n')
 
   namer = CMakeNamer(target_list)
@@ -1156,8 +1178,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
       all_qualified_targets.add(qualified_target)
 
   for qualified_target in target_list:
+    if flavor == 'mac':
+      gyp_file, _, _ = gyp.common.ParseQualifiedTarget(qualified_target)
+      spec = target_dicts[qualified_target]
+      gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[gyp_file], spec)
+
     WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
-                options, generator_flags, all_qualified_targets, output)
+                options, generator_flags, all_qualified_targets, flavor, output)
 
   output.close()
 

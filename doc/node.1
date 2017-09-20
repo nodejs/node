@@ -36,7 +36,10 @@ node \- Server-side JavaScript runtime
 .RI [ v8\ options ]
 .RI [ script.js \ |
 .B -e
-.RI \&" script \&"]
+.RI \&" script \&"
+.R |
+.B -
+.R ]
 .B [--]
 .RI [ arguments ]
 .br
@@ -93,15 +96,19 @@ Preload the specified module at startup. Follows `require()`'s module resolution
 rules. \fImodule\fR may be either a path to a file, or a node module name.
 
 .TP
-.BR \-\-inspect \fI[=host:port]\fR
+.BR \-\-inspect \fI[=[host:]port]\fR
 Activate inspector on host:port. Default is 127.0.0.1:9229.
 
 V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js
 instances for debugging and profiling. It uses the Chrome Debugging Protocol.
 
 .TP
-.BR \-\-inspect-brk \fI[=host:port]\fR
+.BR \-\-inspect-brk \fI[=[host:]port]\fR
 Activate inspector on host:port and break at start of user script.
+
+.TP
+.BR \-\-inspect-port \fI=[host:]port\fR
+Set the host:port to be used when the inspector is activated.
 
 .TP
 .BR \-\-no\-deprecation
@@ -116,8 +123,25 @@ Print stack traces for deprecations.
 Throw errors for deprecations.
 
 .TP
+.BR \-\-pending\-deprecation
+Emit pending deprecation warnings.
+
+.TP
 .BR \-\-no\-warnings
 Silence all process warnings (including deprecations).
+
+.TP
+.BR \-\-expose\-http2
+Enable the experimental `'http2'` module.
+
+.TP
+.BR \-\-napi\-modules
+Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
+(experimental).
+
+.TP
+.BR \-\-abort\-on\-uncaught\-exception
+Aborting instead of exiting causes a core file to be generated for analysis.
 
 .TP
 .BR \-\-trace\-warnings
@@ -199,15 +223,15 @@ used to enable FIPS-compliant crypto if Node.js is built with
 .TP
 .BR \-\-use\-openssl\-ca,\-\-use\-bundled\-ca
 Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
-current NodeJS version. The default store is selectable at build-time.
+current Node.js version. The default store is selectable at build-time.
 
 Using OpenSSL store allows for external modifications of the store. For most
 Linux and BSD distributions, this store is maintained by the distribution
 maintainers and system administrators. OpenSSL CA store location is dependent on
 configuration of the OpenSSL library but this can be altered at runtime using
-environmental variables.
+environment variables.
 
-The bundled CA store, as supplied by NodeJS, is a snapshot of Mozilla CA store
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
 that is fixed at release time. It is identical on all supported platforms.
 
 See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
@@ -215,6 +239,12 @@ See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
 .TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
+
+.TP
+.BR \-\fR
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
 
 .TP
 .BR \-\-\fR
@@ -251,8 +281,19 @@ with small\-icu support.
 When set to \fI1\fR, process warnings are silenced.
 
 .TP
+.BR NODE_OPTIONS =\fIoptions...\fR
+A space-separated list of command line options. \fBoptions...\fR are interpreted
+as if they had been specified on the command line before the actual command line
+(so they can be overridden).  Node will exit with an error if an option that is
+not allowed in the environment is used, such as \fB-p\fR or a script file.
+
+.TP
 .BR NODE_PATH =\fIpath\fR[:\fI...\fR]
 \':\'\-separated list of directories prefixed to the module search path.
+
+.TP
+.BR NODE_PENDING_DEPRECATION = \fI1\fR
+When set to \fI1\fR, emit pending deprecation warnings.
 
 .TP
 .BR NODE_REPL_HISTORY =\fIfile\fR

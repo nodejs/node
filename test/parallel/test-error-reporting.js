@@ -26,8 +26,7 @@ const exec = require('child_process').exec;
 const path = require('path');
 
 function errExec(script, callback) {
-  const cmd = '"' + process.argv[0] + '" "' +
-              path.join(common.fixturesDir, script) + '"';
+  const cmd = `"${process.argv[0]}" "${path.join(common.fixturesDir, script)}"`;
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);
@@ -36,12 +35,14 @@ function errExec(script, callback) {
     assert.ok(stderr.split('\n').length > 2);
 
     // Assert the script is mentioned in error output.
-    assert.ok(stderr.indexOf(script) >= 0);
+    assert.ok(stderr.includes(script));
 
     // Proxy the args for more tests.
     callback(err, stdout, stderr);
   });
 }
+
+const syntaxErrorMessage = /SyntaxError/;
 
 
 // Simple throw error
@@ -52,30 +53,30 @@ errExec('throws_error.js', common.mustCall(function(err, stdout, stderr) {
 
 // Trying to JSON.parse(undefined)
 errExec('throws_error2.js', common.mustCall(function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
+  assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 
 // Trying to JSON.parse(undefined) in nextTick
 errExec('throws_error3.js', common.mustCall(function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
+  assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 
 // throw ILLEGAL error
 errExec('throws_error4.js', common.mustCall(function(err, stdout, stderr) {
   assert.ok(/\/\*\*/.test(stderr));
-  assert.ok(/SyntaxError/.test(stderr));
+  assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Specific long exception line doesn't result in stack overflow
 errExec('throws_error5.js', common.mustCall(function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
+  assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Long exception line with length > errorBuffer doesn't result in assertion
 errExec('throws_error6.js', common.mustCall(function(err, stdout, stderr) {
-  assert.ok(/SyntaxError/.test(stderr));
+  assert.ok(syntaxErrorMessage.test(stderr));
 }));
 
 // Object that throws in toString() doesn't print garbage

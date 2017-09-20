@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+process.chdir('..');
 assert.notStrictEqual(process.cwd(), __dirname);
 process.chdir(__dirname);
 assert.strictEqual(process.cwd(), __dirname);
@@ -30,7 +31,10 @@ process.chdir('..');
 assert.strictEqual(process.cwd().normalize(),
                    path.resolve(common.tmpDir).normalize());
 
-assert.throws(function() { process.chdir({}); }, TypeError, 'Bad argument.');
-assert.throws(function() { process.chdir(); }, TypeError, 'Bad argument.');
+const errMessage = /^TypeError: Bad argument\.$/;
+assert.throws(function() { process.chdir({}); },
+              errMessage, 'Bad argument.');
+assert.throws(function() { process.chdir(); },
+              errMessage, 'Bad argument.');
 assert.throws(function() { process.chdir('x', 'y'); },
-              TypeError, 'Bad argument.');
+              errMessage, 'Bad argument.');

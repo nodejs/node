@@ -56,6 +56,11 @@ template("v8_isolate_run") {
       }
 
       # Translate gn to gyp variables.
+      if (v8_code_coverage) {
+        coverage = "1"
+      } else {
+        coverage = "0"
+      }
       if (is_asan) {
         asan = "1"
       } else {
@@ -95,11 +100,6 @@ template("v8_isolate_run") {
         icu_use_data_file_flag = "1"
       } else {
         icu_use_data_file_flag = "0"
-      }
-      if (v8_enable_inspector) {
-        enable_inspector = "1"
-      } else {
-        enable_inspector = "0"
       }
       if (v8_use_external_startup_data) {
         use_external_startup_data = "1"
@@ -162,15 +162,13 @@ template("v8_isolate_run") {
         "--config-variable",
         "tsan=$tsan",
         "--config-variable",
-        "coverage=0",
+        "coverage=$coverage",
         "--config-variable",
-        "sanitizer_coverage=0",
+        "sanitizer_coverage=$sanitizer_coverage_flags",
         "--config-variable",
         "component=$component",
         "--config-variable",
         "target_arch=$target_arch",
-        "--config-variable",
-        "v8_enable_inspector=$enable_inspector",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

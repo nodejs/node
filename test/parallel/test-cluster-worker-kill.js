@@ -36,7 +36,7 @@ if (cluster.isWorker) {
   const server = http.Server(() => { });
 
   server.once('listening', common.mustCall(() => { }));
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 
@@ -111,9 +111,8 @@ function checkResults(expected_results, results) {
     const actual = results[k];
     const expected = expected_results[k];
 
-    assert.strictEqual(actual,
-                       expected && expected.length ? expected[0] : expected,
-                       (expected[1] || '') +
-                         ` [expected: ${expected[0]} / actual: ${actual}]`);
+    assert.strictEqual(
+      actual, expected && expected.length ? expected[0] : expected,
+      `${expected[1] || ''} [expected: ${expected[0]} / actual: ${actual}]`);
   }
 }

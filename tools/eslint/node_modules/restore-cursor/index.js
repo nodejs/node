@@ -1,9 +1,9 @@
 'use strict';
-var onetime = require('onetime');
-var exitHook = require('exit-hook');
+const onetime = require('onetime');
+const signalExit = require('signal-exit');
 
-module.exports = onetime(function () {
-	exitHook(function () {
-		process.stdout.write('\u001b[?25h');
-	});
+module.exports = onetime(() => {
+	signalExit(() => {
+		process.stderr.write('\u001b[?25h');
+	}, {alwaysLast: true});
 });

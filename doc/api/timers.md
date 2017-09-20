@@ -1,5 +1,7 @@
 # Timers
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `timer` module exposes a global API for scheduling functions to
@@ -75,9 +77,7 @@ added: v0.9.1
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 
 Schedules the "immediate" execution of the `callback` after I/O events'
-callbacks and before timers created using [`setTimeout()`][] and
-[`setInterval()`][] are triggered. Returns an `Immediate` for use with
-[`clearImmediate()`][].
+callbacks. Returns an `Immediate` for use with [`clearImmediate()`][].
 
 When multiple calls to `setImmediate()` are made, the `callback` functions are
 queued for execution in the order in which they are created. The entire callback
@@ -86,6 +86,27 @@ from inside an executing callback, that timer will not be triggered until the
 next event loop iteration.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
+
+*Note*: This method has a custom variant for promises that is available using
+[`util.promisify()`][]:
+
+```js
+const util = require('util');
+const setImmediatePromise = util.promisify(setImmediate);
+
+setImmediatePromise('foobar').then((value) => {
+  // value === 'foobar' (passing values is optional)
+  // This is executed after all I/O callbacks.
+});
+
+// or with async function
+async function timerExample() {
+  console.log('Before I/O callbacks');
+  await setImmediatePromise();
+  console.log('After I/O callbacks');
+}
+timerExample();
+```
 
 ### setInterval(callback, delay[, ...args])
 <!-- YAML
@@ -128,11 +149,27 @@ will be set to `1`.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
+*Note*: This method has a custom variant for promises that is available using
+[`util.promisify()`][]:
+
+```js
+const util = require('util');
+const setTimeoutPromise = util.promisify(setTimeout);
+
+setTimeoutPromise(40, 'foobar').then((value) => {
+  // value === 'foobar' (passing values is optional)
+  // This is executed after about 40 milliseconds.
+});
+```
+
 ## Cancelling Timers
 
 The [`setImmediate()`][], [`setInterval()`][], and [`setTimeout()`][] methods
 each return objects that represent the scheduled timers. These can be used to
 cancel the timer and prevent it from triggering.
+
+It is not possible to cancel timers that were created using the promisified
+variants of [`setImmediate()`][], [`setTimeout()`][].
 
 ### clearImmediate(immediate)
 <!-- YAML
@@ -163,7 +200,6 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
 
-[the Node.js Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick
 [`TypeError`]: errors.html#errors_class_typeerror
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
@@ -171,3 +207,5 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 [`setImmediate()`]: timers.html#timers_setimmediate_callback_args
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
+[`util.promisify()`]: util.html#util_util_promisify_original
+[the Node.js Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick

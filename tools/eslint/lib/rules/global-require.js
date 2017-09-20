@@ -17,7 +17,7 @@ const ACCEPTABLE_PARENTS = [
 ];
 
 /**
- * Finds the escope reference in the given scope.
+ * Finds the eslint-scope reference in the given scope.
  * @param {Object} scope The scope to search.
  * @param {ASTNode} node The identifier node.
  * @returns {Reference|null} Returns the found reference or null if none were found.
@@ -29,9 +29,9 @@ function findReference(scope, node) {
     /* istanbul ignore else: correctly returns null */
     if (references.length === 1) {
         return references[0];
-    } else {
-        return null;
     }
+    return null;
+
 }
 
 /**

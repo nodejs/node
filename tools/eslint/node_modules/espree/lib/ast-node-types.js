@@ -21,6 +21,7 @@ module.exports = {
     ArrayExpression: "ArrayExpression",
     ArrayPattern: "ArrayPattern",
     ArrowFunctionExpression: "ArrowFunctionExpression",
+    AwaitExpression: "AwaitExpression",
     BlockStatement: "BlockStatement",
     BinaryExpression: "BinaryExpression",
     BreakStatement: "BreakStatement",

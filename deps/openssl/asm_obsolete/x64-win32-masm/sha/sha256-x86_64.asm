@@ -1788,7 +1788,7 @@ $L$prologue_shaext::
 	movdqa	xmm7,XMMWORD PTR[((512-128))+rcx]
 
 	pshufd	xmm0,xmm1,01bh
-	pshufd	xmm1,xmm1,1h
+	pshufd	xmm1,xmm1,0b1h
 	pshufd	xmm2,xmm2,01bh
 	movdqa	xmm8,xmm7
 DB	102,15,58,15,202,8
@@ -1975,9 +1975,9 @@ DB	15,56,203,202
 	paddd	xmm1,xmm9
 	jnz	$L$oop_shaext
 
-	pshufd	xmm2,xmm2,1h
+	pshufd	xmm2,xmm2,0b1h
 	pshufd	xmm7,xmm1,01bh
-	pshufd	xmm1,xmm1,1h
+	pshufd	xmm1,xmm1,0b1h
 	punpckhqdq	xmm1,xmm2
 DB	102,15,58,15,215,8
 

@@ -86,7 +86,7 @@ This macro is used to signal an ABI version for native addons. It currently has 
 
 The general rule is to bump this version when there are _breaking ABI_ changes and also if there are non-trivial API changes. The rules are not yet strictly defined, so if in doubt, please confer with someone that will have a more informed perspective, such as a member of the NAN team.
 
-**Note** that it is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
+*Note*: It is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
 
 ### 3. Update the Changelog
 
@@ -144,7 +144,7 @@ is shown in **bold** in the index. When updating the index, please make sure
 to update the display accordingly by removing the bold styling from the previous
 release.
 
-#### Step 3: Update any REPLACEME tags in the docs
+#### Step 3: Update any REPLACEME and DEP00XX tags in the docs
 
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
@@ -153,6 +153,13 @@ were first added in this version. The relevant commits should already include
 `grep REPLACEME doc/api/*.md`, and substitute this node version with
 `sed -i "s/REPLACEME/$VERSION/g" doc/api/*.md` or
 `perl -pi -e "s/REPLACEME/$VERSION/g" doc/api/*.md`.
+
+If this release includes any new deprecations it is necessary to ensure that
+those are assigned a proper static deprecation code. These are listed in the
+docs (see `doc/api/deprecations.md`) and in the source as `DEP00XX`. The code
+must be assigned a number (e.g. `DEP0012`). Note that this assignment should
+occur when the PR is landed, but a check will be made when the release built
+is run.
 
 ### 4. Create Release Commit
 
@@ -188,13 +195,13 @@ Perform some smoke-testing. We have [citgm](https://github.com/nodejs/citgm) for
 
 If there is a reason to produce a test release for the purpose of having others try out installers or specifics of builds, produce a nightly build using **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** and wait for it to drop in <https://nodejs.org/download/nightly/>. Follow the directions and enter a proper length commit SHA, enter a date string, and select "nightly" for "disttype".
 
-This is particularly recommended if there has been recent work relating to the OS X or Windows installers as they are not tested in any way by CI.
+This is particularly recommended if there has been recent work relating to the macOS or Windows installers as they are not tested in any way by CI.
 
 ### 8. Produce Release Builds
 
 Use **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** to produce release artifacts. Enter the commit that you want to build from and select "release" for "disttype".
 
-Artifacts from each slave are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test OS X and Windows installers if there are any concerns. Click through to the individual slaves for a run to find the artifacts.
+Artifacts from each slave are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test macOS and Windows installers if there are any concerns. Click through to the individual slaves for a run to find the artifacts.
 
 All release slaves should achieve "SUCCESS" (and be green, not red). A release with failures should not be promoted as there are likely problems to be investigated.
 
@@ -204,7 +211,7 @@ If you have an error on Windows and need to start again, be aware that you'll ge
 
 ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on release builds, I think it's because of the additional macro settings that go in to a release build that nullify previous builds. Also most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from initial promotion.
 
-You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), OS X .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an OS X slave). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
+You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an macOS slave). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
 
 ### 9. Test the Build
 
@@ -253,7 +260,7 @@ PR-URL: <full URL to your release proposal PR>
 
 This sets up the branch so that nightly builds are produced with the next version number _and_ a pre-release tag.
 
-Merge your release branch into the stable branch that you are releasing from (not master).
+Merge your release proposal branch into the stable branch that you are releasing from (e.g. `v8.x`), and rebase the corresponding staging branch (`v8.x-staging`) on top of that.
 
 Cherry-pick the release commit to `master`. After cherry-picking, edit `src/node_version.h` to ensure the version macros contain whatever values were previously on `master`. `NODE_VERSION_IS_RELEASE` should be `0`.
 
@@ -279,7 +286,8 @@ Use `tools/release.sh` to promote and sign the build. When run, it will perform 
 
 If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run `tools/release.sh` after the ARM builds have finished. That will move the ARM artifacts into the correct location. You will be prompted to re-sign SHASUMS256.txt.
 
-Note: it is possible to only sign a release by running `./tools/release.sh -s vX.Y.Z`.
+*Note*: It is possible to only sign a release by running
+`./tools/release.sh -s vX.Y.Z`.
 
 ### 13. Check the Release
 
@@ -295,7 +303,7 @@ Create a new blog post by running the [nodejs.org release-post.js script](https:
 * The links to the download files won't be complete unless you waited for the ARMv6 builds. Any downloads that are missing will have `*Coming soon*` next to them. It's your responsibility to manually update these later when you have the outstanding builds.
 * The SHASUMS256.txt.asc content is at the bottom of the post. When you update the list of tarballs you'll need to copy/paste the new contents of this file to reflect those changes.
 * Always use pull-requests on the nodejs.org repo. Be respectful of that working group, but you shouldn't have to wait for PR sign-off. Opening a PR and merging it immediately _should_ be fine. However, please follow the following commit message format:
-```
+```console
 Blog: vX.Y.Z release post
 
 Refs: <full URL to your release proposal PR>

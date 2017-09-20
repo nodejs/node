@@ -1299,6 +1299,7 @@ $code.=<<___;
 	mov		240($key),$rounds
 	sub		$in0,$out
 	movups		($key),$rndkey0		# $key[0]
+	movups		($ivp),$iv		# load IV
 	movups		16($key),$rndkey[0]	# forward reference
 	lea		112($key),$key		# size optimization
 

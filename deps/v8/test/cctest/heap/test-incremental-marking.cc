@@ -18,6 +18,9 @@
 
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/spaces.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -59,6 +62,10 @@ class MockPlatform : public v8::Platform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
+  v8::TracingController* GetTracingController() override {
+    return platform_->GetTracingController();
+  }
+
   bool PendingTask() { return task_ != nullptr; }
 
   void PerformTask() {
@@ -68,29 +75,6 @@ class MockPlatform : public v8::Platform {
     delete task;
   }
 
-  using Platform::AddTraceEvent;
-  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int numArgs, const char** argNames,
-                         const uint8_t* argTypes, const uint64_t* argValues,
-                         unsigned int flags) override {
-    return 0;
-  }
-
-  void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
-                                const char* name, uint64_t handle) override {}
-
-  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
-    static uint8_t no = 0;
-    return &no;
-  }
-
-  const char* GetCategoryGroupName(
-      const uint8_t* categoryEnabledFlag) override {
-    static const char* dummy = "dummy";
-    return dummy;
-  }
-
  private:
   v8::Platform* platform_;
   Task* task_;
@@ -98,6 +82,7 @@ class MockPlatform : public v8::Platform {
 
 TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
+  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);

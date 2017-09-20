@@ -1,5 +1,7 @@
 # Assert
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `assert` module provides a simple set of assertion tests that can be used to
@@ -18,6 +20,12 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15001
+    description: Error names and messages are now properly compared
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12142
+    description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -38,17 +46,19 @@ Primitive values are compared with the [Abstract Equality Comparison][]
 
 Only [enumerable "own" properties][] are considered. The
 [`assert.deepEqual()`][] implementation does not test the
-[`[[Prototype]]`][prototype-spec] of objects, attached symbols, or
-non-enumerable properties — for such checks, consider using
-[assert.deepStrictEqual()][] instead. This can lead to some
-potentially surprising results. For example, the following example does not
-throw an `AssertionError` because the properties on the [`Error`][] object are
-not enumerable:
+[`[[Prototype]]`][prototype-spec] of objects or enumerable own [`Symbol`][]
+properties. For such checks, consider using [assert.deepStrictEqual()][]
+instead. [`assert.deepEqual()`][] can have potentially surprising results. The
+following example does not throw an `AssertionError` because the properties on
+the [RegExp][] object are not enumerable:
 
 ```js
 // WARNING: This does not throw an AssertionError!
-assert.deepEqual(Error('a'), Error('b'));
+assert.deepEqual(/a/gi, new Date());
 ```
+
+An exception is made for [`Map`][] and [`Set`][]. Maps and Sets have their
+contained items compared too, as expected.
 
 "Deep" equality means that the enumerable "own" properties of child objects
 are evaluated also:
@@ -57,18 +67,18 @@ are evaluated also:
 const assert = require('assert');
 
 const obj1 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj2 = {
-  a : {
-    b : 2
+  a: {
+    b: 2
   }
 };
 const obj3 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj4 = Object.create(obj1);
@@ -90,12 +100,26 @@ assert.deepEqual(obj1, obj4);
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15169
+    description: Enumerable symbol properties are now compared.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15036
+    description: NaN is now compared using the [SameValueZero][] comparison.
+  - version: v8.5.0
+    pr-url: https://github.com/nodejs/node/pull/15001
+    description: Error names and messages are now properly compared
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12142
+    description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -110,21 +134,26 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Generally identical to `assert.deepEqual()` with three exceptions:
+Similar to `assert.deepEqual()` with the following exceptions:
 
-1. Primitive values are compared using the [Strict Equality Comparison][]
-  ( `===` ).
+1. Primitive values besides `NaN` are compared using the [Strict Equality
+   Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
+   using the [SameValueZero][] comparison (which means they are free of the
+   [caveats][]).
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
+4. [Object wrappers][] are compared both as objects and unwrapped values.
+5. `0` and `-0` are not considered equal.
+6. Enumerable own [`Symbol`][] properties are compared as well.
 
 ```js
 const assert = require('assert');
 
-assert.deepEqual({a: 1}, {a: '1'});
+assert.deepEqual({ a: 1 }, { a: '1' });
 // OK, because 1 == '1'
 
-assert.deepStrictEqual({a: 1}, {a: '1'});
+assert.deepStrictEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
 // because 1 !== '1' using strict equality
 
@@ -146,11 +175,33 @@ assert.deepEqual(date, fakeDate);
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
+
+assert.deepStrictEqual(NaN, NaN);
+// OK, because of the SameValueZero comparison
+
+assert.deepStrictEqual(new Number(1), new Number(2));
+// Fails because the wrapped number is unwrapped and compared as well.
+assert.deepStrictEqual(new String('foo'), Object('foo'));
+// OK because the object and the string are identical when unwrapped.
+
+assert.deepStrictEqual(-0, -0);
+// OK
+assert.deepStrictEqual(0, -0);
+// AssertionError: 0 deepStrictEqual -0
+
+const symbol1 = Symbol();
+const symbol2 = Symbol();
+assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol1]: 1 });
+// OK, because it is the same symbol on both objects.
+assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
+// Fails because symbol1 !== symbol2!
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
@@ -238,35 +289,78 @@ assert.equal(1, '1');
 
 assert.equal(1, 2);
 // AssertionError: 1 == 2
-assert.equal({a: {b: 1}}, {a: {b: 1}});
+assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 //AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
-## assert.fail(actual, expected, message, operator)
+## assert.fail([message])
+## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
 <!-- YAML
 added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
-* `operator` {string}
+* `message` {any} (default: 'Failed')
+* `operator` {string} (default: '!=')
+* `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
-the values of `actual` and `expected` separated by the provided `operator`.
-Otherwise, the error message is the value of `message`.
+the values of `actual` and `expected` separated by the provided `operator`. If
+the `message` parameter is an instance of an `Error` then it will be thrown
+instead of the `AssertionError`. If just the two `actual` and `expected`
+arguments are provided, `operator` will default to `'!='`. If `message` is
+provided only it will be used as the error message, the other arguments will be
+stored as properties on the thrown object. If `stackStartFunction` is provided,
+all stack frames above that function will be removed from stacktrace (see
+[`Error.captureStackTrace`]). If no arguments are given, the default message
+`Failed` will be used.
 
 ```js
 const assert = require('assert');
 
 assert.fail(1, 2, undefined, '>');
-// AssertionError: 1 > 2
+// AssertionError [ERR_ASSERTION]: 1 > 2
+
+assert.fail(1, 2, 'fail');
+// AssertionError [ERR_ASSERTION]: fail
 
 assert.fail(1, 2, 'whoops', '>');
-// AssertionError: whoops
+// AssertionError [ERR_ASSERTION]: whoops
+
+assert.fail(1, 2, new TypeError('need array'));
+// TypeError: need array
+```
+
+*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+influence on the error message.
+
+```js
+assert.fail();
+// AssertionError [ERR_ASSERTION]: Failed
+
+assert.fail('boom');
+// AssertionError [ERR_ASSERTION]: boom
+
+assert.fail('a', 'b');
+// AssertionError [ERR_ASSERTION]: 'a' != 'b'
+```
+
+Example use of `stackStartFunction` for truncating the exception's stacktrace:
+```js
+function suppressFrame() {
+  assert.fail('a', 'b', undefined, '!==', suppressFrame);
+}
+suppressFrame();
+// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
+//     at repl:1:1
+//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
+//     ...
 ```
 
 ## assert.ifError(value)
@@ -294,6 +388,22 @@ assert.ifError(new Error());
 ## assert.notDeepEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15001
+    description: Error names and messages are now properly compared
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12142
+    description: Set and Map content is also compared
+  - version: v6.4.0, v4.7.1
+    pr-url: https://github.com/nodejs/node/pull/8002
+    description: Typed array slices are handled correctly now.
+  - version: v6.1.0, v4.5.0
+    pr-url: https://github.com/nodejs/node/pull/6432
+    description: Objects with circular references can be used as inputs now.
+  - version: v5.10.1, v4.4.3
+    pr-url: https://github.com/nodejs/node/pull/5910
+    description: Handle non-`Uint8Array` typed arrays correctly.
 -->
 * `actual` {any}
 * `expected` {any}
@@ -305,18 +415,18 @@ Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 const assert = require('assert');
 
 const obj1 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj2 = {
-  a : {
-    b : 2
+  a: {
+    b: 2
   }
 };
 const obj3 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj4 = Object.create(obj1);
@@ -336,11 +446,35 @@ assert.notDeepEqual(obj1, obj4);
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: -0 and +0 are not considered equal anymore.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15036
+    description: NaN is now compared using the [SameValueZero][] comparison.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15001
+    description: Error names and messages are now properly compared
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12142
+    description: Set and Map content is also compared
+  - version: v6.4.0, v4.7.1
+    pr-url: https://github.com/nodejs/node/pull/8002
+    description: Typed array slices are handled correctly now.
+  - version: v6.1.0
+    pr-url: https://github.com/nodejs/node/pull/6432
+    description: Objects with circular references can be used as inputs now.
+  - version: v5.10.1, v4.4.3
+    pr-url: https://github.com/nodejs/node/pull/5910
+    description: Handle non-`Uint8Array` typed arrays correctly.
 -->
 * `actual` {any}
 * `expected` {any}
@@ -351,16 +485,18 @@ Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 ```js
 const assert = require('assert');
 
-assert.notDeepEqual({a:1}, {a:'1'});
+assert.notDeepEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } notDeepEqual { a: '1' }
 
-assert.notDeepStrictEqual({a:1}, {a:'1'});
+assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
 ```
 
-If the values are deeply and strictly equal, an `AssertionError` is thrown
-with a `message` property set equal to the value of the `message` parameter. If
-the `message` parameter is undefined, a default error message is assigned.
+If the values are deeply and strictly equal, an `AssertionError` is thrown with
+a `message` property set equal to the value of the `message` parameter. If the
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.notEqual(actual, expected[, message])
 <!-- YAML
@@ -388,7 +524,9 @@ assert.notEqual(1, '1');
 
 If the values are equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned.
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
@@ -416,7 +554,9 @@ assert.notStrictEqual(1, '1');
 
 If the values are strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned.
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.ok(value[, message])
 <!-- YAML
@@ -430,7 +570,9 @@ Tests if `value` is truthy. It is equivalent to
 
 If `value` is not truthy, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
-parameter is `undefined`, a default error message is assigned.
+parameter is `undefined`, a default error message is assigned. If the `message`
+parameter is an instance of an `Error` then it will be thrown instead of the
+`AssertionError`.
 
 ```js
 const assert = require('assert');
@@ -473,7 +615,9 @@ assert.strictEqual(1, '1');
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned.
+`message` parameter is undefined, a default error message is assigned. If the
+`message` parameter is an instance of an `Error` then it will be thrown instead
+of the `AssertionError`.
 
 ## assert.throws(block[, error][, message])
 <!-- YAML
@@ -525,7 +669,7 @@ assert.throws(
     throw new Error('Wrong value');
   },
   function(err) {
-    if ( (err instanceof Error) && /value/.test(err) ) {
+    if ((err instanceof Error) && /value/.test(err)) {
       return true;
     }
   },
@@ -537,6 +681,7 @@ Note that `error` can not be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
 `message` instead. This can lead to easy-to-miss mistakes:
 
+<!-- eslint-disable no-restricted-syntax -->
 ```js
 // THIS IS A MISTAKE! DO NOT DO THIS!
 assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
@@ -559,8 +704,8 @@ assert.notStrictEqual(a, b);
 assert(!Object.is(a, b));
 // but Object.is() does!
 
-const str1 = "foo";
-const str2 = "foo";
+const str1 = 'foo';
+const str2 = 'foo';
 assert.strictEqual(str1 / 1, str2 / 1);
 // AssertionError: NaN === NaN
 // Strict Equality Comparison can't be used to check NaN...
@@ -571,18 +716,24 @@ assert(Object.is(str1 / 1, str2 / 1));
 For more information, see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
+[`Error`]: errors.html#errors_class_error
+[`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
+[`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
+[`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
+[`Set`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set
+[`Symbol`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Symbol
+[`TypeError`]: errors.html#errors_class_typeerror
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
-[`Error`]: errors.html#errors_class_error
-[`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
-[`TypeError`]: errors.html#errors_class_typeerror
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
-[Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
-[`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
-[SameValueZero]: https://tc39.github.io/ecma262/#sec-samevaluezero
-[prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
-[mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
-[enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
+[SameValueZero]: https://tc39.github.io/ecma262/#sec-samevaluezero
+[Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
+[caveats]: #assert_caveats
+[enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
+[mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
+[prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
+[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript

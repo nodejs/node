@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "src/base/adapters.h"
+#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -17,6 +18,7 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"
 #include "src/compiler/bytecode-graph-builder.h"
+#include "src/compiler/check-elimination.h"
 #include "src/compiler/checkpoint-elimination.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
@@ -26,7 +28,6 @@
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/frame-elider.h"
-#include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction-selector.h"
@@ -37,7 +38,6 @@
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
-#include "src/compiler/js-global-object-specialization.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -64,7 +64,6 @@
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
-#include "src/compiler/tail-call-optimization.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/value-numbering-reducer.h"
@@ -75,8 +74,8 @@
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/type-info.h"
 #include "src/utils.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -97,6 +96,8 @@ class PipelineData {
         graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
@@ -114,8 +115,9 @@ class PipelineData {
     is_asm_ = info->shared_info()->asm_function();
   }
 
-  // For WASM compile entry point.
+  // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
+               PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                ZoneVector<trap_handler::ProtectedInstructionData>*
                    protected_instructions)
@@ -123,6 +125,7 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
+        pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(jsgraph->graph()),
         source_positions_(source_positions),
@@ -132,6 +135,8 @@ class PipelineData {
         jsgraph_(jsgraph),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         protected_instructions_(protected_instructions) {
@@ -152,6 +157,8 @@ class PipelineData {
         schedule_(schedule),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     is_asm_ = false;
@@ -167,6 +174,8 @@ class PipelineData {
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
+        codegen_zone_scope_(zone_stats_, ZONE_NAME),
+        codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()) {
     is_asm_ =
@@ -174,8 +183,11 @@ class PipelineData {
   }
 
   ~PipelineData() {
+    delete code_generator_;  // Must happen before zones are destroyed.
+    code_generator_ = nullptr;
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
+    DeleteCodegenZone();
     DeleteGraphZone();
   }
 
@@ -183,6 +195,7 @@ class PipelineData {
   CompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
+  OsrHelper* osr_helper() { return &(*osr_helper_); }
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
 
@@ -195,6 +208,8 @@ class PipelineData {
     DCHECK(code_.is_null());
     code_ = code;
   }
+
+  CodeGenerator* code_generator() const { return code_generator_; }
 
   // RawMachineAssembler generally produces graphs which cannot be verified.
   bool MayHaveUnverifiableGraph() const { return outer_zone_ == nullptr; }
@@ -227,6 +242,7 @@ class PipelineData {
   void reset_schedule() { schedule_ = nullptr; }
 
   Zone* instruction_zone() const { return instruction_zone_; }
+  Zone* codegen_zone() const { return codegen_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
   Frame* frame() const { return frame_; }
 
@@ -272,6 +288,12 @@ class PipelineData {
     instruction_zone_scope_.Destroy();
     instruction_zone_ = nullptr;
     sequence_ = nullptr;
+  }
+
+  void DeleteCodegenZone() {
+    if (codegen_zone_ == nullptr) return;
+    codegen_zone_scope_.Destroy();
+    codegen_zone_ = nullptr;
     frame_ = nullptr;
   }
 
@@ -303,7 +325,7 @@ class PipelineData {
     if (descriptor != nullptr) {
       fixed_frame_size = descriptor->CalculateFixedFrameSize();
     }
-    frame_ = new (instruction_zone()) Frame(fixed_frame_size);
+    frame_ = new (codegen_zone()) Frame(fixed_frame_size);
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
@@ -312,6 +334,23 @@ class PipelineData {
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
                                sequence(), debug_name());
+  }
+
+  void InitializeOsrHelper() {
+    DCHECK(!osr_helper_.has_value());
+    osr_helper_.emplace(info());
+  }
+
+  void set_start_source_position(int position) {
+    DCHECK_EQ(start_source_position_, kNoSourcePosition);
+    start_source_position_ = position;
+  }
+
+  void InitializeCodeGenerator(Linkage* linkage) {
+    DCHECK_NULL(code_generator_);
+    code_generator_ =
+        new CodeGenerator(codegen_zone(), frame(), linkage, sequence(), info(),
+                          osr_helper_, start_source_position_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -338,7 +377,10 @@ class PipelineData {
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
   bool is_asm_ = false;
+  int start_source_position_ = kNoSourcePosition;
+  base::Optional<OsrHelper> osr_helper_;
   Handle<Code> code_ = Handle<Code>::null();
+  CodeGenerator* code_generator_ = nullptr;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -355,16 +397,21 @@ class PipelineData {
   Schedule* schedule_ = nullptr;
 
   // All objects in the following group of fields are allocated in
-  // instruction_zone_.  They are all set to nullptr when the instruction_zone_
-  // is
-  // destroyed.
+  // instruction_zone_. They are all set to nullptr when the instruction_zone_
+  // is destroyed.
   ZoneStats::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
   InstructionSequence* sequence_ = nullptr;
+
+  // All objects in the following group of fields are allocated in
+  // codegen_zone_. They are all set to nullptr when the codegen_zone_
+  // is destroyed.
+  ZoneStats::Scope codegen_zone_scope_;
+  Zone* codegen_zone_;
   Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
-  // register_allocation_zone_.  They are all set to nullptr when the zone is
+  // register_allocation_zone_. They are all set to nullptr when the zone is
   // destroyed.
   ZoneStats::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
@@ -400,8 +447,11 @@ class PipelineImpl final {
   // Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
 
-  // Perform the actual code generation and return handle to a code object.
-  Handle<Code> GenerateCode(Linkage* linkage);
+  // Run the code assembly pass.
+  void AssembleCode(Linkage* linkage);
+
+  // Run the code finalization pass.
+  Handle<Code> FinalizeCode();
 
   bool ScheduleAndSelectInstructions(Linkage* linkage, bool trim_graph);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
@@ -456,6 +506,8 @@ class SourcePositionWrapper final : public Reducer {
   SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
       : reducer_(reducer), table_(table) {}
   ~SourcePositionWrapper() final {}
+
+  const char* reducer_name() const override { return reducer_->reducer_name(); }
 
   Reduction Reduce(Node* node) final {
     SourcePosition const pos = table_->GetSourcePosition(node);
@@ -520,14 +572,14 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
-    Handle<Script> script = info->script();
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos = info->shared_info()->start_position();
+    int pos = info->parse_info() ? info->shared_info()->start_position() : 0;
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     Isolate* isolate = info->isolate();
-    if (!script->IsUndefined(isolate) &&
-        !script->source()->IsUndefined(isolate)) {
+    Handle<Script> script =
+        info->parse_info() ? info->script() : Handle<Script>::null();
+    if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
       int len = info->shared_info()->end_position() - start;
@@ -546,14 +598,14 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
+  PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(isolate, &info_, "TurboFan"),
-        zone_(isolate->allocator(), ZONE_NAME),
-        zone_stats_(isolate->allocator()),
-        parse_info_(&zone_, handle(function->shared())),
-        info_(&parse_info_, function),
+      : CompilationJob(function->GetIsolate(), &info_, "TurboFan"),
+        parse_info_(parse_info),
+        zone_stats_(function->GetIsolate()->allocator()),
+        info_(parse_info_.get()->zone(), parse_info_.get(),
+              function->GetIsolate(), function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -564,10 +616,12 @@ class PipelineCompilationJob final : public CompilationJob {
   Status ExecuteJobImpl() final;
   Status FinalizeJobImpl() final;
 
+  // Registers weak object to optimized code dependencies.
+  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
+
  private:
-  Zone zone_;
+  std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
-  ParseInfo parse_info_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -591,36 +645,49 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
       info()->MarkAsLoopPeelingEnabled();
     }
   }
-  if (info()->is_optimizing_from_bytecode() ||
-      !info()->shared_info()->asm_function()) {
+  if (info()->is_optimizing_from_bytecode()) {
     info()->MarkAsDeoptimizationEnabled();
+    if (FLAG_turbo_inlining) {
+      info()->MarkAsInliningEnabled();
+    }
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
-  }
-  if (!info()->is_optimizing_from_bytecode()) {
-    if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
-  } else if (FLAG_turbo_inlining) {
+    if (info()->closure()->feedback_vector_cell()->map() ==
+        isolate()->heap()->one_closure_cell_map()) {
+      info()->MarkAsFunctionContextSpecializing();
+    }
     info()->MarkAsInliningEnabled();
   }
 
-  linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
+  data_.set_start_source_position(info()->shared_info()->start_position());
+
+  linkage_ = new (info()->zone())
+      Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
 
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
     return AbortOptimization(kGraphBuildingFailed);
   }
 
+  if (info()->is_osr()) data_.InitializeOsrHelper();
+
+  // Make sure that we have generated the maximal number of deopt entries.
+  // This is in order to avoid triggering the generation of deopt entries later
+  // during code assembly.
+  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate());
+
   return SUCCEEDED;
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
   if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
+  pipeline_.AssembleCode(linkage_);
   return SUCCEEDED;
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
-  Handle<Code> code = pipeline_.GenerateCode(linkage_);
+  Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
     if (info()->bailout_reason() == kNoReason) {
       return AbortOptimization(kCodeGenerationFailed);
@@ -636,20 +703,79 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl() {
   return SUCCEEDED;
 }
 
+namespace {
+
+void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
+                                   Handle<Code> code) {
+  Handle<WeakCell> cell = Code::WeakCellFor(code);
+  Heap* heap = isolate->heap();
+  if (heap->InNewSpace(*object)) {
+    heap->AddWeakNewSpaceObjectToCodeDependency(object, cell);
+  } else {
+    Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
+    dep =
+        DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
+    heap->AddWeakObjectToCodeDependency(object, dep);
+  }
+}
+
+}  // namespace
+
+void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
+    Handle<Code> code) {
+  DCHECK(code->is_optimized_code());
+  std::vector<Handle<Map>> maps;
+  std::vector<Handle<HeapObject>> objects;
+  {
+    DisallowHeapAllocation no_gc;
+    int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                          RelocInfo::ModeMask(RelocInfo::CELL);
+    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      if (mode == RelocInfo::CELL &&
+          code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
+        objects.push_back(handle(it.rinfo()->target_cell(), isolate()));
+      } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
+                 code->IsWeakObjectInOptimizedCode(
+                     it.rinfo()->target_object())) {
+        Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
+                                  isolate());
+        if (object->IsMap()) {
+          maps.push_back(Handle<Map>::cast(object));
+        } else {
+          objects.push_back(object);
+        }
+      }
+    }
+  }
+  for (Handle<Map> map : maps) {
+    if (map->dependent_code()->IsEmpty(DependentCode::kWeakCodeGroup)) {
+      isolate()->heap()->AddRetainedMap(map);
+    }
+    Map::AddDependentCode(map, DependentCode::kWeakCodeGroup, code);
+  }
+  for (Handle<HeapObject> object : objects) {
+    AddWeakObjectToCodeDependency(isolate(), object, code);
+  }
+  code->set_can_have_weak_objects(true);
+}
+
 class PipelineWasmCompilationJob final : public CompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
       ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
-      bool allow_signalling_nan)
+      wasm::ModuleOrigin wasm_origin)
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
-        data_(&zone_stats_, info, jsgraph, source_positions, protected_insts),
+        pipeline_statistics_(CreatePipelineStatistics(info, &zone_stats_)),
+        data_(&zone_stats_, info, jsgraph, pipeline_statistics_.get(),
+              source_positions, protected_insts),
         pipeline_(&data_),
         linkage_(descriptor),
-        allow_signalling_nan_(allow_signalling_nan) {}
+        wasm_origin_(wasm_origin) {}
 
  protected:
   Status PrepareJobImpl() final;
@@ -657,11 +783,14 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
+  size_t AllocatedMemory() const override;
+
   ZoneStats zone_stats_;
+  std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
-  bool allow_signalling_nan_;
+  wasm::ModuleOrigin wasm_origin_;
 };
 
 PipelineWasmCompilationJob::Status
@@ -679,32 +808,37 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   }
 
   pipeline_.RunPrintAndVerify("Machine", true);
-  if (FLAG_wasm_opt) {
+  if (FLAG_wasm_opt || wasm_origin_ == wasm::ModuleOrigin::kAsmJsOrigin) {
     PipelineData* data = &data_;
-    PipelineRunScope scope(data, "WASM optimization");
+    PipelineRunScope scope(data, "Wasm optimization");
     JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph(),
-                                           allow_signalling_nan_);
+    MachineOperatorReducer machine_reducer(
+        data->jsgraph(), wasm_origin_ == wasm::ModuleOrigin::kAsmJsOrigin);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
     pipeline_.RunPrintAndVerify("Optimized Machine", true);
   }
 
   if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
+  pipeline_.AssembleCode(&linkage_);
   return SUCCEEDED;
+}
+
+size_t PipelineWasmCompilationJob::AllocatedMemory() const {
+  return pipeline_.data_->zone_stats()->GetCurrentAllocatedBytes();
 }
 
 PipelineWasmCompilationJob::Status
 PipelineWasmCompilationJob::FinalizeJobImpl() {
-  pipeline_.GenerateCode(&linkage_);
+  pipeline_.FinalizeCode();
   return SUCCEEDED;
 }
 
@@ -746,30 +880,56 @@ struct GraphBuilderPhase {
   static const char* phase_name() { return "graph builder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    bool succeeded = false;
-
     if (data->info()->is_optimizing_from_bytecode()) {
-      // Bytecode graph builder assumes deoptimziation is enabled.
+      // Bytecode graph builder assumes deoptimization is enabled.
       DCHECK(data->info()->is_deoptimization_enabled());
+      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+      if (data->info()->is_bailout_on_uninitialized()) {
+        flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+      }
       BytecodeGraphBuilder graph_builder(
           temp_zone, data->info()->shared_info(),
           handle(data->info()->closure()->feedback_vector()),
-          data->info()->osr_ast_id(), data->jsgraph(), 1.0f,
-          data->source_positions());
-      succeeded = graph_builder.CreateGraph();
+          data->info()->osr_ast_id(), data->jsgraph(), CallFrequency(1.0f),
+          data->source_positions(), SourcePosition::kNotInlined, flags);
+      graph_builder.CreateGraph();
     } else {
+      // AST-based graph builder assumes deoptimization is disabled.
+      DCHECK(!data->info()->is_deoptimization_enabled());
       AstGraphBuilderWithPositions graph_builder(
-          temp_zone, data->info(), data->jsgraph(), 1.0f,
+          temp_zone, data->info(), data->jsgraph(), CallFrequency(1.0f),
           data->loop_assignment(), data->source_positions());
-      succeeded = graph_builder.CreateGraph();
-    }
-
-    if (!succeeded) {
-      data->set_compilation_failed();
+      if (!graph_builder.CreateGraph()) {
+        data->set_compilation_failed();
+      }
     }
   }
 };
 
+namespace {
+
+Maybe<OuterContext> GetModuleContext(Handle<JSFunction> closure) {
+  Context* current = closure->context();
+  size_t distance = 0;
+  while (!current->IsNativeContext()) {
+    if (current->IsModuleContext()) {
+      return Just(OuterContext(handle(current), distance));
+    }
+    current = current->previous();
+    distance++;
+  }
+  return Nothing<OuterContext>();
+}
+
+Maybe<OuterContext> ChooseSpecializationContext(CompilationInfo* info) {
+  if (info->is_function_context_specializing()) {
+    DCHECK(info->has_context());
+    return Just(OuterContext(handle(info->context()), 0));
+  }
+  return GetModuleContext(info->closure());
+}
+
+}  // anonymous namespace
 
 struct InliningPhase {
   static const char* phase_name() { return "inlining"; }
@@ -778,24 +938,24 @@ struct InliningPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
-    if (data->info()->is_deoptimization_enabled()) {
-      call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
-    }
+    CheckElimination check_elimination(&graph_reducer, data->jsgraph());
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               call_reducer_flags, data->native_context());
+                               data->info()->is_bailout_on_uninitialized()
+                                   ? JSCallReducer::kBailoutOnUninitialized
+                                   : JSCallReducer::kNoFlags,
+                               data->native_context(),
+                               data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
+        ChooseSpecializationContext(data->info()),
         data->info()->is_function_context_specializing()
-            ? handle(data->info()->context())
-            : MaybeHandle<Context>());
+            ? data->info()->closure()
+            : MaybeHandle<JSFunction>());
     JSFrameSpecialization frame_specialization(
         &graph_reducer, data->info()->osr_frame(), data->jsgraph());
-    JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(), data->global_object(),
-        data->info()->dependencies());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
     if (data->info()->is_accessor_inlining_enabled()) {
@@ -803,9 +963,6 @@ struct InliningPhase {
     }
     if (data->info()->is_bailout_on_uninitialized()) {
       flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
-    }
-    if (data->info()->is_deoptimization_enabled()) {
-      flags |= JSNativeContextSpecialization::kDeoptimizationEnabled;
     }
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), flags, data->native_context(),
@@ -821,17 +978,20 @@ struct InliningPhase {
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
+    AddReducer(data, &graph_reducer, &check_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
     if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &global_object_specialization);
+      AddReducer(data, &graph_reducer, &native_context_specialization);
     }
-    AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
-    AddReducer(data, &graph_reducer, &call_reducer);
+    if (data->info()->is_deoptimization_enabled()) {
+      AddReducer(data, &graph_reducer, &call_reducer);
+    }
     AddReducer(data, &graph_reducer, &inlining);
     graph_reducer.ReduceGraph();
   }
@@ -857,6 +1017,7 @@ struct UntyperPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     class RemoveTypeReducer final : public Reducer {
      public:
+      const char* reducer_name() const override { return "RemoveTypeReducer"; }
       Reduction Reduce(Node* node) final {
         if (NodeProperties::IsTyped(node)) {
           NodeProperties::RemoveType(node);
@@ -888,6 +1049,7 @@ struct OsrDeconstructionPhase {
     data->jsgraph()->GetCachedNodes(&roots);
     trimmer.TrimGraph(roots.begin(), roots.end());
 
+    // TODO(neis): Use data->osr_helper() here once AST graph builder is gone.
     OsrHelper osr_helper(data->info());
     osr_helper.Deconstruct(data->jsgraph(), data->common(), temp_zone);
   }
@@ -907,10 +1069,11 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
-    Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
+    Handle<FeedbackVector> feedback_vector(
+        data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        literals_array, data->native_context(), temp_zone);
+        feedback_vector, data->native_context(), temp_zone);
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
@@ -949,7 +1112,7 @@ struct EscapeAnalysisPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
                                    temp_zone);
-    escape_analysis.Run();
+    if (!escape_analysis.Run()) return;
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
                                          &escape_analysis, temp_zone);
@@ -998,15 +1161,17 @@ struct LoopExitEliminationPhase {
 };
 
 struct ConcurrentOptimizationPrepPhase {
-  static const char* phase_name() {
-    return "concurrent optimization preparation";
-  }
+  static const char* phase_name() { return "concurrency preparation"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     // Make sure we cache these code stubs.
     data->jsgraph()->CEntryStubConstant(1);
     data->jsgraph()->CEntryStubConstant(2);
     data->jsgraph()->CEntryStubConstant(3);
+
+    // TODO(turbofan): Remove this line once the Array constructor code
+    // is a proper builtin and no longer a CodeStub.
+    data->jsgraph()->ArrayConstructorStubConstant();
 
     // This is needed for escape analysis.
     NodeProperties::SetType(data->jsgraph()->FalseConstant(), Type::Boolean());
@@ -1041,9 +1206,9 @@ struct EarlyOptimizationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1075,7 +1240,7 @@ struct EffectControlLinearizationPhase {
     // effects (such as changing representation to tagged or
     // 'floating' allocation regions.)
     Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
-                                                    Scheduler::kNoFlags);
+                                                    Scheduler::kTempSchedule);
     if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
     TraceSchedule(data->info(), schedule);
 
@@ -1134,6 +1299,7 @@ struct LoadEliminationPhase {
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                      temp_zone);
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
@@ -1141,8 +1307,9 @@ struct LoadEliminationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
     AddReducer(data, &graph_reducer, &load_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1178,14 +1345,12 @@ struct LateOptimizationPhase {
                                          data->common(), data->machine());
     SelectLowering select_lowering(data->jsgraph()->graph(),
                                    data->jsgraph()->common());
-    TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
-    AddReducer(data, &graph_reducer, &tco);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1306,9 +1471,7 @@ struct AllocateGeneralRegistersPhase {
 
 template <typename RegAllocator>
 struct AllocateFPRegistersPhase {
-  static const char* phase_name() {
-    return "allocate floating point registers";
-  }
+  static const char* phase_name() { return "allocate f.p. registers"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     RegAllocator allocator(data->register_allocation_data(), FP_REGISTERS,
@@ -1419,14 +1582,19 @@ struct JumpThreadingPhase {
   }
 };
 
+struct AssembleCodePhase {
+  static const char* phase_name() { return "assemble code"; }
 
-struct GenerateCodePhase {
-  static const char* phase_name() { return "generate code"; }
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->code_generator()->AssembleCode();
+  }
+};
 
-  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info(), data->protected_instructions());
-    data->set_code(generator.GenerateCode());
+struct FinalizeCodePhase {
+  static const char* phase_name() { return "finalize code"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->set_code(data->code_generator()->FinalizeCode());
   }
 };
 
@@ -1506,8 +1674,6 @@ bool PipelineImpl::CreateGraph() {
   // Perform OSR deconstruction.
   if (info()->is_osr()) {
     Run<OsrDeconstructionPhase>();
-
-    Run<UntyperPhase>();
     RunPrintAndVerify("OSR deconstruction", true);
   }
 
@@ -1518,11 +1684,6 @@ bool PipelineImpl::CreateGraph() {
   // Remove dead->live edges from the graph.
   Run<EarlyGraphTrimmingPhase>();
   RunPrintAndVerify("Early trimmed", true);
-
-  if (FLAG_print_turbo_replay) {
-    // Print a replay of the initial graph.
-    GraphReplayPrinter::PrintReplay(data->graph());
-  }
 
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
@@ -1545,8 +1706,6 @@ bool PipelineImpl::CreateGraph() {
     Run<TyperPhase>(&typer);
     RunPrintAndVerify("Typed");
 
-    data->BeginPhaseKind("lowering");
-
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
@@ -1563,6 +1722,8 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  data->BeginPhaseKind("lowering");
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
@@ -1595,19 +1756,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<SimplifiedLoweringPhase>();
   RunPrintAndVerify("Simplified lowering", true);
 
+  // From now on it is invalid to look at types on the nodes, because the types
+  // on the nodes might not make sense after representation selection due to the
+  // way we handle truncations; if we'd want to look at types afterwards we'd
+  // essentially need to re-type (large portions of) the graph.
+
+  // In order to catch bugs related to type access after this point, we now
+  // remove the types from the nodes (currently only in Debug builds).
 #ifdef DEBUG
-  // From now on it is invalid to look at types on the nodes, because:
-  //
-  //  (a) The remaining passes (might) run concurrent to the main thread and
-  //      therefore must not access the Heap or the Isolate in an uncontrolled
-  //      way (as done by the type system), and
-  //  (b) the types on the nodes might not make sense after representation
-  //      selection due to the way we handle truncations; if we'd want to look
-  //      at types afterwards we'd essentially need to re-type (large portions
-  //      of) the graph.
-  //
-  // In order to catch bugs related to type access after this point we remove
-  // the types from the nodes at this point (currently only in Debug builds).
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif
@@ -1666,7 +1822,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
-  data.set_verify_graph(FLAG_csa_verify);
+  data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1707,7 +1863,8 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
 
   if (!pipeline.CreateGraph()) return Handle<Code>::null();
   if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
-  return pipeline.GenerateCode(&linkage);
+  pipeline.AssembleCode(&linkage);
+  return pipeline.FinalizeCode();
 }
 
 // static
@@ -1750,8 +1907,16 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
-  return new PipelineCompilationJob(function->GetIsolate(), function);
+CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
+                                            bool has_script) {
+  Handle<SharedFunctionInfo> shared = handle(function->shared());
+  ParseInfo* parse_info;
+  if (!has_script) {
+    parse_info = ParseInfo::AllocateWithoutScript(shared);
+  } else {
+    parse_info = new ParseInfo(shared);
+  }
+  return new PipelineCompilationJob(parse_info, function);
 }
 
 // static
@@ -1759,10 +1924,10 @@ CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions,
     ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions,
-    bool allow_signalling_nan) {
-  return new PipelineWasmCompilationJob(
-      info, jsgraph, descriptor, source_positions, protected_instructions,
-      allow_signalling_nan);
+    wasm::ModuleOrigin wasm_origin) {
+  return new PipelineWasmCompilationJob(info, jsgraph, descriptor,
+                                        source_positions,
+                                        protected_instructions, wasm_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
@@ -1802,7 +1967,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
       (FLAG_turbo_verify_machine_graph != nullptr &&
        (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
-    if (FLAG_trace_csa_verify) {
+    if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
       CompilationInfo* info = data->info();
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
@@ -1875,13 +2040,17 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   return true;
 }
 
-Handle<Code> PipelineImpl::GenerateCode(Linkage* linkage) {
+void PipelineImpl::AssembleCode(Linkage* linkage) {
   PipelineData* data = this->data_;
-
   data->BeginPhaseKind("code generation");
+  data->InitializeCodeGenerator(linkage);
+  Run<AssembleCodePhase>();
+  data->DeleteInstructionZone();
+}
 
-  // Generate final machine code.
-  Run<GenerateCodePhase>(linkage);
+Handle<Code> PipelineImpl::FinalizeCode() {
+  PipelineData* data = this->data_;
+  Run<FinalizeCodePhase>();
 
   Handle<Code> code = data->code();
   if (data->profiler_data()) {
@@ -1929,7 +2098,8 @@ Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
   if (!ScheduleAndSelectInstructions(&linkage, false)) return Handle<Code>();
 
   // Generate the final machine code.
-  return GenerateCode(&linkage);
+  AssembleCode(&linkage);
+  return FinalizeCode();
 }
 
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
@@ -1952,11 +2122,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor);
-  if (info()->is_osr()) {
-    AllowHandleDereference allow_deref;
-    OsrHelper osr_helper(info());
-    osr_helper.SetupFrame(data->frame());
-  }
+  if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();
@@ -1988,6 +2154,14 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
+
+  // TODO(chromium:725559): remove this check once
+  // we understand the cause of the bug. We keep just the
+  // check at the end of the allocation.
+  if (verifier != nullptr) {
+    verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
+  }
+
   Run<PopulateReferenceMapsPhase>();
   Run<ConnectRangesPhase>();
   Run<ResolveControlFlowPhase>();
@@ -2006,7 +2180,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   if (verifier != nullptr) {
-    verifier->VerifyAssignment();
+    verifier->VerifyAssignment("End of regalloc pipeline.");
     verifier->VerifyGapMoves();
   }
 

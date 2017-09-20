@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
+const common = require('../common.js');
+const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['buf', 'asc', 'utf'],
   size: [2, 1024, 1024 * 1024]
@@ -9,11 +9,11 @@ var bench = common.createBenchmark(main, {
 var dur, type, encoding, size;
 var server;
 
-var path = require('path');
-var fs = require('fs');
-var cert_dir = path.resolve(__dirname, '../../test/fixtures');
+const path = require('path');
+const fs = require('fs');
+const cert_dir = path.resolve(__dirname, '../../test/fixtures');
 var options;
-var tls = require('tls');
+const tls = require('tls');
 
 function main(conf) {
   dur = +conf.dur;
@@ -26,11 +26,11 @@ function main(conf) {
       chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
-      chunk = new Array(size + 1).join('a');
+      chunk = 'a'.repeat(size);
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(size / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(size / 2);
       encoding = 'utf8';
       break;
     default:
@@ -38,9 +38,9 @@ function main(conf) {
   }
 
   options = {
-    key: fs.readFileSync(cert_dir + '/test_key.pem'),
-    cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-    ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+    key: fs.readFileSync(`${cert_dir}/test_key.pem`),
+    cert: fs.readFileSync(`${cert_dir}/test_cert.pem`),
+    ca: [ fs.readFileSync(`${cert_dir}/test_ca.pem`) ],
     ciphers: 'AES256-GCM-SHA384'
   };
 
@@ -48,7 +48,7 @@ function main(conf) {
   setTimeout(done, dur * 1000);
   var conn;
   server.listen(common.PORT, function() {
-    var opt = { port: common.PORT, rejectUnauthorized: false };
+    const opt = { port: common.PORT, rejectUnauthorized: false };
     conn = tls.connect(opt, function() {
       bench.start();
       conn.on('drain', write);
@@ -68,7 +68,7 @@ function main(conf) {
   }
 
   function done() {
-    var mbits = (received * 8) / (1024 * 1024);
+    const mbits = (received * 8) / (1024 * 1024);
     bench.end(mbits);
     if (conn)
       conn.destroy();

@@ -1,3 +1,4 @@
+Tests blackboxing by patterns
 Pattern parser error: Uncaught SyntaxError: Invalid regular expression: /(foo([)/: Unterminated character class
 Paused in
 (...):1
@@ -18,7 +19,7 @@ qwe:4
 baz:3
 (...):1
 Paused in
-qwe:5
+qwe:4
 baz:3
 (...):1
 Paused in

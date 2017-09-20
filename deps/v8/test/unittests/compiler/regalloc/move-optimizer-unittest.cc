@@ -4,6 +4,7 @@
 
 #include "src/compiler/move-optimizer.h"
 #include "src/compiler/pipeline.h"
+#include "src/ostreams.h"
 #include "test/unittests/compiler/instruction-sequence-unittest.h"
 
 namespace v8 {

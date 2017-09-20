@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ucharstrie.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -175,7 +175,8 @@ UCharsTrie::next(int32_t uchar) {
 }
 
 UStringTrieResult
-UCharsTrie::next(const UChar *s, int32_t sLength) {
+UCharsTrie::next(ConstChar16Ptr ptr, int32_t sLength) {
+    const UChar *s=ptr;
     if(sLength<0 ? *s==0 : sLength==0) {
         // Empty input.
         return current();

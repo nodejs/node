@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -64,20 +70,26 @@ module.exports = {
                                 propertyValue: JSON.stringify(node.property.value)
                             },
                             fix(fixer) {
-                                const leftBracket = sourceCode.getTokenBefore(node.property);
-                                const rightBracket = sourceCode.getTokenAfter(node.property);
-                                const textBeforeProperty = sourceCode.text.slice(leftBracket.range[1], node.property.range[0]);
-                                const textAfterProperty = sourceCode.text.slice(node.property.range[1], rightBracket.range[0]);
+                                const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
+                                const rightBracket = sourceCode.getLastToken(node);
 
-                                if (textBeforeProperty.trim() || textAfterProperty.trim()) {
+                                if (sourceCode.getFirstTokenBetween(leftBracket, rightBracket, { includeComments: true, filter: astUtils.isCommentToken })) {
 
                                     // Don't perform any fixes if there are comments inside the brackets.
                                     return null;
                                 }
 
+                                const tokenAfterProperty = sourceCode.getTokenAfter(rightBracket);
+                                const needsSpaceAfterProperty = tokenAfterProperty &&
+                                    rightBracket.range[1] === tokenAfterProperty.range[0] &&
+                                    !astUtils.canTokensBeAdjacent(String(node.property.value), tokenAfterProperty);
+
+                                const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
+                                const textAfterProperty = needsSpaceAfterProperty ? " " : "";
+
                                 return fixer.replaceTextRange(
                                     [leftBracket.range[0], rightBracket.range[1]],
-                                    `.${node.property.value}`
+                                    `${textBeforeDot}.${node.property.value}${textAfterProperty}`
                                 );
                             }
                         });
@@ -101,6 +113,15 @@ module.exports = {
                             if (textAfterDot.trim()) {
 
                                 // Don't perform any fixes if there are comments between the dot and the property name.
+                                return null;
+                            }
+
+                            if (node.object.type === "Identifier" && node.object.name === "let") {
+
+                                /*
+                                 * A statement that starts with `let[` is parsed as a destructuring variable declaration, not
+                                 * a MemberExpression.
+                                 */
                                 return null;
                             }
 

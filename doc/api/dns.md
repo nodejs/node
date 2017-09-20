@@ -1,5 +1,7 @@
 # DNS
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `dns` module contains functions belonging to two different categories:
@@ -54,13 +56,75 @@ dns.resolve4('archive.org', (err, addresses) => {
 There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
+## Class dns.Resolver
+<!-- YAML
+added: v8.3.0
+-->
+
+An independent resolver for DNS requests.
+
+Note that creating a new resolver uses the default server settings. Setting
+the servers used for a resolver using
+[`resolver.setServers()`][`dns.setServers()`] does not affect
+other resolver:
+
+```js
+const { Resolver } = require('dns');
+const resolver = new Resolver();
+resolver.setServers(['4.4.4.4']);
+
+// This request will use the server at 4.4.4.4, independent of global settings.
+resolver.resolve4('example.org', (err, addresses) => {
+  // ...
+});
+```
+
+The following methods from the `dns` module are available:
+
+* [`resolver.getServers()`][`dns.getServers()`]
+* [`resolver.setServers()`][`dns.setServers()`]
+* [`resolver.resolve()`][`dns.resolve()`]
+* [`resolver.resolve4()`][`dns.resolve4()`]
+* [`resolver.resolve6()`][`dns.resolve6()`]
+* [`resolver.resolveAny()`][`dns.resolveAny()`]
+* [`resolver.resolveCname()`][`dns.resolveCname()`]
+* [`resolver.resolveMx()`][`dns.resolveMx()`]
+* [`resolver.resolveNaptr()`][`dns.resolveNaptr()`]
+* [`resolver.resolveNs()`][`dns.resolveNs()`]
+* [`resolver.resolvePtr()`][`dns.resolvePtr()`]
+* [`resolver.resolveSoa()`][`dns.resolveSoa()`]
+* [`resolver.resolveSrv()`][`dns.resolveSrv()`]
+* [`resolver.resolveTxt()`][`dns.resolveTxt()`]
+* [`resolver.reverse()`][`dns.reverse()`]
+
+### resolver.cancel()
+<!-- YAML
+added: v8.3.0
+-->
+
+Cancel all outstanding DNS queries made by this resolver. The corresponding
+callbacks will be called with an error with code `ECANCELLED`.
+
 ## dns.getServers()
 <!-- YAML
 added: v0.11.3
 -->
 
-Returns an array of IP address strings that are being used for name
-resolution.
+Returns an array of IP address strings, formatted according to [rfc5952][],
+that are currently configured for DNS resolution. A string will include a port
+section if a custom port is used.
+
+For example:
+
+<!-- eslint-disable semi-->
+```js
+[
+  '4.4.4.4',
+  '2001:4860:4860::8888',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]
+```
 
 ## dns.lookup(hostname[, options], callback)
 <!-- YAML
@@ -78,6 +142,12 @@ changes:
     flags may be passed by bitwise `OR`ing their values.
   - `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. Defaults to `false`.
+  - `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
+    addresses in the order the DNS resolver returned them.  When `false`,
+    IPv4 addresses are placed before IPv6 addresses.
+    Default: currently `false` (addresses are reordered) but this is expected
+    to change in the not too distant future.
+    New code should use `{ verbatim: true }`.
 - `callback` {Function}
   - `err` {Error}
   - `address` {string} A string representation of an IPv4 or IPv6 address.
@@ -123,6 +193,10 @@ dns.lookup('example.com', options, (err, addresses) =>
 // addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
 ```
 
+If this method is invoked as its [`util.promisify()`][]ed version, and `all`
+is not set to `true`, it returns a Promise for an object with `address` and
+`family` properties.
+
 ### Supported getaddrinfo flags
 
 The following flags can be passed as hints to [`dns.lookup()`][].
@@ -163,41 +237,40 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 });
 ```
 
+If this method is invoked as its [`util.promisify()`][]ed version, it returns a
+Promise for an object with `hostname` and `service` properties.
+
 ## dns.resolve(hostname[, rrtype], callback)
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `rrtype` {string}
+- `hostname` {string} Hostname to resolve.
+- `rrtype` {string} Resource record type. Default: `'A'`.
 - `callback` {Function}
   - `err` {Error}
-  - `addresses` {string[] | Object[] | string[][] | Object}
+  - `records` {string[] | Object[] | Object}
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
-array of the record types specified by `rrtype`.
+Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+of the resource records. The `callback` function has arguments
+`(err, records)`. When successful, `records` will be an array of resource
+records. The type and structure of individual results varies based on `rrtype`:
 
-Valid values for `rrtype` are:
+|  `rrtype` | `records` contains             | Result type | Shorthand method         |
+|-----------|--------------------------------|-------------|--------------------------|
+| `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
+| `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
+| `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
+| `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
+| `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
+| `'NS'`    | name server records            | {string}    | [`dns.resolveNs()`][]    |
+| `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
+| `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
+| `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
+| `'TXT'`   | text records                   | {string}    | [`dns.resolveTxt()`][]   |
+| `'ANY'`   | any records                    | {Object}    | [`dns.resolveAny()`][]   |
 
- * `'A'` - IPV4 addresses, default
- * `'AAAA'` - IPV6 addresses
- * `'MX'` - mail exchange records
- * `'TXT'` - text records
- * `'SRV'` - SRV records
- * `'PTR'` - PTR records
- * `'NS'` - name server records
- * `'CNAME'` - canonical name records
- * `'SOA'` - start of authority record
- * `'NAPTR'` - name authority pointer record
-
-The `callback` function has arguments `(err, addresses)`. When successful,
-`addresses` will be an array, except when resolving an SOA record which returns
-an object structured in the same manner as one returned by the
-[`dns.resolveSoa()`][] method. The type of each item in `addresses` is
-determined by the record type, and described in the documentation for the
-corresponding lookup methods.
-
-On error, `err` is an [`Error`][] object, where `err.code` is
-one of the error codes listed [here](#dns_error_codes).
+On error, `err` is an [`Error`][] object, where `err.code` is one of the
+[DNS error codes](#dns_error_codes).
 
 ## dns.resolve4(hostname[, options], callback)
 <!-- YAML
@@ -298,6 +371,7 @@ function will contain an array of objects with the following properties:
 
 For example:
 
+<!-- eslint-skip -->
 ```js
 {
   flags: 's',
@@ -323,7 +397,7 @@ Uses the DNS protocol to resolve name server records (`NS` records) for the
 contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
-## dns.resolvePtr(hostname)
+## dns.resolvePtr(hostname, callback)
 <!-- YAML
 added: v6.0.0
 -->
@@ -357,6 +431,7 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
+<!-- eslint-skip -->
 ```js
 {
   nsname: 'ns.example.com',
@@ -387,6 +462,7 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
+<!-- eslint-skip -->
 ```js
 {
   priority: 10,
@@ -403,7 +479,7 @@ added: v0.1.27
 - `hostname` {string}
 - `callback` {Function}
   - `err` {Error}
-  - `addresses` {string[][]}
+  - `addresses` {string[]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function is
@@ -411,6 +487,51 @@ is a two-dimensional array of the text records available for `hostname` (e.g.,
 `[ ['v=spf1 ip4:0.0.0.0 ', '~all' ] ]`). Each sub-array contains TXT chunks of
 one record. Depending on the use case, these could be either joined together or
 treated separately.
+
+## dns.resolveAny(hostname, callback)
+
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `ret` {Object[]}
+
+Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
+The `ret` argument passed to the `callback` function will be an array containing
+various types of records. Each object has a property `type` that indicates the
+type of the current record. And depending on the `type`, additional properties
+will be present on the object:
+
+| Type | Properties |
+|------|------------|
+| `"A"` | `address` / `ttl` |
+| `"AAAA"` | `address` / `ttl` |
+| `"CNAME"` | `value` |
+| `"MX"` | Refer to [`dns.resolveMx()`][] |
+| `"NAPTR"` | Refer to [`dns.resolveNaptr()`][] |
+| `"NS"` | `value` |
+| `"PTR"` | `value` |
+| `"SOA"` | Refer to [`dns.resolveSoa()`][] |
+| `"SRV"` | Refer to [`dns.resolveSrv()`][] |
+| `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
+
+Here is a example of the `ret` object passed to the callback:
+
+<!-- eslint-disable semi -->
+```js
+[ { type: 'A', address: '127.0.0.1', ttl: 299 },
+  { type: 'CNAME', value: 'example.com' },
+  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
+  { type: 'NS', value: 'ns1.example.com' },
+  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
+  { type: 'SOA',
+    nsname: 'ns1.example.com',
+    hostmaster: 'admin.example.com',
+    serial: 156696742,
+    refresh: 900,
+    retry: 900,
+    expire: 1800,
+    minttl: 60 } ]
+```
 
 ## dns.reverse(ip, callback)
 <!-- YAML
@@ -431,12 +552,22 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
-- `servers` {string[]}
+- `servers` {string[]} array of [rfc5952][] formatted addresses
 
-Sets the IP addresses of the servers to be used when resolving. The `servers`
-argument is an array of IPv4 or IPv6 addresses.
+Sets the IP address and port of servers to be used when performing DNS
+resolution. The `servers` argument is an array of [rfc5952][] formatted
+addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
-If a port is specified on the address, it will be removed.
+For example:
+
+```js
+dns.setServers([
+  '4.4.4.4',
+  '[2001:4860:4860::8888]',
+  '4.4.4.4:1053',
+  '[2001:4860:4860::8888]:1053'
+]);
+```
 
 An error will be thrown if an invalid address is provided.
 
@@ -491,15 +622,16 @@ but note that changing these files will change the behavior of _all other
 programs running on the same operating system_.
 
 Though the call to `dns.lookup()` will be asynchronous from JavaScript's
-perspective, it is implemented as a synchronous call to getaddrinfo(3) that
-runs on libuv's threadpool. Because libuv's threadpool has a fixed size, it
-means that if for whatever reason the call to getaddrinfo(3) takes a long
-time, other operations that could run on libuv's threadpool (such as filesystem
-operations) will experience degraded performance. In order to mitigate this
-issue, one potential solution is to increase the size of libuv's threadpool by
-setting the `'UV_THREADPOOL_SIZE'` environment variable to a value greater than
-`4` (its current default value). For more information on libuv's threadpool, see
-[the official libuv documentation][].
+perspective, it is implemented as a synchronous call to getaddrinfo(3) that runs
+on libuv's threadpool. This can have surprising negative performance
+implications for some applications, see the [`UV_THREADPOOL_SIZE`][]
+documentation for more information.
+
+Note that various networking APIs will call `dns.lookup()` internally to resolve
+host names. If that is an issue, consider resolving the hostname to and address
+using `dns.resolve()` and using the address instead of a host name. Also, some
+networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
+allow the default resolver, `dns.lookup()`, to be replaced.
 
 ### `dns.resolve()`, `dns.resolve*()` and `dns.reverse()`
 
@@ -514,10 +646,29 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
-[DNS error codes]: #dns_error_codes
-[`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
-[`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
 [`Error`]: errors.html#errors_class_error
+[`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
+[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
+[`dns.getServers()`]: #dns_dns_getservers
+[`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
+[`dns.resolve()`]: #dns_dns_resolve_hostname_rrtype_callback
+[`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
+[`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
+[`dns.resolveAny()`]: #dns_dns_resolveany_hostname_callback
+[`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
+[`dns.resolveMx()`]: #dns_dns_resolvemx_hostname_callback
+[`dns.resolveNaptr()`]: #dns_dns_resolvenaptr_hostname_callback
+[`dns.resolveNs()`]: #dns_dns_resolvens_hostname_callback
+[`dns.resolvePtr()`]: #dns_dns_resolveptr_hostname_callback
+[`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
+[`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
+[`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
+[`dns.reverse()`]: #dns_dns_reverse_ip_callback
+[`dns.setServers()`]: #dns_dns_setservers_servers
+[`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
+[`util.promisify()`]: util.html#util_util_promisify_original
+[DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
+[rfc5952]: https://tools.ietf.org/html/rfc5952#section-6
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
 [the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html

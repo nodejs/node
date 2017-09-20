@@ -324,31 +324,38 @@ enum LFlag {
   Short = 0 << 22   // Short load/store coprocessor.
 };
 
+// Neon sizes.
+enum NeonSize { Neon8 = 0x0, Neon16 = 0x1, Neon32 = 0x2, Neon64 = 0x3 };
 
 // NEON data type
 enum NeonDataType {
-  NeonS8 = 0x1,             // U = 0, imm3 = 0b001
-  NeonS16 = 0x2,            // U = 0, imm3 = 0b010
-  NeonS32 = 0x4,            // U = 0, imm3 = 0b100
-  NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
-  NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
-  NeonU32 = 1 << 24 | 0x4,  // U = 1, imm3 = 0b100
-  NeonDataTypeSizeMask = 0x7,
-  NeonDataTypeUMask = 1 << 24
+  NeonS8 = 0,
+  NeonS16 = 1,
+  NeonS32 = 2,
+  // Gap to make it easier to extract U and size.
+  NeonU8 = 4,
+  NeonU16 = 5,
+  NeonU32 = 6
 };
+
+inline int NeonU(NeonDataType dt) { return static_cast<int>(dt) >> 2; }
+inline int NeonSz(NeonDataType dt) { return static_cast<int>(dt) & 0x3; }
+
+// Convert sizes to data types (U bit is clear).
+inline NeonDataType NeonSizeToDataType(NeonSize size) {
+  DCHECK_NE(Neon64, size);
+  return static_cast<NeonDataType>(size);
+}
+
+inline NeonSize NeonDataTypeToSize(NeonDataType dt) {
+  return static_cast<NeonSize>(NeonSz(dt));
+}
 
 enum NeonListType {
   nlt_1 = 0x7,
   nlt_2 = 0xA,
   nlt_3 = 0x6,
   nlt_4 = 0x2
-};
-
-enum NeonSize {
-  Neon8 = 0x0,
-  Neon16 = 0x1,
-  Neon32 = 0x2,
-  Neon64 = 0x3
 };
 
 // -----------------------------------------------------------------------------

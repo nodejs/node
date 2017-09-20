@@ -74,7 +74,7 @@ writeChunks(inputChunks, () => {
     // there was a chunk
     assert.ok(seen);
 
-    const expected = new Buffer(expectedChunks[i]);
+    const expected = Buffer.from(expectedChunks[i]);
     // it was what we expected
     assert.ok(seen.equals(expected));
   }

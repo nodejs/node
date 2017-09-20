@@ -42,7 +42,7 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(memcmp(code->instruction_start(), buffer, buffer_size), 0);
+  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
   CHECK_EQ(code->instruction_end() - reinterpret_cast<byte*>(*code),
            Code::kHeaderSize + buffer_size - kHeapObjectTag);
 }
@@ -79,7 +79,7 @@ TEST(CodeLayoutWithUnwindingInfo) {
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(memcmp(code->instruction_start(), buffer, buffer_size), 0);
+  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
   CHECK(IsAligned(code->GetUnwindingInfoSizeOffset(), 8));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
   CHECK(

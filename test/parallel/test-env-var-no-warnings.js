@@ -6,8 +6,9 @@ const cp = require('child_process');
 if (process.argv[2] === 'child') {
   process.emitWarning('foo');
 } else {
-  function test(env) {
-    const cmd = `${process.execPath} ${__filename} child`;
+  function test(newEnv) {
+    const env = Object.assign({}, process.env, newEnv);
+    const cmd = `"${process.execPath}" "${__filename}" child`;
 
     cp.exec(cmd, { env }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err, null);

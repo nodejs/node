@@ -4,7 +4,7 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/ast/scopes.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
@@ -12,6 +12,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -52,8 +53,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
 MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   size_t param_count = ParameterCount();
   size_t return_count = ReturnCount();
-  MachineType* types = reinterpret_cast<MachineType*>(
-      zone->New(sizeof(MachineType*) * (param_count + return_count)));
+  MachineType* types = zone->NewArray<MachineType>(param_count + return_count);
   int current = 0;
   for (size_t i = 0; i < return_count; ++i) {
     types[current++] = GetReturnType(i);
@@ -121,7 +121,6 @@ int CallDescriptor::CalculateFixedFrameSize() const {
       return TypedFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();
-  return 0;
 }
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
@@ -142,15 +141,14 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
   switch (function) {
     // Most runtime functions need a FrameState. A few chosen ones that we know
-    // not to call into arbitrary JavaScript, not to throw, and not to
-    // deoptimize
-    // are whitelisted here and can be called without a FrameState.
+    // not to call into arbitrary JavaScript, not to throw, and not to lazily
+    // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
+    case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kGeneratorGetContinuation:
+    case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
@@ -171,13 +169,20 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
       return false;
 
     // Some inline intrinsics are also safe to call without a FrameState.
+    case Runtime::kInlineClassOf:
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineFixedArrayGet:
     case Runtime::kInlineFixedArraySet:
     case Runtime::kInlineGeneratorClose:
+    case Runtime::kInlineGeneratorGetContext:
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
     case Runtime::kInlineGeneratorGetResumeMode:
+    case Runtime::kInlineCreateJSGeneratorObject:
     case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsJSMap:
+    case Runtime::kInlineIsJSSet:
+    case Runtime::kInlineIsJSWeakMap:
+    case Runtime::kInlineIsJSWeakSet:
     case Runtime::kInlineIsJSReceiver:
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
@@ -339,11 +344,11 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
     Operator::Properties properties, MachineType return_type,
-    size_t return_count) {
+    size_t return_count, Linkage::ContextSpecification context_spec) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
-  const int context_count = 1;
+  const int context_count = context_spec == kPassContext ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 
@@ -375,7 +380,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     }
   }
   // Add context.
-  locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
+  if (context_count) {
+    locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
+  }
 
   // The target for stub calls is a code object.
   MachineType target_type = MachineType::AnyTagged();

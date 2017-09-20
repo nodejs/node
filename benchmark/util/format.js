@@ -2,35 +2,30 @@
 
 const util = require('util');
 const common = require('../common');
-const types = [
-  'string',
-  'number',
-  'object',
-  'unknown',
-  'no-replace'
-];
-const bench = common.createBenchmark(main, {
-  n: [1e6],
-  type: types
-});
 
 const inputs = {
-  'string': ['Hello, my name is %s', 'fred'],
-  'number': ['Hi, I was born in %d', 1942],
-  'object': ['An error occurred %j', {msg: 'This is an error', code: 'ERR'}],
+  'string': ['Hello, my name is %s', 'Fred'],
+  'string-2': ['Hello, %s is my name', 'Fred'],
+  'number': ['Hi, I was born in %d', 1989],
+  'replace-object': ['An error occurred %j', { msg: 'This is an error' }],
   'unknown': ['hello %a', 'test'],
-  'no-replace': [1, 2]
+  'no-replace': [1, 2],
+  'no-replace-2': ['foobar', 'yeah', 'mensch', 5],
+  'only-objects': [{ msg: 'This is an error' }, { msg: 'This is an error' }],
+  'many-%': ['replace%%%%s%%%%many%s%s%s', 'percent'],
 };
 
-function main(conf) {
-  const n = conf.n | 0;
-  const type = conf.type;
+const bench = common.createBenchmark(main, {
+  n: [4e6],
+  type: Object.keys(inputs)
+});
 
-  const input = inputs[type];
+function main({ n, type }) {
+  const [first, second] = inputs[type];
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    util.format(input[0], input[1]);
+    util.format(first, second);
   }
   bench.end(n);
 }

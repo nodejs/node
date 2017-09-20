@@ -63,8 +63,8 @@ module.exports = {
          * @returns {boolean} whether an error should be reported or not
          */
         function shouldReport(effectiveParent, name) {
-            return effectiveParent.type !== "CallExpression"
-                && effectiveParent.type !== "NewExpression" &&
+            return effectiveParent.type !== "CallExpression" &&
+                effectiveParent.type !== "NewExpression" &&
                 isInvalid(name);
         }
 

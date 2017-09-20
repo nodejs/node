@@ -1,5 +1,7 @@
 # UDP / Datagram Sockets
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 <!-- name=dgram -->
@@ -20,7 +22,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 
@@ -146,7 +148,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 
@@ -225,6 +227,20 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
+### socket.getRecvBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
+
+### socket.getSendBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns {number} the `SO_SNDBUF` socket send buffer size in bytes.
+
 ### socket.ref()
 <!-- YAML
 added: v0.9.1
@@ -245,10 +261,10 @@ chained.
 <!-- YAML
 added: v0.1.99
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11985
     description: The `msg` parameter can be an Uint8Array now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10473
     description: The `address` parameter is always optional now.
   - version: v6.0.0
@@ -301,9 +317,8 @@ The only way to know for sure that the datagram has been sent is by using a
 passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
-Offset and length are optional, but if you specify one you would need to
-specify the other. Also, they are supported only when the first
-argument is a `Buffer` or `Uint8Array`.
+Offset and length are optional but both *must* be set if either are used.
+They are supported only when the first argument is a `Buffer` or `Uint8Array`.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
@@ -329,8 +344,10 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on your
-application and operating system: benchmark it. Usually it is faster.
+Sending multiple buffers might be faster or slower depending on the
+application and operating system. It is important to run benchmarks to
+determine the optimal strategy on a case-by-case basis. Generally speaking,
+however, sending multiple buffers is faster.
 
 **A Note about UDP datagram size**
 
@@ -369,6 +386,84 @@ added: v0.6.9
 Sets or clears the `SO_BROADCAST` socket option.  When set to `true`, UDP
 packets may be sent to a local interface's broadcast address.
 
+### socket.setMulticastInterface(multicastInterface)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `multicastInterface` {String}
+
+*Note: All references to scope in this section are refering to
+[IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
+with a scope index is written as `'IP%scope'` where scope is an interface name or
+interface number.*
+
+Sets the default outgoing multicast interface of the socket to a chosen
+interface or back to system interface selection. The `multicastInterface` must
+be a valid string representation of an IP from the socket's family.
+
+For IPv4 sockets, this should be the IP configured for the desired physical
+interface. All packets sent to multicast on the socket will be sent on the
+interface determined by the most recent successful use of this call.
+
+For IPv6 sockets, `multicastInterface` should include a scope to indicate the
+interface as in the examples that follow. In IPv6, individual `send` calls can
+also use explicit scope in addresses, so only packets sent to a multicast
+address without specifying an explicit scope are affected by the most recent
+successful use of this call.
+
+#### Examples: IPv6 Outgoing Multicast Interface
+
+On most systems, where scope format uses the interface name:
+
+```js
+const socket = dgram.createSocket('udp6');
+
+socket.bind(1234, () => {
+  socket.setMulticastInterface('::%eth1');
+});
+```
+
+On Windows, where scope format uses an interface number:
+
+```js
+const socket = dgram.createSocket('udp6');
+
+socket.bind(1234, () => {
+  socket.setMulticastInterface('::%2');
+});
+```
+
+#### Example: IPv4 Outgoing Multicast Interface
+All systems use an IP of the host on the desired physical interface:
+```js
+const socket = dgram.createSocket('udp4');
+
+socket.bind(1234, () => {
+  socket.setMulticastInterface('10.0.0.2');
+});
+```
+
+#### Call Results
+
+A call on a socket that is not ready to send or no longer open may throw a *Not
+running* [`Error`][].
+
+If `multicastInterface` can not be parsed into an IP then an *EINVAL*
+[`System Error`][] is thrown.
+
+On IPv4, if `multicastInterface` is a valid address but does not match any
+interface, or if the address does not match the family then
+a [`System Error`][] such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
+
+On IPv6, most errors with specifying or omiting scope will result in the socket
+continuing to use (or returning to) the system's default interface selection.
+
+A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
+used to return control of the sockets default outgoing interface to the system
+for future multicast packets.
+
+
 ### socket.setMulticastLoopback(flag)
 <!-- YAML
 added: v0.3.8
@@ -394,6 +489,26 @@ decremented to 0 by a router, it will not be forwarded.
 
 The argument passed to to `socket.setMulticastTTL()` is a number of hops
 between 0 and 255. The default on most systems is `1` but can vary.
+
+### socket.setRecvBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
+in bytes.
+
+### socket.setSendBufferSize(size)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {number} Integer
+
+Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
+in bytes.
 
 ### socket.setTTL(ttl)
 <!-- YAML
@@ -454,27 +569,36 @@ s.bind(1234, () => {
 ### dgram.createSocket(options[, callback])
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/14560
+    description: The `lookup` option is supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13623
+    description: The `recvBufferSize` and `sendBufferSize` options are
+                 supported now.
 -->
 
-* `options` {Object}
-* `callback` {Function} Attached as a listener to `'message'` events.
+* `options` {Object} Available options are:
+  * `type` {string} The family of socket. Must be either `'udp4'` or `'udp6'`.
+    Required.
+  * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
+    address, even if another process has already bound a socket on it. Optional.
+    Defaults to `false`.
+  * `recvBufferSize` {number} - Optional. Sets the `SO_RCVBUF` socket value.
+  * `sendBufferSize` {number} - Optional. Sets the `SO_SNDBUF` socket value.
+  * `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+    Optional.
+* `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
-Creates a `dgram.Socket` object. The `options` argument is an object that
-should contain a `type` field of either `udp4` or `udp6` and an optional
-boolean `reuseAddr` field.
-
-When `reuseAddr` is `true` [`socket.bind()`][] will reuse the address, even if
-another process has already bound a socket on it. `reuseAddr` defaults to
-`false`. The optional `callback` function is added as a listener for `'message'`
-events.
-
-Once the socket is created, calling [`socket.bind()`][] will instruct the
-socket to begin listening for datagram messages. When `address` and `port` are
-not passed to  [`socket.bind()`][] the method will bind the socket to the "all
-interfaces" address on a random port (it does the right thing for both `udp4`
-and `udp6` sockets). The bound address and port can be retrieved using
-[`socket.address().address`][] and [`socket.address().port`][].
+Creates a `dgram.Socket` object. Once the socket is created, calling
+[`socket.bind()`][] will instruct the socket to begin listening for datagram
+messages. When `address` and `port` are not passed to  [`socket.bind()`][] the
+method will bind the socket to the "all interfaces" address on a random port
+(it does the right thing for both `udp4` and `udp6` sockets). The bound address
+and port can be retrieved using [`socket.address().address`][] and
+[`socket.address().port`][].
 
 ### dgram.createSocket(type[, callback])
 <!-- YAML
@@ -497,15 +621,18 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-[`EventEmitter`]: events.html
-[`Buffer`]: buffer.html
 [`'close'`]: #dgram_event_close
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html
 [`close()`]: #dgram_socket_close_callback
 [`cluster`]: cluster.html
-[`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback
-[`Error`]: errors.html#errors_class_error
+[`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`socket.address().address`]: #dgram_socket_address
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
+[`System Error`]: errors.html#errors_class_system_error
 [byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Link-local_addresses_and_zone_indices
+[RFC 4007]: https://tools.ietf.org/html/rfc4007

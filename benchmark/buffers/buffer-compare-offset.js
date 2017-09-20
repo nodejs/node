@@ -26,8 +26,8 @@ function compareUsingOffset(b0, b1, len, iter) {
 function main(conf) {
   const iter = (conf.millions >>> 0) * 1e6;
   const size = (conf.size >>> 0);
-  const method = conf.method === 'slice' ?
-      compareUsingSlice : compareUsingOffset;
+  const method =
+    conf.method === 'slice' ? compareUsingSlice : compareUsingOffset;
   method(Buffer.alloc(size, 'a'),
          Buffer.alloc(size, 'b'),
          size >> 1,

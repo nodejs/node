@@ -79,6 +79,11 @@ function vacuum (leaf, options, cb) {
         return cb(null)
       }
 
+      if (branch === process.env.HOME) {
+        log('quitting because cannot remove home directory', branch)
+        return cb(null)
+      }
+
       log('removing', branch)
       lstat(branch, function (error, stat) {
         if (error) {

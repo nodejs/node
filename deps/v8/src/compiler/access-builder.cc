@@ -16,15 +16,6 @@ namespace internal {
 namespace compiler {
 
 // static
-FieldAccess AccessBuilder::ForExternalDoubleValue() {
-  FieldAccess access = {kUntaggedBase,       0,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Number(),      MachineType::Float64(),
-                        kNoWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForExternalTaggedValue() {
   FieldAccess access = {kUntaggedBase,       0,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
@@ -64,7 +55,7 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 
 // static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
-  FieldAccess access = {kTaggedBase,         JSObject::kPropertiesOffset,
+  FieldAccess access = {kTaggedBase,         JSObject::kPropertiesOrHashOffset,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -104,6 +95,37 @@ FieldAccess AccessBuilder::ForJSObjectOffset(
 }
 
 // static
+FieldAccess AccessBuilder::ForJSCollectionTable() {
+  FieldAccess access = {kTaggedBase,           JSCollection::kTableOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSCollectionIteratorTable() {
+  FieldAccess access = {
+      kTaggedBase,           JSCollectionIterator::kTableOffset,
+      MaybeHandle<Name>(),   MaybeHandle<Map>(),
+      Type::OtherInternal(), MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSCollectionIteratorIndex() {
+  FieldAccess access = {kTaggedBase,
+                        JSCollectionIterator::kIndexOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        TypeCache::Get().kFixedArrayLengthType,
+                        MachineType::TaggedSigned(),
+                        kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,         JSFunction::kPrototypeOrInitialMapOffset,
@@ -134,8 +156,8 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionLiterals() {
-  FieldAccess access = {kTaggedBase,         JSFunction::kLiteralsOffset,
+FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
+  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackVectorOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -162,8 +184,55 @@ FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundTargetFunction() {
+  FieldAccess access = {
+      kTaggedBase,         JSBoundFunction::kBoundTargetFunctionOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Callable(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundThis() {
+  FieldAccess access = {kTaggedBase,         JSBoundFunction::kBoundThisOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::NonInternal(), MachineType::AnyTagged(),
+                        kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSBoundFunctionBoundArguments() {
+  FieldAccess access = {
+      kTaggedBase,         JSBoundFunction::kBoundArgumentsOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Internal(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSGeneratorObjectContext() {
   FieldAccess access = {kTaggedBase,         JSGeneratorObject::kContextOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::Internal(),    MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectFunction() {
+  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kFunctionOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::Function(),    MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSGeneratorObjectReceiver() {
+  FieldAccess access = {kTaggedBase,         JSGeneratorObject::kReceiverOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -190,6 +259,7 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
   return access;
 }
 
+
 // static
 FieldAccess AccessBuilder::ForJSGeneratorObjectRegisterFile() {
   FieldAccess access = {
@@ -211,6 +281,26 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectQueue() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kQueueOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kAwaitedPromiseOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {
   TypeCache const& type_cache = TypeCache::Get();
   FieldAccess access = {kTaggedBase,
@@ -220,7 +310,7 @@ FieldAccess AccessBuilder::ForJSArrayLength(ElementsKind elements_kind) {
                         type_cache.kJSArrayLengthType,
                         MachineType::TaggedSigned(),
                         kFullWriteBarrier};
-  if (IsFastDoubleElementsKind(elements_kind)) {
+  if (IsDoubleElementsKind(elements_kind)) {
     access.type = type_cache.kFixedDoubleArrayLengthType;
     access.write_barrier_kind = kNoWriteBarrier;
   } else if (IsFastElementsKind(elements_kind)) {
@@ -393,9 +483,9 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
 }
 
 // static
-FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridge() {
   FieldAccess access = {
-      kTaggedBase,           DescriptorArray::kEnumCacheOffset,
+      kTaggedBase,           DescriptorArray::kEnumCacheBridgeOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier};
@@ -423,6 +513,14 @@ FieldAccess AccessBuilder::ForMapBitField() {
   return access;
 }
 
+// static
+FieldAccess AccessBuilder::ForMapBitField2() {
+  FieldAccess access = {
+      kTaggedBase,        Map::kBitField2Offset,   Handle<Name>(),
+      MaybeHandle<Map>(), TypeCache::Get().kUint8, MachineType::Uint8(),
+      kNoWriteBarrier};
+  return access;
+}
 
 // static
 FieldAccess AccessBuilder::ForMapBitField3() {
@@ -483,9 +581,9 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {kTaggedBase,      Name::kHashFieldOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Internal(), MachineType::Uint32(),
+  FieldAccess access = {kTaggedBase,        Name::kHashFieldOffset,
+                        Handle<Name>(),     MaybeHandle<Map>(),
+                        Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }
@@ -514,6 +612,15 @@ FieldAccess AccessBuilder::ForConsStringFirst() {
 // static
 FieldAccess AccessBuilder::ForConsStringSecond() {
   FieldAccess access = {kTaggedBase,         ConsString::kSecondOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForThinStringActual() {
+  FieldAccess access = {kTaggedBase,         ThinString::kActualOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::String(),      MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -624,7 +731,7 @@ FieldAccess AccessBuilder::ForJSArrayIteratorIndex(InstanceType instance_type,
                         MachineType::AnyTagged(),
                         kFullWriteBarrier};
   if (instance_type == JS_ARRAY_TYPE) {
-    if (IsFastDoubleElementsKind(elements_kind)) {
+    if (IsDoubleElementsKind(elements_kind)) {
       access.type = TypeCache::Get().kFixedDoubleArrayLengthType;
       access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;
@@ -709,9 +816,9 @@ FieldAccess AccessBuilder::ForArgumentsCallee() {
 FieldAccess AccessBuilder::ForFixedArraySlot(
     size_t index, WriteBarrierKind write_barrier_kind) {
   int offset = FixedArray::OffsetOfElementAt(static_cast<int>(index));
-  FieldAccess access = {kTaggedBase,         offset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
+  FieldAccess access = {kTaggedBase,       offset,
+                        Handle<Name>(),    MaybeHandle<Map>(),
+                        Type::Any(),       MachineType::AnyTagged(),
                         write_barrier_kind};
   return access;
 }
@@ -769,26 +876,26 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
   ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
                           MachineType::AnyTagged(), kFullWriteBarrier};
   switch (kind) {
-    case FAST_SMI_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
       access.type = Type::SignedSmall();
       access.machine_type = MachineType::TaggedSigned();
       access.write_barrier_kind = kNoWriteBarrier;
       break;
-    case FAST_HOLEY_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
       access.type = TypeCache::Get().kHoleySmi;
       break;
-    case FAST_ELEMENTS:
+    case PACKED_ELEMENTS:
       access.type = Type::NonInternal();
       break;
-    case FAST_HOLEY_ELEMENTS:
+    case HOLEY_ELEMENTS:
       break;
-    case FAST_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
       access.type = Type::Number();
       access.write_barrier_kind = kNoWriteBarrier;
       access.machine_type = MachineType::Float64();
       break;
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      access.type = Type::Number();
+    case HOLEY_DOUBLE_ELEMENTS:
+      access.type = Type::NumberOrHole();
       access.write_barrier_kind = kNoWriteBarrier;
       access.machine_type = MachineType::Float64();
       break;
@@ -899,10 +1006,65 @@ FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
 }
 
 // static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNextTable() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {
+      kTaggedBase,         OrderedHashTableBase::kNextTableOffset,
+      MaybeHandle<Name>(), MaybeHandle<Map>(),
+      Type::Any(),         MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {kTaggedBase,
+                              OrderedHashTableBase::kNumberOfBucketsOffset,
+                              MaybeHandle<Name>(),
+                              MaybeHandle<Map>(),
+                              TypeCache::Get().kFixedArrayLengthType,
+                              MachineType::TaggedSigned(),
+                              kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfDeletedElements() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {
+      kTaggedBase,
+      OrderedHashTableBase::kNumberOfDeletedElementsOffset,
+      MaybeHandle<Name>(),
+      MaybeHandle<Map>(),
+      TypeCache::Get().kFixedArrayLengthType,
+      MachineType::TaggedSigned(),
+      kNoWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForOrderedHashTableBaseNumberOfElements() {
+  // TODO(turbofan): This will be redundant with the HashTableBase
+  // methods above once the hash table unification is done.
+  FieldAccess const access = {kTaggedBase,
+                              OrderedHashTableBase::kNumberOfElementsOffset,
+                              MaybeHandle<Name>(),
+                              MaybeHandle<Map>(),
+                              TypeCache::Get().kFixedArrayLengthType,
+                              MachineType::TaggedSigned(),
+                              kNoWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForDictionaryMaxNumberKey() {
   FieldAccess access = {
       kTaggedBase,
-      FixedArray::OffsetOfElementAt(NameDictionary::kMaxNumberKeyIndex),
+      FixedArray::OffsetOfElementAt(SeededNumberDictionary::kMaxNumberKeyIndex),
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
       Type::Any(),

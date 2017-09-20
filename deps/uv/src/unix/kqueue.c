@@ -34,6 +34,17 @@
 #include <fcntl.h>
 #include <time.h>
 
+/*
+ * Required on
+ * - Until at least FreeBSD 11.0
+ * - Older versions of Mac OS X
+ *
+ * http://www.boost.org/doc/libs/1_61_0/boost/asio/detail/kqueue_reactor.hpp
+ */
+#ifndef EV_OOBAND
+#define EV_OOBAND  EV_FLAG1
+#endif
+
 static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 
 
@@ -45,6 +56,37 @@ int uv__kqueue_init(uv_loop_t* loop) {
   uv__cloexec(loop->backend_fd, 1);
 
   return 0;
+}
+
+
+static int uv__has_forked_with_cfrunloop;
+
+int uv__io_fork(uv_loop_t* loop) {
+  int err;
+  uv__close(loop->backend_fd);
+  loop->backend_fd = -1;
+  err = uv__kqueue_init(loop);
+  if (err)
+    return err;
+
+#if defined(__APPLE__)
+  if (loop->cf_state != NULL) {
+    /* We cannot start another CFRunloop and/or thread in the child
+       process; CF aborts if you try or if you try to touch the thread
+       at all to kill it. So the best we can do is ignore it from now
+       on. This means we can't watch directories in the same way
+       anymore (like other BSDs). It also means we cannot properly
+       clean up the allocated resources; calling
+       uv__fsevents_loop_delete from uv_loop_close will crash the
+       process. So we sidestep the issue by pretending like we never
+       started it in the first place.
+    */
+    uv__has_forked_with_cfrunloop = 1;
+    uv__free(loop->cf_state);
+    loop->cf_state = NULL;
+  }
+#endif
+  return err;
 }
 
 
@@ -127,6 +169,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if ((w->events & POLLOUT) == 0 && (w->pevents & POLLOUT) != 0) {
       EV_SET(events + nevents, w->fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
+
+      if (++nevents == ARRAY_SIZE(events)) {
+        if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
+          abort();
+        nevents = 0;
+      }
+    }
+
+   if ((w->events & UV__POLLPRI) == 0 && (w->pevents & UV__POLLPRI) != 0) {
+      EV_SET(events + nevents, w->fd, EV_OOBAND, EV_ADD, 0, 0, 0);
 
       if (++nevents == ARRAY_SIZE(events)) {
         if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
@@ -233,6 +285,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (ev->filter == EVFILT_READ) {
         if (w->pevents & POLLIN) {
           revents |= POLLIN;
+          w->rcount = ev->data;
+        } else {
+          /* TODO batch up */
+          struct kevent events[1];
+          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
+            if (errno != ENOENT)
+              abort();
+        }
+      }
+
+      if (ev->filter == EV_OOBAND) {
+        if (w->pevents & UV__POLLPRI) {
+          revents |= UV__POLLPRI;
           w->rcount = ev->data;
         } else {
           /* TODO batch up */
@@ -404,6 +470,9 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   handle->cb = cb;
 
 #if defined(__APPLE__)
+  if (uv__has_forked_with_cfrunloop)
+    goto fallback;
+
   /* Nullify field to perform checks later */
   handle->cf_cb = NULL;
   handle->realpath = NULL;
@@ -438,7 +507,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__handle_stop(handle);
 
 #if defined(__APPLE__)
-  if (uv__fsevents_close(handle))
+  if (uv__has_forked_with_cfrunloop || uv__fsevents_close(handle))
 #endif /* defined(__APPLE__) */
   {
     uv__io_close(handle->loop, &handle->event_watcher);

@@ -117,6 +117,9 @@ function init (dir, input, config, cb) {
         }
         console.log('About to write to %s:\n\n%s\n', packageFile, d)
         read({prompt:'Is this ok? ', default: 'yes'}, function (er, ok) {
+          if (er) {
+            return cb(er)
+          }
           if (!ok || ok.toLowerCase().charAt(0) !== 'y') {
             console.log('Aborted.')
           } else {

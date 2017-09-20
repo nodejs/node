@@ -6,6 +6,14 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const lodash = require("lodash");
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -84,19 +92,12 @@ module.exports = {
          */
         function reportIfTooManyStatements(node, count, max) {
             if (count > max) {
-                const messageEnd = " has too many statements ({{count}}). Maximum allowed is {{max}}.";
-                let name = "This function";
-
-                if (node.id) {
-                    name = `Function '${node.id.name}'`;
-                } else if (node.parent.type === "MethodDefinition" || node.parent.type === "Property") {
-                    name = `Function '${context.getSource(node.parent.key)}'`;
-                }
+                const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(node));
 
                 context.report({
                     node,
-                    message: name + messageEnd,
-                    data: { count, max }
+                    message: "{{name}} has too many statements ({{count}}). Maximum allowed is {{max}}.",
+                    data: { name, count, max }
                 });
             }
         }

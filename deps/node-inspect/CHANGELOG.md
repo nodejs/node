@@ -1,3 +1,29 @@
+### 1.11.2
+
+* [`42e0cd1`](https://github.com/nodejs/node-inspect/commit/42e0cd111d89ed09faba1c0ec45089b0b44de011) **fix:** look for generic hint text
+
+
+### 1.11.1
+
+* Prefer --inspect-brk over --debug-brk - **[@ofrobots](https://github.com/ofrobots)** [#43](https://github.com/nodejs/node-inspect/pull/43)
+  - [`2c1ed27`](https://github.com/nodejs/node-inspect/commit/2c1ed27ee44d9aebb3c5ac50039abae8166a54e3) **fix:** use --inspect-brk with Node 8+
+
+
+### 1.11.0
+
+* doc: add profile and heap to help - **[@joshgav](https://github.com/joshgav)** [#39](https://github.com/nodejs/node-inspect/pull/39)
+  - [`f64c920`](https://github.com/nodejs/node-inspect/commit/f64c9205bd8382289660aa677d3ac192a9c81fd5) **doc:** add profile and heap to help
+* Update test suite to pass on latest nightly - **[@jkrems](https://github.com/jkrems)** [#36](https://github.com/nodejs/node-inspect/pull/36)
+  - [`41148d7`](https://github.com/nodejs/node-inspect/commit/41148d74a2d563eea3b7ad5463622b6b9fd4c46e) **test:** Remove outdated test
+  - [`2c224c5`](https://github.com/nodejs/node-inspect/commit/2c224c551619e386e80fc3154cc14562cac063b9) **test:** Accept any kind of "break"
+  - [`22bf349`](https://github.com/nodejs/node-inspect/commit/22bf349bc86d7bf6fd449791c9d1e7eaf66c2681) **test:** Adjust for v8 5.7
+  - [`6ce8c16`](https://github.com/nodejs/node-inspect/commit/6ce8c165c45a491bea8cfb3c67d2ae80e7c34dcb) **test:** Revert to old assertions
+* Verify custom port support - **[@jkrems](https://github.com/jkrems)** [#41](https://github.com/nodejs/node-inspect/pull/41)
+  - [`e3a489f`](https://github.com/nodejs/node-inspect/commit/e3a489f23b089d3d57a25d5efe40daf06de63e23) **test:** custom port
+* Support for debugging a pid - **[@jkrems](https://github.com/jkrems)** [#37](https://github.com/nodejs/node-inspect/pull/37)
+  - [`4179506`](https://github.com/nodejs/node-inspect/commit/4179506a4d546bac2c93b2a7ff491b1fa4494fd9) **feat:** Support for debugging a pid
+
+
 ### 1.10.6
 
 * chore: Fix usage text for embedded mode - **[@addaleax](https://github.com/addaleax)** [#20](https://github.com/nodejs/node-inspect/pull/20)

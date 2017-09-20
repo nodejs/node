@@ -42,21 +42,20 @@ function runAb(opts, callback) {
   const command = `ab ${opts} http://127.0.0.1:${server.address().port}/`;
   exec(command, function(err, stdout, stderr) {
     if (err) {
-      if (/ab|apr/mi.test(stderr)) {
-        common.skip('problem spawning `ab`.\n' + stderr);
+      if (/ab|apr/i.test(stderr)) {
+        common.printSkipMessage(`problem spawning \`ab\`.\n${stderr}`);
         process.reallyExit(0);
       }
-      process.exit();
-      return;
+      throw err;
     }
 
-    let m = /Document Length:\s*(\d+) bytes/mi.exec(stdout);
+    let m = /Document Length:\s*(\d+) bytes/i.exec(stdout);
     const documentLength = parseInt(m[1]);
 
-    m = /Complete requests:\s*(\d+)/mi.exec(stdout);
+    m = /Complete requests:\s*(\d+)/i.exec(stdout);
     const completeRequests = parseInt(m[1]);
 
-    m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
+    m = /HTML transferred:\s*(\d+) bytes/i.exec(stdout);
     const htmlTransfered = parseInt(m[1]);
 
     assert.strictEqual(bodyLength, documentLength);

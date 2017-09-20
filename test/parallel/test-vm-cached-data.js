@@ -3,7 +3,6 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const spawnSync = require('child_process').spawnSync;
-const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
   return `(function ${tag}() { return '${tag}'; })`;
@@ -32,7 +31,7 @@ function produce(source, count) {
     console.log(data);
   `, source]);
 
-  assert.strictEqual(out.status, 0, out.stderr + '');
+  assert.strictEqual(out.status, 0, String(out.stderr));
 
   return Buffer.from(out.stdout.toString(), 'base64');
 }

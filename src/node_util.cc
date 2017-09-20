@@ -1,8 +1,5 @@
-#include "node.h"
+#include "node_internals.h"
 #include "node_watchdog.h"
-#include "v8.h"
-#include "env.h"
-#include "env-inl.h"
 
 namespace node {
 namespace util {
@@ -12,23 +9,28 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::Maybe;
 using v8::Object;
 using v8::Private;
+using v8::Promise;
 using v8::Proxy;
 using v8::Value;
 
 
 #define VALUE_METHOD_MAP(V)                                                   \
   V(isArrayBuffer, IsArrayBuffer)                                             \
+  V(isArrayBufferView, IsArrayBufferView)                                     \
+  V(isAsyncFunction, IsAsyncFunction)                                         \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \
+  V(isExternal, IsExternal)                                                   \
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
+  V(isNativeError, IsNativeError)                                             \
   V(isPromise, IsPromise)                                                     \
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
-  V(isSharedArrayBuffer, IsSharedArrayBuffer)                                 \
   V(isTypedArray, IsTypedArray)                                               \
   V(isUint8Array, IsUint8Array)
 
@@ -42,6 +44,30 @@ using v8::Value;
   VALUE_METHOD_MAP(V)
 #undef V
 
+static void IsAnyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(
+    args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+}
+
+static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
+  // Return undefined if it's not a Promise.
+  if (!args[0]->IsPromise())
+    return;
+
+  auto isolate = args.GetIsolate();
+
+  Local<Promise> promise = args[0].As<Promise>();
+  Local<Array> ret = Array::New(isolate, 2);
+
+  int state = promise->State();
+  ret->Set(0, Integer::New(isolate, state));
+  if (state != Promise::PromiseState::kPending)
+    ret->Set(1, promise->Result());
+
+  args.GetReturnValue().Set(ret);
+}
+
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
@@ -54,6 +80,12 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   ret->Set(1, proxy->GetHandler());
 
   args.GetReturnValue().Set(ret);
+}
+
+// Side effect-free stringification that will never throw exceptions.
+static void SafeToString(const FunctionCallbackInfo<Value>& args) {
+  auto context = args.GetIsolate()->GetCurrentContext();
+  args.GetReturnValue().Set(args[0]->ToDetailString(context).ToLocalChecked());
 }
 
 inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
@@ -122,6 +154,36 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void CreatePromise(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  auto maybe_resolver = Promise::Resolver::New(context);
+  if (!maybe_resolver.IsEmpty())
+    args.GetReturnValue().Set(maybe_resolver.ToLocalChecked());
+}
+
+
+void PromiseResolve(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<Value> promise = args[0];
+  CHECK(promise->IsPromise());
+  if (promise.As<Promise>()->State() != Promise::kPending) return;
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
+  Maybe<bool> ret = resolver->Resolve(context, args[1]);
+  args.GetReturnValue().Set(ret.FromMaybe(false));
+}
+
+
+void PromiseReject(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<Value> promise = args[0];
+  CHECK(promise->IsPromise());
+  if (promise.As<Promise>()->State() != Promise::kPending) return;
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
+  Maybe<bool> ret = resolver->Reject(context, args[1]);
+  args.GetReturnValue().Set(ret.FromMaybe(false));
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -130,6 +192,8 @@ void Initialize(Local<Object> target,
 #define V(lcname, ucname) env->SetMethod(target, #lcname, ucname);
   VALUE_METHOD_MAP(V)
 #undef V
+
+  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
 
 #define V(name, _)                                                            \
   target->Set(context,                                                        \
@@ -147,13 +211,29 @@ void Initialize(Local<Object> target,
     Integer::NewFromUnsigned(env->isolate(), NODE_PUSH_VAL_TO_ARRAY_MAX),
     v8::ReadOnly).FromJust();
 
+#define V(name)                                                               \
+  target->Set(context,                                                        \
+              FIXED_ONE_BYTE_STRING(env->isolate(), #name),                   \
+              Integer::New(env->isolate(), Promise::PromiseState::name))      \
+    .FromJust()
+  V(kPending);
+  V(kFulfilled);
+  V(kRejected);
+#undef V
+
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
+  env->SetMethod(target, "getPromiseDetails", GetPromiseDetails);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
+  env->SetMethod(target, "safeToString", SafeToString);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
   env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+
+  env->SetMethod(target, "createPromise", CreatePromise);
+  env->SetMethod(target, "promiseResolve", PromiseResolve);
+  env->SetMethod(target, "promiseReject", PromiseReject);
 }
 
 }  // namespace util

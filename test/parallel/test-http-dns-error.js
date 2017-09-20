@@ -22,10 +22,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const http = require('http');
@@ -41,13 +39,17 @@ function test(mod) {
 
   // Bad host name should not throw an uncatchable exception.
   // Ensure that there is time to attach an error listener.
-  const req1 = mod.get({host: host, port: 42}, do_not_call);
+  const req1 = mod.get({ host: host, port: 42 }, do_not_call);
   req1.on('error', common.mustCall(function(err) {
     assert.strictEqual(err.code, 'ENOTFOUND');
   }));
   // http.get() called req1.end() for us
 
-  const req2 = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
+  const req2 = mod.request({
+    method: 'GET',
+    host: host,
+    port: 42
+  }, do_not_call);
   req2.on('error', common.mustCall(function(err) {
     assert.strictEqual(err.code, 'ENOTFOUND');
   }));
@@ -57,7 +59,7 @@ function test(mod) {
 if (common.hasCrypto) {
   test(https);
 } else {
-  common.skip('missing crypto');
+  common.printSkipMessage('missing crypto');
 }
 
 test(http);

@@ -4,14 +4,12 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const script = common.fixturesDir + '/empty.js';
-
-function fail() {
-  assert(0); // `node --debug-brk script.js` should not quit
-}
+const script = `${common.fixturesDir}/empty.js`;
 
 function test(arg) {
-  const child = spawn(process.execPath, [arg, script]);
+  const child = spawn(process.execPath, ['--inspect', arg, script]);
+  const argStr = child.spawnargs.join(' ');
+  const fail = () => assert.fail(true, false, `'${argStr}' should not quit`);
   child.on('exit', fail);
 
   // give node time to start up the debugger
@@ -27,5 +25,3 @@ function test(arg) {
 
 test('--debug-brk');
 test('--debug-brk=5959');
-test('--inspect-brk');
-test('--inspect-brk=9230');

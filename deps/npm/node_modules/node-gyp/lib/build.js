@@ -11,10 +11,9 @@ var fs = require('graceful-fs')
   , glob = require('glob')
   , log = require('npmlog')
   , which = require('which')
-  , mkdirp = require('mkdirp')
   , exec = require('child_process').exec
   , processRelease = require('./process-release')
-  , win = process.platform == 'win32'
+  , win = process.platform === 'win32'
 
 exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
 
@@ -36,7 +35,6 @@ function build (gyp, argv, callback) {
     , config
     , arch
     , nodeDir
-    , copyDevLib
 
   loadConfigGypi()
 
@@ -60,7 +58,6 @@ function build (gyp, argv, callback) {
       buildType = config.target_defaults.default_configuration
       arch = config.variables.target_arch
       nodeDir = config.variables.nodedir
-      copyDevLib = config.variables.copy_dev_lib == 'true'
 
       if ('debug' in gyp.opts) {
         buildType = gyp.opts.debug ? 'Debug' : 'Release'
@@ -115,7 +112,7 @@ function build (gyp, argv, callback) {
         return
       }
       log.verbose('`which` succeeded for `' + command + '`', execPath)
-      copyNodeLib()
+      doBuild()
     })
   }
 
@@ -124,6 +121,13 @@ function build (gyp, argv, callback) {
    */
 
   function findMsbuild () {
+    if (config.variables.msbuild_path) {
+      command = config.variables.msbuild_path
+      log.verbose('using MSBuild:', command)
+      doBuild()
+      return
+    }
+
     log.verbose('could not find "msbuild.exe" in PATH - finding location in registry')
     var notfoundErr = 'Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?'
     var cmd = 'reg query "HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions" /s'
@@ -173,36 +177,12 @@ function build (gyp, argv, callback) {
             return
           }
           command = msbuildPath
-          copyNodeLib()
+          doBuild()
         })
       })()
     })
   }
 
-  /**
-   * Copies the node.lib file for the current target architecture into the
-   * current proper dev dir location.
-   */
-
-  function copyNodeLib () {
-    if (!win || !copyDevLib) return doBuild()
-
-    var buildDir = path.resolve(nodeDir, buildType)
-      , archNodeLibPath = path.resolve(nodeDir, arch, release.name + '.lib')
-      , buildNodeLibPath = path.resolve(buildDir, release.name + '.lib')
-
-    mkdirp(buildDir, function (err, isNew) {
-      if (err) return callback(err)
-      log.verbose('"' + buildType + '" dir needed to be created?', isNew)
-      var rs = fs.createReadStream(archNodeLibPath)
-        , ws = fs.createWriteStream(buildNodeLibPath)
-      log.verbose('copying "' + release.name + '.lib" for ' + arch, buildNodeLibPath)
-      rs.pipe(ws)
-      rs.on('error', callback)
-      ws.on('error', callback)
-      rs.on('end', doBuild)
-    })
-  }
 
   /**
    * Actually spawn the process and compile the module.
@@ -226,7 +206,9 @@ function build (gyp, argv, callback) {
 
     // Specify the build type, Release by default
     if (win) {
-      var p = arch === 'x64' ? 'x64' : 'Win32'
+      var archLower = arch.toLowerCase()
+      var p = archLower === 'x64' ? 'x64' :
+              (archLower === 'arm' ? 'ARM' : 'Win32')
       argv.push('/p:Configuration=' + buildType + ';Platform=' + p)
       if (jobs) {
         var j = parseInt(jobs, 10)

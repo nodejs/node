@@ -51,10 +51,9 @@ TEST(DisasmIa320) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  v8::internal::byte buffer[4096];
+  v8::internal::byte buffer[8192];
   Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
-
   // Short immediate instructions
   __ adc(eax, 12345678);
   __ add(eax, Immediate(12345678));
@@ -290,7 +289,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(CodeFactory::LoadIC(isolate).code());
+  Handle<Code> ic = isolate->builtins()->LoadIC();
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -298,9 +297,6 @@ TEST(DisasmIa320) {
 
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
-  ExternalReference after_break_target =
-      ExternalReference::debug_after_break_target_address(isolate);
-  __ jmp(Operand::StaticVariable(after_break_target));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -428,6 +424,23 @@ TEST(DisasmIa320) {
     __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divps(xmm1, xmm0);
     __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ minps(xmm1, xmm0);
+    __ minps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ maxps(xmm1, xmm0);
+    __ maxps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ rcpps(xmm1, xmm0);
+    __ rcpps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ rsqrtps(xmm1, xmm0);
+    __ rsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
+
+    __ cmpeqps(xmm5, xmm1);
+    __ cmpeqps(xmm5, Operand(ebx, ecx, times_4, 10000));
+    __ cmpltps(xmm5, xmm1);
+    __ cmpltps(xmm5, Operand(ebx, ecx, times_4, 10000));
+    __ cmpleps(xmm5, xmm1);
+    __ cmpleps(xmm5, Operand(ebx, ecx, times_4, 10000));
+    __ cmpneqps(xmm5, xmm1);
+    __ cmpneqps(xmm5, Operand(ebx, ecx, times_4, 10000));
 
     __ ucomiss(xmm0, xmm1);
     __ ucomiss(xmm0, Operand(ebx, ecx, times_4, 10000));
@@ -437,6 +450,10 @@ TEST(DisasmIa320) {
     __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ cvtss2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ cvtss2sd(xmm1, xmm0);
+    __ cvtdq2ps(xmm1, xmm0);
+    __ cvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvttps2dq(xmm1, xmm0);
+    __ cvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
     // 128 bit move instructions.
@@ -444,6 +461,11 @@ TEST(DisasmIa320) {
     __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
     __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+
+    __ movd(xmm0, edi);
+    __ movd(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movd(eax, xmm1);
+    __ movd(Operand(ebx, ecx, times_4, 10000), xmm1);
 
     __ addsd(xmm1, xmm0);
     __ addsd(xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -461,16 +483,31 @@ TEST(DisasmIa320) {
     __ cmpltsd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+
+    __ psllw(xmm0, 17);
+    __ pslld(xmm0, 17);
+    __ psrlw(xmm0, 17);
+    __ psrld(xmm0, 17);
+    __ psraw(xmm0, 17);
+    __ psrad(xmm0, 17);
     __ psllq(xmm0, 17);
     __ psllq(xmm0, xmm1);
     __ psrlq(xmm0, 17);
     __ psrlq(xmm0, xmm1);
-    __ por(xmm0, xmm1);
 
-    __ pcmpeqd(xmm1, xmm0);
+    __ pshuflw(xmm5, xmm1, 5);
+    __ pshuflw(xmm5, Operand(edx, 4), 5);
+    __ pshufd(xmm5, xmm1, 5);
+    __ pshufd(xmm5, Operand(edx, 4), 5);
+    __ pinsrw(xmm5, edx, 5);
+    __ pinsrw(xmm5, Operand(edx, 4), 5);
 
-    __ punpckldq(xmm1, xmm6);
-    __ punpckhdq(xmm7, xmm5);
+#define EMIT_SSE2_INSTR(instruction, notUsed1, notUsed2, notUsed3) \
+  __ instruction(xmm5, xmm1);                                      \
+  __ instruction(xmm5, Operand(edx, 4));
+
+    SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+#undef EMIT_SSE2_INSTR
   }
 
   // cmov.
@@ -494,11 +531,34 @@ TEST(DisasmIa320) {
   }
 
   {
+    if (CpuFeatures::IsSupported(SSSE3)) {
+      CpuFeatureScope scope(&assm, SSSE3);
+      __ pshufb(xmm5, xmm1);
+      __ pshufb(xmm5, Operand(edx, 4));
+    }
+  }
+
+  {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ pextrb(eax, xmm0, 1);
+      __ pextrb(Operand(edx, 4), xmm0, 1);
+      __ pextrw(eax, xmm0, 1);
+      __ pextrw(Operand(edx, 4), xmm0, 1);
       __ pextrd(eax, xmm0, 1);
+      __ pextrd(Operand(edx, 4), xmm0, 1);
+      __ pinsrb(xmm1, eax, 0);
+      __ pinsrb(xmm1, Operand(edx, 4), 0);
       __ pinsrd(xmm1, eax, 0);
+      __ pinsrd(xmm1, Operand(edx, 4), 0);
       __ extractps(eax, xmm1, 0);
+
+#define EMIT_SSE4_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
+  __ instruction(xmm5, xmm1);                                                \
+  __ instruction(xmm5, Operand(edx, 4));
+
+      SSE4_INSTRUCTION_LIST(EMIT_SSE4_INSTR)
+#undef EMIT_SSE4_INSTR
     }
   }
 
@@ -536,11 +596,98 @@ TEST(DisasmIa320) {
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm2);
       __ vxorps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vaddps(xmm0, xmm1, xmm2);
+      __ vaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmulps(xmm0, xmm1, xmm2);
+      __ vmulps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsubps(xmm0, xmm1, xmm2);
+      __ vsubps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminps(xmm0, xmm1, xmm2);
+      __ vminps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vdivps(xmm0, xmm1, xmm2);
+      __ vdivps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxps(xmm0, xmm1, xmm2);
+      __ vmaxps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vrcpps(xmm1, xmm0);
+      __ vrcpps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vrsqrtps(xmm1, xmm0);
+      __ vrsqrtps(xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vcmpeqps(xmm5, xmm4, xmm1);
+      __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpltps(xmm5, xmm4, xmm1);
+      __ vcmpltps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpleps(xmm5, xmm4, xmm1);
+      __ vcmpleps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
+      __ vcmpneqps(xmm5, xmm4, xmm1);
+      __ vcmpneqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
 
       __ vandpd(xmm0, xmm1, xmm2);
       __ vandpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vxorpd(xmm0, xmm1, xmm2);
       __ vxorpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vaddpd(xmm0, xmm1, xmm2);
+      __ vaddpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmulpd(xmm0, xmm1, xmm2);
+      __ vmulpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsubpd(xmm0, xmm1, xmm2);
+      __ vsubpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vminpd(xmm0, xmm1, xmm2);
+      __ vminpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vdivpd(xmm0, xmm1, xmm2);
+      __ vdivpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vmaxpd(xmm0, xmm1, xmm2);
+      __ vmaxpd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vpsllw(xmm0, xmm7, 21);
+      __ vpslld(xmm0, xmm7, 21);
+      __ vpsrlw(xmm0, xmm7, 21);
+      __ vpsrld(xmm0, xmm7, 21);
+      __ vpsraw(xmm0, xmm7, 21);
+      __ vpsrad(xmm0, xmm7, 21);
+
+      __ vpshufb(xmm5, xmm0, xmm1);
+      __ vpshufb(xmm5, xmm0, Operand(edx, 4));
+      __ vpshuflw(xmm5, xmm1, 5);
+      __ vpshuflw(xmm5, Operand(edx, 4), 5);
+      __ vpshufd(xmm5, xmm1, 5);
+      __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpextrb(eax, xmm0, 1);
+      __ vpextrb(Operand(edx, 4), xmm0, 1);
+      __ vpextrw(eax, xmm0, 1);
+      __ vpextrw(Operand(edx, 4), xmm0, 1);
+      __ vpextrd(eax, xmm0, 1);
+      __ vpextrd(Operand(edx, 4), xmm0, 1);
+      __ vpinsrb(xmm0, xmm1, eax, 0);
+      __ vpinsrb(xmm0, xmm1, Operand(edx, 4), 0);
+      __ vpinsrw(xmm0, xmm1, eax, 0);
+      __ vpinsrw(xmm0, xmm1, Operand(edx, 4), 0);
+      __ vpinsrd(xmm0, xmm1, eax, 0);
+      __ vpinsrd(xmm0, xmm1, Operand(edx, 4), 0);
+
+      __ vcvtdq2ps(xmm1, xmm0);
+      __ vcvtdq2ps(xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vcvttps2dq(xmm1, xmm0);
+      __ vcvttps2dq(xmm1, Operand(ebx, ecx, times_4, 10000));
+
+      __ vmovd(xmm0, edi);
+      __ vmovd(xmm0, Operand(ebx, ecx, times_4, 10000));
+      __ vmovd(eax, xmm1);
+      __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
+#define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
+  __ v##instruction(xmm7, xmm5, xmm1);                                \
+  __ v##instruction(xmm7, xmm5, Operand(edx, 4));
+
+      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
+#undef EMIT_SSE2_AVXINSTR
+
+#define EMIT_SSE4_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                           notUsed4)                                  \
+  __ v##instruction(xmm7, xmm5, xmm1);                                \
+  __ v##instruction(xmm7, xmm5, Operand(edx, 4));
+
+      SSE4_INSTRUCTION_LIST(EMIT_SSE4_AVXINSTR)
+#undef EMIT_SSE4_AVXINSTR
     }
   }
 
@@ -700,7 +847,7 @@ TEST(DisasmIa320) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);

@@ -22,6 +22,10 @@ namespace trap_handler {
 struct ProtectedInstructionData;
 }  // namespace trap_handler
 
+namespace wasm {
+enum ModuleOrigin : uint8_t;
+}  // namespace wasm
+
 namespace compiler {
 
 class CallDescriptor;
@@ -34,7 +38,8 @@ class SourcePositionTable;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
-  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function,
+                                           bool has_script);
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static CompilationJob* NewWasmCompilationJob(
@@ -42,7 +47,7 @@ class Pipeline : public AllStatic {
       SourcePositionTable* source_positions,
       ZoneVector<trap_handler::ProtectedInstructionData>*
           protected_instructions,
-      bool wasm_origin);
+      wasm::ModuleOrigin wasm_origin);
 
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.

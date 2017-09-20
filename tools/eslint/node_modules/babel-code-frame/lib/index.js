@@ -97,7 +97,7 @@ function getTokenType(match) {
       offset = _match$slice[0],
       text = _match$slice[1];
 
-  var token = _jsTokens2.default.matchToToken(match);
+  var token = (0, _jsTokens.matchToToken)(match);
 
   if (token.type === "name") {
     if (_esutils2.default.keyword.isReservedWordES6(token.value)) {

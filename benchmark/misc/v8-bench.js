@@ -1,16 +1,16 @@
 // compare with "google-chrome deps/v8/benchmarks/run.html"
 'use strict';
-var fs = require('fs');
-var path = require('path');
-var vm = require('vm');
-var common = require('../common.js');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const common = require('../common.js');
 
-var dir = path.join(__dirname, '..', '..', 'deps', 'v8', 'benchmarks');
+const dir = path.join(__dirname, '..', '..', 'deps', 'v8', 'benchmarks');
 
 function load(filename, inGlobal) {
   var source = fs.readFileSync(path.join(dir, filename), 'utf8');
-  if (!inGlobal) source = '(function () {' + source + '\n})()';
-  vm.runInThisContext(source, { filename: 'v8/bechmark/' + filename });
+  if (!inGlobal) source = `(function () {${source}\n})()`;
+  vm.runInThisContext(source, { filename: `v8/bechmark/${filename}` });
 }
 
 load('base.js', true);
@@ -41,13 +41,13 @@ global.BenchmarkSuite.RunSuites({
     });
   },
   NotifyError: function(name, error) {
-    console.error(name + ': ' + error);
+    console.error(`${name}: ${error}`);
   },
   NotifyScore: function(score) {
     common.sendResult({
       name: benchmark_name,
       conf: {
-        benchmark: 'Score (version ' + global.BenchmarkSuite.version + ')'
+        benchmark: `Score (version ${global.BenchmarkSuite.version})`
       },
       rate: score,
       time: 0

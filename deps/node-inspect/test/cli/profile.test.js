@@ -15,7 +15,7 @@ test('profiles', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('exec console.profile()'))
     .then(() => {

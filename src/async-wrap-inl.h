@@ -27,31 +27,26 @@
 #include "async-wrap.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-#include "env.h"
-#include "env-inl.h"
 #include "node_internals.h"
-#include "util.h"
-#include "util-inl.h"
-#include "v8.h"
 
 namespace node {
 
-inline bool AsyncWrap::ran_init_callback() const {
-  return static_cast<bool>(bits_ & 1);
-}
-
-
 inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
-  return static_cast<ProviderType>(bits_ >> 1);
+  return provider_type_;
 }
 
 
-inline int64_t AsyncWrap::get_uid() const {
-  return uid_;
+inline double AsyncWrap::get_id() const {
+  return async_id_;
 }
 
 
-inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
+inline double AsyncWrap::get_trigger_id() const {
+  return trigger_id_;
+}
+
+
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     const v8::Local<v8::String> symbol,
     int argc,
     v8::Local<v8::Value>* argv) {
@@ -61,7 +56,7 @@ inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
 }
 
 
-inline v8::Local<v8::Value> AsyncWrap::MakeCallback(
+inline v8::MaybeLocal<v8::Value> AsyncWrap::MakeCallback(
     uint32_t index,
     int argc,
     v8::Local<v8::Value>* argv) {

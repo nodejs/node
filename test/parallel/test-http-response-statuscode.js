@@ -7,7 +7,11 @@ const MAX_REQUESTS = 13;
 let reqNum = 0;
 
 function test(res, header, code) {
-  const errRegExp = new RegExp(`^RangeError: Invalid status code: ${code}$`);
+  const errRegExp = common.expectsError({
+    code: 'ERR_HTTP_INVALID_STATUS_CODE',
+    type: RangeError,
+    message: `Invalid status code: ${code}`
+  });
   assert.throws(() => {
     res.writeHead(header);
   }, errRegExp);
@@ -25,7 +29,7 @@ const server = http.Server(common.mustCall(function(req, res) {
       test(res, NaN, 'NaN');
       break;
     case 3:
-      test(res, {}, '\\[object Object\\]');
+      test(res, {}, '[object Object]');
       break;
     case 4:
       test(res, 99, '99');
@@ -53,7 +57,11 @@ const server = http.Server(common.mustCall(function(req, res) {
       break;
     case 12:
       assert.throws(() => { res.writeHead(); },
-                    /^RangeError: Invalid status code: undefined$/);
+                    common.expectsError({
+                      code: 'ERR_HTTP_INVALID_STATUS_CODE',
+                      type: RangeError,
+                      message: 'Invalid status code: undefined'
+                    }));
       this.close();
       break;
     default:

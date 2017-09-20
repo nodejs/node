@@ -368,7 +368,7 @@ class CpuProfilesCollection {
 
 class ProfileGenerator {
  public:
-  ProfileGenerator(Isolate* isolate, CpuProfilesCollection* profiles);
+  explicit ProfileGenerator(CpuProfilesCollection* profiles);
 
   void RecordTickSample(const TickSample& sample);
 
@@ -378,7 +378,6 @@ class ProfileGenerator {
   CodeEntry* FindEntry(void* address);
   CodeEntry* EntryForVMState(StateTag tag);
 
-  Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   CodeMap code_map_;
 

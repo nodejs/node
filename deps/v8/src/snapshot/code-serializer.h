@@ -39,13 +39,13 @@ class CodeSerializer : public Serializer {
   virtual bool ElideObject(Object* obj) { return false; }
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
+  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
+                        WhereToPoint where_to_point);
 
  private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
   void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
@@ -64,23 +64,13 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
 
  protected:
   void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point) override {
-    Code::Kind kind = code_object->kind();
-    if (kind == Code::WASM_FUNCTION || kind == Code::WASM_TO_JS_FUNCTION ||
-        kind == Code::JS_TO_WASM_FUNCTION) {
-      SerializeGeneric(code_object, how_to_code, where_to_point);
-    } else {
-      UNREACHABLE();
-    }
-  }
-
-  bool ElideObject(Object* obj) override {
-    return obj->IsWeakCell() || obj->IsForeign();
-  };
+                           WhereToPoint where_to_point) override;
+  bool ElideObject(Object* obj) override;
 
  private:
-  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
-      : CodeSerializer(isolate, source_hash) {}
+  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash,
+                               Handle<Context> native_context,
+                               Handle<SeqOneByteString> module_bytes);
   DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 
@@ -95,24 +85,25 @@ class SerializedCodeData : public SerializedData {
     CPU_FEATURES_MISMATCH = 4,
     FLAGS_MISMATCH = 5,
     CHECKSUM_MISMATCH = 6,
-    INVALID_HEADER = 7
+    INVALID_HEADER = 7,
+    LENGTH_MISMATCH = 8
   };
 
   // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] source hash
-  // [3] cpu features
-  // [4] flag hash
-  // [5] number of code stub keys
-  // [6] number of reservation size entries
-  // [7] payload length
-  // [8] payload checksum part 1
-  // [9] payload checksum part 2
+  // [0] magic number and (internally provided) external reference count
+  // [1] extra (API-provided) external reference count
+  // [2] version hash
+  // [3] source hash
+  // [4] cpu features
+  // [5] flag hash
+  // [6] number of code stub keys
+  // [7] number of reservation size entries
+  // [8] payload length
+  // [9] payload checksum part 1
+  // [10] payload checksum part 2
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
-  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
   static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
   static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
   static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
@@ -121,12 +112,14 @@ class SerializedCodeData : public SerializedData {
   static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
   static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
   static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
-  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
+  static const int kUnalignedHeaderSize = kChecksum2Offset + kInt32Size;
+  static const int kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
 
   // Used when consuming.
-  static const SerializedCodeData FromCachedData(
-      Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
-      SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedData(Isolate* isolate,
+                                           ScriptData* cached_data,
+                                           uint32_t expected_source_hash,
+                                           SanityCheckResult* rejection_result);
 
   // Used when producing.
   SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);

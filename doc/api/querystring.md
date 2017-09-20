@@ -1,5 +1,7 @@
 # Query String
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 <!--name=querystring-->
@@ -31,7 +33,7 @@ necessary by assigning `querystring.escape` to an alternative function.
 <!-- YAML
 added: v0.1.25
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10967
     description: Multiple empty entries are now parsed correctly (e.g. `&=&=`).
   - version: v6.0.0
@@ -59,6 +61,7 @@ collection of key and value pairs.
 
 For example, the query string `'foo=bar&abc=xyz&abc=123'` is parsed into:
 
+<!-- eslint-skip -->
 ```js
 {
   foo: 'bar',
@@ -67,9 +70,9 @@ For example, the query string `'foo=bar&abc=xyz&abc=123'` is parsed into:
 ```
 
 *Note*: The object returned by the `querystring.parse()` method _does not_
-prototypically extend from the JavaScript `Object`. This means that the
-typical `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`,
-and others are not defined and *will not work*.
+prototypically inherit from the JavaScript `Object`. This means that typical
+`Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
+are not defined and *will not work*.
 
 By default, percent-encoded characters within the query string will be assumed
 to use UTF-8 encoding. If an alternative character encoding is used, then an
@@ -80,7 +83,7 @@ in the following example:
 // Assuming gbkDecodeURIComponent function already exists...
 
 querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
-  { decodeURIComponent: gbkDecodeURIComponent })
+                  { decodeURIComponent: gbkDecodeURIComponent });
 ```
 
 ## querystring.stringify(obj[, sep[, eq[, options]]])
@@ -101,13 +104,17 @@ added: v0.1.25
 The `querystring.stringify()` method produces a URL query string from a
 given `obj` by iterating through the object's "own properties".
 
+It serializes the following types of values passed in `obj`:
+{string|number|boolean|string[]|number[]|boolean[]}
+Any other input values will be coerced to empty strings.
+
 For example:
 
 ```js
-querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' })
+querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
 // returns 'foo=bar&baz=qux&baz=quux&corge='
 
-querystring.stringify({foo: 'bar', baz: 'qux'}, ';', ':')
+querystring.stringify({ foo: 'bar', baz: 'qux' }, ';', ':');
 // returns 'foo:bar;baz:qux'
 ```
 
@@ -120,7 +127,7 @@ following example:
 // Assuming gbkEncodeURIComponent function already exists,
 
 querystring.stringify({ w: '中文', foo: 'bar' }, null, null,
-  { encodeURIComponent: gbkEncodeURIComponent })
+                      { encodeURIComponent: gbkEncodeURIComponent });
 ```
 
 ## querystring.unescape(str)

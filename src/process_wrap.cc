@@ -43,6 +43,8 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 class ProcessWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -51,7 +53,11 @@ class ProcessWrap : public HandleWrap {
     Environment* env = Environment::GetCurrent(context);
     Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"));
+    Local<String> processString =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Process");
+    constructor->SetClassName(processString);
+
+    AsyncWrap::AddWrapMethods(env, constructor);
 
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
 
@@ -62,8 +68,7 @@ class ProcessWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
     env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
-    target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
-                constructor->GetFunction());
+    target->Set(processString, constructor->GetFunction());
   }
 
   size_t self_size() const override { return sizeof(*this); }
@@ -273,6 +278,7 @@ class ProcessWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)

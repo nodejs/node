@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -13,6 +13,7 @@
 
 #include "unicode/locdspnm.h"
 #include "unicode/simpleformatter.h"
+#include "unicode/ucasemap.h"
 #include "unicode/ures.h"
 #include "unicode/udisplaycontext.h"
 #include "unicode/brkiter.h"

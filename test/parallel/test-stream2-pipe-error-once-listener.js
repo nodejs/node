@@ -21,14 +21,14 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const util = require('util');
 const stream = require('stream');
 
 
-const Read = function() {
+function Read() {
   stream.Readable.call(this);
-};
+}
 util.inherits(Read, stream.Readable);
 
 Read.prototype._read = function(size) {
@@ -37,9 +37,9 @@ Read.prototype._read = function(size) {
 };
 
 
-const Write = function() {
+function Write() {
   stream.Writable.call(this);
-};
+}
 util.inherits(Write, stream.Writable);
 
 Write.prototype._write = function(buffer, encoding, cb) {
@@ -50,7 +50,7 @@ Write.prototype._write = function(buffer, encoding, cb) {
 const read = new Read();
 const write = new Write();
 
-write.once('error', common.noop);
+write.once('error', () => {});
 write.once('alldone', function(err) {
   console.log('ok');
 });

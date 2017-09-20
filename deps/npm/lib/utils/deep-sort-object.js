@@ -1,16 +1,14 @@
 'use strict'
 var sortedObject = require('sorted-object')
 
-module.exports = function deepSortObject (obj, sortBy) {
+module.exports = function deepSortObject (obj) {
   if (obj == null || typeof obj !== 'object') return obj
   if (obj instanceof Array) {
-    return obj.map(function (x) {
-      return deepSortObject(x, sortBy)
-    })
+    return obj.map(deepSortObject)
   }
   obj = sortedObject(obj)
   Object.keys(obj).forEach(function (key) {
-    obj[key] = deepSortObject(obj[key], sortBy)
+    obj[key] = deepSortObject(obj[key])
   })
   return obj
 }

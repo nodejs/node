@@ -37,6 +37,8 @@
   | solaris   | x64        | solaris64-x86_64-gcc | o   |
   | freebsd   | ia32       | BSD-x86              | o   |
   | freebsd   | x64        | BSD-x86_64           | o   |
+  | netbsd    | ia32       | BSD-x86              | o   |
+  | netbsd    | x64        | BSD-x86_64           | o   |
   | openbsd   | ia32       | BSD-x86              | -   |
   | openbsd   | x64        | BSD-x86_64           | -   |
   | others    | others     | linux-elf            | -   |
@@ -51,6 +53,7 @@
   | mac                | __APPLE__ && __MACH__     |
   | solaris            | __sun                     |
   | freebsd            | __FreeBSD__               |
+  | netbsd             | __NetBSD__                |
   | openbsd            | __OpenBSD__               |
   | linux (not andorid)| __linux__ && !__ANDROID__ |
   | android            | __ANDROID__               |
@@ -94,6 +97,11 @@
 # define OPENSSL_LINUX 1
 #endif
 
+#undef OPENSSL_BSD
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+# define OPENSSL_BSD 1
+#endif
+
 #if defined(OPENSSL_LINUX) && defined(__i386__)
 # include "./archs/linux-elf/opensslconf.h"
 #elif defined(OPENSSL_LINUX) && defined(__ILP32__)
@@ -112,9 +120,9 @@
 # include "./archs/VC-WIN32/opensslconf.h"
 #elif defined(_WIN32) && defined(_M_X64)
 # include "./archs/VC-WIN64A/opensslconf.h"
-#elif (defined(__FreeBSD__) || defined(__OpenBSD__)) && defined(__i386__)
+#elif defined(OPENSSL_BSD) && defined(__i386__)
 # include "./archs/BSD-x86/opensslconf.h"
-#elif (defined(__FreeBSD__) || defined(__OpenBSD__)) && defined(__x86_64__)
+#elif defined(OPENSSL_BSD) && defined(__x86_64__)
 # include "./archs/BSD-x86_64/opensslconf.h"
 #elif defined(__sun) && defined(__i386__)
 # include "./archs/solaris-x86-gcc/opensslconf.h"

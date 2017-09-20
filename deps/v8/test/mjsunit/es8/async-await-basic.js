@@ -390,3 +390,175 @@ async function gaga() {
   while (i-- > 0) { await 42 }
 }
 assertDoesNotThrow(gaga);
+
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      Promise.resolve().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "a", "c"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return Promise.resolve().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "a", "c"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return await Promise.resolve().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["a", "b", "c"], log);
+}
+
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "c", "a"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "a", "c"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return await Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["a", "b", "c"], log);
+}
+
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      Promise.resolve().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "a", "c"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return Promise.resolve().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "a", "c"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return await Promise.resolve().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["a", "b", "c"], log);
+}
+
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "c", "a"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["b", "c", "a"], log);
+}
+
+{
+  let log = [];
+  async function foo() {
+    try {
+      return await Promise.resolve().then().then(() => log.push("a"))
+    } finally {
+      return log.push("b");
+    }
+  }
+  foo().then(() => log.push("c"));
+  %RunMicrotasks();
+  assertEquals(["a", "b", "c"], log);
+}

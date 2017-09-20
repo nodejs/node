@@ -22,8 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const spawn = require('child_process').spawn;
-const fork = require('child_process').fork;
+const { fork, spawn } = require('child_process');
 
 // Fork, then spawn. The spawned process should not hang.
 switch (process.argv[2] || '') {
@@ -37,7 +36,7 @@ switch (process.argv[2] || '') {
   case 'spawn':
     break;
   default:
-    common.fail();
+    assert.fail();
 }
 
 function checkExit(statusCode) {

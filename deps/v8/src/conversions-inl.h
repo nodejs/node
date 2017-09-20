@@ -153,18 +153,18 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
 }
 
 int32_t NumberToInt32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
+  if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToInt32(number->Number());
 }
 
 uint32_t NumberToUint32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
+  if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToUint32(number->Number());
 }
 
 uint32_t PositiveNumberToUint32(Object* number) {
   if (number->IsSmi()) {
-    int value = Smi::cast(number)->value();
+    int value = Smi::ToInt(number);
     if (value <= 0) return 0;
     return value;
   }
@@ -178,7 +178,7 @@ uint32_t PositiveNumberToUint32(Object* number) {
 }
 
 int64_t NumberToInt64(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
+  if (number->IsSmi()) return Smi::ToInt(number);
   return static_cast<int64_t>(number->Number());
 }
 
@@ -186,7 +186,7 @@ bool TryNumberToSize(Object* number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
   if (number->IsSmi()) {
-    int value = Smi::cast(number)->value();
+    int value = Smi::ToInt(number);
     DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
            std::numeric_limits<size_t>::max());
     if (value >= 0) {
@@ -424,7 +424,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (base::bits::IsPowerOfTwo32(radix)) {
+  if (base::bits::IsPowerOfTwo(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(

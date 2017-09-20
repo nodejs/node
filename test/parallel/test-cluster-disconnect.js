@@ -28,17 +28,17 @@ const net = require('net');
 if (cluster.isWorker) {
   net.createServer((socket) => {
     socket.end('echo');
-  }).listen(common.PORT, '127.0.0.1');
+  }).listen(0, '127.0.0.1');
 
   net.createServer((socket) => {
     socket.end('echo');
-  }).listen(common.PORT + 1, '127.0.0.1');
-
+  }).listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
   const servers = 2;
+  const serverPorts = new Set();
 
   // test a single TCP server
-  const testConnection = function(port, cb) {
+  const testConnection = (port, cb) => {
     const socket = net.connect(port, '127.0.0.1', () => {
       // buffer result
       let result = '';
@@ -47,16 +47,18 @@ if (cluster.isWorker) {
       // check result
       socket.on('end', common.mustCall(() => {
         cb(result === 'echo');
+        serverPorts.delete(port);
       }));
     });
   };
 
   // test both servers created in the cluster
-  const testCluster = function(cb) {
+  const testCluster = (cb) => {
     let done = 0;
+    const portsArray = Array.from(serverPorts);
 
     for (let i = 0; i < servers; i++) {
-      testConnection(common.PORT + i, (success) => {
+      testConnection(portsArray[i], (success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
@@ -67,12 +69,14 @@ if (cluster.isWorker) {
   };
 
   // start two workers and execute callback when both is listening
-  const startCluster = function(cb) {
+  const startCluster = (cb) => {
     const workers = 8;
     let online = 0;
 
     for (let i = 0, l = workers; i < l; i++) {
-      cluster.fork().on('listening', common.mustCall(() => {
+      cluster.fork().on('listening', common.mustCall((address) => {
+        serverPorts.add(address.port);
+
         online += 1;
         if (online === workers * servers) {
           cb();
@@ -81,7 +85,7 @@ if (cluster.isWorker) {
     }
   };
 
-  const test = function(again) {
+  const test = (again) => {
     //1. start cluster
     startCluster(common.mustCall(() => {
       //2. test cluster

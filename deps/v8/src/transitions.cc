@@ -181,7 +181,7 @@ Map* TransitionArray::SearchTransition(Map* map, PropertyKind kind, Name* name,
 
 
 // static
-Map* TransitionArray::SearchSpecial(Map* map, Symbol* name) {
+Map* TransitionArray::SearchSpecial(const Map* map, Symbol* name) {
   Object* raw_transitions = map->raw_transitions();
   if (IsFullTransitionArray(raw_transitions)) {
     TransitionArray* transitions = TransitionArray::cast(raw_transitions);
@@ -551,5 +551,47 @@ int TransitionArray::Search(PropertyKind kind, Name* name,
   if (transition == kNotFound) return kNotFound;
   return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
+
+void TransitionArray::Sort() {
+  DisallowHeapAllocation no_gc;
+  // In-place insertion sort.
+  int length = number_of_transitions();
+  for (int i = 1; i < length; i++) {
+    Name* key = GetKey(i);
+    Map* target = GetTarget(i);
+    PropertyKind kind = kData;
+    PropertyAttributes attributes = NONE;
+    if (!IsSpecialTransition(key)) {
+      PropertyDetails details = GetTargetDetails(key, target);
+      kind = details.kind();
+      attributes = details.attributes();
+    }
+    int j;
+    for (j = i - 1; j >= 0; j--) {
+      Name* temp_key = GetKey(j);
+      Map* temp_target = GetTarget(j);
+      PropertyKind temp_kind = kData;
+      PropertyAttributes temp_attributes = NONE;
+      if (!IsSpecialTransition(temp_key)) {
+        PropertyDetails details = GetTargetDetails(temp_key, temp_target);
+        temp_kind = details.kind();
+        temp_attributes = details.attributes();
+      }
+      int cmp =
+          CompareKeys(temp_key, temp_key->Hash(), temp_kind, temp_attributes,
+                      key, key->Hash(), kind, attributes);
+      if (cmp > 0) {
+        SetKey(j + 1, temp_key);
+        SetTarget(j + 1, temp_target);
+      } else {
+        break;
+      }
+    }
+    SetKey(j + 1, key);
+    SetTarget(j + 1, target);
+  }
+  DCHECK(IsSortedNoDuplicates());
+}
+
 }  // namespace internal
 }  // namespace v8

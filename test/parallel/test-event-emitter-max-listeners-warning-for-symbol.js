@@ -20,5 +20,5 @@ process.on('warning', common.mustCall((warning) => {
   assert.ok(warning.message.includes('2 Symbol(symbol) listeners added.'));
 }));
 
-e.on(symbol, common.noop);
-e.on(symbol, common.noop);
+e.on(symbol, () => {});
+e.on(symbol, () => {});

@@ -2,18 +2,19 @@
  * `password` type prompt
  */
 
-var util = require("util");
-var chalk = require("chalk");
-var Base = require("./base");
-var observe = require("../utils/events");
+var util = require('util');
+var chalk = require('chalk');
+var Base = require('./base');
+var observe = require('../utils/events');
 
-function mask(input) {
+function mask(input, maskChar) {
   input = String(input);
+  maskChar = typeof maskChar === 'string' ? maskChar : '*';
   if (input.length === 0) {
     return '';
   }
 
-  return new Array(input.length + 1).join('*');
+  return new Array(input.length + 1).join(maskChar);
 }
 
 /**
@@ -22,16 +23,14 @@ function mask(input) {
 
 module.exports = Prompt;
 
-
 /**
  * Constructor
  */
 
 function Prompt() {
-  return Base.apply( this, arguments );
+  return Base.apply(this, arguments);
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Start the Inquiry session
@@ -39,26 +38,27 @@ util.inherits( Prompt, Base );
  * @return {this}
  */
 
-Prompt.prototype._run = function( cb ) {
+Prompt.prototype._run = function (cb) {
   this.done = cb;
 
   var events = observe(this.rl);
 
   // Once user confirm (enter key)
-  var submit = events.line.map( this.filterInput.bind(this) );
+  var submit = events.line.map(this.filterInput.bind(this));
 
-  var validation = this.handleSubmitEvents( submit );
-  validation.success.forEach( this.onEnd.bind(this) );
-  validation.error.forEach( this.onError.bind(this) );
+  var validation = this.handleSubmitEvents(submit);
+  validation.success.forEach(this.onEnd.bind(this));
+  validation.error.forEach(this.onError.bind(this));
 
-  events.keypress.takeUntil( validation.success ).forEach( this.onKeypress.bind(this) );
+  if (this.opt.mask) {
+    events.keypress.takeUntil(validation.success).forEach(this.onKeypress.bind(this));
+  }
 
   // Init
   this.render();
 
   return this;
 };
-
 
 /**
  * Render the prompt to screen
@@ -70,9 +70,11 @@ Prompt.prototype.render = function (error) {
   var bottomContent = '';
 
   if (this.status === 'answered') {
-    message += chalk.cyan(mask(this.answer));
+    message += this.opt.mask ? chalk.cyan(mask(this.answer, this.opt.mask)) : chalk.italic.dim('[hidden]');
+  } else if (this.opt.mask) {
+    message += mask(this.rl.line || '', this.opt.mask);
   } else {
-    message += mask(this.rl.line || '');
+    message += chalk.italic.dim('[input is hidden] ');
   }
 
   if (error) {
@@ -86,33 +88,28 @@ Prompt.prototype.render = function (error) {
  * When user press `enter` key
  */
 
-Prompt.prototype.filterInput = function( input ) {
-  if ( !input ) {
-    return this.opt.default != null ? this.opt.default : "";
+Prompt.prototype.filterInput = function (input) {
+  if (!input) {
+    return this.opt.default == null ? '' : this.opt.default;
   }
   return input;
 };
 
-Prompt.prototype.onEnd = function( state ) {
-  this.status = "answered";
+Prompt.prototype.onEnd = function (state) {
+  this.status = 'answered';
   this.answer = state.value;
 
   // Re-render prompt
   this.render();
 
   this.screen.done();
-  this.done( state.value );
+  this.done(state.value);
 };
 
-Prompt.prototype.onError = function( state ) {
+Prompt.prototype.onError = function (state) {
   this.render(state.isValid);
-  this.rl.output.unmute();
 };
 
-/**
- * When user type
- */
-
-Prompt.prototype.onKeypress = function() {
+Prompt.prototype.onKeypress = function () {
   this.render();
 };

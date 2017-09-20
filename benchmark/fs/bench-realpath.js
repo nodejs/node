@@ -22,7 +22,7 @@ function main(conf) {
   else if (type === 'resolved')
     resolvedPath(n);
   else
-    throw new Error('unknown "type": ' + type);
+    throw new Error(`unknown "type": ${type}`);
 }
 
 function relativePath(n) {

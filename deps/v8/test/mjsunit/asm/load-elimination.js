@@ -10,12 +10,13 @@ var heap = new ArrayBuffer(64 * 1024 * 1024);
 
 var foo = (function(stdlib, foreign, heap) {
   "use asm";
-  var M16 = new Int16Array(heap);
-  var M32 = new Int32Array(heap);
+  var M16 = new stdlib.Int16Array(heap);
+  var M32 = new stdlib.Int32Array(heap);
   function foo() {
+    var i = 0;
     M32[0] = 0x12341234;
-    var i = M32[0];
-    return M16[0];
+    i = M32[0] | 0;
+    return M16[0] | 0;
   }
   return foo;
 })(stdlib, foreign, heap);

@@ -217,7 +217,7 @@ const formatTests = {
     path: '/node'
   },
 
-   // greater than or equal to 63 characters after `.` in hostname
+  // greater than or equal to 63 characters after `.` in hostname
   [`http://www.${'z'.repeat(63)}example.com/node`]: {
     href: `http://www.${'z'.repeat(63)}example.com/node`,
     protocol: 'http:',
@@ -251,10 +251,8 @@ for (const u in formatTests) {
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
   assert.strictEqual(actual, expect,
-                     'wonky format(' + u + ') == ' + expect +
-                     '\nactual:' + actual);
+                     `wonky format(${u}) == ${expect}\nactual:${actual}`);
   assert.strictEqual(actualObj, expect,
-                     'wonky format(' + JSON.stringify(formatTests[u]) +
-                     ') == ' + expect +
-                     '\nactual: ' + actualObj);
+                     `wonky format(${JSON.stringify(formatTests[u])}) == ${
+                       expect}\nactual: ${actualObj}`);
 }

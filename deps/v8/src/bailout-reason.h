@@ -58,6 +58,7 @@ namespace internal {
     "Encountered a do-expression with unmodelable control statements")         \
   V(kDoPushArgumentNotImplementedForDoubleType,                                \
     "DoPushArgument not implemented for double type")                          \
+  V(kDynamicImport, "Dynamic module import")                                   \
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
@@ -66,6 +67,7 @@ namespace internal {
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedBooleanValue, "Expected boolean value")                           \
+  V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedFixedDoubleArrayMap,                                              \
     "Expected a fixed double array map in fast shallow clone array literal")   \
   V(kExpectedFunctionObject, "Expected function object in register")           \
@@ -74,6 +76,8 @@ namespace internal {
   V(kExpectedNativeContext, "Expected native context")                         \
   V(kExpectedNonIdenticalObjects, "Expected non-identical objects")            \
   V(kExpectedNonNullContext, "Expected non-null context")                      \
+  V(kExpectedOptimizationSentinel,                                             \
+    "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedPositiveZero, "Expected +0.0")                                    \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
@@ -119,9 +123,6 @@ namespace internal {
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
-  V(kJSObjectWithFastElementsMapHasSlowElements,                               \
-    "JSObject with fast elements map has slow elements")                       \
-  V(kLetBindingReInitialization, "Let binding re-initialization")              \
   V(kLiveEdit, "LiveEdit")                                                     \
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
@@ -142,9 +143,9 @@ namespace internal {
     "Not enough virtual registers (regalloc)")                                 \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
-  V(kOperandIsANumber, "Operand is a number")                                  \
   V(kOperandIsASmiAndNotABoundFunction,                                        \
     "Operand is a smi and not a bound function")                               \
+  V(kOperandIsASmiAndNotAFixedArray, "Operand is a smi and not a fixed array") \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAGeneratorObject,                                      \
     "Operand is a smi and not a generator object")                             \
@@ -153,15 +154,13 @@ namespace internal {
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
+  V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                  \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
-  V(kOperandIsNotAName, "Operand is not a name")                               \
-  V(kOperandIsNotANumber, "Operand is not a number")                           \
   V(kOperandIsNotAReceiver, "Operand is not a receiver")                       \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
   V(kOperandIsNotAString, "Operand is not a string")                           \
   V(kOperandIsNotSmi, "Operand is not smi")                                    \
-  V(kOperandNotANumber, "Operand not a number")                                \
   V(kObjectTagged, "The object is tagged")                                     \
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kOptimizationDisabled, "Optimization disabled")                            \
@@ -186,6 +185,7 @@ namespace internal {
     "Sloppy function expects JSReceiver as receiver.")                         \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
+  V(kSpreadCall, "Call with spread argument")                                  \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kSuperReference, "Super reference")                                        \
@@ -212,14 +212,10 @@ namespace internal {
     "Unexpected ElementsKind in array constructor")                            \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                              \
     "Unexpected fallthrough from CharCodeAt slow case")                        \
-  V(kUnexpectedFallthroughFromCharFromCodeSlowCase,                            \
-    "Unexpected fallthrough from CharFromCode slow case")                      \
   V(kUnexpectedFallThroughFromStringComparison,                                \
     "Unexpected fall-through from string comparison")                          \
   V(kUnexpectedFallthroughToCharCodeAtSlowCase,                                \
     "Unexpected fallthrough to CharCodeAt slow case")                          \
-  V(kUnexpectedFallthroughToCharFromCodeSlowCase,                              \
-    "Unexpected fallthrough to CharFromCode slow case")                        \
   V(kUnexpectedFPUStackDepthAfterInstruction,                                  \
     "Unexpected FPU stack depth after instruction")                            \
   V(kUnexpectedInitialMapForArrayFunction1,                                    \
@@ -240,8 +236,8 @@ namespace internal {
   V(kUnexpectedStackDepth, "Unexpected operand stack depth in full-codegen")   \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringType, "Unexpected string type")                           \
-  V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
-    "Unexpected type for RegExp data, FixedArray expected")                    \
+  V(kUnexpectedTestTypeofLiteralFlag,                                          \
+    "Unexpected literal flag for TestTypeof bytecode")                         \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUnsupportedDoubleImmediate, "Unsupported double immediate")               \
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \
@@ -252,6 +248,8 @@ namespace internal {
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const or let variable")                            \
+  V(kUnexpectedReturnFromFrameDropper,                                         \
+    "Unexpectedly returned from dropping frames")                              \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
   V(kUnsupportedSwitchStatement, "Unsupported switch statement")               \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \

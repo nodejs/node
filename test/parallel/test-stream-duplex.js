@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const Duplex = require('stream').Transform;
+const Duplex = require('stream').Duplex;
 
 const stream = new Duplex({ objectMode: true });
 
@@ -38,7 +38,7 @@ stream._write = (obj, _, cb) => {
   cb();
 };
 
-stream._read = common.noop;
+stream._read = () => {};
 
 stream.on('data', (obj) => {
   read = obj;

@@ -6,14 +6,6 @@ function isExtraneous (tree) {
   return result
 }
 
-function isNotRequired (tree) {
-  return tree.requiredBy && tree.requiredBy.length === 0
-}
-
-function parentHasNoPjson (tree) {
-  return tree.parent && tree.parent.isTop && tree.parent.error
-}
-
 function topHasNoPjson (tree) {
   var top = tree
   while (!top.isTop) top = top.parent
@@ -23,8 +15,6 @@ function topHasNoPjson (tree) {
 function isNotExtraneous (tree, isCycle) {
   if (!isCycle) isCycle = {}
   if (tree.isTop || tree.userRequired) {
-    return true
-  } else if (isNotRequired(tree) && parentHasNoPjson(tree)) {
     return true
   } else if (isCycle[tree.path]) {
     return topHasNoPjson(tree)

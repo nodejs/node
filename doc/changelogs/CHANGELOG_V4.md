@@ -1,4 +1,4 @@
-# Node.js v4 ChangeLog
+# Node.js 4 ChangeLog
 
 <table>
 <tr>
@@ -7,6 +7,9 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.8.4">4.8.4</a><br/>
+<a href="#4.8.3">4.8.3</a><br/>
+<a href="#4.8.2">4.8.2</a><br/>
 <a href="#4.8.1">4.8.1</a><br/>
 <a href="#4.8.0">4.8.0</a><br/>
 <a href="#4.7.3">4.7.3</a><br/>
@@ -46,6 +49,7 @@
 </table>
 
 * Other Versions
+  * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
@@ -55,9 +59,82 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 
-**Note:** Node.js v4 is covered by the
+*Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.8.4"></a>
+## 2017-07-11, Version 4.8.4 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+* **build**:
+  - Disable V8 snapshots - The hashseed embedded in the snapshot is currently the same for all runs of the binary. This opens node up to collision attacks which could result in a Denial of Service. We have temporarily disabled snapshots until a more robust solution is found (Ali Ijaz Sheikh)
+* **deps**:
+  - CVE-2017-1000381 - The c-ares function ares_parse_naptr_reply(), which is used for parsing NAPTR responses, could be triggered to read memory outside of the given input buffer if the passed in DNS response packet was crafted in a particular way. This patch checks that there is enough data for the required elements of an NAPTR record (2 int16, 3 bytes for string lengths) before processing a record. (David Drysdale)
+
+### Commits
+
+* [[`9d51bdc9d4`](https://github.com/nodejs/node/commit/9d51bdc9d4)] - **build**: disable V8 snapshots (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
+* [[`80fe2662e4`](https://github.com/nodejs/node/commit/80fe2662e4)] - **deps**: cherry-pick 9478908a49 from cares upstream (David Drysdale) [nodejs/node-private#88](https://github.com/nodejs/node-private/pull/88)
+* [[`d6969a717f`](https://github.com/nodejs/node/commit/d6969a717f)] - **http**: use Buffer.from to avoid Buffer(num) call (Сковорода Никита Андреевич) [nodejs/node-private#83](https://github.com/nodejs/node-private/pull/83)
+* [[`58a8f150e5`](https://github.com/nodejs/node/commit/58a8f150e5)] - **test**: verify hash seed uniqueness (Ali Ijaz Sheikh) [nodejs/node-private#84](https://github.com/nodejs/node-private/pull/84)
+
+
+<a id="4.8.3"></a>
+## 2017-05-02, Version 4.8.3 'Argon' (Maintenance), @MylesBorins
+
+### Notable Changes
+
+* **module**:
+  - The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* **src**:
+  - fix base64 decoding in rare edgecase (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
+* **tls**:
+  - fix rare segmentation faults when using TLS
+    * (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+    * (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+    * (jBarz) [#11776](https://github.com/nodejs/node/pull/11776)
+
+### Commits
+
+* [[`44260806a6`](https://github.com/nodejs/node/commit/44260806a6)] - Partial revert "tls: keep track of stream that is closed" (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+* [[`ab3fdf531f`](https://github.com/nodejs/node/commit/ab3fdf531f)] - **deps**: cherry-pick ca0f9573 from V8 upstream (Ali Ijaz Sheikh) [#11940](https://github.com/nodejs/node/pull/11940)
+* [[`07b92a3c0b`](https://github.com/nodejs/node/commit/07b92a3c0b)] - **doc**: add supported platforms list for v4.x (Michael Dawson) [#12091](https://github.com/nodejs/node/pull/12091)
+* [[`ba91c41478`](https://github.com/nodejs/node/commit/ba91c41478)] - **module**: fix loading from global folders on Windows (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`b5b78b12b8`](https://github.com/nodejs/node/commit/b5b78b12b8)] - **src**: add fcntl.h include to node.cc (Bartosz Sosnowski) [#12540](https://github.com/nodejs/node/pull/12540)
+* [[`eb393f9ae1`](https://github.com/nodejs/node/commit/eb393f9ae1)] - **src**: fix base64 decoding (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
+* [[`8ed18a1429`](https://github.com/nodejs/node/commit/8ed18a1429)] - **src**: ensure that fd 0-2 are valid on windows (Bartosz Sosnowski) [#11863](https://github.com/nodejs/node/pull/11863)
+* [[`ff1d61c11b`](https://github.com/nodejs/node/commit/ff1d61c11b)] - **stream_base,tls_wrap**: notify on destruct (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+* [[`6040efd7dc`](https://github.com/nodejs/node/commit/6040efd7dc)] - **test**: fix flaky test-tls-wrap-timeout (Rich Trott) [#7857](https://github.com/nodejs/node/pull/7857)
+* [[`7a1920dc84`](https://github.com/nodejs/node/commit/7a1920dc84)] - **test**: add hasCrypto check to tls-socket-close (Daniel Bevenius) [#11911](https://github.com/nodejs/node/pull/11911)
+* [[`1dc6b38dcf`](https://github.com/nodejs/node/commit/1dc6b38dcf)] - **test**: add test for loading from global folders (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`54f5258582`](https://github.com/nodejs/node/commit/54f5258582)] - **tls**: fix segfault on destroy after partial read (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+* [[`99749dccfe`](https://github.com/nodejs/node/commit/99749dccfe)] - **tls**: keep track of stream that is closed (jBarz) [#11776](https://github.com/nodejs/node/pull/11776)
+* [[`6d3aaa72a8`](https://github.com/nodejs/node/commit/6d3aaa72a8)] - **tls**: TLSSocket emits 'error' on handshake failure (Mariusz 'koder' Chwalba) [#8805](https://github.com/nodejs/node/pull/8805)
+
+<a id="4.8.2"></a>
+## 2017-04-04, Version 4.8.2 'Argon' (Maintenance), @MylesBorins
+
+This is a maintenance release to fix a memory leak that was introduced in 4.8.1.
+
+It also includes an upgrade to zlib 1.2.11 to fix a [number of low severity CVEs](http://seclists.org/oss-sec/2016/q4/602)
+that were present in zlib 1.2.8.
+
+### Notable Changes
+
+* **crypto**:
+  - fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* **deps**:
+  - upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+
+### Commits
+
+* [[`9d7fba4de2`](https://github.com/nodejs/node/commit/9d7fba4de2)] - **crypto**: fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* [[`253980ff38`](https://github.com/nodejs/node/commit/253980ff38)] - **deps**: fix CLEAR_HASH macro to be usable as a single statement (Sam Roberts) [#11616](https://github.com/nodejs/node/pull/11616)
+* [[`2e52a2699b`](https://github.com/nodejs/node/commit/2e52a2699b)] - **deps**: upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
 
 <a id="4.8.1"></a>
 ## 2017-03-21, Version 4.8.1 'Argon' (LTS), @MylesBorins
@@ -628,7 +705,7 @@ Notable SEMVER-PATCH changes include:
 
 * **build**:
   - introduce the configure --shared option for embedders (sxa555) [#6994](https://github.com/nodejs/node/pull/6994)
-* **gtest**: the test reporter now outputs tap comments as yamlish (Johan Bergström) [#9262](https://github.com/nodejs/node/pull/9262)  
+* **gtest**: the test reporter now outputs tap comments as yamlish (Johan Bergström) [#9262](https://github.com/nodejs/node/pull/9262)
 * **src**: node no longer aborts when c-ares initialization fails (Ben Noordhuis) [#8710](https://github.com/nodejs/node/pull/8710)
 * **tls**: fix memory leak when writing data to TLSWrap instance during handshake (Fedor Indutny) [#9586](https://github.com/nodejs/node/pull/9586)
 

@@ -21,7 +21,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -54,14 +54,14 @@ const server = net.createServer(function(socket) {
   });
 
   for (let i = 0; i < N; ++i) {
-    socket.write(buf, common.noop);
+    socket.write(buf, () => {});
   }
   socket.end();
 
 }).listen(0, function() {
   const conn = net.connect(this.address().port);
   conn.on('data', function(buf) {
-    conn.pause();
+    assert.strictEqual(conn, conn.pause());
     setTimeout(function() {
       conn.destroy();
     }, 20);

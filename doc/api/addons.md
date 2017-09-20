@@ -1,6 +1,8 @@
-# C/C++ Addons
+# C++ Addons
 
-Node.js Addons are dynamically-linked shared objects, written in C or C++, that
+<!--introduced_in=v0.10.0-->
+
+Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
 just as if they were an ordinary Node.js module. They are used primarily to
 provide an interface between JavaScript running in Node.js and C/C++ libraries.
@@ -26,7 +28,7 @@ involving knowledge of several components and APIs :
    off-loading work via libuv to non-blocking system operations, worker threads
    or a custom use of libuv's threads.
 
- - Internal Node.js libraries. Node.js itself exports a number of C/C++ APIs
+ - Internal Node.js libraries. Node.js itself exports a number of C++ APIs
    that Addons can use &mdash; the most important of which is the
    `node::ObjectWrap` class.
 
@@ -37,7 +39,7 @@ involving knowledge of several components and APIs :
    See [Linking to Node.js' own dependencies][] for additional information.
 
 All of the following examples are available for [download][] and may
-be used as a starting-point for your own Addon.
+be used as the starting-point for an Addon.
 
 ## Hello world
 
@@ -72,7 +74,7 @@ void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "hello", Method);
 }
 
-NODE_MODULE(addon, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)
 
 }  // namespace demo
 ```
@@ -82,7 +84,7 @@ the pattern:
 
 ```cpp
 void Initialize(Local<Object> exports);
-NODE_MODULE(module_name, Initialize)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 ```
 
 There is no semi-colon after `NODE_MODULE` as it's not a function (see
@@ -98,7 +100,7 @@ Addon module name is `addon`.
 
 Once the source code has been written, it must be compiled into the binary
 `addon.node` file. To do so, create a file called `binding.gyp` in the
-top-level of the project describing the build configuration of your module
+top-level of the project describing the build configuration of the module
 using a JSON-like format. This file is used by [node-gyp][] -- a tool written
 specifically to compile Node.js Addons.
 
@@ -113,13 +115,13 @@ specifically to compile Node.js Addons.
 }
 ```
 
-*Note: A version of the `node-gyp` utility is bundled and distributed with
+*Note*: A version of the `node-gyp` utility is bundled and distributed with
 Node.js as part of `npm`. This version is not made directly available for
 developers to use and is intended only to support the ability to use the
 `npm install` command to compile and install Addons. Developers who wish to
 use `node-gyp` directly can install it using the command
 `npm install -g node-gyp`. See the `node-gyp` [installation instructions][] for
-more information, including platform-specific requirements.*
+more information, including platform-specific requirements.
 
 Once the `binding.gyp` file has been created, use `node-gyp configure` to
 generate the appropriate project build files for the current platform. This
@@ -212,6 +214,26 @@ The [Native Abstractions for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
+
+
+## N-API
+
+> Stability: 1 - Experimental
+
+N-API is an API for building native Addons. It is independent from
+the underlying JavaScript runtime (ex V8) and is maintained as part of
+Node.js itself. This API will be Application Binary Interface (ABI) stable
+across version of Node.js. It is intended to insulate Addons from
+changes in the underlying JavaScript engine and allow modules
+compiled for one version to run on later versions of Node.js without
+recompilation. Addons are built/packaged with the same approach/tools
+outlined in this document (node-gyp, etc.). The only difference is the
+set of APIs that are used by the native code. Instead of using the V8
+or [Native Abstractions for Node.js][] APIs, the functions available
+in the N-API are used.
+
+The functions available and how to use them are documented in the
+section titled [C/C++ Addons - N-API](n-api.html).
 
 ## Addon examples
 
@@ -308,7 +330,7 @@ void Init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "add", Add);
 }
 
-NODE_MODULE(addon, Init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Init)
 
 }  // namespace demo
 ```
@@ -356,7 +378,7 @@ void Init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", RunCallback);
 }
 
-NODE_MODULE(addon, Init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Init)
 
 }  // namespace demo
 ```
@@ -412,7 +434,7 @@ void Init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", CreateObject);
 }
 
-NODE_MODULE(addon, Init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Init)
 
 }  // namespace demo
 ```
@@ -471,7 +493,7 @@ void Init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", CreateFunction);
 }
 
-NODE_MODULE(addon, Init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Init)
 
 }  // namespace demo
 ```
@@ -507,7 +529,7 @@ void InitAll(Local<Object> exports) {
   MyObject::Init(exports);
 }
 
-NODE_MODULE(addon, InitAll)
+NODE_MODULE(NODE_GYP_MODULE_NAME, InitAll)
 
 }  // namespace demo
 ```
@@ -691,7 +713,7 @@ void InitAll(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", CreateObject);
 }
 
-NODE_MODULE(addon, InitAll)
+NODE_MODULE(NODE_GYP_MODULE_NAME, InitAll)
 
 }  // namespace demo
 ```
@@ -904,7 +926,7 @@ void InitAll(Local<Object> exports) {
   NODE_SET_METHOD(exports, "add", Add);
 }
 
-NODE_MODULE(addon, InitAll)
+NODE_MODULE(NODE_GYP_MODULE_NAME, InitAll)
 
 }  // namespace demo
 ```
@@ -1053,7 +1075,6 @@ The following `addon.cc` implements AtExit:
 
 ```cpp
 // addon.cc
-#undef NDEBUG
 #include <assert.h>
 #include <stdlib.h>
 #include <node.h>
@@ -1090,13 +1111,13 @@ static void sanity_check(void*) {
 }
 
 void init(Local<Object> exports) {
-  AtExit(sanity_check);
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb2, cookie);
   AtExit(at_exit_cb1, exports->GetIsolate());
+  AtExit(sanity_check);
 }
 
-NODE_MODULE(addon, init);
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)
 
 }  // namespace demo
 ```
@@ -1105,17 +1126,17 @@ Test in JavaScript by running:
 
 ```js
 // test.js
-const addon = require('./build/Release/addon');
+require('./build/Release/addon');
 ```
 
+[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
+[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
-[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
-[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
-[require]: globals.html#globals_require
+[require]: modules.html#modules_require
 [v8-docs]: https://v8docs.nodesource.com/

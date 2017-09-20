@@ -29,9 +29,9 @@ function reqHandler(req, res) {
   if (req.url === '/setHostFalse5') {
     assert.strictEqual(req.headers.host, undefined);
   } else {
-    assert.strictEqual(req.headers.host, `localhost:${this.address().port}`,
-                       'Wrong host header for req[' + req.url + ']: ' +
-                 req.headers.host);
+    assert.strictEqual(
+      req.headers.host, `localhost:${this.address().port}`,
+      `Wrong host header for req[${req.url}]: ${req.headers.host}`);
   }
   res.writeHead(200, {});
   res.end('ok');
@@ -55,7 +55,7 @@ function testHttp() {
     assert.ifError(er);
     http.get({
       method: 'GET',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
@@ -63,7 +63,7 @@ function testHttp() {
 
     http.request({
       method: 'GET',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
@@ -71,7 +71,7 @@ function testHttp() {
 
     http.request({
       method: 'POST',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
@@ -79,7 +79,7 @@ function testHttp() {
 
     http.request({
       method: 'PUT',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
@@ -87,7 +87,7 @@ function testHttp() {
 
     http.request({
       method: 'DELETE',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false

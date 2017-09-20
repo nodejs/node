@@ -36,7 +36,7 @@ const tests = [
 ];
 
 function run(test) {
-  const env = test.env;
+  const env = Object.assign({}, process.env, test.env);
   const expected = test.expected;
   const opts = {
     terminal: true,
@@ -50,10 +50,10 @@ function run(test) {
     // The REPL registers 'module' and 'require' globals
     common.allowGlobals(repl.context.module, repl.context.require);
 
-    assert.strictEqual(expected.terminal, repl.terminal, 'Expected ' +
-                       inspect(expected) + ' with ' + inspect(env));
-    assert.strictEqual(expected.useColors, repl.useColors, 'Expected ' +
-                       inspect(expected) + ' with ' + inspect(env));
+    assert.strictEqual(expected.terminal, repl.terminal,
+                       `Expected ${inspect(expected)} with ${inspect(env)}`);
+    assert.strictEqual(expected.useColors, repl.useColors,
+                       `Expected ${inspect(expected)} with ${inspect(env)}`);
     repl.close();
   });
 }

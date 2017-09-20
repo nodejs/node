@@ -19,7 +19,7 @@ bugs.completion = function (opts, cb) {
 
 function bugs (args, cb) {
   var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', function (er, d) {
+  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
 
     var url = d.bugs && ((typeof d.bugs === 'string') ? d.bugs : d.bugs.url)

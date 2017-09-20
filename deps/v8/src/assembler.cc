@@ -55,6 +55,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -63,6 +64,7 @@
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
+#include "src/string-search.h"
 #include "src/wasm/wasm-external-refs.h"
 
 // Include native regexp-macro-assembler.
@@ -83,12 +85,14 @@
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_S390
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/regexp/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
 #endif  // V8_INTERPRETED_REGEXP
+
+#ifdef V8_INTL_SUPPORT
+#include "src/intl.h"
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -138,34 +142,35 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
-    : isolate_(isolate),
-      jit_cookie_(0),
+AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
+    : serializer_enabled_(isolate->serializer_enabled())
+#if V8_TARGET_ARCH_X64
+      ,
+      code_range_start_(
+          isolate->heap()->memory_allocator()->code_range()->start())
+#endif
+{
+}
+
+AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
+                             int buffer_size)
+    : isolate_data_(isolate_data),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
-      // We may use the assembler without an isolate.
-      serializer_enabled_(isolate && isolate->serializer_enabled()),
       constant_pool_available_(false) {
-  DCHECK_NOT_NULL(isolate);
-  if (FLAG_mask_constants_with_cookie) {
-    jit_cookie_ = isolate->random_number_generator()->NextInt();
-  }
   own_buffer_ = buffer == NULL;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
   DCHECK(buffer_size > 0);
   if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
-
   pc_ = buffer_;
 }
-
 
 AssemblerBase::~AssemblerBase() {
   if (own_buffer_) DeleteArray(buffer_);
 }
-
 
 void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
   if (size == 0) return;
@@ -178,10 +183,9 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
 #endif  // USE_SIMULATOR
 }
 
-
-void AssemblerBase::Print() {
+void AssemblerBase::Print(Isolate* isolate) {
   OFStream os(stdout);
-  v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);
+  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
 }
 
 
@@ -235,17 +239,6 @@ unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
-// Implementation of Label
-
-int Label::pos() const {
-  if (pos_ < 0) return -pos_ - 1;
-  if (pos_ > 0) return  pos_ - 1;
-  UNREACHABLE();
-  return 0;
-}
-
-
-// -----------------------------------------------------------------------------
 // Implementation of RelocInfoWriter and RelocIterator
 //
 // Relocation information is written backwards in memory, from high addresses
@@ -272,15 +265,11 @@ int Label::pos() const {
 //   01: code_target:          [6-bit pc delta] 01
 //
 //   10: short_data_record:    [6-bit pc delta] 10 followed by
-//                             [6-bit data delta] [2-bit data type tag]
+//                             [8-bit data delta]
 //
 //   11: long_record           [6 bit reloc mode] 11
 //                             followed by pc delta
 //                             followed by optional data depending on type.
-//
-//  1-bit data type tags, used in short_data_record and data_jump long_record:
-//   code_target_with_id: 0
-//   deopt_reason:        1
 //
 //  If a pc delta exceeds 6 bits, it is split into a remainder that fits into
 //  6 bits and a part that does not. The latter is encoded as a long record
@@ -297,8 +286,6 @@ int Label::pos() const {
 const int kTagBits = 2;
 const int kTagMask = (1 << kTagBits) - 1;
 const int kLongTagBits = 6;
-const int kShortDataTypeTagBits = 1;
-const int kShortDataBits = kBitsPerByte - kShortDataTypeTagBits;
 
 const int kEmbeddedObjectTag = 0;
 const int kCodeTargetTag = 1;
@@ -315,72 +302,62 @@ const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
-const int kCodeWithIdTag = 0;
-const int kDeoptReasonTag = 1;
-
 void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
+    Isolate* isolate, Address old_base, Address new_base,
     ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
-  if (IsWasmMemoryReference(rmode_)) {
-    Address updated_reference;
-    DCHECK_GE(wasm_memory_reference(), old_base);
-    updated_reference = new_base + (wasm_memory_reference() - old_base);
-    // The reference is not checked here but at runtime. Validity of references
-    // may change over time.
-    unchecked_update_wasm_memory_reference(updated_reference,
-                                           icache_flush_mode);
-  } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t current_size_reference = wasm_memory_size_reference();
-    uint32_t updated_size_reference =
-        new_size + (current_size_reference - old_size);
-    unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  } else {
-    UNREACHABLE();
-  }
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+  DCHECK(IsWasmMemoryReference(rmode_));
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  // The reference is not checked here but at runtime. Validity of references
+  // may change over time.
+  unchecked_update_wasm_memory_reference(isolate, updated_reference,
+                                         icache_flush_mode);
+}
+
+void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
+                                        uint32_t new_size,
+                                        ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  uint32_t current_size_reference = wasm_memory_size_reference();
+  uint32_t updated_size_reference =
+      new_size + (current_size_reference - old_size);
+  unchecked_update_wasm_size(isolate, updated_size_reference,
+                             icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_global_reference(
-    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, Address old_base, Address new_base,
+    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmGlobalReference(rmode_));
   Address updated_reference;
-  DCHECK(reinterpret_cast<uintptr_t>(old_base) <=
-         reinterpret_cast<uintptr_t>(wasm_global_reference()));
+  DCHECK_LE(old_base, wasm_global_reference());
   updated_reference = new_base + (wasm_global_reference() - old_base);
-  DCHECK(reinterpret_cast<uintptr_t>(new_base) <=
-         reinterpret_cast<uintptr_t>(updated_reference));
-  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
-  }
+  DCHECK_LE(new_base, updated_reference);
+  unchecked_update_wasm_memory_reference(isolate, updated_reference,
+                                         icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_function_table_size_reference(
-    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
   uint32_t current_size_reference = wasm_function_table_size_reference();
   uint32_t updated_size_reference =
       new_size + (current_size_reference - old_size);
-  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+  unchecked_update_wasm_size(isolate, updated_size_reference,
+                             icache_flush_mode);
 }
 
-void RelocInfo::set_target_address(Address target,
+void RelocInfo::set_target_address(Isolate* isolate, Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
+  Assembler::set_target_address_at(isolate, pc_, host_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 
@@ -410,9 +387,8 @@ void RelocInfoWriter::WriteShortTaggedPC(uint32_t pc_delta, int tag) {
   *--pos_ = pc_delta << kTagBits | tag;
 }
 
-
-void RelocInfoWriter::WriteShortTaggedData(intptr_t data_delta, int tag) {
-  *--pos_ = static_cast<byte>(data_delta << kShortDataTypeTagBits | tag);
+void RelocInfoWriter::WriteShortData(intptr_t data_delta) {
+  *--pos_ = static_cast<byte>(data_delta);
 }
 
 
@@ -464,31 +440,18 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteShortTaggedPC(pc_delta, kCodeTargetTag);
     DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
-  } else if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-    // Use signed delta-encoding for id.
-    DCHECK_EQ(static_cast<int>(rinfo->data()), rinfo->data());
-    int id_delta = static_cast<int>(rinfo->data()) - last_id_;
-    // Check if delta is small enough to fit in a tagged byte.
-    if (is_intn(id_delta, kShortDataBits)) {
-      WriteShortTaggedPC(pc_delta, kLocatableTag);
-      WriteShortTaggedData(id_delta, kCodeWithIdTag);
-    } else {
-      // Otherwise, use costly encoding.
-      WriteModeAndPC(pc_delta, rmode);
-      WriteIntData(id_delta);
-    }
-    last_id_ = static_cast<int>(rinfo->data());
   } else if (rmode == RelocInfo::DEOPT_REASON) {
-    DCHECK(rinfo->data() < (1 << kShortDataBits));
+    DCHECK(rinfo->data() < (1 << kBitsPerByte));
     WriteShortTaggedPC(pc_delta, kLocatableTag);
-    WriteShortTaggedData(rinfo->data(), kDeoptReasonTag);
+    WriteShortData(rinfo->data());
   } else {
     WriteModeAndPC(pc_delta, rmode);
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
-               RelocInfo::IsDeoptPosition(rmode)) {
+               RelocInfo::IsDeoptPosition(rmode) ||
+               RelocInfo::IsWasmProtectedLanding(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -518,16 +481,6 @@ inline void RelocIterator::ReadShortTaggedPC() {
 
 inline void RelocIterator::AdvanceReadPC() {
   rinfo_.pc_ += *--pos_;
-}
-
-
-void RelocIterator::AdvanceReadId() {
-  int x = 0;
-  for (int i = 0; i < kIntSize; i++) {
-    x |= static_cast<int>(*--pos_) << i * kBitsPerByte;
-  }
-  last_id_ += x;
-  rinfo_.data_ = last_id_;
 }
 
 
@@ -564,23 +517,9 @@ void RelocIterator::AdvanceReadLongPCJump() {
   rinfo_.pc_ += pc_jump << kSmallPCDeltaBits;
 }
 
-
-inline int RelocIterator::GetShortDataTypeTag() {
-  return *pos_ & ((1 << kShortDataTypeTagBits) - 1);
-}
-
-
-inline void RelocIterator::ReadShortTaggedId() {
-  int8_t signed_b = *pos_;
-  // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-  last_id_ += signed_b >> kShortDataTypeTagBits;
-  rinfo_.data_ = last_id_;
-}
-
-
-inline void RelocIterator::ReadShortTaggedData() {
+inline void RelocIterator::ReadShortData() {
   uint8_t unsigned_b = *pos_;
-  rinfo_.data_ = unsigned_b >> kShortDataTypeTagBits;
+  rinfo_.data_ = unsigned_b;
 }
 
 
@@ -602,18 +541,9 @@ void RelocIterator::next() {
     } else if (tag == kLocatableTag) {
       ReadShortTaggedPC();
       Advance();
-      int data_type_tag = GetShortDataTypeTag();
-      if (data_type_tag == kCodeWithIdTag) {
-        if (SetMode(RelocInfo::CODE_TARGET_WITH_ID)) {
-          ReadShortTaggedId();
-          return;
-        }
-      } else {
-        DCHECK(data_type_tag == kDeoptReasonTag);
-        if (SetMode(RelocInfo::DEOPT_REASON)) {
-          ReadShortTaggedData();
-          return;
-        }
+      if (SetMode(RelocInfo::DEOPT_REASON)) {
+        ReadShortData();
+        return;
       }
     } else {
       DCHECK(tag == kDefaultTag);
@@ -622,13 +552,7 @@ void RelocIterator::next() {
         AdvanceReadLongPCJump();
       } else {
         AdvanceReadPC();
-        if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-          if (SetMode(rmode)) {
-            AdvanceReadId();
-            return;
-          }
-          Advance(kIntSize);
-        } else if (RelocInfo::IsComment(rmode)) {
+        if (RelocInfo::IsComment(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadData();
             return;
@@ -637,7 +561,8 @@ void RelocIterator::next() {
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
-                   RelocInfo::IsDeoptPosition(rmode)) {
+                   RelocInfo::IsDeoptPosition(rmode) ||
+                   RelocInfo::IsWasmProtectedLanding(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -661,9 +586,7 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-
-RelocIterator::RelocIterator(Code* code, int mode_mask)
-    : rinfo_(code->map()->GetIsolate()) {
+RelocIterator::RelocIterator(Code* code, int mode_mask) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
@@ -672,7 +595,6 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
   end_ = code->relocation_start();
   done_ = false;
   mode_mask_ = mode_mask;
-  last_id_ = 0;
   byte* sequence = code->FindCodeAgeSequence();
   // We get the isolate from the map, because at serialization time
   // the code pointer has been cloned and isn't really in heap space.
@@ -686,9 +608,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
   next();
 }
 
-
-RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
-    : rinfo_(desc.origin->isolate()) {
+RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   rinfo_.pc_ = desc.buffer;
   rinfo_.data_ = 0;
   // Relocation info is read backwards.
@@ -696,7 +616,6 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
   end_ = pos_ - desc.reloc_size;
   done_ = false;
   mode_mask_ = mode_mask;
-  last_id_ = 0;
   code_age_sequence_ = NULL;
   if (mode_mask_ == 0) pos_ = end_;
   next();
@@ -711,7 +630,7 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 }
 
 #ifdef DEBUG
-bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
+bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
   // deoptimization entries, they would require relocation after code
   // generation.
@@ -734,12 +653,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "no reloc 64";
     case EMBEDDED_OBJECT:
       return "embedded object";
-    case DEBUGGER_STATEMENT:
-      return "debugger statement";
     case CODE_TARGET:
       return "code target";
-    case CODE_TARGET_WITH_ID:
-      return "code target with id";
     case CELL:
       return "property cell";
     case RUNTIME_ENTRY:
@@ -782,10 +697,11 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm global value reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
       return "wasm function table size reference";
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+      return "wasm protected instruction landing";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
-      return "number_of_modes";
   }
   return "unknown relocation type";
 }
@@ -812,9 +728,6 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     os << " (" << Code::Kind2String(code->kind()) << ")  ("
        << static_cast<const void*>(target_address()) << ")";
-    if (rmode_ == CODE_TARGET_WITH_ID) {
-      os << " (id=" << static_cast<int>(data_) << ")";
-    }
   } else if (IsRuntimeEntry(rmode_) &&
              isolate->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
@@ -841,8 +754,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CELL:
       Object::VerifyPointer(target_cell());
       break;
-    case DEBUGGER_STATEMENT:
-    case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
@@ -880,6 +791,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+    // TODO(eholk): make sure the protected instruction is in range.
     case NONE32:
     case NONE64:
       break;
@@ -907,7 +820,6 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
       return ExternalReference::BUILTIN_CALL_TRIPLE;
   }
   UNREACHABLE();
-  return ExternalReference::BUILTIN_CALL;
 }
 
 
@@ -963,10 +875,8 @@ ExternalReference ExternalReference::interpreter_dispatch_counters(
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
 
-
-ExternalReference::ExternalReference(Isolate::AddressId id, Isolate* isolate)
-  : address_(isolate->get_address_from_id(id)) {}
-
+ExternalReference::ExternalReference(IsolateAddressId id, Isolate* isolate)
+    : address_(isolate->get_address_from_id(id)) {}
 
 ExternalReference::ExternalReference(const SCTableReference& table_ref)
   : address_(table_ref.address()) {}
@@ -1027,6 +937,13 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
   return ExternalReference(isolate->date_cache()->stamp_address());
 }
 
+void ExternalReference::set_redirector(
+    Isolate* isolate, ExternalReferenceRedirector* redirector) {
+  // We can't stack them.
+  DCHECK(isolate->external_reference_redirector() == NULL);
+  isolate->set_external_reference_redirector(
+      reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
+}
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
   return ExternalReference(isolate->stress_deopt_count_address());
@@ -1242,6 +1159,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit(
   return ExternalReference(isolate->regexp_stack()->limit_address());
 }
 
+ExternalReference ExternalReference::address_of_regexp_dotall_flag(
+    Isolate* isolate) {
+  return ExternalReference(&FLAG_harmony_regexp_dotall);
+}
+
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
@@ -1400,8 +1322,6 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
 #elif V8_TARGET_ARCH_S390
   function = FUNCTION_ADDR(RegExpMacroAssemblerS390::CheckStackGuardState);
-#elif V8_TARGET_ARCH_X87
-  function = FUNCTION_ADDR(RegExpMacroAssemblerX87::CheckStackGuardState);
 #else
   UNREACHABLE();
 #endif
@@ -1554,6 +1474,85 @@ ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
 }
 
+void* libc_memcpy(void* dest, const void* src, size_t n) {
+  return memcpy(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
+}
+
+void* libc_memmove(void* dest, const void* src, size_t n) {
+  return memmove(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memmove_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memmove)));
+}
+
+void* libc_memset(void* dest, int byte, size_t n) {
+  DCHECK_EQ(static_cast<char>(byte), byte);
+  return memset(dest, byte, n);
+}
+
+ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
+}
+
+template <typename SubjectChar, typename PatternChar>
+ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
+  auto f = SearchStringRaw<SubjectChar, PatternChar>;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference ExternalReference::orderedhashmap_gethash_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashMap::GetHash;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+template <typename CollectionType, int entrysize>
+ExternalReference ExternalReference::orderedhashtable_has_raw(
+    Isolate* isolate) {
+  auto f = OrderedHashTable<CollectionType, entrysize>::HasKey;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference ExternalReference::try_internalize_string_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
+}
+
+#ifdef V8_INTL_SUPPORT
+ExternalReference ExternalReference::intl_convert_one_byte_to_lower(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(ConvertOneByteToLower)));
+}
+
+ExternalReference ExternalReference::intl_to_latin1_lower_table(
+    Isolate* isolate) {
+  uint8_t* ptr = const_cast<uint8_t*>(ToLatin1LowerTable());
+  return ExternalReference(reinterpret_cast<Address>(ptr));
+}
+#endif  // V8_INTL_SUPPORT
+
+// Explicit instantiations for all combinations of 1- and 2-byte strings.
+template ExternalReference
+ExternalReference::search_string_raw<const uint8_t, const uint8_t>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uint8_t, const uc16>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uc16, const uint8_t>(Isolate*);
+template ExternalReference
+ExternalReference::search_string_raw<const uc16, const uc16>(Isolate*);
+
+template ExternalReference
+ExternalReference::orderedhashtable_has_raw<OrderedHashMap, 2>(Isolate*);
+template ExternalReference
+ExternalReference::orderedhashtable_has_raw<OrderedHashSet, 1>(Isolate*);
+
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +
                            MemoryChunk::kFlagsOffset);
@@ -1570,13 +1569,9 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
-ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
+ExternalReference ExternalReference::promise_hook_or_debug_is_active_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
-}
-
-ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
-  return ExternalReference(isolate->promise_hook_address());
+  return ExternalReference(isolate->promise_hook_or_debug_is_active_address());
 }
 
 ExternalReference ExternalReference::debug_is_active_address(
@@ -1588,12 +1583,6 @@ ExternalReference ExternalReference::debug_hook_on_function_call_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->hook_on_function_call_address());
 }
-
-ExternalReference ExternalReference::debug_after_break_target_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->after_break_target_address());
-}
-
 
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
@@ -1673,6 +1662,11 @@ ExternalReference ExternalReference::debug_last_step_action_address(
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->suspended_generator_address());
+}
+
+ExternalReference ExternalReference::debug_restart_fp_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
@@ -1905,18 +1899,27 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
   return !empty ? emitted_label_.pos() : 0;
 }
 
+HeapObjectRequest::HeapObjectRequest(double heap_number, int offset)
+    : kind_(kHeapNumber), offset_(offset) {
+  value_.heap_number = heap_number;
+  DCHECK(!IsSmiDouble(value_.heap_number));
+}
+
+HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
+    : kind_(kCodeStub), offset_(offset) {
+  value_.code_stub = code_stub;
+  DCHECK_NOT_NULL(value_.code_stub);
+}
 
 // Platform specific but identical code for all the platforms.
 
 void Assembler::RecordDeoptReason(DeoptimizeReason reason,
                                   SourcePosition position, int id) {
-  if (FLAG_trace_deopt || isolate()->is_profiling()) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
-    RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
-    RecordRelocInfo(RelocInfo::DEOPT_ID, id);
-  }
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
+  RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
+  RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
+  RecordRelocInfo(RelocInfo::DEOPT_ID, id);
 }
 
 
@@ -1936,10 +1939,16 @@ void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode) {
 
 
 void Assembler::DataAlign(int m) {
-  DCHECK(m >= 2 && base::bits::IsPowerOfTwo32(m));
+  DCHECK(m >= 2 && base::bits::IsPowerOfTwo(m));
   while ((pc_offset() & (m - 1)) != 0) {
     db(0);
   }
 }
+
+void Assembler::RequestHeapObject(HeapObjectRequest request) {
+  request.set_offset(pc_offset());
+  heap_object_requests_.push_front(request);
+}
+
 }  // namespace internal
 }  // namespace v8

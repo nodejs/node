@@ -14,10 +14,45 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Result<const WasmModule*> ModuleResult;
-typedef Result<WasmFunction*> FunctionResult;
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x01;
+const uint8_t kWasmFunctionTypeForm = 0x60;
+const uint8_t kWasmAnyFunctionTypeForm = 0x70;
+const uint8_t kResizableMaximumFlag = 1;
+
+enum SectionCode : int8_t {
+  kUnknownSectionCode = 0,     // code for unknown sections
+  kTypeSectionCode = 1,        // Function signature declarations
+  kImportSectionCode = 2,      // Import declarations
+  kFunctionSectionCode = 3,    // Function declarations
+  kTableSectionCode = 4,       // Indirect function table and other tables
+  kMemorySectionCode = 5,      // Memory attributes
+  kGlobalSectionCode = 6,      // Global declarations
+  kExportSectionCode = 7,      // Exports
+  kStartSectionCode = 8,       // Start function declaration
+  kElementSectionCode = 9,     // Elements section
+  kCodeSectionCode = 10,       // Function code
+  kDataSectionCode = 11,       // Data segments
+  kNameSectionCode = 12,       // Name section (encoded as a string)
+  kExceptionSectionCode = 13,  // Exception section (encoded as a string)
+
+  // Helper values
+  kFirstSectionInModule = kTypeSectionCode,
+};
+
+enum NameSectionType : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
+
+inline bool IsValidSectionCode(uint8_t byte) {
+  return kTypeSectionCode <= byte && byte <= kDataSectionCode;
+}
+
+const char* SectionName(SectionCode code);
+
+typedef Result<std::unique_ptr<WasmModule>> ModuleResult;
+typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
 typedef Result<FunctionOffsets> FunctionOffsetsResult;
+
 struct AsmJsOffsetEntry {
   int byte_offset;
   int source_position_call;
@@ -26,12 +61,35 @@ struct AsmJsOffsetEntry {
 typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
 typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
 
-// Decodes the bytes of a WASM module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate,
-                                                const byte* module_start,
-                                                const byte* module_end,
-                                                bool verify_functions,
-                                                ModuleOrigin origin);
+struct LocalName {
+  int local_index;
+  WireBytesRef name;
+  LocalName(int local_index, WireBytesRef name)
+      : local_index(local_index), name(name) {}
+};
+struct LocalNamesPerFunction {
+  int function_index;
+  int max_local_index = -1;
+  std::vector<LocalName> names;
+  explicit LocalNamesPerFunction(int function_index)
+      : function_index(function_index) {}
+};
+struct LocalNames {
+  int max_function_index = -1;
+  std::vector<LocalNamesPerFunction> names;
+};
+
+// Decodes the bytes of a wasm module between {module_start} and {module_end}.
+V8_EXPORT_PRIVATE ModuleResult SyncDecodeWasmModule(Isolate* isolate,
+                                                    const byte* module_start,
+                                                    const byte* module_end,
+                                                    bool verify_functions,
+                                                    ModuleOrigin origin);
+
+V8_EXPORT_PRIVATE ModuleResult AsyncDecodeWasmModule(
+    Isolate* isolate, const byte* module_start, const byte* module_end,
+    bool verify_functions, ModuleOrigin origin,
+    const std::shared_ptr<Counters> async_counters);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -39,30 +97,24 @@ V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
                                                              const byte* start,
                                                              const byte* end);
 
-// Decodes the bytes of a WASM function between
+// Decodes the bytes of a wasm function between
 // {function_start} and {function_end}.
-V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
-                                                    Zone* zone,
-                                                    ModuleBytesEnv* env,
-                                                    const byte* function_start,
-                                                    const byte* function_end);
+V8_EXPORT_PRIVATE FunctionResult
+SyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+                       const byte* function_start, const byte* function_end);
 
-// Extracts the function offset table from the wasm module bytes.
-// Returns a vector with <offset, length> entries, or failure if the wasm bytes
-// are detected as invalid. Note that this validation is not complete.
-FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
-                                                const byte* module_end);
+V8_EXPORT_PRIVATE FunctionResult
+AsyncDecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleBytesEnv* env,
+                        const byte* function_start, const byte* function_end,
+                        const std::shared_ptr<Counters> async_counters);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);
 
 struct CustomSectionOffset {
-  uint32_t section_start;
-  uint32_t name_offset;
-  uint32_t name_length;
-  uint32_t payload_offset;
-  uint32_t payload_length;
-  uint32_t section_length;
+  WireBytesRef section;
+  WireBytesRef name;
+  WireBytesRef payload;
 };
 
 V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
@@ -75,6 +127,13 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 // is not complete.
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
                                       const byte* module_end);
+
+// Decode the local names assignment from the name section.
+// Stores the result in the given {LocalNames} structure. The result will be
+// empty if no name section is present. On encountering an error in the name
+// section, returns all information decoded up to the first error.
+void DecodeLocalNames(const byte* module_start, const byte* module_end,
+                      LocalNames* result);
 
 }  // namespace wasm
 }  // namespace internal

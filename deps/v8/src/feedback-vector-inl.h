@@ -8,20 +8,29 @@
 #include "src/factory.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename Derived>
-FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
-    FeedbackVectorSlotKind kind) {
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
   int slot = This()->slots();
   int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
   This()->append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
-    This()->append(FeedbackVectorSlotKind::INVALID);
+    This()->append(FeedbackSlotKind::kInvalid);
   }
-  return FeedbackVectorSlot(slot);
+  return FeedbackSlot(slot);
+}
+
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
+  DCHECK(FLAG_type_profile);
+  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
+  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
+           FeedbackVector::GetIndex(slot));
+  return slot;
 }
 
 // static
@@ -38,7 +47,7 @@ bool FeedbackMetadata::is_empty() const {
 int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
   DCHECK(length() > kReservedIndexCount);
-  return Smi::cast(get(kSlotsCountIndex))->value();
+  return Smi::ToInt(get(kSlotsCountIndex));
 }
 
 // static
@@ -47,43 +56,37 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
   return reinterpret_cast<FeedbackVector*>(obj);
 }
 
-
-int FeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
-  DCHECK_NE(FeedbackVectorSlotKind::INVALID, kind);
-  DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
-  if (kind == FeedbackVectorSlotKind::GENERAL ||
-      kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC ||
-      kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
-      kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
-    return 1;
-  }
-
-  return 2;
-}
-
-bool FeedbackMetadata::SlotRequiresParameter(FeedbackVectorSlotKind kind) {
+int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
-    case FeedbackVectorSlotKind::CREATE_CLOSURE:
-      return true;
+    case FeedbackSlotKind::kGeneral:
+    case FeedbackSlotKind::kCompareOp:
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kLiteral:
+    case FeedbackSlotKind::kCreateClosure:
+    case FeedbackSlotKind::kTypeProfile:
+      return 1;
 
-    case FeedbackVectorSlotKind::CALL_IC:
-    case FeedbackVectorSlotKind::LOAD_IC:
-    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-    case FeedbackVectorSlotKind::STORE_IC:
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
-    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
-    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
-    case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
-    case FeedbackVectorSlotKind::GENERAL:
-    case FeedbackVectorSlotKind::INVALID:
-      return false;
+    case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kLoadKeyed:
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict:
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+      return 2;
 
-    case FeedbackVectorSlotKind::KINDS_NUMBER:
+    case FeedbackSlotKind::kInvalid:
+    case FeedbackSlotKind::kKindsNumber:
+      UNREACHABLE();
       break;
   }
-  UNREACHABLE();
-  return false;
+  return 1;
 }
 
 bool FeedbackVector::is_empty() const {
@@ -95,25 +98,59 @@ int FeedbackVector::slot_count() const {
 }
 
 FeedbackMetadata* FeedbackVector::metadata() const {
-  return FeedbackMetadata::cast(get(kMetadataIndex));
+  return shared_function_info()->feedback_metadata();
+}
+
+SharedFunctionInfo* FeedbackVector::shared_function_info() const {
+  return SharedFunctionInfo::cast(get(kSharedFunctionInfoIndex));
 }
 
 int FeedbackVector::invocation_count() const {
-  return Smi::cast(get(kInvocationCountIndex))->value();
+  return Smi::ToInt(get(kInvocationCountIndex));
+}
+
+void FeedbackVector::clear_invocation_count() {
+  set(kInvocationCountIndex, Smi::kZero);
+}
+
+Object* FeedbackVector::optimized_code_cell() const {
+  return get(kOptimizedCodeIndex);
+}
+
+Code* FeedbackVector::optimized_code() const {
+  Object* slot = optimized_code_cell();
+  if (slot->IsSmi()) return nullptr;
+  WeakCell* cell = WeakCell::cast(slot);
+  return cell->cleared() ? nullptr : Code::cast(cell->value());
+}
+
+OptimizationMarker FeedbackVector::optimization_marker() const {
+  Object* slot = optimized_code_cell();
+  if (!slot->IsSmi()) return OptimizationMarker::kNone;
+  Smi* value = Smi::cast(slot);
+  return static_cast<OptimizationMarker>(value->value());
+}
+
+bool FeedbackVector::has_optimized_code() const {
+  return optimized_code() != nullptr;
+}
+
+bool FeedbackVector::has_optimization_marker() const {
+  return optimization_marker() != OptimizationMarker::kNone;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
 // static
-FeedbackVectorSlot FeedbackVector::ToSlot(int index) {
+FeedbackSlot FeedbackVector::ToSlot(int index) {
   DCHECK_GE(index, kReservedIndexCount);
-  return FeedbackVectorSlot(index - kReservedIndexCount);
+  return FeedbackSlot(index - kReservedIndexCount);
 }
 
-Object* FeedbackVector::Get(FeedbackVectorSlot slot) const {
+Object* FeedbackVector::Get(FeedbackSlot slot) const {
   return get(GetIndex(slot));
 }
 
-void FeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
+void FeedbackVector::Set(FeedbackSlot slot, Object* value,
                          WriteBarrierMode mode) {
   set(GetIndex(slot), value, mode);
 }
@@ -126,8 +163,11 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
     case BinaryOperationFeedback::kSignedSmall:
       return BinaryOperationHint::kSignedSmall;
     case BinaryOperationFeedback::kNumber:
+      return BinaryOperationHint::kNumber;
     case BinaryOperationFeedback::kNumberOrOddball:
       return BinaryOperationHint::kNumberOrOddball;
+    case BinaryOperationFeedback::kNonEmptyString:
+      return BinaryOperationHint::kNonEmptyString;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kAny:
@@ -135,7 +175,6 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kAny;
   }
   UNREACHABLE();
-  return BinaryOperationHint::kNone;
 }
 
 // Helper function to transform the feedback to CompareOperationHint.
@@ -153,11 +192,14 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kInternalizedString;
     case CompareOperationFeedback::kString:
       return CompareOperationHint::kString;
+    case CompareOperationFeedback::kSymbol:
+      return CompareOperationHint::kSymbol;
+    case CompareOperationFeedback::kReceiver:
+      return CompareOperationHint::kReceiver;
     default:
       return CompareOperationHint::kAny;
   }
   UNREACHABLE();
-  return CompareOperationHint::kNone;
 }
 
 void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
@@ -170,61 +212,76 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
   int total = 0;
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
 
     Object* const obj = Get(slot);
     switch (kind) {
-      case FeedbackVectorSlotKind::CALL_IC:
-      case FeedbackVectorSlotKind::LOAD_IC:
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-      case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-      case FeedbackVectorSlotKind::STORE_IC:
-      case FeedbackVectorSlotKind::KEYED_STORE_IC:
-      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+      case FeedbackSlotKind::kCall:
+      case FeedbackSlotKind::kLoadProperty:
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+      case FeedbackSlotKind::kLoadKeyed:
+      case FeedbackSlotKind::kStoreNamedSloppy:
+      case FeedbackSlotKind::kStoreNamedStrict:
+      case FeedbackSlotKind::kStoreOwnNamed:
+      case FeedbackSlotKind::kStoreGlobalSloppy:
+      case FeedbackSlotKind::kStoreGlobalStrict:
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+      case FeedbackSlotKind::kTypeProfile: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
           with++;
         } else if (obj == megamorphic_sentinel) {
           gen++;
+          if (code_is_interpreted) with++;
         }
         total++;
         break;
       }
-      case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
-      case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+      case FeedbackSlotKind::kBinaryOp:
         // If we are not running interpreted code, we need to ignore the special
         // IC slots for binaryop/compare used by the interpreter.
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
         // from service.
         if (code_is_interpreted) {
-          int const feedback = Smi::cast(obj)->value();
-          if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
-            CompareOperationHint hint =
-                CompareOperationHintFromFeedback(feedback);
-            if (hint == CompareOperationHint::kAny) {
-              gen++;
-            } else if (hint != CompareOperationHint::kNone) {
-              with++;
-            }
-          } else {
-            DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC, kind);
-            BinaryOperationHint hint =
-                BinaryOperationHintFromFeedback(feedback);
-            if (hint == BinaryOperationHint::kAny) {
-              gen++;
-            } else if (hint != BinaryOperationHint::kNone) {
-              with++;
-            }
+          int const feedback = Smi::ToInt(obj);
+          BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
+          if (hint == BinaryOperationHint::kAny) {
+            gen++;
+          }
+          if (hint != BinaryOperationHint::kNone) {
+            with++;
+          }
+          total++;
+        }
+        break;
+      case FeedbackSlotKind::kCompareOp: {
+        // If we are not running interpreted code, we need to ignore the special
+        // IC slots for binaryop/compare used by the interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code is retired
+        // from service.
+        if (code_is_interpreted) {
+          int const feedback = Smi::ToInt(obj);
+          CompareOperationHint hint =
+              CompareOperationHintFromFeedback(feedback);
+          if (hint == CompareOperationHint::kAny) {
+            gen++;
+          }
+          if (hint != CompareOperationHint::kNone) {
+            with++;
           }
           total++;
         }
         break;
       }
-      case FeedbackVectorSlotKind::CREATE_CLOSURE:
-      case FeedbackVectorSlotKind::GENERAL:
+      case FeedbackSlotKind::kCreateClosure:
+      case FeedbackSlotKind::kGeneral:
+      case FeedbackSlotKind::kLiteral:
         break;
-      case FeedbackVectorSlotKind::INVALID:
-      case FeedbackVectorSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
         break;
     }
@@ -255,11 +312,11 @@ bool FeedbackMetadataIterator::HasNext() const {
   return next_slot_.ToInt() < metadata()->slot_count();
 }
 
-FeedbackVectorSlot FeedbackMetadataIterator::Next() {
+FeedbackSlot FeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
   cur_slot_ = next_slot_;
   slot_kind_ = metadata()->GetKind(cur_slot_);
-  next_slot_ = FeedbackVectorSlot(next_slot_.ToInt() + entry_size());
+  next_slot_ = FeedbackSlot(next_slot_.ToInt() + entry_size());
   return cur_slot_;
 }
 
@@ -271,7 +328,7 @@ Object* FeedbackNexus::GetFeedback() const { return vector()->Get(slot()); }
 
 Object* FeedbackNexus::GetFeedbackExtra() const {
 #ifdef DEBUG
-  FeedbackVectorSlotKind kind = vector()->GetKind(slot());
+  FeedbackSlotKind kind = vector()->GetKind(slot());
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
   int extra_index = vector()->GetIndex(slot()) + 1;
@@ -285,7 +342,7 @@ void FeedbackNexus::SetFeedback(Object* feedback, WriteBarrierMode mode) {
 void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
                                      WriteBarrierMode mode) {
 #ifdef DEBUG
-  FeedbackVectorSlotKind kind = vector()->GetKind(slot());
+  FeedbackSlotKind kind = vector()->GetKind(slot());
   DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
   int index = vector()->GetIndex(slot()) + 1;

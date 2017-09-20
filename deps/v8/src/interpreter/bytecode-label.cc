@@ -13,7 +13,7 @@ namespace interpreter {
 
 BytecodeLabel* BytecodeLabels::New() {
   DCHECK(!is_bound());
-  labels_.push_back(BytecodeLabel());
+  labels_.emplace_back(BytecodeLabel());
   return &labels_.back();
 }
 

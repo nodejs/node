@@ -5,6 +5,7 @@
 #ifndef V8_REGISTER_ALLOCATOR_H_
 #define V8_REGISTER_ALLOCATOR_H_
 
+#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/compiler/instruction.h"
 #include "src/globals.h"
@@ -159,8 +160,8 @@ class LifetimePosition final {
   static const int kHalfStep = 2;
   static const int kStep = 2 * kHalfStep;
 
-  // Code relies on kStep and kHalfStep being a power of two.
-  STATIC_ASSERT(IS_POWER_OF_TWO(kHalfStep));
+  static_assert(base::bits::IsPowerOfTwo(kHalfStep),
+                "Code relies on kStep and kHalfStep being a power of two");
 
   explicit LifetimePosition(int value) : value_(value) {}
 

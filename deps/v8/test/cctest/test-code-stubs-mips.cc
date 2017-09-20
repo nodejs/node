@@ -75,7 +75,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   }
   // Push the double argument.
   __ Subu(sp, sp, Operand(kDoubleSize));
-  __ sdc1(f12, MemOperand(sp));
+  __ Sdc1(f12, MemOperand(sp));
   __ Move(source_reg, sp);
 
   // Save registers make sure they don't get clobbered.
@@ -94,11 +94,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Re-push the double argument.
   __ Subu(sp, sp, Operand(kDoubleSize));
-  __ sdc1(f12, MemOperand(sp));
+  __ Sdc1(f12, MemOperand(sp));
 
   // Call through to the actual stub
   if (inline_fastpath) {
-    __ ldc1(f12, MemOperand(source_reg));
+    __ Ldc1(f12, MemOperand(source_reg));
     __ TryInlineTruncateDoubleToI(destination_reg, f12, &done);
     if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
       // Restore clobbered source_reg.
@@ -142,7 +142,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));

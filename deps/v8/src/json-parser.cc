@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/token.h"
 #include "src/property-descriptor.h"
+#include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
 
@@ -79,6 +80,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
 
 bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<String> name) {
+  STACK_CHECK(isolate_, false);
+
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result, InternalizeJsonProperty(holder, name), false);
@@ -399,8 +402,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                    ->NowContains(value)) {
             Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeField(target, descriptor, expected_representation,
-                                 value_type);
+            Map::GeneralizeField(target, descriptor, details.constness(),
+                                 expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
@@ -478,14 +481,54 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-
+  DescriptorArray* descriptors = json_object->map()->instance_descriptors();
   int length = properties->length();
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
     // Initializing store.
-    json_object->WriteToField(i, *value);
+    json_object->WriteToField(i, descriptors->GetDetails(i), *value);
   }
 }
+
+class ElementKindLattice {
+ private:
+  enum {
+    SMI_ELEMENTS,
+    NUMBER_ELEMENTS,
+    OBJECT_ELEMENTS,
+  };
+
+ public:
+  ElementKindLattice() : value_(SMI_ELEMENTS) {}
+
+  void Update(Handle<Object> o) {
+    if (o->IsSmi()) {
+      return;
+    } else if (o->IsHeapNumber()) {
+      if (value_ < NUMBER_ELEMENTS) value_ = NUMBER_ELEMENTS;
+    } else {
+      DCHECK(!o->IsNumber());
+      value_ = OBJECT_ELEMENTS;
+    }
+  }
+
+  ElementsKind GetElementsKind() const {
+    switch (value_) {
+      case SMI_ELEMENTS:
+        return PACKED_SMI_ELEMENTS;
+      case NUMBER_ELEMENTS:
+        return PACKED_DOUBLE_ELEMENTS;
+      case OBJECT_ELEMENTS:
+        return PACKED_ELEMENTS;
+      default:
+        UNREACHABLE();
+        return PACKED_ELEMENTS;
+    }
+  }
+
+ private:
+  int value_;
+};
 
 // Parse a JSON array. Position must be right at '['.
 template <bool seq_one_byte>
@@ -494,26 +537,49 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
   ZoneList<Handle<Object> > elements(4, zone());
   DCHECK_EQ(c0_, '[');
 
+  ElementKindLattice lattice;
+
   AdvanceSkipWhitespace();
   if (c0_ != ']') {
     do {
       Handle<Object> element = ParseJsonValue();
       if (element.is_null()) return ReportUnexpectedCharacter();
       elements.Add(element, zone());
+      lattice.Update(element);
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != ']') {
       return ReportUnexpectedCharacter();
     }
   }
   AdvanceSkipWhitespace();
+
   // Allocate a fixed array with all the elements.
-  Handle<FixedArray> fast_elements =
-      factory()->NewFixedArray(elements.length(), pretenure_);
-  for (int i = 0, n = elements.length(); i < n; i++) {
-    fast_elements->set(i, *elements[i]);
+
+  Handle<Object> json_array;
+  const ElementsKind kind = lattice.GetElementsKind();
+
+  switch (kind) {
+    case PACKED_ELEMENTS:
+    case PACKED_SMI_ELEMENTS: {
+      Handle<FixedArray> elems =
+          factory()->NewFixedArray(elements.length(), pretenure_);
+      for (int i = 0; i < elements.length(); i++) elems->set(i, *elements[i]);
+      json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
+      break;
+    }
+    case PACKED_DOUBLE_ELEMENTS: {
+      Handle<FixedDoubleArray> elems = Handle<FixedDoubleArray>::cast(
+          factory()->NewFixedDoubleArray(elements.length(), pretenure_));
+      for (int i = 0; i < elements.length(); i++) {
+        elems->set(i, elements[i]->Number());
+      }
+      json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
-  Handle<Object> json_array = factory()->NewJSArrayWithElements(
-      fast_elements, FAST_ELEMENTS, pretenure_);
+
   return scope.CloseAndEscape(json_array);
 }
 
@@ -720,6 +786,10 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     // Fast path for existing internalized strings.  If the the string being
     // parsed is not a known internalized string, contains backslashes or
     // unexpectedly reaches the end of string, return with an empty handle.
+
+    // We intentionally use local variables instead of fields, compute hash
+    // while we are iterating a string and manually inline StringTable lookup
+    // here.
     uint32_t running_hash = isolate()->heap()->HashSeed();
     int position = position_;
     uc32 c0 = c0_;
@@ -731,11 +801,19 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
         return SlowScanJsonString<SeqOneByteString, uint8_t>(source_, beg_pos,
                                                              position_);
       }
-      if (c0 < 0x20) return Handle<String>::null();
+      if (c0 < 0x20) {
+        c0_ = c0;
+        position_ = position;
+        return Handle<String>::null();
+      }
       running_hash = StringHasher::AddCharacterCore(running_hash,
                                                     static_cast<uint16_t>(c0));
       position++;
-      if (position >= source_length_) return Handle<String>::null();
+      if (position >= source_length_) {
+        c0_ = kEndOfString;
+        position_ = position;
+        return Handle<String>::null();
+      }
       c0 = seq_source_->SeqOneByteStringGet(position);
     } while (c0 != '"');
     int length = position - position_;

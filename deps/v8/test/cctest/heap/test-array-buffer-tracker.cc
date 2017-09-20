@@ -114,6 +114,9 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
+  if (FLAG_never_compact) return;
+  FLAG_concurrent_marking = false;
+  FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   LocalContext env;
@@ -132,7 +135,7 @@ TEST(ArrayBuffer_Compaction) {
   heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromAddress(buf1->address());
   CHECK(IsTracked(*buf1));
@@ -191,6 +194,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 
 TEST(ArrayBuffer_NonLivePromotion) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -227,6 +231,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 
 TEST(ArrayBuffer_LivePromotion) {
   if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -310,6 +315,12 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
 
+    // Ensure heap is in a clean state.
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
+
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
     heap::FillCurrentPage(heap->new_space());
@@ -319,6 +330,41 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
              Page::FromAddress(buf2->address()));
     heap::GcAndSweep(heap, OLD_SPACE);
   }
+}
+
+TEST(ArrayBuffer_RetainedSizeIncreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+    const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+    CHECK_EQ(kArraybufferSize, retained_after - retained_before);
+  }
+}
+
+TEST(ArrayBuffer_RetainedSizeDecreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+  CHECK_EQ(0, retained_after - retained_before);
 }
 
 }  // namespace internal

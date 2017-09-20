@@ -21,28 +21,18 @@
 
 'use strict';
 const common = require('../common');
-if (!process.features.tls_npn) {
-  common.skip('Skipping because node compiled without NPN feature of' +
-              ' OpenSSL.');
-  return;
-}
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+if (!process.features.tls_npn)
+  common.skip('Skipping because node compiled without NPN feature of OpenSSL.');
 
 const assert = require('assert');
-const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 const tls = require('tls');
-
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
 const serverOptions = {

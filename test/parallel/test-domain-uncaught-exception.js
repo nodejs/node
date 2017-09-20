@@ -9,6 +9,7 @@
  */
 
 const common = require('../common');
+const assert = require('assert');
 const domain = require('domain');
 const child_process = require('child_process');
 
@@ -181,18 +182,18 @@ if (process.argv[2] === 'child') {
       // Make sure that all expected messages were sent from the
       // child process
       test.expectedMessages.forEach(function(expectedMessage) {
-        if (test.messagesReceived === undefined ||
-          test.messagesReceived.indexOf(expectedMessage) === -1)
-          common.fail('test ' + test.fn.name + ' should have sent message: ' +
-                      expectedMessage + ' but didn\'t');
+        const msgs = test.messagesReceived;
+        if (msgs === undefined || !msgs.includes(expectedMessage)) {
+          assert.fail(`test ${test.fn.name} should have sent message: ${
+            expectedMessage} but didn't`);
+        }
       });
 
       if (test.messagesReceived) {
         test.messagesReceived.forEach(function(receivedMessage) {
-          if (test.expectedMessages.indexOf(receivedMessage) === -1) {
-            common.fail('test ' + test.fn.name +
-                        ' should not have sent message: ' + receivedMessage +
-                        ' but did');
+          if (!test.expectedMessages.includes(receivedMessage)) {
+            assert.fail(`test ${test.fn.name} should not have sent message: ${
+              receivedMessage} but did`);
           }
         });
       }

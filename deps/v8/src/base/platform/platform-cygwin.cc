@@ -19,14 +19,22 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 #include "src/base/win32-headers.h"
 
 namespace v8 {
 namespace base {
 
+class CygwinTimezoneCache : public PosixTimezoneCache {
+  const char* LocalTimezone(double time) override;
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
+  double LocalTimeOffset() override;
+
+  ~CygwinTimezoneCache() override {}
+};
+
+const char* CygwinTimezoneCache::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
@@ -35,8 +43,7 @@ const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
+double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);
@@ -48,12 +55,10 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
-                   bool is_executable) {
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  int prot = GetProtectionFromMemoryPermission(access);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
@@ -133,14 +138,13 @@ void OS::SignalCodeMovingGC() {
 // This causes VirtualMemory::Commit to not always commit the memory region
 // specified.
 
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
+static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
+                                    void* hint) {
   LPVOID base = NULL;
 
   if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
-    for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
-      base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
-    }
+    base = VirtualAlloc(hint, size, action, protection);
   }
 
   // After three attempts give up and let the OS find an address to use.
@@ -152,17 +156,15 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
+VirtualMemory::VirtualMemory(size_t size, void* hint)
+    : address_(ReserveRegion(size, hint)), size_(size) {}
 
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(NULL), size_(0) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* address = ReserveRegion(request_size);
+  void* address = ReserveRegion(request_size, hint);
   if (address == NULL) return;
   uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
   // Try reducing the size by freeing and then reallocating a specific area.
@@ -175,7 +177,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     DCHECK(base == static_cast<uint8_t*>(address));
   } else {
     // Resizing failed, just go with a bigger area.
-    address = ReserveRegion(request_size);
+    address = ReserveRegion(request_size, hint);
     if (address == NULL) return;
   }
   address_ = address;
@@ -190,12 +192,6 @@ VirtualMemory::~VirtualMemory() {
     USE(result);
   }
 }
-
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
 
 void VirtualMemory::Reset() {
   address_ = NULL;
@@ -213,9 +209,8 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
   return UncommitRegion(address, size);
 }
 
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS);
+void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
+  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
 }
 
 

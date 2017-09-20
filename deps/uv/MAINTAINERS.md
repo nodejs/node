@@ -3,6 +3,7 @@
 
 libuv is currently managed by the following individuals:
 
+* **Bartosz Sosnowski** ([@bzoz](https://github.com/bzoz))
 * **Ben Noordhuis** ([@bnoordhuis](https://github.com/bnoordhuis))
   - GPG key: D77B 1E34 243F BAF0 5F8E  9CC3 4F55 C8C8 46AB 89B9 (pubkey-bnoordhuis)
 * **Bert Belder** ([@piscisaureus](https://github.com/piscisaureus))

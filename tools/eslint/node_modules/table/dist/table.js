@@ -131,5 +131,3 @@ exports.default = function (data) {
 
   return (0, _drawTable2.default)(rows, config.border, cellWidthIndex, rowHeightIndex, config.drawHorizontalLine);
 };
-
-module.exports = exports['default'];

@@ -72,7 +72,7 @@ static const char* kGoldenFileDirectory =
 class InitializedIgnitionHandleScope : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
-    i::FLAG_ignition = true;
+    i::FLAG_stress_fullcodegen = false;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
   }
@@ -190,25 +190,47 @@ TEST(PrimitiveExpressions) {
 
       "var x = 0; return x + 3;\n",
 
+      "var x = 0; return 3 + x;\n",
+
       "var x = 0; return x - 3;\n",
+
+      "var x = 0; return 3 - x;\n",
 
       "var x = 4; return x * 3;\n",
 
+      "var x = 4; return 3 * x;\n",
+
       "var x = 4; return x / 3;\n",
+
+      "var x = 4; return 3 / x;\n",
 
       "var x = 4; return x % 3;\n",
 
+      "var x = 4; return 3 % x;\n",
+
       "var x = 1; return x | 2;\n",
+
+      "var x = 1; return 2 | x;\n",
 
       "var x = 1; return x ^ 2;\n",
 
+      "var x = 1; return 2 ^ x;\n",
+
       "var x = 1; return x & 2;\n",
+
+      "var x = 1; return 2 & x;\n",
 
       "var x = 10; return x << 3;\n",
 
+      "var x = 10; return 3 << x;\n",
+
       "var x = 10; return x >> 3;\n",
 
+      "var x = 10; return 3 >> x;\n",
+
       "var x = 10; return x >>> 3;\n",
+
+      "var x = 10; return 3 >>> x;\n",
 
       "var x = 0; return (x, 3);\n",
   };
@@ -1005,6 +1027,81 @@ TEST(Typeof) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
                      LoadGolden("Typeof.golden")));
+}
+
+TEST(CompareTypeOf) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "return typeof(1) === 'number';\n",
+
+      "return 'string' === typeof('foo');\n",
+
+      "return typeof(true) == 'boolean';\n",
+
+      "return 'string' === typeof(undefined);\n",
+
+      "return 'unknown' === typeof(undefined);\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareTypeOf.golden")));
+}
+
+TEST(CompareNil) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "var a = 1;\n"
+      "return a === null;\n",
+
+      "var a = undefined;\n"
+      "return undefined === a;\n",
+
+      "var a = undefined;\n"
+      "return undefined !== a;\n",
+
+      "var a = 2;\n"
+      "return a != null;\n",
+
+      "var a = undefined;\n"
+      "return undefined == a;\n",
+
+      "var a = undefined;\n"
+      "return undefined === a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return null == a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return undefined !== a ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "return a === null ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "if (a === null) {\n"
+      "  return 1;\n"
+      "} else {\n"
+      "  return 2;\n"
+      "}\n",
+
+      "var a = 0;\n"
+      "if (a != undefined) {\n"
+      "  return 1;\n"
+      "}\n",
+
+      "var a = undefined;\n"
+      "var b = 0;\n"
+      "while (a !== undefined) {\n"
+      "  b++;\n"
+      "}\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareNil.golden")));
 }
 
 TEST(Delete) {
@@ -2251,10 +2348,42 @@ TEST(Generators) {
 
       "function* f() { for (let x of [42]) yield x }\n"
       "f();\n",
+
+      "function* g() { yield 42 }\n"
+      "function* f() { yield* g() }\n"
+      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("Generators.golden")));
+}
+
+TEST(AsyncGenerators) {
+  bool old_flag = i::FLAG_harmony_async_iteration;
+  i::FLAG_harmony_async_iteration = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "async function* f() { }\n"
+      "f();\n",
+
+      "async function* f() { yield 42 }\n"
+      "f();\n",
+
+      "async function* f() { for (let x of [42]) yield x }\n"
+      "f();\n",
+
+      "function* g() { yield 42 }\n"
+      "async function* f() { yield* g() }\n"
+      "f();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("AsyncGenerators.golden")));
+  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(Modules) {
@@ -2341,6 +2470,210 @@ TEST(SuperCallAndSpread) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("SuperCallAndSpread.golden")));
+}
+
+TEST(CallAndSpread) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  const char* snippets[] = {"Math.max(...[1, 2, 3]);\n",
+                            "Math.max(0, ...[1, 2, 3]);\n",
+                            "Math.max(0, ...[1, 2, 3], 4);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallAndSpread.golden")));
+}
+
+TEST(NewAndSpread) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  const char* snippets[] = {
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(...[1, 2, 3]);\n",
+
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(0, ...[1, 2, 3]);\n",
+
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(0, ...[1, 2, 3], 4);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("NewAndSpread.golden")));
+}
+
+TEST(ForAwaitOf) {
+  bool old_flag = i::FLAG_harmony_async_iteration;
+  i::FLAG_harmony_async_iteration = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "async function f() {\n"
+      "  for await (let x of [1, 2, 3]) {}\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for await (let x of [1, 2, 3]) { return x; }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for await (let x of [10, 20, 30]) {\n"
+      "    if (x == 10) continue;\n"
+      "    if (x == 20) break;\n"
+      "  }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  var x = { 'a': 1, 'b': 2 };\n"
+      "  for (x['a'] of [1,2,3]) { return x['a']; }\n"
+      "}\n"
+      "f();\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ForAwaitOf.golden")));
+
+  i::FLAG_harmony_async_iteration = old_flag;
+}
+
+TEST(StandardForLoop) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { eval('1'); }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { (function() { return x; })(); }\n"
+      "}\n"
+      "f();\n",
+
+      "function f() {\n"
+      "  for (let { x, y } = { x: 0, y: 3 }; y > 0; --y) { let z = x + y; }\n"
+      "}\n"
+      "f();\n",
+
+      "function* f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "function* f() {\n"
+      "  for (let x = 0; x < 10; ++x) yield x;\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for (let x = 0; x < 10; ++x) { let y = x; }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for (let x = 0; x < 10; ++x) await x;\n"
+      "}\n"
+      "f();\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StandardForLoop.golden")));
+}
+
+TEST(ForOfLoop) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "function f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let x of arr) { eval('1'); }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let x of arr) { (function() { return x; })(); }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function f(arr) {\n"
+      "  for (let { x, y } of arr) { let z = x + y; }\n"
+      "}\n"
+      "f([{ x: 0, y: 3 }, { x: 1, y: 9 }, { x: -12, y: 17 }]);\n",
+
+      "function* f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "function* f(arr) {\n"
+      "  for (let x of arr) yield x;\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "async function f(arr) {\n"
+      "  for (let x of arr) { let y = x; }\n"
+      "}\n"
+      "f([1, 2, 3]);\n",
+
+      "async function f(arr) {\n"
+      "  for (let x of arr) await x;\n"
+      "}\n"
+      "f([1, 2, 3]);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ForOfLoop.golden")));
+}
+
+TEST(StringConcat) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return a + b + 'string';\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return 'string' + a + b;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return a + 'string' + b;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return 'foo' + a + 'bar' + b + 'baz' + 1;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return (a + 'string') + ('string' + b);\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "function foo(a, b) { };\n"
+      "return 'string' + foo(a, b) + a + b;\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StringConcat.golden")));
 }
 
 }  // namespace interpreter

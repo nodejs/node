@@ -23,7 +23,7 @@ r.defineCommand('say1', {
   help: 'help for say1',
   action: function(thing) {
     output = '';
-    this.write('hello ' + thing);
+    this.write(`hello ${thing}`);
     this.displayPrompt();
   }
 });

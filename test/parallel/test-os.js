@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const os = require('os');
 const path = require('path');
+const { inspect } = require('util');
 
 const is = {
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
@@ -43,7 +44,7 @@ if (common.isWindows) {
   process.env.TEMP = '';
   assert.strictEqual(os.tmpdir(), '/tmp');
   process.env.TMP = '';
-  const expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
+  const expected = `${process.env.SystemRoot || process.env.windir}\\temp`;
   assert.strictEqual(os.tmpdir(), expected);
   process.env.TEMP = '\\temp\\';
   assert.strictEqual(os.tmpdir(), '\\temp');
@@ -70,45 +71,37 @@ if (common.isWindows) {
 }
 
 const endianness = os.endianness();
-console.log('endianness = %s', endianness);
 is.string(endianness);
 assert.ok(/[BL]E/.test(endianness));
 
 const hostname = os.hostname();
-console.log('hostname = %s', hostname);
 is.string(hostname);
 assert.ok(hostname.length > 0);
 
 const uptime = os.uptime();
-console.log('uptime = %d', uptime);
 is.number(uptime);
 assert.ok(uptime > 0);
 
 const cpus = os.cpus();
-console.log('cpus = ', cpus);
 is.array(cpus);
 assert.ok(cpus.length > 0);
 
 const type = os.type();
-console.log('type = ', type);
 is.string(type);
 assert.ok(type.length > 0);
 
 const release = os.release();
-console.log('release = ', release);
 is.string(release);
 assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
-if (common.isAix)
+if (common.isAIX)
   assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();
-console.log('platform = ', platform);
 is.string(platform);
 assert.ok(platform.length > 0);
 
 const arch = os.arch();
-console.log('arch = ', arch);
 is.string(arch);
 assert.ok(arch.length > 0);
 
@@ -121,29 +114,49 @@ if (!common.isSunOS) {
 
 
 const interfaces = os.networkInterfaces();
-console.error(interfaces);
 switch (platform) {
   case 'linux':
-    {
-      const filter = function(e) { return e.address === '127.0.0.1'; };
-      const actual = interfaces.lo.filter(filter);
-      const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                          mac: '00:00:00:00:00:00', family: 'IPv4',
-                          internal: true }];
-      assert.deepStrictEqual(actual, expected);
-      break;
-    }
+  {
+    const filter =
+      (e) => e.address === '127.0.0.1' && e.netmask === '255.0.0.0';
+    const actual = interfaces.lo.filter(filter);
+    const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
+                        mac: '00:00:00:00:00:00', family: 'IPv4',
+                        internal: true, cidr: '127.0.0.1/8' }];
+    assert.deepStrictEqual(actual, expected);
+    break;
+  }
   case 'win32':
-    {
-      const filter = function(e) { return e.address === '127.0.0.1'; };
-      const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
-      const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                          mac: '00:00:00:00:00:00', family: 'IPv4',
-                          internal: true }];
-      assert.deepStrictEqual(actual, expected);
-      break;
-    }
+  {
+    const filter = (e) => e.address === '127.0.0.1';
+    const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
+    const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
+                        mac: '00:00:00:00:00:00', family: 'IPv4',
+                        internal: true, cidr: '127.0.0.1/8' }];
+    assert.deepStrictEqual(actual, expected);
+    break;
+  }
 }
+function flatten(arr) {
+  return arr.reduce(
+    (acc, c) => acc.concat(Array.isArray(c) ? flatten(c) : c),
+    []
+  );
+}
+const netmaskToCIDRSuffixMap = new Map(Object.entries({
+  '255.0.0.0': 8,
+  '255.255.255.0': 24,
+  'ffff:ffff:ffff:ffff::': 64,
+  'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
+}));
+flatten(Object.values(interfaces))
+  .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
+  .forEach(({ v, mask }) => {
+    assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
+    if (mask) {
+      assert.strictEqual(v.cidr, `${v.address}/${mask}`);
+    }
+  });
 
 const EOL = os.EOL;
 assert.ok(EOL.length > 0);
@@ -151,7 +164,6 @@ assert.ok(EOL.length > 0);
 
 const home = os.homedir();
 
-console.log('homedir = ' + home);
 is.string(home);
 assert.ok(home.includes(path.sep));
 
@@ -191,3 +203,12 @@ is.string(pwd.username);
 assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
+
+// Test that the Symbol.toPrimitive functions work correctly
+[
+  [`${os.hostname}`, os.hostname()],
+  [`${os.homedir}`, os.homedir()],
+  [`${os.release}`, os.release()],
+  [`${os.type}`, os.type()],
+  [`${os.endianness}`, os.endianness()]
+].forEach((set) => assert.strictEqual(set[0], set[1]));

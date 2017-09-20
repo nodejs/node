@@ -105,80 +105,104 @@ namespace compiler {
   V(OtherNumber,     1u << 4)  \
 
 #define PROPER_BITSET_TYPE_LIST(V) \
-  V(None,                0u)        \
-  V(Negative31,          1u << 5)   \
-  V(Null,                1u << 6)   \
-  V(Undefined,           1u << 7)   \
-  V(Boolean,             1u << 8)   \
-  V(Unsigned30,          1u << 9)   \
-  V(MinusZero,           1u << 10)  \
-  V(NaN,                 1u << 11)  \
-  V(Symbol,              1u << 12)  \
-  V(InternalizedString,  1u << 13)  \
-  V(OtherString,         1u << 14)  \
-  V(Simd,                1u << 15)  \
-  V(OtherCallable,       1u << 16)  \
-  V(OtherObject,         1u << 17)  \
-  V(OtherUndetectable,   1u << 18)  \
-  V(CallableProxy,       1u << 19)  \
-  V(OtherProxy,          1u << 20)  \
-  V(Function,            1u << 21)  \
-  V(BoundFunction,       1u << 22)  \
-  V(Hole,                1u << 23)  \
-  V(OtherInternal,       1u << 24)  \
-  V(ExternalPointer,     1u << 25)  \
+  V(None,                          0u)        \
+  V(Negative31,                    1u << 5)   \
+  V(Null,                          1u << 6)   \
+  V(Undefined,                     1u << 7)   \
+  V(Boolean,                       1u << 8)   \
+  V(Unsigned30,                    1u << 9)   \
+  V(MinusZero,                     1u << 10)  \
+  V(NaN,                           1u << 11)  \
+  V(Symbol,                        1u << 12)  \
+  V(EmptyString,                   1u << 13)  \
+  V(InternalizedNonEmptySeqString, 1u << 14)  \
+  V(InternalizedNonSeqString,      1u << 15)  \
+  V(OtherNonSeqString,             1u << 16)  \
+  V(OtherSeqString,                1u << 17)  \
+  V(OtherCallable,                 1u << 18)  \
+  V(OtherObject,                   1u << 19)  \
+  V(OtherUndetectable,             1u << 20)  \
+  V(CallableProxy,                 1u << 21)  \
+  V(OtherProxy,                    1u << 22)  \
+  V(Function,                      1u << 23)  \
+  V(BoundFunction,                 1u << 24)  \
+  V(Hole,                          1u << 25)  \
+  V(OtherInternal,                 1u << 26)  \
+  V(ExternalPointer,               1u << 27)  \
+  V(Array,                         1u << 28)  \
   \
-  V(Signed31,                   kUnsigned30 | kNegative31) \
-  V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
-  V(Signed32OrMinusZero,        kSigned32 | kMinusZero) \
-  V(Signed32OrMinusZeroOrNaN,   kSigned32 | kMinusZero | kNaN) \
-  V(Negative32,                 kNegative31 | kOtherSigned32) \
-  V(Unsigned31,                 kUnsigned30 | kOtherUnsigned31) \
-  V(Unsigned32,                 kUnsigned30 | kOtherUnsigned31 | \
-                                kOtherUnsigned32) \
-  V(Unsigned32OrMinusZero,      kUnsigned32 | kMinusZero) \
-  V(Unsigned32OrMinusZeroOrNaN, kUnsigned32 | kMinusZero | kNaN) \
-  V(Integral32,                 kSigned32 | kUnsigned32) \
-  V(Integral32OrMinusZeroOrNaN, kIntegral32 | kMinusZero | kNaN) \
-  V(PlainNumber,                kIntegral32 | kOtherNumber) \
-  V(OrderedNumber,              kPlainNumber | kMinusZero) \
-  V(MinusZeroOrNaN,             kMinusZero | kNaN) \
-  V(Number,                     kOrderedNumber | kNaN) \
-  V(String,                     kInternalizedString | kOtherString) \
-  V(UniqueName,                 kSymbol | kInternalizedString) \
-  V(Name,                       kSymbol | kString) \
-  V(BooleanOrNumber,            kBoolean | kNumber) \
-  V(BooleanOrNullOrNumber,      kBooleanOrNumber | kNull) \
-  V(BooleanOrNullOrUndefined,   kBoolean | kNull | kUndefined) \
-  V(NullOrNumber,               kNull | kNumber) \
-  V(NullOrUndefined,            kNull | kUndefined) \
-  V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean | kHole) \
-  V(NumberOrSimdOrString,       kNumber | kSimd | kString) \
-  V(NumberOrString,             kNumber | kString) \
-  V(NumberOrUndefined,          kNumber | kUndefined) \
-  V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
-  V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
-  V(Proxy,                      kCallableProxy | kOtherProxy) \
-  V(Callable,                   kFunction | kBoundFunction | kOtherCallable | \
-                                kCallableProxy | kOtherUndetectable) \
-  V(DetectableObject,           kFunction | kBoundFunction | kOtherCallable | \
-                                kOtherObject) \
-  V(DetectableReceiver,         kDetectableObject | kProxy) \
-  V(DetectableReceiverOrNull,   kDetectableReceiver | kNull) \
-  V(Object,                     kDetectableObject | kOtherUndetectable) \
-  V(Receiver,                   kObject | kProxy) \
-  V(ReceiverOrUndefined,        kReceiver | kUndefined) \
-  V(ReceiverOrNullOrUndefined,  kReceiver | kNull | kUndefined) \
-  V(StringOrReceiver,           kString | kReceiver) \
-  V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
-                                kReceiver) \
-  V(NonStringUniqueOrHole,      kBoolean | kHole | kNull | kReceiver | \
-                                kSymbol | kUndefined) \
-  V(Internal,                   kHole | kExternalPointer | kOtherInternal) \
-  V(NonInternal,                kPrimitive | kReceiver) \
-  V(NonNumber,                  kUnique | kString | kInternal) \
-  V(Any,                        0xfffffffeu)
+  V(Signed31,                     kUnsigned30 | kNegative31) \
+  V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
+                                  kOtherSigned32) \
+  V(Signed32OrMinusZero,          kSigned32 | kMinusZero) \
+  V(Signed32OrMinusZeroOrNaN,     kSigned32 | kMinusZero | kNaN) \
+  V(Negative32,                   kNegative31 | kOtherSigned32) \
+  V(Unsigned31,                   kUnsigned30 | kOtherUnsigned31) \
+  V(Unsigned32,                   kUnsigned30 | kOtherUnsigned31 | \
+                                  kOtherUnsigned32) \
+  V(Unsigned32OrMinusZero,        kUnsigned32 | kMinusZero) \
+  V(Unsigned32OrMinusZeroOrNaN,   kUnsigned32 | kMinusZero | kNaN) \
+  V(Integral32,                   kSigned32 | kUnsigned32) \
+  V(Integral32OrMinusZero,        kIntegral32 | kMinusZero) \
+  V(Integral32OrMinusZeroOrNaN,   kIntegral32OrMinusZero | kNaN) \
+  V(PlainNumber,                  kIntegral32 | kOtherNumber) \
+  V(OrderedNumber,                kPlainNumber | kMinusZero) \
+  V(MinusZeroOrNaN,               kMinusZero | kNaN) \
+  V(Number,                       kOrderedNumber | kNaN) \
+  V(InternalizedSeqString,        kEmptyString | \
+                                  kInternalizedNonEmptySeqString) \
+  V(InternalizedString,           kInternalizedSeqString | \
+                                  kInternalizedNonSeqString) \
+  V(OtherString,                  kOtherNonSeqString | kOtherSeqString) \
+  V(SeqString,                    kInternalizedSeqString | kOtherSeqString) \
+  V(NonSeqString,                 kInternalizedNonSeqString | \
+                                  kOtherNonSeqString) \
+  V(NonEmptyString,               kInternalizedNonEmptySeqString | \
+                                  kInternalizedNonSeqString| kOtherString) \
+  V(String,                       kNonEmptyString | kEmptyString) \
+  V(UniqueName,                   kSymbol | kInternalizedString) \
+  V(Name,                         kSymbol | kString) \
+  V(InternalizedStringOrNull,     kInternalizedString | kNull) \
+  V(BooleanOrNumber,              kBoolean | kNumber) \
+  V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
+  V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
+  V(Oddball,                      kBooleanOrNullOrUndefined | kHole) \
+  V(NullOrNumber,                 kNull | kNumber) \
+  V(NullOrUndefined,              kNull | kUndefined) \
+  V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
+  V(NumberOrHole,                 kNumber | kHole) \
+  V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
+                                  kHole) \
+  V(NumberOrString,               kNumber | kString) \
+  V(NumberOrUndefined,            kNumber | kUndefined) \
+  V(PlainPrimitive,               kNumberOrString | kBoolean | \
+                                  kNullOrUndefined) \
+  V(Primitive,                    kSymbol | kPlainPrimitive) \
+  V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
+  V(Proxy,                        kCallableProxy | kOtherProxy) \
+  V(ArrayOrOtherObject,           kArray | kOtherObject) \
+  V(ArrayOrProxy,                 kArray | kProxy) \
+  V(DetectableCallable,           kFunction | kBoundFunction | \
+                                  kOtherCallable | kCallableProxy) \
+  V(Callable,                     kDetectableCallable | kOtherUndetectable) \
+  V(NonCallable,                  kArray | kOtherObject | kOtherProxy) \
+  V(NonCallableOrNull,            kNonCallable | kNull) \
+  V(DetectableObject,             kArray | kFunction | kBoundFunction | \
+                                  kOtherCallable | kOtherObject) \
+  V(DetectableReceiver,           kDetectableObject | kProxy) \
+  V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \
+  V(Object,                       kDetectableObject | kOtherUndetectable) \
+  V(Receiver,                     kObject | kProxy) \
+  V(ReceiverOrUndefined,          kReceiver | kUndefined) \
+  V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
+  V(SymbolOrReceiver,             kSymbol | kReceiver) \
+  V(StringOrReceiver,             kString | kReceiver) \
+  V(Unique,                       kBoolean | kUniqueName | kNull | \
+                                  kUndefined | kReceiver) \
+  V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
+  V(NonInternal,                  kPrimitive | kReceiver) \
+  V(NonNumber,                    kUnique | kString | kInternal) \
+  V(Any,                          0xfffffffeu)
 
 // clang-format on
 

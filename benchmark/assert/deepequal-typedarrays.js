@@ -1,11 +1,26 @@
 'use strict';
 const common = require('../common.js');
 const assert = require('assert');
+
 const bench = common.createBenchmark(main, {
-  type: ('Int8Array Uint8Array Int16Array Uint16Array Int32Array Uint32Array ' +
-    'Float32Array Float64Array Uint8ClampedArray').split(' '),
+  type: [
+    'Int8Array',
+    'Uint8Array',
+    'Int16Array',
+    'Uint16Array',
+    'Int32Array',
+    'Uint32Array',
+    'Float32Array',
+    'Float64Array',
+    'Uint8ClampedArray',
+  ],
   n: [1],
-  method: ['strict', 'nonstrict'],
+  method: [
+    'deepEqual',
+    'deepStrictEqual',
+    'notDeepEqual',
+    'notDeepStrictEqual'
+  ],
   len: [1e6]
 });
 
@@ -17,10 +32,15 @@ function main(conf) {
 
   const actual = new clazz(len);
   const expected = new clazz(len);
+  const expectedWrong = Buffer.alloc(len);
+  const wrongIndex = Math.floor(len / 2);
+  expectedWrong[wrongIndex] = 123;
   var i;
 
   switch (conf.method) {
-    case 'strict':
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
+    case 'deepEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
         // eslint-disable-next-line no-restricted-properties
@@ -28,10 +48,25 @@ function main(conf) {
       }
       bench.end(n);
       break;
-    case 'nonstrict':
+    case 'deepStrictEqual':
       bench.start();
       for (i = 0; i < n; ++i) {
         assert.deepStrictEqual(actual, expected);
+      }
+      bench.end(n);
+      break;
+    case 'notDeepEqual':
+      bench.start();
+      for (i = 0; i < n; ++i) {
+        // eslint-disable-next-line no-restricted-properties
+        assert.notDeepEqual(actual, expectedWrong);
+      }
+      bench.end(n);
+      break;
+    case 'notDeepStrictEqual':
+      bench.start();
+      for (i = 0; i < n; ++i) {
+        assert.notDeepStrictEqual(actual, expectedWrong);
       }
       bench.end(n);
       break;

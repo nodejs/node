@@ -1,11 +1,9 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const crypto = require('crypto');
 
 function testCipher1(key, iv) {
@@ -57,21 +55,47 @@ function testCipher2(key, iv) {
   assert.strictEqual(txt, plaintext, 'encryption/decryption with key and iv');
 }
 
+
+function testCipher3(key, iv) {
+  // Test encryption and decryption with explicit key and iv.
+  // AES Key Wrap test vector comes from RFC3394
+  const plaintext = Buffer.from('00112233445566778899AABBCCDDEEFF', 'hex');
+
+  const cipher = crypto.createCipheriv('id-aes128-wrap', key, iv);
+  let ciph = cipher.update(plaintext, 'utf8', 'buffer');
+  ciph = Buffer.concat([ciph, cipher.final('buffer')]);
+  const ciph2 = Buffer.from('1FA68B0A8112B447AEF34BD8FB5A7B829D3E862371D2CFE5',
+                            'hex');
+  assert(ciph.equals(ciph2));
+  const decipher = crypto.createDecipheriv('id-aes128-wrap', key, iv);
+  let deciph = decipher.update(ciph, 'buffer');
+  deciph = Buffer.concat([deciph, decipher.final()]);
+
+  assert(deciph.equals(plaintext), 'encryption/decryption with key and iv');
+}
+
 testCipher1('0123456789abcd0123456789', '12345678');
 testCipher1('0123456789abcd0123456789', Buffer.from('12345678'));
 testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
 testCipher1(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 testCipher2(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
+if (!common.hasFipsCrypto) {
+  testCipher3(Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex'),
+              Buffer.from('A6A6A6A6A6A6A6A6', 'hex'));
+}
+
 // Zero-sized IV should be accepted in ECB mode.
 crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), Buffer.alloc(0));
+
+const errMessage = /Invalid IV length/;
 
 // But non-empty IVs should be rejected.
 for (let n = 1; n < 256; n += 1) {
   assert.throws(
-      () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16),
-                                  Buffer.alloc(n)),
-      /Invalid IV length/);
+    () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16),
+                                Buffer.alloc(n)),
+    errMessage);
 }
 
 // Correctly sized IV should be accepted in CBC mode.
@@ -81,16 +105,16 @@ crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), Buffer.alloc(16));
 for (let n = 0; n < 256; n += 1) {
   if (n === 16) continue;
   assert.throws(
-      () => crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16),
-                                  Buffer.alloc(n)),
-      /Invalid IV length/);
+    () => crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16),
+                                Buffer.alloc(n)),
+    errMessage);
 }
 
 // Zero-sized IV should be rejected in GCM mode.
 assert.throws(
-    () => crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16),
-                                Buffer.alloc(0)),
-    /Invalid IV length/);
+  () => crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16),
+                              Buffer.alloc(0)),
+  errMessage);
 
 // But all other IV lengths should be accepted.
 for (let n = 1; n < 256; n += 1) {

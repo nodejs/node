@@ -5,14 +5,13 @@
 #ifndef V8_PARSING_FUNC_NAME_INFERRER_H_
 #define V8_PARSING_FUNC_NAME_INFERRER_H_
 
-#include "src/handles.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
+class AstConsString;
 class AstRawString;
-class AstString;
 class AstValueFactory;
 class FunctionLiteral;
 
@@ -106,11 +105,7 @@ class FuncNameInferrer : public ZoneObject {
   Zone* zone() const { return zone_; }
 
   // Constructs a full name in dotted notation from gathered names.
-  const AstString* MakeNameFromStack();
-
-  // A helper function for MakeNameFromStack.
-  const AstString* MakeNameFromStackHelper(int pos,
-                                               const AstString* prev);
+  const AstConsString* MakeNameFromStack();
 
   // Performs name inferring for added functions.
   void InferFunctionsNames();

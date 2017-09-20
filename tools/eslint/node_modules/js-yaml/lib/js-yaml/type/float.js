@@ -4,16 +4,27 @@ var common = require('../common');
 var Type   = require('../type');
 
 var YAML_FLOAT_PATTERN = new RegExp(
-  '^(?:[-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+][0-9]+)?' +
-  '|\\.[0-9_]+(?:[eE][-+][0-9]+)?' +
+  // 2.5e4, 2.5 and integers
+  '^(?:[-+]?(?:0|[1-9][0-9_]*)(?:\\.[0-9_]*)?(?:[eE][-+]?[0-9]+)?' +
+  // .2e4, .2
+  // special case, seems not from spec
+  '|\\.[0-9_]+(?:[eE][-+]?[0-9]+)?' +
+  // 20:59
   '|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*' +
+  // .inf
   '|[-+]?\\.(?:inf|Inf|INF)' +
+  // .nan
   '|\\.(?:nan|NaN|NAN))$');
 
 function resolveYamlFloat(data) {
   if (data === null) return false;
 
-  if (!YAML_FLOAT_PATTERN.test(data)) return false;
+  if (!YAML_FLOAT_PATTERN.test(data) ||
+      // Quick hack to not allow integers end with `_`
+      // Probably should update regexp & check speed
+      data[data.length - 1] === '_') {
+    return false;
+  }
 
   return true;
 }

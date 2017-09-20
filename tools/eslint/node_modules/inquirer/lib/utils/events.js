@@ -1,8 +1,8 @@
 'use strict';
-var rx = require('rx-lite');
+var rx = require('rx-lite-aggregates');
 
 function normalizeKeypressEvents(value, key) {
-  return { value: value, key: key || {} };
+  return {value: value, key: key || {}};
 }
 
 module.exports = function (rl) {
@@ -32,6 +32,14 @@ module.exports = function (rl) {
 
     spaceKey: keypress.filter(function (e) {
       return e.key && e.key.name === 'space';
+    }).share(),
+
+    aKey: keypress.filter(function (e) {
+      return e.key && e.key.name === 'a';
+    }).share(),
+
+    iKey: keypress.filter(function (e) {
+      return e.key && e.key.name === 'i';
     }).share()
   };
 };

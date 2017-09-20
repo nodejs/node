@@ -1,5 +1,7 @@
 # Util
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `util` module is primarily designed to support the needs of Node.js' own
@@ -9,6 +11,64 @@ module developers as well. It can be accessed using:
 ```js
 const util = require('util');
 ```
+
+## util.callbackify(original)
+<!-- YAML
+added: v8.2.0
+-->
+
+* `original` {Function} An `async` function
+* Returns: {Function} a callback style function
+
+Takes an `async` function (or a function that returns a Promise) and returns a
+function following the Node.js error first callback style. In the callback, the
+first argument will be the rejection reason (or `null` if the Promise resolved),
+and the second argument will be the resolved value.
+
+For example:
+
+```js
+const util = require('util');
+
+async function fn() {
+  return await Promise.resolve('hello world');
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  if (err) throw err;
+  console.log(ret);
+});
+```
+
+Will print:
+
+```txt
+hello world
+```
+
+*Note*:
+
+* The callback is executed asynchronously, and will have a limited stack trace.
+If the callback throws, the process will emit an [`'uncaughtException'`][]
+event, and if not handled will exit.
+
+* Since `null` has a special meaning as the first argument to a callback, if a
+wrapped function rejects a `Promise` with a falsy value as a reason, the value
+is wrapped in an `Error` with the original value stored in a field named
+`reason`.
+  ```js
+  function fn() {
+    return Promise.reject(null);
+  }
+  const callbackFunction = util.callbackify(fn);
+
+  callbackFunction((err, ret) => {
+    // When the Promise was rejected with `null` it is wrapped with an Error and
+    // the original value is stored in `reason`.
+    err && err.hasOwnProperty('reason') && err.reason === null;  // true
+  });
+  ```
 
 ## util.debuglog(section)
 <!-- YAML
@@ -55,11 +115,12 @@ added: v0.8.0
 The `util.deprecate()` method wraps the given `function` or class in such a way that
 it is marked as deprecated.
 
+<!-- eslint-disable prefer-rest-params -->
 ```js
 const util = require('util');
 
 exports.puts = util.deprecate(function() {
-  for (var i = 0, len = arguments.length; i < len; ++i) {
+  for (let i = 0, len = arguments.length; i < len; ++i) {
     process.stdout.write(arguments[i] + '\n');
   }
 }, 'util.puts: Use console.log instead');
@@ -91,6 +152,10 @@ property take precedence over `--trace-deprecation` and
 ## util.format(format[, ...args])
 <!-- YAML
 added: v0.5.3
+changes:
+  - version: v8.4.0
+    pr-url: https://github.com/nodejs/node/pull/14558
+    description: The `%o` and `%O` specifiers are supported now.
 -->
 
 * `format` {string} A `printf`-like format string.
@@ -108,6 +173,14 @@ corresponding argument. Supported placeholders are:
 * `%f` - Floating point value.
 * `%j` - JSON.  Replaced with the string `'[Circular]'` if the argument
 contains circular references.
+* `%o` - Object. A string representation of an object
+  with generic JavaScript object formatting.
+  Similar to `util.inspect()` with options `{ showHidden: true, depth: 4, showProxy: true }`.
+  This will show the full object including non-enumerable symbols and properties.
+* `%O` - Object. A string representation of an object
+  with generic JavaScript object formatting.
+  Similar to `util.inspect()` without options.
+  This will show the full object not including non-enumerable symbols and properties.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
 If the placeholder does not have a corresponding argument, the placeholder is
@@ -118,21 +191,29 @@ util.format('%s:%s', 'foo');
 // Returns: 'foo:%s'
 ```
 
-If there are more arguments passed to the `util.format()` method than the
-number of placeholders, the extra arguments are coerced into strings (for
-objects and symbols, `util.inspect()` is used) then concatenated to the
-returned string, each delimited by a space.
+If there are more arguments passed to the `util.format()` method than the number
+of placeholders, the extra arguments are coerced into strings then concatenated
+to the returned string, each delimited by a space. Excessive arguments whose
+`typeof` is `'object'` or `'symbol'` (except `null`) will be transformed by
+`util.inspect()`.
 
 ```js
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
 ```
 
-If the first argument is not a format string then `util.format()` returns
+If the first argument is not a string then `util.format()` returns
 a string that is the concatenation of all arguments separated by spaces.
 Each argument is converted to a string using `util.inspect()`.
 
 ```js
 util.format(1, 2, 3); // '1 2 3'
+```
+
+If only one argument is passed to `util.format()`, it is returned as it is
+without any formatting.
+
+```js
+util.format('%% %s'); // '%% %s'
 ```
 
 ## util.inherits(constructor, superConstructor)
@@ -144,9 +225,9 @@ changes:
     description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
-_Note: usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
-`extends` keywords to get language level inheritance support. Also note that
-the two styles are [semantically incompatible][]._
+*Note*: Usage of `util.inherits()` is discouraged. Please use the ES6 `class`
+and `extends` keywords to get language level inheritance support. Also note
+that the two styles are [semantically incompatible][].
 
 * `constructor` {Function}
 * `superConstructor` {Function}
@@ -189,9 +270,6 @@ ES6 example using `class` and `extends`
 const EventEmitter = require('events');
 
 class MyStream extends EventEmitter {
-  constructor() {
-    super();
-  }
   write(data) {
     this.emit('data', data);
   }
@@ -321,8 +399,9 @@ class Box {
 
     // Five space padding because that's the size of "Box< ".
     const padding = ' '.repeat(5);
-    const inner = util.inspect(this.value, newOptions).replace(/\n/g, '\n' + padding);
-    return options.stylize('Box', 'special') + '< ' + inner + ' >';
+    const inner = util.inspect(this.value, newOptions)
+                      .replace(/\n/g, `\n${padding}`);
+    return `${options.stylize('Box', 'special')}< ${inner} >`;
   }
 }
 
@@ -384,12 +463,260 @@ option properties directly is also supported.
 
 ```js
 const util = require('util');
-const arr = Array(101);
+const arr = Array(101).fill(0);
 
 console.log(arr); // logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
+
+## util.promisify(original)
+<!-- YAML
+added: v8.0.0
+-->
+
+* `original` {Function}
+
+Takes a function following the common Node.js callback style, i.e. taking a
+`(err, value) => ...` callback as the last argument, and returns a version
+that returns promises.
+
+For example:
+
+```js
+const util = require('util');
+const fs = require('fs');
+
+const stat = util.promisify(fs.stat);
+stat('.').then((stats) => {
+  // Do something with `stats`
+}).catch((error) => {
+  // Handle the error.
+});
+```
+
+Or, equivalently using `async function`s:
+
+```js
+const util = require('util');
+const fs = require('fs');
+
+const stat = util.promisify(fs.stat);
+
+async function callStat() {
+  const stats = await stat('.');
+  console.log(`This directory is owned by ${stats.uid}`);
+}
+```
+
+If there is an `original[util.promisify.custom]` property present, `promisify`
+will return its value, see [Custom promisified functions][].
+
+`promisify()` assumes that `original` is a function taking a callback as its
+final argument in all cases, and the returned function will result in undefined
+behavior if it does not.
+
+### Custom promisified functions
+
+Using the `util.promisify.custom` symbol one can override the return value of
+[`util.promisify()`][]:
+
+```js
+const util = require('util');
+
+function doSomething(foo, callback) {
+  // ...
+}
+
+doSomething[util.promisify.custom] = function(foo) {
+  return getPromiseSomehow();
+};
+
+const promisified = util.promisify(doSomething);
+console.log(promisified === doSomething[util.promisify.custom]);
+// prints 'true'
+```
+
+This can be useful for cases where the original function does not follow the
+standard format of taking an error-first callback as the last argument.
+
+### util.promisify.custom
+<!-- YAML
+added: v8.0.0
+-->
+
+* {symbol}
+
+A Symbol that can be used to declare custom promisified variants of functions,
+see [Custom promisified functions][].
+
+## Class: util.TextDecoder
+<!-- YAML
+added: v8.3.0
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of the [WHATWG Encoding Standard][] `TextDecoder` API.
+
+```js
+const decoder = new TextDecoder('shift_jis');
+let string = '';
+let buffer;
+while (buffer = getNextChunkSomehow()) {
+  string += decoder.decode(buffer, { stream: true });
+}
+string += decoder.decode(); // end-of-stream
+```
+
+### WHATWG Supported Encodings
+
+Per the [WHATWG Encoding Standard][], the encodings supported by the
+`TextDecoder` API are outlined in the tables below. For each encoding,
+one or more aliases may be used.
+
+Different Node.js build configurations support different sets of encodings.
+While a very basic set of encodings is supported even on Node.js builds without
+ICU enabled, support for some encodings is provided only when Node.js is built
+with ICU and using the full ICU data (see [Internationalization][]).
+
+#### Encodings Supported Without ICU
+
+| Encoding     | Aliases                           |
+| -----------  | --------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
+| `'utf-16le'` | `'utf-16'`                        |
+
+#### Encodings Supported by Default (With ICU)
+
+| Encoding     | Aliases                           |
+| -----------  | --------------------------------- |
+| `'utf-8'`    | `'unicode-1-1-utf-8'`, `'utf8'`   |
+| `'utf-16le'` | `'utf-16'`                        |
+| `'utf-16be'` |                                   |
+
+#### Encodings Requiring Full ICU Data
+
+| Encoding           | Aliases                          |
+| -----------------  | -------------------------------- |
+| `'ibm866'`         | `'866'`, `'cp866'`, `'csibm866'` |
+| `'iso-8859-2'`     | `'csisolatin2'`, `'iso-ir-101'`, `'iso8859-2'`, `'iso88592'`, `'iso_8859-2'`, `'iso_8859-2:1987'`, `'l2'`, `'latin2'`  |
+| `'iso-8859-3'`     | `'csisolatin3'`, `'iso-ir-109'`, `'iso8859-3'`, `'iso88593'`, `'iso_8859-3'`, `'iso_8859-3:1988'`, `'l3'`, `'latin3'`  |
+| `'iso-8859-4'`     | `'csisolatin4'`, `'iso-ir-110'`, `'iso8859-4'`, `'iso88594'`, `'iso_8859-4'`, `'iso_8859-4:1988'`, `'l4'`, `'latin4'`  |
+| `'iso-8859-5'`     | `'csisolatincyrillic'`, `'cyrillic'`, `'iso-ir-144'`, `'iso8859-5'`, `'iso88595'`, `'iso_8859-5'`, `'iso_8859-5:1988'` |
+| `'iso-8859-6'`     | `'arabic'`, `'asmo-708'`, `'csiso88596e'`, `'csiso88596i'`, `'csisolatinarabic'`, `'ecma-114'`, `'iso-8859-6-e'`, `'iso-8859-6-i'`, `'iso-ir-127'`, `'iso8859-6'`, `'iso88596'`, `'iso_8859-6'`, `'iso_8859-6:1987'` |
+| `'iso-8859-7'`     | `'csisolatingreek'`, `'ecma-118'`, `'elot_928'`, `'greek'`, `'greek8'`, `'iso-ir-126'`, `'iso8859-7'`, `'iso88597'`, `'iso_8859-7'`, `'iso_8859-7:1987'`, `'sun_eu_greek'` |
+| `'iso-8859-8'`     | `'csiso88598e'`, `'csisolatinhebrew'`, `'hebrew'`, `'iso-8859-8-e'`, `'iso-ir-138'`, `'iso8859-8'`, `'iso88598'`, `'iso_8859-8'`, `'iso_8859-8:1988'`, `'visual'` |
+| `'iso-8859-8-i'`   | `'csiso88598i'`, `'logical'` |
+| `'iso-8859-10'`    | `'csisolatin6'`, `'iso-ir-157'`, `'iso8859-10'`, `'iso885910'`, `'l6'`, `'latin6'` |
+| `'iso-8859-13'`    | `'iso8859-13'`, `'iso885913'` |
+| `'iso-8859-14'`    | `'iso8859-14'`, `'iso885914'` |
+| `'iso-8859-15'`    | `'csisolatin9'`, `'iso8859-15'`, `'iso885915'`, `'iso_8859-15'`, `'l9'` |
+| `'koi8-r'`         | `'cskoi8r'`, `'koi'`, `'koi8'`, `'koi8_r'` |
+| `'koi8-u'`         | `'koi8-ru'` |
+| `'macintosh'`      | `'csmacintosh'`, `'mac'`, `'x-mac-roman'` |
+| `'windows-874'`    | `'dos-874'`, `'iso-8859-11'`, `'iso8859-11'`, `'iso885911'`, `'tis-620'` |
+| `'windows-1250'`   | `'cp1250'`, `'x-cp1250'` |
+| `'windows-1251'`   | `'cp1251'`, `'x-cp1251'` |
+| `'windows-1252'`   | `'ansi_x3.4-1968'`, `'ascii'`, `'cp1252'`, `'cp819'`, `'csisolatin1'`, `'ibm819'`, `'iso-8859-1'`, `'iso-ir-100'`, `'iso8859-1'`, `'iso88591'`, `'iso_8859-1'`, `'iso_8859-1:1987'`, `'l1'`, `'latin1'`, `'us-ascii'`, `'x-cp1252'` |
+| `'windows-1253'`   | `'cp1253'`, `'x-cp1253'` |
+| `'windows-1254'`   | `'cp1254'`, `'csisolatin5'`, `'iso-8859-9'`, `'iso-ir-148'`, `'iso8859-9'`, `'iso88599'`, `'iso_8859-9'`, `'iso_8859-9:1989'`, `'l5'`, `'latin5'`, `'x-cp1254'` |
+| `'windows-1255'`   | `'cp1255'`, `'x-cp1255'` |
+| `'windows-1256'`   | `'cp1256'`, `'x-cp1256'` |
+| `'windows-1257'`   | `'cp1257'`, `'x-cp1257'` |
+| `'windows-1258'`   | `'cp1258'`, `'x-cp1258'` |
+| `'x-mac-cyrillic'` | `'x-mac-ukrainian'` |
+| `'gbk'`            | `'chinese'`, `'csgb2312'`, `'csiso58gb231280'`, `'gb2312'`, `'gb_2312'`, `'gb_2312-80'`, `'iso-ir-58'`, `'x-gbk'` |
+| `'gb18030'`        | |
+| `'big5'`           | `'big5-hkscs'`, `'cn-big5'`, `'csbig5'`, `'x-x-big5'` |
+| `'euc-jp'`         | `'cseucpkdfmtjapanese'`, `'x-euc-jp'` |
+| `'iso-2022-jp'`    | `'csiso2022jp'` |
+| `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
+| `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
+
+*Note*: The `'iso-8859-16'` encoding listed in the [WHATWG Encoding Standard][]
+is not supported.
+
+### new TextDecoder([encoding[, options]])
+
+* `encoding` {string} Identifies the `encoding` that this `TextDecoder` instance
+  supports. Defaults to `'utf-8'`.
+* `options` {Object}
+  * `fatal` {boolean} `true` if decoding failures are fatal. Defaults to
+    `false`. This option is only supported when ICU is enabled (see
+    [Internationalization][]).
+  * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
+     order mark in the decoded result. When `false`, the byte order mark will
+     be removed from the output. This option is only used when `encoding` is
+     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. Defaults to `false`.
+
+Creates an new `TextDecoder` instance. The `encoding` may specify one of the
+supported encodings or an alias.
+
+### textDecoder.decode([input[, options]])
+
+* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
+  Typed Array instance containing the encoded data.
+* `options` {Object}
+  * `stream` {boolean} `true` if additional chunks of data are expected.
+    Defaults to `false`.
+* Returns: {string}
+
+Decodes the `input` and returns a string. If `options.stream` is `true`, any
+incomplete byte sequences occuring at the end of the `input` are buffered
+internally and emitted after the next call to `textDecoder.decode()`.
+
+If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
+`TypeError` being thrown.
+
+### textDecoder.encoding
+
+* {string}
+
+The encoding supported by the `TextDecoder` instance.
+
+### textDecoder.fatal
+
+* {boolean}
+
+The value will be `true` if decoding errors result in a `TypeError` being
+thrown.
+
+### textDecoder.ignoreBOM
+
+* {boolean}
+
+The value will be `true` if the decoding result will include the byte order
+mark.
+
+## Class: util.TextEncoder
+<!-- YAML
+added: v8.3.0
+-->
+
+> Stability: 1 - Experimental
+
+An implementation of the [WHATWG Encoding Standard][] `TextEncoder` API. All
+instances of `TextEncoder` only support UTF-8 encoding.
+
+```js
+const encoder = new TextEncoder();
+const uint8array = encoder.encode('this is some data');
+```
+
+### textEncoder.encode([input])
+
+* `input` {string} The text to encode. Defaults to an empty string.
+* Returns: {Uint8Array}
+
+UTF-8 encodes the `input` string and returns a `Uint8Array` containing the
+encoded bytes.
+
+### textDecoder.encoding
+
+* {string}
+
+The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
 ## Deprecated APIs
 
@@ -453,7 +780,7 @@ const util = require('util');
 
 util.isArray([]);
 // Returns: true
-util.isArray(new Array);
+util.isArray(new Array());
 // Returns: true
 util.isArray({});
 // Returns: false
@@ -584,7 +911,7 @@ Returns `true` if the given `object` is a `Function`. Otherwise, returns
 const util = require('util');
 
 function Foo() {}
-const Bar = function() {};
+const Bar = () => {};
 
 util.isFunction({});
 // Returns: false
@@ -689,7 +1016,7 @@ util.isObject(null);
 // Returns: false
 util.isObject({});
 // Returns: true
-util.isObject(function(){});
+util.isObject(function() {});
 // Returns: false
 ```
 
@@ -863,14 +1190,19 @@ deprecated: v0.11.3
 
 Deprecated predecessor of `console.log`.
 
+[`'uncaughtException'`]: process.html#process_event_uncaughtexception
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
+[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Error`]: errors.html#errors_class_error
+[`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`console.error()`]: console.html#console_console_error_data_args
+[`console.log()`]: console.html#console_console_log_data_args
+[`util.inspect()`]: #util_util_inspect_object_options
+[`util.promisify()`]: #util_util_promisify_original
+[Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
+[Custom promisified functions]: #util_custom_promisified_functions
+[Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
+[Internationalization]: intl.html
+[WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
-[`util.inspect()`]: #util_util_inspect_object_options
-[Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
-[Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
-[`Error`]: errors.html#errors_class_error
-[`console.log()`]: console.html#console_console_log_data_args
-[`console.error()`]: console.html#console_console_error_data_args
-[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign

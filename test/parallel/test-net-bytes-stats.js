@@ -36,7 +36,7 @@ const tcp = net.Server(function(s) {
 
   s.on('end', function() {
     bytesRead += s.bytesRead;
-    console.log('tcp socket disconnect #' + count);
+    console.log(`tcp socket disconnect #${count}`);
   });
 });
 
@@ -61,8 +61,8 @@ tcp.listen(0, function doTest() {
 
   socket.on('close', function() {
     console.error('CLIENT close event #%d', count);
-    console.log('Bytes read: ' + bytesRead);
-    console.log('Bytes written: ' + bytesWritten);
+    console.log(`Bytes read: ${bytesRead}`);
+    console.log(`Bytes written: ${bytesWritten}`);
     if (count < 2) {
       console.error('RECONNECTING');
       socket.connect(tcp.address().port);

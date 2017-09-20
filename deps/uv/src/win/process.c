@@ -148,8 +148,7 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   handle->child_stdio_buffer = NULL;
   handle->exit_cb_pending = 0;
 
-  uv_req_init(loop, (uv_req_t*)&handle->exit_req);
-  handle->exit_req.type = UV_PROCESS_EXIT;
+  UV_REQ_INIT(&handle->exit_req, UV_PROCESS_EXIT);
   handle->exit_req.data = handle;
 }
 
@@ -406,8 +405,15 @@ static WCHAR* search_path(const WCHAR *file,
       /* Next slice starts just after where the previous one ended */
       dir_start = dir_end;
 
+      /* If path is quoted, find quote end */
+      if (*dir_start == L'"' || *dir_start == L'\'') {
+        dir_end = wcschr(dir_start + 1, *dir_start);
+        if (dir_end == NULL) {
+          dir_end = wcschr(dir_start, L'\0');
+        }
+      }
       /* Slice until the next ; or \0 is found */
-      dir_end = wcschr(dir_start, L';');
+      dir_end = wcschr(dir_end, L';');
       if (dir_end == NULL) {
         dir_end = wcschr(dir_start, L'\0');
       }

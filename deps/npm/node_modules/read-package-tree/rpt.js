@@ -37,25 +37,27 @@ rpt.Node = Node
 rpt.Link = Link
 
 var ID = 0
-function Node (pkg, logical, physical, er, cache) {
-  if (cache[physical]) return cache[physical]
-
+function Node (pkg, logical, physical, er, cache, fromLink) {
   if (!(this instanceof Node)) {
     return new Node(pkg, logical, physical, er, cache)
   }
 
-  cache[physical] = this
+  var node = cache[physical] || this
+  if (fromLink && cache[physical]) return cache[physical]
 
-  debug(this.constructor.name, dpath(physical), pkg && pkg._id)
+  debug(node.constructor.name, dpath(physical), pkg && pkg._id)
 
-  this.id = ID++
-  this.package = pkg || {}
-  this.path = logical
-  this.realpath = physical
-  this.parent = null
-  this.isLink = false
-  this.children = []
-  this.error = er
+  node.path = logical
+  node.realpath = physical
+  node.error = er
+  if (!cache[physical]) {
+    node.id = ID++
+    node.package = pkg || {}
+    node.parent = null
+    node.isLink = false
+    node.children = []
+  }
+  return cache[physical] = node
 }
 
 Node.prototype.package = null
@@ -80,7 +82,7 @@ function Link (pkg, logical, physical, realpath, er, cache) {
   this.realpath = realpath
   this.package = pkg || {}
   this.parent = null
-  this.target = new Node(this.package, logical, realpath, er, cache)
+  this.target = new Node(this.package, logical, realpath, er, cache, true)
   this.isLink = true
   this.children = this.target.children
   this.error = er

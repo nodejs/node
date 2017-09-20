@@ -5,6 +5,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const FixTracker = require("../util/fix-tracker");
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -85,7 +92,13 @@ module.exports = {
                 message = "Extra semicolon.";
                 loc = loc.start;
                 fix = function(fixer) {
-                    return fixer.remove(lastToken);
+
+                    // Expand the replacement range to include the surrounding
+                    // tokens to avoid conflicting with no-extra-semi.
+                    // https://github.com/eslint/eslint/issues/7928
+                    return new FixTracker(fixer, sourceCode)
+                        .retainSurroundingTokens(lastToken)
+                        .remove(lastToken);
                 };
             }
 
@@ -99,15 +112,6 @@ module.exports = {
         }
 
         /**
-         * Checks whether a token is a semicolon punctuator.
-         * @param {Token} token The token.
-         * @returns {boolean} True if token is a semicolon punctuator.
-         */
-        function isSemicolon(token) {
-            return (token.type === "Punctuator" && token.value === ";");
-        }
-
-        /**
          * Check if a semicolon is unnecessary, only true if:
          *   - next token is on a new line and is not one of the opt-out tokens
          *   - next token is a valid statement divider
@@ -115,7 +119,7 @@ module.exports = {
          * @returns {boolean} whether the semicolon is unnecessary.
          */
         function isUnnecessarySemicolon(lastToken) {
-            if (!isSemicolon(lastToken)) {
+            if (!astUtils.isSemicolonToken(lastToken)) {
                 return false;
             }
 
@@ -128,7 +132,7 @@ module.exports = {
             const lastTokenLine = lastToken.loc.end.line;
             const nextTokenLine = nextToken.loc.start.line;
             const isOptOutToken = OPT_OUT_PATTERN.test(nextToken.value) && nextToken.value !== "++" && nextToken.value !== "--";
-            const isDivider = (nextToken.value === "}" || nextToken.value === ";");
+            const isDivider = (astUtils.isClosingBraceToken(nextToken) || astUtils.isSemicolonToken(nextToken));
 
             return (lastTokenLine !== nextTokenLine && !isOptOutToken) || isDivider;
         }
@@ -164,7 +168,7 @@ module.exports = {
                     report(node, true);
                 }
             } else {
-                if (!isSemicolon(lastToken)) {
+                if (!astUtils.isSemicolonToken(lastToken)) {
                     if (!exceptOneLine || !isOneLinerBlock(node)) {
                         report(node);
                     }

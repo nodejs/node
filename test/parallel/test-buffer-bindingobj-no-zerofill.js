@@ -44,7 +44,7 @@ const monkeyPatchedBuffer = require('../../lib/buffer');
 // possible that a segment of memory is already zeroed out, so try again and
 // again until we succeed or we time out.
 let uninitialized = buffer.Buffer.allocUnsafe(1024);
-while (uninitialized.some((val) => val !== 0))
+while (uninitialized.every((val) => val === 0))
   uninitialized = buffer.Buffer.allocUnsafe(1024);
 
 // On monkeypatched buffer, zeroFill property is undefined. allocUnsafe() should

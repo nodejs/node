@@ -3,4 +3,3 @@ api call: 42
 api call: abc
 console message: 42
 console message: abc
-

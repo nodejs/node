@@ -26,20 +26,32 @@ const fs = require('fs');
 const URL = require('url').URL;
 
 function check(async, sync) {
-  const expected = /Path must be a string without null bytes/;
   const argsSync = Array.prototype.slice.call(arguments, 2);
   const argsAsync = argsSync.concat((er) => {
-    assert(er && er.message.match(expected));
-    assert.strictEqual(er.code, 'ENOENT');
+    common.expectsError(
+      () => {
+        throw er;
+      },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: Error
+      });
   });
 
-  if (sync)
-    assert.throws(() => {
-      sync.apply(null, argsSync);
-    }, expected);
+  if (sync) {
+    common.expectsError(
+      () => {
+        sync.apply(null, argsSync);
+      },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: Error,
+      });
+  }
 
-  if (async)
+  if (async) {
     async.apply(null, argsAsync);
+  }
 }
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
@@ -95,10 +107,10 @@ check(fs.symlink, fs.symlinkSync, fileUrl, 'foobar');
 check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl);
 check(fs.truncate, fs.truncateSync, fileUrl);
 check(fs.unlink, fs.unlinkSync, fileUrl);
-check(null, fs.unwatchFile, fileUrl, common.fail);
+check(null, fs.unwatchFile, fileUrl, assert.fail);
 check(fs.utimes, fs.utimesSync, fileUrl, 0, 0);
-check(null, fs.watch, fileUrl, common.fail);
-check(null, fs.watchFile, fileUrl, common.fail);
+check(null, fs.watch, fileUrl, assert.fail);
+check(null, fs.watchFile, fileUrl, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
 
 check(fs.access, fs.accessSync, fileUrl2);
@@ -123,10 +135,10 @@ check(fs.symlink, fs.symlinkSync, fileUrl2, 'foobar');
 check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl2);
 check(fs.truncate, fs.truncateSync, fileUrl2);
 check(fs.unlink, fs.unlinkSync, fileUrl2);
-check(null, fs.unwatchFile, fileUrl2, common.fail);
+check(null, fs.unwatchFile, fileUrl2, assert.fail);
 check(fs.utimes, fs.utimesSync, fileUrl2, 0, 0);
-check(null, fs.watch, fileUrl2, common.fail);
-check(null, fs.watchFile, fileUrl2, common.fail);
+check(null, fs.watch, fileUrl2, assert.fail);
+check(null, fs.watchFile, fileUrl2, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
 
 // an 'error' for exists means that it doesn't exist.

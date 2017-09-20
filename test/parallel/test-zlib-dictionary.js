@@ -49,7 +49,7 @@ const input = [
   ''
 ].join('\r\n');
 
-function basicDictionaryTest() {
+function basicDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
   const inflate = zlib.createInflate({ dictionary: spdyDict });
@@ -75,7 +75,7 @@ function basicDictionaryTest() {
   deflate.end();
 }
 
-function deflateResetDictionaryTest() {
+function deflateResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
@@ -108,7 +108,7 @@ function deflateResetDictionaryTest() {
   });
 }
 
-function rawDictionaryTest() {
+function rawDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
   const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
@@ -134,7 +134,7 @@ function rawDictionaryTest() {
   deflate.end();
 }
 
-function deflateRawResetDictionaryTest() {
+function deflateRawResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
@@ -167,7 +167,9 @@ function deflateRawResetDictionaryTest() {
   });
 }
 
-basicDictionaryTest();
-deflateResetDictionaryTest();
-rawDictionaryTest();
-deflateRawResetDictionaryTest();
+for (const dict of [spdyDict, ...common.getArrayBufferViews(spdyDict)]) {
+  basicDictionaryTest(dict);
+  deflateResetDictionaryTest(dict);
+  rawDictionaryTest(dict);
+  deflateRawResetDictionaryTest(dict);
+}

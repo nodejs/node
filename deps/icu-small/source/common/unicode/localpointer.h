@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  localpointer.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -174,9 +174,9 @@ private:
  * \code
  * LocalPointer<UnicodeString> s(new UnicodeString((UChar32)0x50005));
  * int32_t length=s->length();  // 2
- * UChar lead=s->charAt(0);  // 0xd900
+ * char16_t lead=s->charAt(0);  // 0xd900
  * if(some condition) { return; }  // no need to explicitly delete the pointer
- * s.adoptInstead(new UnicodeString((UChar)0xfffc));
+ * s.adoptInstead(new UnicodeString((char16_t)0xfffc));
  * length=s->length();  // 1
  * // no need to explicitly delete the pointer
  * \endcode
@@ -323,10 +323,10 @@ public:
  * Usage example:
  * \code
  * LocalArray<UnicodeString> a(new UnicodeString[2]);
- * a[0].append((UChar)0x61);
+ * a[0].append((char16_t)0x61);
  * if(some condition) { return; }  // no need to explicitly delete the array
  * a.adoptInstead(new UnicodeString[4]);
- * a[3].append((UChar)0x62).append((UChar)0x63).reverse();
+ * a[3].append((char16_t)0x62).append((char16_t)0x63).reverse();
  * // no need to explicitly delete the array
  * \endcode
  *

@@ -56,7 +56,7 @@ function testBuffer(b) {
   for (let i = 0; i < b.length; i++) {
     bytesChecked++;
     if (b[i] !== 'a'.charCodeAt(0) && b[i] !== '\n'.charCodeAt(0)) {
-      throw new Error('invalid char ' + i + ',' + b[i]);
+      throw new Error(`invalid char ${i},${b[i]}`);
     }
   }
 }

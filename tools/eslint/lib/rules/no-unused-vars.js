@@ -42,6 +42,9 @@ module.exports = {
                             args: {
                                 enum: ["all", "after-used", "none"]
                             },
+                            ignoreRestSiblings: {
+                                type: "boolean"
+                            },
                             argsIgnorePattern: {
                                 type: "string"
                             },
@@ -59,13 +62,16 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         const DEFINED_MESSAGE = "'{{name}}' is defined but never used.";
         const ASSIGNED_MESSAGE = "'{{name}}' is assigned a value but never used.";
+        const REST_PROPERTY_TYPE = /^(?:Experimental)?RestProperty$/;
 
         const config = {
             vars: "all",
             args: "after-used",
+            ignoreRestSiblings: false,
             caughtErrors: "none"
         };
 
@@ -77,6 +83,7 @@ module.exports = {
             } else {
                 config.vars = firstOption.vars || config.vars;
                 config.args = firstOption.args || config.args;
+                config.ignoreRestSiblings = firstOption.ignoreRestSiblings || config.ignoreRestSiblings;
                 config.caughtErrors = firstOption.caughtErrors || config.caughtErrors;
 
                 if (firstOption.varsIgnorePattern) {
@@ -101,7 +108,7 @@ module.exports = {
 
         /**
          * Determines if a given variable is being exported from a module.
-         * @param {Variable} variable - EScope variable object.
+         * @param {Variable} variable - eslint-scope variable object.
          * @returns {boolean} True if the variable is exported, false if not.
          * @private
          */
@@ -120,14 +127,37 @@ module.exports = {
                 }
 
                 return node.parent.type.indexOf("Export") === 0;
-            } else {
-                return false;
             }
+            return false;
+
+        }
+
+        /**
+         * Determines if a variable has a sibling rest property
+         * @param {Variable} variable - eslint-scope variable object.
+         * @returns {boolean} True if the variable is exported, false if not.
+         * @private
+         */
+        function hasRestSpreadSibling(variable) {
+            if (config.ignoreRestSiblings) {
+                return variable.defs.some(def => {
+                    const propertyNode = def.name.parent;
+                    const patternNode = propertyNode.parent;
+
+                    return (
+                        propertyNode.type === "Property" &&
+                        patternNode.type === "ObjectPattern" &&
+                        REST_PROPERTY_TYPE.test(patternNode.properties[patternNode.properties.length - 1].type)
+                    );
+                });
+            }
+
+            return false;
         }
 
         /**
          * Determines if a reference is a read operation.
-         * @param {Reference} ref - An escope Reference
+         * @param {Reference} ref - An eslint-scope Reference
          * @returns {boolean} whether the given reference represents a read operation
          * @private
          */
@@ -182,7 +212,7 @@ module.exports = {
          * - The reference is inside of a function scope which is different from
          *   the declaration.
          *
-         * @param {escope.Reference} ref - A reference to check.
+         * @param {eslint-scope.Reference} ref - A reference to check.
          * @param {ASTNode} prevRhsNode - The previous RHS node.
          * @returns {ASTNode|null} The RHS node or null.
          * @private
@@ -292,7 +322,7 @@ module.exports = {
         /**
          * Checks whether a given reference is a read to update itself or not.
          *
-         * @param {escope.Reference} ref - A reference to check.
+         * @param {eslint-scope.Reference} ref - A reference to check.
          * @param {ASTNode} rhsNode - The RHS node of the previous assignment.
          * @returns {boolean} The reference is a read to update itself.
          * @private
@@ -392,7 +422,7 @@ module.exports = {
         /**
          * Checks whether the given variable is the last parameter in the non-ignored parameters.
          *
-         * @param {escope.Variable} variable - The variable to check.
+         * @param {eslint-scope.Variable} variable - The variable to check.
          * @returns {boolean} `true` if the variable is the last.
          */
         function isLastInNonIgnoredParameters(variable) {
@@ -418,7 +448,7 @@ module.exports = {
 
         /**
          * Gets an array of variables without read references.
-         * @param {Scope} scope - an escope Scope object.
+         * @param {Scope} scope - an eslint-scope Scope object.
          * @param {Variable[]} unusedVars - an array that saving result.
          * @returns {Variable[]} unused variables of the scope and descendant scopes.
          * @private
@@ -483,7 +513,7 @@ module.exports = {
                             }
 
                             // if "args" option is "after-used", skip all but the last parameter
-                            if (config.args === "after-used" && !isLastInNonIgnoredParameters(variable)) {
+                            if (config.args === "after-used" && astUtils.isFunction(def.name.parent) && !isLastInNonIgnoredParameters(variable)) {
                                 continue;
                             }
                         } else {
@@ -495,7 +525,7 @@ module.exports = {
                         }
                     }
 
-                    if (!isUsedVariable(variable) && !isExported(variable)) {
+                    if (!isUsedVariable(variable) && !isExported(variable) && !hasRestSpreadSibling(variable)) {
                         unusedVars.push(variable);
                     }
                 }
@@ -510,7 +540,7 @@ module.exports = {
 
         /**
          * Gets the index of a given variable name in a given comment.
-         * @param {escope.Variable} variable - A variable to get.
+         * @param {eslint-scope.Variable} variable - A variable to get.
          * @param {ASTNode} comment - A comment node which includes the variable name.
          * @returns {number} The index of the variable name's location.
          * @private
@@ -531,29 +561,14 @@ module.exports = {
          * Creates the correct location of a given variables.
          * The location is at its name string in a `/*global` comment.
          *
-         * @param {escope.Variable} variable - A variable to get its location.
+         * @param {eslint-scope.Variable} variable - A variable to get its location.
          * @returns {{line: number, column: number}} The location object for the variable.
          * @private
          */
         function getLocation(variable) {
             const comment = variable.eslintExplicitGlobalComment;
-            const baseLoc = comment.loc.start;
-            let column = getColumnInComment(variable, comment);
-            const prefix = comment.value.slice(0, column);
-            const lineInComment = (prefix.match(/\n/g) || []).length;
 
-            if (lineInComment > 0) {
-                column -= 1 + prefix.lastIndexOf("\n");
-            } else {
-
-                // 2 is for `/*`
-                column += baseLoc.column + 2;
-            }
-
-            return {
-                line: baseLoc.line + lineInComment,
-                column
-            };
+            return sourceCode.getLocFromIndex(comment.range[0] + 2 + getColumnInComment(variable, comment));
         }
 
         //--------------------------------------------------------------------------

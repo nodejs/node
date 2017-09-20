@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -60,7 +60,7 @@ if (cluster.isWorker) {
     maybeReply();
   });
 
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
 
   const checks = {
@@ -80,7 +80,7 @@ if (cluster.isWorker) {
 
 
   let client;
-  const check = function(type, result) {
+  const check = (type, result) => {
     checks[type].receive = true;
     checks[type].correct = result;
     console.error('check', checks);
@@ -109,9 +109,9 @@ if (cluster.isWorker) {
   });
 
   // When a TCP server is listening in the worker connect to it
-  worker.on('listening', function() {
+  worker.on('listening', function(address) {
 
-    client = net.connect(common.PORT, function() {
+    client = net.connect(address.port, function() {
       // Send message to worker.
       worker.send('message from master');
     });
@@ -123,7 +123,7 @@ if (cluster.isWorker) {
       if (data.code === 'received message') {
         check('worker', data.echo === 'message from master');
       } else {
-        throw new Error('wrong TCP message received: ' + data);
+        throw new Error(`wrong TCP message received: ${data}`);
       }
     });
 
@@ -139,9 +139,8 @@ if (cluster.isWorker) {
 
   process.once('exit', function() {
     forEach(checks, function(check, type) {
-      assert.ok(check.receive, 'The ' + type + ' did not receive any message');
-      assert.ok(check.correct,
-                'The ' + type + ' did not get the correct message');
+      assert.ok(check.receive, `The ${type} did not receive any message`);
+      assert.ok(check.correct, `The ${type} did not get the correct message`);
     });
   });
 }

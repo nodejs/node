@@ -22,15 +22,11 @@
 'use strict';
 const common = require('../common');
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 doTest();
 
@@ -47,14 +43,13 @@ function doTest() {
   const tls = require('tls');
   const fs = require('fs');
   const join = require('path').join;
+  const fixtures = require('../common/fixtures');
   const spawn = require('child_process').spawn;
 
   const SESSION_TIMEOUT = 1;
 
-  const keyFile = join(common.fixturesDir, 'agent.key');
-  const certFile = join(common.fixturesDir, 'agent.crt');
-  const key = fs.readFileSync(keyFile);
-  const cert = fs.readFileSync(certFile);
+  const key = fixtures.path('agent.key');
+  const cert = fixtures.path('agent.crt');
   const options = {
     key: key,
     cert: cert,
@@ -70,18 +65,17 @@ function doTest() {
 
   const sessionFileName = (function() {
     const ticketFileName = 'tls-session-ticket.txt';
-    const fixturesPath = join(common.fixturesDir, ticketFileName);
     const tmpPath = join(common.tmpDir, ticketFileName);
-    fs.writeFileSync(tmpPath, fs.readFileSync(fixturesPath));
+    fs.writeFileSync(tmpPath, fixtures.readSync(ticketFileName));
     return tmpPath;
   }());
 
   // Expects a callback -- cb(connectionType : enum ['New'|'Reused'])
 
-  const Client = function(cb) {
+  function Client(cb) {
     const flags = [
       's_client',
-      '-connect', 'localhost:' + common.PORT,
+      '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
@@ -95,7 +89,7 @@ function doTest() {
     });
     client.on('exit', function(code) {
       let connectionType;
-      const grepConnectionType = function(line) {
+      const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
         if (matches) {
           connectionType = matches[1];
@@ -108,7 +102,7 @@ function doTest() {
       }
       cb(connectionType);
     });
-  };
+  }
 
   const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {

@@ -23,12 +23,10 @@
 
 const common = require('../common');
 
-if (common.isWindows) {
+if (common.isWindows)
   common.skip('SIGUSR1 and SIGHUP signals are not supported');
-  return;
-}
 
-console.log('process.pid: ' + process.pid);
+console.log(`process.pid: ${process.pid}`);
 
 process.on('SIGUSR1', common.mustCall());
 
@@ -41,7 +39,7 @@ process.on('SIGUSR1', common.mustCall(function() {
 
 let i = 0;
 setInterval(function() {
-  console.log('running process...' + ++i);
+  console.log(`running process...${++i}`);
 
   if (i === 5) {
     process.kill(process.pid, 'SIGUSR1');

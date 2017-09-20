@@ -21,21 +21,17 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-const fs = require('fs');
-const path = require('path');
+const cert = fixtures.readSync('test_cert.pem');
+const key = fixtures.readSync('test_key.pem');
 
-const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
-
-const conn = tls.connect({cert, key, port: common.PORT}, common.mustNotCall());
+const conn = tls.connect({ cert, key, port: 0 }, common.mustNotCall());
 conn.on('error', function() {
 });
 assert.doesNotThrow(function() {

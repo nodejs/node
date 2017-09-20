@@ -28,6 +28,8 @@ using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
 
+namespace {
+
 class SerializerContext : public BaseObject,
                           public ValueSerializer::Delegate {
  public:
@@ -449,9 +451,11 @@ void InitializeSerdesBindings(Local<Object> target,
                       "_setTreatArrayBufferViewsAsHostObjects",
                       SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
 
-  ser->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer"));
+  Local<String> serializerString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer");
+  ser->SetClassName(serializerString);
   target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Serializer"),
+              serializerString,
               ser->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
   Local<FunctionTemplate> des =
@@ -472,12 +476,15 @@ void InitializeSerdesBindings(Local<Object> target,
   env->SetProtoMethod(des, "readDouble", DeserializerContext::ReadDouble);
   env->SetProtoMethod(des, "_readRawBytes", DeserializerContext::ReadRawBytes);
 
-  des->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer"));
+  Local<String> deserializerString =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer");
+  des->SetClassName(deserializerString);
   target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Deserializer"),
+              deserializerString,
               des->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(serdes, node::InitializeSerdesBindings)

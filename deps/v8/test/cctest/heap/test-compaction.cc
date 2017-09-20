@@ -26,7 +26,7 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   // 1) Markbits are cleared
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
-  CHECK(page->markbits()->IsClean());
+  CHECK(MarkingState::Internal(page).bitmap()->IsClean());
   CHECK(!page->IsEvacuationCandidate());
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }
@@ -41,12 +41,15 @@ void CheckAllObjectsOnPage(std::vector<Handle<FixedArray>>& handles,
 }  // namespace
 
 HEAP_TEST(CompactionFullAbortedPage) {
+  if (FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and the whole page
   // is aborted.
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   FLAG_concurrent_sweeping = false;
+  FLAG_concurrent_marking = false;
+  FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -68,7 +71,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // Check that all handles still point to the same page, i.e., compaction
@@ -83,12 +86,15 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
 
 HEAP_TEST(CompactionPartiallyAbortedPage) {
+  if (FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one.
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   FLAG_concurrent_sweeping = false;
+  FLAG_concurrent_marking = false;
+  FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
@@ -128,7 +134,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
             Page::FromAddress(page_to_fill_handles.front()->address());
 
         heap->set_force_oom(true);
-        CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+        CcTest::CollectAllGarbage();
         heap->mark_compact_collector()->EnsureSweepingCompleted();
 
         bool migration_aborted = false;
@@ -155,6 +161,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
+  if (FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together. This test makes sure that intra-aborted page pointers
@@ -163,6 +170,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   FLAG_concurrent_sweeping = false;
+  FLAG_concurrent_marking = false;
+  FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
@@ -210,7 +219,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
@@ -239,6 +248,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
+  if (FLAG_never_compact) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together and the very first object on the aborted page points
@@ -250,6 +260,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   FLAG_concurrent_sweeping = false;
+  FLAG_concurrent_marking = false;
+  FLAG_stress_incremental_marking = false;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
@@ -303,7 +315,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+      CcTest::CollectAllGarbage();
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while

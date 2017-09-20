@@ -44,8 +44,10 @@ const server = http.createServer(function(req, res) {
     default: body = body3_s;
   }
 
-  res.writeHead(200,
-                {'Content-Type': 'text/plain', 'Content-Length': body.length});
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'Content-Length': body.length
+  });
   res.end(body);
 });
 server.listen(0);

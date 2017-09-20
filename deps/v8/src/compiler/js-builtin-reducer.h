@@ -42,6 +42,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                    Handle<Context> native_context);
   ~JSBuiltinReducer() final {}
 
+  const char* reducer_name() const override { return "JSBuiltinReducer"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -55,12 +57,26 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                         IterationKind kind);
   Reduction ReduceTypedArrayIteratorNext(Handle<Map> iterator_map, Node* node,
                                          IterationKind kind);
+  Reduction ReduceArrayIsArray(Node* node);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
+  Reduction ReduceArrayShift(Node* node);
+  Reduction ReduceCollectionIterator(Node* node,
+                                     InstanceType collection_instance_type,
+                                     int collection_iterator_map_index);
+  Reduction ReduceCollectionSize(Node* node,
+                                 InstanceType collection_instance_type);
+  Reduction ReduceCollectionIteratorNext(
+      Node* node, int entry_size,
+      InstanceType collection_iterator_instance_type_first,
+      InstanceType collection_iterator_instance_type_last);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
+  Reduction ReduceFunctionBind(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
+  Reduction ReduceMapHas(Node* node);
+  Reduction ReduceMapGet(Node* node);
   Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAcos(Node* node);
   Reduction ReduceMathAcosh(Node* node);
@@ -102,9 +118,13 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
+  Reduction ReduceStringConcat(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringIndexOf(Node* node);
   Reduction ReduceStringIterator(Node* node);
   Reduction ReduceStringIteratorNext(Node* node);
+  Reduction ReduceStringToLowerCaseIntl(Node* node);
+  Reduction ReduceStringToUpperCaseIntl(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);

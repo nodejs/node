@@ -35,6 +35,7 @@
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
@@ -149,7 +150,6 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
 TEST(CFromJSStackTrace) {
   // BUG(1303) Inlining of JSFuncDoTrace() in JSTrace below breaks this test.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
@@ -199,7 +199,6 @@ TEST(PureJSStackTrace) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);

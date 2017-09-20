@@ -67,6 +67,15 @@ repl                  Enter a debug repl that works like exec
 
 scripts               List application scripts that are currently loaded
 scripts(true)         List all scripts (including node-internals)
+
+profile               Start CPU profiling session.
+profileEnd            Stop current CPU profiling session.
+profiles              Array of completed CPU profiling sessions.
+profiles[n].save(filepath = 'node.cpuprofile')
+                      Save CPU profiling session to disk as JSON.
+
+takeHeapSnapshot(filepath = 'node.heapsnapshot')
+                      Take a heap snapshot and save to disk as JSON.
 `.trim();
 
 const FUNCTION_NAME_PATTERN = /^(?:function\*? )?([^(\s]+)\(/;

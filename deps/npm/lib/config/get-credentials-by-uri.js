@@ -36,8 +36,6 @@ function getCredentialsByURI (uri) {
 
   // Handle the old-style _auth=<base64> style for the default
   // registry, if set.
-  //
-  // XXX(isaacs): Remove when npm 1.4 is no longer relevant
   var authDef = this.get('_auth')
   var userDef = this.get('username')
   var passDef = this.get('_password')

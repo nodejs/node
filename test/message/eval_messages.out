@@ -8,8 +8,6 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
     at bootstrap_node.js:*:*
 42
@@ -25,8 +23,6 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
     at bootstrap_node.js:*:*
 
@@ -41,8 +37,6 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
     at bootstrap_node.js:*:*
 100
@@ -57,8 +51,6 @@ ReferenceError: y is not defined
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
-    at run (bootstrap_node.js:*:*)
     at startup (bootstrap_node.js:*:*)
     at bootstrap_node.js:*:*
 

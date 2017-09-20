@@ -66,8 +66,8 @@ class EscapeAnalysisTest : public TypedGraphTest {
     if (!control) {
       control = control_;
     }
-    return effect_ = graph()->NewNode(simplified()->Allocate(), size, effect,
-                                      control);
+    return effect_ = graph()->NewNode(simplified()->Allocate(Type::Any()), size,
+                                      effect, control);
   }
 
   Node* Constant(int num) {

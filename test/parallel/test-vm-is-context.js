@@ -26,7 +26,7 @@ const vm = require('vm');
 
 assert.throws(function() {
   vm.isContext('string is not supported');
-}, TypeError);
+}, /^TypeError: sandbox must be an object$/);
 
 assert.strictEqual(vm.isContext({}), false);
 assert.strictEqual(vm.isContext([]), false);

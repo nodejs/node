@@ -21,19 +21,15 @@
 
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('dgram clustering is currently not supported on Windows.');
+
 const NUM_WORKERS = 4;
 const PACKETS_PER_WORKER = 10;
 
 const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
-
-
-if (common.isWindows) {
-  common.skip('dgram clustering is currently not supported ' +
-              'on windows.');
-  return;
-}
 
 if (cluster.isMaster)
   master();
@@ -49,7 +45,7 @@ function master() {
     cluster.fork();
 
   // Wait until all workers are listening.
-  cluster.on('listening', common.mustCall(() => {
+  cluster.on('listening', common.mustCall((worker, address) => {
     if (++listening < NUM_WORKERS)
       return;
 
@@ -60,7 +56,7 @@ function master() {
     doSend();
 
     function doSend() {
-      socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1', afterSend);
+      socket.send(buf, 0, buf.length, address.port, address.address, afterSend);
     }
 
     function afterSend() {
@@ -106,10 +102,10 @@ function worker() {
 
     // Every 10 messages, notify the master.
     if (received === PACKETS_PER_WORKER) {
-      process.send({received: received});
+      process.send({ received: received });
       socket.close();
     }
   }, PACKETS_PER_WORKER));
 
-  socket.bind(common.PORT);
+  socket.bind(0);
 }

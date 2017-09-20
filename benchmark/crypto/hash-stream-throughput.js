@@ -1,10 +1,10 @@
 // throughput benchmark
 // creates a single hasher, then pushes a bunch of data through it
 'use strict';
-var common = require('../common.js');
-var crypto = require('crypto');
+const common = require('../common.js');
+const crypto = require('crypto');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   writes: [500],
   algo: ['sha1', 'sha256', 'sha512'],
   type: ['asc', 'utf', 'buf'],
@@ -14,7 +14,7 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   var api = conf.api;
-  if (api === 'stream' && process.version.match(/^v0\.[0-8]\./)) {
+  if (api === 'stream' && /^v0\.[0-8]\./.test(process.version)) {
     console.error('Crypto streams not available until v0.10');
     // use the legacy, just so that we can compare them.
     api = 'legacy';
@@ -24,31 +24,31 @@ function main(conf) {
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = 'a'.repeat(conf.len);
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = 'ü'.repeat(conf.len / 2);
       encoding = 'utf8';
       break;
     case 'buf':
       message = Buffer.alloc(conf.len, 'b');
       break;
     default:
-      throw new Error('unknown message type: ' + conf.type);
+      throw new Error(`unknown message type: ${conf.type}`);
   }
 
-  var fn = api === 'stream' ? streamWrite : legacyWrite;
+  const fn = api === 'stream' ? streamWrite : legacyWrite;
 
   bench.start();
   fn(conf.algo, message, encoding, conf.writes, conf.len);
 }
 
 function legacyWrite(algo, message, encoding, writes, len) {
-  var written = writes * len;
-  var bits = written * 8;
-  var gbits = bits / (1024 * 1024 * 1024);
-  var h = crypto.createHash(algo);
+  const written = writes * len;
+  const bits = written * 8;
+  const gbits = bits / (1024 * 1024 * 1024);
+  const h = crypto.createHash(algo);
 
   while (writes-- > 0)
     h.update(message, encoding);
@@ -59,10 +59,10 @@ function legacyWrite(algo, message, encoding, writes, len) {
 }
 
 function streamWrite(algo, message, encoding, writes, len) {
-  var written = writes * len;
-  var bits = written * 8;
-  var gbits = bits / (1024 * 1024 * 1024);
-  var h = crypto.createHash(algo);
+  const written = writes * len;
+  const bits = written * 8;
+  const gbits = bits / (1024 * 1024 * 1024);
+  const h = crypto.createHash(algo);
 
   while (writes-- > 0)
     h.write(message, encoding);

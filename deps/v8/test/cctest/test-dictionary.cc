@@ -29,12 +29,14 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/spaces.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
@@ -50,27 +52,27 @@ static void TestHashMap(Handle<HashMap> table) {
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
   table = HashMap::Put(table, a, b);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
   // When the key does not exist in the map, Lookup returns the hole.
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = HashMap::Put(table, a, factory->NewJSArray(13));
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_NE(table->Lookup(a), *b);
 
   // Keys that have been removed are mapped to the hole.
   bool was_present = false;
   table = HashMap::Remove(table, a, &was_present);
   CHECK(was_present);
-  CHECK_EQ(table->NumberOfElements(), 0);
+  CHECK_EQ(0, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
   // Keys should map back to their respective values and also should get
@@ -121,19 +123,19 @@ static void TestHashSet(Handle<HashSet> table) {
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
   table = HashSet::Add(table, a);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
   // Keys still have to be valid after objects were moved.
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
   // Keys that are overwritten should not change number of elements.
   table = HashSet::Add(table, a);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
@@ -142,7 +144,7 @@ static void TestHashSet(Handle<HashSet> table) {
   // bool was_present = false;
   // table = HashSet::Remove(table, a, &was_present);
   // CHECK(was_present);
-  // CHECK_EQ(table->NumberOfElements(), 0);
+  // CHECK_EQ(0, table->NumberOfElements());
   // CHECK(!table->Has(a));
   // CHECK(!table->Has(b));
 
@@ -191,7 +193,7 @@ class ObjectHashTableTest: public ObjectHashTable {
 
   int lookup(int key) {
     Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
-    return Smi::cast(Lookup(key_obj))->value();
+    return Smi::ToInt(Lookup(key_obj));
   }
 
   int capacity() {
@@ -212,7 +214,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::kZero, isolate));
+    t->Rehash();
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -225,7 +227,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::kZero, isolate));
+    t->Rehash();
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -296,18 +298,15 @@ TEST(ObjectHashTableCausesGC) {
 }
 #endif
 
-TEST(SetRequiresCopyOnCapacityChange) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
-  dict->SetRequiresCopyOnCapacityChange();
-  Handle<Name> key = isolate->factory()->InternalizeString(
-      v8::Utils::OpenHandle(*v8_str("key")));
-  Handle<Object> value = handle(Smi::kZero, isolate);
-  Handle<NameDictionary> new_dict =
-      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
-  CHECK_NE(*dict, *new_dict);
+TEST(MaximumClonedShallowObjectProperties) {
+  // Assert that a NameDictionary with kMaximumClonedShallowObjectProperties is
+  // not in large-object space.
+  const int max_capacity = NameDictionary::ComputeCapacity(
+      ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
+  const int max_literal_entry = max_capacity / NameDictionary::kEntrySize;
+  const int max_literal_index = NameDictionary::EntryToIndex(max_literal_entry);
+  CHECK_LE(NameDictionary::OffsetOfElementAt(max_literal_index),
+           kMaxRegularHeapObjectSize);
 }
 
 }  // namespace

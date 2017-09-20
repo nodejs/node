@@ -14,7 +14,7 @@ test('stepping through breakpoints', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => {
       t.match(
@@ -132,7 +132,7 @@ test('sb before loading file', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('sb("other.js", 3)'))
     .then(() => {
@@ -161,7 +161,7 @@ test('clearBreakpoint', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('sb("break.js", 3)'))
     .then(() => cli.command('sb("break.js", 9)'))

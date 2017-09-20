@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const v8 = require('v8');
+const os = require('os');
 
 const circular = {};
 circular.circular = circular;
@@ -18,6 +19,11 @@ const objects = [
   42,
   circular
 ];
+
+const serializerTypeError =
+  /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/;
+const deserializerTypeError =
+  /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/;
 
 {
   const ser = new v8.DefaultSerializer();
@@ -117,4 +123,21 @@ const objects = [
 
   assert.deepStrictEqual(buf, ser.releaseBuffer());
   assert.strictEqual(des.getWireFormatVersion(), 0x0d);
+}
+
+{
+  // Unaligned Uint16Array read, with padding in the underlying array buffer.
+  let buf = Buffer.alloc(32 + 9);
+  buf.write('ff0d5c0404addeefbe', 32, 'hex');
+  buf = buf.slice(32);
+
+  const expectedResult = os.endianness() === 'LE' ?
+    new Uint16Array([0xdead, 0xbeef]) : new Uint16Array([0xadde, 0xefbe]);
+
+  assert.deepStrictEqual(v8.deserialize(buf), expectedResult);
+}
+
+{
+  assert.throws(v8.Serializer, serializerTypeError);
+  assert.throws(v8.Deserializer, deserializerTypeError);
 }

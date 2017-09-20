@@ -22,29 +22,33 @@ template <typename T>
 class ZoneVector;
 
 namespace AstNumbering {
-// Assign type feedback IDs, bailout IDs, and generator yield IDs to an AST node
-// tree; perform catch prediction for TryStatements. If |eager_literals| is
+// Assign type feedback IDs, bailout IDs, and generator suspend IDs to an AST
+// node tree; perform catch prediction for TryStatements. If |eager_literals| is
 // non-null, adds any eager inner literal functions into it.
 bool Renumber(
     uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
-    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
+    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals,
+    bool collect_type_profile = false);
 }
 
-// Some details on yield IDs
+// Some details on suspend IDs
 // -------------------------
 //
 // In order to assist Ignition in generating bytecode for a generator function,
-// we assign a unique number (the yield ID) to each Yield node in its AST. We
-// also annotate loops with the number of yields they contain (loop.yield_count)
-// and the smallest ID of those (loop.first_yield_id), and we annotate the
-// function itself with the number of yields it contains (function.yield_count).
+// we assign a unique number (the suspend ID) to each Suspend node in its AST.
+// We also annotate loops with the number of suspends they contain
+// (loop.suspend_count) and the smallest ID of those (loop.first_suspend_id),
+// and we annotate the function itself with the number of suspends it contains
+// (function.suspend_count).
 //
-// The way in which we choose the IDs is simply by enumerating the Yield nodes.
+// The way in which we choose the IDs is simply by enumerating the Suspend
+// nodes.
 // Ignition relies on the following properties:
-// - For each loop l and each yield y of l:
-//     l.first_yield_id  <=  y.yield_id  <  l.first_yield_id + l.yield_count
-// - For the generator function f itself and each yield y of f:
-//                    0  <=  y.yield_id  <  f.yield_count
+// - For each loop l and each suspend y of l:
+//     l.first_suspend_id  <=
+//         s.suspend_id  < l.first_suspend_id + l.suspend_count
+// - For the generator function f itself and each suspend s of f:
+//                    0  <=  s.suspend_id  <  f.suspend_count
 
 }  // namespace internal
 }  // namespace v8

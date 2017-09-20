@@ -44,11 +44,10 @@ process.once("uncaughtException", err => {
     if (typeof err.messageTemplate === "string" && err.messageTemplate.length > 0) {
         const template = lodash.template(fs.readFileSync(path.resolve(__dirname, `../messages/${err.messageTemplate}.txt`), "utf-8"));
 
-        console.log("\nOops! Something went wrong! :(");
-        console.log(`\n${template(err.messageData || {})}`);
+        console.error("\nOops! Something went wrong! :(");
+        console.error(`\n${template(err.messageData || {})}`);
     } else {
-        console.log(err.message);
-        console.log(err.stack);
+        console.error(err.stack);
     }
 
     process.exitCode = 1;
@@ -61,14 +60,12 @@ if (useStdIn) {
 } else if (init) {
     const configInit = require("../lib/config/config-initializer");
 
-    configInit.initializeConfig(err => {
-        if (err) {
-            process.exitCode = 1;
-            console.error(err.message);
-            console.error(err.stack);
-        } else {
-            process.exitCode = 0;
-        }
+    configInit.initializeConfig().then(() => {
+        process.exitCode = 0;
+    }).catch(err => {
+        process.exitCode = 1;
+        console.error(err.message);
+        console.error(err.stack);
     });
 } else {
     process.exitCode = cli.execute(process.argv);

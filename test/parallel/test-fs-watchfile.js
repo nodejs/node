@@ -1,39 +1,49 @@
 'use strict';
-
 const common = require('../common');
+
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const assert = require('assert');
 
 // Basic usage tests.
-assert.throws(function() {
-  fs.watchFile('./some-file');
-}, /"watchFile\(\)" requires a listener function/);
+common.expectsError(
+  () => {
+    fs.watchFile('./some-file');
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
+
+common.expectsError(
+  () => {
+    fs.watchFile('./another-file', {}, 'bad listener');
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 assert.throws(function() {
-  fs.watchFile('./another-file', {}, 'bad listener');
-}, /"watchFile\(\)" requires a listener function/);
-
-assert.throws(function() {
-  fs.watchFile(new Object(), common.noop);
-}, /Path must be a string/);
+  fs.watchFile(new Object(), common.mustNotCall());
+}, common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }));
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(
-    0,                                        // dev
-    0,                                        // mode
-    0,                                        // nlink
-    0,                                        // uid
-    0,                                        // gid
-    0,                                        // rdev
-    common.isWindows ? undefined : 0,         // blksize
-    0,                                        // ino
-    0,                                        // size
-    common.isWindows ? undefined : 0,         // blocks
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
-    Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
-    Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
+  0,                                        // dev
+  0,                                        // mode
+  0,                                        // nlink
+  0,                                        // uid
+  0,                                        // gid
+  0,                                        // rdev
+  common.isWindows ? undefined : 0,         // blksize
+  0,                                        // ino
+  0,                                        // size
+  common.isWindows ? undefined : 0,         // blocks
+  Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
+  Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
+  Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
+  Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
 );
 
 common.refreshTmpDir();
@@ -42,7 +52,7 @@ common.refreshTmpDir();
 // time, the callback should be invoked again with proper values in stat object
 let fileExists = false;
 
-fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
+fs.watchFile(enoentFile, { interval: 0 }, common.mustCall(function(curr, prev) {
   if (!fileExists) {
     // If the file does not exist, all the fields should be zero and the date
     // fields should be UNIX EPOCH time
@@ -63,3 +73,25 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
     fs.unwatchFile(enoentFile);
   }
 }, 2));
+
+// Watch events should callback with a filename on supported systems.
+// Omitting AIX. It works but not reliably.
+if (common.isLinux || common.isOSX || common.isWindows) {
+  const dir = path.join(common.tmpDir, 'watch');
+
+  fs.mkdir(dir, common.mustCall(function(err) {
+    if (err) assert.fail(err);
+
+    fs.watch(dir, common.mustCall(function(eventType, filename) {
+      clearInterval(interval);
+      this._handle.close();
+      assert.strictEqual(filename, 'foo.txt');
+    }));
+
+    const interval = setInterval(() => {
+      fs.writeFile(path.join(dir, 'foo.txt'), 'foo', common.mustCall((err) => {
+        if (err) assert.fail(err);
+      }));
+    }, 1);
+  }));
+}
