@@ -4,23 +4,27 @@ const common = require('../common');
 const util = require('util');
 
 const bench = common.createBenchmark(main, {
-  n: [1e2],
+  n: [1e3],
   len: [1e5],
   type: [
     'denseArray',
     'sparseArray',
-    'mixedArray'
+    'mixedArray',
+    'denseArray_showHidden',
   ]
 });
 
-function main(conf) {
-  const { n, len, type } = conf;
+function main({ n, len, type }) {
   var arr = Array(len);
-  var i;
+  var i, opts;
 
   switch (type) {
+    case 'denseArray_showHidden':
+      opts = { showHidden: true };
+      arr = arr.fill('denseArray');
+      break;
     case 'denseArray':
-      arr = arr.fill(0);
+      arr = arr.fill('denseArray');
       break;
     case 'sparseArray':
       break;
@@ -33,7 +37,7 @@ function main(conf) {
   }
   bench.start();
   for (i = 0; i < n; i++) {
-    util.inspect(arr);
+    util.inspect(arr, opts);
   }
   bench.end(n);
 }

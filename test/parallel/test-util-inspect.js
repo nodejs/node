@@ -43,14 +43,15 @@ assert.strictEqual(
   new Date('2010-02-14T12:48:40+01:00').toISOString()
 );
 assert.strictEqual(util.inspect(new Date('')), (new Date('')).toString());
-
 assert.strictEqual(util.inspect('\n\u0001'), "'\\n\\u0001'");
-
+assert.strictEqual(
+  util.inspect(`${Array(75).fill(1)}'\n\u001d\n\u0003`),
+  `'${Array(75).fill(1)}\\'\\n\\u001d\\n\\u0003'`
+);
 assert.strictEqual(util.inspect([]), '[]');
 assert.strictEqual(util.inspect(Object.create([])), 'Array {}');
 assert.strictEqual(util.inspect([1, 2]), '[ 1, 2 ]');
 assert.strictEqual(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
-
 assert.strictEqual(util.inspect({}), '{}');
 assert.strictEqual(util.inspect({ a: 1 }), '{ a: 1 }');
 assert.strictEqual(util.inspect({ a: function() {} }), '{ a: [Function: a] }');
@@ -76,6 +77,7 @@ assert.strictEqual(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
                    '{ a: { b: [Object] } }');
 assert.strictEqual(util.inspect({ 'a': { 'b': ['c'] } }, false, 1),
                    '{ a: { b: [Array] } }');
+assert.strictEqual(util.inspect(new Uint8Array(0)), 'Uint8Array [  ]');
 assert.strictEqual(
   util.inspect(
     Object.create(
@@ -233,43 +235,21 @@ for (const showHidden of [true, false]) {
   );
 });
 
-// Due to the hash seed randomization it's not deterministic the order that
-// the following ways this hash is displayed.
-// See http://codereview.chromium.org/9124004/
-
-{
-  const out =
-    util.inspect(
-      Object.create(
-        {},
-        { visible: { value: 1, enumerable: true }, hidden: { value: 2 } }
-      ),
-      true
-    );
-  if (out !== '{ [hidden]: 2, visible: 1 }' &&
-      out !== '{ visible: 1, [hidden]: 2 }') {
-    assert.fail(`unexpected value for out ${out}`);
-  }
-}
-
+assert.strictEqual(
+  util.inspect(Object.create({}, {
+    visible: { value: 1, enumerable: true },
+    hidden: { value: 2 }
+  }), { showHidden: true }),
+  '{ visible: 1, [hidden]: 2 }'
+);
 // Objects without prototype
-{
-  const out =
-    util.inspect(Object.create(null,
-                               {
-                                 name: {
-                                   value: 'Tim',
-                                   enumerable: true
-                                 },
-                                 hidden: {
-                                   value: 'secret'
-                                 }
-                               }), true);
-  if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
-      out !== "{ name: 'Tim', [hidden]: 'secret' }") {
-    assert.fail(`unexpected value for out ${out}`);
-  }
-}
+assert.strictEqual(
+  util.inspect(Object.create(null, {
+    name: { value: 'Tim', enumerable: true },
+    hidden: { value: 'secret' }
+  }), { showHidden: true }),
+  "{ name: 'Tim', [hidden]: 'secret' }"
+);
 
 assert.strictEqual(
   util.inspect(Object.create(null,
@@ -277,7 +257,6 @@ assert.strictEqual(
                                hidden: { value: 'secret' } })),
   '{ name: \'Tim\' }'
 );
-
 
 // Dynamic properties
 {
@@ -325,6 +304,61 @@ assert.strictEqual(
   CustomArray.prototype[5] = 'foo';
   const arr = new CustomArray(50);
   assert.strictEqual(util.inspect(arr), 'CustomArray [ <50 empty items> ]');
+}
+
+// Array with extra properties
+{
+  const arr = [1, 2, 3, , ];
+  arr.foo = 'bar';
+  assert.strictEqual(util.inspect(arr),
+                     "[ 1, 2, 3, <1 empty item>, foo: 'bar' ]");
+
+  const arr2 = [];
+  assert.strictEqual(util.inspect([], { showHidden: true }), '[ [length]: 0 ]');
+  arr2['00'] = 1;
+  assert.strictEqual(util.inspect(arr2), "[ '00': 1 ]");
+  assert.strictEqual(util.inspect(arr2, { showHidden: true }),
+                     "[ [length]: 0, '00': 1 ]");
+  arr2[1] = 0;
+  assert.strictEqual(util.inspect(arr2), "[ <1 empty item>, 0, '00': 1 ]");
+  assert.strictEqual(util.inspect(arr2, { showHidden: true }),
+                     "[ <1 empty item>, 0, [length]: 2, '00': 1 ]");
+  delete arr2[1];
+  assert.strictEqual(util.inspect(arr2), "[ <2 empty items>, '00': 1 ]");
+  assert.strictEqual(util.inspect(arr2, { showHidden: true }),
+                     "[ <2 empty items>, [length]: 2, '00': 1 ]");
+  arr2['01'] = 2;
+  assert.strictEqual(util.inspect(arr2),
+                     "[ <2 empty items>, '00': 1, '01': 2 ]");
+  assert.strictEqual(util.inspect(arr2, { showHidden: true }),
+                     "[ <2 empty items>, [length]: 2, '00': 1, '01': 2 ]");
+
+  const arr3 = [];
+  arr3[-1] = -1;
+  assert.strictEqual(util.inspect(arr3), "[ '-1': -1 ]");
+}
+
+// Indices out of bounds
+{
+  const arr = [];
+  arr[2 ** 32] = true; // not a valid array index
+  assert.strictEqual(util.inspect(arr), "[ '4294967296': true ]");
+  arr[0] = true;
+  arr[10] = true;
+  assert.strictEqual(util.inspect(arr),
+                     "[ true, <9 empty items>, true, '4294967296': true ]");
+  arr[2 ** 32 - 2] = true;
+  arr[2 ** 32 - 1] = true;
+  arr[2 ** 32 + 1] = true;
+  delete arr[0];
+  delete arr[10];
+  assert.strictEqual(util.inspect(arr),
+                     ['[ <4294967294 empty items>,',
+                      'true,',
+                      "'4294967296': true,",
+                      "'4294967295': true,",
+                      "'4294967297': true ]"
+                     ].join('\n  '));
 }
 
 // Function with properties
@@ -386,6 +420,11 @@ assert.strictEqual(util.inspect(-0), '-0');
   assert.strictEqual(
     util.inspect(a, { breakLength: Infinity }),
     '[ \'foo\', <1 empty item>, \'baz\', \'bar\', <96 empty items>, \'qux\' ]'
+  );
+  delete a[3];
+  assert.strictEqual(
+    util.inspect(a, { maxArrayLength: 4 }),
+    '[ \'foo\', <1 empty item>, \'baz\', <97 empty items>, ... 1 more item ]'
   );
 }
 
@@ -604,6 +643,10 @@ assert.doesNotThrow(() => {
     util.inspect(subject, { depth: null }).includes('{ d: 0 }'),
     true
   );
+  assert.strictEqual(
+    util.inspect(subject, { depth: undefined }).includes('{ d: 0 }'),
+    true
+  );
 }
 
 {
@@ -714,6 +757,7 @@ assert.doesNotThrow(() => {
   testLines([1, 2, 3, 4, 5, 6, 7]);
   testLines(bigArray);
   testLines({ foo: 'bar', baz: 35, b: { a: 35 } });
+  testLines({ a: { a: 3, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1 }, b: 1 });
   testLines({
     foo: 'bar',
     baz: 35,
@@ -941,6 +985,20 @@ if (typeof Symbol !== 'undefined') {
                      'PromiseSubclass { <pending> }');
 }
 
+// Empty and circular before depth
+{
+  const arr = [[[[]]]];
+  assert.strictEqual(util.inspect(arr), '[ [ [ [] ] ] ]');
+  arr[0][0][0][0] = [];
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Array] ] ] ]');
+  arr[0][0][0] = {};
+  assert.strictEqual(util.inspect(arr), '[ [ [ {} ] ] ]');
+  arr[0][0][0] = { a: 2 };
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Object] ] ] ]');
+  arr[0][0][0] = arr;
+  assert.strictEqual(util.inspect(arr), '[ [ [ [Circular] ] ] ]');
+}
+
 // Corner cases.
 {
   const x = { constructor: 42 };
@@ -980,19 +1038,11 @@ if (typeof Symbol !== 'undefined') {
 {
   const x = new Array(101).fill();
   assert(util.inspect(x).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Array(101).fill();
   assert(!util.inspect(x, { maxArrayLength: 101 }).endsWith('1 more item ]'));
   assert.strictEqual(
     util.inspect(x, { maxArrayLength: -1 }),
     '[ ... 101 more items ]'
   );
-}
-
-{
-  const x = new Array(101).fill();
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      '[ ... 101 more items ]');
 }
@@ -1001,46 +1051,20 @@ if (typeof Symbol !== 'undefined') {
   const x = Array(101);
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      '[ ... 101 more items ]');
+  assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
+  assert(!util.inspect(
+    x, { maxArrayLength: Infinity }
+  ).endsWith('1 more item ]'));
 }
 
 {
   const x = new Uint8Array(101);
   assert(util.inspect(x).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
   assert(!util.inspect(x, { maxArrayLength: 101 }).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
   assert.strictEqual(util.inspect(x, { maxArrayLength: 0 }),
                      'Uint8Array [ ... 101 more items ]');
-}
-
-{
-  const x = Array(101);
   assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
-}
-
-{
-  const x = Array(101);
-  assert(!util.inspect(
-    x, { maxArrayLength: Infinity }
-  ).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
-  assert(!util.inspect(x, { maxArrayLength: null }).endsWith('1 more item ]'));
-}
-
-{
-  const x = new Uint8Array(101);
-  assert(!util.inspect(
-    x, { maxArrayLength: Infinity }
-  ).endsWith('1 more item ]'));
+  assert(util.inspect(x, { maxArrayLength: Infinity }).endsWith('  0 ]'));
 }
 
 {
