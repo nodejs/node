@@ -46,7 +46,7 @@ getStream(stream).then(str => {
 
 ## API
 
-The methods returns a promise that is resolved when the `end` event fires on the stream, indicating that there is no more data to be read. The stream is switched to flowing mode.
+The methods returns a promise that resolves when the `end` event fires on the stream, indicating that there is no more data to be read. The stream is switched to flowing mode.
 
 ### getStream(stream, [options])
 
@@ -93,8 +93,10 @@ If the input stream emits an `error` event, the promise will be rejected with th
 
 ```js
 getStream(streamThatErrorsAtTheEnd('unicorn'))
-	.catch(err => console.log(err.bufferedData));
-// unicorn
+	.catch(err => {
+		console.log(err.bufferedData);
+		//=> 'unicorn'
+	});
 ```
 
 
