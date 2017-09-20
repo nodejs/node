@@ -178,14 +178,6 @@ added: v8.4.0
 
 Enable the experimental `'http2'` module.
 
-### `--napi-modules`
-<!-- YAML
-added: v8.0.0
--->
-
-Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
-(experimental).
-
 ### `--abort-on-uncaught-exception`
 <!-- YAML
 added: v0.10
@@ -453,7 +445,6 @@ Node options that are allowed are:
 - `--inspect-brk`
 - `--inspect-port`
 - `--inspect`
-- `--napi-modules`
 - `--no-deprecation`
 - `--no-warnings`
 - `--openssl-config`

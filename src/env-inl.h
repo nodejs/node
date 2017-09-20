@@ -288,6 +288,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       printed_error_(false),
       trace_sync_io_(false),
       abort_on_uncaught_exception_(false),
+      emit_napi_warning_(true),
       makecallback_cntr_(0),
 #if HAVE_INSPECTOR
       inspector_agent_(this),

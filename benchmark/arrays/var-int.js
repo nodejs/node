@@ -23,7 +23,7 @@ function main(conf) {
   const n = +conf.n;
 
   bench.start();
-  var arr = new clazz(n * 1e6);
+  const arr = new clazz(n * 1e6);
   for (var i = 0; i < 10; ++i) {
     run();
   }

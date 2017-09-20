@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var querystring = require('querystring');
+const common = require('../common.js');
+const querystring = require('querystring');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   input: [
     'there is nothing to unescape here',
     'there%20are%20several%20spaces%20that%20need%20to%20be%20unescaped',
@@ -13,8 +13,8 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var input = conf.input;
-  var n = conf.n | 0;
+  const input = conf.input;
+  const n = conf.n | 0;
 
   bench.start();
   for (var i = 0; i < n; i += 1)

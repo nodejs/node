@@ -507,8 +507,36 @@ assert.doesNotThrow(
   boxedSymbol.slow = true;
   assertNotDeepOrStrict(boxedSymbol, {});
 }
+
 // Minus zero
 assertOnlyDeepEqual(0, -0);
 assertDeepAndStrictEqual(-0, -0);
+
+// Handle symbols (enumerable only)
+{
+  const symbol1 = Symbol();
+  const obj1 = { [symbol1]: 1 };
+  const obj2 = { [symbol1]: 1 };
+  const obj3 = { [Symbol()]: 1 };
+  // Add a non enumerable symbol as well. It is going to be ignored!
+  Object.defineProperty(obj2, Symbol(), { value: 1 });
+  assertOnlyDeepEqual(obj1, obj3);
+  assertDeepAndStrictEqual(obj1, obj2);
+  // TypedArrays have a fast path. Test for this as well.
+  const a = new Uint8Array(4);
+  const b = new Uint8Array(4);
+  a[symbol1] = true;
+  b[symbol1] = false;
+  assertOnlyDeepEqual(a, b);
+  b[symbol1] = true;
+  assertDeepAndStrictEqual(a, b);
+  // The same as TypedArrays is valid for boxed primitives
+  const boxedStringA = new String('test');
+  const boxedStringB = new String('test');
+  boxedStringA[symbol1] = true;
+  assertOnlyDeepEqual(boxedStringA, boxedStringB);
+  boxedStringA[symbol1] = true;
+  assertDeepAndStrictEqual(a, b);
+}
 
 /* eslint-enable */
