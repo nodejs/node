@@ -8,11 +8,11 @@
 
 Node.js includes an out-of-process debugging utility accessible via a
 [V8 Inspector][] and built-in debugging client. To use it, start Node.js
-with the `inspect` argument followed by the path to the script to debug; a prompt
+with the `--inspect` argument followed by the path to the script to debug; a prompt
 will be displayed indicating successful launch of the debugger:
 
 ```txt
-$ node inspect myscript.js
+$ node --inspect myscript.js
 < Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
 < For help see https://nodejs.org/en/docs/inspector
 < Debugger attached.
@@ -43,7 +43,7 @@ console.log('hello');
 Once the debugger is run, a breakpoint will occur at line 3:
 
 ```txt
-$ node inspect myscript.js
+$ node --inspect myscript.js
 < Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
 < For help see https://nodejs.org/en/docs/inspector
 < Debugger attached.
@@ -125,7 +125,7 @@ It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
 
 ```txt
-$ node inspect main.js
+$ node --inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
 < For help see https://nodejs.org/en/docs/inspector
 < Debugger attached.
