@@ -18,6 +18,7 @@ using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Integer;
 using v8::IntegrityLevel;
 using v8::Isolate;
@@ -27,32 +28,31 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Module;
 using v8::Object;
-using v8::Persistent;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
 
-static const char* EXTENSIONS[] = {".mjs", ".js", ".json", ".node"};
-std::map<int, std::vector<ModuleWrap*>*> ModuleWrap::module_map_;
+static const char* const EXTENSIONS[] = {".mjs", ".js", ".json", ".node"};
 
 ModuleWrap::ModuleWrap(Environment* env,
                        Local<Object> object,
                        Local<Module> module,
                        Local<String> url) : BaseObject(env, object) {
-  Isolate* iso = Isolate::GetCurrent();
-  module_.Reset(iso, module);
-  url_.Reset(iso, url);
+  module_.Reset(env->isolate(), module);
+  url_.Reset(env->isolate(), url);
 }
 
 ModuleWrap::~ModuleWrap() {
-  Local<Module> module = module_.Get(Isolate::GetCurrent());
-  std::vector<ModuleWrap*>* same_hash = module_map_[module->GetIdentityHash()];
-  auto it = std::find(same_hash->begin(), same_hash->end(), this);
-
-  if (it != same_hash->end()) {
-    same_hash->erase(it);
+  HandleScope scope(env()->isolate());
+  Local<Module> module = module_.Get(env()->isolate());
+  auto range = env()->module_map.equal_range(module->GetIdentityHash());
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second == this) {
+      env()->module_map.erase(it);
+      break;
+    }
   }
 
   module_.Reset();
@@ -120,12 +120,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* obj =
       new ModuleWrap(Environment::GetCurrent(ctx), that, mod, url);
 
-  if (ModuleWrap::module_map_.count(mod->GetIdentityHash()) == 0) {
-    ModuleWrap::module_map_[mod->GetIdentityHash()] =
-        new std::vector<ModuleWrap*>();
-  }
-
-  ModuleWrap::module_map_[mod->GetIdentityHash()]->push_back(obj);
+  env->module_map.emplace(mod->GetIdentityHash(), obj);
   Wrap(that, obj);
 
   that->SetIntegrityLevel(ctx, IntegrityLevel::kFrozen);
@@ -171,8 +166,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
       env->ThrowError("linking error, expected resolver to return a promise");
     }
     Local<Promise> resolve_promise = resolve_return_value.As<Promise>();
-    obj->resolve_cache_[specifier_std] = new Persistent<Promise>();
-    obj->resolve_cache_[specifier_std]->Reset(iso, resolve_promise);
+    obj->resolve_cache_[specifier_std].Reset(env->isolate(), resolve_promise);
   }
 
   args.GetReturnValue().Set(handle_scope.Escape(that));
@@ -188,6 +182,8 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Maybe<bool> ok = mod->InstantiateModule(ctx, ModuleWrap::ResolveCallback);
 
   // clear resolve cache on instantiate
+  for (auto& entry : obj->resolve_cache_)
+    entry.second.Reset();
   obj->resolve_cache_.clear();
 
   if (!ok.FromMaybe(false)) {
@@ -215,18 +211,17 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
                                                Local<Module> referrer) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* iso = Isolate::GetCurrent();
-  if (ModuleWrap::module_map_.count(referrer->GetIdentityHash()) == 0) {
+  if (env->module_map.count(referrer->GetIdentityHash()) == 0) {
     env->ThrowError("linking error, unknown module");
     return MaybeLocal<Module>();
   }
 
-  std::vector<ModuleWrap*>* possible_deps =
-      ModuleWrap::module_map_[referrer->GetIdentityHash()];
   ModuleWrap* dependent = nullptr;
-
-  for (auto possible_dep : *possible_deps) {
-    if (possible_dep->module_ == referrer) {
-      dependent = possible_dep;
+  auto range = env->module_map.equal_range(referrer->GetIdentityHash());
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second->module_ == referrer) {
+      dependent = it->second;
+      break;
     }
   }
 
@@ -244,7 +239,7 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
   }
 
   Local<Promise> resolve_promise =
-      dependent->resolve_cache_[specifier_std]->Get(iso);
+      dependent->resolve_cache_[specifier_std].Get(iso);
 
   if (resolve_promise->State() != Promise::kFulfilled) {
     env->ThrowError("linking error, dependency promises must be resolved on "
