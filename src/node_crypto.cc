@@ -3457,7 +3457,7 @@ void CipherBase::Init(const char* cipher_type,
   }
 #endif  // NODE_FIPS_MODE
 
-  CHECK_EQ(initialised_, false);
+  CHECK_EQ(ctx_, nullptr);
   const EVP_CIPHER* const cipher = EVP_get_cipherbyname(cipher_type);
   if (cipher == nullptr) {
     return env()->ThrowError("Unknown cipher");
@@ -3475,11 +3475,11 @@ void CipherBase::Init(const char* cipher_type,
                                key,
                                iv);
 
-  EVP_CIPHER_CTX_init(&ctx_);
+  ctx_ = EVP_CIPHER_CTX_new();
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
-  int mode = EVP_CIPHER_CTX_mode(&ctx_);
+  int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
     ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
@@ -3487,17 +3487,16 @@ void CipherBase::Init(const char* cipher_type,
   }
 
   if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(&ctx_, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+    EVP_CIPHER_CTX_set_flags(ctx_, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
-  CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(&ctx_, key_len));
+  CHECK_EQ(1, EVP_CIPHER_CTX_set_key_length(ctx_, key_len));
 
-  EVP_CipherInit_ex(&ctx_,
+  EVP_CipherInit_ex(ctx_,
                     nullptr,
                     nullptr,
                     reinterpret_cast<unsigned char*>(key),
                     reinterpret_cast<unsigned char*>(iv),
                     kind_ == kCipher);
-  initialised_ = true;
 }
 
 
@@ -3540,32 +3539,33 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Invalid IV length");
   }
 
-  EVP_CIPHER_CTX_init(&ctx_);
+  ctx_ = EVP_CIPHER_CTX_new();
 
   if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(&ctx_, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+    EVP_CIPHER_CTX_set_flags(ctx_, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
   const bool encrypt = (kind_ == kCipher);
-  EVP_CipherInit_ex(&ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
+  EVP_CipherInit_ex(ctx_, cipher, nullptr, nullptr, nullptr, encrypt);
 
   if (is_gcm_mode &&
-      !EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
-    EVP_CIPHER_CTX_cleanup(&ctx_);
+      !EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+    EVP_CIPHER_CTX_free(ctx_);
+    ctx_ = nullptr;
     return env()->ThrowError("Invalid IV length");
   }
 
-  if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
-    EVP_CIPHER_CTX_cleanup(&ctx_);
+  if (!EVP_CIPHER_CTX_set_key_length(ctx_, key_len)) {
+    EVP_CIPHER_CTX_free(ctx_);
+    ctx_ = nullptr;
     return env()->ThrowError("Invalid key length");
   }
 
-  EVP_CipherInit_ex(&ctx_,
+  EVP_CipherInit_ex(ctx_,
                     nullptr,
                     nullptr,
                     reinterpret_cast<const unsigned char*>(key),
                     reinterpret_cast<const unsigned char*>(iv),
                     kind_ == kCipher);
-  initialised_ = true;
 }
 
 
@@ -3593,8 +3593,8 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
 bool CipherBase::IsAuthenticatedMode() const {
   // Check if this cipher operates in an AEAD mode that we support.
-  CHECK_EQ(initialised_, true);
-  const EVP_CIPHER* const cipher = EVP_CIPHER_CTX_cipher(&ctx_);
+  CHECK_NE(ctx_, nullptr);
+  const EVP_CIPHER* const cipher = EVP_CIPHER_CTX_cipher(ctx_);
   int mode = EVP_CIPHER_mode(cipher);
   return mode == EVP_CIPH_GCM_MODE;
 }
@@ -3606,7 +3606,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
   // Only callable after Final and if encrypting.
-  if (cipher->initialised_ ||
+  if (cipher->ctx_ != nullptr ||
       cipher->kind_ != kCipher ||
       cipher->auth_tag_len_ == 0) {
     return env->ThrowError("Attempting to get auth tag in unsupported state");
@@ -3627,7 +3627,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->initialised_ ||
+  if (cipher->ctx_ == nullptr ||
       !cipher->IsAuthenticatedMode() ||
       cipher->kind_ != kDecipher) {
     return env->ThrowError("Attempting to set auth tag in unsupported state");
@@ -3653,10 +3653,10 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::SetAAD(const char* data, unsigned int len) {
-  if (!initialised_ || !IsAuthenticatedMode())
+  if (ctx_ == nullptr || !IsAuthenticatedMode())
     return false;
   int outlen;
-  if (!EVP_CipherUpdate(&ctx_,
+  if (!EVP_CipherUpdate(ctx_,
                         nullptr,
                         &outlen,
                         reinterpret_cast<const unsigned char*>(data),
@@ -3684,21 +3684,21 @@ bool CipherBase::Update(const char* data,
                         int len,
                         unsigned char** out,
                         int* out_len) {
-  if (!initialised_)
+  if (ctx_ == nullptr)
     return 0;
 
   // on first update:
   if (kind_ == kDecipher && IsAuthenticatedMode() && auth_tag_len_ > 0) {
-    EVP_CIPHER_CTX_ctrl(&ctx_,
+    EVP_CIPHER_CTX_ctrl(ctx_,
                         EVP_CTRL_GCM_SET_TAG,
                         auth_tag_len_,
                         reinterpret_cast<unsigned char*>(auth_tag_));
     auth_tag_len_ = 0;
   }
 
-  *out_len = len + EVP_CIPHER_CTX_block_size(&ctx_);
+  *out_len = len + EVP_CIPHER_CTX_block_size(ctx_);
   *out = Malloc<unsigned char>(static_cast<size_t>(*out_len));
-  return EVP_CipherUpdate(&ctx_,
+  return EVP_CipherUpdate(ctx_,
                           *out,
                           out_len,
                           reinterpret_cast<const unsigned char*>(data),
@@ -3746,9 +3746,9 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::SetAutoPadding(bool auto_padding) {
-  if (!initialised_)
+  if (ctx_ == nullptr)
     return false;
-  return EVP_CIPHER_CTX_set_padding(&ctx_, auto_padding);
+  return EVP_CIPHER_CTX_set_padding(ctx_, auto_padding);
 }
 
 
@@ -3764,22 +3764,22 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
 
 
 bool CipherBase::Final(unsigned char** out, int *out_len) {
-  if (!initialised_)
+  if (ctx_ == nullptr)
     return false;
 
   *out = Malloc<unsigned char>(
-      static_cast<size_t>(EVP_CIPHER_CTX_block_size(&ctx_)));
-  int r = EVP_CipherFinal_ex(&ctx_, *out, out_len);
+      static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_)));
+  int r = EVP_CipherFinal_ex(ctx_, *out, out_len);
 
   if (r == 1 && kind_ == kCipher && IsAuthenticatedMode()) {
     auth_tag_len_ = sizeof(auth_tag_);
-    r = EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_GET_TAG, auth_tag_len_,
+    r = EVP_CIPHER_CTX_ctrl(ctx_, EVP_CTRL_GCM_GET_TAG, auth_tag_len_,
                             reinterpret_cast<unsigned char*>(auth_tag_));
     CHECK_EQ(r, 1);
   }
 
-  EVP_CIPHER_CTX_cleanup(&ctx_);
-  initialised_ = false;
+  EVP_CIPHER_CTX_free(ctx_);
+  ctx_ = nullptr;
 
   return r == 1;
 }
@@ -3790,7 +3790,7 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-  if (!cipher->initialised_) return env->ThrowError("Unsupported state");
+  if (cipher->ctx_ == nullptr) return env->ThrowError("Unsupported state");
 
   unsigned char* out_value = nullptr;
   int out_len = -1;
