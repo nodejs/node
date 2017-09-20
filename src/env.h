@@ -723,7 +723,7 @@ class Environment {
   char* http_parser_buffer_;
   http2::http2_state* http2_state_ = nullptr;
 
-  double* fs_stats_field_array_;
+  double* fs_stats_field_array_ = nullptr;
 
   struct AtExitCallback {
     void (*cb_)(void* arg);

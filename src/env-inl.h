@@ -334,6 +334,7 @@ inline Environment::~Environment() {
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
   delete http2_state_;
+  delete[] fs_stats_field_array_;
   free(performance_state_);
 }
 
