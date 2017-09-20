@@ -2,7 +2,8 @@
 #include "../common.h"
 
 napi_value Test(napi_env env, napi_callback_info info) {
-  napi_fatal_error("test_fatal::Test", -1, "fatal message", -1);
+  napi_fatal_error("test_fatal::Test", NAPI_AUTO_LENGTH,
+                   "fatal message", NAPI_AUTO_LENGTH);
   return NULL;
 }
 
