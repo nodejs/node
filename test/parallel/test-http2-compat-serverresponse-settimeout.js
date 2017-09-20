@@ -13,6 +13,7 @@ const server = http2.createServer();
 server.on('request', (req, res) => {
   res.setTimeout(msecs, common.mustCall(() => {
     res.end();
+    res.setTimeout(msecs, common.mustNotCall());
   }));
   res.on('finish', common.mustCall(() => {
     res.setTimeout(msecs, common.mustNotCall());
