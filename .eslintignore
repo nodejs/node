@@ -4,6 +4,7 @@ test/addons/??_*/
 test/fixtures
 test/tmp*/
 tools/eslint
+tools/icu
 node_modules
 benchmark/tmp/
 doc/**/*.js

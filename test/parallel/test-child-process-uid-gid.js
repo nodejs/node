@@ -6,12 +6,12 @@ const expectedError = common.isWindows ? /\bENOTSUP\b/ : /\bEPERM\b/;
 
 if (common.isWindows || process.getuid() !== 0) {
   assert.throws(() => {
-    spawn('echo', ['fhqwhgads'], {uid: 0});
+    spawn('echo', ['fhqwhgads'], { uid: 0 });
   }, expectedError);
 }
 
 if (common.isWindows || !process.getgroups().some((gid) => gid === 0)) {
   assert.throws(() => {
-    spawn('echo', ['fhqwhgads'], {gid: 0});
+    spawn('echo', ['fhqwhgads'], { gid: 0 });
   }, expectedError);
 }

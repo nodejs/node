@@ -34,15 +34,15 @@ common.hijackStdout(function(data) {
 common.hijackStderr(common.mustNotCall('stderr.write must not be called'));
 
 const tests = [
-  {input: 'foo', output: 'foo'},
-  {input: undefined, output: 'undefined'},
-  {input: null, output: 'null'},
-  {input: false, output: 'false'},
-  {input: 42, output: '42'},
-  {input: function() {}, output: '[Function: input]'},
-  {input: parseInt('not a number', 10), output: 'NaN'},
-  {input: {answer: 42}, output: '{ answer: 42 }'},
-  {input: [1, 2, 3], output: '[ 1, 2, 3 ]'}
+  { input: 'foo', output: 'foo' },
+  { input: undefined, output: 'undefined' },
+  { input: null, output: 'null' },
+  { input: false, output: 'false' },
+  { input: 42, output: '42' },
+  { input: function() {}, output: '[Function: input]' },
+  { input: parseInt('not a number', 10), output: 'NaN' },
+  { input: { answer: 42 }, output: '{ answer: 42 }' },
+  { input: [1, 2, 3], output: '[ 1, 2, 3 ]' }
 ];
 
 // test util.log()

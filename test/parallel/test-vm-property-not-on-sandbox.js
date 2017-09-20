@@ -23,8 +23,8 @@ const vm = require('vm');
 //
 // This test case is partially inspired by
 // https://github.com/nodejs/node/issues/855
-const sandbox = {console};
-sandbox.document = {defaultView: sandbox};
+const sandbox = { console };
+sandbox.document = { defaultView: sandbox };
 vm.createContext(sandbox);
 const code = `Object.defineProperty(
                this,

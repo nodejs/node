@@ -5,7 +5,7 @@ const assert = require('assert');
 const dgram = require('dgram');
 const multicastAddress = '224.0.0.114';
 
-const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
+const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 
 // addMembership() on closed socket should throw
 {

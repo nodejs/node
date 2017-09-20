@@ -42,7 +42,7 @@ common.refreshTmpDir();
 // time, the callback should be invoked again with proper values in stat object
 let fileExists = false;
 
-fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
+fs.watchFile(enoentFile, { interval: 0 }, common.mustCall(function(curr, prev) {
   if (!fileExists) {
     // If the file does not exist, all the fields should be zero and the date
     // fields should be UNIX EPOCH time

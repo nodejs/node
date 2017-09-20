@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const msg = {test: 'this'};
+const msg = { test: 'this' };
 const nodePath = process.execPath;
 const copyPath = path.join(common.tmpDir, 'node-copy.exe');
 

@@ -266,10 +266,10 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
 
 // Test construction from arrayish object
 {
-  const arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
+  const arrayIsh = { 0: 0, 1: 1, 2: 2, 3: 3, length: 4 };
   let g = Buffer.from(arrayIsh);
   assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
-  const strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
+  const strArrayIsh = { 0: '0', 1: '1', 2: '2', 3: '3', length: 4 };
   g = Buffer.from(strArrayIsh);
   assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
 }
@@ -754,8 +754,8 @@ Buffer.allocUnsafe(3.3).fill().toString();
 Buffer.alloc(3.3).fill().toString();
 assert.strictEqual(Buffer.allocUnsafe(NaN).length, 0);
 assert.strictEqual(Buffer.allocUnsafe(3.3).length, 3);
-assert.strictEqual(Buffer.from({length: 3.3}).length, 3);
-assert.strictEqual(Buffer.from({length: 'BAM'}).length, 0);
+assert.strictEqual(Buffer.from({ length: 3.3 }).length, 3);
+assert.strictEqual(Buffer.from({ length: 'BAM' }).length, 0);
 
 // Make sure that strings are not coerced to numbers.
 assert.strictEqual(Buffer.from('99').length, 2);

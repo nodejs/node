@@ -41,7 +41,7 @@ if (cluster.isMaster) {
   });
 
   server.listen(0, function() {
-    worker.send({message: 'listen', port: server.address().port});
+    worker.send({ message: 'listen', port: server.address().port });
   });
 } else {
   process.on('message', function(msg, handle) {

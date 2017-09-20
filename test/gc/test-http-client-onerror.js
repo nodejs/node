@@ -6,7 +6,7 @@ const common = require('../common');
 
 function serverHandler(req, res) {
   req.resume();
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
 }
 

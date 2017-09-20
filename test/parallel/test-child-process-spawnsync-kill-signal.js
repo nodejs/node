@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
   function spawn(killSignal) {
     const child = cp.spawnSync(process.execPath,
                                [__filename, 'child'],
-                               {killSignal, timeout: 100});
+                               { killSignal, timeout: 100 });
 
     assert.strictEqual(child.status, null);
     assert.strictEqual(child.error.code, 'ETIMEDOUT');

@@ -17,19 +17,20 @@ test({}, (err) => {
   assert.strictEqual(err.message, 'unable to verify the first certificate');
 });
 
-test({secureContext: tls.createSecureContext({ca: keys.agent1.ca})}, (err) => {
-  assert.ifError(err);
-});
+test({ secureContext: tls.createSecureContext({ ca: keys.agent1.ca }) },
+     (err) => assert.ifError(err));
 
-test({ca: keys.agent1.ca}, (err) => {
+test({ ca: keys.agent1.ca }, (err) => {
   assert.ifError(err);
 });
 
 // Secure context options, like ca, are ignored if a sec ctx is explicitly
 // provided.
-test({secureContext: tls.createSecureContext(), ca: keys.agent1.ca}, (err) => {
-  assert.strictEqual(err.message, 'unable to verify the first certificate');
-});
+test({ secureContext: tls.createSecureContext(), ca: keys.agent1.ca },
+     (err) => {
+       assert.strictEqual(err.message,
+                          'unable to verify the first certificate');
+     });
 
 function test(client, callback) {
   callback = common.mustCall(callback);
