@@ -148,7 +148,7 @@ instead.
 
 Type: End-of-Life
 
-[`Domain.dispose()`][] is removed. Recover from failed I/O actions
+`Domain.dispose()` is removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
@@ -688,7 +688,6 @@ difference is that `querystring.parse()` does url encoding:
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Domain.dispose()`]: domain.html#domain_domain_dispose
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
