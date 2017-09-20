@@ -920,13 +920,13 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                      size_t message_len) {
   char* location_string = const_cast<char*>(location);
   char* message_string = const_cast<char*>(message);
-  if (location_len != -1) {
+  if (static_cast<int>(location_len) != -1) {
     location_string = reinterpret_cast<char*>(
         malloc(location_len * sizeof(char) + 1));
     strncpy(location_string, location, location_len);
     location_string[location_len] = '\0';
   }
-  if (message_len != -1) {
+  if (static_cast<int>(message_len) != -1) {
     message_string = reinterpret_cast<char*>(
         malloc(message_len * sizeof(char) + 1));
     strncpy(message_string, message, message_len);
