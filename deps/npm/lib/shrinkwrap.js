@@ -101,7 +101,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
   if (!seen) seen = new Set()
   if (seen.has(tree)) return
   seen.add(tree)
-  tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
+  sortModules(tree.children).forEach(function (child) {
     if (child.fakeChild) {
       deps[moduleName(child)] = child.fakeChild
       return
@@ -130,7 +130,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     if (isOnlyOptional(child)) pkginfo.optional = true
     if (child.requires.length) {
       pkginfo.requires = {}
-      child.requires.sort((a, b) => moduleName(a).localeCompare(moduleName(b))).forEach((required) => {
+      sortModules(child.requires).forEach((required) => {
         var requested = required.package._requested || getRequested(required) || {}
         pkginfo.requires[moduleName(required)] = childVersion(top, required, requested)
       })
@@ -140,6 +140,14 @@ function shrinkwrapDeps (deps, top, tree, seen) {
       shrinkwrapDeps(pkginfo.dependencies, top, child, seen)
     }
   })
+}
+
+function sortModules (modules) {
+  // sort modules with the locale-agnostic Unicode sort
+  var sortedModuleNames = modules.map(moduleName).sort()
+  return modules.sort((a, b) => (
+    sortedModuleNames.indexOf(moduleName(a)) - sortedModuleNames.indexOf(moduleName(b))
+  ))
 }
 
 function childVersion (top, child, req) {
