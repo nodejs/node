@@ -51,8 +51,6 @@
 #include <openssl/rand.h>
 #include <openssl/pkcs12.h>
 
-#define EVP_F_EVP_DECRYPTFINAL 101
-
 #if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
 # define NODE__HAVE_TLSEXT_STATUS_CB
 #endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
@@ -442,9 +440,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
 class CipherBase : public BaseObject {
  public:
   ~CipherBase() override {
-    if (!initialised_)
-      return;
-    EVP_CIPHER_CTX_cleanup(&ctx_);
+    EVP_CIPHER_CTX_free(ctx_);
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
@@ -483,15 +479,14 @@ class CipherBase : public BaseObject {
              v8::Local<v8::Object> wrap,
              CipherKind kind)
       : BaseObject(env, wrap),
-        initialised_(false),
+        ctx_(nullptr),
         kind_(kind),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
   }
 
  private:
-  EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
-  bool initialised_;
+  EVP_CIPHER_CTX* ctx_;
   const CipherKind kind_;
   unsigned int auth_tag_len_;
   char auth_tag_[EVP_GCM_TLS_TAG_LEN];
