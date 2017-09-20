@@ -5,39 +5,40 @@ const BB = require('bluebird')
 const cacache = require('cacache')
 const cacheKey = require('./cache-key')
 const optCheck = require('./opt-check')
+const packlist = require('npm-packlist')
 const pipe = BB.promisify(require('mississippi').pipe)
-const tar = require('tar-fs')
+const tar = require('tar')
 
 module.exports = packDir
 function packDir (manifest, label, dir, target, opts) {
   opts = optCheck(opts)
 
   const packer = opts.dirPacker
-  ? opts.dirPacker(manifest, dir)
-  : tar.pack(dir, {
-    map: header => {
-      header.name = 'package/' + header.name
-      header.mtime = 0 // make tarballs idempotent
-      return header
-    },
-    ignore: (name) => {
-      return name.match(/\.git/)
-    }
-  })
+  ? BB.resolve(opts.dirPacker(manifest, dir))
+  : mkPacker(dir)
 
   if (!opts.cache) {
-    return pipe(packer, target).catch(err => {
-      throw err
-    })
+    return packer.then(packer => pipe(packer, target))
   } else {
     const cacher = cacache.put.stream(
       opts.cache, cacheKey('packed-dir', label), opts
     ).on('integrity', i => {
       target.emit('integrity', i)
     })
-    return BB.all([
+    return packer.then(packer => BB.all([
       pipe(packer, cacher),
       pipe(packer, target)
-    ])
+    ]))
   }
+}
+
+function mkPacker (dir) {
+  return packlist({path: dir}).then(files => {
+    return tar.c({
+      cwd: dir,
+      gzip: true,
+      portable: true,
+      prefix: 'package/'
+    }, files)
+  })
 }

@@ -1,4 +1,12 @@
 
+2.1.0 / 2017-08-08
+==================
+
+  * only include the port number in the Host header when non-default port (#22)
+  * set ALPN to "http 1.1" by default when using tlsproxy (#25)
+  * only set `ALPNProtocols` when the property does not already exist
+  * support SNI (#14)
+
 2.0.0 / 2017-06-26
 ==================
 

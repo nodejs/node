@@ -168,14 +168,23 @@ npm also sets a top-level "maintainers" field with your npm user info.
 
 ## files
 
-The "files" field is an array of files to include in your project.  If
-you name a folder in the array, then it will also include the files
-inside that folder. (Unless they would be ignored by another rule.)
+The optional "files" field is an array of file patterns that describes
+the entries to be included when your package is installed as a
+dependency. If the files array is omitted, everything except
+automatically-excluded files will be included in your publish. If you
+name a folder in the array, then it will also include the files inside
+that folder (unless they would be ignored by another rule in this
+section.).
 
-You can also provide a ".npmignore" file in the root of your package or
-in subdirectories, which will keep files from being included, even
-if they would be picked up by the files array.  The `.npmignore` file
-works just like a `.gitignore`.
+You can also provide a `.npmignore` file in the root of your package or
+in subdirectories, which will keep files from being included. At the
+root of your package it will not override the "files" field, but in
+subdirectories it will. The `.npmignore` file works just like a
+`.gitignore`. If there is a `.gitignore` file, and `.npmignore` is
+missing, `.gitignore`'s contents will be used instead.
+
+Files included with the "package.json#files" field _cannot_ be excluded
+through `.npmignore` or `.gitignore`.
 
 Certain files are always included, regardless of settings:
 

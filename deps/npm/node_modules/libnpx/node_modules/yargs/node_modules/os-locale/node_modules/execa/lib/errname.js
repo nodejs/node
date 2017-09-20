@@ -12,7 +12,7 @@ try {
 	uv = process.binding('uv');
 
 	if (typeof uv.errname !== 'function') {
-		throw new Error('uv.errname is not a function');
+		throw new TypeError('uv.errname is not a function');
 	}
 } catch (err) {
 	console.error('execa/lib/errname: unable to establish process.binding(\'uv\')', err);
@@ -33,5 +33,5 @@ function errname(uv, code) {
 
 module.exports = code => errname(uv, code);
 
-// used for testing the fallback behavior
+// Used for testing the fallback behavior
 module.exports.__test__ = errname;
