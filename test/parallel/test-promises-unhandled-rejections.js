@@ -634,7 +634,6 @@ asyncTest(
       onUnhandledSucceed(done, function(reason, promise) {
         assert.strictEqual(reason, e);
         assert.strictEqual(domainReceivedError, domainError);
-        d.dispose();
       });
       Promise.reject(e);
       process.nextTick(function() {
