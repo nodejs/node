@@ -292,4 +292,25 @@ if [ -z "$extra" -a `uname -m` = "x86_64" ]; then
   $ssltest -cipher AES128-SHA256 -bytes 8m	|| exit 1
 fi
 
+
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket yes -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 yes -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 yes -c_ticket yes -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 no -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 no -c_ticket yes -ticket_expect yes || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 yes -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client alice -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 yes -c_ticket yes -ticket_expect yes || exit 1
+
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 no -c_ticket yes -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 yes -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 no -s_ticket2 yes -c_ticket yes -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 no -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 no -c_ticket yes -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 yes -c_ticket no -ticket_expect no || exit 1
+$ssltest -bio_pair -sn_client bob -sn_server1 alice -sn_server2 bob -s_ticket1 yes -s_ticket2 yes -c_ticket yes -ticket_expect yes || exit 1
+
+$ssltest -bio_pair -s_ticket1 broken -c_ticket yes -ticket_expect no || exit 1
+
 exit 0

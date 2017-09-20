@@ -4146,11 +4146,12 @@ $L$prologue_shaext::
 	mov	r11d,DWORD PTR[240+rcx]
 	sub	rsi,rdi
 	movups	xmm15,XMMWORD PTR[rcx]
+	movups	xmm6,XMMWORD PTR[r8]
 	movups	xmm4,XMMWORD PTR[16+rcx]
 	lea	rcx,QWORD PTR[112+rcx]
 
 	pshufd	xmm0,xmm1,01bh
-	pshufd	xmm1,xmm1,1h
+	pshufd	xmm1,xmm1,0b1h
 	pshufd	xmm2,xmm2,01bh
 	movdqa	xmm7,xmm3
 DB	102,15,58,15,202,8
@@ -4475,9 +4476,9 @@ $L$aesenclast4::
 	lea	rdi,QWORD PTR[64+rdi]
 	jnz	$L$oop_shaext
 
-	pshufd	xmm2,xmm2,1h
+	pshufd	xmm2,xmm2,0b1h
 	pshufd	xmm3,xmm1,01bh
-	pshufd	xmm1,xmm1,1h
+	pshufd	xmm1,xmm1,0b1h
 	punpckhqdq	xmm1,xmm2
 DB	102,15,58,15,211,8
 

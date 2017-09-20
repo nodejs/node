@@ -14677,7 +14677,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
   Object* the_hole_value = GetHeap()->the_hole_value();
-  uint32_t capacity = Capacity();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
@@ -14701,16 +14700,6 @@ void CompilationCacheTable::Age() {
       }
     }
   }
-  // Wipe deleted entries.
-  Heap* heap = GetHeap();
-  Object* the_hole = heap->the_hole_value();
-  Object* undefined = heap->undefined_value();
-  for (uint32_t current = 0; current < capacity; current++) {
-    if (get(EntryToIndex(current)) == the_hole) {
-      set(EntryToIndex(current), undefined);
-    }
-  }
-  SetNumberOfDeletedElements(0);
 }
 
 
@@ -15219,7 +15208,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
     return table;
   }
 
-  // Rehash if more than 25% of the entries are deleted entries.
+  // Rehash if more than 33% of the entries are deleted entries.
   // TODO(jochen): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
     table->Rehash(isolate->factory()->undefined_value());

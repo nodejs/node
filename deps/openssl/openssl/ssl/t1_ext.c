@@ -179,6 +179,25 @@ int custom_ext_add(SSL *s, int server,
     return 1;
 }
 
+/* Copy the flags from src to dst for any extensions that exist in both */
+int custom_exts_copy_flags(custom_ext_methods *dst,
+                           const custom_ext_methods *src)
+{
+    size_t i;
+    custom_ext_method *methsrc = src->meths;
+
+    for (i = 0; i < src->meths_count; i++, methsrc++) {
+        custom_ext_method *methdst = custom_ext_find(dst, methsrc->ext_type);
+
+        if (methdst == NULL)
+            continue;
+
+        methdst->ext_flags = methsrc->ext_flags;
+    }
+
+    return 1;
+}
+
 /* Copy table of custom extensions */
 int custom_exts_copy(custom_ext_methods *dst, const custom_ext_methods *src)
 {
@@ -223,16 +242,14 @@ static int custom_ext_meth_add(custom_ext_methods *exts,
     /* Search for duplicate */
     if (custom_ext_find(exts, ext_type))
         return 0;
-    exts->meths = OPENSSL_realloc(exts->meths,
-                                  (exts->meths_count +
-                                   1) * sizeof(custom_ext_method));
-
-    if (!exts->meths) {
-        exts->meths_count = 0;
+    meth = OPENSSL_realloc(exts->meths,
+                           (exts->meths_count + 1)
+                           * sizeof(custom_ext_method));
+    if (meth == NULL)
         return 0;
-    }
 
-    meth = exts->meths + exts->meths_count;
+    exts->meths = meth;
+    meth += exts->meths_count;
     memset(meth, 0, sizeof(custom_ext_method));
     meth->parse_cb = parse_cb;
     meth->add_cb = add_cb;

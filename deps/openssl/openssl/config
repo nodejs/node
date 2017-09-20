@@ -344,6 +344,15 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 	echo "mips-sony-newsos4"; exit 0;
 	;;
 
+    # The following combinations are supported
+    # MINGW64* on x86_64 => mingw64
+    # MINGW32* on x86_64 => mingw
+    # MINGW32* on i?86 => mingw
+    #
+    # MINGW64* on i?86 isn't expected to work...
+    MINGW64*:*:*:x86_64)
+	echo "${MACHINE}-whatever-mingw64"; exit 0;
+	;;
     MINGW*)
 	echo "${MACHINE}-whatever-mingw"; exit 0;
 	;;
