@@ -126,7 +126,7 @@ struct napi_env__ {
   } while (0)
 
 #define CHECK_NEW_FROM_UTF8(env, result, str) \
-  CHECK_NEW_FROM_UTF8_LEN((env), (result), (str), -1)
+  CHECK_NEW_FROM_UTF8_LEN((env), (result), (str), NAPI_AUTO_LENGTH)
 
 #define GET_RETURN_STATUS(env)      \
   (!try_catch.HasCaught() ? napi_ok \
@@ -920,13 +920,13 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                      size_t message_len) {
   char* location_string = const_cast<char*>(location);
   char* message_string = const_cast<char*>(message);
-  if (static_cast<int>(location_len) != -1) {
+  if (static_cast<int>(location_len) != NAPI_AUTO_LENGTH) {
     location_string = reinterpret_cast<char*>(
         malloc(location_len * sizeof(char) + 1));
     strncpy(location_string, location, location_len);
     location_string[location_len] = '\0';
   }
-  if (static_cast<int>(message_len) != -1) {
+  if (static_cast<int>(message_len) != NAPI_AUTO_LENGTH) {
     message_string = reinterpret_cast<char*>(
         malloc(message_len * sizeof(char) + 1));
     strncpy(message_string, message, message_len);
