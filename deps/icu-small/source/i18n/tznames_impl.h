@@ -27,6 +27,9 @@
 #include "uvector.h"
 #include "umutex.h"
 
+// Some zone display names involving supplementary characters can be over 50 chars, 100 UTF-16 code units, 200 UTF-8 bytes
+#define ZONE_NAME_U16_MAX 128
+
 U_NAMESPACE_BEGIN
 
 /*
@@ -246,6 +249,8 @@ public:
 
     TimeZoneNames::MatchInfoCollection* find(const UnicodeString& text, int32_t start, uint32_t types, UErrorCode& status) const;
 
+    // When TZDBNames for the metazone is not available, this method returns NULL,
+    // but does NOT set U_MISSING_RESOURCE_ERROR to status.
     static const TZDBNames* getMetaZoneNames(const UnicodeString& mzId, UErrorCode& status);
 
 private:

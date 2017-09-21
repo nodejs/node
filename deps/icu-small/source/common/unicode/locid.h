@@ -88,7 +88,7 @@ class UnicodeString;
  * <P>
  * The third constructor requires a third argument--the <STRONG>Variant.</STRONG>
  * The Variant codes are vendor and browser-specific.
- * For example, use REVISED for a langauge's revised script orthography, and POSIX for POSIX.
+ * For example, use REVISED for a language's revised script orthography, and POSIX for POSIX.
  * Where there are two variants, separate them with an underscore, and
  * put the most important one first. For
  * example, a Traditional Spanish collation might be referenced, with

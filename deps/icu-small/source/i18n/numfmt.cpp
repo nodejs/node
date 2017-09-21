@@ -1509,6 +1509,24 @@ NumberFormat::makeInstance(const Locale& desiredLocale,
     return f;
 }
 
+/**
+ * Get the rounding mode.
+ * @return A rounding mode
+ */
+NumberFormat::ERoundingMode NumberFormat::getRoundingMode() const {
+    // Default value. ICU4J throws an exception and we can't change this API.
+    return NumberFormat::ERoundingMode::kRoundUnnecessary;
+}
+
+/**
+ * Set the rounding mode.  This has no effect unless the rounding
+ * increment is greater than zero.
+ * @param roundingMode A rounding mode
+ */
+void NumberFormat::setRoundingMode(NumberFormat::ERoundingMode /*roundingMode*/) {
+    // No-op ICU4J throws an exception, and we can't change this API.
+}
+
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

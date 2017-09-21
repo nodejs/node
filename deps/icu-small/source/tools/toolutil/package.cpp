@@ -663,7 +663,7 @@ Package::readPackage(const char *filename) {
         // set the last item's platform type
         typeEnum=getTypeEnumForInputData(items[itemCount-1].data, items[itemCount-1].length, &errorCode);
         if(typeEnum<0 || U_FAILURE(errorCode)) {
-            fprintf(stderr, "icupkg: not an ICU data file: item \"%s\" in \"%s\"\n", items[i-1].name, filename);
+            fprintf(stderr, "icupkg: not an ICU data file: item \"%s\" in \"%s\"\n", items[itemCount-1].name, filename);
             exit(U_INVALID_FORMAT_ERROR);
         }
         items[itemCount-1].type=makeTypeLetter(typeEnum);

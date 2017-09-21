@@ -49,26 +49,25 @@ UTF8CollationIterator::handleNextCE32(UChar32 &c, UErrorCode & /*errorCode*/) {
     }
     // Optimized combination of U8_NEXT_OR_FFFD() and UTRIE2_U8_NEXT32().
     c = u8[pos++];
-    if(c < 0xc0) {
-        // ASCII 00..7F; trail bytes 80..BF map to error values.
+    if(U8_IS_SINGLE(c)) {
+        // ASCII 00..7F
         return trie->data32[c];
     }
     uint8_t t1, t2;
-    if(c < 0xe0 && pos != length && (t1 = (u8[pos] - 0x80)) <= 0x3f) {
-        // U+0080..U+07FF; 00..7F map to error values.
+    if(0xe0 <= c && c < 0xf0 &&
+            ((pos + 1) < length || length < 0) &&
+            U8_IS_VALID_LEAD3_AND_T1(c, t1 = u8[pos]) &&
+            (t2 = (u8[pos + 1] - 0x80)) <= 0x3f) {
+        // U+0800..U+FFFF except surrogates
+        c = (((c & 0xf) << 12) | ((t1 & 0x3f) << 6) | t2);
+        pos += 2;
+        return UTRIE2_GET32_FROM_U16_SINGLE_LEAD(trie, c);
+    } else if(c < 0xe0 && c >= 0xc2 && pos != length && (t1 = (u8[pos] - 0x80)) <= 0x3f) {
+        // U+0080..U+07FF
         uint32_t ce32 = trie->data32[trie->index[(UTRIE2_UTF8_2B_INDEX_2_OFFSET - 0xc0) + c] + t1];
         c = ((c & 0x1f) << 6) | t1;
         ++pos;
         return ce32;
-    } else if(c <= 0xef &&
-              ((pos + 1) < length || length < 0) &&
-              (t1 = (u8[pos] - 0x80)) <= 0x3f && (c != 0xe0 || t1 >= 0x20) &&
-              (t2 = (u8[pos + 1] - 0x80)) <= 0x3f
-    ) {
-        // U+0800..U+FFFF; caller maps surrogates to error values.
-        c = (UChar)((c << 12) | (t1 << 6) | t2);
-        pos += 2;
-        return UTRIE2_GET32_FROM_U16_SINGLE_LEAD(trie, c);
     } else {
         // Function call for supplementary code points and error cases.
         // Illegal byte sequences yield U+FFFD.
@@ -158,28 +157,17 @@ FCDUTF8CollationIterator::handleNextCE32(UChar32 &c, UErrorCode &errorCode) {
                 return Collation::FALLBACK_CE32;
             }
             c = u8[pos++];
-            if(c < 0xc0) {
-                // ASCII 00..7F; trail bytes 80..BF map to error values.
+            if(U8_IS_SINGLE(c)) {
+                // ASCII 00..7F
                 return trie->data32[c];
             }
             uint8_t t1, t2;
-            if(c < 0xe0 && pos != length && (t1 = (u8[pos] - 0x80)) <= 0x3f) {
-                // U+0080..U+07FF; 00..7F map to error values.
-                uint32_t ce32 = trie->data32[trie->index[(UTRIE2_UTF8_2B_INDEX_2_OFFSET - 0xc0) + c] + t1];
-                c = ((c & 0x1f) << 6) | t1;
-                ++pos;
-                if(CollationFCD::hasTccc(c) && pos != length && nextHasLccc()) {
-                    pos -= 2;
-                } else {
-                    return ce32;
-                }
-            } else if(c <= 0xef &&
-                      ((pos + 1) < length || length < 0) &&
-                      (t1 = (u8[pos] - 0x80)) <= 0x3f && (c != 0xe0 || t1 >= 0x20) &&
-                      (t2 = (u8[pos + 1] - 0x80)) <= 0x3f
-            ) {
-                // U+0800..U+FFFF; caller maps surrogates to error values.
-                c = (UChar)((c << 12) | (t1 << 6) | t2);
+            if(0xe0 <= c && c < 0xf0 &&
+                    ((pos + 1) < length || length < 0) &&
+                    U8_IS_VALID_LEAD3_AND_T1(c, t1 = u8[pos]) &&
+                    (t2 = (u8[pos + 1] - 0x80)) <= 0x3f) {
+                // U+0800..U+FFFF except surrogates
+                c = (((c & 0xf) << 12) | ((t1 & 0x3f) << 6) | t2);
                 pos += 2;
                 if(CollationFCD::hasTccc(c) &&
                         (CollationFCD::maybeTibetanCompositeVowel(c) ||
@@ -187,6 +175,16 @@ FCDUTF8CollationIterator::handleNextCE32(UChar32 &c, UErrorCode &errorCode) {
                     pos -= 3;
                 } else {
                     break;  // return CE32(BMP)
+                }
+            } else if(c < 0xe0 && c >= 0xc2 && pos != length && (t1 = (u8[pos] - 0x80)) <= 0x3f) {
+                // U+0080..U+07FF
+                uint32_t ce32 = trie->data32[trie->index[(UTRIE2_UTF8_2B_INDEX_2_OFFSET - 0xc0) + c] + t1];
+                c = ((c & 0x1f) << 6) | t1;
+                ++pos;
+                if(CollationFCD::hasTccc(c) && pos != length && nextHasLccc()) {
+                    pos -= 2;
+                } else {
+                    return ce32;
                 }
             } else {
                 // Function call for supplementary code points and error cases.
@@ -237,7 +235,7 @@ UBool
 FCDUTF8CollationIterator::previousHasTccc() const {
     U_ASSERT(state == CHECK_BWD && pos != 0);
     UChar32 c = u8[pos - 1];
-    if(c < 0x80) { return FALSE; }
+    if(U8_IS_SINGLE(c)) { return FALSE; }
     int32_t i = pos;
     U8_PREV_OR_FFFD(u8, 0, i, c);
     if(c > 0xffff) { c = U16_LEAD(c); }
@@ -271,7 +269,7 @@ FCDUTF8CollationIterator::nextCodePoint(UErrorCode &errorCode) {
             if(pos == length || ((c = u8[pos]) == 0 && length < 0)) {
                 return U_SENTINEL;
             }
-            if(c < 0x80) {
+            if(U8_IS_SINGLE(c)) {
                 ++pos;
                 return c;
             }
@@ -309,7 +307,7 @@ FCDUTF8CollationIterator::previousCodePoint(UErrorCode &errorCode) {
             if(pos == 0) {
                 return U_SENTINEL;
             }
-            if((c = u8[pos - 1]) < 0x80) {
+            if(U8_IS_SINGLE(c = u8[pos - 1])) {
                 --pos;
                 return c;
             }

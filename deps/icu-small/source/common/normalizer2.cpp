@@ -20,7 +20,9 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
+#include "unicode/edits.h"
 #include "unicode/normalizer2.h"
+#include "unicode/stringoptions.h"
 #include "unicode/unistr.h"
 #include "unicode/unorm.h"
 #include "cstring.h"
@@ -42,6 +44,20 @@ U_NAMESPACE_BEGIN
 
 Normalizer2::~Normalizer2() {}
 
+void
+Normalizer2::normalizeUTF8(uint32_t /*options*/, StringPiece src, ByteSink &sink,
+                           Edits *edits, UErrorCode &errorCode) const {
+    if (U_FAILURE(errorCode)) {
+        return;
+    }
+    if (edits != nullptr) {
+        errorCode = U_UNSUPPORTED_ERROR;
+        return;
+    }
+    UnicodeString src16 = UnicodeString::fromUTF8(src);
+    normalize(src16, errorCode).toUTF8(sink);
+}
+
 UBool
 Normalizer2::getRawDecomposition(UChar32, UnicodeString &) const {
     return FALSE;
@@ -57,6 +73,11 @@ Normalizer2::getCombiningClass(UChar32 /*c*/) const {
     return 0;
 }
 
+UBool
+Normalizer2::isNormalizedUTF8(StringPiece s, UErrorCode &errorCode) const {
+    return U_SUCCESS(errorCode) && isNormalized(UnicodeString::fromUTF8(s), errorCode);
+}
+
 // Normalizer2 implementation for the old UNORM_NONE.
 class NoopNormalizer2 : public Normalizer2 {
     virtual ~NoopNormalizer2();
@@ -64,7 +85,7 @@ class NoopNormalizer2 : public Normalizer2 {
     virtual UnicodeString &
     normalize(const UnicodeString &src,
               UnicodeString &dest,
-              UErrorCode &errorCode) const {
+              UErrorCode &errorCode) const U_OVERRIDE {
         if(U_SUCCESS(errorCode)) {
             if(&dest!=&src) {
                 dest=src;
@@ -74,10 +95,27 @@ class NoopNormalizer2 : public Normalizer2 {
         }
         return dest;
     }
+    virtual void
+    normalizeUTF8(uint32_t options, StringPiece src, ByteSink &sink,
+                  Edits *edits, UErrorCode &errorCode) const U_OVERRIDE {
+        if(U_SUCCESS(errorCode)) {
+            if (edits != nullptr) {
+                if ((options & U_EDITS_NO_RESET) == 0) {
+                    edits->reset();
+                }
+                edits->addUnchanged(src.length());
+            }
+            if ((options & U_OMIT_UNCHANGED_TEXT) == 0) {
+                sink.Append(src.data(), src.length());
+            }
+            sink.Flush();
+        }
+    }
+
     virtual UnicodeString &
     normalizeSecondAndAppend(UnicodeString &first,
                              const UnicodeString &second,
-                             UErrorCode &errorCode) const {
+                             UErrorCode &errorCode) const U_OVERRIDE {
         if(U_SUCCESS(errorCode)) {
             if(&first!=&second) {
                 first.append(second);
@@ -90,7 +128,7 @@ class NoopNormalizer2 : public Normalizer2 {
     virtual UnicodeString &
     append(UnicodeString &first,
            const UnicodeString &second,
-           UErrorCode &errorCode) const {
+           UErrorCode &errorCode) const U_OVERRIDE {
         if(U_SUCCESS(errorCode)) {
             if(&first!=&second) {
                 first.append(second);
@@ -101,25 +139,29 @@ class NoopNormalizer2 : public Normalizer2 {
         return first;
     }
     virtual UBool
-    getDecomposition(UChar32, UnicodeString &) const {
+    getDecomposition(UChar32, UnicodeString &) const U_OVERRIDE {
         return FALSE;
     }
-    // No need to override the default getRawDecomposition().
+    // No need to U_OVERRIDE the default getRawDecomposition().
     virtual UBool
-    isNormalized(const UnicodeString &, UErrorCode &) const {
-        return TRUE;
+    isNormalized(const UnicodeString &, UErrorCode &errorCode) const U_OVERRIDE {
+        return U_SUCCESS(errorCode);
+    }
+    virtual UBool
+    isNormalizedUTF8(StringPiece, UErrorCode &errorCode) const U_OVERRIDE {
+        return U_SUCCESS(errorCode);
     }
     virtual UNormalizationCheckResult
-    quickCheck(const UnicodeString &, UErrorCode &) const {
+    quickCheck(const UnicodeString &, UErrorCode &) const U_OVERRIDE {
         return UNORM_YES;
     }
     virtual int32_t
-    spanQuickCheckYes(const UnicodeString &s, UErrorCode &) const {
+    spanQuickCheckYes(const UnicodeString &s, UErrorCode &) const U_OVERRIDE {
         return s.length();
     }
-    virtual UBool hasBoundaryBefore(UChar32) const { return TRUE; }
-    virtual UBool hasBoundaryAfter(UChar32) const { return TRUE; }
-    virtual UBool isInert(UChar32) const { return TRUE; }
+    virtual UBool hasBoundaryBefore(UChar32) const U_OVERRIDE { return TRUE; }
+    virtual UBool hasBoundaryAfter(UChar32) const U_OVERRIDE { return TRUE; }
+    virtual UBool isInert(UChar32) const U_OVERRIDE { return TRUE; }
 };
 
 NoopNormalizer2::~NoopNormalizer2() {}
