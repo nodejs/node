@@ -1,4 +1,4 @@
-// Flags: --expose-internals --expose-http2
+// Flags: --expose-internals
 'use strict';
 
 // Tests the internal utility function that is used to prepare headers

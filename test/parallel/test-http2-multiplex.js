@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 // Tests opening 100 concurrent simultaneous uploading streams over a single

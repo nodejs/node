@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 // Verifies that uploading data from a client works

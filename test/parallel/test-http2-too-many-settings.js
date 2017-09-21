@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 // Tests that attempting to send too many non-acknowledged
