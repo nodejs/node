@@ -235,13 +235,9 @@ assert.throws(function() {
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  // Throws crypto error, so there is an openSSLErrorStack property.
-  // The openSSL stack is empty.
   if ((err instanceof Error) &&
       /digest too big for rsa key$/.test(err) &&
-      err.openSSLErrorStack !== undefined &&
-      Array.isArray(err.openSSLErrorStack) &&
-      err.openSSLErrorStack.length === 0) {
+      err.openSSLErrorStack === undefined) {
     return true;
   }
 });
