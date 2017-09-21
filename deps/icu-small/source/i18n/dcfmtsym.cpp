@@ -97,9 +97,7 @@ static const char *gNumberElementKeys[DecimalFormatSymbols::kFormatSymbolCount] 
 // Initializes this with the decimal format symbols in the default locale.
 
 DecimalFormatSymbols::DecimalFormatSymbols(UErrorCode& status)
-    : UObject(),
-    locale()
-{
+        : UObject(), locale() {
     initialize(locale, status, TRUE);
 }
 
@@ -107,16 +105,17 @@ DecimalFormatSymbols::DecimalFormatSymbols(UErrorCode& status)
 // Initializes this with the decimal format symbols in the desired locale.
 
 DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, UErrorCode& status)
-    : UObject(),
-    locale(loc)
-{
+        : UObject(), locale(loc) {
     initialize(locale, status);
 }
 
+DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, const NumberingSystem& ns, UErrorCode& status)
+        : UObject(), locale(loc) {
+    initialize(locale, status, FALSE, &ns);
+}
+
 DecimalFormatSymbols::DecimalFormatSymbols()
-        : UObject(),
-          locale(Locale::getRoot()),
-          currPattern(NULL) {
+        : UObject(), locale(Locale::getRoot()), currPattern(NULL) {
     *validLocale = *actualLocale = 0;
     initialize();
 }
@@ -342,7 +341,8 @@ CurrencySpacingSink::~CurrencySpacingSink() {}
 } // namespace
 
 void
-DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status, UBool useLastResortData)
+DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
+    UBool useLastResortData, const NumberingSystem* ns)
 {
     if (U_FAILURE(status)) { return; }
     *validLocale = *actualLocale = 0;
@@ -355,7 +355,13 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status, UBool us
     // Next get the numbering system for this locale and set zero digit
     // and the digit string based on the numbering system for the locale
     //
-    LocalPointer<NumberingSystem> ns(NumberingSystem::createInstance(loc, status));
+    LocalPointer<NumberingSystem> nsLocal;
+    if (ns == nullptr) {
+        // Use the numbering system according to the locale.
+        // Save it into a LocalPointer so it gets cleaned up.
+        nsLocal.adoptInstead(NumberingSystem::createInstance(loc, status));
+        ns = nsLocal.getAlias();
+    }
     const char *nsName;
     if (U_SUCCESS(status) && ns->getRadix() == 10 && !ns->isAlgorithmic()) {
         nsName = ns->getName();
@@ -433,12 +439,13 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status, UBool us
     UErrorCode internalStatus = U_ZERO_ERROR; // don't propagate failures out
     UChar curriso[4];
     UnicodeString tempStr;
-    ucurr_forLocale(locStr, curriso, 4, &internalStatus);
-
-    uprv_getStaticCurrencyName(curriso, locStr, tempStr, internalStatus);
-    if (U_SUCCESS(internalStatus)) {
-        fSymbols[kIntlCurrencySymbol].setTo(curriso, -1);
-        fSymbols[kCurrencySymbol] = tempStr;
+    int32_t currisoLength = ucurr_forLocale(locStr, curriso, UPRV_LENGTHOF(curriso), &internalStatus);
+    if (U_SUCCESS(internalStatus) && currisoLength == 3) {
+        uprv_getStaticCurrencyName(curriso, locStr, tempStr, internalStatus);
+        if (U_SUCCESS(internalStatus)) {
+            fSymbols[kIntlCurrencySymbol].setTo(curriso, currisoLength);
+            fSymbols[kCurrencySymbol] = tempStr;
+        }
     }
     /* else use the default values. */
 

@@ -177,7 +177,7 @@ UnicodeString &DigitFormatter::format(
     int32_t digitsLeftOfDecimal = interval.getMostSignificantExclusive();
     int32_t lastDigitPos = interval.getLeastSignificantInclusive();
     int32_t intBegin = appendTo.length();
-    int32_t fracBegin;
+    int32_t fracBegin = 0; /* initialize to avoid compiler warning */
 
     // Emit "0" instead of empty string.
     if (digitsLeftOfDecimal == 0 && lastDigitPos == 0) {

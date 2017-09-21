@@ -1954,7 +1954,10 @@ UnicodeString MessageFormat::PluralSelectorProvider::select(void *ctx, double nu
         context.formatter = msgFormat.getDefaultNumberFormat(ec);
         context.forReplaceNumber = TRUE;
     }
-    U_ASSERT(context.number.getDouble(ec) == number);  // argument number minus the offset
+    if (context.number.getDouble(ec) != number) {
+        ec = U_INTERNAL_PROGRAM_ERROR;
+        return UnicodeString(FALSE, OTHER_STRING, 5);
+    }
     context.formatter->format(context.number, context.numberString, ec);
     const DecimalFormat *decFmt = dynamic_cast<const DecimalFormat *>(context.formatter);
     if(decFmt != NULL) {

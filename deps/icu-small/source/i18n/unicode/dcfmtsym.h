@@ -34,6 +34,7 @@
 
 #include "unicode/uobject.h"
 #include "unicode/locid.h"
+#include "unicode/numsys.h"
 #include "unicode/unum.h"
 #include "unicode/unistr.h"
 
@@ -183,6 +184,26 @@ public:
      * @stable ICU 2.0
      */
     DecimalFormatSymbols(const Locale& locale, UErrorCode& status);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Creates a DecimalFormatSymbols instance for the given locale with digits and symbols
+     * corresponding to the given NumberingSystem.
+     *
+     * This constructor behaves equivalently to the normal constructor called with a locale having a
+     * "numbers=xxxx" keyword specifying the numbering system by name.
+     *
+     * In this constructor, the NumberingSystem argument will be used even if the locale has its own
+     * "numbers=xxxx" keyword.
+     *
+     * @param locale    The locale to get symbols for.
+     * @param ns        The numbering system.
+     * @param status    Input/output parameter, set to success or
+     *                  failure code upon return.
+     * @draft ICU 60
+     */
+    DecimalFormatSymbols(const Locale& locale, const NumberingSystem& ns, UErrorCode& status);
+#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Create a DecimalFormatSymbols object for the default locale.
@@ -346,8 +367,11 @@ private:
      * @param success              Input/output parameter, set to success or
      *                             failure code upon return.
      * @param useLastResortData    determine if use last resort data
+     * @param ns                   The NumberingSystem to use; otherwise, fall
+     *                             back to the locale.
      */
-    void initialize(const Locale& locale, UErrorCode& success, UBool useLastResortData = FALSE);
+    void initialize(const Locale& locale, UErrorCode& success,
+        UBool useLastResortData = FALSE, const NumberingSystem* ns = nullptr);
 
     /**
      * Initialize the symbols with default values.

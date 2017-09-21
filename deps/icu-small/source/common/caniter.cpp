@@ -405,7 +405,7 @@ UnicodeString* CanonicalIterator::getEquivalents(const UnicodeString &segment, i
     //String[] finalResult = new String[result.size()];
     UnicodeString *finalResult = NULL;
     int32_t resultCount;
-    if((resultCount = result.count())) {
+    if((resultCount = result.count()) != 0) {
         finalResult = new UnicodeString[resultCount];
         if (finalResult == 0) {
             status = U_MEMORY_ALLOCATION_ERROR;

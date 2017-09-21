@@ -83,6 +83,7 @@
           'VCCLCompilerTool': {
             'RuntimeTypeInfo': 'true',
             'ExceptionHandling': '1',
+            'AdditionalOptions': [ '/source-charset:utf-8' ],
           },
         },
         'configurations': {

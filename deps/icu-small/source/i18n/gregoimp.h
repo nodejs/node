@@ -41,6 +41,17 @@ class ClockMath {
     static int32_t floorDivide(int32_t numerator, int32_t denominator);
 
     /**
+     * Divide two integers, returning the floor of the quotient.
+     * Unlike the built-in division, this is mathematically
+     * well-behaved.  E.g., <code>-1/4</code> => 0 but
+     * <code>floorDivide(-1,4)</code> => -1.
+     * @param numerator the numerator
+     * @param denominator a divisor which must be != 0
+     * @return the floor of the quotient
+     */
+    static int64_t floorDivide(int64_t numerator, int64_t denominator);
+
+    /**
      * Divide two numbers, returning the floor of the quotient.
      * Unlike the built-in division, this is mathematically
      * well-behaved.  E.g., <code>-1/4</code> => 0 but

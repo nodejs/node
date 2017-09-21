@@ -23,8 +23,6 @@
 #include "unicode/uchar.h"
 #include "unicode/localpointer.h"
 
-#ifndef U_HIDE_DRAFT_API
-
 /**
  * \file
  * \brief Bidi Transformations
@@ -60,17 +58,17 @@
  * @see UBIDI_REORDER_DEFAULT
  * @see UBIDI_REORDER_INVERSE_LIKE_DIRECT
  * @see UBIDI_REORDER_RUNS_ONLY
- * @draft ICU 58
+ * @stable ICU 58
  */
 typedef enum {
     /** 0: Constant indicating a logical order.
       * This is the default for input text.
-      * @draft ICU 58
+      * @stable ICU 58
       */
     UBIDI_LOGICAL = 0,
     /** 1: Constant indicating a visual order.
       * This is a default for output text.
-      * @draft ICU 58
+      * @stable ICU 58
       */
     UBIDI_VISUAL
 } UBiDiOrder;
@@ -83,20 +81,20 @@ typedef enum {
  * @see ubidi_setReorderingOptions
  * @see ubidi_writeReordered
  * @see ubidi_writeReverse
- * @draft ICU 58
+ * @stable ICU 58
  */
 typedef enum {
     /** 0: Constant indicating that character mirroring should not be
       * performed.
       * This is the default.
-      * @draft ICU 58
+      * @stable ICU 58
       */
     UBIDI_MIRRORING_OFF = 0,
     /** 1: Constant indicating that character mirroring should be performed.
       * This corresponds to calling <code>ubidi_writeReordered</code> or
       * <code>ubidi_writeReverse</code> with the
       * <code>UBIDI_DO_MIRRORING</code> option bit set.
-      * @draft ICU 58
+      * @stable ICU 58
       */
     UBIDI_MIRRORING_ON
 } UBiDiMirroring;
@@ -104,7 +102,7 @@ typedef enum {
 /**
  * Forward declaration of the <code>UBiDiTransform</code> structure that stores
  * information used by the layout transformation engine.
- * @draft ICU 58
+ * @stable ICU 58
  */
 typedef struct UBiDiTransform UBiDiTransform;
 
@@ -240,9 +238,9 @@ typedef struct UBiDiTransform UBiDiTransform;
  * @see UBiDiMirroring
  * @see ubidi_setPara
  * @see u_shapeArabic
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT uint32_t U_EXPORT2
+U_STABLE uint32_t U_EXPORT2
 ubiditransform_transform(UBiDiTransform *pBiDiTransform,
             const UChar *src, int32_t srcLength,
             UChar *dest, int32_t destSize,
@@ -286,16 +284,16 @@ ubiditransform_transform(UBiDiTransform *pBiDiTransform,
  * <code>ubiditransform_close()</code>.
  *
  * @return An empty <code>UBiDiTransform</code> object.
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT UBiDiTransform* U_EXPORT2
+U_STABLE UBiDiTransform* U_EXPORT2
 ubiditransform_open(UErrorCode *pErrorCode);
 
 /**
  * Deallocates the given <code>UBiDiTransform</code> object.
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 ubiditransform_close(UBiDiTransform *pBidiTransform);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -309,7 +307,7 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @draft ICU 58
+ * @stable ICU 58
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUBiDiTransformPointer, UBiDiTransform, ubiditransform_close);
 
@@ -317,5 +315,4 @@ U_NAMESPACE_END
 
 #endif
 
-#endif /* U_HIDE_DRAFT_API */
 #endif

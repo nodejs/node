@@ -58,6 +58,11 @@ class StringEnumeration;
  * formatting and parsing a number.  Also provides methods for
  * determining which locales have number formats, and what their names
  * are.
+ *
+ * <p><strong>NOTE:</strong> Starting in ICU 60, there is a new set of APIs for localized number
+ * formatting that are designed to be an improvement over DecimalFormat.  New users are discouraged
+ * from using DecimalFormat.  For more information, see numberformatter.h.
+ *
  * \headerfile unicode/numfmt.h "unicode/numfmt.h"
  * <P>
  * NumberFormat helps you to format and parse numbers for any locale.
@@ -168,6 +173,33 @@ class StringEnumeration;
  */
 class U_I18N_API NumberFormat : public Format {
 public:
+    /**
+     * Rounding mode.
+     *
+     * <p>
+     * For more detail on rounding modes, see:
+     * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+     *
+     * @stable ICU 2.4
+     */
+    enum ERoundingMode {
+        kRoundCeiling,  /**< Round towards positive infinity */
+        kRoundFloor,    /**< Round towards negative infinity */
+        kRoundDown,     /**< Round towards zero */
+        kRoundUp,       /**< Round away from zero */
+        kRoundHalfEven, /**< Round towards the nearest integer, or
+                             towards the nearest even integer if equidistant */
+        kRoundHalfDown, /**< Round towards the nearest integer, or
+                             towards zero if equidistant */
+        kRoundHalfUp,   /**< Round towards the nearest integer, or
+                             away from zero if equidistant */
+        /**
+          *  Return U_FORMAT_INEXACT_ERROR if number does not format exactly.
+          *  @stable ICU 4.8
+          */
+        kRoundUnnecessary
+    };
+
     /**
      * Alignment Field constants used to construct a FieldPosition object.
      * Signifies that the position of the integer part or fraction part of
@@ -814,7 +846,7 @@ public:
      * Returns true if grouping is used in this format. For example,
      * in the English locale, with grouping on, the number 1234567
      * might be formatted as "1,234,567". The grouping separator as
-     * well as the size of each group is locale dependant and is
+     * well as the size of each group is locale dependent and is
      * determined by sub-classes of NumberFormat.
      * @see setGroupingUsed
      * @stable ICU 2.0
@@ -964,6 +996,21 @@ public:
      * @stable ICU 53
      */
     virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
+
+    /**
+     * Get the rounding mode. This will always return NumberFormat::ERoundingMode::kRoundUnnecessary
+     * if the subclass does not support rounding.
+     * @return A rounding mode
+     * @draft ICU 60
+     */
+    virtual ERoundingMode getRoundingMode(void) const;
+
+    /**
+     * Set the rounding mode. If a subclass does not support rounding, this will do nothing.
+     * @param roundingMode A rounding mode
+     * @draft ICU 60
+     */
+    virtual void setRoundingMode(ERoundingMode roundingMode);
 
 public:
 

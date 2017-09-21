@@ -31,23 +31,14 @@
 #include "unicode/schriter.h"
 #include "unicode/uchriter.h"
 
-
-struct UTrie;
-
 U_NAMESPACE_BEGIN
 
 /** @internal */
-struct RBBIDataHeader;
-class  RuleBasedBreakIteratorTables;
-class  BreakIterator;
-class  RBBIDataWrapper;
-class  UStack;
 class  LanguageBreakEngine;
+struct RBBIDataHeader;
+class  RBBIDataWrapper;
 class  UnhandledEngine;
-struct RBBIStateTable;
-
-
-
+class  UStack;
 
 /**
  *
@@ -96,19 +87,36 @@ private:
      */
     RBBIDataWrapper    *fData;
 
-    /** Index of the Rule {tag} values for the most recent match.
+    /**
+     *  The iteration state - current position, rule status for the current position,
+     *                        and whether the iterator ran off the end, yielding UBRK_DONE.
+     *                        Current position is pinned to be 0 < position <= text.length.
+     *                        Current position is always set to a boundary.
      *  @internal
     */
-    int32_t             fLastRuleStatusIndex;
+    /**
+      * The current  position of the iterator. Pinned, 0 < fPosition <= text.length.
+      * Never has the value UBRK_DONE (-1).
+      */
+    int32_t         fPosition;
 
     /**
-     * Rule tag value valid flag.
-     * Some iterator operations don't intrinsically set the correct tag value.
-     * This flag lets us lazily compute the value if we are ever asked for it.
-     * @internal
-     */
-    UBool               fLastStatusIndexValid;
+      * TODO:
+      */
+    int32_t         fRuleStatusIndex;
 
+    /**
+      * True when iteration has run off the end, and iterator functions should return UBRK_DONE.
+      */
+    UBool           fDone;
+
+    /**
+     *   Cache of previously determined boundary positions.
+     */
+  public:    // TODO: debug, return to private.
+    class BreakCache;
+    BreakCache         *fBreakCache;
+  private:
     /**
      * Counter for the number of characters encountered with the "dictionary"
      *   flag set.
@@ -117,26 +125,11 @@ private:
     uint32_t            fDictionaryCharCount;
 
     /**
-     * When a range of characters is divided up using the dictionary, the break
-     * positions that are discovered are stored here, preventing us from having
-     * to use either the dictionary or the state table again until the iterator
-     * leaves this range of text. Has the most impact for line breaking.
-     * @internal
+     *  Cache of boundary positions within a region of text that has been
+     *  sub-divided by dictionary based breaking.
      */
-    int32_t*            fCachedBreakPositions;
-
-    /**
-     * The number of elements in fCachedBreakPositions
-     * @internal
-     */
-    int32_t             fNumCachedBreakPositions;
-
-    /**
-     * if fCachedBreakPositions is not null, this indicates which item in the
-     * cache the current iteration position refers to
-     * @internal
-     */
-    int32_t             fPositionInCache;
+    class DictionaryCache;
+    DictionaryCache *fDictionaryCache;
 
     /**
      *
@@ -179,12 +172,10 @@ private:
      */
     RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode &status);
 
-
+    /** @internal */
     friend class RBBIRuleBuilder;
     /** @internal */
     friend class BreakIterator;
-
-
 
 public:
 
@@ -469,7 +460,10 @@ public:
     virtual UBool isBoundary(int32_t offset);
 
     /**
-     * Returns the current iteration position.
+     * Returns the current iteration position. Note that UBRK_DONE is never
+     * returned from this function; if iteration has run to the end of a
+     * string, current() will return the length of the string while
+     * next() will return UBRK_DONE).
      * @return The current iteration position.
      * @stable ICU 2.0
      */
@@ -501,6 +495,7 @@ public:
      * Note: this function is not thread safe.  It should not have been
      *       declared const, and the const remains only for compatibility
      *       reasons.  (The function is logically const, but not bit-wise const).
+     *   TODO: check this. Probably thread safe now.
      * <p>
      * @return the status from the break rule that determined the most recently
      * returned break position.
@@ -660,46 +655,31 @@ private:
       * Common initialization function, used by constructors and bufferClone.
       * @internal
       */
-    void init();
+    void init(UErrorCode &status);
 
     /**
-     * This method backs the iterator back up to a "safe position" in the text.
-     * This is a position that we know, without any context, must be a break position.
-     * The various calling methods then iterate forward from this safe position to
-     * the appropriate position to return.  (For more information, see the description
-     * of buildBackwardsStateTable() in RuleBasedBreakIterator.Builder.)
-     * @param statetable state table used of moving backwards
+     * Iterate backwards from an arbitrary position in the input text using the Safe Reverse rules.
+     * This locates a "Safe Position" from which the forward break rules
+     * will operate correctly. A Safe Position is not necessarily a boundary itself.
+     *
+     * @param fromPosition the position in the input text to begin the iteration.
      * @internal
      */
-    int32_t handlePrevious(const RBBIStateTable *statetable);
+    int32_t handlePrevious(int32_t fromPosition);
 
     /**
-     * This method is the actual implementation of the next() method.  All iteration
-     * vectors through here.  This method initializes the state machine to state 1
-     * and advances through the text character by character until we reach the end
-     * of the text or the state machine transitions to state 0.  We update our return
-     * value every time the state machine passes through a possible end state.
-     * @param statetable state table used of moving forwards
+     * Find a rule-based boundary by running the state machine.
+     * Input
+     *    fPosition, the position in the text to begin from.
+     * Output
+     *    fPosition:           the boundary following the starting position.
+     *    fDictionaryCharCount the number of dictionary characters encountered.
+     *                         If > 0, the segment will be further subdivided
+     *    fRuleStatusIndex     Info from the state table indicating which rules caused the boundary.
+     *
      * @internal
      */
-    int32_t handleNext(const RBBIStateTable *statetable);
-
-
-    /**
-     * This is the function that actually implements dictionary-based
-     * breaking.  Covering at least the range from startPos to endPos,
-     * it checks for dictionary characters, and if it finds them determines
-     * the appropriate object to deal with them. It may cache found breaks in
-     * fCachedBreakPositions as it goes. It may well also look at text outside
-     * the range startPos to endPos.
-     * If going forward, endPos is the normal Unicode break result, and
-     * if goind in reverse, startPos is the normal Unicode break result
-     * @param startPos  The start position of a range of text
-     * @param endPos    The end position of a range of text
-     * @param reverse   The call is for the reverse direction
-     * @internal
-     */
-    int32_t checkDictionary(int32_t startPos, int32_t endPos, UBool reverse);
+    int32_t handleNext();
 
 
     /**
@@ -710,11 +690,14 @@ private:
      */
     const LanguageBreakEngine *getLanguageBreakEngine(UChar32 c);
 
+  public:
+#ifndef U_HIDE_INTERNAL_API
     /**
-     *  @internal
+     *   Debugging function only.
+     *   @internal
      */
-    void makeRuleStatusValid();
-
+     void dumpCache();
+#endif  /* U_HIDE_INTERNAL_API */
 };
 
 //------------------------------------------------------------------------------

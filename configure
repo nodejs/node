@@ -1075,8 +1075,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/59.1/icu4c-59_1-src.zip',
-      'md5': '29a41f9bb576b06c7eef0487a84a7674',
+      'url': 'https://ssl.icu-project.org/files/icu4c/60.1/icu4c-60_1-src.zip',
+      'md5': 'e6cb990ac2a3161d31a3def8435f80cb',
     },
   ]
   def icu_download(path):
