@@ -212,13 +212,14 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               v8::GCCallbackFlags flags,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
-  uv_async_t *async = new uv_async_t;
+  uv_async_t* async = new uv_async_t();  // coverity[leaked_storage]
+  if (uv_async_init(env->event_loop(), async, PerformanceGCCallback))
+    return delete async;
   async->data =
       new PerformanceEntry::Data(env, "gc", "gc",
                                  performance_last_gc_start_mark_,
                                  PERFORMANCE_NOW(), type);
-  uv_async_init(env->event_loop(), async, PerformanceGCCallback);
-  uv_async_send(async);
+  CHECK_EQ(0, uv_async_send(async));
 }
 
 inline void SetupGarbageCollectionTracking(Environment* env) {
