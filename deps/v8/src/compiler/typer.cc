@@ -1450,7 +1450,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
           return Type::String();
         case kStringIndexOf:
         case kStringLastIndexOf:
-          return Type::Range(-1.0, String::kMaxLength - 1.0, t->zone());
+          return Type::Range(-1.0, String::kMaxLength, t->zone());
         case kStringEndsWith:
         case kStringIncludes:
           return Type::Boolean();
