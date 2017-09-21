@@ -340,11 +340,7 @@ void RelocInfo::update_wasm_function_table_size_reference(
     Isolate* isolate, uint32_t old_size, uint32_t new_size,
     ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  uint32_t current_size_reference = wasm_function_table_size_reference();
-  uint32_t updated_size_reference =
-      new_size + (current_size_reference - old_size);
-  unchecked_update_wasm_size(isolate, updated_size_reference,
-                             icache_flush_mode);
+  unchecked_update_wasm_size(isolate, new_size, icache_flush_mode);
 }
 
 void RelocInfo::set_target_address(Isolate* isolate, Address target,
