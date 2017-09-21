@@ -150,7 +150,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     },
     offsetNotUInt32: {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"offset" .* unint32/,
+      message: /"offset" .* uint32/,
     },
     sizeNotNumber: {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -158,7 +158,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     },
     sizeNotUInt32: {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"size" .* unint32/,
+      message: /"size" .* uint32/,
     },
     bufferTooSmall: {
       code: 'ERR_BUFFER_TOO_SMALL',

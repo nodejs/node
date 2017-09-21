@@ -240,7 +240,7 @@ const modSize = 1024;
 
 // Test throws exception when key options is null
 {
-  expectsError(() => {
+  common.expectsError(() => {
     crypto.createSign('RSA-SHA1').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_MISSING_SIGN_KEY',
