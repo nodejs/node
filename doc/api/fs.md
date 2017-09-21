@@ -1716,7 +1716,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|Uint8Array|ArrayBuffer}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
@@ -2525,7 +2525,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|Uint8Array}
+* `buffer` {Buffer|Uint8Array|ArrayBuffer}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
