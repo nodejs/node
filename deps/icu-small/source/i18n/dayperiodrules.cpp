@@ -340,7 +340,7 @@ const DayPeriodRules *DayPeriodRules::getInstance(const Locale &locale, UErrorCo
     // does), return NULL.
     if(U_FAILURE(errorCode)) { return NULL; }
 
-    const char *localeCode = locale.getName();
+    const char *localeCode = locale.getBaseName();
     char name[ULOC_FULLNAME_CAPACITY];
     char parentName[ULOC_FULLNAME_CAPACITY];
 

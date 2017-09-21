@@ -111,7 +111,7 @@ public:
         return newRuleValue * divisor;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return divisor; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
 
     virtual UChar tokenChar() const { return (UChar)0x003c; } // '<'
 
@@ -148,7 +148,7 @@ public:
     virtual void doSubstitution(double number, UnicodeString& toInsertInto, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
     virtual int64_t transformNumber(int64_t number) const { return number % divisor; }
-    virtual double transformNumber(double number) const { return uprv_fmod(number, divisor); }
+    virtual double transformNumber(double number) const { return uprv_fmod(number, static_cast<double>(divisor)); }
 
     virtual UBool doParse(const UnicodeString& text,
         ParsePosition& parsePosition,
@@ -158,10 +158,10 @@ public:
         Formattable& result) const;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const {
-        return oldRuleValue - uprv_fmod(oldRuleValue, divisor) + newRuleValue;
+        return oldRuleValue - uprv_fmod(oldRuleValue, static_cast<double>(divisor)) + newRuleValue;
     }
 
-    virtual double calcUpperBound(double /*oldUpperBound*/) const { return divisor; }
+    virtual double calcUpperBound(double /*oldUpperBound*/) const { return static_cast<double>(divisor); }
 
     virtual UBool isModulusSubstitution() const { return TRUE; }
 

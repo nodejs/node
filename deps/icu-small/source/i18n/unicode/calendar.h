@@ -1741,7 +1741,7 @@ protected:
      * reflects local zone wall time.
      * @internal
      */
-    int32_t computeMillisInDay();
+    double computeMillisInDay();
 
     /**
      * This method can assume EXTENDED_YEAR has been set.
@@ -1752,7 +1752,7 @@ protected:
      *          when this function fails.
      * @internal
      */
-    int32_t computeZoneOffset(double millis, int32_t millisInDay, UErrorCode &ec);
+    int32_t computeZoneOffset(double millis, double millisInDay, UErrorCode &ec);
 
 
     /**

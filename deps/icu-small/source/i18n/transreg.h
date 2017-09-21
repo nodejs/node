@@ -440,12 +440,14 @@ class TransliteratorRegistry : public UMemory {
 
     /**
      * DAG of visible IDs by spec.  Hashtable: source => (Hashtable:
-     * target => (UVector: variant)) The UVector of variants is never
-     * empty.  For a source-target with no variant, the special
-     * variant NO_VARIANT (the empty string) is stored in slot zero of
-     * the UVector.
+     * target => variant bitmask)
      */
     Hashtable specDAG;
+
+    /**
+     * Vector of all variant names
+     */
+    UVector variantList;
 
     /**
      * Vector of public full IDs.

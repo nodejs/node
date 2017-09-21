@@ -107,7 +107,7 @@ class CacheKey : public CacheKeyBase {
     */
    virtual int32_t hashCode() const {
        const char *s = typeid(T).name();
-       return ustr_hashCharsN(s, uprv_strlen(s));
+       return ustr_hashCharsN(s, static_cast<int32_t>(uprv_strlen(s)));
    }
 
    /**
