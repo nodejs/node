@@ -54,7 +54,7 @@ assert.doesNotThrow(() => {
     if (client)
       client.end();
   }));
-  server.setTimeout(common.platformTimeout(1000));
+  server.setTimeout(common.platformTimeout(1000), common.mustCall());
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     client = net.connect(port, common.mustCall());
@@ -70,7 +70,7 @@ assert.doesNotThrow(() => {
     if (client)
       client.end();
   }));
-  server.setTimeout(common.platformTimeout(1000));
+  server.setTimeout(common.platformTimeout(1000), common.mustCall());
   server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     client = tls.connect({
