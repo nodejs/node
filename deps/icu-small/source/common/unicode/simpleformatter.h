@@ -21,6 +21,13 @@
 
 U_NAMESPACE_BEGIN
 
+// Forward declaration:
+namespace number {
+namespace impl {
+class SimpleModifier;
+}
+}
+
 /**
  * Formats simple patterns like "{1} was born in {0}".
  * Minimal subset of MessageFormat; fast, simple, minimal dependencies.
@@ -286,6 +293,9 @@ private:
             UnicodeString &result, const UnicodeString *resultCopy, UBool forbidResultAsValue,
             int32_t *offsets, int32_t offsetsLength,
             UErrorCode &errorCode);
+
+    // Give access to internals to SimpleModifier for number formatting
+    friend class number::impl::SimpleModifier;
 };
 
 U_NAMESPACE_END

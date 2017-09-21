@@ -256,7 +256,7 @@ protected:
     /** @internal */
     class FinalValueNode : public Node {
     public:
-        FinalValueNode(int32_t v) : Node(0x111111*37+v), value(v) {}
+        FinalValueNode(int32_t v) : Node(0x111111u*37u+v), value(v) {}
         virtual UBool operator==(const Node &other) const;
         virtual void write(StringTrieBuilder &builder);
     protected:
@@ -276,7 +276,7 @@ protected:
         void setValue(int32_t v) {
             hasValue=TRUE;
             value=v;
-            hash=hash*37+v;
+            hash=hash*37u+v;
         }
     protected:
         UBool hasValue;
@@ -290,7 +290,7 @@ protected:
     class IntermediateValueNode : public ValueNode {
     public:
         IntermediateValueNode(int32_t v, Node *nextNode)
-                : ValueNode(0x222222*37+hashCode(nextNode)), next(nextNode) { setValue(v); }
+                : ValueNode(0x222222u*37u+hashCode(nextNode)), next(nextNode) { setValue(v); }
         virtual UBool operator==(const Node &other) const;
         virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
         virtual void write(StringTrieBuilder &builder);
@@ -307,7 +307,7 @@ protected:
     class LinearMatchNode : public ValueNode {
     public:
         LinearMatchNode(int32_t len, Node *nextNode)
-                : ValueNode((0x333333*37+len)*37+hashCode(nextNode)),
+                : ValueNode((0x333333u*37u+len)*37u+hashCode(nextNode)),
                   length(len), next(nextNode) {}
         virtual UBool operator==(const Node &other) const;
         virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
@@ -342,7 +342,7 @@ protected:
             equal[length]=NULL;
             values[length]=value;
             ++length;
-            hash=(hash*37+c)*37+value;
+            hash=(hash*37u+c)*37u+value;
         }
         // Adds a unit which leads to another match node.
         void add(int32_t c, Node *node) {
@@ -350,7 +350,7 @@ protected:
             equal[length]=node;
             values[length]=0;
             ++length;
-            hash=(hash*37+c)*37+hashCode(node);
+            hash=(hash*37u+c)*37u+hashCode(node);
         }
     protected:
         Node *equal[kMaxBranchLinearSubNodeLength];  // NULL means "has final value".
@@ -365,8 +365,8 @@ protected:
     class SplitBranchNode : public BranchNode {
     public:
         SplitBranchNode(char16_t middleUnit, Node *lessThanNode, Node *greaterOrEqualNode)
-                : BranchNode(((0x555555*37+middleUnit)*37+
-                              hashCode(lessThanNode))*37+hashCode(greaterOrEqualNode)),
+                : BranchNode(((0x555555u*37u+middleUnit)*37u+
+                              hashCode(lessThanNode))*37u+hashCode(greaterOrEqualNode)),
                   unit(middleUnit), lessThan(lessThanNode), greaterOrEqual(greaterOrEqualNode) {}
         virtual UBool operator==(const Node &other) const;
         virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
@@ -382,7 +382,7 @@ protected:
     class BranchHeadNode : public ValueNode {
     public:
         BranchHeadNode(int32_t len, Node *subNode)
-                : ValueNode((0x666666*37+len)*37+hashCode(subNode)),
+                : ValueNode((0x666666u*37u+len)*37u+hashCode(subNode)),
                   length(len), next(subNode) {}
         virtual UBool operator==(const Node &other) const;
         virtual int32_t markRightEdgesFirst(int32_t edgeNumber);

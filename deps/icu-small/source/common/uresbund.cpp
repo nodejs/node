@@ -1083,6 +1083,7 @@ static UResourceBundle *init_resb_result(const ResourceData *rdata, Resource r,
                                 pathBuf = (char *)uprv_malloc((uprv_strlen(keyPath)+1)*sizeof(char));
                                 if(pathBuf == NULL) {
                                     *status = U_MEMORY_ALLOCATION_ERROR;
+                                    ures_close(mainRes);
                                     return NULL;
                                 }
                             }

@@ -386,7 +386,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberFromUInt32(decNumber *dn, uInt uin) {
     *up=(Unit)(uin%(DECDPUNMAX+1));
     uin=uin/(DECDPUNMAX+1);
     }
-  dn->digits=decGetDigits(dn->lsu, up-dn->lsu);
+  dn->digits=decGetDigits(dn->lsu, static_cast<int32_t>(up - dn->lsu));
   return dn;
   } /* decNumberFromUInt32  */
 
@@ -666,7 +666,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberFromString(decNumber *dn, const char 
 
     /* Handle decimal point...  */
     if (dotchar!=NULL && dotchar<last)  /* non-trailing '.' found?  */
-      exponent-=(last-dotchar);         /* adjust exponent  */
+      exponent -= static_cast<int32_t>(last-dotchar);         /* adjust exponent  */
     /* [we can now ignore the .]  */
 
     /* OK, the digits string is good.  Assemble in the decNumber, or in  */
@@ -866,7 +866,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberAnd(decNumber *res, const decNumber *
       } /* both OK  */
     } /* each unit  */
   /* [here uc-1 is the msu of the result]  */
-  res->digits=decGetDigits(res->lsu, uc-res->lsu);
+  res->digits=decGetDigits(res->lsu, static_cast<int32_t>(uc - res->lsu));
   res->exponent=0;                      /* integer  */
   res->bits=0;                          /* sign=0  */
   return res;  /* [no status to set]  */
@@ -1253,7 +1253,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberInvert(decNumber *res, const decNumbe
       } /* each digit  */
     } /* each unit  */
   /* [here uc-1 is the msu of the result]  */
-  res->digits=decGetDigits(res->lsu, uc-res->lsu);
+  res->digits=decGetDigits(res->lsu, static_cast<int32_t>(uc - res->lsu));
   res->exponent=0;                      /* integer  */
   res->bits=0;                          /* sign=0  */
   return res;  /* [no status to set]  */
@@ -1880,7 +1880,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberOr(decNumber *res, const decNumber *l
       } /* non-zero  */
     } /* each unit  */
   /* [here uc-1 is the msu of the result]  */
-  res->digits=decGetDigits(res->lsu, uc-res->lsu);
+  res->digits=decGetDigits(res->lsu, static_cast<int32_t>(uc-res->lsu));
   res->exponent=0;                      /* integer  */
   res->bits=0;                          /* sign=0  */
   return res;  /* [no status to set]  */
@@ -2586,7 +2586,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberRotate(decNumber *res, const decNumbe
           } /* whole units to rotate  */
         /* the rotation may have left an undetermined number of zeros  */
         /* on the left, so true length needs to be calculated  */
-        res->digits=decGetDigits(res->lsu, msumax-res->lsu+1);
+        res->digits=decGetDigits(res->lsu, static_cast<int32_t>(msumax-res->lsu+1));
         } /* rotate needed  */
       } /* rhs OK  */
     } /* numerics  */
@@ -3310,7 +3310,7 @@ U_CAPI decNumber * U_EXPORT2 uprv_decNumberXor(decNumber *res, const decNumber *
       } /* non-zero  */
     } /* each unit  */
   /* [here uc-1 is the msu of the result]  */
-  res->digits=decGetDigits(res->lsu, uc-res->lsu);
+  res->digits=decGetDigits(res->lsu, static_cast<int32_t>(uc-res->lsu));
   res->exponent=0;                      /* integer  */
   res->bits=0;                          /* sign=0  */
   return res;  /* [no status to set]  */
@@ -5101,7 +5101,7 @@ static decNumber * decMultiplyOp(decNumber *res, const decNumber *lhs,
           } /* p  */
         *up=(Unit)item; up++;                /* [final needs no division]  */
         } /* lp  */
-      accunits=up-acc;                       /* count of units  */
+      accunits = static_cast<int32_t>(up-acc);                       /* count of units  */
       }
      else { /* here to use units directly, without chunking ['old code']  */
     #endif
@@ -6587,11 +6587,11 @@ static Int decUnitAddSub(const Unit *a, Int alength,
 
   /* OK, all A and B processed; might still have carry or borrow  */
   /* return number of Units in the result, negated if a borrow  */
-  if (carry==0) return c-clsu;     /* no carry, so no more to do  */
+  if (carry==0) return static_cast<int32_t>(c-clsu);     /* no carry, so no more to do  */
   if (carry>0) {                   /* positive carry  */
     *c=(Unit)carry;                /* place as new unit  */
     c++;                           /* ..  */
-    return c-clsu;
+    return static_cast<int32_t>(c-clsu);
     }
   /* -ve carry: it's a borrow; complement needed  */
   add=1;                           /* temporary carry...  */
@@ -6614,7 +6614,7 @@ static Int decUnitAddSub(const Unit *a, Int alength,
     *c=(Unit)(add-carry-1);
     c++;                      /* interesting, include it  */
     }
-  return clsu-c;              /* -ve result indicates borrowed  */
+  return static_cast<int32_t>(clsu-c);              /* -ve result indicates borrowed  */
   } /* decUnitAddSub  */
 
 /* ------------------------------------------------------------------ */
@@ -6798,7 +6798,7 @@ static Int decShiftToLeast(Unit *uar, Int units, Int shift) {
   if (cut==DECDPUN) {              /* unit-boundary case; easy  */
     up=uar+D2U(shift);
     for (; up<uar+units; target++, up++) *target=*up;
-    return target-uar;
+    return static_cast<int32_t>(target-uar);
     }
 
   /* messier  */
@@ -6826,7 +6826,7 @@ static Int decShiftToLeast(Unit *uar, Int units, Int shift) {
     count-=cut;
     if (count<=0) break;
     }
-  return target-uar+1;
+  return static_cast<int32_t>(target-uar+1);
   } /* decShiftToLeast  */
 
 #if DECSUBSET
@@ -7690,7 +7690,7 @@ static decNumber *decDecap(decNumber *dn, Int drop) {
   cut=MSUDIGITS(dn->digits-drop);       /* digits to be in use in msu  */
   if (cut!=DECDPUN) *msu%=powers[cut];  /* clear left digits  */
   /* that may have left leading zero digits, so do a proper count...  */
-  dn->digits=decGetDigits(dn->lsu, msu-dn->lsu+1);
+  dn->digits=decGetDigits(dn->lsu, static_cast<int32_t>(msu-dn->lsu+1));
   return dn;
   } /* decDecap  */
 

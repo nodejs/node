@@ -30,36 +30,26 @@
 U_NAMESPACE_BEGIN
 
 UnicodeString &
-UnicodeString::toTitle(BreakIterator *titleIter) {
-  return toTitle(titleIter, Locale::getDefault(), 0);
+UnicodeString::toTitle(BreakIterator *iter) {
+    return toTitle(iter, Locale::getDefault(), 0);
 }
 
 UnicodeString &
-UnicodeString::toTitle(BreakIterator *titleIter, const Locale &locale) {
-  return toTitle(titleIter, locale, 0);
+UnicodeString::toTitle(BreakIterator *iter, const Locale &locale) {
+    return toTitle(iter, locale, 0);
 }
 
 UnicodeString &
-UnicodeString::toTitle(BreakIterator *titleIter, const Locale &locale, uint32_t options) {
-  BreakIterator *bi=titleIter;
-  if(bi==NULL) {
-    UErrorCode errorCode=U_ZERO_ERROR;
-    bi=BreakIterator::createWordInstance(locale, errorCode);
-    if(U_FAILURE(errorCode)) {
-      setToBogus();
-      return *this;
+UnicodeString::toTitle(BreakIterator *iter, const Locale &locale, uint32_t options) {
+    LocalPointer<BreakIterator> ownedIter;
+    UErrorCode errorCode = U_ZERO_ERROR;
+    iter = ustrcase_getTitleBreakIterator(&locale, "", options, iter, ownedIter, errorCode);
+    if (iter == nullptr) {
+        setToBogus();
+        return *this;
     }
-  }
-  // Because the "this" string is both the source and the destination,
-  // make a copy of the original source for use by the break iterator.
-  // See tickets #13127 and #13128
-  UnicodeString copyOfInput(*this);
-  bi->setText(copyOfInput);
-  caseMap(ustrcase_getCaseLocale(locale.getBaseName()), options, bi, ustrcase_internalToTitle);
-  if(titleIter==NULL) {
-    delete bi;
-  }
-  return *this;
+    caseMap(ustrcase_getCaseLocale(locale.getBaseName()), options, iter, ustrcase_internalToTitle);
+    return *this;
 }
 
 U_NAMESPACE_END

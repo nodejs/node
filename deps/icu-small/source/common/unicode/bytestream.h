@@ -126,8 +126,8 @@ public:
   virtual void Flush();
 
 private:
-  ByteSink(const ByteSink &); // copy constructor not implemented
-  ByteSink &operator=(const ByteSink &); // assignment operator not implemented
+  ByteSink(const ByteSink &) = delete;
+  ByteSink &operator=(const ByteSink &) = delete;
 };
 
 // -------------------------------------------------------------
@@ -217,9 +217,10 @@ private:
   int32_t size_;
   int32_t appended_;
   UBool overflowed_;
-  CheckedArrayByteSink(); ///< default constructor not implemented
-  CheckedArrayByteSink(const CheckedArrayByteSink &); ///< copy constructor not implemented
-  CheckedArrayByteSink &operator=(const CheckedArrayByteSink &); ///< assignment operator not implemented
+
+  CheckedArrayByteSink() = delete;
+  CheckedArrayByteSink(const CheckedArrayByteSink &) = delete;
+  CheckedArrayByteSink &operator=(const CheckedArrayByteSink &) = delete;
 };
 
 /**
@@ -236,6 +237,21 @@ class StringByteSink : public ByteSink {
    * @stable ICU 4.2
    */
   StringByteSink(StringClass* dest) : dest_(dest) { }
+#ifndef U_HIDE_DRAFT_API
+  /**
+   * Constructs a ByteSink that reserves append capacity and will append bytes to the dest string.
+   *
+   * @param dest pointer to string object to append to
+   * @param initialAppendCapacity capacity beyond dest->length() to be reserve()d
+   * @draft ICU 60
+   */
+  StringByteSink(StringClass* dest, int32_t initialAppendCapacity) : dest_(dest) {
+    if (initialAppendCapacity > 0 &&
+        (uint32_t)initialAppendCapacity > (dest->capacity() - dest->length())) {
+      dest->reserve(dest->length() + initialAppendCapacity);
+    }
+  }
+#endif  // U_HIDE_DRAFT_API
   /**
    * Append "bytes[0,n-1]" to this.
    * @param data the pointer to the bytes
@@ -245,9 +261,10 @@ class StringByteSink : public ByteSink {
   virtual void Append(const char* data, int32_t n) { dest_->append(data, n); }
  private:
   StringClass* dest_;
-  StringByteSink(); ///< default constructor not implemented
-  StringByteSink(const StringByteSink &); ///< copy constructor not implemented
-  StringByteSink &operator=(const StringByteSink &); ///< assignment operator not implemented
+
+  StringByteSink() = delete;
+  StringByteSink(const StringByteSink &) = delete;
+  StringByteSink &operator=(const StringByteSink &) = delete;
 };
 
 U_NAMESPACE_END

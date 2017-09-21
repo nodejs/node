@@ -560,7 +560,7 @@ struct RelDateTimeFmtDataSink : public ResourceSink {
 RelDateTimeFmtDataSink::~RelDateTimeFmtDataSink() {}
 } // namespace
 
-DateFormatSymbols::DtWidthType styleToDateFormatSymbolWidth[UDAT_STYLE_COUNT] = {
+static const DateFormatSymbols::DtWidthType styleToDateFormatSymbolWidth[UDAT_STYLE_COUNT] = {
   DateFormatSymbols::WIDE, DateFormatSymbols::SHORT, DateFormatSymbols::NARROW
 };
 
