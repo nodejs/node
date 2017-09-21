@@ -9,9 +9,6 @@ can be accessed using:
 const http2 = require('http2');
 ```
 
-*Note*: Node.js must be launched with the `--expose-http2` command line flag
-in order to use the `'http2'` module.
-
 ## Core API
 
 The Core API provides a low-level interface designed specifically around

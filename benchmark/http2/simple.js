@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
   requests: [100, 1000, 10000, 100000],
   streams: [100, 200, 1000],
   clients: [1, 2]
-}, { flags: ['--expose-http2', '--no-warnings'] });
+}, { flags: ['--no-warnings'] });
 
 function main(conf) {
   const n = +conf.requests;
