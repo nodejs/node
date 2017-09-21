@@ -175,13 +175,6 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
-### `--expose-http2`
-<!-- YAML
-added: v8.4.0
--->
-
-Enable the experimental `'http2'` module.
-
 ### `--abort-on-uncaught-exception`
 <!-- YAML
 added: v0.10
