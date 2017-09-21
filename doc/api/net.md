@@ -1001,7 +1001,7 @@ If `allowHalfOpen` is set to `true`, when the other end of the socket
 sends a FIN packet, the server will only send a FIN packet back when
 [`socket.end()`][] is explicitly called, until then the connection is
 half-closed (non-readable but still writable). See [`'end'`][] event
-and [RFC 1122][half-closed] for more information.
+and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
 
 If `pauseOnConnect` is set to `true`, then the socket associated with each
 incoming connection will be paused, and no data will be read from its handle.
@@ -1126,7 +1126,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [Readable Stream]: stream.html#stream_class_stream_readable
 [duplex stream]: stream.html#stream_class_stream_duplex
-[half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
+[half-closed]: https://tools.ietf.org/html/rfc1122
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
