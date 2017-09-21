@@ -6,7 +6,7 @@ const fs = require('fs');
 
 common.refreshTmpDir();
 
-// test creating and reading hard link
+// Test creating and reading hard link
 const srcPath = path.join(common.tmpDir, 'hardlink-target.txt');
 const dstPath = path.join(common.tmpDir, 'link1.js');
 fs.writeFileSync(srcPath, 'hello world');
@@ -19,18 +19,8 @@ function callback(err) {
 
 fs.link(srcPath, dstPath, common.mustCall(callback));
 
-// test error outputs
-
-assert.throws(
-  function() {
-    fs.link();
-  },
-  /src must be a string or Buffer/
-);
-
-assert.throws(
-  function() {
-    fs.link('abc');
-  },
-  /dest must be a string or Buffer/
-);
+// Test error outputs
+assert.throws(() => { fs.link(); }, /src must be a string or Buffer/);
+assert.throws(() => { fs.link('abc'); }, /dest must be a string or Buffer/);
+assert.throws(() => { fs.linkSync(); }, /src must be a string or Buffer/);
+assert.throws(() => { fs.linkSync('abc'); }, /dest must be a string or Buffer/);
