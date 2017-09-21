@@ -220,6 +220,7 @@ struct performance_state;
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
   V(onwrite_string, "onwrite")                                                \
+  V(openssl_error_stack, "openSSLErrorStack")                                 \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
