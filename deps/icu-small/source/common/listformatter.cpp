@@ -63,7 +63,7 @@ ListFormatInternal(const ListFormatInternal &other) :
 
 static Hashtable* listPatternHash = NULL;
 static UMutex listFormatterMutex = U_MUTEX_INITIALIZER;
-static const char *STANDARD_STYLE = "standard";
+static const char STANDARD_STYLE[] = "standard";
 
 U_CDECL_BEGIN
 static UBool U_CALLCONV uprv_listformatter_cleanup() {

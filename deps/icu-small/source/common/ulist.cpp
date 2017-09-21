@@ -252,7 +252,7 @@ U_CAPI const char * U_EXPORT2 ulist_next_keyword_value(UEnumeration *en, int32_t
 
     s = (const char *)ulist_getNext((UList *)(en->context));
     if (s != NULL && resultLength != NULL) {
-        *resultLength = uprv_strlen(s);
+        *resultLength = static_cast<int32_t>(uprv_strlen(s));
     }
     return s;
 }

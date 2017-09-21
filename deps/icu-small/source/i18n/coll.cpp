@@ -63,8 +63,10 @@
 
 static icu::Locale* availableLocaleList = NULL;
 static int32_t  availableLocaleListCount;
+#if !UCONFIG_NO_SERVICE
 static icu::ICULocaleService* gService = NULL;
 static icu::UInitOnce gServiceInitOnce = U_INITONCE_INITIALIZER;
+#endif
 static icu::UInitOnce gAvailableLocaleListInitOnce;
 
 /**

@@ -847,15 +847,11 @@ U_CDECL_END
 //------------------------------------------------------------------------------
 
 // Chunk size.
-//     Must be less than 42  (256/6), because of byte mapping from UChar indexes to native indexes.
-//     Worst case there are six UTF-8 bytes per UChar.
-//         obsolete 6 byte form fd + 5 trails maps to fffd
-//         obsolete 5 byte form fc + 4 trails maps to fffd
-//         non-shortest 4 byte forms maps to fffd
-//         normal supplementaries map to a pair of utf-16, two utf8 bytes per utf-16 unit
-//     mapToUChars array size must allow for the worst case, 6.
-//     This could be brought down to 4, by treating fd and fc as pure illegal,
-//     rather than obsolete lead bytes. But that is not compatible with the utf-8 access macros.
+//     Must be less than 85 (256/3), because of byte mapping from UChar indexes to native indexes.
+//     Worst case is three native bytes to one UChar.  (Supplemenaries are 4 native bytes
+//     to two UChars.)
+//     The longest illegal byte sequence treated as a single error (and converted to U+FFFD)
+//     is a three-byte sequence (truncated four-byte sequence).
 //
 enum { UTF8_TEXT_CHUNK_SIZE=32 };
 
@@ -895,7 +891,7 @@ struct UTF8Buf {
                                                      //  Requires two extra slots,
                                                      //    one for a supplementary starting in the last normal position,
                                                      //    and one for an entry for the buffer limit position.
-    uint8_t   mapToUChars[UTF8_TEXT_CHUNK_SIZE*6+6]; // Map native offset from bufNativeStart to
+    uint8_t   mapToUChars[UTF8_TEXT_CHUNK_SIZE*3+6]; // Map native offset from bufNativeStart to
                                                      //   correspoding offset in filled part of buf.
     int32_t   align;
 };

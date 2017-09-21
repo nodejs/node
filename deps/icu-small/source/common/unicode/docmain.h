@@ -140,7 +140,7 @@
  *   <tr>
  *     <td>Number Formatting</td>
  *     <td>unum.h</td>
- *     <td>icu::NumberFormat</td>
+ *     <td>icu::number::NumberFormatter (ICU 60+) or icu::NumberFormat (older versions)</td>
  *   </tr>
  *   <tr>
  *     <td>Number Spellout<br/>(Rule Based Number Formatting)</td>

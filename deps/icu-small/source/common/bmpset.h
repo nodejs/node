@@ -28,11 +28,12 @@ U_NAMESPACE_BEGIN
  * Helper class for frozen UnicodeSets, implements contains() and span()
  * optimized for BMP code points. Structured to be UTF-8-friendly.
  *
- * ASCII: Look up bytes.
+ * Latin-1: Look up bytes.
  * 2-byte characters: Bits organized vertically.
  * 3-byte characters: Use zero/one/mixed data per 64-block in U+0000..U+FFFF,
  *                    with mixed for illegal ranges.
- * Supplementary characters: Call contains() on the parent set.
+ * Supplementary characters: Binary search over
+ * the supplementary part of the parent set's inversion list.
  */
 class BMPSet : public UMemory {
 public:
@@ -96,12 +97,12 @@ private:
     inline UBool containsSlow(UChar32 c, int32_t lo, int32_t hi) const;
 
     /*
-     * One byte per ASCII character, or trail byte in lead position.
-     * 0 or 1 for ASCII characters.
-     * The value for trail bytes is the result of contains(FFFD)
-     * for faster validity checking at runtime.
+     * One byte 0 or 1 per Latin-1 character.
      */
-    UBool asciiBytes[0xc0];
+    UBool latin1Contains[0x100];
+
+    /* TRUE if contains(U+FFFD). */
+    UBool containsFFFD;
 
     /*
      * One bit per code point from U+0000..U+07FF.

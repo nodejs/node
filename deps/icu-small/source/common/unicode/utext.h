@@ -768,7 +768,7 @@ utext_extract(UText *ut,
   */
 #define UTEXT_SETNATIVEINDEX(ut, ix)                       \
     { int64_t __offset = (ix) - (ut)->chunkNativeStart; \
-      if (__offset>=0 && __offset<=(int64_t)(ut)->nativeIndexingLimit) { \
+      if (__offset>=0 && __offset<(int64_t)(ut)->nativeIndexingLimit && (ut)->chunkContents[__offset]<0xdc00) { \
           (ut)->chunkOffset=(int32_t)__offset; \
       } else { \
           utext_setNativeIndex((ut), (ix)); } }

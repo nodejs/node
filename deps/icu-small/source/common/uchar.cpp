@@ -729,8 +729,5 @@ upropsvec_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode) {
     }
 
     /* add the start code point of each same-value range of the properties vectors trie */
-    if(propsVectorsColumns>0) {
-        /* if propsVectorsColumns==0 then the properties vectors trie may not be there at all */
-        utrie2_enum(&propsVectorsTrie, NULL, _enumPropertyStartsRange, sa);
-    }
+    utrie2_enum(&propsVectorsTrie, NULL, _enumPropertyStartsRange, sa);
 }

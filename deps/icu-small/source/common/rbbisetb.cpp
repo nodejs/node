@@ -35,7 +35,7 @@
 #if !UCONFIG_NO_BREAK_ITERATION
 
 #include "unicode/uniset.h"
-#include "utrie.h"
+#include "utrie2.h"
 #include "uvector.h"
 #include "uassert.h"
 #include "cmemory.h"
@@ -43,43 +43,6 @@
 
 #include "rbbisetb.h"
 #include "rbbinode.h"
-
-
-//------------------------------------------------------------------------
-//
-//   getFoldedRBBIValue        Call-back function used during building of Trie table.
-//                             Folding value: just store the offset (16 bits)
-//                             if there is any non-0 entry.
-//                             (It'd really be nice if the Trie builder would provide a
-//                             simple default, so this function could go away from here.)
-//
-//------------------------------------------------------------------------
-/* folding value: just store the offset (16 bits) if there is any non-0 entry */
-U_CDECL_BEGIN
-static uint32_t U_CALLCONV
-getFoldedRBBIValue(UNewTrie *trie, UChar32 start, int32_t offset) {
-    uint32_t value;
-    UChar32 limit;
-    UBool inBlockZero;
-
-    limit=start+0x400;
-    while(start<limit) {
-        value=utrie_get32(trie, start, &inBlockZero);
-        if(inBlockZero) {
-            start+=UTRIE_DATA_BLOCK_LENGTH;
-        } else if(value!=0) {
-            return (uint32_t)(offset|0x8000);
-        } else {
-            ++start;
-        }
-    }
-    return 0;
-}
-
-
-U_CDECL_END
-
-
 
 U_NAMESPACE_BEGIN
 
@@ -116,7 +79,7 @@ RBBISetBuilder::~RBBISetBuilder()
         delete r;
     }
 
-    utrie_close(fTrie);
+    utrie2_close(fTrie);
 }
 
 
@@ -287,19 +250,19 @@ void RBBISetBuilder::build() {
     // Build the Trie table for mapping UChar32 values to the corresponding
     //   range group number
     //
-    fTrie = utrie_open(NULL,    //  Pre-existing trie to be filled in
-                      NULL,    //  Data array  (utrie will allocate one)
-                      100000,  //  Max Data Length
-                      0,       //  Initial value for all code points
-                      0,       //  Lead surrogate unit value
-                      TRUE);   //  Keep Latin 1 in separately
+    fTrie = utrie2_open(0,       //  Initial value for all code points.
+                        0,       //  Error value for out-of-range input.
+                        fStatus);
 
-
-    for (rlRange = fRangeList; rlRange!=0; rlRange=rlRange->fNext) {
-        utrie_setRange32(fTrie, rlRange->fStartChar, rlRange->fEndChar+1, rlRange->fNum, TRUE);
+    for (rlRange = fRangeList; rlRange!=0 && U_SUCCESS(*fStatus); rlRange=rlRange->fNext) {
+        utrie2_setRange32(fTrie,
+                          rlRange->fStartChar,     // Range start
+                          rlRange->fEndChar,       // Range end (inclusive)
+                          rlRange->fNum,           // value for range
+                          TRUE,                    // Overwrite previously written values
+                          fStatus);
     }
 }
-
 
 
 //-----------------------------------------------------------------------------------
@@ -307,13 +270,18 @@ void RBBISetBuilder::build() {
 //  getTrieSize()    Return the size that will be required to serialize the Trie.
 //
 //-----------------------------------------------------------------------------------
-int32_t RBBISetBuilder::getTrieSize() /*const*/ {
-    fTrieSize  = utrie_serialize(fTrie,
-                                    NULL,                // Buffer
-                                    0,                   // Capacity
-                                    getFoldedRBBIValue,
-                                    TRUE,                // Reduce to 16 bits
-                                    fStatus);
+int32_t RBBISetBuilder::getTrieSize()  {
+    if (U_FAILURE(*fStatus)) {
+        return 0;
+    }
+    utrie2_freeze(fTrie, UTRIE2_16_VALUE_BITS, fStatus);
+    fTrieSize  = utrie2_serialize(fTrie,
+                                  NULL,                // Buffer
+                                  0,                   // Capacity
+                                  fStatus);
+    if (*fStatus == U_BUFFER_OVERFLOW_ERROR) {
+        *fStatus = U_ZERO_ERROR;
+    }
     // RBBIDebugPrintf("Trie table size is %d\n", trieSize);
     return fTrieSize;
 }
@@ -327,12 +295,10 @@ int32_t RBBISetBuilder::getTrieSize() /*const*/ {
 //
 //-----------------------------------------------------------------------------------
 void RBBISetBuilder::serializeTrie(uint8_t *where) {
-    utrie_serialize(fTrie,
-                    where,                   // Buffer
-                    fTrieSize,               // Capacity
-                    getFoldedRBBIValue,
-                    TRUE,                    // Reduce to 16 bits
-                    fStatus);
+    utrie2_serialize(fTrie,
+                     where,                   // Buffer
+                     fTrieSize,               // Capacity
+                     fStatus);
 }
 
 //------------------------------------------------------------------------

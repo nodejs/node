@@ -987,7 +987,7 @@ UnicodeSet::applyPropertyAlias(const UnicodeString& prop,
 
     UProperty p;
     int32_t v;
-    UBool mustNotBeEmpty = FALSE, invert = FALSE;
+    UBool invert = FALSE;
 
     if (value.length() > 0) {
         p = u_getPropertyEnum(pname.data());
@@ -1009,14 +1009,15 @@ UnicodeSet::applyPropertyAlias(const UnicodeString& prop,
                     p == UCHAR_LEAD_CANONICAL_COMBINING_CLASS) {
                     char* end;
                     double value = uprv_strtod(vname.data(), &end);
-                    v = (int32_t) value;
-                    if (v != value || v < 0 || *end != 0) {
-                        // non-integral or negative value, or trailing junk
+                    // Anything between 0 and 255 is valid even if unused.
+                    // Cast double->int only after range check.
+                    // We catch NaN here because comparing it with both 0 and 255 will be false
+                    // (as are all comparisons with NaN).
+                    if (*end != 0 || !(0 <= value && value <= 255) ||
+                            (v = (int32_t)value) != value) {
+                        // non-integral value or outside 0..255, or trailing junk
                         FAIL(ec);
                     }
-                    // If the resultant set is empty then the numeric value
-                    // was invalid.
-                    mustNotBeEmpty = TRUE;
                 } else {
                     FAIL(ec);
                 }
@@ -1113,12 +1114,6 @@ UnicodeSet::applyPropertyAlias(const UnicodeString& prop,
     applyIntPropertyValue(p, v, ec);
     if(invert) {
         complement();
-    }
-
-    if (U_SUCCESS(ec) && (mustNotBeEmpty && isEmpty())) {
-        // mustNotBeEmpty is set to true if an empty set indicates
-        // invalid input.
-        ec = U_ILLEGAL_ARGUMENT_ERROR;
     }
 
     if (isBogus() && U_SUCCESS(ec)) {

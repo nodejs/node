@@ -763,8 +763,8 @@ GenrbImporter::getRules(
     }
 
     /* Parse the data into an SRBRoot */
-    struct SRBRoot *data =
-            parse(ucbuf.getAlias(), inputDir, outputDir, filename.data(), FALSE, FALSE, &errorCode);
+    LocalPointer<SRBRoot> data(
+            parse(ucbuf.getAlias(), inputDir, outputDir, filename.data(), FALSE, FALSE, &errorCode));
     if (U_FAILURE(errorCode)) {
         return;
     }

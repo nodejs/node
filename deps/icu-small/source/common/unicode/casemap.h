@@ -8,6 +8,7 @@
 #define __CASEMAP_H__
 
 #include "unicode/utypes.h"
+#include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
 
 /**
@@ -20,6 +21,7 @@ U_NAMESPACE_BEGIN
 #ifndef U_HIDE_DRAFT_API
 
 class BreakIterator;
+class ByteSink;
 class Edits;
 
 /**
@@ -36,7 +38,7 @@ public:
      * The source string and the destination buffer must not overlap.
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
      * @param dest      A buffer for the result string. The result will be NUL-terminated if
@@ -48,7 +50,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -71,7 +74,7 @@ public:
      * The source string and the destination buffer must not overlap.
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
      * @param dest      A buffer for the result string. The result will be NUL-terminated if
@@ -83,7 +86,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -112,8 +116,10 @@ public:
      * all others. (This can be modified with options bits.)
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT,
-     *                  U_TITLECASE_NO_LOWERCASE, U_TITLECASE_NO_BREAK_ADJUSTMENT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
+     *                  U_TITLECASE_NO_LOWERCASE,
+     *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
+     *                  U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
      * @param iter      A break iterator to find the first characters of words that are to be titlecased.
      *                  It is set to the source string (setText())
      *                  and used one or more times for iteration (first() and next()).
@@ -130,7 +136,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -159,7 +166,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT,
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
      *                  U_FOLD_CASE_DEFAULT, U_FOLD_CASE_EXCLUDE_SPECIAL_I.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -172,7 +179,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -192,10 +200,133 @@ public:
      * Lowercases a UTF-8 string and optionally records edits.
      * Casing is locale-dependent and context-sensitive.
      * The result may be longer or shorter than the original.
+     *
+     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
+     * @param src       The original string.
+     * @param sink      A ByteSink to which the result string is written.
+     *                  sink.Flush() is called at the end.
+     * @param edits     Records edits for index mapping, working with styled text,
+     *                  and getting only changes (if any).
+     *                  The Edits contents is undefined if any error occurs.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     * @param errorCode Reference to an in/out error code value
+     *                  which must not indicate a failure before the function call.
+     *
+     * @see ucasemap_utf8ToLower
+     * @draft ICU 60
+     */
+    static void utf8ToLower(
+            const char *locale, uint32_t options,
+            StringPiece src, ByteSink &sink, Edits *edits,
+            UErrorCode &errorCode);
+
+    /**
+     * Uppercases a UTF-8 string and optionally records edits.
+     * Casing is locale-dependent and context-sensitive.
+     * The result may be longer or shorter than the original.
+     *
+     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
+     * @param src       The original string.
+     * @param sink      A ByteSink to which the result string is written.
+     *                  sink.Flush() is called at the end.
+     * @param edits     Records edits for index mapping, working with styled text,
+     *                  and getting only changes (if any).
+     *                  The Edits contents is undefined if any error occurs.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     * @param errorCode Reference to an in/out error code value
+     *                  which must not indicate a failure before the function call.
+     *
+     * @see ucasemap_utf8ToUpper
+     * @draft ICU 60
+     */
+    static void utf8ToUpper(
+            const char *locale, uint32_t options,
+            StringPiece src, ByteSink &sink, Edits *edits,
+            UErrorCode &errorCode);
+
+#if !UCONFIG_NO_BREAK_ITERATION
+
+    /**
+     * Titlecases a UTF-8 string and optionally records edits.
+     * Casing is locale-dependent and context-sensitive.
+     * The result may be longer or shorter than the original.
+     *
+     * Titlecasing uses a break iterator to find the first characters of words
+     * that are to be titlecased. It titlecases those characters and lowercases
+     * all others. (This can be modified with options bits.)
+     *
+     * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
+     *                  U_TITLECASE_NO_LOWERCASE,
+     *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
+     *                  U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
+     * @param iter      A break iterator to find the first characters of words that are to be titlecased.
+     *                  It is set to the source string (setUText())
+     *                  and used one or more times for iteration (first() and next()).
+     *                  If NULL, then a word break iterator for the locale is used
+     *                  (or something equivalent).
+     * @param src       The original string.
+     * @param sink      A ByteSink to which the result string is written.
+     *                  sink.Flush() is called at the end.
+     * @param edits     Records edits for index mapping, working with styled text,
+     *                  and getting only changes (if any).
+     *                  The Edits contents is undefined if any error occurs.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     * @param errorCode Reference to an in/out error code value
+     *                  which must not indicate a failure before the function call.
+     *
+     * @see ucasemap_utf8ToTitle
+     * @draft ICU 60
+     */
+    static void utf8ToTitle(
+            const char *locale, uint32_t options, BreakIterator *iter,
+            StringPiece src, ByteSink &sink, Edits *edits,
+            UErrorCode &errorCode);
+
+#endif  // UCONFIG_NO_BREAK_ITERATION
+
+    /**
+     * Case-folds a UTF-8 string and optionally records edits.
+     *
+     * Case folding is locale-independent and not context-sensitive,
+     * but there is an option for whether to include or exclude mappings for dotted I
+     * and dotless i that are marked with 'T' in CaseFolding.txt.
+     *
+     * The result may be longer or shorter than the original.
+     *
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
+     * @param src       The original string.
+     * @param sink      A ByteSink to which the result string is written.
+     *                  sink.Flush() is called at the end.
+     * @param edits     Records edits for index mapping, working with styled text,
+     *                  and getting only changes (if any).
+     *                  The Edits contents is undefined if any error occurs.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
+     * @param errorCode Reference to an in/out error code value
+     *                  which must not indicate a failure before the function call.
+     *
+     * @see ucasemap_utf8FoldCase
+     * @draft ICU 60
+     */
+    static void utf8Fold(
+            uint32_t options,
+            StringPiece src, ByteSink &sink, Edits *edits,
+            UErrorCode &errorCode);
+
+    /**
+     * Lowercases a UTF-8 string and optionally records edits.
+     * Casing is locale-dependent and context-sensitive.
+     * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
      * @param dest      A buffer for the result string. The result will be NUL-terminated if
@@ -207,7 +338,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -217,7 +349,7 @@ public:
      * @see ucasemap_utf8ToLower
      * @draft ICU 59
      */
-     static int32_t utf8ToLower(
+    static int32_t utf8ToLower(
             const char *locale, uint32_t options,
             const char *src, int32_t srcLength,
             char *dest, int32_t destCapacity, Edits *edits,
@@ -230,7 +362,7 @@ public:
      * The source string and the destination buffer must not overlap.
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT and U_EDITS_NO_RESET.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
      * @param dest      A buffer for the result string. The result will be NUL-terminated if
@@ -242,7 +374,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -271,10 +404,12 @@ public:
      * all others. (This can be modified with options bits.)
      *
      * @param locale    The locale ID. ("" = root locale, NULL = default locale.)
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT,
-     *                  U_TITLECASE_NO_LOWERCASE, U_TITLECASE_NO_BREAK_ADJUSTMENT.
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
+     *                  U_TITLECASE_NO_LOWERCASE,
+     *                  U_TITLECASE_NO_BREAK_ADJUSTMENT, U_TITLECASE_ADJUST_TO_CASED,
+     *                  U_TITLECASE_WHOLE_STRING, U_TITLECASE_SENTENCES.
      * @param iter      A break iterator to find the first characters of words that are to be titlecased.
-     *                  It is set to the source string (setText())
+     *                  It is set to the source string (setUText())
      *                  and used one or more times for iteration (first() and next()).
      *                  If NULL, then a word break iterator for the locale is used
      *                  (or something equivalent).
@@ -289,7 +424,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
@@ -317,7 +453,7 @@ public:
      * The result may be longer or shorter than the original.
      * The source string and the destination buffer must not overlap.
      *
-     * @param options   Options bit set, usually 0. See UCASEMAP_OMIT_UNCHANGED_TEXT,
+     * @param options   Options bit set, usually 0. See U_OMIT_UNCHANGED_TEXT, U_EDITS_NO_RESET,
      *                  U_FOLD_CASE_DEFAULT, U_FOLD_CASE_EXCLUDE_SPECIAL_I.
      * @param src       The original string.
      * @param srcLength The length of the original string. If -1, then src must be NUL-terminated.
@@ -330,7 +466,8 @@ public:
      * @param edits     Records edits for index mapping, working with styled text,
      *                  and getting only changes (if any).
      *                  The Edits contents is undefined if any error occurs.
-     *                  This function calls edits->reset() first. edits can be NULL.
+     *                  This function calls edits->reset() first unless
+     *                  options includes U_EDITS_NO_RESET. edits can be NULL.
      * @param errorCode Reference to an in/out error code value
      *                  which must not indicate a failure before the function call.
      * @return The length of the result string, if successful.
