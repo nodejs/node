@@ -3753,7 +3753,16 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
-  f->Call(Null(env->isolate()), 1, &arg);
+  auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
+  // If there was an error during bootstrap then it was either handled by the
+  // FatalException handler or it's unrecoverable (e.g. max call stack
+  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
+  // destructor doesn't fail on the id check.
+  // There are only two ways to have a stack size > 1: 1) the user manually
+  // called MakeCallback or 2) user awaited during bootstrap, which triggered
+  // _tickCallback().
+  if (ret.IsEmpty())
+    env->async_hooks()->clear_async_id_stack();
 }
 
 static void PrintHelp() {
