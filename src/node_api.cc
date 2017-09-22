@@ -120,7 +120,8 @@ struct napi_env__ {
 #define CHECK_NEW_FROM_UTF8_LEN(env, result, str, len)                   \
   do {                                                                   \
     auto str_maybe = v8::String::NewFromUtf8(                            \
-        (env)->isolate, (str), v8::NewStringType::kInternalized, (len)); \
+        (env)->isolate, (str), v8::NewStringType::kInternalized,         \
+        static_cast<int>(len));                                          \
     CHECK_MAYBE_EMPTY((env), str_maybe, napi_generic_failure);           \
     (result) = str_maybe.ToLocalChecked();                               \
   } while (0)
@@ -918,21 +919,26 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                      size_t location_len,
                                      const char* message,
                                      size_t message_len) {
-  char* location_string = const_cast<char*>(location);
-  char* message_string = const_cast<char*>(message);
+  std::string location_string;
+  std::string message_string;
+
   if (static_cast<int>(location_len) != NAPI_AUTO_LENGTH) {
-    location_string = reinterpret_cast<char*>(
-        malloc(location_len * sizeof(char) + 1));
-    strncpy(location_string, location, location_len);
-    location_string[location_len] = '\0';
+    location_string.assign(
+        const_cast<char*>(location), location_len);
+  } else {
+    location_string.assign(
+        const_cast<char*>(location), strlen(location));
   }
+
   if (static_cast<int>(message_len) != NAPI_AUTO_LENGTH) {
-    message_string = reinterpret_cast<char*>(
-        malloc(message_len * sizeof(char) + 1));
-    strncpy(message_string, message, message_len);
-    message_string[message_len] = '\0';
+    message_string.assign(
+        const_cast<char*>(message), message_len);
+  } else {
+    message_string.assign(
+        const_cast<char*>(message), strlen(message));
   }
-  node::FatalError(location_string, message_string);
+
+  node::FatalError(location_string.c_str(), message_string.c_str());
 }
 
 napi_status napi_create_function(napi_env env,
