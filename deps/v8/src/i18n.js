@@ -1562,7 +1562,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   var formatter = %CreateDateTimeFormat(
     requestedLocale, {skeleton: ldmlString, timeZone: tz}, resolved);
 
-  if (!IS_UNDEFINED(tz) && tz !== resolved.timeZone) {
+  if (resolved.timeZone === "Etc/Unknown") {
     throw MakeRangeError(kUnsupportedTimeZone, tz);
   }
 
