@@ -22,9 +22,8 @@
 #include "string_bytes.h"
 
 #include "base64.h"
-#include "node.h"
+#include "node_internals.h"
 #include "node_buffer.h"
-#include "v8.h"
 
 #include <limits.h>
 #include <string.h>  // memcpy
