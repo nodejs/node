@@ -562,28 +562,24 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        initialised_(false) {
+        mdctx_(nullptr) {
   }
 
-  ~SignBase() override {
-    if (!initialised_)
-      return;
-    EVP_MD_CTX_cleanup(&mdctx_);
-  }
+  ~SignBase() override;
+
+  Error Init(const char* sign_type);
+  Error Update(const char* data, int len);
 
  protected:
   void CheckThrow(Error error);
 
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  bool initialised_;
+  EVP_MD_CTX* mdctx_;
 };
 
 class Sign : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  Error SignInit(const char* sign_type);
-  Error SignUpdate(const char* data, int len);
   Error SignFinal(const char* key_pem,
                   int key_pem_len,
                   const char* passphrase,
@@ -607,8 +603,6 @@ class Verify : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  Error VerifyInit(const char* verify_type);
-  Error VerifyUpdate(const char* data, int len);
   Error VerifyFinal(const char* key_pem,
                     int key_pem_len,
                     const char* sig,
