@@ -79,12 +79,10 @@ assert.throws(
   /^Error: Unknown file open flag: null$/
 );
 
-if (common.isLinux === true) {
+if (common.isLinux) {
   const file = `${__dirname}/../fixtures/a.js`;
 
-  fs.open(file, O_DSYNC, common.mustCall(function(err, fd) {
-    assert.ifError(err);
-  }));
+  fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
 }
 
 function escapeRegExp(string) {
