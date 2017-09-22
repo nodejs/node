@@ -321,14 +321,6 @@ added: v1.4.1
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
-### Event: 'aborted'
-<!-- YAML
-added: v0.3.8
--->
-
-Emitted when the request has been aborted by the server and the network
-socket has closed.
-
 ### Event: 'connect'
 <!-- YAML
 added: v0.7.0
@@ -1467,8 +1459,7 @@ following additional events, methods, and properties.
 added: v0.3.8
 -->
 
-Emitted when the request has been aborted by the client and the network
-socket has closed.
+Emitted when the request has been aborted and the network socket has closed.
 
 ### Event: 'close'
 <!-- YAML
