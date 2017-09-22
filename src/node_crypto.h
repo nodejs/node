@@ -524,11 +524,7 @@ class Hmac : public BaseObject {
 
 class Hash : public BaseObject {
  public:
-  ~Hash() override {
-    if (!initialised_)
-      return;
-    EVP_MD_CTX_cleanup(&mdctx_);
-  }
+  ~Hash() override;
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
@@ -542,13 +538,13 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        initialised_(false) {
+        mdctx_(nullptr),
+        finalized_(false) {
     MakeWeak<Hash>(this);
   }
 
  private:
-  EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  bool initialised_;
+  EVP_MD_CTX* mdctx_;
   bool finalized_;
 };
 

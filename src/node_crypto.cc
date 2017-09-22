@@ -205,6 +205,9 @@ static int X509_up_ref(X509* cert) {
   CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
   return 1;
 }
+
+#define EVP_MD_CTX_new EVP_MD_CTX_create
+#define EVP_MD_CTX_free EVP_MD_CTX_destroy
 #endif  // OPENSSL_VERSION_NUMBER < 0x10100000L
 
 // Subject DER of CNNIC ROOT CA and CNNIC EV ROOT CA are taken from
@@ -3955,6 +3958,11 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+Hash::~Hash() {
+  EVP_MD_CTX_free(mdctx_);
+}
+
+
 void Hash::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
@@ -3989,20 +3997,22 @@ bool Hash::HashInit(const char* hash_type) {
   const EVP_MD* md = EVP_get_digestbyname(hash_type);
   if (md == nullptr)
     return false;
-  EVP_MD_CTX_init(&mdctx_);
-  if (EVP_DigestInit_ex(&mdctx_, md, nullptr) <= 0) {
+  mdctx_ = EVP_MD_CTX_new();
+  if (mdctx_ == nullptr ||
+      EVP_DigestInit_ex(mdctx_, md, nullptr) <= 0) {
+    EVP_MD_CTX_free(mdctx_);
+    mdctx_ = nullptr;
     return false;
   }
-  initialised_ = true;
   finalized_ = false;
   return true;
 }
 
 
 bool Hash::HashUpdate(const char* data, int len) {
-  if (!initialised_)
+  if (mdctx_ == nullptr)
     return false;
-  EVP_DigestUpdate(&mdctx_, data, len);
+  EVP_DigestUpdate(mdctx_, data, len);
   return true;
 }
 
@@ -4067,8 +4077,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len;
 
-  EVP_DigestFinal_ex(&hash->mdctx_, md_value, &md_len);
-  EVP_MD_CTX_cleanup(&hash->mdctx_);
+  EVP_DigestFinal_ex(hash->mdctx_, md_value, &md_len);
   hash->finalized_ = true;
 
   Local<Value> error;
