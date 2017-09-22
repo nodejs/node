@@ -81,10 +81,10 @@ common.expectsError(
   { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
 );
 
-if (common.isLinux === true) {
+if (common.isLinux) {
   const file = fixtures.path('a.js');
 
-  fs.open(file, O_DSYNC, common.mustCall(function(err, fd) {
+  fs.open(file, O_DSYNC, common.mustCall((err, fd) => {
     assert.ifError(err);
   }));
 }
