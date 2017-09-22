@@ -494,11 +494,7 @@ class CipherBase : public BaseObject {
 
 class Hmac : public BaseObject {
  public:
-  ~Hmac() override {
-    if (!initialised_)
-      return;
-    HMAC_CTX_cleanup(&ctx_);
-  }
+  ~Hmac() override;
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
@@ -513,13 +509,12 @@ class Hmac : public BaseObject {
 
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        initialised_(false) {
+        ctx_(nullptr) {
     MakeWeak<Hmac>(this);
   }
 
  private:
-  HMAC_CTX ctx_; /* coverity[member_decl] */
-  bool initialised_;
+  HMAC_CTX* ctx_;
 };
 
 class Hash : public BaseObject {
