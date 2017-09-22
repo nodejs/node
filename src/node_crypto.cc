@@ -208,6 +208,20 @@ static int X509_up_ref(X509* cert) {
 
 #define EVP_MD_CTX_new EVP_MD_CTX_create
 #define EVP_MD_CTX_free EVP_MD_CTX_destroy
+
+HMAC_CTX* HMAC_CTX_new() {
+  HMAC_CTX* ctx = Malloc<HMAC_CTX>(1);
+  HMAC_CTX_init(ctx);
+  return ctx;
+}
+
+void HMAC_CTX_free(HMAC_CTX* ctx) {
+  if (ctx == nullptr) {
+    return;
+  }
+  HMAC_CTX_cleanup(ctx);
+  free(ctx);
+}
 #endif  // OPENSSL_VERSION_NUMBER < 0x10100000L
 
 // Subject DER of CNNIC ROOT CA and CNNIC EV ROOT CA are taken from
@@ -3825,6 +3839,11 @@ void CipherBase::Final(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+Hmac::~Hmac() {
+  HMAC_CTX_free(ctx_);
+}
+
+
 void Hmac::Initialize(Environment* env, v8::Local<v8::Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
@@ -3852,14 +3871,16 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   if (md == nullptr) {
     return env()->ThrowError("Unknown message digest");
   }
-  HMAC_CTX_init(&ctx_);
   if (key_len == 0) {
     key = "";
   }
-  if (!HMAC_Init_ex(&ctx_, key, key_len, md, nullptr)) {
+  ctx_ = HMAC_CTX_new();
+  if (ctx_ == nullptr ||
+      !HMAC_Init_ex(ctx_, key, key_len, md, nullptr)) {
+    HMAC_CTX_free(ctx_);
+    ctx_ = nullptr;
     return ThrowCryptoError(env(), ERR_get_error());
   }
-  initialised_ = true;
 }
 
 
@@ -3883,9 +3904,9 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hmac::HmacUpdate(const char* data, int len) {
-  if (!initialised_)
+  if (ctx_ == nullptr)
     return false;
-  int r = HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
+  int r = HMAC_Update(ctx_, reinterpret_cast<const unsigned char*>(data), len);
   return r == 1;
 }
 
@@ -3936,10 +3957,10 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;
 
-  if (hmac->initialised_) {
-    HMAC_Final(&hmac->ctx_, md_value, &md_len);
-    HMAC_CTX_cleanup(&hmac->ctx_);
-    hmac->initialised_ = false;
+  if (hmac->ctx_ != nullptr) {
+    HMAC_Final(hmac->ctx_, md_value, &md_len);
+    HMAC_CTX_free(hmac->ctx_);
+    hmac->ctx_ = nullptr;
   }
 
   Local<Value> error;
