@@ -11,7 +11,9 @@ const server = http.createServer(function(req, res) {
     let data = '';
     res.on('readable', common.mustCall(function() {
       console.log('readable event');
-      data += res.read();
+      let input = res.read();
+      if (input)
+        data += input;
     }));
     res.on('end', common.mustCall(function() {
       console.log('end event');
