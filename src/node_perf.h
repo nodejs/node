@@ -12,7 +12,6 @@
 #include "v8.h"
 #include "uv.h"
 
-#include <limits>
 #include <string>
 
 namespace node {
@@ -40,8 +39,6 @@ static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
 #undef V
   return NODE_PERFORMANCE_ENTRY_TYPE_INVALID;
 }
-
-const double MAX_DOUBLE = std::numeric_limits<double>::max();
 
 NODE_EXTERN inline void MarkPerformanceMilestone(
     Environment* env,
