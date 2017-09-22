@@ -22,7 +22,8 @@
 #ifndef SRC_NODE_BUFFER_H_
 #define SRC_NODE_BUFFER_H_
 
-#include "node_internals.h"
+#include "node.h"
+#include "v8.h"
 
 namespace node {
 
