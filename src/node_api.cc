@@ -117,8 +117,14 @@ struct napi_env__ {
   CHECK_TO_TYPE((env), Boolean, (context), (result), (src), \
     napi_boolean_expected)
 
+// n-api defines NAPI_AUTO_LENGHTH as the indicator that a string
+// is null terminated. For V8 the equivalent is -1. The assert
+// validates that our cast of NAPI_AUTO_LENGTH results in -1 as
+// needed by V8.
 #define CHECK_NEW_FROM_UTF8_LEN(env, result, str, len)                   \
   do {                                                                   \
+    static_assert(static_cast<int>(NAPI_AUTO_LENGTH) == -1,              \
+                  "Casting NAPI_AUTO_LENGTH to int must result in -1");  \
     auto str_maybe = v8::String::NewFromUtf8(                            \
         (env)->isolate, (str), v8::NewStringType::kInternalized,         \
         static_cast<int>(len));                                          \
@@ -922,7 +928,7 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
   std::string location_string;
   std::string message_string;
 
-  if (static_cast<int>(location_len) != NAPI_AUTO_LENGTH) {
+  if (location_len != NAPI_AUTO_LENGTH) {
     location_string.assign(
         const_cast<char*>(location), location_len);
   } else {
@@ -930,7 +936,7 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
         const_cast<char*>(location), strlen(location));
   }
 
-  if (static_cast<int>(message_len) != NAPI_AUTO_LENGTH) {
+  if (message_len != NAPI_AUTO_LENGTH) {
     message_string.assign(
         const_cast<char*>(message), message_len);
   } else {
@@ -3291,7 +3297,6 @@ napi_status napi_adjust_external_memory(napi_env env,
                                         int64_t change_in_bytes,
                                         int64_t* adjusted_value) {
   CHECK_ENV(env);
-  CHECK_ARG(env, &change_in_bytes);
   CHECK_ARG(env, adjusted_value);
 
   *adjusted_value = env->isolate->AdjustAmountOfExternalAllocatedMemory(
