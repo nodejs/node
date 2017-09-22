@@ -278,7 +278,7 @@ void ThrowCryptoError(Environment* env,
     Local<Array> error_stack = Array::New(env->isolate());
     int top = es->top;
 
-    // Build the error_stack array to be added to openSSLErrorStack property.
+    // Build the error_stack array to be added to opensslErrorStack property.
     for (unsigned int i = 0; es->bottom != es->top;) {
       unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
       // Only add error string if there is valid err_buffer.
@@ -303,9 +303,9 @@ void ThrowCryptoError(Environment* env,
     // Restore top.
     es->top = top;
 
-    // Add the openSSLErrorStack property to the exception object.
+    // Add the opensslErrorStack property to the exception object.
     // The new property will look like the following:
-    // openSSLErrorStack: [
+    // opensslErrorStack: [
     // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
     // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
     // ]

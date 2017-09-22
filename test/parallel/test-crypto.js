@@ -47,10 +47,10 @@ assert.throws(function() {
   const notcontext = { setOptions: context.setOptions, setKey: context.setKey };
   tls.createSecureContext({ secureOptions: 1 }, notcontext);
 }, (err) => {
-  // Throws TypeError, so there is no openSSLErrorStack property.
+  // Throws TypeError, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^TypeError: Illegal invocation$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -63,10 +63,10 @@ assert.doesNotThrow(function() {
 assert.throws(function() {
   tls.createSecureContext({ pfx: certPfx });
 }, (err) => {
-  // Throws general Error, so there is no openSSLErrorStack property.
+  // Throws general Error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^Error: mac verify failure$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -74,10 +74,10 @@ assert.throws(function() {
 assert.throws(function() {
   tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, (err) => {
-  // Throws general Error, so there is no openSSLErrorStack property.
+  // Throws general Error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^Error: mac verify failure$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -85,10 +85,10 @@ assert.throws(function() {
 assert.throws(function() {
   tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, (err) => {
-  // Throws general Error, so there is no openSSLErrorStack property.
+  // Throws general Error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^Error: not enough data$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -169,10 +169,10 @@ assert.throws(function() {
 }, (err) => {
   const errorMessage =
     common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no openSSLErrorStack property.
+  // Throws general Error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       errorMessage.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -182,10 +182,10 @@ assert.throws(function() {
 }, (err) => {
   const errorMessage =
     common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/;
-  // Throws general Error, so there is no openSSLErrorStack property.
+  // Throws general Error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       errorMessage.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -193,10 +193,10 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.createHash('sha1').update('0', 'hex');
 }, (err) => {
-  // Throws TypeError, so there is no openSSLErrorStack property.
+  // Throws TypeError, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^TypeError: Bad input string$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -204,10 +204,10 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.createSign('SHA1').update('0', 'hex');
 }, (err) => {
-  // Throws TypeError, so there is no openSSLErrorStack property.
+  // Throws TypeError, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^TypeError: Bad input string$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -215,10 +215,10 @@ assert.throws(function() {
 assert.throws(function() {
   crypto.createVerify('SHA1').update('0', 'hex');
 }, (err) => {
-  // Throws TypeError, so there is no openSSLErrorStack property.
+  // Throws TypeError, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^TypeError: Bad input string$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -237,7 +237,7 @@ assert.throws(function() {
 }, (err) => {
   if ((err instanceof Error) &&
       /digest too big for rsa key$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
@@ -257,13 +257,13 @@ assert.throws(function() {
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, (err) => {
-  // Throws crypto error, so there is an openSSLErrorStack property.
+  // Throws crypto error, so there is an opensslErrorStack property.
   // The openSSL stack should have content.
   if ((err instanceof Error) &&
       /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/.test(err) &&
-      err.openSSLErrorStack !== undefined &&
-      Array.isArray(err.openSSLErrorStack) &&
-      err.openSSLErrorStack.length > 0) {
+      err.opensslErrorStack !== undefined &&
+      Array.isArray(err.opensslErrorStack) &&
+      err.opensslErrorStack.length > 0) {
     return true;
   }
 });
@@ -274,10 +274,10 @@ console.log(crypto.randomBytes(16));
 assert.throws(function() {
   tls.createSecureContext({ crl: 'not a CRL' });
 }, (err) => {
-  // Throws general error, so there is no openSSLErrorStack property.
+  // Throws general error, so there is no opensslErrorStack property.
   if ((err instanceof Error) &&
       /^Error: Failed to parse CRL$/.test(err) &&
-      err.openSSLErrorStack === undefined) {
+      err.opensslErrorStack === undefined) {
     return true;
   }
 });
