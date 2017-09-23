@@ -3,6 +3,7 @@
 // Tests http2.connect()
 
 const common = require('../common');
+const Countdown = require('../common/countdown');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const fixtures = require('../common/fixtures');
@@ -25,13 +26,12 @@ const URL = url.URL;
       [{ port: port, hostname: '127.0.0.1' }, { protocol: 'http:' }]
     ];
 
-    let count = items.length;
+    const serverClose = new Countdown(items.length + 1,
+                                      () => setImmediate(() => server.close()));
 
     const maybeClose = common.mustCall((client) => {
       client.destroy();
-      if (--count === 0) {
-        setImmediate(() => server.close());
-      }
+      serverClose.dec();
     }, items.length);
 
     items.forEach((i) => {
@@ -42,7 +42,7 @@ const URL = url.URL;
 
     // Will fail because protocol does not match the server.
     h2.connect({ port: port, protocol: 'https:' })
-      .on('socketError', common.mustCall());
+      .on('socketError', common.mustCall(() => serverClose.dec()));
   }));
 }
 
@@ -70,13 +70,12 @@ const URL = url.URL;
       [{ port: port, hostname: '127.0.0.1', protocol: 'https:' }, opts]
     ];
 
-    let count = items.length;
+    const serverClose = new Countdown(items.length,
+                                      () => setImmediate(() => server.close()));
 
     const maybeClose = common.mustCall((client) => {
       client.destroy();
-      if (--count === 0) {
-        setImmediate(() => server.close());
-      }
+      serverClose.dec();
     }, items.length);
 
     items.forEach((i) => {
