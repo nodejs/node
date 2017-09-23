@@ -25,7 +25,7 @@ struct async_req {
   uv_work_t req;
   int input;
   int output;
-  Isolate isolate;
+  Isolate* isolate;
   Persistent<Function> callback;
 };
 
