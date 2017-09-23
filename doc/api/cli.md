@@ -65,6 +65,7 @@ changes:
 
 Identical to `-e` but prints the result.
 
+*Note*: For options `-e` and `-p` please use double quote for the script, although it does not matter on the Linux that you use double quote or a single quote, on the Windows it makes a difference. On the Windows a single quote will not work correctly because Windows shell traditionally uses double quote as the quote char. 
 
 ### `-c`, `--check`
 <!-- YAML
