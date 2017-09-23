@@ -755,6 +755,10 @@ void DefineSignalConstants(Local<Object> target) {
 }
 
 void DefineOpenSSLConstants(Local<Object> target) {
+#ifdef OPENSSL_VERSION_NUMBER
+    NODE_DEFINE_CONSTANT(target, OPENSSL_VERSION_NUMBER);
+#endif
+
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
