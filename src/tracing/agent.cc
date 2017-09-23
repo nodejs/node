@@ -2,6 +2,8 @@
 
 #include <sstream>
 #include <string>
+#include "tracing/node_trace_buffer.h"
+#include "tracing/node_trace_writer.h"
 
 #include "env-inl.h"
 
