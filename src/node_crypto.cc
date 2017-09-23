@@ -4124,6 +4124,14 @@ SignBase::~SignBase() {
 
 SignBase::Error SignBase::Init(const char* sign_type) {
   CHECK_EQ(mdctx_, nullptr);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
+  // exposed through the public API.
+  if (strcmp(sign_type, "dss1") == 0 ||
+      strcmp(sign_type, "DSS1") == 0) {
+    sign_type = "SHA1";
+  }
+#endif
   const EVP_MD* md = EVP_get_digestbyname(sign_type);
   if (md == nullptr)
     return kSignUnknownDigest;
