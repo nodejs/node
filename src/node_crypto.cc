@@ -2261,9 +2261,8 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   Local<Object> info = Object::New(env->isolate());
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(env->name_string(), OneByteString(args.GetIsolate(), cipher_name));
-  const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(env->version_string(),
-            OneByteString(args.GetIsolate(), cipher_version));
+            OneByteString(args.GetIsolate(), "TLSv1/SSLv3"));
   args.GetReturnValue().Set(info);
 }
 
