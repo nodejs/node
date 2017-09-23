@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include "node_url.h"
@@ -45,9 +45,7 @@ class ModuleWrap : public BaseObject {
   v8::Persistent<v8::Module> module_;
   v8::Persistent<v8::String> url_;
   bool linked_ = false;
-  std::map<std::string, v8::Persistent<v8::Promise>*> resolve_cache_;
-
-  static std::map<int, std::vector<ModuleWrap*>*> module_map_;
+  std::unordered_map<std::string, v8::Persistent<v8::Promise>> resolve_cache_;
 };
 
 }  // namespace loader
