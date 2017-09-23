@@ -2,22 +2,29 @@
 #include <node.h>
 #include <v8.h>
 
-void EnsureAllocation(const v8::FunctionCallbackInfo<v8::Value> &args) {
-  v8::Isolate* isolate = args.GetIsolate();
+using v8::FunctionCallbackInfo;
+using v8::Value;
+using v8::Isolate;
+using v8::Local;
+using v8::Object;
+using v8::Boolean;
+
+void EnsureAllocation(const FunctionCallbackInfo<Value> &args) {
+  Isolate* isolate = args.GetIsolate();
   uintptr_t size = args[0]->IntegerValue();
-  v8::Local<v8::Boolean> success;
+  Local<Boolean> success;
 
   void* buffer = malloc(size);
   if (buffer) {
-    success = v8::Boolean::New(isolate, true);
+    success = Boolean::New(isolate, true);
     free(buffer);
   } else {
-    success = v8::Boolean::New(isolate, false);
+    success = Boolean::New(isolate, false);
   }
   args.GetReturnValue().Set(success);
 }
 
-void init(v8::Local<v8::Object> exports) {
+void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "ensureAllocation", EnsureAllocation);
 }
 
