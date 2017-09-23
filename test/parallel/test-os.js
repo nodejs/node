@@ -27,8 +27,11 @@ const path = require('path');
 const { inspect } = require('util');
 
 const is = {
+  number: (value, key) => {
+    assert(!isNaN(value), `${key} should not be NaN`);
+    assert.strictEqual(typeof value, 'number');
+  },
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
-  number: (value) => { assert.strictEqual(typeof value, 'number'); },
   array: (value) => { assert.ok(Array.isArray(value)); },
   object: (value) => {
     assert.strictEqual(typeof value, 'object');
@@ -217,17 +220,20 @@ assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
 
-// Test Symbol.toPrimitive on these functions
-[
-  [+os.freemem, os.freemem()],
-  [+os.totalmem, os.totalmem()],
-  [+os.uptime, os.uptime()],
-  [`${os.hostname}`, os.hostname()],
-  [`${os.homedir}`, os.homedir()],
-  [`${os.release}`, os.release()],
-  [`${os.type}`, os.type()],
-  [`${os.endianness}`, os.endianness()],
-  [`${os.tmpdir}`, os.tmpdir()],
-  [`${os.arch}`, os.arch()],
-  [`${os.platform}`, os.platform()]
-].forEach(([expected, actual]) => assert.strictEqual(expected, actual));
+assert.strictEqual(String(os.hostname), os.hostname());
+assert.strictEqual(String(os.homedir), os.homedir());
+assert.strictEqual(String(os.release), os.release());
+assert.strictEqual(String(os.type), os.type());
+assert.strictEqual(String(os.endianness), os.endianness());
+assert.strictEqual(String(os.tmpdir), os.tmpdir());
+assert.strictEqual(String(os.arch), os.arch());
+assert.strictEqual(String(os.platform), os.platform());
+
+assert.strictEqual(Number(os.totalmem), os.totalmem());
+
+// At least we can check that these values are numbers
+is.number(Number(os.uptime), 'uptime');
+is.number(os.uptime(), 'uptime');
+
+is.number(Number(os.freemem), 'freemem');
+is.number(os.freemem(), 'freemem');
