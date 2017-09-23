@@ -188,11 +188,11 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
   if (async_hooks->fields()[AsyncHooks::kPromiseResolve] == 0)
     return;
 
-  Local<Value> uid = Number::New(env->isolate(), async_id);
+  Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_promise_resolve_function();
   TryCatch try_catch(env->isolate());
   MaybeLocal<Value> ar = fn->Call(
-      env->context(), Undefined(env->isolate()), 1, &uid);
+      env->context(), Undefined(env->isolate()), 1, &async_id_value);
   if (ar.IsEmpty()) {
     ClearFatalExceptionHandlers(env);
     FatalException(env->isolate(), try_catch);
@@ -342,7 +342,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       env->async_hooks()->pop_async_id(wrap->get_async_id());
     }
   } else if (type == PromiseHookType::kResolve) {
-    AsyncWrap::EmitPromiseResolve(wrap->env(), wrap->get_id());
+    AsyncWrap::EmitPromiseResolve(wrap->env(), wrap->get_async_id());
   }
 }
 
