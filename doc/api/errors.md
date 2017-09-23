@@ -1116,6 +1116,11 @@ API] [`URLSearchParams` constructor][`new URLSearchParams(iterable)`] does not
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
+<a id="ERR_INVALID_URI"></a>
+### ERR_INVALID_URI
+
+Used when an invalid URI is passed.
+
 <a id="ERR_INVALID_URL"></a>
 ### ERR_INVALID_URL
 
