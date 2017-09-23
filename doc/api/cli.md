@@ -53,10 +53,9 @@ changes:
 Evaluate the following argument as JavaScript. The modules which are
 predefined in the REPL can also be used in `script`.
 
-*Note*: Please use double quote for the `script`, although it does not matter
-on the Linux that you use double quote or a single quote, on the Windows it
-makes a difference. On the Windows a single quote will not work correctly
-because Windows shell traditionally uses double quote as the quote char.
+*Note*: On Windows, using `cmd.exe` a single quote will not work correctly
+because it only recognizes double `"` for quoting. In Powershell or
+Git bash, both `'` and `"` are usable.
 
 
 ### `-p`, `--print "script"`
