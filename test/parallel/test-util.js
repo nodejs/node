@@ -96,6 +96,7 @@ assert.strictEqual(true, util.isPrimitive(NaN));
 assert.strictEqual(true, util.isPrimitive(Symbol('symbol')));
 
 // isBuffer
+assert.strictEqual(util.isBuffer, Buffer.isBuffer);
 assert.strictEqual(false, util.isBuffer('foo'));
 assert.strictEqual(true, util.isBuffer(Buffer.from('foo')));
 
