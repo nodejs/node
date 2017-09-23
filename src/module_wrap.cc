@@ -327,7 +327,7 @@ inline const struct read_result read_file(uv_file file) {
 struct file_check {
   bool failed = true;
   uv_file file = -1;
-} file_check;
+};
 inline const struct file_check check_file(URL search,
                                           bool close = false,
                                           bool allow_dir = false) {

@@ -24,6 +24,9 @@ const server = http2.createServer(common.mustCall((req, res) => {
   res.on('finish', common.mustCall(() => {
     assert.doesNotThrow(() => res.destroy(nextError));
     assert.strictEqual(res.closed, true);
+    process.nextTick(() => {
+      assert.doesNotThrow(() => res.destroy(nextError));
+    });
   }));
 
   if (req.url !== '/') {

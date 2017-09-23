@@ -181,6 +181,25 @@ static void PushBackDestroyId(Environment* env, double id) {
 }
 
 
+void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
+  AsyncHooks* async_hooks = env->async_hooks();
+
+  if (async_hooks->fields()[AsyncHooks::kPromiseResolve] == 0)
+    return;
+
+  Local<Value> uid = Number::New(env->isolate(), async_id);
+  Local<Function> fn = env->async_hooks_promise_resolve_function();
+  TryCatch try_catch(env->isolate());
+  MaybeLocal<Value> ar = fn->Call(
+      env->context(), Undefined(env->isolate()), 1, &uid);
+  if (ar.IsEmpty()) {
+    ClearFatalExceptionHandlers(env);
+    FatalException(env->isolate(), try_catch);
+    UNREACHABLE();
+  }
+}
+
+
 void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   AsyncHooks* async_hooks = env->async_hooks();
 
@@ -303,8 +322,6 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     }
 
     wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
-  } else if (type == PromiseHookType::kResolve) {
-    // TODO(matthewloring): need to expose this through the async hooks api.
   }
 
   CHECK_NE(wrap, nullptr);
@@ -321,6 +338,8 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       // PromiseHookType::kBefore that was not witnessed by the PromiseHook.
       env->async_hooks()->pop_ids(wrap->get_id());
     }
+  } else if (type == PromiseHookType::kResolve) {
+    AsyncWrap::EmitPromiseResolve(wrap->env(), wrap->get_id());
   }
 }
 
@@ -349,6 +368,7 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(before);
   SET_HOOK_FN(after);
   SET_HOOK_FN(destroy);
+  SET_HOOK_FN(promise_resolve);
 #undef SET_HOOK_FN
 
   {
@@ -500,6 +520,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kBefore);
   SET_HOOKS_CONSTANT(kAfter);
   SET_HOOKS_CONSTANT(kDestroy);
+  SET_HOOKS_CONSTANT(kPromiseResolve);
   SET_HOOKS_CONSTANT(kTotals);
   SET_HOOKS_CONSTANT(kCurrentAsyncId);
   SET_HOOKS_CONSTANT(kCurrentTriggerId);
@@ -533,6 +554,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_before_function(Local<Function>());
   env->set_async_hooks_after_function(Local<Function>());
   env->set_async_hooks_destroy_function(Local<Function>());
+  env->set_async_hooks_promise_resolve_function(Local<Function>());
 }
 
 

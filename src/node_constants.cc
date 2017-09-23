@@ -1089,6 +1089,11 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_SYNC);
 #endif
 
+#ifdef O_DSYNC
+  NODE_DEFINE_CONSTANT(target, O_DSYNC);
+#endif
+
+
 #ifdef O_SYMLINK
   NODE_DEFINE_CONSTANT(target, O_SYMLINK);
 #endif

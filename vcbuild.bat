@@ -505,7 +505,7 @@ goto exit
 if defined enable_static goto exit
 if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
-if not exist tools\eslint\bin\eslint.js goto no-lint
+if not exist tools\eslint goto no-lint
 echo running jslint
 %config%\node tools\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules --ext=.js,.md benchmark doc lib test tools
 goto exit
@@ -518,7 +518,7 @@ goto exit
 :no-lint
 echo Linting is not available through the source tarball.
 echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
-exit /b 1
+goto exit
 
 :create-msvs-files-failed
 echo Failed to create vc project files.
