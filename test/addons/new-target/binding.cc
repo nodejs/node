@@ -1,14 +1,22 @@
 #include <node.h>
 #include <v8.h>
 
+using v8::FunctionCallbackInfo;
+using v8::Value;
+using v8::Isolate;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::FunctionTemplate;
+
 namespace {
 
-inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>&) {}
+inline void NewClass(const FunctionCallbackInfo<vValue>&) {}
 
-inline void Initialize(v8::Local<v8::Object> binding) {
+inline void Initialize(Local<Object> binding) {
   auto isolate = binding->GetIsolate();
-  binding->Set(v8::String::NewFromUtf8(isolate, "Class"),
-               v8::FunctionTemplate::New(isolate, NewClass)->GetFunction());
+  binding->Set(String::NewFromUtf8(isolate, "Class"),
+               FunctionTemplate::New(isolate, NewClass)->GetFunction());
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
