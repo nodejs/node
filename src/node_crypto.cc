@@ -1081,8 +1081,10 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value curve(env->isolate(), args[0]);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_ECDH_USE);
   SSL_CTX_set_ecdh_auto(sc->ctx_, 1);
+#endif
 
   if (strcmp(*curve, "auto") == 0)
     return;
