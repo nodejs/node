@@ -103,6 +103,12 @@ class SecureContext : public BaseObject {
   static const int kTicketKeyNameIndex = 3;
   static const int kTicketKeyIVIndex = 4;
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  unsigned char ticket_key_name_[16];
+  unsigned char ticket_key_aes_[16];
+  unsigned char ticket_key_hmac_[16];
+#endif
+
  protected:
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   static const int64_t kExternalSize = sizeof(SSL_CTX);
@@ -147,6 +153,15 @@ class SecureContext : public BaseObject {
                                EVP_CIPHER_CTX* ectx,
                                HMAC_CTX* hctx,
                                int enc);
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  static int TicketCompatibilityCallback(SSL* ssl,
+                                         unsigned char* name,
+                                         unsigned char* iv,
+                                         EVP_CIPHER_CTX* ectx,
+                                         HMAC_CTX* hctx,
+                                         int enc);
+#endif
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
