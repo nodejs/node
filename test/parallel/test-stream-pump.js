@@ -1,7 +1,11 @@
 'use strict';
 
 const stream = require('stream');
-require('../common');
+const common = require('../common');
+
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const crypto = require('crypto');
 const pump = stream.pump;
