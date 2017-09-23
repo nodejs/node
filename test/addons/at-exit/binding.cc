@@ -4,10 +4,7 @@
 #include <v8.h>
 
 using node::AtExit;
-using v8::HandleScope;
-using v8::Isolate;
-using v8::Local;
-using v8::Object;
+using namespace v8;
 
 static char cookie[] = "yum yum";
 static int at_exit_cb1_called = 0;
