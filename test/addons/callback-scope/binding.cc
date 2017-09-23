@@ -13,7 +13,7 @@ using v8::Value;
 using v8::Object;
 using v8::Function;
 using v8::Number;
-uisng v8::Presistent;
+using v8::Presistent;
 using v8::Promise;
 using v8::Local;
 using v8::MaybeLocal;
