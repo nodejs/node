@@ -479,7 +479,7 @@ class Parser : public AsyncWrap {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
-    // The parser is being reused. Reset the uid and call init() callbacks.
+    // The parser is being reused. Reset the async id and call init() callbacks.
     parser->AsyncReset();
     parser->Init(type);
   }

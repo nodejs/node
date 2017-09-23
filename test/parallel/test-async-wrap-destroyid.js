@@ -32,6 +32,6 @@ hooks = async_hooks.createHook({
   if (n <= 0) return;
 
   test_id = (Math.random() * 1e9) >>> 0;
-  async_wrap.addIdToDestroyList(test_id);
+  async_wrap.queueDestroyAsyncId(test_id);
   setImmediate(common.mustCall(runner), n - 1);
 })(RUNS);

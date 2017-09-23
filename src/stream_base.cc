@@ -55,7 +55,7 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
 
   AsyncWrap* wrap = GetAsyncWrap();
   CHECK_NE(wrap, nullptr);
-  env->set_init_trigger_id(wrap->get_id());
+  env->set_init_trigger_async_id(wrap->get_async_id());
   ShutdownWrap* req_wrap = new ShutdownWrap(env,
                                             req_wrap_obj,
                                             this,
@@ -160,7 +160,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   wrap = GetAsyncWrap();
   CHECK_NE(wrap, nullptr);
-  env->set_init_trigger_id(wrap->get_id());
+  env->set_init_trigger_async_id(wrap->get_async_id());
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite, storage_size);
 
   offset = 0;
@@ -249,7 +249,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   wrap = GetAsyncWrap();
   if (wrap != nullptr)
-    env->set_init_trigger_id(wrap->get_id());
+    env->set_init_trigger_async_id(wrap->get_async_id());
   // Allocate, or write rest
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite);
 
@@ -334,7 +334,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   wrap = GetAsyncWrap();
   if (wrap != nullptr)
-    env->set_init_trigger_id(wrap->get_id());
+    env->set_init_trigger_async_id(wrap->get_async_id());
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite, storage_size);
 
   data = req_wrap->Extra();

@@ -136,7 +136,7 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
-  AsyncHooks::InitScope init_scope(handle->env(), handle->get_id());
+  AsyncHooks::InitScope init_scope(handle->env(), handle->get_async_id());
   args.GetReturnValue().Set((wrap->*Method)(args));
 }
 

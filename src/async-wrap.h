@@ -111,15 +111,17 @@ class AsyncWrap : public BaseObject {
   static void PushAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncIdStackSize(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ClearIdStack(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearAsyncIdStack(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void QueueDestroyId(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void QueueDestroyAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void EmitAsyncInit(Environment* env,
                             v8::Local<v8::Object> object,
                             v8::Local<v8::String> type,
                             double id,
-                            double trigger_id);
+                            double trigger_async_id);
 
   static void EmitBefore(Environment* env, double id);
   static void EmitAfter(Environment* env, double id);
@@ -127,9 +129,9 @@ class AsyncWrap : public BaseObject {
 
   inline ProviderType provider_type() const;
 
-  inline double get_id() const;
+  inline double get_async_id() const;
 
-  inline double get_trigger_id() const;
+  inline double get_trigger_async_id() const;
 
   void AsyncReset(bool silent = false);
 
@@ -152,7 +154,7 @@ class AsyncWrap : public BaseObject {
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.
   double async_id_;
-  double trigger_id_;
+  double trigger_async_id_;
 };
 
 void LoadAsyncWrapperInfo(Environment* env);

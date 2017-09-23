@@ -556,7 +556,7 @@ NODE_EXTERN async_id AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
 
 /* If the native API doesn't inherit from the helper class then the callbacks
  * must be triggered manually. This triggers the init() callback. The return
- * value is the uid assigned to the resource.
+ * value is the async id assigned to the resource.
  *
  * The `trigger_async_id` parameter should correspond to the resource which is
  * creating the new resource, which will usually be the return value of
