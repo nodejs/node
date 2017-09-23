@@ -3,12 +3,13 @@
 #define NODE_MODULE_VERSION 42
 #include <node.h>
 
+using namespace v8;
 namespace {
 
-inline void Initialize(v8::Local<v8::Object> exports,
-                       v8::Local<v8::Value> module,
-                       v8::Local<v8::Context> context) {
-}
+  inline void Initialize(Local<Object> exports,
+                         Local<Value> module,
+                         Local<Context> context) {
+  }
 
 }
 
