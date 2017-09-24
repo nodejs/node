@@ -323,12 +323,12 @@ struct file_check {
   bool failed = true;
   uv_file file = -1;
 };
-inline const struct file_check check_file(URL search,
+inline const struct file_check check_file(URL* search,
                                           bool close = false,
                                           bool allow_dir = false) {
   struct file_check ret;
   uv_fs_t fs_req;
-  std::string path = search.ToFilePath();
+  std::string path = search->ToFilePath();
   if (path.empty()) {
     return ret;
   }
@@ -349,28 +349,29 @@ inline const struct file_check check_file(URL search,
   if (close) uv_fs_close(nullptr, &fs_req, fd, nullptr);
   return ret;
 }
-URL resolve_extensions(URL search, bool check_exact = true) {
+URL resolve_extensions(URL* search, bool check_exact = true) {
   if (check_exact) {
     auto check = check_file(search, true);
     if (!check.failed) {
-      return search;
+      return *search;
     }
   }
   for (auto extension : EXTENSIONS) {
-    URL guess(search.path() + extension, &search);
-    auto check = check_file(guess, true);
+    URL guess(search->path() + extension, search);
+    auto check = check_file(&guess, true);
     if (!check.failed) {
       return guess;
     }
   }
   return URL("");
 }
-inline URL resolve_index(URL search) {
-  return resolve_extensions(URL("index", &search), false);
+inline URL resolve_index(URL* search) {
+  URL index("index", search);
+  return resolve_extensions(&index, false);
 }
-URL resolve_main(URL search) {
-  URL pkg("package.json", &search);
-  auto check = check_file(pkg);
+URL resolve_main(URL* search) {
+  URL pkg("package.json", search);
+  auto check = check_file(&pkg);
   if (!check.failed) {
     auto iso = Isolate::GetCurrent();
     auto ctx = iso->GetCurrentContext();
@@ -398,7 +399,7 @@ URL resolve_main(URL search) {
     if (!is_relative_or_absolute_path(main_std)) {
       main_std.insert(0, "./");
     }
-    return Resolve(main_std, &search);
+    return Resolve(main_std, search);
   }
   return URL("");
 }
@@ -427,7 +428,7 @@ URL resolve_module(std::string specifier, URL* base) {
   return URL("");
 }
 
-URL resolve_directory(URL search, bool read_pkg_json) {
+URL resolve_directory(URL* search, bool read_pkg_json) {
   if (read_pkg_json) {
     auto main = resolve_main(search);
     if (!(main.flags() & URL_FLAGS_FAILED)) return main;
@@ -448,12 +449,12 @@ URL Resolve(std::string specifier, URL* base, bool read_pkg_json) {
   }
   if (is_relative_or_absolute_path(specifier)) {
     URL resolved(specifier, base);
-    auto file = resolve_extensions(resolved);
+    auto file = resolve_extensions(&resolved);
     if (!(file.flags() & URL_FLAGS_FAILED)) return file;
     if (specifier.back() != '/') {
       resolved = URL(specifier + "/", base);
     }
-    return resolve_directory(resolved, read_pkg_json);
+    return resolve_directory(&resolved, read_pkg_json);
   } else {
     return resolve_module(specifier, base);
   }
