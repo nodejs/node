@@ -4,6 +4,7 @@
 
 #include <assert.h>
 
+using namespace v8;
 static int alive;
 static char buf[1024];
 
@@ -11,8 +12,8 @@ static void FreeCallback(char* data, void* hint) {
   alive--;
 }
 
-void Alloc(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void Alloc(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
   alive++;
 
   uintptr_t alignment = args[1]->IntegerValue();
@@ -29,14 +30,14 @@ void Alloc(const v8::FunctionCallbackInfo<v8::Value>& args) {
         nullptr).ToLocalChecked());
 }
 
-void Check(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void Check(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
   isolate->RequestGarbageCollectionForTesting(
-      v8::Isolate::kFullGarbageCollection);
+      Isolate::kFullGarbageCollection);
   assert(alive > 0);
 }
 
-void init(v8::Local<v8::Object> exports) {
+void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "alloc", Alloc);
   NODE_SET_METHOD(exports, "check", Check);
 }
