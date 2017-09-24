@@ -52,6 +52,10 @@ namespace performance {
 struct performance_state;
 }
 
+namespace loader {
+class ModuleWrap;
+}
+
 // Pick an index that's hopefully out of the way when we're embedded inside
 // another application. Performance-wise or memory-wise it doesn't matter:
 // Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
@@ -584,6 +588,8 @@ class Environment {
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_ids_list();
+
+  std::unordered_multimap<int, loader::ModuleWrap*> module_map;
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
