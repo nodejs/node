@@ -2349,7 +2349,7 @@ napi_status status = napi_status_generic_failure;
 
 // const obj = {};
 napi_value obj;
-status = napi_create_obj(env, &obj);
+status = napi_create_object(env, &obj);
 if (status != napi_ok) return status;
 
 // Create napi_values for 123 and 456
@@ -2360,9 +2360,9 @@ status = napi_create_int32(env, 456, &barValue);
 if (status != napi_ok) return status;
 
 // Set the properties
-napi_property_descriptors descriptors[] = {
-  { "foo", fooValue, 0, 0, 0, napi_default, 0 },
-  { "bar", barValue, 0, 0, 0, napi_default, 0 }
+napi_property_descriptor descriptors[] = {
+  { "foo", nullptr, 0, 0, 0, fooValue, napi_default, 0 },
+  { "bar", nullptr, 0, 0, 0, barValue, napi_default, 0 }
 }
 status = napi_define_properties(env,
                                 obj,
