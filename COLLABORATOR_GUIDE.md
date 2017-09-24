@@ -285,8 +285,8 @@ introduces the new core module.
 Pull requests introducing new core modules:
 
 * Must be left open for at least one week for review.
-* Must be labeled using the `ctc-review` label.
-* Must have signoff from at least two CTC members.
+* Must be labeled using the `tsc-review` label.
+* Must have signoff from at least two TSC members.
 
 New core modules must be landed with a [Stability Index][] of Experimental,
 and must remain Experimental until a semver-major release.
