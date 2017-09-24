@@ -26,7 +26,7 @@ const failureTests = tests.filter((test) => test.failure).concat([
 ]);
 
 const expectedError = common.expectsError(
-  { code: 'ERR_INVALID_URL', type: TypeError }, 102);
+  { code: 'ERR_INVALID_URL', type: TypeError }, 110);
 
 for (const test of failureTests) {
   assert.throws(
