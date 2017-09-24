@@ -84,7 +84,5 @@ common.expectsError(
 if (common.isLinux) {
   const file = fixtures.path('a.js');
 
-  fs.open(file, O_DSYNC, common.mustCall((err, fd) => {
-    assert.ifError(err);
-  }));
+  fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
 }
