@@ -10,8 +10,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   const w = new Worker(__filename);
   w.on('message', common.mustNotCall());
   w.on('error', common.mustCall((err) => {
-    // TODO(addaleax): be more specific here
-    assert(/foo/.test(err));
+    assert(/^Error: foo$/.test(err));
   }));
 } else {
   setImmediate(() => {
