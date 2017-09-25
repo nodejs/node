@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -7,22 +7,38 @@ assert.doesNotThrow(() => {
   zlib.createGzip({ flush: zlib.constants.Z_SYNC_FLUSH });
 });
 
-assert.throws(() => {
-  zlib.createGzip({ flush: 'foobar' });
-}, /^RangeError: Invalid flush flag: foobar$/);
+common.expectsError(
+  () => zlib.createGzip({ flush: 'foobar' }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
-assert.throws(() => {
-  zlib.createGzip({ flush: 10000 });
-}, /^RangeError: Invalid flush flag: 10000$/);
+common.expectsError(
+  () => zlib.createGzip({ flush: 10000 }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
 assert.doesNotThrow(() => {
   zlib.createGzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH });
 });
 
-assert.throws(() => {
-  zlib.createGzip({ finishFlush: 'foobar' });
-}, /^RangeError: Invalid flush flag: foobar$/);
+common.expectsError(
+  () => zlib.createGzip({ finishFlush: 'foobar' }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
-assert.throws(() => {
-  zlib.createGzip({ finishFlush: 10000 });
-}, /^RangeError: Invalid flush flag: 10000$/);
+common.expectsError(
+  () => zlib.createGzip({ finishFlush: 10000 }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
