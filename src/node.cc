@@ -3778,6 +3778,8 @@ static void PrintHelp() {
          "NODE_PATH               ':'-separated list of directories\n"
 #endif
          "                        prefixed to the module search path\n"
+         "NODE_PENDING_DEPRECATION     set to 1 to emit pending deprecation\n"
+         "                             warnings\n"
          "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "OPENSSL_CONF            load OpenSSL configuration from file\n"
          "NODE_REDIRECT_WARNINGS  write warnings to path instead of stderr\n"
