@@ -2081,7 +2081,7 @@ static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
                           v8::NewStringType::kNormal).ToLocalChecked());
 }
 
-std::string URL::ToFilePath() {
+std::string URL::ToFilePath() const {
   if (context_.scheme != "file:") {
     return "";
   }
@@ -2102,7 +2102,7 @@ std::string URL::ToFilePath() {
   }
 #endif
   std::string decoded_path;
-  for (std::string& part : context_.path) {
+  for (const std::string& part : context_.path) {
     std::string decoded;
     PercentDecode(part.c_str(), part.length(), &decoded);
     for (char& ch : decoded) {
