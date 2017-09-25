@@ -201,6 +201,13 @@ napi_value Utf8Length(napi_env env, napi_callback_info info) {
   return output;
 }
 
+napi_value TestLargeUtf8(napi_env env, napi_callback_info info) {
+  napi_value output;
+  NAPI_CALL(env, napi_create_string_utf8(env, "", 4294967296 + 1, &output));
+
+  return output;
+}
+
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("TestLatin1", TestLatin1),
@@ -211,6 +218,7 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("TestUtf16Insufficient", TestUtf16Insufficient),
     DECLARE_NAPI_PROPERTY("Utf16Length", Utf16Length),
     DECLARE_NAPI_PROPERTY("Utf8Length", Utf8Length),
+    DECLARE_NAPI_PROPERTY("TestLargeUtf8", TestLargeUtf8),
   };
 
   NAPI_CALL(env, napi_define_properties(

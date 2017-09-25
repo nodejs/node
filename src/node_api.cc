@@ -10,6 +10,7 @@
 
 #include <node_buffer.h>
 #include <node_object_wrap.h>
+#include <limits.h>  // INT_MAX
 #include <string.h>
 #include <algorithm>
 #include <cmath>
@@ -125,6 +126,9 @@ struct napi_env__ {
   do {                                                                   \
     static_assert(static_cast<int>(NAPI_AUTO_LENGTH) == -1,              \
                   "Casting NAPI_AUTO_LENGTH to int must result in -1");  \
+    RETURN_STATUS_IF_FALSE((env),                                        \
+        (len == NAPI_AUTO_LENGTH) || len <= INT_MAX,                     \
+        napi_generic_failure);                                           \
     auto str_maybe = v8::String::NewFromUtf8(                            \
         (env)->isolate, (str), v8::NewStringType::kInternalized,         \
         static_cast<int>(len));                                          \
