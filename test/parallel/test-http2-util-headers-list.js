@@ -261,4 +261,10 @@ const regex =
   })(mapToHeaders({ [name]: 'abc' }));
 });
 
+common.expectsError({
+  code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
+  message: regex
+})(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }));
+
 assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));
+assert(!(mapToHeaders({ te: ['trailers'] }) instanceof Error));

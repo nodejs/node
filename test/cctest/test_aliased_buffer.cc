@@ -82,6 +82,7 @@ void ReadAndValidate(v8::Isolate* isolate,
 
 template<class NativeT, class V8T>
 void ReadWriteTest(v8::Isolate* isolate) {
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -114,6 +115,7 @@ void SharedBufferTest(
     size_t count_A,
     size_t count_B,
     size_t count_C) {
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);

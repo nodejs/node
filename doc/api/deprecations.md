@@ -661,8 +661,8 @@ Type: Runtime
 
 `REPLServer.parseREPLKeyword()` was removed from userland visibility.
 
-<a id="DEP00XX"></a>
-### DEP00XX: tls.parseCertString()
+<a id="DEP0076"></a>
+### DEP0076: tls.parseCertString()
 
 Type: Runtime
 

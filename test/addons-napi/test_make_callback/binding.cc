@@ -25,7 +25,8 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, func, &func_type));
 
   napi_value resource_name;
-  NAPI_CALL(env, napi_create_string_utf8(env, "test", -1, &resource_name));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "test", NAPI_AUTO_LENGTH, &resource_name));
 
   napi_async_context context;
   NAPI_CALL(env, napi_async_init(env, func, resource_name, &context));
@@ -45,7 +46,8 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
 
 napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL(env, napi_create_function(env, NULL, -1, MakeCallback, NULL, &fn));
+  NAPI_CALL(env, napi_create_function(
+      env, NULL, NAPI_AUTO_LENGTH, MakeCallback, NULL, &fn));
   NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
   return exports;
 }
