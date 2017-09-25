@@ -601,6 +601,9 @@ class Environment {
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
 
+  inline void IncreaseWaitingRequestCounter();
+  inline void DecreaseWaitingRequestCounter();
+
   inline AsyncHooks* async_hooks();
   inline ImmediateInfo* immediate_info();
   inline TickInfo* tick_info();
@@ -833,7 +836,8 @@ class Environment {
   HandleWrapQueue handle_wrap_queue_;
   ReqWrapQueue req_wrap_queue_;
   std::list<HandleCleanup> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  int handle_cleanup_waiting_ = 0;
+  int request_waiting_ = 0;
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
