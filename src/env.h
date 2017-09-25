@@ -615,6 +615,7 @@ class Environment {
 
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
+  inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
   inline tracing::Agent* tracing_agent() const;
@@ -840,6 +841,7 @@ class Environment {
   uv_idle_t immediate_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
+  bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
