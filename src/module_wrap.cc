@@ -323,7 +323,7 @@ struct file_check {
   bool failed = true;
   uv_file file = -1;
 };
-inline const struct file_check check_file(URL search,
+inline const struct file_check check_file(const URL& search,
                                           bool close = false,
                                           bool allow_dir = false) {
   struct file_check ret;
@@ -349,7 +349,7 @@ inline const struct file_check check_file(URL search,
   if (close) uv_fs_close(nullptr, &fs_req, fd, nullptr);
   return ret;
 }
-URL resolve_extensions(URL search, bool check_exact = true) {
+URL resolve_extensions(const URL& search, bool check_exact = true) {
   if (check_exact) {
     auto check = check_file(search, true);
     if (!check.failed) {
@@ -365,10 +365,10 @@ URL resolve_extensions(URL search, bool check_exact = true) {
   }
   return URL("");
 }
-inline URL resolve_index(URL search) {
+inline URL resolve_index(const URL& search) {
   return resolve_extensions(URL("index", &search), false);
 }
-URL resolve_main(URL search) {
+URL resolve_main(const URL& search) {
   URL pkg("package.json", &search);
   auto check = check_file(pkg);
   if (!check.failed) {
@@ -402,7 +402,7 @@ URL resolve_main(URL search) {
   }
   return URL("");
 }
-URL resolve_module(std::string specifier, URL* base) {
+URL resolve_module(std::string specifier, const URL* base) {
   URL parent(".", base);
   URL dir("");
   do {
@@ -427,7 +427,7 @@ URL resolve_module(std::string specifier, URL* base) {
   return URL("");
 }
 
-URL resolve_directory(URL search, bool read_pkg_json) {
+URL resolve_directory(const URL& search, bool read_pkg_json) {
   if (read_pkg_json) {
     auto main = resolve_main(search);
     if (!(main.flags() & URL_FLAGS_FAILED)) return main;
@@ -438,7 +438,7 @@ URL resolve_directory(URL search, bool read_pkg_json) {
 }  // anonymous namespace
 
 
-URL Resolve(std::string specifier, URL* base, bool read_pkg_json) {
+URL Resolve(std::string specifier, const URL* base, bool read_pkg_json) {
   URL pure_url(specifier);
   if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
     return pure_url;
