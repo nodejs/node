@@ -13,7 +13,7 @@
 namespace node {
 namespace loader {
 
-node::url::URL Resolve(std::string specifier, node::url::URL* base,
+node::url::URL Resolve(std::string specifier, const node::url::URL* base,
                        bool read_pkg_json = false);
 
 class ModuleWrap : public BaseObject {
