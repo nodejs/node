@@ -350,6 +350,9 @@ Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
 `SIGINT`, `SIGHUP`, etc.
 
+The signal handler will receive the signal's name (`'SIGINT'`,
+ `'SIGTERM'`, etc.) as the first argument.
+
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
@@ -362,6 +365,14 @@ process.stdin.resume();
 process.on('SIGINT', () => {
   console.log('Received SIGINT.  Press Control-D to exit.');
 });
+
+// Using a single function to handle multiple signals
+function handle(signal) {
+  console.log(`Received ${signal}`);
+}
+
+process.on('SIGINT', handle);
+process.on('SIGTERM', handle);
 ```
 
 *Note*: An easy way to send the `SIGINT` signal is with `<Ctrl>-C` in most
