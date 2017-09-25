@@ -220,20 +220,20 @@ assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
 
-assert.strictEqual(String(os.hostname), os.hostname());
-assert.strictEqual(String(os.homedir), os.homedir());
-assert.strictEqual(String(os.release), os.release());
-assert.strictEqual(String(os.type), os.type());
-assert.strictEqual(String(os.endianness), os.endianness());
-assert.strictEqual(String(os.tmpdir), os.tmpdir());
-assert.strictEqual(String(os.arch), os.arch());
-assert.strictEqual(String(os.platform), os.platform());
+assert.strictEqual(`${os.hostname}`, os.hostname());
+assert.strictEqual(`${os.homedir}`, os.homedir());
+assert.strictEqual(`${os.release}`, os.release());
+assert.strictEqual(`${os.type}`, os.type());
+assert.strictEqual(`${os.endianness}`, os.endianness());
+assert.strictEqual(`${os.tmpdir}`, os.tmpdir());
+assert.strictEqual(`${os.arch}`, os.arch());
+assert.strictEqual(`${os.platform}`, os.platform());
 
-assert.strictEqual(Number(os.totalmem), os.totalmem());
+assert.strictEqual(+os.totalmem, os.totalmem());
 
 // At least we can check that these values are numbers
-is.number(Number(os.uptime), 'uptime');
+is.number(+os.uptime, 'uptime');
 is.number(os.uptime(), 'uptime');
 
-is.number(Number(os.freemem), 'freemem');
+is.number(+os.freemem, 'freemem');
 is.number(os.freemem(), 'freemem');
