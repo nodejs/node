@@ -6,6 +6,8 @@ This directory contains modules used to test the Node.js implementation.
 
 * [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
+* [Countdown module](#countdown-module)
+* [Fixtures module](#fixtures-module)
 * [WPT module](#wpt-module)
 
 ## Benchmark Module
