@@ -609,6 +609,12 @@ also able to define their own types when using the public embedder API.
 
 Used when attempting to perform an operation outside the bounds of a `Buffer`.
 
+<a id="ERR_BUFFER_TOO_LARGE"></a>
+### ERR_BUFFER_TOO_LARGE
+
+Used when an attempt has been made to create a `Buffer` larger than the
+maximum allowed size.
+
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 ### ERR_CHILD_CLOSED_BEFORE_REPLY
 
@@ -878,6 +884,12 @@ Used when a given index is out of the accepted range (e.g. negative offsets).
 
 Used generically to identify that an argument of the wrong type has been passed
 to a Node.js API.
+
+<a id="ERR_INVALID_ARG_VALUE"></a>
+### ERR_INVALID_ARG_VALUE
+
+Used generically to identify that an invalid or unsupported value has been
+passed for a given argument.
 
 <a id="ERR_INVALID_ARRAY_LENGTH"></a>
 ### ERR_INVALID_ARRAY_LENGTH
@@ -1276,6 +1288,12 @@ entry types were found.
 ### ERR_VALUE_OUT_OF_RANGE
 
 Used when a given value is out of the accepted range.
+
+<a id="ERR_ZLIB_BINDING_CLOSED"></a>
+### ERR_ZLIB_BINDING_CLOSED
+
+Used when an attempt is made to use a `zlib` object after it has already been
+closed.
 
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal

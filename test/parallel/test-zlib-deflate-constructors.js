@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const zlib = require('zlib');
 const assert = require('assert');
@@ -13,56 +13,83 @@ assert.ok(zlib.DeflateRaw() instanceof zlib.DeflateRaw);
 assert.ok(new zlib.DeflateRaw() instanceof zlib.DeflateRaw);
 
 // Throws if `opts.chunkSize` is invalid
-assert.throws(
-  () => { new zlib.Deflate({ chunkSize: -Infinity }); },
-  /^RangeError: Invalid chunk size: -Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ chunkSize: -Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
 // Confirm that maximum chunk size cannot be exceeded because it is `Infinity`.
 assert.strictEqual(zlib.constants.Z_MAX_CHUNK, Infinity);
 
 // Throws if `opts.windowBits` is invalid
-assert.throws(
-  () => { new zlib.Deflate({ windowBits: -Infinity }); },
-  /^RangeError: Invalid windowBits: -Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ windowBits: -Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
-assert.throws(
-  () => { new zlib.Deflate({ windowBits: Infinity }); },
-  /^RangeError: Invalid windowBits: Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ windowBits: Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
 // Throws if `opts.level` is invalid
-assert.throws(
-  () => { new zlib.Deflate({ level: -Infinity }); },
-  /^RangeError: Invalid compression level: -Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ level: -Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
-assert.throws(
-  () => { new zlib.Deflate({ level: Infinity }); },
-  /^RangeError: Invalid compression level: Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ level: Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
 // Throws a RangeError if `level` invalid in  `Deflate.prototype.params()`
-assert.throws(
-  () => { new zlib.Deflate().params(-Infinity); },
-  /^RangeError: Invalid compression level: -Infinity$/
+common.expectsError(
+  () => new zlib.Deflate().params(-Infinity),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: RangeError
+  }
 );
 
-assert.throws(
-  () => { new zlib.Deflate().params(Infinity); },
-  /^RangeError: Invalid compression level: Infinity$/
+common.expectsError(
+  () => new zlib.Deflate().params(Infinity),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: RangeError
+  }
 );
 
 // Throws if `opts.memLevel` is invalid
-assert.throws(
-  () => { new zlib.Deflate({ memLevel: -Infinity }); },
-  /^RangeError: Invalid memLevel: -Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ memLevel: -Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
-assert.throws(
-  () => { new zlib.Deflate({ memLevel: Infinity }); },
-  /^RangeError: Invalid memLevel: Infinity$/
+common.expectsError(
+  () => new zlib.Deflate({ memLevel: Infinity }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
 );
 
 // Does not throw if opts.strategy is valid
@@ -87,25 +114,37 @@ assert.doesNotThrow(
 );
 
 // Throws if opt.strategy is the wrong type.
-assert.throws(
-  () => { new zlib.Deflate({ strategy: String(zlib.constants.Z_RLE) }); },
-  /^TypeError: Invalid strategy: 3$/
+common.expectsError(
+  () => new zlib.Deflate({ strategy: String(zlib.constants.Z_RLE) }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError
+  }
 );
 
 // Throws if opts.strategy is invalid
-assert.throws(
-  () => { new zlib.Deflate({ strategy: 'this is a bogus strategy' }); },
-  /^TypeError: Invalid strategy: this is a bogus strategy$/
+common.expectsError(
+  () => new zlib.Deflate({ strategy: 'this is a bogus strategy' }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError
+  }
 );
 
 // Throws TypeError if `strategy` is invalid in `Deflate.prototype.params()`
-assert.throws(
-  () => { new zlib.Deflate().params(0, 'I am an invalid strategy'); },
-  /^TypeError: Invalid strategy: I am an invalid strategy$/
+common.expectsError(
+  () => new zlib.Deflate().params(0, 'I am an invalid strategy'),
+  {
+    code: 'ERR_INVALID_ARG_VALUE',
+    type: TypeError
+  }
 );
 
 // Throws if opts.dictionary is not a Buffer
-assert.throws(
-  () => { new zlib.Deflate({ dictionary: 'not a buffer' }); },
-  /^TypeError: Invalid dictionary: it should be a Buffer, TypedArray, or DataView$/
+common.expectsError(
+  () => new zlib.Deflate({ dictionary: 'not a buffer' }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: TypeError
+  }
 );
