@@ -20,6 +20,8 @@ class ReqWrap : public AsyncWrap {
   // Call this after the req has been dispatched, if that did not already
   // happen by using Dispatch().
   inline void Dispatched();
+  // Call this after a request has finished, if re-using this object is planned.
+  inline void Reset();
   T* req() { return &req_; }
   inline void Cancel();
 

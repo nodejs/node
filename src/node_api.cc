@@ -3388,6 +3388,9 @@ class Work : public node::AsyncResource {
       // Establish a handle scope here so that every callback doesn't have to.
       // Also it is needed for the exception-handling below.
       v8::HandleScope scope(env->isolate);
+      node::Environment* env_ = node::Environment::GetCurrent(env->isolate);
+      env_->DecreaseWaitingRequestCounter();
+
       CallbackScope callback_scope(work);
 
       NAPI_CALL_INTO_MODULE(env,
@@ -3488,6 +3491,8 @@ napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
+  node::Environment* env_ = node::Environment::GetCurrent(env->isolate);
+  env_->IncreaseWaitingRequestCounter();
   CALL_UV(env, uv_queue_work(event_loop,
                              w->Request(),
                              uvimpl::Work::ExecuteCallback,

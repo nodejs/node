@@ -107,7 +107,6 @@ Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
-      handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(isolate_, kFsStatsFieldsLength * 2),
       context_(context->GetIsolate(), context) {
@@ -241,8 +240,11 @@ void Environment::CleanupHandles() {
     hc.cb_(this, hc.handle_, hc.arg_);
   handle_cleanup_queue_.clear();
 
-  while (handle_cleanup_waiting_ != 0 || !handle_wrap_queue_.IsEmpty())
+  while (handle_cleanup_waiting_ != 0 ||
+         request_waiting_ != 0 ||
+         !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
+  }
 }
 
 void Environment::StartProfilerIdleNotifier() {
