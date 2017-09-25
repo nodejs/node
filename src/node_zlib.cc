@@ -219,6 +219,7 @@ class ZCtx : public AsyncWrap {
     }
 
     // async version
+    env->IncreaseWaitingRequestCounter();
     uv_queue_work(env->event_loop(), work_req, ZCtx::Process, ZCtx::After);
   }
 
@@ -366,10 +367,17 @@ class ZCtx : public AsyncWrap {
 
   // v8 land!
   static void After(uv_work_t* work_req, int status) {
-    CHECK_EQ(status, 0);
-
     ZCtx* ctx = ContainerOf(&ZCtx::work_req_, work_req);
     Environment* env = ctx->env();
+    ctx->write_in_progress_ = false;
+
+    env->DecreaseWaitingRequestCounter();
+    if (status == UV_ECANCELED) {
+      ctx->Close();
+      return;
+    }
+
+    CHECK_EQ(status, 0);
 
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
@@ -379,7 +387,6 @@ class ZCtx : public AsyncWrap {
 
     ctx->write_result_[0] = ctx->strm_.avail_out;
     ctx->write_result_[1] = ctx->strm_.avail_in;
-    ctx->write_in_progress_ = false;
 
     // call the write() cb
     Local<Function> cb = PersistentToLocal(env->isolate(),

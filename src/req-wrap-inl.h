@@ -110,6 +110,7 @@ struct MakeLibuvRequestCallback<ReqT, void(*)(ReqT*, Args...)> {
 
   static void Wrapper(ReqT* req, Args... args) {
     ReqWrap<ReqT>* req_wrap = ContainerOf(&ReqWrap<ReqT>::req_, req);
+    req_wrap->env()->DecreaseWaitingRequestCounter();
     T original_callback = reinterpret_cast<T>(req_wrap->original_callback_);
     original_callback(req, args...);
   }
@@ -129,23 +130,26 @@ int ReqWrap<T>::Dispatch(LibuvFunction fn, Args... args) {
 
   // This expands as:
   //
-  // return fn(env()->event_loop(), req(), arg1, arg2, Wrapper, arg3, ...)
-  //           ^                                       ^        ^
-  //           |                                       |        |
-  //           \-- Omitted if `fn` has no              |        |
-  //               first `uv_loop_t*` argument         |        |
-  //                                                   |        |
-  //     A function callback whose first argument      |        |
-  //     matches the libuv request type is replaced ---/        |
-  //     by the `Wrapper` method defined above                  |
-  //                                                            |
-  //            Other (non-function) arguments are passed  -----/
-  //            through verbatim
-  return CallLibuvFunction<T, LibuvFunction>::Call(
+  // int err = fn(env()->event_loop(), req(), arg1, arg2, Wrapper, arg3, ...)
+  //              ^                                       ^        ^
+  //              |                                       |        |
+  //              \-- Omitted if `fn` has no              |        |
+  //                  first `uv_loop_t*` argument         |        |
+  //                                                      |        |
+  //        A function callback whose first argument      |        |
+  //        matches the libuv request type is replaced ---/        |
+  //        by the `Wrapper` method defined above                  |
+  //                                                               |
+  //               Other (non-function) arguments are passed  -----/
+  //               through verbatim
+  int err = CallLibuvFunction<T, LibuvFunction>::Call(
       fn,
       env()->event_loop(),
       req(),
       MakeLibuvRequestCallback<T, Args>::For(this, args)...);
+  if (err >= 0)
+    env()->IncreaseWaitingRequestCounter();
+  return err;
 }
 
 }  // namespace node

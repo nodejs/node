@@ -564,6 +564,9 @@ class Environment {
   template <typename T, typename OnCloseCallback>
   inline void CloseHandle(T* handle, OnCloseCallback callback);
 
+  inline void IncreaseWaitingRequestCounter();
+  inline void DecreaseWaitingRequestCounter();
+
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
@@ -726,7 +729,8 @@ class Environment {
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  int handle_cleanup_waiting_ = 0;
+  int request_waiting_ = 0;
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;

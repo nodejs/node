@@ -295,7 +295,6 @@ inline Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(this),
 #endif
-      handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(nullptr),
       context_(context->GetIsolate(), context) {
@@ -397,6 +396,15 @@ inline void Environment::CloseHandle(T* handle, OnCloseCallback callback) {
     data->callback(reinterpret_cast<T*>(handle));
     delete data;
   });
+}
+
+void Environment::IncreaseWaitingRequestCounter() {
+  request_waiting_++;
+}
+
+void Environment::DecreaseWaitingRequestCounter() {
+  request_waiting_--;
+  CHECK_GE(request_waiting_, 0);
 }
 
 inline uv_loop_t* Environment::event_loop() const {
