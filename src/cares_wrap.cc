@@ -1969,13 +1969,11 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = flags;
 
-  int err = uv_getaddrinfo(env->event_loop(),
-                           req_wrap->req(),
-                           AfterGetAddrInfo,
-                           *hostname,
-                           nullptr,
-                           &hints);
-  req_wrap->Dispatched();
+  int err = req_wrap->Dispatch(uv_getaddrinfo,
+                               AfterGetAddrInfo,
+                               *hostname,
+                               nullptr,
+                               &hints);
   if (err)
     delete req_wrap;
 
@@ -1999,12 +1997,10 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 
   GetNameInfoReqWrap* req_wrap = new GetNameInfoReqWrap(env, req_wrap_obj);
 
-  int err = uv_getnameinfo(env->event_loop(),
-                           req_wrap->req(),
-                           AfterGetNameInfo,
-                           (struct sockaddr*)&addr,
-                           NI_NAMEREQD);
-  req_wrap->Dispatched();
+  int err = req_wrap->Dispatch(uv_getnameinfo,
+                               AfterGetNameInfo,
+                               (struct sockaddr*)&addr,
+                               NI_NAMEREQD);
   if (err)
     delete req_wrap;
 

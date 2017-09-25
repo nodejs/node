@@ -384,15 +384,14 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   }
 
   if (err == 0) {
-    err = uv_udp_send(req_wrap->req(),
-                      &wrap->handle_,
-                      *bufs,
-                      count,
-                      reinterpret_cast<const sockaddr*>(&addr),
-                      OnSend);
+    err = req_wrap->Dispatch(uv_udp_send,
+                             &wrap->handle_,
+                             *bufs,
+                             count,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             OnSend);
   }
 
-  req_wrap->Dispatched();
   if (err)
     delete req_wrap;
 

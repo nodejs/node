@@ -355,11 +355,7 @@ class fs_req_wrap {
   CHECK(request->IsObject());                                                 \
   FSReqWrap* req_wrap = FSReqWrap::New(env, request.As<Object>(),             \
                                        #func, dest, encoding);                \
-  int err = uv_fs_ ## func(env->event_loop(),                                 \
-                           req_wrap->req(),                                   \
-                           __VA_ARGS__,                                       \
-                           After);                                            \
-  req_wrap->Dispatched();                                                     \
+  int err = req_wrap->Dispatch(uv_fs_ ## func, __VA_ARGS__, After);           \
   if (err < 0) {                                                              \
     uv_fs_t* uv_req = req_wrap->req();                                        \
     uv_req->result = err;                                                     \
@@ -1123,13 +1119,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   FSReqWrap* req_wrap =
       FSReqWrap::New(env, req.As<Object>(), "write", buf, UTF8, ownership);
-  int err = uv_fs_write(env->event_loop(),
-                        req_wrap->req(),
-                        fd,
-                        &uvbuf,
-                        1,
-                        pos,
-                        After);
+  int err = req_wrap->Dispatch(uv_fs_write,
+                               fd,
+                               &uvbuf,
+                               1,
+                               pos,
+                               After);
   req_wrap->Dispatched();
   if (err < 0) {
     uv_fs_t* uv_req = req_wrap->req();

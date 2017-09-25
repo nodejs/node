@@ -17,13 +17,24 @@ class ReqWrap : public AsyncWrap {
                  v8::Local<v8::Object> object,
                  AsyncWrap::ProviderType provider);
   inline ~ReqWrap() override;
-  inline void Dispatched();  // Call this after the req has been dispatched.
+  // Call this after the req has been dispatched, if that did not already
+  // happen by using Dispatch().
+  inline void Dispatched();
   T* req() { return &req_; }
   inline void Cancel();
 
+  template <typename LibuvFunction, typename... Args>
+  inline int Dispatch(LibuvFunction fn, Args... args);
+
  private:
   friend class Environment;
+  template<typename ReqT, typename U>
+  friend struct MakeLibuvRequestCallback;
+
   ListNode<ReqWrap> req_wrap_queue_;
+
+  typedef void (*callback_t)();
+  callback_t original_callback_ = nullptr;
 
  protected:
   // req_wrap_queue_ needs to be at a fixed offset from the start of the class
