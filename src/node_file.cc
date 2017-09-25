@@ -89,6 +89,11 @@ using v8::Value;
   TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall),   \
   ##__VA_ARGS__);
 
+// We sometimes need to convert a C++ lambda function to a raw C-style function.
+// This is helpful, because ReqWrap::Dispatch() does not recognize lambda
+// functions, and thus does not wrap them properly.
+typedef void(*uv_fs_callback_t)(uv_fs_t*);
+
 // The FileHandle object wraps a file descriptor and will close it on garbage
 // collection if necessary. If that happens, a process warning will be
 // emitted (or a fatal exception will occur if the fd cannot be closed.)
@@ -216,7 +221,7 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
   if (!closed_ && !closing_) {
     closing_ = true;
     CloseReq* req = new CloseReq(env(), promise, object());
-    auto AfterClose = [](uv_fs_t* req) {
+    auto AfterClose = uv_fs_callback_t{[](uv_fs_t* req) {
       CloseReq* close = static_cast<CloseReq*>(req->data);
       CHECK_NE(close, nullptr);
       close->file_handle()->AfterClose();
@@ -227,9 +232,8 @@ inline MaybeLocal<Promise> FileHandle::ClosePromise() {
         close->Resolve();
       }
       delete close;
-    };
-    req->Dispatched();
-    int ret = uv_fs_close(env()->event_loop(), req->req(), fd_, AfterClose);
+    }};
+    int ret = req->Dispatch(uv_fs_close, fd_, AfterClose);
     if (ret < 0) {
       req->Reject(UVException(isolate, ret, "close"));
       delete req;
@@ -309,17 +313,15 @@ int FileHandle::ReadStart() {
     recommended_read = read_length_;
 
   read_wrap->buffer_ = EmitAlloc(recommended_read);
-  read_wrap->Dispatched();
 
   current_read_ = std::move(read_wrap);
 
-  uv_fs_read(env()->event_loop(),
-             current_read_->req(),
-             fd_,
-             &current_read_->buffer_,
-             1,
-             read_offset_,
-             [](uv_fs_t* req) {
+  current_read_->Dispatch(uv_fs_read,
+                          fd_,
+                          &current_read_->buffer_,
+                          1,
+                          read_offset_,
+                          uv_fs_callback_t{[](uv_fs_t* req) {
     FileHandle* handle;
     {
       FileHandleReadWrap* req_wrap = FileHandleReadWrap::from_req(req);
@@ -342,8 +344,10 @@ int FileHandle::ReadStart() {
     // once we’re exiting the current scope.
     constexpr size_t wanted_freelist_fill = 100;
     auto& freelist = handle->env()->file_handle_read_wrap_freelist();
-    if (freelist.size() < wanted_freelist_fill)
+    if (freelist.size() < wanted_freelist_fill) {
+      read_wrap->Reset();
       freelist.emplace_back(std::move(read_wrap));
+    }
 
     if (result >= 0) {
       // Read at most as many bytes as we originally planned to.
@@ -370,7 +374,7 @@ int FileHandle::ReadStart() {
     // Start over, if EmitRead() didn’t tell us to stop.
     if (handle->reading_)
       handle->ReadStart();
-  });
+  }});
 
   return 0;
 }
@@ -389,8 +393,7 @@ ShutdownWrap* FileHandle::CreateShutdownWrap(Local<Object> object) {
 int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
   FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(req_wrap);
   closing_ = true;
-  wrap->Dispatched();
-  uv_fs_close(env()->event_loop(), wrap->req(), fd_, [](uv_fs_t* req) {
+  wrap->Dispatch(uv_fs_close, fd_, uv_fs_callback_t{[](uv_fs_t* req) {
     FileHandleCloseWrap* wrap = static_cast<FileHandleCloseWrap*>(
         FileHandleCloseWrap::from_req(req));
     FileHandle* handle = static_cast<FileHandle*>(wrap->stream());
@@ -399,7 +402,7 @@ int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
     int result = req->result;
     uv_fs_req_cleanup(req);
     wrap->Done(result);
-  });
+  }});
 
   return 0;
 }
@@ -616,8 +619,7 @@ inline FSReqBase* AsyncDestCall(Environment* env,
     enum encoding enc, uv_fs_cb after, Func fn, Args... fn_args) {
   CHECK_NE(req_wrap, nullptr);
   req_wrap->Init(syscall, dest, len, enc);
-  int err = fn(env->event_loop(), req_wrap->req(), fn_args..., after);
-  req_wrap->Dispatched();
+  int err = req_wrap->Dispatch(fn, fn_args..., after);
   if (err < 0) {
     uv_fs_t* uv_req = req_wrap->req();
     uv_req->result = err;
