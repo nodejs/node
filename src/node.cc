@@ -1381,7 +1381,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
 
-  env->async_hooks()->push_ids(async_context_.async_id,
+  env->async_hooks()->push_async_ids(async_context_.async_id,
                                async_context_.trigger_async_id);
   pushed_ids_ = true;
 }
@@ -1396,7 +1396,7 @@ void InternalCallbackScope::Close() {
   HandleScope handle_scope(env_->isolate());
 
   if (pushed_ids_)
-    env_->async_hooks()->pop_ids(async_context_.async_id);
+    env_->async_hooks()->pop_async_id(async_context_.async_id);
 
   if (failed_) return;
 
@@ -1420,8 +1420,8 @@ void InternalCallbackScope::Close() {
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env_->current_async_id(), 0);
-  CHECK_EQ(env_->trigger_id(), 0);
+  CHECK_EQ(env_->execution_async_id(), 0);
+  CHECK_EQ(env_->trigger_async_id(), 0);
 
   Local<Object> process = env_->process_object();
 
@@ -1430,8 +1430,8 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  CHECK_EQ(env_->current_async_id(), 0);
-  CHECK_EQ(env_->trigger_id(), 0);
+  CHECK_EQ(env_->execution_async_id(), 0);
+  CHECK_EQ(env_->trigger_async_id(), 0);
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
@@ -4695,9 +4695,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
-    env.async_hooks()->push_ids(1, 0);
+    env.async_hooks()->push_async_ids(1, 0);
     LoadEnvironment(&env);
-    env.async_hooks()->pop_ids(1);
+    env.async_hooks()->pop_async_id(1);
   }
 
   env.set_trace_sync_io(trace_sync_io);
