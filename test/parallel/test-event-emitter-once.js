@@ -50,11 +50,15 @@ e.once('e', common.mustCall());
 e.emit('e');
 
 // Verify that the listener must be a function
-assert.throws(() => {
+common.expectsError(() => {
   const ee = new EventEmitter();
 
   ee.once('foo', null);
-}, /^TypeError: "listener" argument must be a function$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "listener" argument must be of type function'
+});
 
 {
   // once() has different code paths based on the number of arguments being
