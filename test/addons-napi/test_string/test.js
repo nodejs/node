@@ -71,5 +71,5 @@ assert.strictEqual(test_string.Utf16Length(str6), 5);
 assert.strictEqual(test_string.Utf8Length(str6), 14);
 
 assert.throws(() => {
-  test_string.TestLargeUtf8()
-}, /^Error: Unknown failure$/);
+  test_string.TestLargeUtf8();
+}, /^Error: Invalid argument$/);
