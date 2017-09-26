@@ -74,15 +74,15 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       util.inspect(initHandles[k]);
   });
 
-  const _addIdToDestroyList = async_wrap.addIdToDestroyList;
-  async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
+  const _queueDestroyAsyncId = async_wrap.queueDestroyAsyncId;
+  async_wrap.queueDestroyAsyncId = function queueDestroyAsyncId(id) {
     if (destroyListList[id] !== undefined) {
       process._rawDebug(destroyListList[id]);
       process._rawDebug();
       throw new Error(`same id added twice (${id})`);
     }
     destroyListList[id] = new Error().stack;
-    _addIdToDestroyList(id);
+    _queueDestroyAsyncId(id);
   };
 
   require('async_hooks').createHook({

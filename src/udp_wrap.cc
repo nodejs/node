@@ -350,7 +350,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
-  env->set_init_trigger_id(wrap->get_id());
+  env->set_init_trigger_async_id(wrap->get_async_id());
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
@@ -498,7 +498,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope scope(env->isolate());
-  AsyncHooks::InitScope init_scope(env, parent->get_id());
+  AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
   Local<Object> instance = env->udp_constructor_function()
