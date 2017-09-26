@@ -190,6 +190,15 @@ Type: End-of-Life
 `Intl.v8BreakIterator` was a non-standard extension and has been removed.
 See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 
+<a id="DEP0018"></a>
+### DEP0018: Unhandled promise rejections
+
+Type: End-of-Life
+
+Any unhandled promise rejection that is garbage collected is going to exit the
+process similar to unhandled exceptions. Please make sure to always handle all
+possible rejections.
+
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
 

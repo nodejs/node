@@ -4,7 +4,7 @@
 const common = require('../common');
 
 const p = new Promise((res, rej) => {
-  consol.log('oops'); // eslint-disable-line no-undef
+  throw new Error('oops');
 });
 
 // Manually call GC due to possible memory constraints with attempting to

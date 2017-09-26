@@ -1,11 +1,11 @@
-(node:30479) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 1): ReferenceError: consol is not defined
-(node:30479) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 2): ReferenceError: consol is not defined
+(node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 1): ReferenceError: One
+(node:*) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 2): ReferenceError: Two
 exit event emitted
 *test*message*promise_fast_reject.js:*
-  consol.log('One'); // eslint-disable-line no-undef
+  throw new Error('One');
   ^
 
-ReferenceError: consol is not defined
+Error: One
     at *test*message*promise_fast_reject.js:*:*
     at Promise (<anonymous>)
     at Object.<anonymous> (*test*message*promise_fast_reject.js:*:*)

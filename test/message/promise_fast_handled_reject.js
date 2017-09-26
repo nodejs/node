@@ -1,20 +1,21 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 
 const p1 = new Promise((res, rej) => {
-  consol.log('One'); // eslint-disable-line no-undef
-});
-
-const p2 = new Promise((res, rej) => { // eslint-disable-line no-unused-vars
-  consol.log('Two'); // eslint-disable-line no-undef
-});
-
-const p3 = new Promise((res, rej) => {
-  consol.log('Three'); // eslint-disable-line no-undef
+  throw new Error('One');
 });
 
 new Promise((res, rej) => {
+  throw new Error('Two');
+});
+
+const p3 = new Promise((res, rej) => {
+  throw new Error('Three');
+});
+
+process.nextTick(() => {
   setTimeout(common.mustCall(() => {
     p1.catch(() => {});
     p3.catch(() => {});
