@@ -4,11 +4,11 @@ const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
 
-const invalidOptValueError =
-  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 20);
-
 const invalidArgTypeError =
   common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
+
+const invalidRangeError =
+  common.expectsError({ code: 'ERR_VALUE_OUT_OF_RANGE', type: RangeError }, 20);
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
@@ -154,17 +154,17 @@ if (!common.isWindows) {
   pass('timeout', null);
   pass('timeout', 1);
   pass('timeout', 0);
-  fail('timeout', -1, invalidOptValueError);
-  fail('timeout', true, invalidOptValueError);
-  fail('timeout', false, invalidOptValueError);
-  fail('timeout', __dirname, invalidOptValueError);
-  fail('timeout', [], invalidOptValueError);
-  fail('timeout', {}, invalidOptValueError);
-  fail('timeout', common.mustNotCall(), invalidOptValueError);
-  fail('timeout', NaN, invalidOptValueError);
-  fail('timeout', Infinity, invalidOptValueError);
-  fail('timeout', 3.1, invalidOptValueError);
-  fail('timeout', -3.1, invalidOptValueError);
+  fail('timeout', -1, invalidRangeError);
+  fail('timeout', true, invalidRangeError);
+  fail('timeout', false, invalidRangeError);
+  fail('timeout', __dirname, invalidRangeError);
+  fail('timeout', [], invalidRangeError);
+  fail('timeout', {}, invalidRangeError);
+  fail('timeout', common.mustNotCall(), invalidRangeError);
+  fail('timeout', NaN, invalidRangeError);
+  fail('timeout', Infinity, invalidRangeError);
+  fail('timeout', 3.1, invalidRangeError);
+  fail('timeout', -3.1, invalidRangeError);
 }
 
 {
@@ -177,15 +177,15 @@ if (!common.isWindows) {
   pass('maxBuffer', 0);
   pass('maxBuffer', Infinity);
   pass('maxBuffer', 3.14);
-  fail('maxBuffer', -1, invalidOptValueError);
-  fail('maxBuffer', NaN, invalidOptValueError);
-  fail('maxBuffer', -Infinity, invalidOptValueError);
-  fail('maxBuffer', true, invalidOptValueError);
-  fail('maxBuffer', false, invalidOptValueError);
-  fail('maxBuffer', __dirname, invalidOptValueError);
-  fail('maxBuffer', [], invalidOptValueError);
-  fail('maxBuffer', {}, invalidOptValueError);
-  fail('maxBuffer', common.mustNotCall(), invalidOptValueError);
+  fail('maxBuffer', -1, invalidRangeError);
+  fail('maxBuffer', NaN, invalidRangeError);
+  fail('maxBuffer', -Infinity, invalidRangeError);
+  fail('maxBuffer', true, invalidRangeError);
+  fail('maxBuffer', false, invalidRangeError);
+  fail('maxBuffer', __dirname, invalidRangeError);
+  fail('maxBuffer', [], invalidRangeError);
+  fail('maxBuffer', {}, invalidRangeError);
+  fail('maxBuffer', common.mustNotCall(), invalidRangeError);
 }
 
 {
