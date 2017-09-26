@@ -36,7 +36,7 @@
 | upgrading libuv | @saghul |
 
 
-When things need extra attention, are controversial, or `semver-major`: @nodejs/ctc
+When things need extra attention, are controversial, or `semver-major`: @nodejs/tsc
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
