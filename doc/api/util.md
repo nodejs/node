@@ -377,8 +377,8 @@ terminals.
 <!-- type=misc -->
 
 Objects may also define their own `[util.inspect.custom](depth, opts)`
-(or, equivalently `inspect(depth, opts)`) function that `util.inspect()` will
-invoke and use the result of when inspecting the object:
+(or the equivalent but deprecated `inspect(depth, opts)`) function that
+`util.inspect()` will invoke and use the result of when inspecting the object:
 
 ```js
 const util = require('util');
@@ -388,7 +388,7 @@ class Box {
     this.value = value;
   }
 
-  inspect(depth, options) {
+  [util.inspect.custom](depth, options) {
     if (depth < 0) {
       return options.stylize('[Box]', 'special');
     }
@@ -420,21 +420,6 @@ const util = require('util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
 obj[util.inspect.custom] = function(depth) {
-  return { bar: 'baz' };
-};
-
-util.inspect(obj);
-// Returns: "{ bar: 'baz' }"
-```
-
-A custom inspection method can alternatively be provided by exposing
-an `inspect(depth, opts)` method on the object:
-
-```js
-const util = require('util');
-
-const obj = { foo: 'this will not show up in the inspect() output' };
-obj.inspect = function(depth) {
   return { bar: 'baz' };
 };
 

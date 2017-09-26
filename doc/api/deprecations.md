@@ -700,6 +700,16 @@ Type: Runtime
 
 `REPLServer.turnOffEditorMode()` was removed from userland visibility.
 
+<a id="DEP0079"></a>
+### DEP0079: Custom inspection function on Objects via .inspect()
+
+Type: Documentation-only
+
+Using a property named `inspect` on an object to specify a custom inspection
+function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
+instead. For backwards compatibility with Node.js prior to version 6.4.0, both
+may be specified.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
@@ -738,6 +748,8 @@ Type: Runtime
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
+[`util.inspect()`]: util.html#util_util_inspect_object_options
+[`util.inspect.custom`]: util.html#util_util_inspect_custom
 [`util.isArray()`]: util.html#util_util_isarray_object
 [`util.isBoolean()`]: util.html#util_util_isboolean_object
 [`util.isBuffer()`]: util.html#util_util_isbuffer_object
