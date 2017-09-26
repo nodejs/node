@@ -227,10 +227,10 @@ handling may have been made. Additional CI testing may be required.
 
 #### When breaking changes actually break things
 
-Because breaking (semver-major) changes are permitted to land in master at any
-time, it should be expected that at least some subset of the user ecosystem may
-be adversely affected in the short term when attempting to build and use Node.js
-directly from master. This potential instability is precisely why Node.js offers
+Because breaking (semver-major) changes are permitted to land on the master
+branch at any time, at least some subset of the user ecosystem may be adversely
+affected in the short term when attempting to build and use Node.js directly
+from the master branch. This potential instability is why Node.js offers
 distinct Current and LTS release streams that offer explicit stability
 guarantees.
 
@@ -245,7 +245,7 @@ Specifically:
   attempt to fix the issue will be made before the next release; If no fix is
   provided then the commit will be reverted.
 
-When any change is landed in master, and it is determined that the such
+When any changes are landed on the master branch and it is determined that the
 changes *do* break existing code, a decision may be made to revert those
 changes either temporarily or permanently. However, the decision to revert or
 not can often be based on many complex factors that are not easily codified. It
@@ -337,9 +337,9 @@ Runtime Deprecation cycle.
 
 A best effort will be made to communicate pending deprecations and associated
 mitigations with the ecosystem as soon as possible (preferably before the pull
-request adding the deprecation lands in master). All deprecations included in
-a Node.js release should be listed prominently in the "Notable Changes" section
-of the release notes.
+request adding the deprecation lands on the master branch). All deprecations
+included in a Node.js release should be listed prominently in the "Notable
+Changes" section of the release notes.
 
 ### Involving the TSC
 
@@ -618,8 +618,8 @@ TSC for further discussion.
 There are currently two LTS branches: `v6.x` and `v4.x`. Each of these is paired
 with a staging branch: `v6.x-staging` and `v4.x-staging`.
 
-As commits land in `master`, they are cherry-picked back to each staging
-branch as appropriate. If the commit applies only to the LTS branch, the
+As commits land on the master branch, they are cherry-picked back to each
+staging branch as appropriate. If the commit applies only to the LTS branch, the
 PR must be opened against the *staging* branch. Commits are selectively
 pulled from the staging branch into the LTS branch only when a release is
 being prepared and may be pulled into the LTS branch in a different order
