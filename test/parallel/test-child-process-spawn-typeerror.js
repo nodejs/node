@@ -30,10 +30,10 @@ const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 const empty = fixtures.path('empty.js');
 
 const invalidOptValueError =
-  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 20);
+  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 13);
 
 const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 4);
+  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');
@@ -60,24 +60,24 @@ assert.doesNotThrow(function() {
 // verify that invalid argument combinations throw
 assert.throws(function() {
   spawn();
-}, invalidOptValueError);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn('');
-}, invalidOptValueError);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   const file = { toString() { return null; } };
   spawn(file);
-}, invalidOptValueError);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, null);
-}, invalidOptValueError);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, true);
-}, invalidOptValueError);
+}, invalidArgTypeError);
 
 assert.throws(function() {
   spawn(cmd, [], null);
@@ -109,10 +109,10 @@ assert.doesNotThrow(function() { spawn(cmd, o); });
 assert.doesNotThrow(function() { spawn(cmd, u, o); });
 assert.doesNotThrow(function() { spawn(cmd, a, u); });
 
-assert.throws(function() { spawn(cmd, n, o); }, invalidOptValueError);
+assert.throws(function() { spawn(cmd, n, o); }, invalidArgTypeError);
 assert.throws(function() { spawn(cmd, a, n); }, invalidArgTypeError);
 
-assert.throws(function() { spawn(cmd, s); }, invalidOptValueError);
+assert.throws(function() { spawn(cmd, s); }, invalidArgTypeError);
 assert.throws(function() { spawn(cmd, a, s); }, invalidArgTypeError);
 
 
