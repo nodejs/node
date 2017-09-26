@@ -152,19 +152,8 @@ class TextMacro:
       return mapping[match.group(0)]
     return re.sub(any_key_pattern, replace, self.body)
 
-class PythonMacro:
-  def __init__(self, args, fun):
-    self.args = args
-    self.fun = fun
-  def expand(self, mapping):
-    args = []
-    for arg in self.args:
-      args.append(mapping[arg])
-    return str(self.fun(*args))
-
 CONST_PATTERN = re.compile(r'^define\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
-PYTHON_MACRO_PATTERN = re.compile(r'^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
 
 def ReadMacros(lines):
@@ -188,15 +177,7 @@ def ReadMacros(lines):
         body = macro_match.group(3).strip()
         macros.append((re.compile("\\b%s\\(" % name), TextMacro(args, body)))
       else:
-        python_match = PYTHON_MACRO_PATTERN.match(line)
-        if python_match:
-          name = python_match.group(1)
-          args = [match.strip() for match in python_match.group(2).split(',')]
-          body = python_match.group(3).strip()
-          fun = eval("lambda " + ",".join(args) + ': ' + body)
-          macros.append((re.compile("\\b%s\\(" % name), PythonMacro(args, fun)))
-        else:
-          raise Error("Illegal line: " + line)
+        raise Error("Illegal line: " + line)
   return (constants, macros)
 
 

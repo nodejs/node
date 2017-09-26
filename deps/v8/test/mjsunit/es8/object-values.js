@@ -256,12 +256,12 @@ TestMutateDuringEnumeration();
   }
 
   var element_kinds = {
-    FAST_SMI_ELEMENTS: [ [1, 2, 3], [1, 2, 3] ],
-    FAST_HOLEY_SMI_ELEMENTS: [ [, , 3], [ 3 ] ],
-    FAST_ELEMENTS: [ [O1, O2, O3], [O1, O2, O3] ],
-    FAST_HOLEY_ELEMENTS: [ [, , O3], [O3] ],
-    FAST_DOUBLE_ELEMENTS: [ [E, NaN, PI], [E, NaN, PI] ],
-    FAST_HOLEY_DOUBLE_ELEMENTS: [ [, , NaN], [NaN] ],
+    PACKED_SMI_ELEMENTS: [ [1, 2, 3], [1, 2, 3] ],
+    HOLEY_SMI_ELEMENTS: [ [, , 3], [ 3 ] ],
+    PACKED_ELEMENTS: [ [O1, O2, O3], [O1, O2, O3] ],
+    HOLEY_ELEMENTS: [ [, , O3], [O3] ],
+    PACKED_DOUBLE_ELEMENTS: [ [E, NaN, PI], [E, NaN, PI] ],
+    HOLEY_DOUBLE_ELEMENTS: [ [, , NaN], [NaN] ],
 
     DICTIONARY_ELEMENTS: [ Object.defineProperties({ 10000: "world" }, {
         100: { enumerable: true, value: "hello" },

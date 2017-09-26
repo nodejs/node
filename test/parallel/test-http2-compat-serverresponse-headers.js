@@ -42,6 +42,31 @@ server.listen(0, common.mustCall(function() {
     response.removeHeader(denormalised);
     assert.strictEqual(response.hasHeader(denormalised), false);
 
+    common.expectsError(
+      () => response.hasHeader(),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "name" argument must be of type string'
+      }
+    );
+    common.expectsError(
+      () => response.getHeader(),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "name" argument must be of type string'
+      }
+    );
+    common.expectsError(
+      () => response.removeHeader(),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "name" argument must be of type string'
+      }
+    );
+
     [
       ':status',
       ':method',
@@ -70,6 +95,22 @@ server.listen(0, common.mustCall(function() {
       type: TypeError,
       message: 'Value must not be undefined or null'
     }));
+    common.expectsError(
+      () => response.setHeader(), // header name undefined
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "name" argument must be of type string'
+      }
+    );
+    common.expectsError(
+      () => response.setHeader(''),
+      {
+        code: 'ERR_INVALID_HTTP_TOKEN',
+        type: TypeError,
+        message: 'Header name must be a valid HTTP token [""]'
+      }
+    );
 
     response.setHeader(real, expectedValue);
     const expectedHeaderNames = [real];
@@ -88,7 +129,13 @@ server.listen(0, common.mustCall(function() {
 
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
-      server.close();
+      assert.strictEqual(response.headersSent, true);
+      process.nextTick(() => {
+        // can access headersSent after stream is undefined
+        assert.strictEqual(response.stream, undefined);
+        assert.strictEqual(response.headersSent, true);
+        server.close();
+      });
     }));
     response.end();
   }));

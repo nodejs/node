@@ -25,6 +25,8 @@ class JSFrameSpecialization final : public AdvancedReducer {
       : AdvancedReducer(editor), frame_(frame), jsgraph_(jsgraph) {}
   ~JSFrameSpecialization() final {}
 
+  const char* reducer_name() const override { return "JSFrameSpecialization"; }
+
   Reduction Reduce(Node* node) final;
 
  private:

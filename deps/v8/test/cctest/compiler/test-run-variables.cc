@@ -66,30 +66,35 @@ static void RunVariableTests(const char* source, const char* tests[]) {
 
 
 TEST(StackLoadVariables) {
+  FLAG_stress_fullcodegen = false;
   const char* source = "(function(a,r) { %s; return r; })";
   RunVariableTests(source, load_tests);
 }
 
 
 TEST(ContextLoadVariables) {
+  FLAG_stress_fullcodegen = false;
   const char* source = "(function(a,r) { %s; function f() {x} return r; })";
   RunVariableTests(source, load_tests);
 }
 
 
 TEST(StackStoreVariables) {
+  FLAG_stress_fullcodegen = false;
   const char* source = "(function(a,r) { %s; return r; })";
   RunVariableTests(source, store_tests);
 }
 
 
 TEST(ContextStoreVariables) {
+  FLAG_stress_fullcodegen = false;
   const char* source = "(function(a,r) { %s; function f() {x} return r; })";
   RunVariableTests(source, store_tests);
 }
 
 
 TEST(SelfReferenceVariable) {
+  FLAG_stress_fullcodegen = false;
   FunctionTester T("(function self() { return self; })");
 
   T.CheckCall(T.function);

@@ -453,7 +453,7 @@ added: v0.7.7
 * `stream` {Readable}
 * `interface` {readline.Interface}
 
-The `readline.emitKeypressEvents()` method causes the given [Writable][]
+The `readline.emitKeypressEvents()` method causes the given [Readable][]
 `stream` to begin emitting `'keypress'` events corresponding to received input.
 
 Optionally, `interface` specifies a `readline.Interface` instance for which

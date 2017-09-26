@@ -9,7 +9,8 @@ assert.deepStrictEqual(
 );
 
 assert.deepStrictEqual(
-  Object.keys(constants.os).sort(), ['UV_UDP_REUSEADDR', 'errno', 'signals']
+  Object.keys(constants.os).sort(), ['UV_UDP_REUSEADDR', 'dlopen', 'errno',
+                                     'signals']
 );
 
 // Make sure all the constants objects don't inherit from Object.prototype
@@ -26,5 +27,5 @@ function test(obj) {
 
 [
   constants, constants.crypto, constants.fs, constants.os, constants.zlib,
-  constants.os.errno, constants.os.signals
+  constants.os.dlopen, constants.os.errno, constants.os.signals
 ].forEach(test);

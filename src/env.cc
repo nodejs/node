@@ -1,7 +1,5 @@
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "async-wrap.h"
-#include "v8.h"
 #include "v8-profiler.h"
 
 #if defined(_MSC_VER)
@@ -213,6 +211,12 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   }
 
   return true;
+}
+
+bool Environment::EmitNapiWarning() {
+  bool current_value = emit_napi_warning_;
+  emit_napi_warning_ = false;
+  return current_value;
 }
 
 void Environment::EnvPromiseHook(v8::PromiseHookType type,

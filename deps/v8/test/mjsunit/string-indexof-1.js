@@ -215,7 +215,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(0, f());
   assertEquals(0, f());
   assertEquals(0, f());
-  % OptimizeFunctionOnNextCall(f);
+  %OptimizeFunctionOnNextCall(f);
   assertEquals(0, f());
 
   function f2() {
@@ -224,7 +224,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(-1, f2());
   assertEquals(-1, f2());
   assertEquals(-1, f2());
-  % OptimizeFunctionOnNextCall(f2);
+  %OptimizeFunctionOnNextCall(f2);
   assertEquals(-1, f2());
 
   function f3() {
@@ -233,7 +233,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(0, f3());
   assertEquals(0, f3());
   assertEquals(0, f3());
-  % OptimizeFunctionOnNextCall(f3);
+  %OptimizeFunctionOnNextCall(f3);
   assertEquals(0, f3());
 
   function f4() {
@@ -242,7 +242,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(3, f4());
   assertEquals(3, f4());
   assertEquals(3, f4());
-  % OptimizeFunctionOnNextCall(f4);
+  %OptimizeFunctionOnNextCall(f4);
   assertEquals(3, f4());
 
   function f5() {
@@ -251,7 +251,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(1, f5());
   assertEquals(1, f5());
   assertEquals(1, f5());
-  % OptimizeFunctionOnNextCall(f5);
+  %OptimizeFunctionOnNextCall(f5);
   assertEquals(1, f5());
 
   function f6() {
@@ -260,7 +260,7 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(1, f6());
   assertEquals(1, f6());
   assertEquals(1, f6());
-  % OptimizeFunctionOnNextCall(f6);
+  %OptimizeFunctionOnNextCall(f6);
   assertEquals(1, f6());
 })();
 

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
+#define V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_
+
 #include "src/setup-isolate.h"
 
 namespace v8 {
@@ -20,3 +23,5 @@ class SetupIsolateDelegateForTests : public SetupIsolateDelegate {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_SETUP_ISOLATE_FOR_TESTS_H_

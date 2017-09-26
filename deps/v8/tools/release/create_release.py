@@ -77,24 +77,6 @@ class DetectLastRelease(Step):
 class PrepareChangeLog(Step):
   MESSAGE = "Prepare raw ChangeLog entry."
 
-  def Reload(self, body):
-    """Attempts to reload the commit message from rietveld in order to allow
-    late changes to the LOG flag. Note: This is brittle to future changes of
-    the web page name or structure.
-    """
-    match = re.search(r"^Review URL: https://codereview\.chromium\.org/(\d+)$",
-                      body, flags=re.M)
-    if match:
-      cl_url = ("https://codereview.chromium.org/%s/description"
-                % match.group(1))
-      try:
-        # Fetch from Rietveld but only retry once with one second delay since
-        # there might be many revisions.
-        body = self.ReadURL(cl_url, wait_plan=[1])
-      except urllib2.URLError:  # pragma: no cover
-        pass
-    return body
-
   def RunStep(self):
     self["date"] = self.GetDate()
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
@@ -107,7 +89,7 @@ class PrepareChangeLog(Step):
     commit_messages = [
       [
         self.GitLog(n=1, format="%s", git_hash=commit),
-        self.Reload(self.GitLog(n=1, format="%B", git_hash=commit)),
+        self.GitLog(n=1, format="%B", git_hash=commit),
         self.GitLog(n=1, format="%an", git_hash=commit),
       ] for commit in commits.splitlines()
     ]
@@ -221,6 +203,7 @@ class CommitBranch(Step):
 
     if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
+    text += "\n\nTBR=%s" % self._options.reviewer
     self["commit_title"] = text.splitlines()[0]
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
@@ -229,10 +212,17 @@ class CommitBranch(Step):
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
-class PushBranch(Step):
-  MESSAGE = "Push changes."
+class LandBranch(Step):
+  MESSAGE = "Upload and land changes."
 
   def RunStep(self):
+    if self._options.dry_run:
+      print "Dry run - upload CL."
+    else:
+      self.GitUpload(author=self._options.author,
+                     force=True,
+                     bypass_hooks=True,
+                     private=True)
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print "Dry run. Command:\ngit %s" % cmd
@@ -305,7 +295,7 @@ class CreateRelease(ScriptsBase):
       SetVersion,
       EnableMergeWatchlist,
       CommitBranch,
-      PushBranch,
+      LandBranch,
       TagRevision,
       CleanUp,
     ]

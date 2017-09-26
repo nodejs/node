@@ -33,7 +33,7 @@ function iterator(n) {
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    for (var pair of params) {
+    for (const pair of params) {
       noDead[0] = pair[0];
       noDead[1] = pair[1];
     }

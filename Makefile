@@ -386,9 +386,6 @@ test-pummel: all
 test-internet: all
 	$(PYTHON) tools/test.py internet
 
-test-debugger: all
-	$(PYTHON) tools/test.py debugger
-
 test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
@@ -883,26 +880,32 @@ bench: bench-net bench-http bench-fs bench-tls
 
 bench-ci: bench
 
-JSLINT_TARGETS = benchmark doc lib test tools
+LINT_JS_TARGETS = benchmark doc lib test tools
 
-jslint:
+lint-js:
 	@echo "Running JS linter..."
 	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules --ext=.js,.mjs,.md \
-	  $(JSLINT_TARGETS)
+	  $(LINT_JS_TARGETS)
 
-jslint-ci:
+jslint: lint-js
+	@echo "Please use lint-js instead of jslint"
+
+lint-js-ci:
 	@echo "Running JS linter..."
-	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(JSLINT_TARGETS)
+	$(NODE) tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
+		$(LINT_JS_TARGETS)
 
-CPPLINT_EXCLUDE ?=
-CPPLINT_EXCLUDE += src/node_root_certs.h
-CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
-CPPLINT_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/*.h)
+jslint-ci: lint-js-ci
+	@echo "Please use lint-js-ci instead of jslint-ci"
+
+LINT_CPP_EXCLUDE ?=
+LINT_CPP_EXCLUDE += src/node_root_certs.h
+LINT_CPP_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
+LINT_CPP_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/*.h)
 # These files were copied more or less verbatim from V8.
-CPPLINT_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
+LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
-CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
+LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
@@ -920,19 +923,22 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	tools/icu/*.h \
 	))
 
-cpplint:
+lint-cpp:
 	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
+	@$(PYTHON) tools/cpplint.py $(LINT_CPP_FILES)
 	@$(PYTHON) tools/check-imports.py
 
-ifneq ("","$(wildcard tools/eslint/bin/eslint.js)")
+cpplint: lint-cpp
+	@echo "Please use lint-cpp instead of cpplint"
+
+ifneq ("","$(wildcard tools/eslint/)")
 lint:
 	@EXIT_STATUS=0 ; \
-	$(MAKE) jslint || EXIT_STATUS=$$? ; \
-	$(MAKE) cpplint || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
-lint-ci: jslint-ci cpplint
+lint-ci: lint-js-ci lint-cpp
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
@@ -946,7 +952,6 @@ lint:
 	@echo "Linting is not available through the source tarball."
 	@echo "Use the git repo instead:" \
 		"$ git clone https://github.com/nodejs/node.git"
-	exit 1
 
 lint-ci: lint
 endif
@@ -980,7 +985,6 @@ endif
   coverage-build \
   coverage-clean \
   coverage-test \
-  cpplint \
   dist \
   distclean \
   doc \
@@ -991,10 +995,11 @@ endif
   install \
   install-bin \
   install-includes \
-  jslint \
-  jslint-ci \
   lint \
   lint-ci \
+  lint-cpp \
+  lint-js \
+  lint-js-ci \
   list-gtests \
   pkg \
   release-only \

@@ -132,8 +132,6 @@ v8_source_set("inspector") {
   sources += get_target_outputs(":inspector_injected_script")
   sources += get_target_outputs(":inspector_debugger_script")
   sources += [
-    "injected-script-native.cc",
-    "injected-script-native.h",
     "injected-script.cc",
     "injected-script.h",
     "inspected-context.cc",

@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var types = [
+const types = [
   'Uint8',
   'Uint16LE',
   'Uint16BE',
@@ -18,7 +18,7 @@ var types = [
   'Float64BE'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: types,
   millions: [1]
 });
@@ -30,7 +30,7 @@ const UINT8 = INT8 * 2;
 const UINT16 = INT16 * 2;
 const UINT32 = INT32 * 2;
 
-var mod = {
+const mod = {
   setInt8: INT8,
   setInt16: INT16,
   setInt32: INT32,

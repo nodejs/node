@@ -16,10 +16,10 @@ var second_smi_array = [2];
 var first_object_array = ["first"];
 var second_object_array = ["string"];
 
-assertTrue(%HasFastSmiElements(first_smi_array));
-assertTrue(%HasFastSmiElements(second_smi_array));
-assertTrue(%HasFastObjectElements(first_object_array));
-assertTrue(%HasFastObjectElements(second_object_array));
+assertTrue(%HasSmiElements(first_smi_array));
+assertTrue(%HasSmiElements(second_smi_array));
+assertTrue(%HasObjectElements(first_object_array));
+assertTrue(%HasObjectElements(second_object_array));
 
 // Prepare identical transition chains for smi and object arrays.
 first_smi_array.foo = 0;
@@ -49,8 +49,8 @@ for (var i = 0; i < 3; i++) Loader(second_smi_array);
 assertEquals("string", Loader(second_object_array));
 
 // Any of the following checks will also fail:
-assertTrue(%HasFastObjectElements(second_object_array));
-assertFalse(%HasFastSmiElements(second_object_array));
+assertTrue(%HasObjectElements(second_object_array));
+assertFalse(%HasSmiElements(second_object_array));
 assertTrue(%HaveSameMap(first_object_array, second_object_array));
 assertFalse(%HaveSameMap(first_smi_array, second_object_array));
 

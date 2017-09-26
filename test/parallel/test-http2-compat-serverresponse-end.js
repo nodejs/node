@@ -15,15 +15,82 @@ const {
 } = require('http2');
 
 {
-  // Http2ServerResponse.end callback is called only the first time,
-  // but may be invoked repeatedly without throwing errors.
+  // Http2ServerResponse.end accepts chunk, encoding, cb as args
+  // It may be invoked repeatedly without throwing errors
+  // but callback will only be called once
   const server = createServer(mustCall((request, response) => {
     strictEqual(response.closed, false);
+    response.end('end', 'utf8', mustCall(() => {
+      strictEqual(response.closed, true);
+      response.end(mustNotCall());
+      process.nextTick(() => {
+        response.end(mustNotCall());
+        server.close();
+      });
+    }));
+    response.end(mustNotCall());
+  }));
+  server.listen(0, mustCall(() => {
+    let data = '';
+    const { port } = server.address();
+    const url = `http://localhost:${port}`;
+    const client = connect(url, mustCall(() => {
+      const headers = {
+        ':path': '/',
+        ':method': 'GET',
+        ':scheme': 'http',
+        ':authority': `localhost:${port}`
+      };
+      const request = client.request(headers);
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => (data += chunk));
+      request.on('end', mustCall(() => {
+        strictEqual(data, 'end');
+        client.destroy();
+      }));
+      request.end();
+      request.resume();
+    }));
+  }));
+}
+
+{
+  // Http2ServerResponse.end can omit encoding arg, sets it to utf-8
+  const server = createServer(mustCall((request, response) => {
+    response.end('test\uD83D\uDE00', mustCall(() => {
+      server.close();
+    }));
+  }));
+  server.listen(0, mustCall(() => {
+    let data = '';
+    const { port } = server.address();
+    const url = `http://localhost:${port}`;
+    const client = connect(url, mustCall(() => {
+      const headers = {
+        ':path': '/',
+        ':method': 'GET',
+        ':scheme': 'http',
+        ':authority': `localhost:${port}`
+      };
+      const request = client.request(headers);
+      request.setEncoding('utf8');
+      request.on('data', (chunk) => (data += chunk));
+      request.on('end', mustCall(() => {
+        strictEqual(data, 'test\uD83D\uDE00');
+        client.destroy();
+      }));
+      request.end();
+      request.resume();
+    }));
+  }));
+}
+
+{
+  // Http2ServerResponse.end can omit chunk & encoding args
+  const server = createServer(mustCall((request, response) => {
     response.end(mustCall(() => {
       server.close();
     }));
-    response.end(mustNotCall());
-    strictEqual(response.closed, true);
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();

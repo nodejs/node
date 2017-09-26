@@ -165,13 +165,12 @@ class V8_BASE_EXPORT OS {
   // Allocate/Free memory used by JS heap. Permissions are set according to the
   // is_* flags. Returns the address of allocated memory, or NULL if failed.
   static void* Allocate(const size_t requested, size_t* allocated,
-                        MemoryPermission access);
+                        MemoryPermission access, void* hint = nullptr);
   // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
   // Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested,
-                        size_t* allocated,
-                        bool is_executable);
+  static void* Allocate(const size_t requested, size_t* allocated,
+                        bool is_executable, void* hint = nullptr);
   static void Free(void* address, const size_t size);
 
   // Allocates a region of memory that is inaccessible. On Windows this reserves
@@ -202,7 +201,7 @@ class V8_BASE_EXPORT OS {
   static void Sleep(TimeDelta interval);
 
   // Abort the current process.
-  V8_NORETURN static void Abort();
+  [[noreturn]] static void Abort();
 
   // Debug break.
   static void DebugBreak();
@@ -297,12 +296,12 @@ class V8_BASE_EXPORT VirtualMemory {
   VirtualMemory();
 
   // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size);
+  explicit VirtualMemory(size_t size, void* hint);
 
   // Reserves virtual memory containing an area of the given size that
   // is aligned per alignment. This may not be at the position returned
   // by address().
-  VirtualMemory(size_t size, size_t alignment);
+  VirtualMemory(size_t size, size_t alignment, void* hint);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -313,7 +312,7 @@ class V8_BASE_EXPORT VirtualMemory {
   ~VirtualMemory();
 
   // Returns whether the memory has been reserved.
-  bool IsReserved();
+  bool IsReserved() const { return address_ != nullptr; }
 
   // Initialize or resets an embedded VirtualMemory object.
   void Reset();
@@ -322,16 +321,22 @@ class V8_BASE_EXPORT VirtualMemory {
   // If the memory was reserved with an alignment, this address is not
   // necessarily aligned. The user might need to round it up to a multiple of
   // the alignment to get the start of the aligned block.
-  void* address() {
+  void* address() const {
     DCHECK(IsReserved());
     return address_;
+  }
+
+  void* end() const {
+    DCHECK(IsReserved());
+    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address_) +
+                                   size_);
   }
 
   // Returns the size of the reserved memory. The returned value is only
   // meaningful when IsReserved() returns true.
   // If the memory was reserved with an alignment, this size may be larger
   // than the requested size.
-  size_t size() { return size_; }
+  size_t size() const { return size_; }
 
   // Commits real memory. Returns whether the operation succeeded.
   bool Commit(void* address, size_t size, bool is_executable);
@@ -342,21 +347,22 @@ class V8_BASE_EXPORT VirtualMemory {
   // Creates a single guard page at the given address.
   bool Guard(void* address);
 
-  // Releases the memory after |free_start|.
-  void ReleasePartial(void* free_start) {
+  // Releases the memory after |free_start|. Returns the bytes released.
+  size_t ReleasePartial(void* free_start) {
     DCHECK(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live
     // inside the allocated region.
-    size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
-                           reinterpret_cast<size_t>(address_));
+    const size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
+                                 reinterpret_cast<size_t>(address_));
     CHECK(InVM(free_start, size));
     DCHECK_LT(address_, free_start);
     DCHECK_LT(free_start, reinterpret_cast<void*>(
                               reinterpret_cast<size_t>(address_) + size_));
-    bool result = ReleasePartialRegion(address_, size_, free_start, size);
+    const bool result = ReleasePartialRegion(address_, size_, free_start, size);
     USE(result);
     DCHECK(result);
     size_ -= size;
+    return size;
   }
 
   void Release() {
@@ -381,7 +387,7 @@ class V8_BASE_EXPORT VirtualMemory {
     from->Reset();
   }
 
-  static void* ReserveRegion(size_t size);
+  static void* ReserveRegion(size_t size, void* hint);
 
   static bool CommitRegion(void* base, size_t size, bool is_executable);
 

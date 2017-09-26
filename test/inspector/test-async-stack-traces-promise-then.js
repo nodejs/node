@@ -31,15 +31,18 @@ async function runTests() {
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
 
+  await session.waitForBreakOnLine(0, '[eval]');
+  await session.send({ 'method': 'Debugger.resume' });
+
   console.error('[test] Waiting for break1');
-  debuggerPausedAt(await session.waitForBreakOnLine(4, '[eval]'),
-                   'break1', 'runTest:3');
+  debuggerPausedAt(await session.waitForBreakOnLine(6, '[eval]'),
+                   'break1', 'runTest:5');
 
   await session.send({ 'method': 'Debugger.resume' });
 
   console.error('[test] Waiting for break2');
-  debuggerPausedAt(await session.waitForBreakOnLine(7, '[eval]'),
-                   'break2', 'runTest:6');
+  debuggerPausedAt(await session.waitForBreakOnLine(9, '[eval]'),
+                   'break2', 'runTest:8');
 
   await session.runToCompletion();
   assert.strictEqual(0, (await instance.expectShutdown()).exitCode);

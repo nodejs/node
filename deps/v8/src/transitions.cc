@@ -181,7 +181,7 @@ Map* TransitionArray::SearchTransition(Map* map, PropertyKind kind, Name* name,
 
 
 // static
-Map* TransitionArray::SearchSpecial(Map* map, Symbol* name) {
+Map* TransitionArray::SearchSpecial(const Map* map, Symbol* name) {
   Object* raw_transitions = map->raw_transitions();
   if (IsFullTransitionArray(raw_transitions)) {
     TransitionArray* transitions = TransitionArray::cast(raw_transitions);

@@ -15,6 +15,7 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
+#include "src/double.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
@@ -34,8 +35,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
-  // TODO(dcarney): recover bit. INVALID can be represented as UNALLOCATED with
-  // kInvalidVirtualRegister and some DCHECKS.
   enum Kind {
     INVALID,
     UNALLOCATED,
@@ -167,7 +166,7 @@ std::ostream& operator<<(std::ostream& os,
     return *static_cast<const OperandType*>(&op);                \
   }
 
-class UnallocatedOperand : public InstructionOperand {
+class UnallocatedOperand final : public InstructionOperand {
  public:
   enum BasicPolicy { FIXED_SLOT, EXTENDED_POLICY };
 
@@ -183,15 +182,14 @@ class UnallocatedOperand : public InstructionOperand {
 
   // Lifetime of operand inside the instruction.
   enum Lifetime {
-    // USED_AT_START operand is guaranteed to be live only at
-    // instruction start. Register allocator is free to assign the same register
-    // to some other operand used inside instruction (i.e. temporary or
-    // output).
+    // USED_AT_START operand is guaranteed to be live only at instruction start.
+    // The register allocator is free to assign the same register to some other
+    // operand used inside instruction (i.e. temporary or output).
     USED_AT_START,
 
-    // USED_AT_END operand is treated as live until the end of
-    // instruction. This means that register allocator will not reuse it's
-    // register for any other operand inside instruction.
+    // USED_AT_END operand is treated as live until the end of instruction.
+    // This means that register allocator will not reuse its register for any
+    // other operand inside instruction.
     USED_AT_END
   };
 
@@ -231,6 +229,12 @@ class UnallocatedOperand : public InstructionOperand {
       : UnallocatedOperand(FIXED_REGISTER, reg_id, virtual_register) {
     value_ |= HasSecondaryStorageField::encode(true);
     value_ |= SecondaryStorageField::encode(slot_id);
+  }
+
+  UnallocatedOperand(const UnallocatedOperand& other, int virtual_register) {
+    DCHECK_NE(kInvalidVirtualRegister, virtual_register);
+    value_ = VirtualRegisterField::update(
+        other.value_, static_cast<uint32_t>(virtual_register));
   }
 
   // Predicates for the operand policy.
@@ -275,7 +279,6 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [basic_policy]: Distinguish between FIXED_SLOT and all other policies.
   BasicPolicy basic_policy() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return BasicPolicyField::decode(value_);
   }
 
@@ -300,14 +303,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [virtual_register]: The virtual register ID for this operand.
   int32_t virtual_register() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return static_cast<int32_t>(VirtualRegisterField::decode(value_));
-  }
-
-  // TODO(dcarney): remove this.
-  void set_virtual_register(int32_t id) {
-    DCHECK_EQ(UNALLOCATED, kind());
-    value_ = VirtualRegisterField::update(value_, static_cast<uint32_t>(id));
   }
 
   // [lifetime]: Only for non-FIXED_SLOT.
@@ -484,9 +480,6 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
-      case MachineRepresentation::kSimd1x4:
-      case MachineRepresentation::kSimd1x8:
-      case MachineRepresentation::kSimd1x16:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
@@ -498,7 +491,6 @@ class LocationOperand : public InstructionOperand {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   static LocationOperand* cast(InstructionOperand* op) {
@@ -596,9 +588,8 @@ bool InstructionOperand::IsDoubleRegister() const {
 }
 
 bool InstructionOperand::IsSimd128Register() const {
-  return IsAnyRegister() &&
-         LocationOperand::cast(this)->representation() ==
-             MachineRepresentation::kSimd128;
+  return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
+                                MachineRepresentation::kSimd128;
 }
 
 bool InstructionOperand::IsAnyStackSlot() const {
@@ -903,6 +894,10 @@ class V8_EXPORT_PRIVATE Instruction final {
            FlagsModeField::decode(opcode()) == kFlags_deoptimize;
   }
 
+  bool IsTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_trap;
+  }
+
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
@@ -1080,19 +1075,9 @@ class V8_EXPORT_PRIVATE Constant final {
     return bit_cast<uint32_t>(static_cast<int32_t>(value_));
   }
 
-  double ToFloat64() const {
-    // TODO(ahaas): We should remove this function. If value_ has the bit
-    // representation of a signalling NaN, then returning it as float can cause
-    // the signalling bit to flip, and value_ is returned as a quiet NaN.
-    if (type() == kInt32) return ToInt32();
+  Double ToFloat64() const {
     DCHECK_EQ(kFloat64, type());
-    return bit_cast<double>(value_);
-  }
-
-  uint64_t ToFloat64AsInt() const {
-    if (type() == kInt32) return ToInt32();
-    DCHECK_EQ(kFloat64, type());
-    return bit_cast<uint64_t>(value_);
+    return Double(bit_cast<uint64_t>(value_));
   }
 
   ExternalReference ToExternalReference() const {
@@ -1106,6 +1091,7 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   Handle<HeapObject> ToHeapObject() const;
+  Handle<Code> ToCode() const;
 
  private:
   Type type_;
@@ -1302,11 +1288,11 @@ class FrameStateDescriptor : public ZoneObject {
   MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasContext() const {
-    return FrameStateFunctionInfo::IsJSFunctionType(type_);
+    return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
+           type_ == FrameStateType::kBuiltinContinuation;
   }
 
-  size_t GetSize(OutputFrameStateCombine combine =
-                     OutputFrameStateCombine::Ignore()) const;
+  size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
@@ -1599,7 +1585,6 @@ class V8_EXPORT_PRIVATE InstructionSequence final
       }
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,

@@ -12,12 +12,11 @@ const { checkInvocations } = require('./hook-checks');
 const hooks = initHooks();
 hooks.enable();
 
-assert.throws(() => {
-  new AsyncResource();
-}, common.expectsError({
-  code: 'ERR_ASYNC_TYPE',
-  type: TypeError,
-}));
+common.expectsError(
+  () => new AsyncResource(), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+  });
 assert.throws(() => {
   new AsyncResource('invalid_trigger_id', null);
 }, common.expectsError({

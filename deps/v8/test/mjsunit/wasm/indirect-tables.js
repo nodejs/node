@@ -524,10 +524,56 @@ function js_div(a, b) { return (a / b) | 0; }
   assertThrows(() => table.grow(21));
 })();
 
+(function MultipleElementSegments() {
+  let kTableSize = 10;
+  print("MultipleElementSegments...");
+
+  let mul = (a, b) => a * b;
+  let add = (a, b) => a + b;
+  let sub = (a, b) => a - b;
+
+  // Test 1 to 3 segments in the elements section.
+  // segment 1 sets [1, 2] to mul,
+  // segment 2 sets [2, 3, 4] to add,
+  // segment 3 sets [3, 4, 5, 6] to sub.
+  for (let num_segments = 1; num_segments < 4; ++num_segments) {
+    var builder = new WasmModuleBuilder();
+
+    builder.setFunctionTableLength(kTableSize);
+    builder.addExportOfKind("table", kExternalTable, 0);
+    let f = AddFunctions(builder);
+    let indexes = [f.mul.index, f.add.index, f.sub.index];
+    for (let i = 0; i < num_segments; ++i) {
+      let offset = i + 1;
+      let len = i + 2;
+      let index = indexes[i];
+      builder.addFunctionTableInit(offset, false, new Array(len).fill(index));
+    }
+
+    let instance = builder.instantiate();
+
+    let table = instance.exports.table;
+    assertEquals(kTableSize, table.length);
+
+    for (let i = 0; i < num_segments; ++i) {
+      let exp = i < 1 || i > 2 ? null : mul;
+      if (num_segments > 1 && i >= 2 && i <= 4) exp = add;
+      if (num_segments > 2 && i >= 3 && i <= 6) exp = sub;
+      if (!exp) {
+        assertSame(null, table.get(i));
+      } else {
+        assertEquals("function", typeof table.get(i));
+    assertEquals(exp(6, 3), table.get(i)(6, 3));
+      }
+    }
+  }
+})();
+
 (function InitImportedTableSignatureMismatch() {
   // instance0 exports a function table and a main function which indirectly
   // calls a function from the table.
   let builder0 = new WasmModuleBuilder();
+  builder0.setName('module_0');
   let sig_index = builder0.addType(kSig_i_v);
   builder0.addFunction('main', kSig_i_i)
       .addBody([
@@ -542,6 +588,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   // instance1 imports the table and adds a function to it.
   let builder1 = new WasmModuleBuilder();
+  builder1.setName('module_1');
   builder1.addFunction('f', kSig_i_i).addBody([kExprGetLocal, 0]);
   builder1.addImportedTable('z', 'table');
   builder1.addFunctionTableInit(0, false, [0], true);
@@ -552,5 +599,6 @@ function js_div(a, b) { return (a / b) | 0; }
   // Calling the main method on instance0 should fail, because the signature of
   // the added function does not match.
   assertThrows(
-      () => instance0.exports.main(0), WebAssembly.RuntimeError);
+      () => instance0.exports.main(0), WebAssembly.RuntimeError,
+      /signature mismatch/);
 })();

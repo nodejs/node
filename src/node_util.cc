@@ -1,8 +1,5 @@
-#include "node.h"
+#include "node_internals.h"
 #include "node_watchdog.h"
-#include "v8.h"
-#include "env.h"
-#include "env-inl.h"
 
 namespace node {
 namespace util {
@@ -22,6 +19,7 @@ using v8::Value;
 
 #define VALUE_METHOD_MAP(V)                                                   \
   V(isArrayBuffer, IsArrayBuffer)                                             \
+  V(isArrayBufferView, IsArrayBufferView)                                     \
   V(isAsyncFunction, IsAsyncFunction)                                         \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \
@@ -82,6 +80,12 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   ret->Set(1, proxy->GetHandler());
 
   args.GetReturnValue().Set(ret);
+}
+
+// Side effect-free stringification that will never throw exceptions.
+static void SafeToString(const FunctionCallbackInfo<Value>& args) {
+  auto context = args.GetIsolate()->GetCurrentContext();
+  args.GetReturnValue().Set(args[0]->ToDetailString(context).ToLocalChecked());
 }
 
 inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
@@ -221,6 +225,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethod(target, "getPromiseDetails", GetPromiseDetails);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
+  env->SetMethod(target, "safeToString", SafeToString);
 
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);

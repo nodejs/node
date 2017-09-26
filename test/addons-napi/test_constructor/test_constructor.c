@@ -59,9 +59,9 @@ napi_value GetStaticValue(napi_env env, napi_callback_info info) {
 }
 
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value number;
-  NAPI_CALL_RETURN_VOID(env, napi_create_double(env, value_, &number));
+  NAPI_CALL(env, napi_create_double(env, value_, &number));
 
   napi_property_descriptor properties[] = {
     { "echo", 0, Echo, 0, 0, 0, napi_enumerable, 0 },
@@ -77,14 +77,12 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   };
 
   napi_value cons;
-  NAPI_CALL_RETURN_VOID(env, napi_define_class(env, "MyObject", New,
-    NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
+  NAPI_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
+      NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
 
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, module, "exports", cons));
+  NAPI_CALL(env, napi_create_reference(env, cons, 1, &constructor_));
 
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_reference(env, cons, 1, &constructor_));
+  return cons;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

@@ -82,6 +82,23 @@ InspectorTest.runAsyncTestSuite([
     await Protocol1.Debugger.resume();
   },
 
+  async function testResumeAnotherGroup() {
+    let contextGroup2 = new InspectorTest.ContextGroup();
+    let session2 = contextGroup2.connect();
+    session2.setupScriptMap();
+    let Protocol2 = session2.Protocol;
+    Protocol2.Debugger.enable();
+    Protocol1.Debugger.pause();
+    Protocol1.Runtime.evaluate({expression: 'var a = 42;'});
+    await waitPauseAndDumpLocation(session1);
+    InspectorTest.logMessage(await Protocol2.Debugger.resume());
+    InspectorTest.logMessage(await Protocol2.Debugger.stepOver());
+    InspectorTest.logMessage(await Protocol2.Debugger.stepInto());
+    InspectorTest.logMessage(await Protocol2.Debugger.stepOut());
+    await Protocol1.Debugger.resume();
+    await Protocol2.Debugger.disable();
+  },
+
   async function testDisableBreaksShouldCancelPause() {
     await Protocol1.Debugger.pause();
     await Protocol1.Debugger.setBreakpointsActive({active: false});

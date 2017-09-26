@@ -18,7 +18,8 @@ napi_value checkError(napi_env env, napi_callback_info info) {
 napi_value throwExistingError(napi_env env, napi_callback_info info) {
   napi_value message;
   napi_value error;
-  NAPI_CALL(env, napi_create_string_utf8(env, "existing error", -1, &message));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "existing error", NAPI_AUTO_LENGTH, &message));
   NAPI_CALL(env, napi_create_error(env, nullptr,  message, &error));
   NAPI_CALL(env, napi_throw(env, error));
   return nullptr;
@@ -62,7 +63,8 @@ napi_value throwTypeErrorCode(napi_env env, napi_callback_info info) {
 napi_value createError(napi_env env, napi_callback_info info) {
   napi_value result;
   napi_value message;
-  NAPI_CALL(env, napi_create_string_utf8(env, "error", -1, &message));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "error", NAPI_AUTO_LENGTH, &message));
   NAPI_CALL(env, napi_create_error(env, nullptr, message, &result));
   return result;
 }
@@ -70,7 +72,8 @@ napi_value createError(napi_env env, napi_callback_info info) {
 napi_value createRangeError(napi_env env, napi_callback_info info) {
   napi_value result;
   napi_value message;
-  NAPI_CALL(env, napi_create_string_utf8(env, "range error", -1, &message));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "range error", NAPI_AUTO_LENGTH, &message));
   NAPI_CALL(env, napi_create_range_error(env, nullptr, message, &result));
   return result;
 }
@@ -78,7 +81,8 @@ napi_value createRangeError(napi_env env, napi_callback_info info) {
 napi_value createTypeError(napi_env env, napi_callback_info info) {
   napi_value result;
   napi_value message;
-  NAPI_CALL(env, napi_create_string_utf8(env, "type error", -1, &message));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "type error", NAPI_AUTO_LENGTH, &message));
   NAPI_CALL(env, napi_create_type_error(env, nullptr, message, &result));
   return result;
 }
@@ -87,8 +91,10 @@ napi_value createErrorCode(napi_env env, napi_callback_info info) {
   napi_value result;
   napi_value message;
   napi_value code;
-  NAPI_CALL(env, napi_create_string_utf8(env, "Error [error]", -1, &message));
-  NAPI_CALL(env, napi_create_string_utf8(env, "ERR_TEST_CODE", -1, &code));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "Error [error]", NAPI_AUTO_LENGTH, &message));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "ERR_TEST_CODE", NAPI_AUTO_LENGTH, &code));
   NAPI_CALL(env, napi_create_error(env, code, message, &result));
   return result;
 }
@@ -99,9 +105,10 @@ napi_value createRangeErrorCode(napi_env env, napi_callback_info info) {
   napi_value code;
   NAPI_CALL(env, napi_create_string_utf8(env,
                                          "RangeError [range error]",
-                                         -1,
+                                         NAPI_AUTO_LENGTH,
                                          &message));
-  NAPI_CALL(env, napi_create_string_utf8(env, "ERR_TEST_CODE", -1, &code));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "ERR_TEST_CODE", NAPI_AUTO_LENGTH, &code));
   NAPI_CALL(env, napi_create_range_error(env, code, message, &result));
   return result;
 }
@@ -112,14 +119,15 @@ napi_value createTypeErrorCode(napi_env env, napi_callback_info info) {
   napi_value code;
   NAPI_CALL(env, napi_create_string_utf8(env,
                                          "TypeError [type error]",
-                                         -1,
+                                         NAPI_AUTO_LENGTH,
                                          &message));
-  NAPI_CALL(env, napi_create_string_utf8(env, "ERR_TEST_CODE", -1, &code));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "ERR_TEST_CODE", NAPI_AUTO_LENGTH, &code));
   NAPI_CALL(env, napi_create_type_error(env, code, message, &result));
   return result;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("checkError", checkError),
     DECLARE_NAPI_PROPERTY("throwExistingError", throwExistingError),
@@ -137,8 +145,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("createTypeErrorCode", createTypeErrorCode),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

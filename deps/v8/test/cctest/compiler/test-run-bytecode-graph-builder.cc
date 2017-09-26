@@ -44,7 +44,6 @@ static MaybeHandle<Object> CallFunction(Isolate* isolate,
                          isolate->factory()->undefined_value(), 0, nullptr);
 }
 
-
 template <class... A>
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
                                         Handle<JSFunction> function,
@@ -54,7 +53,6 @@ static MaybeHandle<Object> CallFunction(Isolate* isolate,
                          isolate->factory()->undefined_value(), sizeof...(args),
                          argv);
 }
-
 
 template <class... A>
 class BytecodeGraphCallable {
@@ -72,13 +70,12 @@ class BytecodeGraphCallable {
   Handle<JSFunction> function_;
 };
 
-
 class BytecodeGraphTester {
  public:
   BytecodeGraphTester(Isolate* isolate, const char* script,
                       const char* filter = kFunctionName)
       : isolate_(isolate), script_(script) {
-    i::FLAG_ignition = true;
+    i::FLAG_stress_fullcodegen = false;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_loop_assignment_analysis = false;
@@ -139,7 +136,6 @@ class BytecodeGraphTester {
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphTester);
 };
 
-
 #define SPACE()
 
 #define REPEAT_2(SEP, ...) __VA_ARGS__ SEP() __VA_ARGS__
@@ -169,7 +165,6 @@ class BytecodeGraphTester {
   SEP()                       \
   REPEAT_4(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__) SEP() __VA_ARGS__
 
-
 template <int N, typename T = Handle<Object>>
 struct ExpectedSnippet {
   const char* code_snippet;
@@ -183,7 +178,6 @@ struct ExpectedSnippet {
     return return_value_and_parameters[1 + i];
   }
 };
-
 
 TEST(BytecodeGraphBuilderReturnStatements) {
   HandleAndZoneScope scope;
@@ -219,7 +213,6 @@ TEST(BytecodeGraphBuilderReturnStatements) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderPrimitiveExpressions) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -244,7 +237,6 @@ TEST(BytecodeGraphBuilderPrimitiveExpressions) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderTwoParameterTests) {
   HandleAndZoneScope scope;
@@ -304,6 +296,103 @@ TEST(BytecodeGraphBuilderTwoParameterTests) {
   }
 }
 
+class OneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  OneByteResource(const char* data, size_t length)
+      : data_(data), length_(length) {}
+  ~OneByteResource() { i::DeleteArray(data_); }
+  virtual const char* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+TEST(BytecodeGraphBuilderStringConcat) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  v8::Isolate* ext_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  Factory* factory = isolate->factory();
+
+  uc16 array1[] = {2001, 2002, 2003};
+  Vector<const uc16> two_byte_str_1(array1);
+
+  uc16 array2[] = {1001, 1002, 1003, 1004, 1005, 1006};
+  Vector<const uc16> two_byte_str_2(array2);
+
+  uc16 array3[] = {1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009};
+  Vector<const uc16> two_byte_str_3(array3);
+
+  OneByteResource* external_resource =
+      new OneByteResource(StrDup("external"), 8);
+  v8::Local<v8::String> ext_string_local =
+      v8::String::NewExternalOneByte(ext_isolate, external_resource)
+          .ToLocalChecked();
+  Handle<String> external_string = v8::Utils::OpenHandle(*ext_string_local);
+
+  Handle<String> thin_string =
+      factory->NewStringFromAsciiChecked("thin_string");
+  factory->InternalizeString(thin_string);
+  DCHECK_IMPLIES(FLAG_thin_strings, thin_string->IsThinString());
+
+  Handle<String> sliced_string =
+      factory->NewStringFromAsciiChecked("string that is going to be sliced");
+  sliced_string = factory->NewProperSubString(sliced_string, 2, 27);
+  DCHECK_IMPLIES(FLAG_string_slices, sliced_string->IsSlicedString());
+
+  Handle<String> inputs[] = {
+      factory->NewStringFromAsciiChecked(""),
+      factory->NewStringFromAsciiChecked("a"),
+      factory->NewStringFromAsciiChecked("abc"),
+      factory->NewStringFromAsciiChecked("underconsmin"),
+      factory->NewStringFromAsciiChecked("long string over cons min length"),
+      factory->NewStringFromTwoByte(two_byte_str_1).ToHandleChecked(),
+      factory->NewStringFromTwoByte(two_byte_str_2).ToHandleChecked(),
+      factory->NewStringFromTwoByte(two_byte_str_3).ToHandleChecked(),
+      factory
+          ->NewConsString(factory->NewStringFromAsciiChecked("foo"),
+                          factory->NewStringFromAsciiChecked("bar"))
+          .ToHandleChecked(),
+      factory
+          ->NewConsString(factory->empty_string(),
+                          factory->NewStringFromAsciiChecked("bar"))
+          .ToHandleChecked(),
+      factory
+          ->NewConsString(factory->NewStringFromAsciiChecked("foo"),
+                          factory->empty_string())
+          .ToHandleChecked(),
+      external_string,
+      thin_string,
+      sliced_string,
+  };
+
+  for (size_t i = 0; i < arraysize(inputs); i++) {
+    for (size_t j = 0; j < arraysize(inputs); j++) {
+      ScopedVector<char> script(1024);
+      SNPrintF(script,
+               "function %s(p1, p2) { return 'abc' + p1 + p2; }\n;"
+               "%s('a', 'b');",
+               kFunctionName, kFunctionName);
+
+      BytecodeGraphTester tester(isolate, script.start());
+      auto callable = tester.GetCallable<Handle<Object>, Handle<Object>>();
+      Handle<Object> return_value =
+          callable(inputs[i], inputs[j]).ToHandleChecked();
+
+      Handle<String> expected =
+          factory
+              ->NewConsString(
+                  factory
+                      ->NewConsString(factory->NewStringFromAsciiChecked("abc"),
+                                      inputs[i])
+                      .ToHandleChecked(),
+                  inputs[j])
+              .ToHandleChecked();
+      CHECK(return_value->SameValue(*expected));
+    }
+  }
+}
 
 TEST(BytecodeGraphBuilderNamedLoad) {
   HandleAndZoneScope scope;
@@ -345,7 +434,6 @@ TEST(BytecodeGraphBuilderNamedLoad) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderKeyedLoad) {
   HandleAndZoneScope scope;
@@ -542,7 +630,6 @@ TEST(BytecodeGraphBuilderPropertyCall) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderCallNew) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -579,7 +666,6 @@ TEST(BytecodeGraphBuilderCallNew) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderCreateClosure) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -615,7 +701,6 @@ TEST(BytecodeGraphBuilderCreateClosure) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderCallRuntime) {
   HandleAndZoneScope scope;
@@ -718,7 +803,6 @@ TEST(BytecodeGraphBuilderToObject) {
   // TODO(mythria): tests for ToObject. Needs ForIn.
 }
 
-
 TEST(BytecodeGraphBuilderToName) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -761,7 +845,6 @@ TEST(BytecodeGraphBuilderToName) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderLogicalNot) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -791,7 +874,6 @@ TEST(BytecodeGraphBuilderLogicalNot) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderTypeOf) {
   HandleAndZoneScope scope;
@@ -924,7 +1006,6 @@ TEST(BytecodeGraphBuilderCountOperation) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderDelete) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -961,7 +1042,6 @@ TEST(BytecodeGraphBuilderDelete) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderDeleteGlobal) {
   HandleAndZoneScope scope;
@@ -1013,7 +1093,6 @@ TEST(BytecodeGraphBuilderDeleteGlobal) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderDeleteLookupSlot) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1048,7 +1127,6 @@ TEST(BytecodeGraphBuilderDeleteLookupSlot) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderLookupSlot) {
   HandleAndZoneScope scope;
@@ -1228,7 +1306,6 @@ TEST(BytecodeGraphBuilderLookupSlotWide) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderCallLookupSlot) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1255,7 +1332,6 @@ TEST(BytecodeGraphBuilderCallLookupSlot) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderEval) {
   HandleAndZoneScope scope;
@@ -1307,7 +1383,6 @@ TEST(BytecodeGraphBuilderEval) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderEvalParams) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1335,7 +1410,6 @@ TEST(BytecodeGraphBuilderEvalParams) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderEvalGlobal) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1361,7 +1435,6 @@ TEST(BytecodeGraphBuilderEvalGlobal) {
   }
 }
 
-
 bool get_compare_result(Token::Value opcode, Handle<Object> lhs_value,
                         Handle<Object> rhs_value) {
   switch (opcode) {
@@ -1383,10 +1456,8 @@ bool get_compare_result(Token::Value opcode, Handle<Object> lhs_value,
       return Object::GreaterThanOrEqual(lhs_value, rhs_value).FromJust();
     default:
       UNREACHABLE();
-      return false;
   }
 }
-
 
 const char* get_code_snippet(Token::Value opcode) {
   switch (opcode) {
@@ -1408,10 +1479,8 @@ const char* get_code_snippet(Token::Value opcode) {
       return "return p1 >= p2;";
     default:
       UNREACHABLE();
-      return "";
   }
 }
-
 
 TEST(BytecodeGraphBuilderCompare) {
   HandleAndZoneScope scope;
@@ -1447,7 +1516,6 @@ TEST(BytecodeGraphBuilderCompare) {
     }
   }
 }
-
 
 TEST(BytecodeGraphBuilderTestIn) {
   HandleAndZoneScope scope;
@@ -1495,7 +1563,6 @@ TEST(BytecodeGraphBuilderTestIn) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderTestInstanceOf) {
   HandleAndZoneScope scope;
@@ -1644,7 +1711,6 @@ TEST(BytecodeGraphBuilderThrow) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderContext) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1701,7 +1767,6 @@ TEST(BytecodeGraphBuilderContext) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderLoadContext) {
   HandleAndZoneScope scope;
@@ -1767,7 +1832,6 @@ TEST(BytecodeGraphBuilderLoadContext) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderCreateArgumentsNoParameters) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1796,7 +1860,6 @@ TEST(BytecodeGraphBuilderCreateArgumentsNoParameters) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderCreateArguments) {
   HandleAndZoneScope scope;
@@ -1919,7 +1982,6 @@ TEST(BytecodeGraphBuilderRegExpLiterals) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderArrayLiterals) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -1957,7 +2019,6 @@ TEST(BytecodeGraphBuilderArrayLiterals) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderObjectLiterals) {
   HandleAndZoneScope scope;
@@ -2020,7 +2081,6 @@ TEST(BytecodeGraphBuilderObjectLiterals) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderIf) {
   HandleAndZoneScope scope;
@@ -2130,7 +2190,6 @@ TEST(BytecodeGraphBuilderIf) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderConditionalOperator) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -2159,7 +2218,6 @@ TEST(BytecodeGraphBuilderConditionalOperator) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderSwitch) {
   HandleAndZoneScope scope;
@@ -2314,7 +2372,6 @@ TEST(BytecodeGraphBuilderNestedSwitch) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderBreakableBlocks) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -2353,7 +2410,6 @@ TEST(BytecodeGraphBuilderBreakableBlocks) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderWhile) {
   HandleAndZoneScope scope;
@@ -2402,7 +2458,6 @@ TEST(BytecodeGraphBuilderWhile) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderDo) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -2449,7 +2504,6 @@ TEST(BytecodeGraphBuilderDo) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderFor) {
   HandleAndZoneScope scope;
@@ -2543,7 +2597,6 @@ TEST(BytecodeGraphBuilderFor) {
   }
 }
 
-
 TEST(BytecodeGraphBuilderForIn) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
@@ -2613,7 +2666,6 @@ TEST(BytecodeGraphBuilderForIn) {
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
-
 
 TEST(BytecodeGraphBuilderForOf) {
   HandleAndZoneScope scope;

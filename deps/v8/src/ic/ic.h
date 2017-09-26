@@ -122,11 +122,9 @@ class IC {
   Handle<Object> ComputeHandler(LookupIterator* lookup);
   virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
   virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
     UNREACHABLE();
-    return Handle<Code>::null();
   }
 
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
@@ -423,17 +421,6 @@ class KeyedStoreIC : public StoreIC {
 };
 
 
-// Type Recording BinaryOpIC, that records the types of the inputs and outputs.
-class BinaryOpIC : public IC {
- public:
-  explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
-
-  MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
-                                 Handle<Object> left,
-                                 Handle<Object> right) WARN_UNUSED_RESULT;
-};
-
-
 class CompareIC : public IC {
  public:
   CompareIC(Isolate* isolate, Token::Value op)
@@ -461,16 +448,7 @@ class CompareIC : public IC {
   friend class IC;
 };
 
-
-class ToBooleanIC : public IC {
- public:
-  explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
-
-  Handle<Object> ToBoolean(Handle<Object> object);
-};
-
-
-// Helper for BinaryOpIC and CompareIC.
+// Helper for CompareIC.
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Isolate* isolate, Address address,
                          InlinedSmiCheck check);

@@ -102,7 +102,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
   }
 
   if (!kSimpleFPAliasing) {
-    if (reps && !base::bits::IsPowerOfTwo32(reps)) {
+    if (reps && !base::bits::IsPowerOfTwo(reps)) {
       // Start with the smallest FP moves, so we never encounter smaller moves
       // in the middle of a cycle of larger moves.
       if ((reps & kFloat32Bit) != 0) {

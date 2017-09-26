@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "gtest/gtest.h"
 #include "node.h"
+#include "node_platform.h"
 #include "env.h"
 #include "v8.h"
 #include "libplatform/libplatform.h"
@@ -66,7 +67,7 @@ struct Argv {
   int nr_args_;
 };
 
-uv_loop_t current_loop;
+extern uv_loop_t current_loop;
 
 class NodeTestFixture : public ::testing::Test {
  public:

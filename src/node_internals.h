@@ -27,6 +27,8 @@
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
+#include "env.h"
+#include "env-inl.h"
 #include "uv.h"
 #include "v8.h"
 #include "tracing/trace_event.h"
@@ -124,6 +126,14 @@ template <class TypeName>
 inline v8::Local<TypeName> PersistentToLocal(
     v8::Isolate* isolate,
     const v8::Persistent<TypeName>& persistent);
+
+// Creates a new context with Node.js-specific tweaks.  Currently, it removes
+// the `v8BreakIterator` property from the global `Intl` object if present.
+// See https://github.com/nodejs/node/issues/14909 for more info.
+v8::Local<v8::Context> NewContext(
+    v8::Isolate* isolate,
+    v8::Local<v8::ObjectTemplate> object_template =
+        v8::Local<v8::ObjectTemplate>());
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -276,7 +286,43 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
 }
 }  // namespace Buffer
 
+v8::MaybeLocal<v8::Value> InternalMakeCallback(
+    Environment* env,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext);
+
+class InternalCallbackScope {
+ public:
+  // Tell the constructor whether its `object` parameter may be empty or not.
+  enum ResourceExpectation { kRequireResource, kAllowEmptyResource };
+  InternalCallbackScope(Environment* env,
+                        v8::Local<v8::Object> object,
+                        const async_context& asyncContext,
+                        ResourceExpectation expect = kRequireResource);
+  ~InternalCallbackScope();
+  void Close();
+
+  inline bool Failed() const { return failed_; }
+  inline void MarkAsFailed() { failed_ = true; }
+  inline bool IsInnerMakeCallback() const {
+    return callback_scope_.in_makecallback();
+  }
+
+ private:
+  Environment* env_;
+  async_context async_context_;
+  v8::Local<v8::Object> object_;
+  Environment::AsyncCallbackScope callback_scope_;
+  bool failed_ = false;
+  bool pushed_ids_ = false;
+  bool closed_ = false;
+};
+
 }  // namespace node
+
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

@@ -1927,7 +1927,6 @@ bool RegExpBuilder::AddQuantifierToAtom(
   } else {
     // Only call immediately after adding an atom or character!
     UNREACHABLE();
-    return false;
   }
   terms_.Add(new (zone()) RegExpQuantifier(min, max, quantifier_type, atom),
              zone());

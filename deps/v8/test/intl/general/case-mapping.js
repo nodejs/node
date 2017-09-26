@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --icu_case_mapping
-
 // Some edge cases that unibrow got wrong
 
 assertEquals("𐐘", "𐑀".toUpperCase());

@@ -50,11 +50,14 @@ class UDPWrap: public HandleWrap {
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DropMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetMulticastInterface(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastLoopback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   uv_udp_t* UVHandle();

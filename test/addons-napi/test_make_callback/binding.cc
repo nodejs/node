@@ -24,25 +24,34 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
 
   NAPI_CALL(env, napi_typeof(env, func, &func_type));
 
+  napi_value resource_name;
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "test", NAPI_AUTO_LENGTH, &resource_name));
+
+  napi_async_context context;
+  NAPI_CALL(env, napi_async_init(env, func, resource_name, &context));
+
   napi_value result;
   if (func_type == napi_function) {
-    NAPI_CALL(env,
-      napi_make_callback(env, recv, func, argv.size(), argv.data(), &result));
+    NAPI_CALL(env, napi_make_callback(
+        env, context, recv, func, argv.size(), argv.data(), &result));
   } else {
     NAPI_ASSERT(env, false, "Unexpected argument type");
   }
 
+  NAPI_CALL(env, napi_async_destroy(env, context));
+
   return result;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_function(env, NULL, MakeCallback, NULL, &fn));
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, exports, "makeCallback", fn));
+  NAPI_CALL(env, napi_create_function(
+      env, NULL, NAPI_AUTO_LENGTH, MakeCallback, NULL, &fn));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
+  return exports;
 }
 
 }  // namespace
 
-NAPI_MODULE(binding, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

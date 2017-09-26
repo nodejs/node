@@ -164,7 +164,7 @@ void Log::MessageBuilder::Append(String* str) {
 }
 
 void Log::MessageBuilder::AppendAddress(Address addr) {
-  Append("%p", static_cast<void*>(addr));
+  Append("0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(addr));
 }
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {

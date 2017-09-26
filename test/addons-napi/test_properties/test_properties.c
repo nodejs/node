@@ -48,7 +48,7 @@ napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
   char buffer[128];
   size_t copied;
   NAPI_CALL(env,
-    napi_get_value_string_utf8(env, args[1], buffer, sizeof(buffer), &copied));
+      napi_get_value_string_utf8(env, args[1], buffer, sizeof(buffer), &copied));
 
   // do the check and create the boolean return value
   bool value;
@@ -59,25 +59,25 @@ napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
   return result;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value number;
-  NAPI_CALL_RETURN_VOID(env, napi_create_double(env, value_, &number));
+  NAPI_CALL(env, napi_create_double(env, value_, &number));
 
   napi_value name_value;
-  NAPI_CALL_RETURN_VOID(env, napi_create_string_utf8(env,
-                                                     "NameKeyValue",
-                                                     -1,
-                                                     &name_value));
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         "NameKeyValue",
+                                         NAPI_AUTO_LENGTH,
+                                         &name_value));
 
   napi_value symbol_description;
   napi_value name_symbol;
-  NAPI_CALL_RETURN_VOID(env, napi_create_string_utf8(env,
-                                                     "NameKeySymbol",
-                                                      -1,
-                                                     &symbol_description));
-  NAPI_CALL_RETURN_VOID(env, napi_create_symbol(env,
-                                                symbol_description,
-                                                &name_symbol));
+  NAPI_CALL(env, napi_create_string_utf8(env,
+                                         "NameKeySymbol",
+                                         NAPI_AUTO_LENGTH,
+                                         &symbol_description));
+  NAPI_CALL(env, napi_create_symbol(env,
+                                    symbol_description,
+                                    &name_symbol));
 
   napi_property_descriptor properties[] = {
     { "echo", 0, Echo, 0, 0, 0, napi_enumerable, 0 },
@@ -93,8 +93,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     { "hasNamedProperty", 0, HasNamedProperty, 0, 0, 0, napi_default, 0 },
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(properties) / sizeof(*properties), properties));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(properties) / sizeof(*properties), properties));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

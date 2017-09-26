@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-opt --track-field-types
-// Flags: --opt --no-always-opt
+// Flags: --opt --no-always-opt --no-stress-fullcodegen
 
 (function() {
   var o = { text: "Hello World!" };

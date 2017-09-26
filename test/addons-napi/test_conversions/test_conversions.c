@@ -81,7 +81,8 @@ napi_value AsString(napi_env env, napi_callback_info info) {
     napi_get_value_string_utf8(env, args[0], value, sizeof(value), NULL));
 
   napi_value output;
-  NAPI_CALL(env, napi_create_string_utf8(env, value, -1, &output));
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, value, NAPI_AUTO_LENGTH, &output));
 
   return output;
 }
@@ -130,7 +131,7 @@ napi_value ToString(napi_env env, napi_callback_info info) {
   return output;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("asBool", AsBool),
     DECLARE_NAPI_PROPERTY("asInt32", AsInt32),
@@ -144,8 +145,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("toString", ToString),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

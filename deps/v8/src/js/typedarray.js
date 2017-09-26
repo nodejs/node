@@ -233,18 +233,21 @@ endmacro
 
 TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
 
-function TypedArraySubArray(begin, end) {
-  switch (%_ClassOf(this)) {
+DEFINE_METHOD(
+  GlobalTypedArray.prototype,
+  subarray(begin, end) {
+    switch (%_ClassOf(this)) {
 macro TYPED_ARRAY_SUBARRAY_CASE(NAME, ELEMENT_SIZE)
-    case "NAME":
-      return %_Call(NAMESubArray, this, begin, end);
+      case "NAME":
+        return %_Call(NAMESubArray, this, begin, end);
 endmacro
 TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
+    }
+    throw %make_type_error(kIncompatibleMethodReceiver,
+                        "get %TypedArray%.prototype.subarray", this);
   }
-  throw %make_type_error(kIncompatibleMethodReceiver,
-                      "get %TypedArray%.prototype.subarray", this);
-}
-%SetForceInlineFlag(TypedArraySubArray);
+);
+%SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
 
 
@@ -314,87 +317,64 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
 }
 
-function TypedArraySet(obj, offset) {
-  var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-  if (intOffset < 0) throw %make_type_error(kTypedArraySetNegativeOffset);
+DEFINE_METHOD_LEN(
+  GlobalTypedArray.prototype,
+  set(obj, offset) {
+    var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
+    if (intOffset < 0) throw %make_type_error(kTypedArraySetNegativeOffset);
 
-  if (intOffset > %_MaxSmi()) {
-    throw %make_range_error(kTypedArraySetSourceTooLarge);
-  }
+    if (intOffset > %_MaxSmi()) {
+      throw %make_range_error(kTypedArraySetSourceTooLarge);
+    }
 
-  switch (%TypedArraySetFastCases(this, obj, intOffset)) {
-    // These numbers should be synchronized with runtime.cc.
-    case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE
-      return;
-    case 1: // TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING
-      TypedArraySetFromOverlappingTypedArray(this, obj, intOffset);
-      return;
-    case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
-      if (intOffset === 0) {
-        %TypedArrayCopyElements(this, obj, %_TypedArrayGetLength(obj));
-      } else {
-        TypedArraySetFromArrayLike(
-            this, obj, %_TypedArrayGetLength(obj), intOffset);
-      }
-      return;
-    case 3: // TYPED_ARRAY_SET_NON_TYPED_ARRAY
-      var l = obj.length;
-      if (IS_UNDEFINED(l)) {
-        if (IS_NUMBER(obj)) {
-            // For number as a first argument, throw TypeError
-            // instead of silently ignoring the call, so that
-            // users know they did something wrong.
-            // (Consistent with Firefox and Blink/WebKit)
-            throw %make_type_error(kInvalidArgument);
+    switch (%TypedArraySetFastCases(this, obj, intOffset)) {
+      // These numbers should be synchronized with runtime.cc.
+      case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE
+        return;
+      case 1: // TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING
+        TypedArraySetFromOverlappingTypedArray(this, obj, intOffset);
+        return;
+      case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
+        if (intOffset === 0) {
+          %TypedArrayCopyElements(this, obj, %_TypedArrayGetLength(obj));
+        } else {
+          TypedArraySetFromArrayLike(
+              this, obj, %_TypedArrayGetLength(obj), intOffset);
         }
         return;
-      }
-      l = TO_LENGTH(l);
-      if (intOffset + l > %_TypedArrayGetLength(this)) {
-        throw %make_range_error(kTypedArraySetSourceTooLarge);
-      }
-      TypedArraySetFromArrayLike(this, obj, l, intOffset);
-      return;
-  }
-}
-%FunctionSetLength(TypedArraySet, 1);
-
-function TypedArrayGetToStringTag() {
-  if (!IS_TYPEDARRAY(this)) return;
-  var name = %_ClassOf(this);
-  if (IS_UNDEFINED(name)) return;
-  return name;
-}
-
-function InnerTypedArrayForEach(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-
-  if (IS_UNDEFINED(receiver)) {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        f(element, i, array);
-      }
+      case 3: // TYPED_ARRAY_SET_NON_TYPED_ARRAY
+        var l = obj.length;
+        if (IS_UNDEFINED(l)) {
+          if (IS_NUMBER(obj)) {
+              // For number as a first argument, throw TypeError
+              // instead of silently ignoring the call, so that
+              // users know they did something wrong.
+              // (Consistent with Firefox and Blink/WebKit)
+              throw %make_type_error(kInvalidArgument);
+          }
+          return;
+        }
+        l = TO_LENGTH(l);
+        if (intOffset + l > %_TypedArrayGetLength(this)) {
+          throw %make_range_error(kTypedArraySetSourceTooLarge);
+        }
+        TypedArraySetFromArrayLike(this, obj, l, intOffset);
+        return;
     }
-  } else {
-    for (var i = 0; i < length; i++) {
-      if (i in array) {
-        var element = array[i];
-        %_Call(f, receiver, element, i, array);
-      }
-    }
+  },
+  1  /* Set function length. */
+);
+
+
+DEFINE_METHOD(
+  GlobalTypedArray.prototype,
+  get [toStringTagSymbol]() {
+    if (!IS_TYPEDARRAY(this)) return;
+    var name = %_ClassOf(this);
+    if (IS_UNDEFINED(name)) return;
+    return name;
   }
-}
-
-// ES6 draft 08-24-14, section 22.2.3.12
-function TypedArrayForEach(f, receiver) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.forEach");
-
-  var length = %_TypedArrayGetLength(this);
-
-  InnerTypedArrayForEach(f, receiver, this, length);
-}
-%FunctionSetLength(TypedArrayForEach, 1);
+);
 
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
@@ -415,88 +395,109 @@ function InnerTypedArrayFilter(f, receiver, array, length, result) {
 
 
 // ES6 draft 07-15-13, section 22.2.3.9
-function TypedArrayFilter(f, thisArg) {
-  ValidateTypedArray(this, "%TypeArray%.prototype.filter");
+DEFINE_METHOD_LEN(
+  GlobalTypedArray.prototype,
+  filter(f, thisArg) {
+    ValidateTypedArray(this, "%TypeArray%.prototype.filter");
 
-  var length = %_TypedArrayGetLength(this);
-  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-  var result = new InternalArray();
-  InnerTypedArrayFilter(f, thisArg, this, length, result);
-  var captured = result.length;
-  var output = TypedArraySpeciesCreate(this, captured);
-  for (var i = 0; i < captured; i++) {
-    output[i] = result[i];
-  }
-  return output;
-}
-%FunctionSetLength(TypedArrayFilter, 1);
+    var length = %_TypedArrayGetLength(this);
+    if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+    var result = new InternalArray();
+    InnerTypedArrayFilter(f, thisArg, this, length, result);
+    var captured = result.length;
+    var output = TypedArraySpeciesCreate(this, captured);
+    for (var i = 0; i < captured; i++) {
+      output[i] = result[i];
+    }
+    return output;
+  },
+  1  /* Set function length. */
+);
 
 
 // ES6 draft 07-15-13, section 22.2.3.10
-function TypedArrayFind(predicate, thisArg) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.find");
+DEFINE_METHOD_LEN(
+  GlobalTypedArray.prototype,
+  find(predicate, thisArg) {
+    ValidateTypedArray(this, "%TypedArray%.prototype.find");
 
-  var length = %_TypedArrayGetLength(this);
+    var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayFind(predicate, thisArg, this, length);
-}
-%FunctionSetLength(TypedArrayFind, 1);
+    return InnerArrayFind(predicate, thisArg, this, length);
+  },
+  1  /* Set function length. */
+);
 
 
 // ES6 draft 07-15-13, section 22.2.3.11
-function TypedArrayFindIndex(predicate, thisArg) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.findIndex");
+DEFINE_METHOD_LEN(
+  GlobalTypedArray.prototype,
+  findIndex(predicate, thisArg) {
+    ValidateTypedArray(this, "%TypedArray%.prototype.findIndex");
 
-  var length = %_TypedArrayGetLength(this);
+    var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayFindIndex(predicate, thisArg, this, length);
-}
-%FunctionSetLength(TypedArrayFindIndex, 1);
+    return InnerArrayFindIndex(predicate, thisArg, this, length);
+  },
+  1  /* Set function length. */
+);
 
 
 // ES6 draft 05-18-15, section 22.2.3.25
-function TypedArraySort(comparefn) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.sort");
+DEFINE_METHOD(
+  GlobalTypedArray.prototype,
+  sort(comparefn) {
+    ValidateTypedArray(this, "%TypedArray%.prototype.sort");
 
-  var length = %_TypedArrayGetLength(this);
+    var length = %_TypedArrayGetLength(this);
 
-  if (IS_UNDEFINED(comparefn)) {
-    return %TypedArraySortFast(this);
+    if (IS_UNDEFINED(comparefn)) {
+      return %TypedArraySortFast(this);
+    }
+
+    return InnerArraySort(this, length, comparefn);
   }
-
-  return InnerArraySort(this, length, comparefn);
-}
+);
 
 
 // ES6 section 22.2.3.27
-function TypedArrayToLocaleString() {
-  ValidateTypedArray(this, "%TypedArray%.prototype.toLocaleString");
+DEFINE_METHOD(
+  GlobalTypedArray.prototype,
+  toLocaleString() {
+    ValidateTypedArray(this, "%TypedArray%.prototype.toLocaleString");
 
-  var length = %_TypedArrayGetLength(this);
+    var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayToLocaleString(this, length);
-}
+    return InnerArrayToLocaleString(this, length);
+  }
+);
 
 
 // ES6 section 22.2.3.14
-function TypedArrayJoin(separator) {
-  ValidateTypedArray(this, "%TypedArray%.prototype.join");
+DEFINE_METHOD(
+  GlobalTypedArray.prototype,
+  join(separator) {
+    ValidateTypedArray(this, "%TypedArray%.prototype.join");
 
-  var length = %_TypedArrayGetLength(this);
+    var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayJoin(separator, this, length);
-}
+    return InnerArrayJoin(separator, this, length);
+  }
+);
 
 
 // ES6 draft 08-24-14, section 22.2.2.2
-function TypedArrayOf() {
-  var length = arguments.length;
-  var array = TypedArrayCreate(this, length);
-  for (var i = 0; i < length; i++) {
-    array[i] = arguments[i];
+DEFINE_METHOD(
+  GlobalTypedArray,
+  of() {
+    var length = arguments.length;
+    var array = TypedArrayCreate(this, length);
+    for (var i = 0; i < length; i++) {
+      array[i] = arguments[i];
+    }
+    return array;
   }
-  return array;
-}
+);
 
 
 // ES#sec-iterabletoarraylike Runtime Semantics: IterableToArrayLike( items )
@@ -520,31 +521,34 @@ function IterableToArrayLike(items) {
 
 // ES#sec-%typedarray%.from
 // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
-function TypedArrayFrom(source, mapfn, thisArg) {
-  if (!%IsConstructor(this)) throw %make_type_error(kNotConstructor, this);
-  var mapping;
-  if (!IS_UNDEFINED(mapfn)) {
-    if (!IS_CALLABLE(mapfn)) throw %make_type_error(kCalledNonCallable, this);
-    mapping = true;
-  } else {
-    mapping = false;
-  }
-  var arrayLike = IterableToArrayLike(source);
-  var length = TO_LENGTH(arrayLike.length);
-  var targetObject = TypedArrayCreate(this, length);
-  var value, mappedValue;
-  for (var i = 0; i < length; i++) {
-    value = arrayLike[i];
-    if (mapping) {
-      mappedValue = %_Call(mapfn, thisArg, value, i);
+DEFINE_METHOD_LEN(
+  GlobalTypedArray,
+  'from'(source, mapfn, thisArg) {
+    if (!%IsConstructor(this)) throw %make_type_error(kNotConstructor, this);
+    var mapping;
+    if (!IS_UNDEFINED(mapfn)) {
+      if (!IS_CALLABLE(mapfn)) throw %make_type_error(kCalledNonCallable, this);
+      mapping = true;
     } else {
-      mappedValue = value;
+      mapping = false;
     }
-    targetObject[i] = mappedValue;
-  }
-  return targetObject;
-}
-%FunctionSetLength(TypedArrayFrom, 1);
+    var arrayLike = IterableToArrayLike(source);
+    var length = TO_LENGTH(arrayLike.length);
+    var targetObject = TypedArrayCreate(this, length);
+    var value, mappedValue;
+    for (var i = 0; i < length; i++) {
+      value = arrayLike[i];
+      if (mapping) {
+        mappedValue = %_Call(mapfn, thisArg, value, i);
+      } else {
+        mappedValue = value;
+      }
+      targetObject[i] = mappedValue;
+    }
+    return targetObject;
+  },
+  1  /* Set function length. */
+);
 
 // TODO(bmeurer): Migrate this to a proper builtin.
 function TypedArrayConstructor() {
@@ -554,23 +558,7 @@ function TypedArrayConstructor() {
 // -------------------------------------------------------------------
 
 %SetCode(GlobalTypedArray, TypedArrayConstructor);
-utils.InstallFunctions(GlobalTypedArray, DONT_ENUM, [
-  "from", TypedArrayFrom,
-  "of", TypedArrayOf
-]);
-utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
-                    TypedArrayGetToStringTag);
-utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
-  "subarray", TypedArraySubArray,
-  "set", TypedArraySet,
-  "filter", TypedArrayFilter,
-  "find", TypedArrayFind,
-  "findIndex", TypedArrayFindIndex,
-  "join", TypedArrayJoin,
-  "forEach", TypedArrayForEach,
-  "sort", TypedArraySort,
-  "toLocaleString", TypedArrayToLocaleString
-]);
+
 
 %AddNamedProperty(GlobalTypedArray.prototype, "toString", ArrayToString,
                   DONT_ENUM);

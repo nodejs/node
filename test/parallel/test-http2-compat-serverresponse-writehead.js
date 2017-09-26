@@ -22,6 +22,11 @@ server.listen(0, common.mustCall(function() {
 
     response.on('finish', common.mustCall(function() {
       server.close();
+      process.nextTick(common.mustCall(() => {
+        common.expectsError(() => { response.writeHead(300); }, {
+          code: 'ERR_HTTP2_STREAM_CLOSED'
+        });
+      }));
     }));
     response.end();
   }));

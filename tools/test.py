@@ -789,7 +789,7 @@ class TestConfiguration(object):
     if len(path) > len(file):
       return False
     for i in xrange(len(path)):
-      if not path[i].match(file[i]):
+      if not path[i].match(NormalizePath(file[i])):
         return False
     return True
 

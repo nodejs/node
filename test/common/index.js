@@ -412,6 +412,11 @@ if (global.Symbol) {
   knownGlobals.push(Symbol);
 }
 
+if (process.env.NODE_TEST_KNOWN_GLOBALS) {
+  const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
+  allowGlobals(...knownFromEnv);
+}
+
 function allowGlobals(...whitelist) {
   knownGlobals = knownGlobals.concat(whitelist);
 }

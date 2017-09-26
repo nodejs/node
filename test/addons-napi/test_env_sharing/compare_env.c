@@ -14,9 +14,10 @@ napi_value compare(napi_env env, napi_callback_info info) {
   return return_value;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* context) {
-  napi_property_descriptor prop = DECLARE_NAPI_PROPERTY("exports", compare);
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &prop));
+napi_value Init(napi_env env, napi_value exports) {
+  NAPI_CALL(env, napi_create_function(
+      env, "exports", NAPI_AUTO_LENGTH, compare, NULL, &exports));
+  return exports;
 }
 
-NAPI_MODULE(compare_env, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

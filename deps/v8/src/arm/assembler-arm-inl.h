@@ -280,7 +280,7 @@ void RelocInfo::Visit(Heap* heap) {
 
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rm_ = no_reg;
-  imm32_ = immediate;
+  value_.immediate = immediate;
   rmode_ = rmode;
 }
 
@@ -288,14 +288,14 @@ Operand Operand::Zero() { return Operand(static_cast<int32_t>(0)); }
 
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
-  imm32_ = reinterpret_cast<int32_t>(f.address());
+  value_.immediate = reinterpret_cast<int32_t>(f.address());
   rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
-  imm32_ =  reinterpret_cast<intptr_t>(value);
+  value_.immediate = reinterpret_cast<intptr_t>(value);
   rmode_ = RelocInfo::NONE32;
 }
 
@@ -400,11 +400,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 
 
 bool Assembler::is_constant_pool_load(Address pc) {
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    return !Assembler::IsMovW(Memory::int32_at(pc));
-  } else {
-    return !Assembler::IsMovImmed(Memory::int32_at(pc));
-  }
+  return IsLdrPcImmediateOffset(Memory::int32_at(pc));
 }
 
 

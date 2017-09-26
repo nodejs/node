@@ -19,6 +19,8 @@ class V8_EXPORT_PRIVATE ValueNumberingReducer final
   explicit ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone);
   ~ValueNumberingReducer();
 
+  const char* reducer_name() const override { return "ValueNumberingReducer"; }
+
   Reduction Reduce(Node* node) override;
 
  private:

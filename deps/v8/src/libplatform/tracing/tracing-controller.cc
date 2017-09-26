@@ -7,6 +7,7 @@
 
 #include "include/libplatform/v8-tracing.h"
 
+#include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
 
 namespace v8 {
@@ -144,11 +145,13 @@ void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
     enabled_flag |= ENABLED_FOR_RECORDING;
   }
 
-  g_category_group_enabled[category_index] = enabled_flag;
+  base::Relaxed_Store(reinterpret_cast<base::Atomic8*>(
+                          g_category_group_enabled + category_index),
+                      enabled_flag);
 }
 
 void TracingController::UpdateCategoryGroupEnabledFlags() {
-  size_t category_index = base::NoBarrier_Load(&g_category_index);
+  size_t category_index = base::Relaxed_Load(&g_category_index);
   for (size_t i = 0; i < category_index; i++) UpdateCategoryGroupEnabledFlag(i);
 }
 

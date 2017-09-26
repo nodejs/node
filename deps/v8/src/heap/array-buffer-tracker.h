@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 #define V8_HEAP_ARRAY_BUFFER_TRACKER_H_
 
-#include <unordered_map>
+#include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/base/platform/mutex.h"
@@ -38,6 +38,9 @@ class ArrayBufferTracker : public AllStatic {
   // Does not take any locks and can only be called during Scavenge.
   static void FreeDeadInNewSpace(Heap* heap);
 
+  // Number of array buffer bytes retained from new space.
+  static size_t RetainedInNewSpace(Heap* heap);
+
   // Frees all backing store pointers for dead JSArrayBuffer on a given page.
   // Requires marking information to be present. Requires the page lock to be
   // taken by the caller.
@@ -60,17 +63,15 @@ class ArrayBufferTracker : public AllStatic {
 // Never use directly but instead always call through |ArrayBufferTracker|.
 class LocalArrayBufferTracker {
  public:
-  typedef JSArrayBuffer* Key;
-  typedef size_t Value;
-
   enum CallbackResult { kKeepEntry, kUpdateEntry, kRemoveEntry };
   enum FreeMode { kFreeDead, kFreeAll };
 
-  explicit LocalArrayBufferTracker(Heap* heap) : heap_(heap) {}
+  explicit LocalArrayBufferTracker(Heap* heap)
+      : heap_(heap), retained_size_(0) {}
   ~LocalArrayBufferTracker();
 
-  inline void Add(Key key, const Value& value);
-  inline Value Remove(Key key);
+  inline void Add(JSArrayBuffer* buffer, size_t length);
+  inline void Remove(JSArrayBuffer* buffer, size_t length);
 
   // Frees up array buffers.
   //
@@ -90,17 +91,23 @@ class LocalArrayBufferTracker {
   template <typename Callback>
   void Process(Callback callback);
 
-  bool IsEmpty() { return array_buffers_.empty(); }
+  bool IsEmpty() const { return array_buffers_.empty(); }
 
-  bool IsTracked(Key key) {
-    return array_buffers_.find(key) != array_buffers_.end();
+  bool IsTracked(JSArrayBuffer* buffer) const {
+    return array_buffers_.find(buffer) != array_buffers_.end();
   }
 
+  size_t retained_size() const { return retained_size_; }
+
  private:
-  typedef std::unordered_map<Key, Value> TrackingData;
+  typedef std::unordered_set<JSArrayBuffer*> TrackingData;
 
   Heap* heap_;
+  // The set contains raw heap pointers which are removed by the GC upon
+  // processing the tracker through its owning page.
   TrackingData array_buffers_;
+  // Retained size of array buffers for this tracker in bytes.
+  size_t retained_size_;
 };
 
 }  // namespace internal

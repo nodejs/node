@@ -13,10 +13,13 @@ function validateNormalizedArgs(input, output) {
 }
 
 // Test creation of normalized arguments.
-validateNormalizedArgs([], [{}, null]);
-validateNormalizedArgs([{ port: 1234 }], [{ port: 1234 }, null]);
-validateNormalizedArgs([{ port: 1234 }, assert.fail],
-                       [{ port: 1234 }, assert.fail]);
+const res = [{}, null];
+res[normalizedArgsSymbol] = true;
+validateNormalizedArgs([], res);
+res[0].port = 1234;
+validateNormalizedArgs([{ port: 1234 }], res);
+res[1] = assert.fail;
+validateNormalizedArgs([{ port: 1234 }, assert.fail], res);
 
 // Connecting to the server should fail with a standard array.
 {

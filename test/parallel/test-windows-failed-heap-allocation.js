@@ -10,7 +10,7 @@ const { exec } = require('child_process');
 
 if (process.argv[2] === 'heapBomb') {
   // heap bomb, imitates a memory leak quickly
-  const fn = (nM) => [...Array(nM)].map((i) => fn(nM ** 2));
+  const fn = (nM) => [...Array(nM)].map((i) => fn(nM * 2));
   fn(2);
 }
 

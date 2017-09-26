@@ -10,21 +10,12 @@ TOOLS_WASM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd ${TOOLS_WASM_DIR}/../..
 
 rm -rf test/fuzzer/wasm_corpus
-rm -rf test/fuzzer/wasm_asmjs_corpus
 
 tools/dev/gm.py x64.release all
 
 mkdir -p test/fuzzer/wasm_corpus
-mkdir -p test/fuzzer/wasm_asmjs_corpus
 
-# asm.js
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_asmjs_corpus/" mjsunit/wasm/asm*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_asmjs_corpus/" mjsunit/asm/*
-# WASM
+# wasm
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
   --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" unittests
@@ -45,12 +36,7 @@ for x in $(find ./test/fuzzer/wasm_corpus/ -type f -size +20k)
 do
   rm $x
 done
-for x in $(find ./test/fuzzer/wasm_asmjs_corpus/ -type f -size +20k)
-do
-  rm $x
-done
 
 # Upload changes.
 cd test/fuzzer
 upload_to_google_storage.py -a -b v8-wasm-fuzzer wasm_corpus
-upload_to_google_storage.py -a -b v8-wasm-asmjs-fuzzer wasm_asmjs_corpus

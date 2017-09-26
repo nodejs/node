@@ -38,7 +38,10 @@ class SnapshotByteSource final {
 
   void Advance(int by) { position_ += by; }
 
-  void CopyRaw(byte* to, int number_of_bytes);
+  void CopyRaw(byte* to, int number_of_bytes) {
+    memcpy(to, data_ + position_, number_of_bytes);
+    position_ += number_of_bytes;
+  }
 
   inline int GetInt() {
     // This way of decoding variable-length encoded integers does not

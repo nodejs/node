@@ -26,55 +26,55 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc --ignition-osr --no-always-opt
-// Flags: --opt
+// Flags: --opt --no-stress-fullcodegen
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
 function array_literal_test() {
   var a0 = [1, 2, 3];
-  assertTrue(%HasFastSmiElements(a0));
+  assertTrue(%HasSmiElements(a0));
   var a1 = [get(1), get(2), get(3)];
-  assertTrue(%HasFastSmiElements(a1));
+  assertTrue(%HasSmiElements(a1));
 
   var b0 = [1, 2, get("three")];
-  assertTrue(%HasFastObjectElements(b0));
+  assertTrue(%HasObjectElements(b0));
   var b1 = [get(1), get(2), get("three")];
-  assertTrue(%HasFastObjectElements(b1));
+  assertTrue(%HasObjectElements(b1));
 
   var c0 = [1, 2, get(3.5)];
-  assertTrue(%HasFastDoubleElements(c0));
+  assertTrue(%HasDoubleElements(c0));
   assertEquals(3.5, c0[2]);
   assertEquals(2, c0[1]);
   assertEquals(1, c0[0]);
 
   var c1 = [1, 2, 3.5];
-  assertTrue(%HasFastDoubleElements(c1));
+  assertTrue(%HasDoubleElements(c1));
   assertEquals(3.5, c1[2]);
   assertEquals(2, c1[1]);
   assertEquals(1, c1[0]);
 
   var c2 = [get(1), get(2), get(3.5)];
-  assertTrue(%HasFastDoubleElements(c2));
+  assertTrue(%HasDoubleElements(c2));
   assertEquals(3.5, c2[2]);
   assertEquals(2, c2[1]);
   assertEquals(1, c2[0]);
 
   var object = new Object();
   var d0 = [1, 2, object];
-  assertTrue(%HasFastObjectElements(d0));
+  assertTrue(%HasObjectElements(d0));
   assertEquals(object, d0[2]);
   assertEquals(2, d0[1]);
   assertEquals(1, d0[0]);
 
   var e0 = [1, 2, 3.5];
-  assertTrue(%HasFastDoubleElements(e0));
+  assertTrue(%HasDoubleElements(e0));
   assertEquals(3.5, e0[2]);
   assertEquals(2, e0[1]);
   assertEquals(1, e0[0]);
 
   var f0 = [1, 2, [1, 2]];
-  assertTrue(%HasFastObjectElements(f0));
+  assertTrue(%HasObjectElements(f0));
   assertEquals([1,2], f0[2]);
   assertEquals(2, f0[1]);
   assertEquals(1, f0[0]);
@@ -101,9 +101,9 @@ function test_large_literal() {
   large =
     [ 0, 1, 2, 3, 4, 5, d(), d(), d(), d(), d(), d(), o(), o(), o(), o() ];
   assertFalse(%HasDictionaryElements(large));
-  assertFalse(%HasFastSmiElements(large));
-  assertFalse(%HasFastDoubleElements(large));
-  assertTrue(%HasFastObjectElements(large));
+  assertFalse(%HasSmiElements(large));
+  assertFalse(%HasDoubleElements(large));
+  assertTrue(%HasObjectElements(large));
   assertEquals(large,
                [0, 1, 2, 3, 4, 5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
                 new Object(), new Object(), new Object(), new Object()]);

@@ -90,10 +90,13 @@ message sent by a parent process using [`childprocess.send()`][] is received by
 the child process.
 
 The listener callback is invoked with the following arguments:
-* `message` {Object} a parsed JSON object or primitive value
+* `message` {Object} a parsed JSON object or primitive value.
 * `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
 
 ### Event: 'rejectionHandled'
 <!-- YAML
@@ -399,7 +402,7 @@ It is important to take note of the following:
    called asynchronously and therefore unable to correct the underlying problem.
 
 *Note*: Windows does not support sending signals, but Node.js offers some
-emulation with [`process.kill()`][], and [`ChildProcess.kill()`][]. Sending
+emulation with [`process.kill()`][], and [`subprocess.kill()`][]. Sending
 signal `0` can be used to test for the existence of a process. Sending `SIGINT`,
 `SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
 process.
@@ -637,6 +640,48 @@ process's [`ChildProcess.disconnect()`][].
 
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
+
+## process.dlopen(module, filename[, flags])
+<!-- YAML
+added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12794
+    description: Added support for the `flags` argument.
+-->
+
+* `module` {Object}
+* `filename` {string}
+* `flags` {os.constants.dlopen}. Defaults to `os.constants.dlopen.RTLD_LAZY`.
+
+The `process.dlopen()` method allows to dynamically load shared
+objects. It is primarily used by `require()` to load
+C++ Addons, and should not be used directly, except in special
+cases. In other words, [`require()`][] should be preferred over
+`process.dlopen()`, unless there are specific reasons.
+
+The `flags` argument is an integer that allows to specify dlopen
+behavior. See the [`os.constants.dlopen`][] documentation for details.
+
+If there are specific reasons to use `process.dlopen()` (for instance,
+to specify dlopen flags), it's often useful to use [`require.resolve()`][]
+to look up the module's path.
+
+*Note*: An important drawback when calling `process.dlopen()` is that the
+`module` instance must be passed. Functions exported by the C++ Addon will
+be accessible via `module.exports`.
+
+The example below shows how to load a C++ Addon, named as `binding`,
+that exports a `foo` function. All the symbols will be loaded before
+the call returns, by passing the `RTLD_NOW` constant. In this example
+the constant is assumed to be available.
+
+```js
+const os = require('os');
+process.dlopen(module, require.resolve('binding'),
+               os.constants.dlopen.RTLD_NOW);
+module.exports.foo();
+```
 
 ## process.emitWarning(warning[, options])
 <!-- YAML
@@ -1430,8 +1475,9 @@ used to send messages to the parent process. Messages will be received as a
 If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
-*Note*: This function uses [`JSON.stringify()`][] internally to serialize the
-`message`.
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
 
 ## process.setegid(id)
 <!-- YAML
@@ -1631,10 +1677,10 @@ important ways:
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
 4. Writes may be synchronous depending on the what the stream is connected to
-   and whether the system is Windows or Unix:
-   - Files: *synchronous* on Windows and Linux
-   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
-   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
+   and whether the system is Windows or POSIX:
+   - Files: *synchronous* on Windows and POSIX
+   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
+   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on POSIX
 
 These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
@@ -1817,7 +1863,7 @@ cases:
   options were set, but the port number chosen was invalid or unavailable.
 * `>128` **Signal Exits** - If Node.js receives a fatal signal such as
   `SIGKILL` or `SIGHUP`, then its exit code will be `128` plus the
-  value of the signal code.  This is a standard Unix practice, since
+  value of the signal code.  This is a standard POSIX practice, since
   exit codes are defined to be 7-bit integers, and signal exits set
   the high-order bit, and then contain the value of the signal code.
   For example, signal `SIGABRT` has value `6`, so the expected exit
@@ -1829,25 +1875,29 @@ cases:
 [`'message'`]: child_process.html#child_process_event_message
 [`'rejectionHandled'`]: #process_event_rejectionhandled
 [`'uncaughtException'`]: #process_event_uncaughtexception
-[`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
-[`ChildProcess.kill()`]: child_process.html#child_process_child_kill_signal
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
+[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`os.constants.dlopen`]: os.html#os_dlopen_constants
 [`process.argv`]: #process_process_argv
 [`process.execPath`]: #process_process_execpath
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`require.resolve()`]: modules.html#modules_require_resolve
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.html
 [Cluster]: cluster.html

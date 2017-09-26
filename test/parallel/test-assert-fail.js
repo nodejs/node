@@ -28,6 +28,17 @@ common.expectsError(() => {
   expected: undefined
 });
 
+// One arg = Error
+common.expectsError(() => {
+  assert.fail(new TypeError('custom message'));
+}, {
+  type: TypeError,
+  message: 'custom message',
+  operator: undefined,
+  actual: undefined,
+  expected: undefined
+});
+
 // Two args only, operator defaults to '!='
 common.expectsError(() => {
   assert.fail('first', 'second');
@@ -50,6 +61,17 @@ common.expectsError(() => {
   operator: undefined,
   actual: 'ignored',
   expected: 'ignored'
+});
+
+// Three args with custom Error
+common.expectsError(() => {
+  assert.fail(typeof 1, 'object', new TypeError('another custom message'));
+}, {
+  type: TypeError,
+  message: 'another custom message',
+  operator: undefined,
+  actual: 'number',
+  expected: 'object'
 });
 
 // No third arg (but a fourth arg)

@@ -18,8 +18,8 @@ end
 Getting current stack trace via "new Error().stack".
 Error
     at v8://test/getStack:1:1
-    at func (<WASM>[0]+1)
-    at main (<WASM>[1]+1)
+    at func (wasm-function[0]:1)
+    at main (wasm-function[1]:1)
     at v8://test/runWasm:1:22
 exports.main returned.
 Finished.

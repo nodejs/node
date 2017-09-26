@@ -28,6 +28,27 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kPromiseContextLength,
   };
 
+ protected:
+  enum PromiseAllResolveElementContextSlots {
+    // Whether the resolve callback was already called.
+    kPromiseAllResolveElementAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // Index into the values array
+    kPromiseAllResolveElementIndexSlot,
+
+    // Remaining elements count (mutable HeapNumber)
+    kPromiseAllResolveElementRemainingElementsSlot,
+
+    // Promise capability from Promise.all
+    kPromiseAllResolveElementCapabilitySlot,
+
+    // Values array from Promise.all
+    kPromiseAllResolveElementValuesArraySlot,
+
+    kPromiseAllResolveElementLength
+  };
+
+ public:
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 
@@ -113,6 +134,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfFastPath(Node* native_context, Node* promise_fun, Node* promise,
                         Label* if_isunmodified, Label* if_ismodified);
 
+  void InitializeFunctionContext(Node* native_context, Node* context, int len);
   Node* CreatePromiseContext(Node* native_context, int slots);
   void PromiseFulfill(Node* context, Node* promise, Node* result,
                       v8::Promise::PromiseState status);
@@ -134,6 +156,23 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
+
+  Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
+                          Node* iterator, Label* if_exception,
+                          Variable* var_exception);
+
+  Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
+  Node* DecrementSmiCell(Node* cell);
+
+  void SetForwardingHandlerIfTrue(Node* context, Node* condition,
+                                  const NodeGenerator& object);
+  inline void SetForwardingHandlerIfTrue(Node* context, Node* condition,
+                                         Node* object) {
+    return SetForwardingHandlerIfTrue(context, condition,
+                                      [object]() -> Node* { return object; });
+  }
+  void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
+                                 const NodeGenerator& handled_by);
 
  private:
   Node* AllocateJSPromise(Node* context);

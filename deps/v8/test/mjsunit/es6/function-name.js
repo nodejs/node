@@ -43,6 +43,7 @@
     x: function withName() { },
     y: class { },
     z: class ClassName { },
+    ''() {},
     42: function() {},
     4.2: function() {},
     __proto__: function() {},
@@ -57,6 +58,7 @@
   assertEquals('withName', obj.x.name);
   assertEquals('y', obj.y.name);
   assertEquals('ClassName', obj.z.name);
+  assertEquals('', obj[''].name);
   assertEquals('42', obj[42].name);
   assertEquals('4.2', obj[4.2].name);
   assertEquals('', obj.__proto__.name);
@@ -69,6 +71,8 @@
     static b() { }
     get c() { }
     set c(val) { }
+    ''() { }
+    static ''() { }
     42() { }
     static 43() { }
     get 44() { }
@@ -82,6 +86,8 @@
   var descriptor = Object.getOwnPropertyDescriptor(C.prototype, 'c');
   assertEquals('get c', descriptor.get.name);
   assertEquals('set c', descriptor.set.name);
+  assertEquals('', C.prototype[''].name);
+  assertEquals('', C[''].name);
   assertEquals('42', C.prototype[42].name);
   assertEquals('43', C[43].name);
   var descriptor = Object.getOwnPropertyDescriptor(C.prototype, '44');
@@ -100,35 +106,46 @@
   var sym2 = Symbol('2');
   var sym3 = Symbol('3');
   var symNoDescription = Symbol();
+  var proto = "__proto__";
   var obj = {
+    ['']: function() {},
     [a]: function() {},
     [sym1]: function() {},
     [sym2]: function withName() {},
     [symNoDescription]: function() {},
+    [proto]: function() {},
 
     get [sym3]() {},
     set [b](val) {},
   };
 
+  assertEquals('', obj[''].name);
   assertEquals('a', obj[a].name);
   assertEquals('[1]', obj[sym1].name);
   assertEquals('withName', obj[sym2].name);
   assertEquals('', obj[symNoDescription].name);
+  assertEquals('__proto__', obj[proto].name);
 
   assertEquals('get [3]', Object.getOwnPropertyDescriptor(obj, sym3).get.name);
   assertEquals('set b', Object.getOwnPropertyDescriptor(obj, 'b').set.name);
 
   var objMethods = {
+    ['']() {},
     [a]() {},
     [sym1]() {},
-    [symNoDescription]: function() {},
+    [symNoDescription]() {},
+    [proto]() {},
   };
 
+  assertEquals('', objMethods[''].name);
   assertEquals('a', objMethods[a].name);
   assertEquals('[1]', objMethods[sym1].name);
   assertEquals('', objMethods[symNoDescription].name);
+  assertEquals('__proto__', objMethods[proto].name);
 
   class C {
+    ['']() { }
+    static ''() {}
     [a]() { }
     [sym1]() { }
     static [sym2]() { }
@@ -138,6 +155,8 @@
     static set [b](val) { }
   }
 
+  assertEquals('', C.prototype[''].name);
+  assertEquals('', C[''].name);
   assertEquals('a', C.prototype[a].name);
   assertEquals('[1]', C.prototype[sym1].name);
   assertEquals('[2]', C[sym2].name);
@@ -376,6 +395,15 @@
 
 (function testClassNameOrder() {
   assertEquals(['length', 'prototype'], Object.getOwnPropertyNames(class {}));
+
+  var tmp = {'': class {}};
+  var Tmp = tmp[''];
+  assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(Tmp));
+
+  var name = () => '';
+  var tmp = {[name()]: class {}};
+  var Tmp = tmp[name()];
+  assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(Tmp));
 
   class A { }
   assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(A));

@@ -16,7 +16,7 @@ namespace internal {
 CAST_ACCESSOR(CodeCacheHashTable)
 
 Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
-                                                 HashTableKey* key) {
+                                                 CodeCacheHashTableKey* key) {
   return key->AsHandle(isolate);
 }
 

@@ -21,16 +21,6 @@ namespace {
 
 enum class ExceptionHandling { kSwallow, kThrow };
 
-bool IsFinished(CompilerDispatcherJob* job) {
-  return job->status() == CompileJobStatus::kDone ||
-         job->status() == CompileJobStatus::kFailed;
-}
-
-bool CanRunOnAnyThread(CompilerDispatcherJob* job) {
-  return job->status() == CompileJobStatus::kReadyToParse ||
-         job->status() == CompileJobStatus::kReadyToCompile;
-}
-
 bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
                             ExceptionHandling exception_handling) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
@@ -42,69 +32,23 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
   if (job->has_context()) {
     isolate->set_context(job->context());
   } else {
-    DCHECK(CanRunOnAnyThread(job));
+    DCHECK(job->CanStepNextOnAnyThread());
   }
 
-  switch (job->status()) {
-    case CompileJobStatus::kInitial:
-      job->PrepareToParseOnMainThread();
-      break;
+  job->StepNextOnMainThread();
 
-    case CompileJobStatus::kReadyToParse:
-      job->Parse();
-      break;
-
-    case CompileJobStatus::kParsed:
-      job->FinalizeParsingOnMainThread();
-      break;
-
-    case CompileJobStatus::kReadyToAnalyze:
-      job->AnalyzeOnMainThread();
-      break;
-
-    case CompileJobStatus::kAnalyzed:
-      job->PrepareToCompileOnMainThread();
-      break;
-
-    case CompileJobStatus::kReadyToCompile:
-      job->Compile();
-      break;
-
-    case CompileJobStatus::kCompiled:
-      job->FinalizeCompilingOnMainThread();
-      break;
-
-    case CompileJobStatus::kFailed:
-    case CompileJobStatus::kDone:
-      break;
-  }
-
-  DCHECK_EQ(job->status() == CompileJobStatus::kFailed,
-            isolate->has_pending_exception());
-  if (job->status() == CompileJobStatus::kFailed &&
-      exception_handling == ExceptionHandling::kSwallow) {
+  DCHECK_EQ(job->IsFailed(), isolate->has_pending_exception());
+  if (job->IsFailed() && exception_handling == ExceptionHandling::kSwallow) {
     isolate->clear_pending_exception();
   }
-  return job->status() != CompileJobStatus::kFailed;
+  return job->IsFailed();
 }
 
 void DoNextStepOnBackgroundThread(CompilerDispatcherJob* job) {
-  DCHECK(CanRunOnAnyThread(job));
+  DCHECK(job->CanStepNextOnAnyThread());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompilerDispatcherBackgroundStep");
-
-  switch (job->status()) {
-    case CompileJobStatus::kReadyToParse:
-      job->Parse();
-      break;
-
-    case CompileJobStatus::kReadyToCompile:
-      job->Compile();
-      break;
-
-    default:
-      UNREACHABLE();
-  }
+  job->StepNextOnBackgroundThread();
 }
 
 // Theoretically we get 50ms of idle time max, however it's unlikely that
@@ -129,7 +73,7 @@ class MemoryPressureTask : public CancelableTask {
 MemoryPressureTask::MemoryPressureTask(Isolate* isolate,
                                        CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 MemoryPressureTask::~MemoryPressureTask() {}
 
@@ -157,7 +101,7 @@ class CompilerDispatcher::AbortTask : public CancelableTask {
 CompilerDispatcher::AbortTask::AbortTask(Isolate* isolate,
                                          CancelableTaskManager* task_manager,
                                          CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::AbortTask::~AbortTask() {}
 
@@ -183,7 +127,7 @@ class CompilerDispatcher::BackgroundTask : public CancelableTask {
 CompilerDispatcher::BackgroundTask::BackgroundTask(
     Isolate* isolate, CancelableTaskManager* task_manager,
     CompilerDispatcher* dispatcher)
-    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::BackgroundTask::~BackgroundTask() {}
 
@@ -209,7 +153,7 @@ class CompilerDispatcher::IdleTask : public CancelableIdleTask {
 CompilerDispatcher::IdleTask::IdleTask(Isolate* isolate,
                                        CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
-    : CancelableIdleTask(isolate, task_manager), dispatcher_(dispatcher) {}
+    : CancelableIdleTask(task_manager), dispatcher_(dispatcher) {}
 
 CompilerDispatcher::IdleTask::~IdleTask() {}
 
@@ -261,7 +205,7 @@ bool CompilerDispatcher::CanEnqueue() {
 }
 
 bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
-  DCHECK_IMPLIES(IsEnabled(), FLAG_ignition);
+  DCHECK_IMPLIES(IsEnabled(), !FLAG_stress_fullcodegen);
 
   if (!CanEnqueue()) return false;
 
@@ -277,7 +221,7 @@ bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
 
 CompilerDispatcher::JobId CompilerDispatcher::Enqueue(
     std::unique_ptr<CompilerDispatcherJob> job) {
-  DCHECK(!IsFinished(job.get()));
+  DCHECK(!job->IsFinished());
   bool added;
   JobMap::const_iterator it;
   std::tie(it, added) =
@@ -293,7 +237,7 @@ CompilerDispatcher::JobId CompilerDispatcher::Enqueue(
 
 CompilerDispatcher::JobId CompilerDispatcher::EnqueueAndStep(
     std::unique_ptr<CompilerDispatcherJob> job) {
-  DCHECK(!IsFinished(job.get()));
+  DCHECK(!job->IsFinished());
   bool added;
   JobMap::const_iterator it;
   std::tie(it, added) =
@@ -461,10 +405,10 @@ bool CompilerDispatcher::FinishNow(CompilerDispatcherJob* job) {
     PrintF(" now\n");
   }
   WaitForJobIfRunningOnBackground(job);
-  while (!IsFinished(job)) {
+  while (!job->IsFinished()) {
     DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
   }
-  return job->status() != CompileJobStatus::kFailed;
+  return !job->IsFailed();
 }
 
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
@@ -489,7 +433,7 @@ void CompilerDispatcher::FinishAllNow() {
       pending_background_jobs_.erase(job);
     }
     if (!is_running_in_background) {
-      while (!IsFinished(job)) {
+      while (!job->IsFinished()) {
         DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
       }
       it = RemoveIfFinished(it);
@@ -638,7 +582,7 @@ void CompilerDispatcher::ScheduleAbortTask() {
 
 void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
     CompilerDispatcherJob* job) {
-  if (!CanRunOnAnyThread(job)) return;
+  if (!job->CanStepNextOnAnyThread()) return;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     pending_background_jobs_.insert(job);
@@ -773,7 +717,7 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
         ConsiderJobForBackgroundProcessing(job->second.get());
       }
       ++job;
-    } else if (IsFinished(job->second.get())) {
+    } else if (job->second->IsFinished()) {
       DCHECK(it == pending_background_jobs_.end());
       lock.reset();
       job = RemoveJob(job);
@@ -794,12 +738,12 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
 
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::RemoveIfFinished(
     JobMap::const_iterator job) {
-  if (!IsFinished(job->second.get())) {
+  if (!job->second->IsFinished()) {
     return job;
   }
 
   if (trace_compiler_dispatcher_) {
-    bool result = job->second->status() != CompileJobStatus::kFailed;
+    bool result = !job->second->IsFailed();
     PrintF("CompilerDispatcher: finished working on ");
     job->second->ShortPrint();
     PrintF(": %s\n", result ? "success" : "failure");

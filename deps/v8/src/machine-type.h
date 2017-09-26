@@ -29,11 +29,8 @@ enum class MachineRepresentation {
   kFloat32,
   kFloat64,
   kSimd128,
-  kSimd1x4,  // SIMD boolean vector types.
-  kSimd1x8,
-  kSimd1x16,
   kFirstFPRepresentation = kFloat32,
-  kLastRepresentation = kSimd1x16
+  kLastRepresentation = kSimd128
 };
 
 static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
@@ -130,16 +127,6 @@ class MachineType {
   static MachineType Simd128() {
     return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
   }
-  static MachineType Simd1x4() {
-    return MachineType(MachineRepresentation::kSimd1x4, MachineSemantic::kNone);
-  }
-  static MachineType Simd1x8() {
-    return MachineType(MachineRepresentation::kSimd1x8, MachineSemantic::kNone);
-  }
-  static MachineType Simd1x16() {
-    return MachineType(MachineRepresentation::kSimd1x16,
-                       MachineSemantic::kNone);
-  }
   static MachineType Pointer() {
     return MachineType(PointerRepresentation(), MachineSemantic::kNone);
   }
@@ -186,16 +173,6 @@ class MachineType {
   static MachineType RepSimd128() {
     return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
   }
-  static MachineType RepSimd1x4() {
-    return MachineType(MachineRepresentation::kSimd1x4, MachineSemantic::kNone);
-  }
-  static MachineType RepSimd1x8() {
-    return MachineType(MachineRepresentation::kSimd1x8, MachineSemantic::kNone);
-  }
-  static MachineType RepSimd1x16() {
-    return MachineType(MachineRepresentation::kSimd1x16,
-                       MachineSemantic::kNone);
-  }
   static MachineType RepTagged() {
     return MachineType(MachineRepresentation::kTagged, MachineSemantic::kNone);
   }
@@ -224,12 +201,6 @@ class MachineType {
         return MachineType::Float64();
       case MachineRepresentation::kSimd128:
         return MachineType::Simd128();
-      case MachineRepresentation::kSimd1x4:
-        return MachineType::Simd1x4();
-      case MachineRepresentation::kSimd1x8:
-        return MachineType::Simd1x8();
-      case MachineRepresentation::kSimd1x16:
-        return MachineType::Simd1x16();
       case MachineRepresentation::kTagged:
         return MachineType::AnyTagged();
       case MachineRepresentation::kTaggedSigned:
@@ -238,7 +209,6 @@ class MachineType {
         return MachineType::TaggedPointer();
       default:
         UNREACHABLE();
-        return MachineType::None();
     }
   }
 
@@ -303,7 +273,6 @@ V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
       break;
   }
   UNREACHABLE();
-  return -1;
 }
 
 typedef Signature<MachineType> MachineSignature;

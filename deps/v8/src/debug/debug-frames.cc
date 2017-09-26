@@ -27,9 +27,9 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
   // Calculate the deoptimized frame.
   if (is_optimized_) {
     DCHECK(js_frame != nullptr);
-    // TODO(turbofan): Revisit once we support deoptimization.
+    // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
     if (js_frame->LookupCode()->is_turbofanned() &&
-        js_frame->function()->shared()->asm_function()) {
+        !js_frame->function()->shared()->HasBytecodeArray()) {
       is_optimized_ = false;
       return;
     }
@@ -73,10 +73,10 @@ Handle<Object> FrameInspector::GetParameter(int index) {
 }
 
 Handle<Object> FrameInspector::GetExpression(int index) {
-  // TODO(turbofan): Revisit once we support deoptimization.
+  // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
   if (frame_->is_java_script() &&
       javascript_frame()->LookupCode()->is_turbofanned() &&
-      javascript_frame()->function()->shared()->asm_function()) {
+      !javascript_frame()->function()->shared()->HasBytecodeArray()) {
     return isolate_->factory()->undefined_value();
   }
   return is_optimized_ ? deoptimized_frame_->GetExpression(index)

@@ -85,6 +85,14 @@
       'lib/internal/cluster/shared_handle.js',
       'lib/internal/cluster/utils.js',
       'lib/internal/cluster/worker.js',
+      'lib/internal/crypto/certificate.js',
+      'lib/internal/crypto/cipher.js',
+      'lib/internal/crypto/diffiehellman.js',
+      'lib/internal/crypto/hash.js',
+      'lib/internal/crypto/pbkdf2.js',
+      'lib/internal/crypto/random.js',
+      'lib/internal/crypto/sig.js',
+      'lib/internal/crypto/util.js',
       'lib/internal/encoding.js',
       'lib/internal/errors.js',
       'lib/internal/freelist.js',
@@ -113,6 +121,7 @@
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/unicode.js',
+      'lib/internal/tls.js',
       'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/http2/core.js',
@@ -161,14 +170,6 @@
 
       'dependencies': [
         'node_js2c#host'
-      ],
-
-      'conditions': [
-        [ 'node_shared_nghttp2=="false"', {
-          'dependencies': [
-            'deps/nghttp2/nghttp2.gyp:nghttp2'
-          ]
-        }]
       ],
 
       'includes': [
@@ -235,6 +236,7 @@
         'src/util.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
+        'src/aliased_buffer.h',
         'src/async-wrap.h',
         'src/async-wrap-inl.h',
         'src/base-object.h',
@@ -253,6 +255,7 @@
         'src/node_constants.h',
         'src/node_debug_options.h',
         'src/node_http2.h',
+        'src/node_http2_state.h',
         'src/node_internals.h',
         'src/node_javascript.h',
         'src/node_mutex.h',
@@ -655,6 +658,8 @@
       'sources': [
         'src/node_platform.cc',
         'src/node_platform.h',
+        'test/cctest/node_test_fixture.cc',
+        'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_util.cc',
@@ -785,7 +790,7 @@
             'common.gypi',
           ],
 
-          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp'],
+          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp', '-Wl,-brtl'],
         },
         {
           'target_name': 'node_exp',

@@ -8,9 +8,9 @@
 // Verify that our assumptions are valid.
 'use strict';
 
-var common = require('../common.js');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   len: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   c: [100],
@@ -20,7 +20,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   const http = require('http');
   var chunk;
-  var len = conf.len;
+  const len = conf.len;
   switch (conf.type) {
     case 'buf':
       chunk = Buffer.alloc(len, 'x');
@@ -42,9 +42,9 @@ function main(conf) {
     res.end(chunk);
   }
 
-  var method = conf.method === 'write' ? write : end;
+  const method = conf.method === 'write' ? write : end;
 
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     method(res);
   });
 

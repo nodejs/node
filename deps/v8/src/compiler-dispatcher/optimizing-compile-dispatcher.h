@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
         blocked_jobs_(0),
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
-    base::NoBarrier_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
+    base::Relaxed_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
     input_queue_ = NewArray<CompilationJob*>(input_queue_capacity_);
   }
 

@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   thousands: [2000],
   type: ['depth', 'depth1', 'breadth', 'breadth1', 'breadth4', 'clear']
 });
 
 function main(conf) {
-  var N = +conf.thousands * 1e3;
+  const N = +conf.thousands * 1e3;
   switch (conf.type) {
     case 'depth':
       depth(N);

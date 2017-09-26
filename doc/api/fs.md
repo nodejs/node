@@ -752,7 +752,7 @@ operations. The specific constants currently defined are described in
 
 ## fs.copyFile(src, dest[, flags], callback)
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -795,7 +795,7 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 
 ## fs.copyFileSync(src, dest[, flags])
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -1536,10 +1536,10 @@ object with an `encoding` property specifying the character encoding to use.
 Example:
 
 ```js
-fs.mkdtemp('/tmp/foo-', (err, folder) => {
+fs.mkdtemp(path.join(os.tmpdir(), 'foo-'), (err, folder) => {
   if (err) throw err;
   console.log(folder);
-  // Prints: /tmp/foo-itXde2
+  // Prints: /tmp/foo-itXde2 or C:\Users\...\AppData\Local\Temp\foo-itXde2
 });
 ```
 
@@ -1551,7 +1551,7 @@ the `prefix` *must* end with a trailing platform-specific path separator
 
 ```js
 // The parent directory for the new temporary directory
-const tmpDir = '/tmp';
+const tmpDir = os.tmpdir();
 
 // This method is *INCORRECT*:
 fs.mkdtemp(tmpDir, (err, folder) => {
@@ -2807,6 +2807,11 @@ The following constants are meant for use with `fs.open()`.
   <tr>
     <td><code>O_SYNC</code></td>
     <td>Flag indicating that the file is opened for synchronous I/O.</td>
+  </tr>
+  <tr>
+    <td><code>O_DSYNC</code></td>
+    <td>Flag indicating that the file is opened for synchronous I/O
+    with write operations waiting for data integrity.</td>
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>

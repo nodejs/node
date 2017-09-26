@@ -15,7 +15,8 @@ namespace internal {
 template <typename T>
 class Signature : public ZoneObject {
  public:
-  Signature(size_t return_count, size_t parameter_count, const T* reps)
+  constexpr Signature(size_t return_count, size_t parameter_count,
+                      const T* reps)
       : return_count_(return_count),
         parameter_count_(parameter_count),
         reps_(reps) {}

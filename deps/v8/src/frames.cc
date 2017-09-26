@@ -138,13 +138,24 @@ void JavaScriptFrameIterator::Advance() {
   } while (!iterator_.done() && !iterator_.frame()->is_java_script());
 }
 
-
 void JavaScriptFrameIterator::AdvanceToArgumentsFrame() {
   if (!frame()->has_adapted_arguments()) return;
   iterator_.Advance();
   DCHECK(iterator_.frame()->is_arguments_adaptor());
 }
 
+void JavaScriptFrameIterator::AdvanceWhileDebugContext(Debug* debug) {
+  if (!debug->in_debug_scope()) return;
+
+  while (!done()) {
+    Context* context = Context::cast(frame()->context());
+    if (context->native_context() == *debug->debug_context()) {
+      Advance();
+    } else {
+      break;
+    }
+  }
+}
 
 // -------------------------------------------------------------------------
 
@@ -504,9 +515,10 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case ENTRY:
     case ENTRY_CONSTRUCT:
     case EXIT:
+    case BUILTIN_CONTINUATION:
+    case JAVA_SCRIPT_BUILTIN_CONTINUATION:
     case BUILTIN_EXIT:
     case STUB:
-    case STUB_FAILURE_TRAMPOLINE:
     case INTERNAL:
     case CONSTRUCT:
     case ARGUMENTS_ADAPTOR:
@@ -682,7 +694,7 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   DCHECK(argc_slot->IsSmi());
   // Argc also counts the receiver, target, new target, and argc itself as args,
   // therefore the real argument count is argc - 4.
-  int argc = Smi::cast(argc_slot)->value() - 4;
+  int argc = Smi::ToInt(argc_slot) - 4;
   DCHECK(argc >= 0);
   return argc;
 }
@@ -752,7 +764,6 @@ int StandardFrame::ComputeExpressionsCount() const {
 Object* StandardFrame::GetParameter(int index) const {
   // StandardFrame does not define any parameters.
   UNREACHABLE();
-  return nullptr;
 }
 
 int StandardFrame::ComputeParametersCount() const { return 0; }
@@ -803,8 +814,9 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case ENTRY:
       case ENTRY_CONSTRUCT:
       case EXIT:
+      case BUILTIN_CONTINUATION:
+      case JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case BUILTIN_EXIT:
-      case STUB_FAILURE_TRAMPOLINE:
       case ARGUMENTS_ADAPTOR:
       case STUB:
       case INTERNAL:
@@ -1144,10 +1156,16 @@ int JavaScriptFrame::ComputeParametersCount() const {
   return GetNumberOfIncomingArguments();
 }
 
+int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
+  Object* argc_object =
+      Memory::Object_at(fp() + BuiltinContinuationFrameConstants::kArgCOffset);
+  return Smi::ToInt(argc_object);
+}
+
 namespace {
 
-bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
-  return code->is_turbofanned() && function->shared()->asm_function();
+bool IsNonDeoptimizingAsmCode(Code* code, JSFunction* function) {
+  return code->is_turbofanned() && !function->shared()->HasBytecodeArray();
 }
 
 }  // namespace
@@ -1164,7 +1182,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION ||
-         CannotDeoptFromAsmCode(Code::cast(abstract_code), function) ||
+         IsNonDeoptimizingAsmCode(Code::cast(abstract_code), function) ||
          mode == kApproximateSummary);
 }
 
@@ -1257,7 +1275,7 @@ uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
   FixedArray* deopt_data = code()->deoptimization_data();
   DCHECK_EQ(2, deopt_data->length());
   DCHECK(deopt_data->get(1)->IsSmi());
-  int val = Smi::cast(deopt_data->get(1))->value();
+  int val = Smi::ToInt(deopt_data->get(1));
   DCHECK_LE(0, val);
   return static_cast<uint32_t>(val);
 }
@@ -1348,7 +1366,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN ||
-      CannotDeoptFromAsmCode(code, function())) {
+      IsNonDeoptimizingAsmCode(code, function())) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1377,8 +1395,8 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
   bool is_constructor = IsConstructor();
   while (jsframe_count != 0) {
     frame_opcode = static_cast<Translation::Opcode>(it.Next());
-    if (frame_opcode == Translation::JS_FRAME ||
-        frame_opcode == Translation::INTERPRETED_FRAME) {
+    if (frame_opcode == Translation::INTERPRETED_FRAME ||
+        frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       jsframe_count--;
       BailoutId const bailout_id = BailoutId(it.Next());
       SharedFunctionInfo* const shared_info =
@@ -1422,14 +1440,10 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
       AbstractCode* abstract_code;
 
       unsigned code_offset;
-      if (frame_opcode == Translation::JS_FRAME) {
-        Code* code = shared_info->code();
-        DeoptimizationOutputData* const output_data =
-            DeoptimizationOutputData::cast(code->deoptimization_data());
-        unsigned const entry =
-            Deoptimizer::GetOutputInfo(output_data, bailout_id, shared_info);
-        code_offset = FullCodeGenerator::PcField::decode(entry);
-        abstract_code = AbstractCode::cast(code);
+      if (frame_opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
+        code_offset = 0;
+        abstract_code = AbstractCode::cast(isolate()->builtins()->builtin(
+            Builtins::GetBuiltinFromBailoutId(bailout_id)));
       } else {
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
         code_offset = bailout_id.ToInt();  // Points to current bytecode.
@@ -1515,7 +1529,7 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
   if (code->kind() == Code::BUILTIN ||
-      CannotDeoptFromAsmCode(code, function())) {
+      IsNonDeoptimizingAsmCode(code, function())) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 
@@ -1537,8 +1551,8 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::JS_FRAME ||
-        opcode == Translation::INTERPRETED_FRAME) {
+    if (opcode == Translation::INTERPRETED_FRAME ||
+        opcode == Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) {
       it.Next();  // Skip bailout id.
       jsframe_count--;
 
@@ -1584,7 +1598,7 @@ int InterpretedFrame::GetBytecodeOffset() const {
   DCHECK_EQ(
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
-  int raw_offset = Smi::cast(GetExpression(index))->value();
+  int raw_offset = Smi::ToInt(GetExpression(index));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -1595,7 +1609,7 @@ int InterpretedFrame::GetBytecodeOffset(Address fp) {
       InterpreterFrameConstants::kBytecodeOffsetFromFp,
       InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   Address expression_offset = fp + offset - index * kPointerSize;
-  int raw_offset = Smi::cast(Memory::Object_at(expression_offset))->value();
+  int raw_offset = Smi::ToInt(Memory::Object_at(expression_offset));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -1653,12 +1667,12 @@ void InterpretedFrame::Summarize(List<FrameSummary>* functions,
 }
 
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
-  return Smi::cast(GetExpression(0))->value();
+  return Smi::ToInt(GetExpression(0));
 }
 
 int ArgumentsAdaptorFrame::GetLength(Address fp) {
   const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
-  return Smi::cast(Memory::Object_at(fp + offset))->value();
+  return Smi::ToInt(Memory::Object_at(fp + offset));
 }
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
@@ -1667,7 +1681,7 @@ Code* ArgumentsAdaptorFrame::unchecked_code() const {
 }
 
 int BuiltinFrame::GetNumberOfIncomingArguments() const {
-  return Smi::cast(GetExpression(0))->value();
+  return Smi::ToInt(GetExpression(0));
 }
 
 void BuiltinFrame::PrintFrameKind(StringStream* accumulator) const {
@@ -2053,42 +2067,6 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   if (code->has_tagged_params()) IterateExpressions(v);
 }
 
-void StubFailureTrampolineFrame::Iterate(RootVisitor* v) const {
-  Object** base = &Memory::Object_at(sp());
-  Object** limit = &Memory::Object_at(
-      fp() + StubFailureTrampolineFrameConstants::kFixedHeaderBottomOffset);
-  v->VisitRootPointers(Root::kTop, base, limit);
-  base = &Memory::Object_at(fp() + StandardFrameConstants::kFunctionOffset);
-  const int offset = StandardFrameConstants::kLastObjectOffset;
-  limit = &Memory::Object_at(fp() + offset) + 1;
-  v->VisitRootPointers(Root::kTop, base, limit);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-}
-
-
-Address StubFailureTrampolineFrame::GetCallerStackPointer() const {
-  return fp() + StandardFrameConstants::kCallerSPOffset;
-}
-
-
-Code* StubFailureTrampolineFrame::unchecked_code() const {
-  Code* trampoline;
-  StubFailureTrampolineStub(isolate(), NOT_JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline);
-  if (trampoline->contains(pc())) {
-    return trampoline;
-  }
-
-  StubFailureTrampolineStub(isolate(), JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline);
-  if (trampoline->contains(pc())) {
-    return trampoline;
-  }
-
-  UNREACHABLE();
-  return NULL;
-}
-
 
 // -------------------------------------------------------------------------
 
@@ -2101,7 +2079,6 @@ JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
     iterator_.Advance();
   }
   UNREACHABLE();
-  return NULL;
 }
 
 
@@ -2184,9 +2161,8 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
 InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
-  DCHECK(base::bits::IsPowerOfTwo32(kInnerPointerToCodeCacheSize));
-  uint32_t hash = ComputeIntegerHash(ObjectAddressForHashing(inner_pointer),
-                                     v8::internal::kZeroHashSeed);
+  DCHECK(base::bits::IsPowerOfTwo(kInnerPointerToCodeCacheSize));
+  uint32_t hash = ComputeIntegerHash(ObjectAddressForHashing(inner_pointer));
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {

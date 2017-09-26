@@ -12,7 +12,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_number,
-    "Wrong type of arguments. Expects a number as first argument.");
+      "Wrong type of arguments. Expects a number as first argument.");
 
   double input;
   NAPI_CALL(env, napi_get_value_double(env, args[0], &input));
@@ -34,7 +34,7 @@ napi_value TestInt32Truncation(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_number,
-    "Wrong type of arguments. Expects a number as first argument.");
+      "Wrong type of arguments. Expects a number as first argument.");
 
   int32_t input;
   NAPI_CALL(env, napi_get_value_int32(env, args[0], &input));
@@ -45,14 +45,16 @@ napi_value TestInt32Truncation(napi_env env, napi_callback_info info) {
   return output;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
     DECLARE_NAPI_PROPERTY("TestInt32Truncation", TestInt32Truncation),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

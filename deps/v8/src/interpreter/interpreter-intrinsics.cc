@@ -33,7 +33,6 @@ IntrinsicsHelper::IntrinsicId IntrinsicsHelper::FromRuntimeId(
 #undef TO_RUNTIME_ID
     default:
       UNREACHABLE();
-      return static_cast<IntrinsicsHelper::IntrinsicId>(-1);
   }
 }
 
@@ -48,7 +47,6 @@ Runtime::FunctionId IntrinsicsHelper::ToRuntimeId(
 #undef TO_INTRINSIC_ID
     default:
       UNREACHABLE();
-      return static_cast<Runtime::FunctionId>(-1);
   }
 }
 

@@ -55,45 +55,52 @@ void Complete(napi_env env, napi_status status, void* data) {
   NAPI_CALL_RETURN_VOID(env, napi_create_int32(env, c->_output, &argv[1]));
   napi_value callback;
   NAPI_CALL_RETURN_VOID(env,
-    napi_get_reference_value(env, c->_callback, &callback));
+      napi_get_reference_value(env, c->_callback, &callback));
   napi_value global;
   NAPI_CALL_RETURN_VOID(env, napi_get_global(env, &global));
 
   napi_value result;
   NAPI_CALL_RETURN_VOID(env,
-    napi_make_callback(env, global, callback, 2, argv, &result));
+    napi_call_function(env, global, callback, 2, argv, &result));
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, c->_callback));
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
 }
 
 napi_value Test(napi_env env, napi_callback_info info) {
-  size_t argc = 2;
-  napi_value argv[2];
+  size_t argc = 3;
+  napi_value argv[3];
   napi_value _this;
+  napi_value resource_name;
   void* data;
   NAPI_CALL(env,
     napi_get_cb_info(env, info, &argc, argv, &_this, &data));
-  NAPI_ASSERT(env, argc >= 2, "Not enough arguments, expected 2.");
+  NAPI_ASSERT(env, argc >= 3, "Not enough arguments, expected 2.");
 
   napi_valuetype t;
   NAPI_CALL(env, napi_typeof(env, argv[0], &t));
   NAPI_ASSERT(env, t == napi_number,
-    "Wrong first argument, integer expected.");
+      "Wrong first argument, integer expected.");
   NAPI_CALL(env, napi_typeof(env, argv[1], &t));
+  NAPI_ASSERT(env, t == napi_object,
+    "Wrong second argument, object expected.");
+  NAPI_CALL(env, napi_typeof(env, argv[2], &t));
   NAPI_ASSERT(env, t == napi_function,
-    "Wrong second argument, function expected.");
+    "Wrong third argument, function expected.");
 
   the_carrier._output = 0;
 
   NAPI_CALL(env,
-    napi_get_value_int32(env, argv[0], &the_carrier._input));
+      napi_get_value_int32(env, argv[0], &the_carrier._input));
   NAPI_CALL(env,
-    napi_create_reference(env, argv[1], 1, &the_carrier._callback));
-  NAPI_CALL(env, napi_create_async_work(
-    env, Execute, Complete, &the_carrier, &the_carrier._request));
+    napi_create_reference(env, argv[2], 1, &the_carrier._callback));
+
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "TestResource", NAPI_AUTO_LENGTH, &resource_name));
+  NAPI_CALL(env, napi_create_async_work(env, argv[1], resource_name,
+    Execute, Complete, &the_carrier, &the_carrier._request));
   NAPI_CALL(env,
-    napi_queue_async_work(env, the_carrier._request));
+      napi_queue_async_work(env, the_carrier._request));
 
   return nullptr;
 }
@@ -111,12 +118,12 @@ void CancelComplete(napi_env env, napi_status status, void* data) {
     // indicate the cancel succeeded.
     napi_value callback;
     NAPI_CALL_RETURN_VOID(env,
-      napi_get_reference_value(env, c->_callback, &callback));
+        napi_get_reference_value(env, c->_callback, &callback));
     napi_value global;
     NAPI_CALL_RETURN_VOID(env, napi_get_global(env, &global));
     napi_value result;
     NAPI_CALL_RETURN_VOID(env,
-      napi_make_callback(env, global, callback, 0, nullptr, &result));
+      napi_call_function(env, global, callback, 0, nullptr, &result));
   }
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
@@ -135,13 +142,18 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value argv[1];
   napi_value _this;
+  napi_value resource_name;
   void* data;
+
+  NAPI_CALL(env, napi_create_string_utf8(
+      env, "TestResource", NAPI_AUTO_LENGTH, &resource_name));
 
   // make sure the work we are going to cancel will not be
   // able to start by using all the threads in the pool
   for (int i = 1; i < MAX_CANCEL_THREADS; i++) {
-    NAPI_CALL(env, napi_create_async_work(env, CancelExecute,
-      BusyCancelComplete, &async_carrier[i], &async_carrier[i]._request));
+    NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
+      CancelExecute, BusyCancelComplete,
+      &async_carrier[i], &async_carrier[i]._request));
     NAPI_CALL(env, napi_queue_async_work(env, async_carrier[i]._request));
   }
 
@@ -151,23 +163,26 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   // workers above.
   NAPI_CALL(env,
     napi_get_cb_info(env, info, &argc, argv, &_this, &data));
-  NAPI_CALL(env, napi_create_async_work(env, CancelExecute,
-    CancelComplete, &async_carrier[0], &async_carrier[0]._request));
+  NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
+    CancelExecute, CancelComplete,
+    &async_carrier[0], &async_carrier[0]._request));
   NAPI_CALL(env,
-    napi_create_reference(env, argv[0], 1, &async_carrier[0]._callback));
+      napi_create_reference(env, argv[0], 1, &async_carrier[0]._callback));
   NAPI_CALL(env, napi_queue_async_work(env, async_carrier[0]._request));
   NAPI_CALL(env, napi_cancel_async_work(env, async_carrier[0]._request));
   return nullptr;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
     DECLARE_NAPI_PROPERTY("TestCancel", TestCancel),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(properties) / sizeof(*properties), properties));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(properties) / sizeof(*properties), properties));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

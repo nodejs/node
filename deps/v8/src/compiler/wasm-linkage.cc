@@ -8,38 +8,33 @@
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 
-#include "src/wasm/wasm-module.h"
-
 #include "src/compiler/linkage.h"
+#include "src/compiler/wasm-compiler.h"
 
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
-// TODO(titzer): this should not be in the WASM namespace.
-namespace wasm {
+namespace compiler {
 
-using compiler::LocationSignature;
-using compiler::CallDescriptor;
-using compiler::LinkageLocation;
+using wasm::ValueType;
 
 namespace {
 
 MachineType MachineTypeFor(ValueType type) {
   switch (type) {
-    case kWasmI32:
+    case wasm::kWasmI32:
       return MachineType::Int32();
-    case kWasmI64:
+    case wasm::kWasmI64:
       return MachineType::Int64();
-    case kWasmF64:
+    case wasm::kWasmF64:
       return MachineType::Float64();
-    case kWasmF32:
+    case wasm::kWasmF32:
       return MachineType::Float32();
-    case kWasmS128:
+    case wasm::kWasmS128:
       return MachineType::Simd128();
     default:
       UNREACHABLE();
-      return MachineType::AnyTagged();
   }
 }
 
@@ -73,14 +68,6 @@ LinkageLocation stackloc(int i, MachineType type) {
 #define GP_RETURN_REGISTERS rax, rdx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
-
-#elif V8_TARGET_ARCH_X87
-// ===========================================================================
-// == x87 ====================================================================
-// ===========================================================================
-#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi
-#define GP_RETURN_REGISTERS eax, edx
-#define FP_RETURN_REGISTERS stX_0
 
 #elif V8_TARGET_ARCH_ARM
 // ===========================================================================
@@ -183,7 +170,7 @@ struct Allocator {
         // Allocate floats using a double register, but modify the code to
         // reflect how ARM FP registers alias.
         // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type == kWasmF32) {
+        if (type == wasm::kWasmF32) {
           int float_reg_code = reg.code() * 2;
           DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
           return regloc(DoubleRegister::from_code(float_reg_code),
@@ -208,10 +195,11 @@ struct Allocator {
     }
   }
   bool IsFloatingPoint(ValueType type) {
-    return type == kWasmF32 || type == kWasmF64;
+    return type == wasm::kWasmF32 || type == wasm::kWasmF64;
   }
   int Words(ValueType type) {
-    if (kPointerSize < 8 && (type == kWasmI64 || type == kWasmF64)) {
+    if (kPointerSize < 8 &&
+        (type == wasm::kWasmI64 || type == wasm::kWasmF64)) {
       return 2;
     }
     return 1;
@@ -276,8 +264,7 @@ static base::LazyInstance<Allocator, ReturnRegistersCreateTrait>::type
     return_registers = LAZY_INSTANCE_INITIALIZER;
 
 // General code uses the above configuration data.
-CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
-                                                 FunctionSig* fsig) {
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count());
 
@@ -302,7 +289,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   const RegList kCalleeSaveRegisters = 0;
   const RegList kCalleeSaveFPRegisters = 0;
 
-  // The target for WASM calls is always a code object.
+  // The target for wasm calls is always a code object.
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
@@ -380,20 +367,20 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       descriptor->debug_name());
 }
 
-CallDescriptor* ModuleEnv::GetI32WasmCallDescriptor(
-    Zone* zone, CallDescriptor* descriptor) {
+CallDescriptor* GetI32WasmCallDescriptor(Zone* zone,
+                                         CallDescriptor* descriptor) {
   return ReplaceTypeInCallDescriptorWith(zone, descriptor, 2,
                                          MachineType::Int64(),
                                          MachineRepresentation::kWord32);
 }
 
-CallDescriptor* ModuleEnv::GetI32WasmCallDescriptorForSimd(
-    Zone* zone, CallDescriptor* descriptor) {
+CallDescriptor* GetI32WasmCallDescriptorForSimd(Zone* zone,
+                                                CallDescriptor* descriptor) {
   return ReplaceTypeInCallDescriptorWith(zone, descriptor, 4,
                                          MachineType::Simd128(),
                                          MachineRepresentation::kWord32);
 }
 
-}  // namespace wasm
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

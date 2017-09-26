@@ -105,14 +105,34 @@ assert.notStrictEqual(
 
 const h3 = crypto.createHash('sha256');
 h3.digest();
-assert.throws(function() {
-  h3.digest();
-}, /Digest already called/);
 
-assert.throws(function() {
-  h3.update('foo');
-}, /Digest already called/);
+common.expectsError(
+  () => h3.digest(),
+  {
+    code: 'ERR_CRYPTO_HASH_FINALIZED',
+    type: Error
+  });
 
-assert.throws(function() {
-  crypto.createHash('sha256').digest('ucs2');
-}, /^Error: hash\.digest\(\) does not support UTF-16$/);
+common.expectsError(
+  () => h3.update('foo'),
+  {
+    code: 'ERR_CRYPTO_HASH_FINALIZED',
+    type: Error
+  });
+
+common.expectsError(
+  () => crypto.createHash('sha256').digest('ucs2'),
+  {
+    code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
+    type: Error
+  }
+);
+
+common.expectsError(
+  () => crypto.createHash(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "algorithm" argument must be of type string'
+  }
+);

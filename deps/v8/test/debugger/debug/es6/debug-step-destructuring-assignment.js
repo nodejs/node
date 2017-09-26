@@ -76,8 +76,9 @@ function f() {
 }                                                 // B34
 
 function return1() {
-  return 1;                                       // B26
-}                                                 // B27
+  return 1                                        // B26
+  ;                                               // B27
+}
 
 f();
 Debug.setListener(null);                          // B35

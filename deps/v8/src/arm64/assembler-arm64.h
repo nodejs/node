@@ -13,6 +13,7 @@
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
+#include "src/base/optional.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -55,7 +56,9 @@ namespace internal {
 
 #define SIMD128_REGISTERS(V)                              \
   V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
-  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15)
+  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15) \
+  V(q16) V(q17) V(q18) V(q19) V(q20) V(q21) V(q22) V(q23) \
+  V(q24) V(q25) V(q26) V(q27) V(q28) V(q29) V(q30) V(q31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(R)                   \
   R(d0)  R(d1)  R(d2)  R(d3)  R(d4)  R(d5)  R(d6)  R(d7)  \
@@ -67,11 +70,10 @@ namespace internal {
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
-// Some CPURegister methods can return Register and FPRegister types, so we
+// Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
 struct Register;
-struct FPRegister;
-
+struct VRegister;
 
 struct CPURegister {
   enum Code {
@@ -87,17 +89,22 @@ struct CPURegister {
     // which are always zero-initialized before any constructors are called.
     kInvalid = 0,
     kRegister,
-    kFPRegister,
+    kVRegister,
     kNoRegister
   };
 
   constexpr CPURegister() : CPURegister(0, 0, CPURegister::kNoRegister) {}
 
-  constexpr CPURegister(int reg_code, int reg_size, RegisterType reg_type)
-      : reg_code(reg_code), reg_size(reg_size), reg_type(reg_type) {}
+  constexpr CPURegister(int reg_code, int reg_size, RegisterType reg_type,
+                        int lane_count = 1)
+      : reg_code(reg_code),
+        reg_size(reg_size),
+        reg_type(reg_type),
+        lane_count(lane_count) {}
 
-  static CPURegister Create(int code, int size, RegisterType type) {
-    CPURegister r = {code, size, type};
+  static CPURegister Create(int reg_code, int reg_size, RegisterType reg_type,
+                            int lane_count = 1) {
+    CPURegister r = {reg_code, reg_size, reg_type, lane_count};
     return r;
   }
 
@@ -106,12 +113,15 @@ struct CPURegister {
   RegList Bit() const;
   int SizeInBits() const;
   int SizeInBytes() const;
+  bool Is8Bits() const;
+  bool Is16Bits() const;
   bool Is32Bits() const;
   bool Is64Bits() const;
+  bool Is128Bits() const;
   bool IsValid() const;
   bool IsValidOrNone() const;
   bool IsValidRegister() const;
-  bool IsValidFPRegister() const;
+  bool IsValidVRegister() const;
   bool IsNone() const;
   bool Is(const CPURegister& other) const;
   bool Aliases(const CPURegister& other) const;
@@ -120,12 +130,34 @@ struct CPURegister {
   bool IsSP() const;
 
   bool IsRegister() const;
-  bool IsFPRegister() const;
+  bool IsVRegister() const;
+
+  bool IsFPRegister() const { return IsS() || IsD(); }
+
+  bool IsW() const { return IsValidRegister() && Is32Bits(); }
+  bool IsX() const { return IsValidRegister() && Is64Bits(); }
+
+  // These assertions ensure that the size and type of the register are as
+  // described. They do not consider the number of lanes that make up a vector.
+  // So, for example, Is8B() implies IsD(), and Is1D() implies IsD, but IsD()
+  // does not imply Is1D() or Is8B().
+  // Check the number of lanes, ie. the format of the vector, using methods such
+  // as Is8B(), Is1D(), etc. in the VRegister class.
+  bool IsV() const { return IsVRegister(); }
+  bool IsB() const { return IsV() && Is8Bits(); }
+  bool IsH() const { return IsV() && Is16Bits(); }
+  bool IsS() const { return IsV() && Is32Bits(); }
+  bool IsD() const { return IsV() && Is64Bits(); }
+  bool IsQ() const { return IsV() && Is128Bits(); }
 
   Register X() const;
   Register W() const;
-  FPRegister D() const;
-  FPRegister S() const;
+  VRegister V() const;
+  VRegister B() const;
+  VRegister H() const;
+  VRegister D() const;
+  VRegister S() const;
+  VRegister Q() const;
 
   bool IsSameSizeAndType(const CPURegister& other) const;
 
@@ -136,6 +168,7 @@ struct CPURegister {
   int reg_code;
   int reg_size;
   RegisterType reg_type;
+  int lane_count;
 };
 
 
@@ -190,7 +223,7 @@ struct Register : public CPURegister {
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-struct FPRegister : public CPURegister {
+struct VRegister : public CPURegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -199,41 +232,123 @@ struct FPRegister : public CPURegister {
     kCode_no_reg = -1
   };
 
-  static FPRegister Create(int code, int size) {
-    return FPRegister(
-        CPURegister::Create(code, size, CPURegister::kFPRegister));
+  static VRegister Create(int reg_code, int reg_size, int lane_count = 1) {
+    DCHECK(base::bits::IsPowerOfTwo(lane_count) && (lane_count <= 16));
+    VRegister v(CPURegister::Create(reg_code, reg_size, CPURegister::kVRegister,
+                                    lane_count));
+    DCHECK(v.IsValidVRegister());
+    return v;
   }
 
-  constexpr FPRegister() : CPURegister() {}
+  static VRegister Create(int reg_code, VectorFormat format) {
+    int reg_size = RegisterSizeInBitsFromFormat(format);
+    int reg_count = IsVectorFormat(format) ? LaneCountFromFormat(format) : 1;
+    return VRegister::Create(reg_code, reg_size, reg_count);
+  }
 
-  constexpr explicit FPRegister(const CPURegister& r) : CPURegister(r) {}
+  constexpr VRegister() : CPURegister() {}
+
+  constexpr explicit VRegister(const CPURegister& r) : CPURegister(r) {}
 
   bool IsValid() const {
-    DCHECK(IsFPRegister() || IsNone());
-    return IsValidFPRegister();
+    DCHECK(IsVRegister() || IsNone());
+    return IsValidVRegister();
   }
 
-  static FPRegister SRegFromCode(unsigned code);
-  static FPRegister DRegFromCode(unsigned code);
+  static VRegister BRegFromCode(unsigned code);
+  static VRegister HRegFromCode(unsigned code);
+  static VRegister SRegFromCode(unsigned code);
+  static VRegister DRegFromCode(unsigned code);
+  static VRegister QRegFromCode(unsigned code);
+  static VRegister VRegFromCode(unsigned code);
+
+  VRegister V8B() const {
+    return VRegister::Create(code(), kDRegSizeInBits, 8);
+  }
+  VRegister V16B() const {
+    return VRegister::Create(code(), kQRegSizeInBits, 16);
+  }
+  VRegister V4H() const {
+    return VRegister::Create(code(), kDRegSizeInBits, 4);
+  }
+  VRegister V8H() const {
+    return VRegister::Create(code(), kQRegSizeInBits, 8);
+  }
+  VRegister V2S() const {
+    return VRegister::Create(code(), kDRegSizeInBits, 2);
+  }
+  VRegister V4S() const {
+    return VRegister::Create(code(), kQRegSizeInBits, 4);
+  }
+  VRegister V2D() const {
+    return VRegister::Create(code(), kQRegSizeInBits, 2);
+  }
+  VRegister V1D() const {
+    return VRegister::Create(code(), kDRegSizeInBits, 1);
+  }
+
+  bool Is8B() const { return (Is64Bits() && (lane_count == 8)); }
+  bool Is16B() const { return (Is128Bits() && (lane_count == 16)); }
+  bool Is4H() const { return (Is64Bits() && (lane_count == 4)); }
+  bool Is8H() const { return (Is128Bits() && (lane_count == 8)); }
+  bool Is2S() const { return (Is64Bits() && (lane_count == 2)); }
+  bool Is4S() const { return (Is128Bits() && (lane_count == 4)); }
+  bool Is1D() const { return (Is64Bits() && (lane_count == 1)); }
+  bool Is2D() const { return (Is128Bits() && (lane_count == 2)); }
+
+  // For consistency, we assert the number of lanes of these scalar registers,
+  // even though there are no vectors of equivalent total size with which they
+  // could alias.
+  bool Is1B() const {
+    DCHECK(!(Is8Bits() && IsVector()));
+    return Is8Bits();
+  }
+  bool Is1H() const {
+    DCHECK(!(Is16Bits() && IsVector()));
+    return Is16Bits();
+  }
+  bool Is1S() const {
+    DCHECK(!(Is32Bits() && IsVector()));
+    return Is32Bits();
+  }
+
+  bool IsLaneSizeB() const { return LaneSizeInBits() == kBRegSizeInBits; }
+  bool IsLaneSizeH() const { return LaneSizeInBits() == kHRegSizeInBits; }
+  bool IsLaneSizeS() const { return LaneSizeInBits() == kSRegSizeInBits; }
+  bool IsLaneSizeD() const { return LaneSizeInBits() == kDRegSizeInBits; }
+
+  bool IsScalar() const { return lane_count == 1; }
+  bool IsVector() const { return lane_count > 1; }
+
+  bool IsSameFormat(const VRegister& other) const {
+    return (reg_size == other.reg_size) && (lane_count == other.lane_count);
+  }
+
+  int LaneCount() const { return lane_count; }
+
+  unsigned LaneSizeInBytes() const { return SizeInBytes() / lane_count; }
+
+  unsigned LaneSizeInBits() const { return LaneSizeInBytes() * 8; }
 
   // Start of V8 compatibility section ---------------------
-  static constexpr int kMaxNumRegisters = kNumberOfFPRegisters;
+  static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
   STATIC_ASSERT(kMaxNumRegisters == Code::kAfterLast);
 
-  // Crankshaft can use all the FP registers except:
+  // Crankshaft can use all the V registers except:
   //   - d15 which is used to keep the 0 double value
   //   - d30 which is used in crankshaft as a double scratch register
   //   - d31 which is used in the MacroAssembler as a double scratch register
-  static FPRegister from_code(int code) {
+  static VRegister from_code(int code) {
     // Always return a D register.
-    return FPRegister::Create(code, kDRegSizeInBits);
+    return VRegister::Create(code, kDRegSizeInBits);
   }
   // End of V8 compatibility section -----------------------
 };
 
-
-STATIC_ASSERT(sizeof(CPURegister) == sizeof(Register));
-STATIC_ASSERT(sizeof(CPURegister) == sizeof(FPRegister));
+static_assert(sizeof(CPURegister) == sizeof(Register),
+              "CPURegister must be same size as Register");
+static_assert(sizeof(CPURegister) == sizeof(VRegister),
+              "CPURegister must be same size as VRegister");
 
 #define DEFINE_REGISTER(register_class, name, code, size, type) \
   constexpr register_class name { CPURegister(code, size, type) }
@@ -241,10 +356,10 @@ STATIC_ASSERT(sizeof(CPURegister) == sizeof(FPRegister));
   constexpr register_class alias = name
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
-// these all compare equal (using the Is() method). The Register and FPRegister
+// these all compare equal (using the Is() method). The Register and VRegister
 // variants are provided for convenience.
 DEFINE_REGISTER(Register, NoReg, 0, 0, CPURegister::kNoRegister);
-DEFINE_REGISTER(FPRegister, NoFPReg, 0, 0, CPURegister::kNoRegister);
+DEFINE_REGISTER(VRegister, NoVReg, 0, 0, CPURegister::kNoRegister);
 DEFINE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 
 // v8 compatibility.
@@ -261,17 +376,25 @@ DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
 DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
                 CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)                           \
-  DEFINE_REGISTER(FPRegister, s##N, N, kSRegSizeInBits, \
-                  CPURegister::kFPRegister);            \
-  DEFINE_REGISTER(FPRegister, d##N, N, kDRegSizeInBits, \
-                  CPURegister::kFPRegister);
-GENERAL_REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
-#undef DEFINE_FPREGISTERS
+#define DEFINE_VREGISTERS(N)                           \
+  DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits, \
+                  CPURegister::kVRegister);            \
+  DEFINE_REGISTER(VRegister, h##N, N, kHRegSizeInBits, \
+                  CPURegister::kVRegister);            \
+  DEFINE_REGISTER(VRegister, s##N, N, kSRegSizeInBits, \
+                  CPURegister::kVRegister);            \
+  DEFINE_REGISTER(VRegister, d##N, N, kDRegSizeInBits, \
+                  CPURegister::kVRegister);            \
+  DEFINE_REGISTER(VRegister, q##N, N, kQRegSizeInBits, \
+                  CPURegister::kVRegister);            \
+  DEFINE_REGISTER(VRegister, v##N, N, kQRegSizeInBits, CPURegister::kVRegister);
+GENERAL_REGISTER_CODE_LIST(DEFINE_VREGISTERS)
+#undef DEFINE_VREGISTERS
 
 #undef DEFINE_REGISTER
 
 // Registers aliases.
+ALIAS_REGISTER(VRegister, v8_, v8);  // Avoid conflicts with namespace v8.
 ALIAS_REGISTER(Register, ip0, x16);
 ALIAS_REGISTER(Register, ip1, x17);
 ALIAS_REGISTER(Register, wip0, w16);
@@ -294,13 +417,17 @@ ALIAS_REGISTER(Register, xzr, x31);
 ALIAS_REGISTER(Register, wzr, w31);
 
 // Keeps the 0 double value.
-ALIAS_REGISTER(FPRegister, fp_zero, d15);
+ALIAS_REGISTER(VRegister, fp_zero, d15);
+// MacroAssembler fixed V Registers.
+ALIAS_REGISTER(VRegister, fp_fixed1, d27);
+ALIAS_REGISTER(VRegister, fp_fixed2, d28);
+ALIAS_REGISTER(VRegister, fp_fixed3, d29);  // same as Crankshaft scratch.
 // Crankshaft double scratch register.
-ALIAS_REGISTER(FPRegister, crankshaft_fp_scratch, d29);
-// MacroAssembler double scratch registers.
-ALIAS_REGISTER(FPRegister, fp_scratch, d30);
-ALIAS_REGISTER(FPRegister, fp_scratch1, d30);
-ALIAS_REGISTER(FPRegister, fp_scratch2, d31);
+ALIAS_REGISTER(VRegister, crankshaft_fp_scratch, d29);
+// MacroAssembler scratch V registers.
+ALIAS_REGISTER(VRegister, fp_scratch, d30);
+ALIAS_REGISTER(VRegister, fp_scratch1, d30);
+ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 
 #undef ALIAS_REGISTER
 
@@ -335,11 +462,24 @@ bool AreSameSizeAndType(const CPURegister& reg1,
                         const CPURegister& reg7 = NoCPUReg,
                         const CPURegister& reg8 = NoCPUReg);
 
-typedef FPRegister FloatRegister;
-typedef FPRegister DoubleRegister;
+// AreSameFormat returns true if all of the specified VRegisters have the same
+// vector format. Arguments set to NoVReg are ignored, as are any subsequent
+// arguments. At least one argument (reg1) must be valid (not NoVReg).
+bool AreSameFormat(const VRegister& reg1, const VRegister& reg2,
+                   const VRegister& reg3 = NoVReg,
+                   const VRegister& reg4 = NoVReg);
 
-// TODO(arm64) Define SIMD registers.
-typedef FPRegister Simd128Register;
+// AreConsecutive returns true if all of the specified VRegisters are
+// consecutive in the register file. Arguments may be set to NoVReg, and if so,
+// subsequent arguments must also be NoVReg. At least one argument (reg1) must
+// be valid (not NoVReg).
+bool AreConsecutive(const VRegister& reg1, const VRegister& reg2,
+                    const VRegister& reg3 = NoVReg,
+                    const VRegister& reg4 = NoVReg);
+
+typedef VRegister FloatRegister;
+typedef VRegister DoubleRegister;
+typedef VRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Lists of registers.
@@ -363,10 +503,10 @@ class CPURegList {
   CPURegList(CPURegister::RegisterType type, int size, int first_reg,
              int last_reg)
       : size_(size), type_(type) {
-    DCHECK(((type == CPURegister::kRegister) &&
-            (last_reg < kNumberOfRegisters)) ||
-           ((type == CPURegister::kFPRegister) &&
-            (last_reg < kNumberOfFPRegisters)));
+    DCHECK(
+        ((type == CPURegister::kRegister) && (last_reg < kNumberOfRegisters)) ||
+        ((type == CPURegister::kVRegister) &&
+         (last_reg < kNumberOfVRegisters)));
     DCHECK(last_reg >= first_reg);
     list_ = (1UL << (last_reg + 1)) - 1;
     list_ &= ~((1UL << first_reg) - 1);
@@ -419,11 +559,13 @@ class CPURegList {
 
   // AAPCS64 callee-saved registers.
   static CPURegList GetCalleeSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCalleeSavedFP(int size = kDRegSizeInBits);
+  static CPURegList GetCalleeSavedV(int size = kDRegSizeInBits);
 
   // AAPCS64 caller-saved registers. Note that this includes lr.
+  // TODO(all): Determine how we handle d8-d15 being callee-saved, but the top
+  // 64-bits being caller-saved.
   static CPURegList GetCallerSaved(int size = kXRegSizeInBits);
-  static CPURegList GetCallerSavedFP(int size = kDRegSizeInBits);
+  static CPURegList GetCallerSavedV(int size = kDRegSizeInBits);
 
   // Registers saved as safepoints.
   static CPURegList GetSafepointSavedRegisters();
@@ -474,17 +616,16 @@ class CPURegList {
 
   bool IsValid() const {
     const RegList kValidRegisters = 0x8000000ffffffff;
-    const RegList kValidFPRegisters = 0x0000000ffffffff;
+    const RegList kValidVRegisters = 0x0000000ffffffff;
     switch (type_) {
       case CPURegister::kRegister:
         return (list_ & kValidRegisters) == list_;
-      case CPURegister::kFPRegister:
-        return (list_ & kValidFPRegisters) == list_;
+      case CPURegister::kVRegister:
+        return (list_ & kValidVRegisters) == list_;
       case CPURegister::kNoRegister:
         return list_ == 0;
       default:
         UNREACHABLE();
-        return false;
     }
   }
 };
@@ -492,12 +633,11 @@ class CPURegList {
 
 // AAPCS64 callee-saved registers.
 #define kCalleeSaved CPURegList::GetCalleeSaved()
-#define kCalleeSavedFP CPURegList::GetCalleeSavedFP()
-
+#define kCalleeSavedV CPURegList::GetCalleeSavedV()
 
 // AAPCS64 caller-saved registers. Note that this includes lr.
 #define kCallerSaved CPURegList::GetCallerSaved()
-#define kCallerSavedFP CPURegList::GetCallerSavedFP()
+#define kCallerSavedV CPURegList::GetCallerSavedV()
 
 // -----------------------------------------------------------------------------
 // Immediates.
@@ -518,7 +658,7 @@ class Immediate {
   RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
-  void InitializeHandle(Handle<Object> value);
+  void InitializeHandle(Handle<HeapObject> value);
 
   int64_t value_;
   RelocInfo::Mode rmode_;
@@ -550,6 +690,13 @@ class Operand {
   inline Operand(Register reg,
                  Extend extend,
                  unsigned shift_amount = 0);
+
+  static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Operand EmbeddedCode(CodeStub* stub);
+
+  inline bool IsHeapObjectRequest() const;
+  inline HeapObjectRequest heap_object_request() const;
+  inline Immediate immediate_for_heap_object_request() const;
 
   template<typename T>
   inline explicit Operand(Handle<T> handle);
@@ -586,6 +733,7 @@ class Operand {
   inline static Operand UntagSmiAndScale(Register smi, int scale);
 
  private:
+  base::Optional<HeapObjectRequest> heap_object_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;
@@ -652,17 +800,11 @@ class MemOperand {
 
 class ConstPool {
  public:
-  explicit ConstPool(Assembler* assm)
-      : assm_(assm),
-        first_use_(-1),
-        shared_entries_count(0) {}
-  void RecordEntry(intptr_t data, RelocInfo::Mode mode);
-  int EntryCount() const {
-    return shared_entries_count + static_cast<int>(unique_entries_.size());
-  }
-  bool IsEmpty() const {
-    return shared_entries_.empty() && unique_entries_.empty();
-  }
+  explicit ConstPool(Assembler* assm) : assm_(assm), first_use_(-1) {}
+  // Returns true when we need to write RelocInfo and false when we do not.
+  bool RecordEntry(intptr_t data, RelocInfo::Mode mode);
+  int EntryCount() const { return static_cast<int>(entries_.size()); }
+  bool IsEmpty() const { return entries_.empty(); }
   // Distance in bytes between the current pc and the first instruction
   // using the pool. If there are no pending entries return kMaxInt.
   int DistanceToFirstUse();
@@ -686,16 +828,29 @@ class ConstPool {
   void EmitGuard();
   void EmitEntries();
 
+  typedef std::map<uint64_t, int> SharedEntryMap;
+  // Adds a shared entry to entries_, using 'entry_map' to determine whether we
+  // already track this entry. Returns true if this is the first time we add
+  // this entry, false otherwise.
+  bool AddSharedEntry(SharedEntryMap& entry_map, uint64_t data, int offset);
+
   Assembler* assm_;
   // Keep track of the first instruction requiring a constant pool entry
   // since the previous constant pool was emitted.
   int first_use_;
-  // values, pc offset(s) of entries which can be shared.
-  std::multimap<uint64_t, int> shared_entries_;
-  // Number of distinct literal in shared entries.
-  int shared_entries_count;
-  // values, pc offset of entries which cannot be shared.
-  std::vector<std::pair<uint64_t, int> > unique_entries_;
+
+  // Map of data to index in entries_ for shared entries.
+  SharedEntryMap shared_entries_;
+
+  // Map of address of handle to index in entries_. We need to keep track of
+  // code targets separately from other shared entries, as they can be
+  // relocated.
+  SharedEntryMap handle_to_index_map_;
+
+  // Values, pc offset(s) of entries. Use a vector to preserve the order of
+  // insertion, as the serializer expects code target RelocInfo to point to
+  // constant pool addresses in an ascending order.
+  std::vector<std::pair<uint64_t, std::vector<int> > > entries_;
 };
 
 
@@ -741,7 +896,7 @@ class Assembler : public AssemblerBase {
   //
   // The descriptor (desc) can be NULL. In that case, the code is finalized as
   // usual, but the descriptor is not populated.
-  void GetCode(CodeDesc* desc);
+  void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -857,7 +1012,7 @@ class Assembler : public AssemblerBase {
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
-  // number of call to EndBlockConstpool.
+  // number of calls to EndBlockConstpool.
   void StartBlockConstPool();
 
   // Resume constant pool emission. Need to be called as many time as
@@ -872,7 +1027,7 @@ class Assembler : public AssemblerBase {
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
-  // number of call to EndBlockConstpool.
+  // number of calls to EndBlockConstpool.
   void StartBlockVeneerPool();
 
   // Resume constant pool emission. Need to be called as many time as
@@ -924,7 +1079,6 @@ class Assembler : public AssemblerBase {
   // The parameter indicates the size of the pool (in bytes), including
   // the marker and branch over the data.
   void RecordConstPool(int size);
-
 
   // Instruction set functions ------------------------------------------------
 
@@ -1064,8 +1218,100 @@ class Assembler : public AssemblerBase {
             const Register& rn,
             const Operand& operand);
 
+  // Bitwise and.
+  void and_(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bit clear immediate.
+  void bic(const VRegister& vd, const int imm8, const int left_shift = 0);
+
+  // Bit clear.
+  void bic(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bitwise insert if false.
+  void bif(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bitwise insert if true.
+  void bit(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bitwise select.
+  void bsl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Polynomial multiply.
+  void pmul(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Vector move immediate.
+  void movi(const VRegister& vd, const uint64_t imm, Shift shift = LSL,
+            const int shift_amount = 0);
+
+  // Bitwise not.
+  void mvn(const VRegister& vd, const VRegister& vn);
+
+  // Vector move inverted immediate.
+  void mvni(const VRegister& vd, const int imm8, Shift shift = LSL,
+            const int shift_amount = 0);
+
+  // Signed saturating accumulate of unsigned value.
+  void suqadd(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned saturating accumulate of signed value.
+  void usqadd(const VRegister& vd, const VRegister& vn);
+
+  // Absolute value.
+  void abs(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating absolute value.
+  void sqabs(const VRegister& vd, const VRegister& vn);
+
+  // Negate.
+  void neg(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating negate.
+  void sqneg(const VRegister& vd, const VRegister& vn);
+
+  // Bitwise not.
+  void not_(const VRegister& vd, const VRegister& vn);
+
+  // Extract narrow.
+  void xtn(const VRegister& vd, const VRegister& vn);
+
+  // Extract narrow (second part).
+  void xtn2(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating extract narrow.
+  void sqxtn(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating extract narrow (second part).
+  void sqxtn2(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned saturating extract narrow.
+  void uqxtn(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned saturating extract narrow (second part).
+  void uqxtn2(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating extract unsigned narrow.
+  void sqxtun(const VRegister& vd, const VRegister& vn);
+
+  // Signed saturating extract unsigned narrow (second part).
+  void sqxtun2(const VRegister& vd, const VRegister& vn);
+
+  // Move register to register.
+  void mov(const VRegister& vd, const VRegister& vn);
+
+  // Bitwise not or.
+  void orn(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bitwise exclusive or.
+  void eor(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
   // Bitwise or (A | B).
   void orr(const Register& rd, const Register& rn, const Operand& operand);
+
+  // Bitwise or.
+  void orr(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Bitwise or immediate.
+  void orr(const VRegister& vd, const int imm8, const int left_shift = 0);
 
   // Bitwise nor (A | ~B).
   void orn(const Register& rd, const Register& rn, const Operand& operand);
@@ -1361,6 +1607,7 @@ class Assembler : public AssemblerBase {
 
   // Load literal to register.
   void ldr(const CPURegister& rt, const Immediate& imm);
+  void ldr(const CPURegister& rt, const Operand& operand);
 
   // Load-acquire word.
   void ldar(const Register& rt, const Register& rn);
@@ -1473,147 +1720,1080 @@ class Assembler : public AssemblerBase {
     mov(Register::XRegFromCode(n), Register::XRegFromCode(n));
   }
 
+  // Add.
+  void add(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned halving add.
+  void uhadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Subtract.
+  void sub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed halving add.
+  void shadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Multiply by scalar element.
+  void mul(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           int vm_index);
+
+  // Multiply-add by scalar element.
+  void mla(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           int vm_index);
+
+  // Multiply-subtract by scalar element.
+  void mls(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           int vm_index);
+
+  // Signed long multiply-add by scalar element.
+  void smlal(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Signed long multiply-add by scalar element (second part).
+  void smlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Unsigned long multiply-add by scalar element.
+  void umlal(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Unsigned long multiply-add by scalar element (second part).
+  void umlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Signed long multiply-sub by scalar element.
+  void smlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Signed long multiply-sub by scalar element (second part).
+  void smlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Unsigned long multiply-sub by scalar element.
+  void umlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Unsigned long multiply-sub by scalar element (second part).
+  void umlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Signed long multiply by scalar element.
+  void smull(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Signed long multiply by scalar element (second part).
+  void smull2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Unsigned long multiply by scalar element.
+  void umull(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // Unsigned long multiply by scalar element (second part).
+  void umull2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              int vm_index);
+
+  // Add narrow returning high half.
+  void addhn(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Add narrow returning high half (second part).
+  void addhn2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating double long multiply by element.
+  void sqdmull(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+               int vm_index);
+
+  // Signed saturating double long multiply by element (second part).
+  void sqdmull2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                int vm_index);
+
+  // Signed saturating doubling long multiply-add by element.
+  void sqdmlal(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+               int vm_index);
+
+  // Signed saturating doubling long multiply-add by element (second part).
+  void sqdmlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                int vm_index);
+
+  // Signed saturating doubling long multiply-sub by element.
+  void sqdmlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+               int vm_index);
+
+  // Signed saturating doubling long multiply-sub by element (second part).
+  void sqdmlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                int vm_index);
+
+  // Compare bitwise to zero.
+  void cmeq(const VRegister& vd, const VRegister& vn, int value);
+
+  // Compare signed greater than or equal to zero.
+  void cmge(const VRegister& vd, const VRegister& vn, int value);
+
+  // Compare signed greater than zero.
+  void cmgt(const VRegister& vd, const VRegister& vn, int value);
+
+  // Compare signed less than or equal to zero.
+  void cmle(const VRegister& vd, const VRegister& vn, int value);
+
+  // Compare signed less than zero.
+  void cmlt(const VRegister& vd, const VRegister& vn, int value);
+
+  // Unsigned rounding halving add.
+  void urhadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare equal.
+  void cmeq(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare signed greater than or equal.
+  void cmge(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare signed greater than.
+  void cmgt(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare unsigned higher.
+  void cmhi(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare unsigned higher or same.
+  void cmhs(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Compare bitwise test bits nonzero.
+  void cmtst(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed shift left by register.
+  void sshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned shift left by register.
+  void ushl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply-subtract.
+  void sqdmlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply-subtract (second part).
+  void sqdmlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply.
+  void sqdmull(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply (second part).
+  void sqdmull2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling multiply returning high half.
+  void sqdmulh(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating rounding doubling multiply returning high half.
+  void sqrdmulh(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling multiply element returning high half.
+  void sqdmulh(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+               int vm_index);
+
+  // Signed saturating rounding doubling multiply element returning high half.
+  void sqrdmulh(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                int vm_index);
+
+  // Unsigned long multiply long.
+  void umull(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned long multiply (second part).
+  void umull2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Rounding add narrow returning high half.
+  void raddhn(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Subtract narrow returning high half.
+  void subhn(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Subtract narrow returning high half (second part).
+  void subhn2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Rounding add narrow returning high half (second part).
+  void raddhn2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Rounding subtract narrow returning high half.
+  void rsubhn(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Rounding subtract narrow returning high half (second part).
+  void rsubhn2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating shift left by register.
+  void sqshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned saturating shift left by register.
+  void uqshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed rounding shift left by register.
+  void srshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned rounding shift left by register.
+  void urshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating rounding shift left by register.
+  void sqrshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned saturating rounding shift left by register.
+  void uqrshl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference.
+  void sabd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference and accumulate.
+  void uaba(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Shift left by immediate and insert.
+  void sli(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Shift right by immediate and insert.
+  void sri(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed maximum.
+  void smax(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed pairwise maximum.
+  void smaxp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Add across vector.
+  void addv(const VRegister& vd, const VRegister& vn);
+
+  // Signed add long across vector.
+  void saddlv(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned add long across vector.
+  void uaddlv(const VRegister& vd, const VRegister& vn);
+
+  // FP maximum number across vector.
+  void fmaxnmv(const VRegister& vd, const VRegister& vn);
+
+  // FP maximum across vector.
+  void fmaxv(const VRegister& vd, const VRegister& vn);
+
+  // FP minimum number across vector.
+  void fminnmv(const VRegister& vd, const VRegister& vn);
+
+  // FP minimum across vector.
+  void fminv(const VRegister& vd, const VRegister& vn);
+
+  // Signed maximum across vector.
+  void smaxv(const VRegister& vd, const VRegister& vn);
+
+  // Signed minimum.
+  void smin(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed minimum pairwise.
+  void sminp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed minimum across vector.
+  void sminv(const VRegister& vd, const VRegister& vn);
+
+  // One-element structure store from one register.
+  void st1(const VRegister& vt, const MemOperand& src);
+
+  // One-element structure store from two registers.
+  void st1(const VRegister& vt, const VRegister& vt2, const MemOperand& src);
+
+  // One-element structure store from three registers.
+  void st1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src);
+
+  // One-element structure store from four registers.
+  void st1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src);
+
+  // One-element single structure store from one lane.
+  void st1(const VRegister& vt, int lane, const MemOperand& src);
+
+  // Two-element structure store from two registers.
+  void st2(const VRegister& vt, const VRegister& vt2, const MemOperand& src);
+
+  // Two-element single structure store from two lanes.
+  void st2(const VRegister& vt, const VRegister& vt2, int lane,
+           const MemOperand& src);
+
+  // Three-element structure store from three registers.
+  void st3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src);
+
+  // Three-element single structure store from three lanes.
+  void st3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           int lane, const MemOperand& src);
+
+  // Four-element structure store from four registers.
+  void st4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src);
+
+  // Four-element single structure store from four lanes.
+  void st4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, int lane, const MemOperand& src);
+
+  // Unsigned add long.
+  void uaddl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned add long (second part).
+  void uaddl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned add wide.
+  void uaddw(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned add wide (second part).
+  void uaddw2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed add long.
+  void saddl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed add long (second part).
+  void saddl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed add wide.
+  void saddw(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed add wide (second part).
+  void saddw2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned subtract long.
+  void usubl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned subtract long (second part).
+  void usubl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned subtract wide.
+  void usubw(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed subtract long.
+  void ssubl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed subtract long (second part).
+  void ssubl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed integer subtract wide.
+  void ssubw(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed integer subtract wide (second part).
+  void ssubw2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned subtract wide (second part).
+  void usubw2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned maximum.
+  void umax(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned pairwise maximum.
+  void umaxp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned maximum across vector.
+  void umaxv(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned minimum.
+  void umin(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned pairwise minimum.
+  void uminp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned minimum across vector.
+  void uminv(const VRegister& vd, const VRegister& vn);
+
+  // Transpose vectors (primary).
+  void trn1(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Transpose vectors (secondary).
+  void trn2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unzip vectors (primary).
+  void uzp1(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unzip vectors (secondary).
+  void uzp2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Zip vectors (primary).
+  void zip1(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Zip vectors (secondary).
+  void zip2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed shift right by immediate.
+  void sshr(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned shift right by immediate.
+  void ushr(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed rounding shift right by immediate.
+  void srshr(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned rounding shift right by immediate.
+  void urshr(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed shift right by immediate and accumulate.
+  void ssra(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned shift right by immediate and accumulate.
+  void usra(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed rounding shift right by immediate and accumulate.
+  void srsra(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned rounding shift right by immediate and accumulate.
+  void ursra(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Shift right narrow by immediate.
+  void shrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Shift right narrow by immediate (second part).
+  void shrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Rounding shift right narrow by immediate.
+  void rshrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Rounding shift right narrow by immediate (second part).
+  void rshrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned saturating shift right narrow by immediate.
+  void uqshrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned saturating shift right narrow by immediate (second part).
+  void uqshrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned saturating rounding shift right narrow by immediate.
+  void uqrshrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned saturating rounding shift right narrow by immediate (second part).
+  void uqrshrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift right narrow by immediate.
+  void sqshrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift right narrow by immediate (second part).
+  void sqshrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating rounded shift right narrow by immediate.
+  void sqrshrn(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating rounded shift right narrow by immediate (second part).
+  void sqrshrn2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift right unsigned narrow by immediate.
+  void sqshrun(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift right unsigned narrow by immediate (second part).
+  void sqshrun2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed sat rounded shift right unsigned narrow by immediate.
+  void sqrshrun(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed sat rounded shift right unsigned narrow by immediate (second part).
+  void sqrshrun2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // FP reciprocal step.
+  void frecps(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP reciprocal estimate.
+  void frecpe(const VRegister& vd, const VRegister& vn);
+
+  // FP reciprocal square root estimate.
+  void frsqrte(const VRegister& vd, const VRegister& vn);
+
+  // FP reciprocal square root step.
+  void frsqrts(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference and accumulate long.
+  void sabal(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference and accumulate long (second part).
+  void sabal2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference and accumulate long.
+  void uabal(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference and accumulate long (second part).
+  void uabal2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference long.
+  void sabdl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference long (second part).
+  void sabdl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference long.
+  void uabdl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference long (second part).
+  void uabdl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Polynomial multiply long.
+  void pmull(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Polynomial multiply long (second part).
+  void pmull2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply-add.
+  void smlal(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply-add (second part).
+  void smlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned long multiply-add.
+  void umlal(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned long multiply-add (second part).
+  void umlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply-sub.
+  void smlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply-sub (second part).
+  void smlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned long multiply-sub.
+  void umlsl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned long multiply-sub (second part).
+  void umlsl2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply.
+  void smull(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed long multiply (second part).
+  void smull2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply-add.
+  void sqdmlal(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating doubling long multiply-add (second part).
+  void sqdmlal2(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned absolute difference.
+  void uabd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed absolute difference and accumulate.
+  void saba(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
   // FP instructions.
   // Move immediate to FP register.
-  void fmov(FPRegister fd, double imm);
-  void fmov(FPRegister fd, float imm);
+  void fmov(const VRegister& fd, double imm);
+  void fmov(const VRegister& fd, float imm);
 
   // Move FP register to register.
-  void fmov(Register rd, FPRegister fn);
+  void fmov(const Register& rd, const VRegister& fn);
 
   // Move register to FP register.
-  void fmov(FPRegister fd, Register rn);
+  void fmov(const VRegister& fd, const Register& rn);
 
   // Move FP register to FP register.
-  void fmov(FPRegister fd, FPRegister fn);
+  void fmov(const VRegister& fd, const VRegister& fn);
+
+  // Move 64-bit register to top half of 128-bit FP register.
+  void fmov(const VRegister& vd, int index, const Register& rn);
+
+  // Move top half of 128-bit FP register to 64-bit register.
+  void fmov(const Register& rd, const VRegister& vn, int index);
 
   // FP add.
-  void fadd(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP subtract.
-  void fsub(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fsub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP multiply.
-  void fmul(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmul(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
-  // FP fused multiply and add.
-  void fmadd(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa);
+  // FP compare equal to zero.
+  void fcmeq(const VRegister& vd, const VRegister& vn, double imm);
 
-  // FP fused multiply and subtract.
-  void fmsub(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
-             const FPRegister& fa);
+  // FP greater than zero.
+  void fcmgt(const VRegister& vd, const VRegister& vn, double imm);
 
-  // FP fused multiply, add and negate.
-  void fnmadd(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa);
+  // FP greater than or equal to zero.
+  void fcmge(const VRegister& vd, const VRegister& vn, double imm);
 
-  // FP fused multiply, subtract and negate.
-  void fnmsub(const FPRegister& fd,
-              const FPRegister& fn,
-              const FPRegister& fm,
-              const FPRegister& fa);
+  // FP less than or equal to zero.
+  void fcmle(const VRegister& vd, const VRegister& vn, double imm);
+
+  // FP less than to zero.
+  void fcmlt(const VRegister& vd, const VRegister& vn, double imm);
+
+  // FP absolute difference.
+  void fabd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise add vector.
+  void faddp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise add scalar.
+  void faddp(const VRegister& vd, const VRegister& vn);
+
+  // FP pairwise maximum scalar.
+  void fmaxp(const VRegister& vd, const VRegister& vn);
+
+  // FP pairwise maximum number scalar.
+  void fmaxnmp(const VRegister& vd, const VRegister& vn);
+
+  // FP pairwise minimum number scalar.
+  void fminnmp(const VRegister& vd, const VRegister& vn);
+
+  // FP vector multiply accumulate.
+  void fmla(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP vector multiply subtract.
+  void fmls(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP vector multiply extended.
+  void fmulx(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP absolute greater than or equal.
+  void facge(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP absolute greater than.
+  void facgt(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP multiply by element.
+  void fmul(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            int vm_index);
+
+  // FP fused multiply-add to accumulator by element.
+  void fmla(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            int vm_index);
+
+  // FP fused multiply-sub from accumulator by element.
+  void fmls(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            int vm_index);
+
+  // FP multiply extended by element.
+  void fmulx(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             int vm_index);
+
+  // FP compare equal.
+  void fcmeq(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP greater than.
+  void fcmgt(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP greater than or equal.
+  void fcmge(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise maximum vector.
+  void fmaxp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise minimum vector.
+  void fminp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise minimum scalar.
+  void fminp(const VRegister& vd, const VRegister& vn);
+
+  // FP pairwise maximum number vector.
+  void fmaxnmp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP pairwise minimum number vector.
+  void fminnmp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP fused multiply-add.
+  void fmadd(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             const VRegister& va);
+
+  // FP fused multiply-subtract.
+  void fmsub(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+             const VRegister& va);
+
+  // FP fused multiply-add and negate.
+  void fnmadd(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              const VRegister& va);
+
+  // FP fused multiply-subtract and negate.
+  void fnmsub(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+              const VRegister& va);
+
+  // FP multiply-negate scalar.
+  void fnmul(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // FP reciprocal exponent scalar.
+  void frecpx(const VRegister& vd, const VRegister& vn);
 
   // FP divide.
-  void fdiv(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fdiv(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP maximum.
-  void fmax(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmax(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP minimum.
-  void fmin(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmin(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP maximum.
-  void fmaxnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fmaxnm(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP minimum.
-  void fminnm(const FPRegister& fd, const FPRegister& fn, const FPRegister& fm);
+  void fminnm(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // FP absolute.
-  void fabs(const FPRegister& fd, const FPRegister& fn);
+  void fabs(const VRegister& vd, const VRegister& vn);
 
   // FP negate.
-  void fneg(const FPRegister& fd, const FPRegister& fn);
+  void fneg(const VRegister& vd, const VRegister& vn);
 
   // FP square root.
-  void fsqrt(const FPRegister& fd, const FPRegister& fn);
+  void fsqrt(const VRegister& vd, const VRegister& vn);
 
-  // FP round to integer (nearest with ties to away).
-  void frinta(const FPRegister& fd, const FPRegister& fn);
+  // FP round to integer nearest with ties to away.
+  void frinta(const VRegister& vd, const VRegister& vn);
 
-  // FP round to integer (toward minus infinity).
-  void frintm(const FPRegister& fd, const FPRegister& fn);
+  // FP round to integer, implicit rounding.
+  void frinti(const VRegister& vd, const VRegister& vn);
 
-  // FP round to integer (nearest with ties to even).
-  void frintn(const FPRegister& fd, const FPRegister& fn);
+  // FP round to integer toward minus infinity.
+  void frintm(const VRegister& vd, const VRegister& vn);
 
-  // FP round to integer (towards plus infinity).
-  void frintp(const FPRegister& fd, const FPRegister& fn);
+  // FP round to integer nearest with ties to even.
+  void frintn(const VRegister& vd, const VRegister& vn);
 
-  // FP round to integer (towards zero.)
-  void frintz(const FPRegister& fd, const FPRegister& fn);
+  // FP round to integer towards plus infinity.
+  void frintp(const VRegister& vd, const VRegister& vn);
+
+  // FP round to integer, exact, implicit rounding.
+  void frintx(const VRegister& vd, const VRegister& vn);
+
+  // FP round to integer towards zero.
+  void frintz(const VRegister& vd, const VRegister& vn);
 
   // FP compare registers.
-  void fcmp(const FPRegister& fn, const FPRegister& fm);
+  void fcmp(const VRegister& vn, const VRegister& vm);
 
   // FP compare immediate.
-  void fcmp(const FPRegister& fn, double value);
+  void fcmp(const VRegister& vn, double value);
 
   // FP conditional compare.
-  void fccmp(const FPRegister& fn,
-             const FPRegister& fm,
-             StatusFlags nzcv,
+  void fccmp(const VRegister& vn, const VRegister& vm, StatusFlags nzcv,
              Condition cond);
 
   // FP conditional select.
-  void fcsel(const FPRegister& fd,
-             const FPRegister& fn,
-             const FPRegister& fm,
+  void fcsel(const VRegister& vd, const VRegister& vn, const VRegister& vm,
              Condition cond);
 
-  // Common FP Convert function
-  void FPConvertToInt(const Register& rd,
-                      const FPRegister& fn,
-                      FPIntegerConvertOp op);
+  // Common FP Convert functions.
+  void NEONFPConvertToInt(const Register& rd, const VRegister& vn, Instr op);
+  void NEONFPConvertToInt(const VRegister& vd, const VRegister& vn, Instr op);
 
-  // FP convert between single and double precision.
-  void fcvt(const FPRegister& fd, const FPRegister& fn);
+  // FP convert between precisions.
+  void fcvt(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to unsigned integer (nearest with ties to away).
-  void fcvtau(const Register& rd, const FPRegister& fn);
+  // FP convert to higher precision.
+  void fcvtl(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to signed integer (nearest with ties to away).
-  void fcvtas(const Register& rd, const FPRegister& fn);
+  // FP convert to higher precision (second part).
+  void fcvtl2(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to unsigned integer (round towards -infinity).
-  void fcvtmu(const Register& rd, const FPRegister& fn);
+  // FP convert to lower precision.
+  void fcvtn(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to signed integer (round towards -infinity).
-  void fcvtms(const Register& rd, const FPRegister& fn);
+  // FP convert to lower prevision (second part).
+  void fcvtn2(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to unsigned integer (nearest with ties to even).
-  void fcvtnu(const Register& rd, const FPRegister& fn);
+  // FP convert to lower precision, rounding to odd.
+  void fcvtxn(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to signed integer (nearest with ties to even).
-  void fcvtns(const Register& rd, const FPRegister& fn);
+  // FP convert to lower precision, rounding to odd (second part).
+  void fcvtxn2(const VRegister& vd, const VRegister& vn);
 
-  // Convert FP to unsigned integer (round towards zero).
-  void fcvtzu(const Register& rd, const FPRegister& fn);
+  // FP convert to signed integer, nearest with ties to away.
+  void fcvtas(const Register& rd, const VRegister& vn);
 
-  // Convert FP to signed integer (rounf towards zero).
-  void fcvtzs(const Register& rd, const FPRegister& fn);
+  // FP convert to unsigned integer, nearest with ties to away.
+  void fcvtau(const Register& rd, const VRegister& vn);
+
+  // FP convert to signed integer, nearest with ties to away.
+  void fcvtas(const VRegister& vd, const VRegister& vn);
+
+  // FP convert to unsigned integer, nearest with ties to away.
+  void fcvtau(const VRegister& vd, const VRegister& vn);
+
+  // FP convert to signed integer, round towards -infinity.
+  void fcvtms(const Register& rd, const VRegister& vn);
+
+  // FP convert to unsigned integer, round towards -infinity.
+  void fcvtmu(const Register& rd, const VRegister& vn);
+
+  // FP convert to signed integer, round towards -infinity.
+  void fcvtms(const VRegister& vd, const VRegister& vn);
+
+  // FP convert to unsigned integer, round towards -infinity.
+  void fcvtmu(const VRegister& vd, const VRegister& vn);
+
+  // FP convert to signed integer, nearest with ties to even.
+  void fcvtns(const Register& rd, const VRegister& vn);
+
+  // FP convert to unsigned integer, nearest with ties to even.
+  void fcvtnu(const Register& rd, const VRegister& vn);
+
+  // FP convert to signed integer, nearest with ties to even.
+  void fcvtns(const VRegister& rd, const VRegister& vn);
+
+  // FP convert to unsigned integer, nearest with ties to even.
+  void fcvtnu(const VRegister& rd, const VRegister& vn);
+
+  // FP convert to signed integer or fixed-point, round towards zero.
+  void fcvtzs(const Register& rd, const VRegister& vn, int fbits = 0);
+
+  // FP convert to unsigned integer or fixed-point, round towards zero.
+  void fcvtzu(const Register& rd, const VRegister& vn, int fbits = 0);
+
+  // FP convert to signed integer or fixed-point, round towards zero.
+  void fcvtzs(const VRegister& vd, const VRegister& vn, int fbits = 0);
+
+  // FP convert to unsigned integer or fixed-point, round towards zero.
+  void fcvtzu(const VRegister& vd, const VRegister& vn, int fbits = 0);
+
+  // FP convert to signed integer, round towards +infinity.
+  void fcvtps(const Register& rd, const VRegister& vn);
+
+  // FP convert to unsigned integer, round towards +infinity.
+  void fcvtpu(const Register& rd, const VRegister& vn);
+
+  // FP convert to signed integer, round towards +infinity.
+  void fcvtps(const VRegister& vd, const VRegister& vn);
+
+  // FP convert to unsigned integer, round towards +infinity.
+  void fcvtpu(const VRegister& vd, const VRegister& vn);
 
   // Convert signed integer or fixed point to FP.
-  void scvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
+  void scvtf(const VRegister& fd, const Register& rn, int fbits = 0);
 
   // Convert unsigned integer or fixed point to FP.
-  void ucvtf(const FPRegister& fd, const Register& rn, unsigned fbits = 0);
+  void ucvtf(const VRegister& fd, const Register& rn, int fbits = 0);
+
+  // Convert signed integer or fixed-point to FP.
+  void scvtf(const VRegister& fd, const VRegister& vn, int fbits = 0);
+
+  // Convert unsigned integer or fixed-point to FP.
+  void ucvtf(const VRegister& fd, const VRegister& vn, int fbits = 0);
+
+  // Extract vector from pair of vectors.
+  void ext(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           int index);
+
+  // Duplicate vector element to vector or scalar.
+  void dup(const VRegister& vd, const VRegister& vn, int vn_index);
+
+  // Duplicate general-purpose register to vector.
+  void dup(const VRegister& vd, const Register& rn);
+
+  // Insert vector element from general-purpose register.
+  void ins(const VRegister& vd, int vd_index, const Register& rn);
+
+  // Move general-purpose register to a vector element.
+  void mov(const VRegister& vd, int vd_index, const Register& rn);
+
+  // Unsigned move vector element to general-purpose register.
+  void umov(const Register& rd, const VRegister& vn, int vn_index);
+
+  // Move vector element to general-purpose register.
+  void mov(const Register& rd, const VRegister& vn, int vn_index);
+
+  // Move vector element to scalar.
+  void mov(const VRegister& vd, const VRegister& vn, int vn_index);
+
+  // Insert vector element from another vector element.
+  void ins(const VRegister& vd, int vd_index, const VRegister& vn,
+           int vn_index);
+
+  // Move vector element to another vector element.
+  void mov(const VRegister& vd, int vd_index, const VRegister& vn,
+           int vn_index);
+
+  // Signed move vector element to general-purpose register.
+  void smov(const Register& rd, const VRegister& vn, int vn_index);
+
+  // One-element structure load to one register.
+  void ld1(const VRegister& vt, const MemOperand& src);
+
+  // One-element structure load to two registers.
+  void ld1(const VRegister& vt, const VRegister& vt2, const MemOperand& src);
+
+  // One-element structure load to three registers.
+  void ld1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src);
+
+  // One-element structure load to four registers.
+  void ld1(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src);
+
+  // One-element single structure load to one lane.
+  void ld1(const VRegister& vt, int lane, const MemOperand& src);
+
+  // One-element single structure load to all lanes.
+  void ld1r(const VRegister& vt, const MemOperand& src);
+
+  // Two-element structure load.
+  void ld2(const VRegister& vt, const VRegister& vt2, const MemOperand& src);
+
+  // Two-element single structure load to one lane.
+  void ld2(const VRegister& vt, const VRegister& vt2, int lane,
+           const MemOperand& src);
+
+  // Two-element single structure load to all lanes.
+  void ld2r(const VRegister& vt, const VRegister& vt2, const MemOperand& src);
+
+  // Three-element structure load.
+  void ld3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const MemOperand& src);
+
+  // Three-element single structure load to one lane.
+  void ld3(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           int lane, const MemOperand& src);
+
+  // Three-element single structure load to all lanes.
+  void ld3r(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+            const MemOperand& src);
+
+  // Four-element structure load.
+  void ld4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, const MemOperand& src);
+
+  // Four-element single structure load to one lane.
+  void ld4(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+           const VRegister& vt4, int lane, const MemOperand& src);
+
+  // Four-element single structure load to all lanes.
+  void ld4r(const VRegister& vt, const VRegister& vt2, const VRegister& vt3,
+            const VRegister& vt4, const MemOperand& src);
+
+  // Count leading sign bits.
+  void cls(const VRegister& vd, const VRegister& vn);
+
+  // Count leading zero bits (vector).
+  void clz(const VRegister& vd, const VRegister& vn);
+
+  // Population count per byte.
+  void cnt(const VRegister& vd, const VRegister& vn);
+
+  // Reverse bit order.
+  void rbit(const VRegister& vd, const VRegister& vn);
+
+  // Reverse elements in 16-bit halfwords.
+  void rev16(const VRegister& vd, const VRegister& vn);
+
+  // Reverse elements in 32-bit words.
+  void rev32(const VRegister& vd, const VRegister& vn);
+
+  // Reverse elements in 64-bit doublewords.
+  void rev64(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned reciprocal square root estimate.
+  void ursqrte(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned reciprocal estimate.
+  void urecpe(const VRegister& vd, const VRegister& vn);
+
+  // Signed pairwise long add and accumulate.
+  void sadalp(const VRegister& vd, const VRegister& vn);
+
+  // Signed pairwise long add.
+  void saddlp(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned pairwise long add.
+  void uaddlp(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned pairwise long add and accumulate.
+  void uadalp(const VRegister& vd, const VRegister& vn);
+
+  // Shift left by immediate.
+  void shl(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift left by immediate.
+  void sqshl(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed saturating shift left unsigned by immediate.
+  void sqshlu(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned saturating shift left by immediate.
+  void uqshl(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed shift left long by immediate.
+  void sshll(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed shift left long by immediate (second part).
+  void sshll2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Signed extend long.
+  void sxtl(const VRegister& vd, const VRegister& vn);
+
+  // Signed extend long (second part).
+  void sxtl2(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned shift left long by immediate.
+  void ushll(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned shift left long by immediate (second part).
+  void ushll2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Shift left long by element size.
+  void shll(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Shift left long by element size (second part).
+  void shll2(const VRegister& vd, const VRegister& vn, int shift);
+
+  // Unsigned extend long.
+  void uxtl(const VRegister& vd, const VRegister& vn);
+
+  // Unsigned extend long (second part).
+  void uxtl2(const VRegister& vd, const VRegister& vn);
+
+  // Signed rounding halving add.
+  void srhadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned halving sub.
+  void uhsub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed halving sub.
+  void shsub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned saturating add.
+  void uqadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating add.
+  void sqadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Unsigned saturating subtract.
+  void uqsub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Signed saturating subtract.
+  void sqsub(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Add pairwise.
+  void addp(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Add pair of elements scalar.
+  void addp(const VRegister& vd, const VRegister& vn);
+
+  // Multiply-add to accumulator.
+  void mla(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Multiply-subtract to accumulator.
+  void mls(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Multiply.
+  void mul(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Table lookup from one register.
+  void tbl(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Table lookup from two registers.
+  void tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vm);
+
+  // Table lookup from three registers.
+  void tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vm);
+
+  // Table lookup from four registers.
+  void tbl(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vn4, const VRegister& vm);
+
+  // Table lookup extension from one register.
+  void tbx(const VRegister& vd, const VRegister& vn, const VRegister& vm);
+
+  // Table lookup extension from two registers.
+  void tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vm);
+
+  // Table lookup extension from three registers.
+  void tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vm);
+
+  // Table lookup extension from four registers.
+  void tbx(const VRegister& vd, const VRegister& vn, const VRegister& vn2,
+           const VRegister& vn3, const VRegister& vn4, const VRegister& vm);
 
   // Instruction functions used only for test, debug, and patching.
   // Emit raw instructions in the instruction stream.
@@ -1663,37 +2843,43 @@ class Assembler : public AssemblerBase {
 
   // Register encoding.
   static Instr Rd(CPURegister rd) {
-    DCHECK(rd.code() != kSPRegInternalCode);
+    DCHECK_NE(rd.code(), kSPRegInternalCode);
     return rd.code() << Rd_offset;
   }
 
   static Instr Rn(CPURegister rn) {
-    DCHECK(rn.code() != kSPRegInternalCode);
+    DCHECK_NE(rn.code(), kSPRegInternalCode);
     return rn.code() << Rn_offset;
   }
 
   static Instr Rm(CPURegister rm) {
-    DCHECK(rm.code() != kSPRegInternalCode);
+    DCHECK_NE(rm.code(), kSPRegInternalCode);
     return rm.code() << Rm_offset;
   }
 
+  static Instr RmNot31(CPURegister rm) {
+    DCHECK_NE(rm.code(), kSPRegInternalCode);
+    DCHECK(!rm.IsZero());
+    return Rm(rm);
+  }
+
   static Instr Ra(CPURegister ra) {
-    DCHECK(ra.code() != kSPRegInternalCode);
+    DCHECK_NE(ra.code(), kSPRegInternalCode);
     return ra.code() << Ra_offset;
   }
 
   static Instr Rt(CPURegister rt) {
-    DCHECK(rt.code() != kSPRegInternalCode);
+    DCHECK_NE(rt.code(), kSPRegInternalCode);
     return rt.code() << Rt_offset;
   }
 
   static Instr Rt2(CPURegister rt2) {
-    DCHECK(rt2.code() != kSPRegInternalCode);
+    DCHECK_NE(rt2.code(), kSPRegInternalCode);
     return rt2.code() << Rt2_offset;
   }
 
   static Instr Rs(CPURegister rs) {
-    DCHECK(rs.code() != kSPRegInternalCode);
+    DCHECK_NE(rs.code(), kSPRegInternalCode);
     return rs.code() << Rs_offset;
   }
 
@@ -1749,17 +2935,174 @@ class Assembler : public AssemblerBase {
   // MemOperand offset encoding.
   inline static Instr ImmLSUnsigned(int imm12);
   inline static Instr ImmLS(int imm9);
-  inline static Instr ImmLSPair(int imm7, LSDataSize size);
+  inline static Instr ImmLSPair(int imm7, unsigned size);
   inline static Instr ImmShiftLS(unsigned shift_amount);
   inline static Instr ImmException(int imm16);
   inline static Instr ImmSystemRegister(int imm15);
   inline static Instr ImmHint(int imm7);
   inline static Instr ImmBarrierDomain(int imm2);
   inline static Instr ImmBarrierType(int imm2);
-  inline static LSDataSize CalcLSDataSize(LoadStoreOp op);
+  inline static unsigned CalcLSDataSize(LoadStoreOp op);
+
+  // Instruction bits for vector format in data processing operations.
+  static Instr VFormat(VRegister vd) {
+    if (vd.Is64Bits()) {
+      switch (vd.LaneCount()) {
+        case 2:
+          return NEON_2S;
+        case 4:
+          return NEON_4H;
+        case 8:
+          return NEON_8B;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      DCHECK(vd.Is128Bits());
+      switch (vd.LaneCount()) {
+        case 2:
+          return NEON_2D;
+        case 4:
+          return NEON_4S;
+        case 8:
+          return NEON_8H;
+        case 16:
+          return NEON_16B;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+
+  // Instruction bits for vector format in floating point data processing
+  // operations.
+  static Instr FPFormat(VRegister vd) {
+    if (vd.LaneCount() == 1) {
+      // Floating point scalar formats.
+      DCHECK(vd.Is32Bits() || vd.Is64Bits());
+      return vd.Is64Bits() ? FP64 : FP32;
+    }
+
+    // Two lane floating point vector formats.
+    if (vd.LaneCount() == 2) {
+      DCHECK(vd.Is64Bits() || vd.Is128Bits());
+      return vd.Is128Bits() ? NEON_FP_2D : NEON_FP_2S;
+    }
+
+    // Four lane floating point vector format.
+    DCHECK((vd.LaneCount() == 4) && vd.Is128Bits());
+    return NEON_FP_4S;
+  }
+
+  // Instruction bits for vector format in load and store operations.
+  static Instr LSVFormat(VRegister vd) {
+    if (vd.Is64Bits()) {
+      switch (vd.LaneCount()) {
+        case 1:
+          return LS_NEON_1D;
+        case 2:
+          return LS_NEON_2S;
+        case 4:
+          return LS_NEON_4H;
+        case 8:
+          return LS_NEON_8B;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      DCHECK(vd.Is128Bits());
+      switch (vd.LaneCount()) {
+        case 2:
+          return LS_NEON_2D;
+        case 4:
+          return LS_NEON_4S;
+        case 8:
+          return LS_NEON_8H;
+        case 16:
+          return LS_NEON_16B;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+
+  // Instruction bits for scalar format in data processing operations.
+  static Instr SFormat(VRegister vd) {
+    DCHECK(vd.IsScalar());
+    switch (vd.SizeInBytes()) {
+      case 1:
+        return NEON_B;
+      case 2:
+        return NEON_H;
+      case 4:
+        return NEON_S;
+      case 8:
+        return NEON_D;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  static Instr ImmNEONHLM(int index, int num_bits) {
+    int h, l, m;
+    if (num_bits == 3) {
+      DCHECK(is_uint3(index));
+      h = (index >> 2) & 1;
+      l = (index >> 1) & 1;
+      m = (index >> 0) & 1;
+    } else if (num_bits == 2) {
+      DCHECK(is_uint2(index));
+      h = (index >> 1) & 1;
+      l = (index >> 0) & 1;
+      m = 0;
+    } else {
+      DCHECK(is_uint1(index) && (num_bits == 1));
+      h = (index >> 0) & 1;
+      l = 0;
+      m = 0;
+    }
+    return (h << NEONH_offset) | (l << NEONL_offset) | (m << NEONM_offset);
+  }
+
+  static Instr ImmNEONExt(int imm4) {
+    DCHECK(is_uint4(imm4));
+    return imm4 << ImmNEONExt_offset;
+  }
+
+  static Instr ImmNEON5(Instr format, int index) {
+    DCHECK(is_uint4(index));
+    int s = LaneSizeInBytesLog2FromFormat(static_cast<VectorFormat>(format));
+    int imm5 = (index << (s + 1)) | (1 << s);
+    return imm5 << ImmNEON5_offset;
+  }
+
+  static Instr ImmNEON4(Instr format, int index) {
+    DCHECK(is_uint4(index));
+    int s = LaneSizeInBytesLog2FromFormat(static_cast<VectorFormat>(format));
+    int imm4 = index << s;
+    return imm4 << ImmNEON4_offset;
+  }
+
+  static Instr ImmNEONabcdefgh(int imm8) {
+    DCHECK(is_uint8(imm8));
+    Instr instr;
+    instr = ((imm8 >> 5) & 7) << ImmNEONabc_offset;
+    instr |= (imm8 & 0x1f) << ImmNEONdefgh_offset;
+    return instr;
+  }
+
+  static Instr NEONCmode(int cmode) {
+    DCHECK(is_uint4(cmode));
+    return cmode << NEONCmode_offset;
+  }
+
+  static Instr NEONModImmOp(int op) {
+    DCHECK(is_uint1(op));
+    return op << NEONModImmOp_offset;
+  }
 
   static bool IsImmLSUnscaled(int64_t offset);
-  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
+  static bool IsImmLSScaled(int64_t offset, unsigned size);
   static bool IsImmLLiteral(int64_t offset);
 
   // Move immediates encoding.
@@ -1767,12 +3110,12 @@ class Assembler : public AssemblerBase {
   inline static Instr ShiftMoveWide(int shift);
 
   // FP Immediates.
-  static Instr ImmFP32(float imm);
-  static Instr ImmFP64(double imm);
+  static Instr ImmFP(double imm);
+  static Instr ImmNEONFP(double imm);
   inline static Instr FPScale(unsigned scale);
 
   // FP register type.
-  inline static Instr FPType(FPRegister fd);
+  inline static Instr FPType(VRegister fd);
 
   // Class for scoping postponing the constant pool generation.
   class BlockConstPoolScope {
@@ -1840,16 +3183,56 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
+  // Class for blocking sharing of code targets in constant pool.
+  class BlockCodeTargetSharingScope {
+   public:
+    explicit BlockCodeTargetSharingScope(Assembler* assem) : assem_(nullptr) {
+      Open(assem);
+    }
+    // This constructor does not initialize the scope. The user needs to
+    // explicitly call Open() before using it.
+    BlockCodeTargetSharingScope() : assem_(nullptr) {}
+    ~BlockCodeTargetSharingScope() { Close(); }
+    void Open(Assembler* assem) {
+      DCHECK_NULL(assem_);
+      DCHECK_NOT_NULL(assem);
+      assem_ = assem;
+      assem_->StartBlockCodeTargetSharing();
+    }
+
+   private:
+    void Close() {
+      if (assem_ != nullptr) {
+        assem_->EndBlockCodeTargetSharing();
+      }
+    }
+    Assembler* assem_;
+
+    DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
+  };
+
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
                  LoadStoreOp op);
-
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);
-  static bool IsImmLSPair(int64_t offset, LSDataSize size);
+  void LoadStoreStruct(const VRegister& vt, const MemOperand& addr,
+                       NEONLoadStoreMultiStructOp op);
+  void LoadStoreStruct1(const VRegister& vt, int reg_count,
+                        const MemOperand& addr);
+  void LoadStoreStructSingle(const VRegister& vt, uint32_t lane,
+                             const MemOperand& addr,
+                             NEONLoadStoreSingleStructOp op);
+  void LoadStoreStructSingleAllLanes(const VRegister& vt,
+                                     const MemOperand& addr,
+                                     NEONLoadStoreSingleStructOp op);
+  void LoadStoreStructVerify(const VRegister& vt, const MemOperand& addr,
+                             Instr op);
+
+  static bool IsImmLSPair(int64_t offset, unsigned size);
 
   void Logical(const Register& rd,
                const Register& rn,
@@ -1913,7 +3296,19 @@ class Assembler : public AssemblerBase {
                                       Label* label,
                                       Instruction* label_veneer = NULL);
 
+  // Prevent sharing of code target constant pool entries until
+  // EndBlockCodeTargetSharing is called. Calls to this function can be nested
+  // but must be followed by an equal number of call to
+  // EndBlockCodeTargetSharing.
+  void StartBlockCodeTargetSharing() { ++code_target_sharing_blocked_nesting_; }
+
+  // Resume sharing of constant pool code target entries. Needs to be called
+  // as many times as StartBlockCodeTargetSharing to have an effect.
+  void EndBlockCodeTargetSharing() { --code_target_sharing_blocked_nesting_; }
+
  private:
+  static uint32_t FPToImm8(double imm);
+
   // Instruction helpers.
   void MoveWide(const Register& rd,
                 uint64_t imm,
@@ -1942,18 +3337,66 @@ class Assembler : public AssemblerBase {
                              const Register& rm,
                              const Register& ra,
                              DataProcessing3SourceOp op);
-  void FPDataProcessing1Source(const FPRegister& fd,
-                               const FPRegister& fn,
+  void FPDataProcessing1Source(const VRegister& fd, const VRegister& fn,
                                FPDataProcessing1SourceOp op);
-  void FPDataProcessing2Source(const FPRegister& fd,
-                               const FPRegister& fn,
-                               const FPRegister& fm,
+  void FPDataProcessing2Source(const VRegister& fd, const VRegister& fn,
+                               const VRegister& fm,
                                FPDataProcessing2SourceOp op);
-  void FPDataProcessing3Source(const FPRegister& fd,
-                               const FPRegister& fn,
-                               const FPRegister& fm,
-                               const FPRegister& fa,
+  void FPDataProcessing3Source(const VRegister& fd, const VRegister& fn,
+                               const VRegister& fm, const VRegister& fa,
                                FPDataProcessing3SourceOp op);
+  void NEONAcrossLanesL(const VRegister& vd, const VRegister& vn,
+                        NEONAcrossLanesOp op);
+  void NEONAcrossLanes(const VRegister& vd, const VRegister& vn,
+                       NEONAcrossLanesOp op);
+  void NEONModifiedImmShiftLsl(const VRegister& vd, const int imm8,
+                               const int left_shift,
+                               NEONModifiedImmediateOp op);
+  void NEONModifiedImmShiftMsl(const VRegister& vd, const int imm8,
+                               const int shift_amount,
+                               NEONModifiedImmediateOp op);
+  void NEON3Same(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                 NEON3SameOp vop);
+  void NEONFP3Same(const VRegister& vd, const VRegister& vn,
+                   const VRegister& vm, Instr op);
+  void NEON3DifferentL(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm, NEON3DifferentOp vop);
+  void NEON3DifferentW(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm, NEON3DifferentOp vop);
+  void NEON3DifferentHN(const VRegister& vd, const VRegister& vn,
+                        const VRegister& vm, NEON3DifferentOp vop);
+  void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
+                      NEON2RegMiscOp vop, double value = 0.0);
+  void NEON2RegMisc(const VRegister& vd, const VRegister& vn,
+                    NEON2RegMiscOp vop, int value = 0);
+  void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn, Instr op);
+  void NEONAddlp(const VRegister& vd, const VRegister& vn, NEON2RegMiscOp op);
+  void NEONPerm(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                NEONPermOp op);
+  void NEONFPByElement(const VRegister& vd, const VRegister& vn,
+                       const VRegister& vm, int vm_index,
+                       NEONByIndexedElementOp op);
+  void NEONByElement(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, int vm_index,
+                     NEONByIndexedElementOp op);
+  void NEONByElementL(const VRegister& vd, const VRegister& vn,
+                      const VRegister& vm, int vm_index,
+                      NEONByIndexedElementOp op);
+  void NEONShiftImmediate(const VRegister& vd, const VRegister& vn,
+                          NEONShiftImmediateOp op, int immh_immb);
+  void NEONShiftLeftImmediate(const VRegister& vd, const VRegister& vn,
+                              int shift, NEONShiftImmediateOp op);
+  void NEONShiftRightImmediate(const VRegister& vd, const VRegister& vn,
+                               int shift, NEONShiftImmediateOp op);
+  void NEONShiftImmediateL(const VRegister& vd, const VRegister& vn, int shift,
+                           NEONShiftImmediateOp op);
+  void NEONShiftImmediateN(const VRegister& vd, const VRegister& vn, int shift,
+                           NEONShiftImmediateOp op);
+  void NEONXtn(const VRegister& vd, const VRegister& vn, NEON2RegMiscOp vop);
+  void NEONTable(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+                 NEONTableOp op);
+
+  Instr LoadStoreStructAddrModeField(const MemOperand& addr);
 
   // Label helpers.
 
@@ -2044,6 +3487,12 @@ class Assembler : public AssemblerBase {
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
 
+  // Sharing of code target entries may be blocked in some code sequences.
+  int code_target_sharing_blocked_nesting_;
+  bool IsCodeTargetSharingAllowed() const {
+    return code_target_sharing_blocked_nesting_ == 0;
+  }
+
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
@@ -2064,22 +3513,7 @@ class Assembler : public AssemblerBase {
   // The pending constant pool.
   ConstPool constpool_;
 
-  // Relocation for a type-recording IC has the AST id added to it.  This
-  // member variable is a way to pass the information from the call site to
-  // the relocation info.
-  TypeFeedbackId recorded_ast_id_;
-
-  inline TypeFeedbackId RecordedAstId();
-  inline void ClearRecordedAstId();
-
  protected:
-  // Record the AST id of the CallIC being compiled, so that it can be placed
-  // in the relocation information.
-  void SetRecordedAstId(TypeFeedbackId ast_id) {
-    DCHECK(recorded_ast_id_.IsNone());
-    recorded_ast_id_ = ast_id;
-  }
-
   // Code generation
   // The relocation writer's position is at least kGap bytes below the end of
   // the generated instructions. This is so that multi-instruction sequences do
@@ -2089,6 +3523,22 @@ class Assembler : public AssemblerBase {
   static constexpr int kGap = 128;
 
  public:
+#ifdef DEBUG
+  // Functions used for testing.
+  int GetConstantPoolEntriesSizeForTesting() const {
+    // Do not include branch over the pool.
+    return constpool_.EntryCount() * kPointerSize;
+  }
+
+  static constexpr int GetCheckConstPoolIntervalForTesting() {
+    return kCheckConstPoolInterval;
+  }
+
+  static constexpr int GetApproxMaxDistToConstPoolForTesting() {
+    return kApproxMaxDistToConstPool;
+  }
+#endif
+
   class FarBranchInfo {
    public:
     FarBranchInfo(int offset, Label* label)
@@ -2147,6 +3597,19 @@ class Assembler : public AssemblerBase {
   // if pending unresolved information exists. Its complexity is proportional to
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
+
+  // The following functions help with avoiding allocations of embedded heap
+  // objects during the code assembly phase. {RequestHeapObject} records the
+  // need for a future heap number allocation or code stub generation. After
+  // code assembly, {AllocateAndInstallRequestedHeapObjects} will allocate these
+  // objects and place them where they are expected (determined by the pc offset
+  // associated with each request). That is, for each request, it will patch the
+  // dummy heap object handle that we emitted during code assembly with the
+  // actual heap object handle.
+  void RequestHeapObject(HeapObjectRequest request);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+
+  std::forward_list<HeapObjectRequest> heap_object_requests_;
 
  private:
   friend class EnsureSpace;

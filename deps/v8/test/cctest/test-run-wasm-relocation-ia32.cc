@@ -39,7 +39,7 @@ TEST(WasmRelocationIa32MemoryReference) {
 
   CSignature0<int32_t> csig;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
@@ -102,7 +102,7 @@ TEST(WasmRelocationIa32MemorySizeReference) {
 
   CSignature0<int32_t> csig;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);

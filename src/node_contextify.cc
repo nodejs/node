@@ -19,15 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-#include "env.h"
-#include "env-inl.h"
-#include "util.h"
-#include "util-inl.h"
 #include "v8-debug.h"
 
 namespace node {
@@ -240,7 +235,7 @@ class ContextifyContext {
                                              CreateDataWrapper(env));
     object_template->SetHandler(config);
 
-    Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
+    Local<Context> ctx = NewContext(env->isolate(), object_template);
 
     if (ctx.IsEmpty()) {
       env->ThrowError("Could not instantiate context");

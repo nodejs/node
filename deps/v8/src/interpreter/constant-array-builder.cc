@@ -130,7 +130,6 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
     }
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
@@ -151,7 +150,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
     DCHECK(array_index == 0 ||
-           base::bits::IsPowerOfTwo32(static_cast<uint32_t>(array_index)));
+           base::bits::IsPowerOfTwo(static_cast<uint32_t>(array_index)));
 #if DEBUG
     // Different slices might contain the same element due to reservations, but
     // all elements within a slice should be unique. If this DCHECK fails, then
@@ -185,7 +184,7 @@ size_t ConstantArrayBuilder::Insert(Smi* smi) {
 size_t ConstantArrayBuilder::Insert(const AstRawString* raw_string) {
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(raw_string),
-                      raw_string->hash(),
+                      raw_string->Hash(),
                       [&]() { return AllocateIndex(Entry(raw_string)); },
                       ZoneAllocationPolicy(zone_))
       ->value;
@@ -238,7 +237,6 @@ ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndexArray(
     }
   }
   UNREACHABLE();
-  return kMaxUInt32;
 }
 
 ConstantArrayBuilder::ConstantArraySlice*
@@ -292,7 +290,6 @@ OperandSize ConstantArrayBuilder::CreateReservedEntry() {
     }
   }
   UNREACHABLE();
-  return OperandSize::kNone;
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateReservedEntry(
@@ -332,7 +329,6 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.
       UNREACHABLE();
-      return Handle<Object>::null();
     case Tag::kHandle:
       return handle_;
     case Tag::kSmi:
@@ -355,7 +351,6 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
 #undef ENTRY_LOOKUP
   }
   UNREACHABLE();
-  return Handle<Object>::null();
 }
 
 }  // namespace interpreter

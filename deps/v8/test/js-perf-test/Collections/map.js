@@ -32,6 +32,11 @@ var MapIterationBenchmark = new BenchmarkSuite('Map-Iteration', [1000], [
 ]);
 
 
+var MapIterationBenchmark = new BenchmarkSuite('Map-Iterator', [1000], [
+  new Benchmark('Iterator', false, false, 0, MapIterator, MapSetupSmi, MapTearDown),
+]);
+
+
 var map;
 
 
@@ -214,4 +219,11 @@ function MapForEach() {
       throw new Error();
     }
   });
+}
+
+
+function MapIterator() {
+  var result = 0;
+  for (const v of map.values()) result += v;
+  return result;
 }

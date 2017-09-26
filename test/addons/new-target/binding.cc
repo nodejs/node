@@ -11,6 +11,6 @@ inline void Initialize(v8::Local<v8::Object> binding) {
                v8::FunctionTemplate::New(isolate, NewClass)->GetFunction());
 }
 
-NODE_MODULE(binding, Initialize)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 
 }  // anonymous namespace

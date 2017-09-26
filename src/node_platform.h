@@ -39,7 +39,8 @@ class NodePlatform : public v8::Platform {
   virtual ~NodePlatform() {}
 
   void DrainBackgroundTasks();
-  void FlushForegroundTasksInternal();
+  // Returns true iff work was dispatched or executed.
+  bool FlushForegroundTasksInternal();
   void Shutdown();
 
   // v8::Platform implementation.

@@ -15,7 +15,7 @@ async_hooks.createHook({
 assert.throws(() => {
   return new AsyncResource();
 }, common.expectsError({
-  code: 'ERR_ASYNC_TYPE',
+  code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
 }));
 

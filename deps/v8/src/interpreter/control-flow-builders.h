@@ -7,6 +7,8 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/ast/ast-source-ranges.h"
+#include "src/interpreter/block-coverage-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/zone/zone-containers.h"
 
@@ -55,6 +57,8 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
 
   BytecodeLabels* break_labels() { return &break_labels_; }
 
+  void set_needs_continuation_counter() { needs_continuation_counter_ = true; }
+
  protected:
   void EmitJump(BytecodeLabels* labels);
   void EmitJumpIfTrue(BytecodeArrayBuilder::ToBooleanMode mode,
@@ -66,6 +70,10 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
 
   // Unbound labels that identify jumps for break statements in the code.
   BytecodeLabels break_labels_;
+
+  // A continuation counter (for block coverage) is needed e.g. when
+  // encountering a break statement.
+  bool needs_continuation_counter_ = false;
 };
 
 
@@ -73,13 +81,19 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
 class V8_EXPORT_PRIVATE BlockBuilder final
     : public BreakableControlFlowBuilder {
  public:
-  explicit BlockBuilder(BytecodeArrayBuilder* builder)
-      : BreakableControlFlowBuilder(builder) {}
+  BlockBuilder(BytecodeArrayBuilder* builder,
+               BlockCoverageBuilder* block_coverage_builder,
+               BreakableStatement* statement)
+      : BreakableControlFlowBuilder(builder),
+        block_coverage_builder_(block_coverage_builder),
+        statement_(statement) {}
 
   void EndBlock();
 
  private:
   BytecodeLabel block_end_;
+  BlockCoverageBuilder* block_coverage_builder_;
+  BreakableStatement* statement_;
 };
 
 
@@ -87,16 +101,28 @@ class V8_EXPORT_PRIVATE BlockBuilder final
 // their loop.
 class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
  public:
-  explicit LoopBuilder(BytecodeArrayBuilder* builder)
+  LoopBuilder(BytecodeArrayBuilder* builder,
+              BlockCoverageBuilder* block_coverage_builder, AstNode* node)
       : BreakableControlFlowBuilder(builder),
         continue_labels_(builder->zone()),
         generator_jump_table_location_(nullptr),
-        parent_generator_jump_table_(nullptr) {}
+        parent_generator_jump_table_(nullptr),
+        block_coverage_builder_(block_coverage_builder) {
+    if (block_coverage_builder_ != nullptr) {
+      block_coverage_body_slot_ =
+          block_coverage_builder_->AllocateBlockCoverageSlot(
+              node, SourceRangeKind::kBody);
+      block_coverage_continuation_slot_ =
+          block_coverage_builder_->AllocateBlockCoverageSlot(
+              node, SourceRangeKind::kContinuation);
+    }
+  }
   ~LoopBuilder();
 
   void LoopHeader();
   void LoopHeaderInGenerator(BytecodeJumpTable** parent_generator_jump_table,
                              int first_resume_id, int resume_count);
+  void LoopBody();
   void JumpToHeader(int loop_depth);
   void BindContinueTarget();
 
@@ -120,6 +146,10 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   // field is ugly, figure out a better way to do this.
   BytecodeJumpTable** generator_jump_table_location_;
   BytecodeJumpTable* parent_generator_jump_table_;
+
+  int block_coverage_body_slot_;
+  int block_coverage_continuation_slot_;
+  BlockCoverageBuilder* block_coverage_builder_;
 };
 
 

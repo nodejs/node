@@ -180,12 +180,9 @@ RUNTIME_FUNCTION(Runtime_ClearThreadInWasm) {
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[1]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 2);
-  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
-  Handle<WasmInstanceObject> instance =
-      Handle<WasmInstanceObject>::cast(instance_obj);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just

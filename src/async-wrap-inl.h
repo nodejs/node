@@ -27,12 +27,7 @@
 #include "async-wrap.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-#include "env.h"
-#include "env-inl.h"
 #include "node_internals.h"
-#include "util.h"
-#include "util-inl.h"
-#include "v8.h"
 
 namespace node {
 

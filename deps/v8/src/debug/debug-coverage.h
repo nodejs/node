@@ -16,13 +16,24 @@ namespace internal {
 // Forward declaration.
 class Isolate;
 
+struct CoverageBlock {
+  CoverageBlock(int s, int e, uint32_t c) : start(s), end(e), count(c) {}
+  CoverageBlock() : CoverageBlock(kNoSourcePosition, kNoSourcePosition, 0) {}
+  int start;
+  int end;
+  uint32_t count;
+};
+
 struct CoverageFunction {
   CoverageFunction(int s, int e, uint32_t c, Handle<String> n)
-      : start(s), end(e), count(c), name(n) {}
+      : start(s), end(e), count(c), name(n), has_block_coverage(false) {}
   int start;
   int end;
   uint32_t count;
   Handle<String> name;
+  // Blocks are sorted by start position, from outer to inner blocks.
+  std::vector<CoverageBlock> blocks;
+  bool has_block_coverage;
 };
 
 struct CoverageScript {

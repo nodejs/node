@@ -4,8 +4,20 @@ This directory contains modules used to test the Node.js implementation.
 
 ## Table of Contents
 
+* [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
 * [WPT module](#wpt-module)
+
+## Benchmark Module
+
+The `benchmark` module is used by tests to run benchmarks.
+
+### runBenchmark(name, args, env)
+
+* `name` [&lt;String>] Name of benchmark suite to be run.
+* `args` [&lt;Array>] Array of environment variable key/value pairs (ex:
+  `n=1`) to be applied via `--set`.
+* `env` [&lt;Object>] Environment variables to be applied during the run.
 
 ## Common Module API
 

@@ -1,10 +1,10 @@
 // test the speed of .pipe() with sockets
 'use strict';
 
-var common = require('../common.js');
-var PORT = common.PORT;
+const common = require('../common.js');
+const PORT = common.PORT;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   len: [4, 8, 16, 32, 64, 128, 512, 1024],
   type: ['buf'],
   dur: [5],
@@ -40,7 +40,7 @@ function main(conf) {
   server();
 }
 
-var net = require('net');
+const net = require('net');
 
 function Writer() {
   this.received = 0;
@@ -65,15 +65,15 @@ Writer.prototype.emit = function() {};
 Writer.prototype.prependListener = function() {};
 
 function server() {
-  var writer = new Writer();
+  const writer = new Writer();
 
   // the actual benchmark.
-  var server = net.createServer(function(socket) {
+  const server = net.createServer(function(socket) {
     socket.pipe(writer);
   });
 
   server.listen(PORT, function() {
-    var socket = net.connect(PORT);
+    const socket = net.connect(PORT);
     socket.on('connect', function() {
       bench.start();
 
@@ -81,8 +81,8 @@ function server() {
       send();
 
       setTimeout(function() {
-        var bytes = writer.received;
-        var gbits = (bytes * 8) / (1024 * 1024 * 1024);
+        const bytes = writer.received;
+        const gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
         process.exit(0);
       }, dur * 1000);

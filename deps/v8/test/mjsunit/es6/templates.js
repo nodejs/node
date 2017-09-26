@@ -476,7 +476,7 @@ var obj = {
 (function testLegacyOctal() {
   assertEquals('\u0000', `\0`);
   assertEquals('\u0000a', `\0a`);
-  for (var i = 0; i < 8; i++) {
+  for (var i = 0; i < 10; i++) {
     var code = "`\\0" + i + "`";
     assertThrows(code, SyntaxError);
     code = "(function(){})" + code;
@@ -502,8 +502,6 @@ var obj = {
 (function testValidNumericEscapes() {
   assertEquals("8", `\8`);
   assertEquals("9", `\9`);
-  assertEquals("\u00008", `\08`);
-  assertEquals("\u00009", `\09`);
 })();
 
 

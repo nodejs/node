@@ -35,7 +35,6 @@ Reduction DeadCodeElimination::Reduce(Node* node) {
       return ReduceNode(node);
   }
   UNREACHABLE();
-  return NoChange();
 }
 
 

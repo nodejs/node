@@ -88,6 +88,12 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
+If any Collaborator objects to a change *without giving any additional
+explanation or context*, and the objecting Collaborator fails to respond to
+explicit requests for explanation or context within a reasonable period of
+time, the objection may be dismissed. Note that this does not apply to
+objections that are explained.
+
 #### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
@@ -279,8 +285,8 @@ introduces the new core module.
 Pull requests introducing new core modules:
 
 * Must be left open for at least one week for review.
-* Must be labeled using the `ctc-review` label.
-* Must have signoff from at least two CTC members.
+* Must be labeled using the `tsc-review` label.
+* Must have signoff from at least two TSC members.
 
 New core modules must be landed with a [Stability Index][] of Experimental,
 and must remain Experimental until a semver-major release.

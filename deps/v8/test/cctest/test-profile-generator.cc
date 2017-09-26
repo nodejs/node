@@ -518,7 +518,6 @@ TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -597,7 +596,6 @@ TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -667,8 +665,6 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
 }
 
 TEST(LineNumber) {
-  i::FLAG_use_inlining = false;
-
   CcTest::InitializeVM();
   LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();
@@ -699,6 +695,7 @@ TEST(LineNumber) {
 TEST(BailoutReason) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_always_opt = false;
+  i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
@@ -731,7 +728,7 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kFunctionBeingDebugged
+  //     kDeoptimizedTooManyTimes
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
 

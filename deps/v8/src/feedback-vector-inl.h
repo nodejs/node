@@ -8,6 +8,7 @@
 #include "src/factory.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
@@ -46,7 +47,7 @@ bool FeedbackMetadata::is_empty() const {
 int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
   DCHECK(length() > kReservedIndexCount);
-  return Smi::cast(get(kSlotsCountIndex))->value();
+  return Smi::ToInt(get(kSlotsCountIndex));
 }
 
 // static
@@ -60,7 +61,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kGeneral:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kToBoolean:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kTypeProfile:
@@ -106,20 +106,37 @@ SharedFunctionInfo* FeedbackVector::shared_function_info() const {
 }
 
 int FeedbackVector::invocation_count() const {
-  return Smi::cast(get(kInvocationCountIndex))->value();
+  return Smi::ToInt(get(kInvocationCountIndex));
 }
 
 void FeedbackVector::clear_invocation_count() {
   set(kInvocationCountIndex, Smi::kZero);
 }
 
+Object* FeedbackVector::optimized_code_cell() const {
+  return get(kOptimizedCodeIndex);
+}
+
 Code* FeedbackVector::optimized_code() const {
-  WeakCell* cell = WeakCell::cast(get(kOptimizedCodeIndex));
+  Object* slot = optimized_code_cell();
+  if (slot->IsSmi()) return nullptr;
+  WeakCell* cell = WeakCell::cast(slot);
   return cell->cleared() ? nullptr : Code::cast(cell->value());
 }
 
+OptimizationMarker FeedbackVector::optimization_marker() const {
+  Object* slot = optimized_code_cell();
+  if (!slot->IsSmi()) return OptimizationMarker::kNone;
+  Smi* value = Smi::cast(slot);
+  return static_cast<OptimizationMarker>(value->value());
+}
+
 bool FeedbackVector::has_optimized_code() const {
-  return !WeakCell::cast(get(kOptimizedCodeIndex))->cleared();
+  return optimized_code() != nullptr;
+}
+
+bool FeedbackVector::has_optimization_marker() const {
+  return optimization_marker() != OptimizationMarker::kNone;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
@@ -146,8 +163,11 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
     case BinaryOperationFeedback::kSignedSmall:
       return BinaryOperationHint::kSignedSmall;
     case BinaryOperationFeedback::kNumber:
+      return BinaryOperationHint::kNumber;
     case BinaryOperationFeedback::kNumberOrOddball:
       return BinaryOperationHint::kNumberOrOddball;
+    case BinaryOperationFeedback::kNonEmptyString:
+      return BinaryOperationHint::kNonEmptyString;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kAny:
@@ -155,7 +175,6 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kAny;
   }
   UNREACHABLE();
-  return BinaryOperationHint::kNone;
 }
 
 // Helper function to transform the feedback to CompareOperationHint.
@@ -173,13 +192,14 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kInternalizedString;
     case CompareOperationFeedback::kString:
       return CompareOperationHint::kString;
+    case CompareOperationFeedback::kSymbol:
+      return CompareOperationHint::kSymbol;
     case CompareOperationFeedback::kReceiver:
       return CompareOperationHint::kReceiver;
     default:
       return CompareOperationHint::kAny;
   }
   UNREACHABLE();
-  return CompareOperationHint::kNone;
 }
 
 void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
@@ -226,7 +246,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
         // from service.
         if (code_is_interpreted) {
-          int const feedback = Smi::cast(obj)->value();
+          int const feedback = Smi::ToInt(obj);
           BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
           if (hint == BinaryOperationHint::kAny) {
             gen++;
@@ -243,7 +263,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
         // from service.
         if (code_is_interpreted) {
-          int const feedback = Smi::cast(obj)->value();
+          int const feedback = Smi::ToInt(obj);
           CompareOperationHint hint =
               CompareOperationHintFromFeedback(feedback);
           if (hint == CompareOperationHint::kAny) {
@@ -256,7 +276,6 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         }
         break;
       }
-      case FeedbackSlotKind::kToBoolean:
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kLiteral:

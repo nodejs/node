@@ -15,7 +15,7 @@ bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaConstant), U8(0),
-  /*   46 S> */ B(Return),
+  /*   45 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [1.2],
@@ -35,7 +35,7 @@ bytecodes: [
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   47 S> */ B(LdaConstant), U8(1),
-  /*   59 S> */ B(Return),
+  /*   58 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [1.2],
@@ -56,7 +56,7 @@ bytecodes: [
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   48 S> */ B(LdaConstant), U8(1),
-  /*   61 S> */ B(Return),
+  /*   60 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [3.14],

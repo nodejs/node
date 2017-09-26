@@ -1,10 +1,10 @@
 // test the speed of .pipe() with sockets
 'use strict';
 
-var common = require('../common.js');
-var PORT = common.PORT;
+const common = require('../common.js');
+const PORT = common.PORT;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   len: [102400, 1024 * 1024 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5],
@@ -40,7 +40,7 @@ function main(conf) {
   server();
 }
 
-var net = require('net');
+const net = require('net');
 
 function Writer() {
   this.received = 0;
@@ -66,8 +66,8 @@ Writer.prototype.prependListener = function() {};
 
 
 function flow() {
-  var dest = this.dest;
-  var res = dest.write(chunk, encoding);
+  const dest = this.dest;
+  const res = dest.write(chunk, encoding);
   if (!res)
     dest.once('drain', this.flow);
   else
@@ -87,16 +87,16 @@ Reader.prototype.pipe = function(dest) {
 
 
 function server() {
-  var reader = new Reader();
-  var writer = new Writer();
+  const reader = new Reader();
+  const writer = new Writer();
 
   // the actual benchmark.
-  var server = net.createServer(function(socket) {
+  const server = net.createServer(function(socket) {
     socket.pipe(socket);
   });
 
   server.listen(PORT, function() {
-    var socket = net.connect(PORT);
+    const socket = net.connect(PORT);
     socket.on('connect', function() {
       bench.start();
 
@@ -106,8 +106,8 @@ function server() {
       setTimeout(function() {
         // multiply by 2 since we're sending it first one way
         // then then back again.
-        var bytes = writer.received * 2;
-        var gbits = (bytes * 8) / (1024 * 1024 * 1024);
+        const bytes = writer.received * 2;
+        const gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
         process.exit(0);
       }, dur * 1000);

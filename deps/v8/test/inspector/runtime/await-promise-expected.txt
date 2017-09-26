@@ -99,6 +99,56 @@ Running test: testRejectedPromiseWithStack
     }
 }
 
+Running test: testRejectedPromiseWithError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : Error
+                description : Error: MyError     at rejectPromiseWithAnError (test.js:25:20)     at <anonymous>:1:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                ]
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 4
+                            functionName : rejectPromiseWithAnError
+                            lineNumber : 24
+                            scriptId : <scriptId>
+                            url : test.js
+                        }
+                        [1] : {
+                            columnNumber : 0
+                            functionName : 
+                            lineNumber : 0
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.reject
+                }
+            }
+            text : Uncaught (in promise) Error: MyError
+        }
+        result : {
+            className : Error
+            description : Error: MyError     at rejectPromiseWithAnError (test.js:25:20)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
 Running test: testPendingPromise
 {
     id : <messageId>

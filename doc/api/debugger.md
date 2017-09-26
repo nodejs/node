@@ -7,7 +7,7 @@
 <!-- type=misc -->
 
 Node.js includes an out-of-process debugging utility accessible via a
-[TCP-based protocol][] and built-in debugging client. To use it, start Node.js
+[V8 Inspector][] and built-in debugging client. To use it, start Node.js
 with the `inspect` argument followed by the path to the script to debug; a prompt
 will be displayed indicating successful launch of the debugger:
 
@@ -125,18 +125,18 @@ It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
 
 ```txt
-$ node inspect test/fixtures/break-in-module/main.js
+$ node inspect main.js
 < Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
 < For help see https://nodejs.org/en/docs/inspector
 < Debugger attached.
-Break on start in test/fixtures/break-in-module/main.js:1
+Break on start in main.js:1
 > 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
 debug> setBreakpoint('mod.js', 22)
 Warning: script 'mod.js' was not loaded yet.
 debug> c
-break in test/fixtures/break-in-module/mod.js:22
+break in mod.js:22
  20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
  21
 >22 exports.hello = function() {
@@ -194,4 +194,4 @@ at the end of the URL is generated on the fly, it varies in different
 debugging sessions.)
 
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
-[TCP-based protocol]: #debugger_tcp_based_protocol
+[V8 Inspector]: #debugger_v8_inspector_integration_for_node_js

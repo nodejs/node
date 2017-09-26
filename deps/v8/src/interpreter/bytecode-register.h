@@ -89,12 +89,11 @@ class V8_EXPORT_PRIVATE Register final {
   }
 
  private:
+  DISALLOW_NEW_AND_DELETE();
+
   static const int kInvalidIndex = kMaxInt;
   static const int kRegisterFileStartOffset =
       InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
-
-  void* operator new(size_t size) = delete;
-  void operator delete(void* p) = delete;
 
   int index_;
 };
@@ -104,9 +103,11 @@ class RegisterList {
   RegisterList() : first_reg_index_(Register().index()), register_count_(0) {}
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}
+  explicit RegisterList(Register r) : RegisterList(r.index(), 1) {}
 
-  // Increases the size of the register list by one.
+  // Increases/decreases the size of the register list by one.
   void IncrementRegisterCount() { register_count_++; }
+  void DecrementRegisterCount() { register_count_--; }
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.

@@ -17,7 +17,7 @@ bytecodes: [
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   41 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
-  /*   71 S> */ B(Return),
+  /*   70 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -39,7 +39,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
   /*   45 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
-  /*   75 S> */ B(Return),
+  /*   74 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -63,7 +63,7 @@ bytecodes: [
   /*   53 S> */ B(LdaSmi), I8(2),
   /*   53 E> */ B(StaCurrentContextSlot), U8(5),
   /*   56 S> */ B(CreateClosure), U8(0), U8(3), U8(2),
-  /*   92 S> */ B(Return),
+  /*   91 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -86,7 +86,7 @@ bytecodes: [
                 B(Star), R(1),
   /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(3),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
-  /*   78 S> */ B(Return),
+  /*   77 S> */ B(Return),
 ]
 constant pool: [
   SHARED_FUNCTION_INFO_TYPE,
@@ -102,7 +102,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 30
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
@@ -119,8 +119,7 @@ bytecodes: [
   /*   69 S> */ B(LdaSmi), I8(2),
   /*   69 E> */ B(StaCurrentContextSlot), U8(4),
   /*   72 S> */ B(CreateClosure), U8(1), U8(3), U8(2),
-                B(PopContext), R(0),
-  /*  104 S> */ B(Return),
+  /*  101 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -905,7 +904,7 @@ bytecodes: [
   /* 3454 S> */ B(LdaSmi), I8(100),
   /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
   /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),
-  /* 3468 S> */ B(Return),
+  /* 3467 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],

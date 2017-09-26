@@ -20,14 +20,18 @@ const equalArrayPairs = [
   [new Int32Array(1e5), new Int32Array(1e5)],
   [new Float32Array(1e5), new Float32Array(1e5)],
   [new Float64Array(1e5), new Float64Array(1e5)],
-  [new Int16Array(256), new Uint16Array(256)],
-  [new Int16Array([256]), new Uint16Array([256])],
-  [new Float32Array([+0.0]), new Float32Array([-0.0])],
-  [new Float64Array([+0.0]), new Float32Array([-0.0])],
-  [new Float64Array([+0.0]), new Float64Array([-0.0])],
+  [new Float32Array([+0.0]), new Float32Array([+0.0])],
   [new Uint8Array([1, 2, 3, 4]).subarray(1), new Uint8Array([2, 3, 4])],
   [new Uint16Array([1, 2, 3, 4]).subarray(1), new Uint16Array([2, 3, 4])],
   [new Uint32Array([1, 2, 3, 4]).subarray(1, 3), new Uint32Array([2, 3])]
+];
+
+const looseEqualArrayPairs = [
+  [new Float64Array([+0.0]), new Float32Array([-0.0])],
+  [new Int16Array(256), new Uint16Array(256)],
+  [new Int16Array([256]), new Uint16Array([256])],
+  [new Float32Array([+0.0]), new Float32Array([-0.0])],
+  [new Float64Array([+0.0]), new Float64Array([-0.0])]
 ];
 
 const notEqualArrayPairs = [
@@ -46,12 +50,26 @@ const notEqualArrayPairs = [
 equalArrayPairs.forEach((arrayPair) => {
   // eslint-disable-next-line no-restricted-properties
   assert.deepEqual(arrayPair[0], arrayPair[1]);
+  assert.deepStrictEqual(arrayPair[0], arrayPair[1]);
+});
+
+looseEqualArrayPairs.forEach((arrayPair) => {
+  // eslint-disable-next-line no-restricted-properties
+  assert.deepEqual(arrayPair[0], arrayPair[1]);
+  assert.throws(
+    makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
+    assert.AssertionError
+  );
 });
 
 notEqualArrayPairs.forEach((arrayPair) => {
   assert.throws(
     // eslint-disable-next-line no-restricted-properties
     makeBlock(assert.deepEqual, arrayPair[0], arrayPair[1]),
+    assert.AssertionError
+  );
+  assert.throws(
+    makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
     assert.AssertionError
   );
 });

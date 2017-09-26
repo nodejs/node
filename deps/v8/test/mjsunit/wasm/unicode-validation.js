@@ -118,5 +118,4 @@ checkAll(toByteArray("\xff"), true);
 checkAll(toByteArray("\xed\xa0\x8f"), true);        // surrogate code points
 checkAll(toByteArray("\xe0\x82\x80"), true);        // overlong sequence
 checkAll(toByteArray("\xf4\x90\x80\x80"), true);    // beyond limit: U+110000
-checkAll(toByteArray("\xef\xbf\xbe"), true);        // non-character; U+FFFE
 checkAll(toByteArray("with\x00null"), false);

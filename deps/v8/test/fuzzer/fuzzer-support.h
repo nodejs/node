@@ -5,6 +5,7 @@
 #ifndef TEST_FUZZER_FUZZER_SUPPORT_H_
 #define TEST_FUZZER_FUZZER_SUPPORT_H_
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
 namespace v8_fuzzer {
@@ -18,6 +19,8 @@ class FuzzerSupport {
 
   v8::Isolate* GetIsolate() const;
   v8::Local<v8::Context> GetContext();
+  bool PumpMessageLoop(v8::platform::MessageLoopBehavior =
+                           v8::platform::MessageLoopBehavior::kDoNotWait);
 
  private:
   // Prevent copying. Not implemented.

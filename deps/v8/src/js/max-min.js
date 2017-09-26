@@ -4,6 +4,8 @@
 
 (function(global, utils) {
 
+"use strict";
+
 %CheckIsBootstrapping();
 
 function MaxSimple(a, b) {

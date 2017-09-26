@@ -19,7 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node.h"
 #include "node_buffer.h"
 #include "node_constants.h"
 #include "node_javascript.h"
@@ -117,6 +116,10 @@ typedef int mode_t;
 #include <grp.h>  // getgrnam()
 #endif
 
+#if defined(__POSIX__)
+#include <dlfcn.h>
+#endif
+
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
@@ -158,6 +161,7 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
+using v8::Undefined;
 using v8::V8;
 using v8::Value;
 
@@ -192,9 +196,6 @@ unsigned int reverted = 0;
 // Path to ICU data (for i18n / Intl)
 std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
-
-// N-API is in experimental state, disabled by default.
-bool load_napi_modules = false;
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -1158,6 +1159,36 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
+void DomainEnter(Environment* env, Local<Object> object) {
+  Local<Value> domain_v = object->Get(env->domain_string());
+  if (domain_v->IsObject()) {
+    Local<Object> domain = domain_v.As<Object>();
+    Local<Value> enter_v = domain->Get(env->enter_string());
+    if (enter_v->IsFunction()) {
+      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                   "domain enter callback threw, please report this");
+      }
+    }
+  }
+}
+
+
+void DomainExit(Environment* env, v8::Local<v8::Object> object) {
+  Local<Value> domain_v = object->Get(env->domain_string());
+  if (domain_v->IsObject()) {
+    Local<Object> domain = domain_v.As<Object>();
+    Local<Value> exit_v = domain->Get(env->exit_string());
+    if (exit_v->IsFunction()) {
+      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                  "domain exit callback threw, please report this");
+      }
+    }
+  }
+}
+
+
 void DomainPromiseHook(PromiseHookType type,
                        Local<Promise> promise,
                        Local<Value> parent,
@@ -1308,85 +1339,132 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
+CallbackScope::CallbackScope(Isolate* isolate,
+                             Local<Object> object,
+                             async_context asyncContext)
+  : private_(new InternalCallbackScope(Environment::GetCurrent(isolate),
+                                       object,
+                                       asyncContext)),
+    try_catch_(isolate) {
+  try_catch_.SetVerbose(true);
+}
 
-MaybeLocal<Value> MakeCallback(Environment* env,
-                               Local<Value> recv,
-                               const Local<Function> callback,
-                               int argc,
-                               Local<Value> argv[],
-                               async_context asyncContext) {
+CallbackScope::~CallbackScope() {
+  if (try_catch_.HasCaught())
+    private_->MarkAsFailed();
+  delete private_;
+}
+
+InternalCallbackScope::InternalCallbackScope(Environment* env,
+                                             Local<Object> object,
+                                             const async_context& asyncContext,
+                                             ResourceExpectation expect)
+  : env_(env),
+    async_context_(asyncContext),
+    object_(object),
+    callback_scope_(env) {
+  if (expect == kRequireResource) {
+    CHECK(!object.IsEmpty());
+  }
+
+  HandleScope handle_scope(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Object> object;
-
-  Environment::AsyncCallbackScope callback_scope(env);
-  bool disposed_domain = false;
-
-  if (recv->IsObject()) {
-    object = recv.As<Object>();
+  if (env->using_domains() && !object_.IsEmpty()) {
+    DomainEnter(env, object_);
   }
 
-  if (env->using_domains()) {
-    CHECK(recv->IsObject());
-    disposed_domain = DomainEnter(env, object);
-    if (disposed_domain) return Undefined(env->isolate());
+  if (asyncContext.async_id != 0) {
+    // No need to check a return value because the application will exit if
+    // an exception occurs.
+    AsyncWrap::EmitBefore(env, asyncContext.async_id);
+  }
+
+  env->async_hooks()->push_ids(async_context_.async_id,
+                               async_context_.trigger_async_id);
+  pushed_ids_ = true;
+}
+
+InternalCallbackScope::~InternalCallbackScope() {
+  Close();
+}
+
+void InternalCallbackScope::Close() {
+  if (closed_) return;
+  closed_ = true;
+  HandleScope handle_scope(env_->isolate());
+
+  if (pushed_ids_)
+    env_->async_hooks()->pop_ids(async_context_.async_id);
+
+  if (failed_) return;
+
+  if (async_context_.async_id != 0) {
+    AsyncWrap::EmitAfter(env_, async_context_.async_id);
+  }
+
+  if (env_->using_domains() && !object_.IsEmpty()) {
+    DomainExit(env_, object_);
+  }
+
+  if (IsInnerMakeCallback()) {
+    return;
+  }
+
+  Environment::TickInfo* tick_info = env_->tick_info();
+
+  if (tick_info->length() == 0) {
+    env_->isolate()->RunMicrotasks();
+  }
+
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  CHECK_EQ(env_->current_async_id(), 0);
+  CHECK_EQ(env_->trigger_id(), 0);
+
+  Local<Object> process = env_->process_object();
+
+  if (tick_info->length() == 0) {
+    tick_info->set_index(0);
+    return;
+  }
+
+  CHECK_EQ(env_->current_async_id(), 0);
+  CHECK_EQ(env_->trigger_id(), 0);
+
+  if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+    failed_ = true;
+  }
+}
+
+MaybeLocal<Value> InternalMakeCallback(Environment* env,
+                                       Local<Object> recv,
+                                       const Local<Function> callback,
+                                       int argc,
+                                       Local<Value> argv[],
+                                       async_context asyncContext) {
+  CHECK(!recv.IsEmpty());
+  InternalCallbackScope scope(env, recv, asyncContext);
+  if (scope.Failed()) {
+    return Undefined(env->isolate());
   }
 
   MaybeLocal<Value> ret;
 
   {
-    AsyncHooks::ExecScope exec_scope(env, asyncContext.async_id,
-                                     asyncContext.trigger_async_id);
-
-    if (asyncContext.async_id != 0) {
-      // No need to check a return value because the application will exit if
-      // an exception occurs.
-      AsyncWrap::EmitBefore(env, asyncContext.async_id);
-    }
-
     ret = callback->Call(env->context(), recv, argc, argv);
 
     if (ret.IsEmpty()) {
       // NOTE: For backwards compatibility with public API we return Undefined()
       // if the top level call threw.
-      return callback_scope.in_makecallback() ?
-          ret : Undefined(env->isolate());
-    }
-
-    if (asyncContext.async_id != 0) {
-      AsyncWrap::EmitAfter(env, asyncContext.async_id);
+      scope.MarkAsFailed();
+      return scope.IsInnerMakeCallback() ? ret : Undefined(env->isolate());
     }
   }
 
-  if (env->using_domains()) {
-    disposed_domain = DomainExit(env, object);
-    if (disposed_domain) return Undefined(env->isolate());
-  }
-
-  if (callback_scope.in_makecallback()) {
-    return ret;
-  }
-
-  Environment::TickInfo* tick_info = env->tick_info();
-
-  if (tick_info->length() == 0) {
-    env->isolate()->RunMicrotasks();
-  }
-
-  // Make sure the stack unwound properly. If there are nested MakeCallback's
-  // then it should return early and not reach this code.
-  CHECK_EQ(env->current_async_id(), asyncContext.async_id);
-  CHECK_EQ(env->trigger_id(), asyncContext.trigger_async_id);
-
-  Local<Object> process = env->process_object();
-
-  if (tick_info->length() == 0) {
-    tick_info->set_index(0);
-    return ret;
-  }
-
-  if (env->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
+  scope.Close();
+  if (scope.Failed()) {
     return Undefined(env->isolate());
   }
 
@@ -1439,8 +1517,8 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
   // the two contexts need not be the same.
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
-  return MakeCallback(env, recv.As<Value>(), callback, argc, argv,
-                      asyncContext);
+  return InternalMakeCallback(env, recv, callback,
+                              argc, argv, asyncContext);
 }
 
 
@@ -2503,7 +2581,49 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-// DLOpen is process.dlopen(module, filename).
+struct DLib {
+  std::string filename_;
+  std::string errmsg_;
+  void* handle_;
+  int flags_;
+
+#ifdef __POSIX__
+  static const int kDefaultFlags = RTLD_LAZY;
+
+  bool Open() {
+    handle_ = dlopen(filename_.c_str(), flags_);
+    if (handle_ != nullptr)
+      return true;
+    errmsg_ = dlerror();
+    return false;
+  }
+
+  void Close() {
+    if (handle_ != nullptr)
+      dlclose(handle_);
+  }
+#else  // !__POSIX__
+  static const int kDefaultFlags = 0;
+  uv_lib_t lib_;
+
+  bool Open() {
+    int ret = uv_dlopen(filename_.c_str(), &lib_);
+    if (ret == 0) {
+      handle_ = static_cast<void*>(lib_.handle);
+      return true;
+    }
+    errmsg_ = uv_dlerror(&lib_);
+    uv_dlclose(&lib_);
+    return false;
+  }
+
+  void Close() {
+    uv_dlclose(&lib_);
+  }
+#endif  // !__POSIX__
+};
+
+// DLOpen is process.dlopen(module, filename, flags).
 // Used to load 'module.node' dynamically shared objects.
 //
 // FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
@@ -2511,18 +2631,25 @@ struct node_module* get_linked_module(const char* name) {
 // cache that's a plain C list or hash table that's shared across contexts?
 static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uv_lib_t lib;
 
   CHECK_EQ(modpending, nullptr);
 
-  if (args.Length() != 2) {
-    env->ThrowError("process.dlopen takes exactly 2 arguments.");
+  if (args.Length() < 2) {
+    env->ThrowError("process.dlopen needs at least 2 arguments.");
     return;
+  }
+
+  int32_t flags = DLib::kDefaultFlags;
+  if (args.Length() > 2 && !args[2]->Int32Value(env->context()).To(&flags)) {
+    return env->ThrowTypeError("flag argument must be an integer.");
   }
 
   Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
-  const bool is_dlopen_error = uv_dlopen(*filename, &lib);
+  DLib dlib;
+  dlib.filename_ = *filename;
+  dlib.flags_ = flags;
+  bool is_opened = dlib.Open();
 
   // Objects containing v14 or later modules will have registered themselves
   // on the pending list.  Activate all of them now.  At present, only one
@@ -2530,9 +2657,9 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   node_module* const mp = modpending;
   modpending = nullptr;
 
-  if (is_dlopen_error) {
-    Local<String> errmsg = OneByteString(env->isolate(), uv_dlerror(&lib));
-    uv_dlclose(&lib);
+  if (!is_opened) {
+    Local<String> errmsg = OneByteString(env->isolate(), dlib.errmsg_.c_str());
+    dlib.Close();
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
     errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
@@ -2542,45 +2669,40 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (mp == nullptr) {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Module did not self-register.");
     return;
   }
-  if (mp->nm_version != NODE_MODULE_VERSION) {
-    char errmsg[1024];
-    if (mp->nm_version == -1) {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against the ABI-stable Node.js API (N-API)."
-               "\nThis feature is experimental and must be enabled on the "
-               "\ncommand-line by adding --napi-modules.",
-               *filename);
-    } else {
-      snprintf(errmsg,
-               sizeof(errmsg),
-               "The module '%s'"
-               "\nwas compiled against a different Node.js version using"
-               "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
-               "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-               "re-installing\nthe module (for instance, using `npm rebuild` "
-               "or `npm install`).",
-               *filename, mp->nm_version, NODE_MODULE_VERSION);
+  if (mp->nm_version == -1) {
+    if (env->EmitNapiWarning()) {
+      ProcessEmitWarning(env, "N-API is an experimental feature and could "
+                         "change at any time.");
     }
+  } else if (mp->nm_version != NODE_MODULE_VERSION) {
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "The module '%s'"
+             "\nwas compiled against a different Node.js version using"
+             "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
+             "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
+             "re-installing\nthe module (for instance, using `npm rebuild` "
+             "or `npm install`).",
+             *filename, mp->nm_version, NODE_MODULE_VERSION);
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
-    // `uv_dlclose` will deallocate it
-    uv_dlclose(&lib);
+    // `dlclose` will deallocate it
+    dlib.Close();
     env->ThrowError(errmsg);
     return;
   }
   if (mp->nm_flags & NM_F_BUILTIN) {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Built-in module self-registered.");
     return;
   }
 
-  mp->nm_dso_handle = lib.handle;
+  mp->nm_dso_handle = dlib.handle_;
   mp->nm_link = modlist_addon;
   modlist_addon = mp;
 
@@ -2592,7 +2714,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   } else if (mp->nm_register_func != nullptr) {
     mp->nm_register_func(exports, module, mp->nm_priv);
   } else {
-    uv_dlclose(&lib);
+    dlib.Close();
     env->ThrowError("Module has no declared entry point.");
     return;
   }
@@ -3665,7 +3787,8 @@ static void PrintHelp() {
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --pending-deprecation      emit pending deprecation warnings\n"
          "  --no-warnings              silence all process warnings\n"
-         "  --napi-modules             load N-API modules\n"
+         "  --napi-modules             load N-API modules (no-op - option\n"
+         "                             kept for compatibility)\n"
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
@@ -3790,6 +3913,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--no-deprecation",
     "--trace-deprecation",
     "--throw-deprecation",
+    "--pending-deprecation",
     "--no-warnings",
     "--napi-modules",
     "--expose-http2",
@@ -3923,7 +4047,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
     } else if (strcmp(arg, "--napi-modules") == 0) {
-      load_napi_modules = true;
+      // no-op
     } else if (strcmp(arg, "--no-warnings") == 0) {
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
@@ -4533,11 +4657,28 @@ void FreeEnvironment(Environment* env) {
 }
 
 
+Local<Context> NewContext(Isolate* isolate,
+                          Local<ObjectTemplate> object_template) {
+  auto context = Context::New(isolate, nullptr, object_template);
+  if (context.IsEmpty()) return context;
+  HandleScope handle_scope(isolate);
+  auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
+  auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
+  Local<Value> intl_v;
+  Local<Object> intl;
+  if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
+      intl_v->ToObject(context).ToLocal(&intl)) {
+    intl->Delete(context, break_iter_key).FromJust();
+  }
+  return context;
+}
+
+
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
   HandleScope handle_scope(isolate);
-  Local<Context> context = Context::New(isolate);
+  Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
   CHECK_EQ(0, uv_key_create(&thread_local_env));
@@ -4554,16 +4695,12 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
-    Environment::AsyncHooks::ExecScope exec_scope(&env, 1, 0);
+    env.async_hooks()->push_ids(1, 0);
     LoadEnvironment(&env);
+    env.async_hooks()->pop_ids(1);
   }
 
   env.set_trace_sync_io(trace_sync_io);
-
-  if (load_napi_modules) {
-    ProcessEmitWarning(&env, "N-API is an experimental feature "
-        "and could change at any time.");
-  }
 
   {
     SealHandleScope seal(isolate);
@@ -4572,9 +4709,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
+      v8_platform.DrainVMTasks();
+
+      more = uv_loop_alive(env.event_loop());
+      if (more)
+        continue;
+
       EmitBeforeExit(&env);
 
-      v8_platform.DrainVMTasks();
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());

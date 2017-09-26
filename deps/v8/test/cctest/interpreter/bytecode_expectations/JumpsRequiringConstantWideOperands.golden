@@ -973,7 +973,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(JumpLoop), U8(42), I8(0),
   /* 4167 S> */ B(LdaSmi), I8(3),
-  /* 4177 S> */ B(Return),
+  /* 4176 S> */ B(Return),
 ]
 constant pool: [
   HEAP_NUMBER_TYPE [0.1],

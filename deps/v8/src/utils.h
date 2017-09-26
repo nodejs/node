@@ -52,26 +52,28 @@ inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
 }
 
-
 // X must be a power of 2.  Returns the number of trailing zeros.
-inline int WhichPowerOf2(uint32_t x) {
-  DCHECK(base::bits::IsPowerOfTwo32(x));
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+inline int WhichPowerOf2(T x) {
+  DCHECK(base::bits::IsPowerOfTwo(x));
   int bits = 0;
 #ifdef DEBUG
-  uint32_t original_x = x;
+  const T original_x = x;
 #endif
-  if (x >= 0x10000) {
-    bits += 16;
-    x >>= 16;
+  constexpr int max_bits = sizeof(T) * 8;
+  static_assert(max_bits <= 64, "integral types are not bigger than 64 bits");
+// Avoid shifting by more than the bit width of x to avoid compiler warnings.
+#define CHECK_BIGGER(s)                                      \
+  if (max_bits > s && x >= T{1} << (max_bits > s ? s : 0)) { \
+    bits += s;                                               \
+    x >>= max_bits > s ? s : 0;                              \
   }
-  if (x >= 0x100) {
-    bits += 8;
-    x >>= 8;
-  }
-  if (x >= 0x10) {
-    bits += 4;
-    x >>= 4;
-  }
+  CHECK_BIGGER(32)
+  CHECK_BIGGER(16)
+  CHECK_BIGGER(8)
+  CHECK_BIGGER(4)
+#undef CHECK_BIGGER
   switch (x) {
     default: UNREACHABLE();
     case 8: bits++;  // Fall through.
@@ -79,45 +81,9 @@ inline int WhichPowerOf2(uint32_t x) {
     case 2: bits++;  // Fall through.
     case 1: break;
   }
-  DCHECK_EQ(static_cast<uint32_t>(1) << bits, original_x);
+  DCHECK_EQ(T{1} << bits, original_x);
   return bits;
 }
-
-
-// X must be a power of 2.  Returns the number of trailing zeros.
-inline int WhichPowerOf2_64(uint64_t x) {
-  DCHECK(base::bits::IsPowerOfTwo64(x));
-  int bits = 0;
-#ifdef DEBUG
-  uint64_t original_x = x;
-#endif
-  if (x >= 0x100000000L) {
-    bits += 32;
-    x >>= 32;
-  }
-  if (x >= 0x10000) {
-    bits += 16;
-    x >>= 16;
-  }
-  if (x >= 0x100) {
-    bits += 8;
-    x >>= 8;
-  }
-  if (x >= 0x10) {
-    bits += 4;
-    x >>= 4;
-  }
-  switch (x) {
-    default: UNREACHABLE();
-    case 8: bits++;  // Fall through.
-    case 4: bits++;  // Fall through.
-    case 2: bits++;  // Fall through.
-    case 1: break;
-  }
-  DCHECK_EQ(static_cast<uint64_t>(1) << bits, original_x);
-  return bits;
-}
-
 
 inline int MostSignificantBit(uint32_t x) {
   static const int msb4[] = {0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
@@ -188,14 +154,14 @@ inline bool IsAddressAligned(Address addr,
 
 // Returns the maximum of the two parameters.
 template <typename T>
-T Max(T a, T b) {
+constexpr T Max(T a, T b) {
   return a < b ? b : a;
 }
 
 
 // Returns the minimum of the two parameters.
 template <typename T>
-T Min(T a, T b) {
+constexpr T Min(T a, T b) {
   return a < b ? a : b;
 }
 
@@ -218,11 +184,11 @@ T JSMin(T x, T y) {
 }
 
 // Returns the absolute value of its argument.
-template <typename T>
-T Abs(T a) {
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+typename std::make_unsigned<T>::type Abs(T a) {
   return a < 0 ? -a : a;
 }
-
 
 // Floor(-0.0) == 0.0
 inline double Floor(double x) {
@@ -261,30 +227,6 @@ inline double Pow(double x, double y) {
   return std::pow(x, y);
 }
 
-// TODO(svenpanne) Clean up the whole power-of-2 mess.
-inline int32_t WhichPowerOf2Abs(int32_t x) {
-  return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
-}
-
-
-// Obtains the unsigned type corresponding to T
-// available in C++11 as std::make_unsigned
-template<typename T>
-struct make_unsigned {
-  typedef T type;
-};
-
-
-// Template specializations necessary to have make_unsigned work
-template<> struct make_unsigned<int32_t> {
-  typedef uint32_t type;
-};
-
-
-template<> struct make_unsigned<int64_t> {
-  typedef uint64_t type;
-};
-
 
 // ----------------------------------------------------------------------------
 // BitField is a help template for encoding and decode bitfield with
@@ -293,6 +235,8 @@ template<> struct make_unsigned<int64_t> {
 template<class T, int shift, int size, class U>
 class BitFieldBase {
  public:
+  typedef T FieldType;
+
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
   // without using a shift count of x in the computation.
@@ -344,6 +288,41 @@ class BitField : public BitFieldBase<T, shift, size, uint32_t> { };
 template<class T, int shift, int size>
 class BitField64 : public BitFieldBase<T, shift, size, uint64_t> { };
 
+// Helper macros for defining a contiguous sequence of bit fields. Example:
+// (backslashes at the ends of respective lines of this multi-line macro
+// definition are omitted here to please the compiler)
+//
+// #define MAP_BIT_FIELD1(V, _)
+//   V(IsAbcBit, bool, 1, _)
+//   V(IsBcdBit, bool, 1, _)
+//   V(CdeBits, int, 5, _)
+//   V(DefBits, MutableMode, 1, _)
+//
+// DEFINE_BIT_FIELDS(MAP_BIT_FIELD1)
+// or
+// DEFINE_BIT_FIELDS_64(MAP_BIT_FIELD1)
+//
+#define DEFINE_BIT_FIELD_RANGE_TYPE(Name, Type, Size, _) \
+  k##Name##Start, k##Name##End = k##Name##Start + Size - 1,
+
+#define DEFINE_BIT_RANGES(LIST_MACRO)                    \
+  struct LIST_MACRO##_Ranges {                           \
+    enum { LIST_MACRO(DEFINE_BIT_FIELD_RANGE_TYPE, _) }; \
+  };
+
+#define DEFINE_BIT_FIELD_TYPE(Name, Type, Size, RangesName) \
+  typedef BitField<Type, RangesName::k##Name##Start, Size> Name;
+
+#define DEFINE_BIT_FIELD_64_TYPE(Name, Type, Size, RangesName) \
+  typedef BitField64<Type, RangesName::k##Name##Start, Size> Name;
+
+#define DEFINE_BIT_FIELDS(LIST_MACRO) \
+  DEFINE_BIT_RANGES(LIST_MACRO)       \
+  LIST_MACRO(DEFINE_BIT_FIELD_TYPE, LIST_MACRO##_Ranges)
+
+#define DEFINE_BIT_FIELDS_64(LIST_MACRO) \
+  DEFINE_BIT_RANGES(LIST_MACRO)          \
+  LIST_MACRO(DEFINE_BIT_FIELD_64_TYPE, LIST_MACRO##_Ranges)
 
 // ----------------------------------------------------------------------------
 // BitSetComputer is a help template for encoding and decoding information for
@@ -384,6 +363,26 @@ class BitSetComputer {
   static int shift(int item) { return (item % kItemsPerWord) * kBitsPerItem; }
 };
 
+// Helper macros for defining a contiguous sequence of field offset constants.
+// Example: (backslashes at the ends of respective lines of this multi-line
+// macro definition are omitted here to please the compiler)
+//
+// #define MAP_FIELDS(V)
+//   V(kField1Offset, kPointerSize)
+//   V(kField2Offset, kIntSize)
+//   V(kField3Offset, kIntSize)
+//   V(kField4Offset, kPointerSize)
+//   V(kSize, 0)
+//
+// DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
+//
+#define DEFINE_ONE_FIELD_OFFSET(Name, Size) Name, Name##End = Name + Size - 1,
+
+#define DEFINE_FIELD_OFFSET_CONSTANTS(StartOffset, LIST_MACRO) \
+  enum {                                                       \
+    LIST_MACRO##_StartOffset = StartOffset - 1,                \
+    LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
+  };
 
 // ----------------------------------------------------------------------------
 // Hash function.
@@ -404,6 +403,9 @@ inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
   return hash & 0x3fffffff;
 }
 
+inline uint32_t ComputeIntegerHash(uint32_t key) {
+  return ComputeIntegerHash(key, kZeroHashSeed);
+}
 
 inline uint32_t ComputeLongHash(uint64_t key) {
   uint64_t hash = key;
@@ -419,8 +421,7 @@ inline uint32_t ComputeLongHash(uint64_t key) {
 
 inline uint32_t ComputePointerHash(void* ptr) {
   return ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)),
-      v8::internal::kZeroHashSeed);
+      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
 
@@ -430,7 +431,7 @@ inline uint32_t ComputePointerHash(void* ptr) {
 // Initializes the codegen support that depends on CPU features.
 void init_memcopy_functions(Isolate* isolate);
 
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
+#if defined(V8_TARGET_ARCH_IA32)
 // Limit below which the extra overhead of the MemCopy function is likely
 // to outweigh the benefits of faster copying.
 const int kMinComplexMemCopy = 64;
@@ -866,27 +867,6 @@ INT_1_TO_63_LIST(DECLARE_TRUNCATE_TO_INT_N)
 #undef DECLARE_IS_UINT_N
 #undef DECLARE_TRUNCATE_TO_INT_N
 
-class TypeFeedbackId {
- public:
-  explicit TypeFeedbackId(int id) : id_(id) { }
-  int ToInt() const { return id_; }
-
-  static TypeFeedbackId None() { return TypeFeedbackId(kNoneId); }
-  bool IsNone() const { return id_ == kNoneId; }
-
- private:
-  static const int kNoneId = -1;
-
-  int id_;
-};
-
-inline bool operator<(TypeFeedbackId lhs, TypeFeedbackId rhs) {
-  return lhs.ToInt() < rhs.ToInt();
-}
-inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
-  return lhs.ToInt() > rhs.ToInt();
-}
-
 class FeedbackSlot {
  public:
   FeedbackSlot() : id_(kInvalidSlot) {}
@@ -941,6 +921,8 @@ class BailoutId {
   V8_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream&, BailoutId);
 
  private:
+  friend class Builtins;
+
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
@@ -958,6 +940,11 @@ class BailoutId {
 
   // Every compiled stub starts with this id.
   static const int kStubEntryId = 6;
+
+  // Builtin continuations bailout ids start here. If you need to add a
+  // non-builtin BailoutId, add it before this id so that this Id has the
+  // highest number.
+  static const int kFirstBuiltinContinuationId = 7;
 
   int id_;
 };
@@ -1486,32 +1473,7 @@ class StringBuilder : public SimpleStringBuilder {
 bool DoubleToBoolean(double d);
 
 template <typename Stream>
-bool StringToArrayIndex(Stream* stream, uint32_t* index) {
-  uint16_t ch = stream->GetNext();
-
-  // If the string begins with a '0' character, it must only consist
-  // of it to be a legal array index.
-  if (ch == '0') {
-    *index = 0;
-    return !stream->HasMore();
-  }
-
-  // Convert string to uint32 array index; character by character.
-  int d = ch - '0';
-  if (d < 0 || d > 9) return false;
-  uint32_t result = d;
-  while (stream->HasMore()) {
-    d = stream->GetNext() - '0';
-    if (d < 0 || d > 9) return false;
-    // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d + 3) >> 3)) return false;
-    result = (result * 10) + d;
-  }
-
-  *index = result;
-  return true;
-}
-
+bool StringToArrayIndex(Stream* stream, uint32_t* index);
 
 // Returns current value of top of the stack. Works correctly with ASAN.
 DISABLE_ASAN

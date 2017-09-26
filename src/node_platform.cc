@@ -1,10 +1,14 @@
 #include "node_platform.h"
+#include "node_internals.h"
 
 #include "util.h"
 
 namespace node {
 
+using v8::HandleScope;
 using v8::Isolate;
+using v8::Local;
+using v8::Object;
 using v8::Platform;
 using v8::Task;
 using v8::TracingController;
@@ -63,22 +67,33 @@ size_t NodePlatform::NumberOfAvailableBackgroundThreads() {
   return threads_.size();
 }
 
-static void RunForegroundTask(uv_timer_t* handle) {
-  Task* task = static_cast<Task*>(handle->data);
+static void RunForegroundTask(Task* task) {
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope scope(isolate);
+  Environment* env = Environment::GetCurrent(isolate);
+  InternalCallbackScope cb_scope(env, Local<Object>(), { 0, 0 },
+                                 InternalCallbackScope::kAllowEmptyResource);
   task->Run();
   delete task;
+}
+
+static void RunForegroundTask(uv_timer_t* handle) {
+  Task* task = static_cast<Task*>(handle->data);
+  RunForegroundTask(task);
   uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
     delete reinterpret_cast<uv_timer_t*>(handle);
   });
 }
 
 void NodePlatform::DrainBackgroundTasks() {
-  FlushForegroundTasksInternal();
-  background_tasks_.BlockingDrain();
+  while (FlushForegroundTasksInternal())
+    background_tasks_.BlockingDrain();
 }
 
-void NodePlatform::FlushForegroundTasksInternal() {
+bool NodePlatform::FlushForegroundTasksInternal() {
+  bool did_work = false;
   while (auto delayed = foreground_delayed_tasks_.Pop()) {
+    did_work = true;
     uint64_t delay_millis =
         static_cast<uint64_t>(delayed->second + 0.5) * 1000;
     uv_timer_t* handle = new uv_timer_t();
@@ -91,9 +106,10 @@ void NodePlatform::FlushForegroundTasksInternal() {
     delete delayed;
   }
   while (Task* task = foreground_tasks_.Pop()) {
-    task->Run();
-    delete task;
+    did_work = true;
+    RunForegroundTask(task);
   }
+  return did_work;
 }
 
 void NodePlatform::CallOnBackgroundThread(Task* task,

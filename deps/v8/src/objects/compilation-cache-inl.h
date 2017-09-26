@@ -15,9 +15,48 @@ namespace internal {
 
 CAST_ACCESSOR(CompilationCacheTable)
 
-Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
-                                               HashTableKey* key) {
-  return key->AsHandle(isolate);
+uint32_t CompilationCacheShape::RegExpHash(String* string, Smi* flags) {
+  return string->Hash() + flags->value();
+}
+
+uint32_t CompilationCacheShape::StringSharedHash(String* source,
+                                                 SharedFunctionInfo* shared,
+                                                 LanguageMode language_mode,
+                                                 int position) {
+  uint32_t hash = source->Hash();
+  if (shared->HasSourceCode()) {
+    // Instead of using the SharedFunctionInfo pointer in the hash
+    // code computation, we use a combination of the hash of the
+    // script source code and the start position of the calling scope.
+    // We do this to ensure that the cache entries can survive garbage
+    // collection.
+    Script* script(Script::cast(shared->script()));
+    hash ^= String::cast(script->source())->Hash();
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    if (is_strict(language_mode)) hash ^= 0x8000;
+    hash += position;
+  }
+  return hash;
+}
+
+uint32_t CompilationCacheShape::HashForObject(Isolate* isolate,
+                                              Object* object) {
+  if (object->IsNumber()) return static_cast<uint32_t>(object->Number());
+
+  FixedArray* val = FixedArray::cast(object);
+  if (val->map() == val->GetHeap()->fixed_cow_array_map()) {
+    DCHECK_EQ(4, val->length());
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(val->get(0));
+    String* source = String::cast(val->get(1));
+    int language_unchecked = Smi::ToInt(val->get(2));
+    DCHECK(is_valid_language_mode(language_unchecked));
+    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
+    int position = Smi::ToInt(val->get(3));
+    return StringSharedHash(source, shared, language_mode, position);
+  }
+  DCHECK_LT(2, val->length());
+  return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
+                    Smi::cast(val->get(JSRegExp::kFlagsIndex)));
 }
 
 }  // namespace internal

@@ -31,6 +31,8 @@ class JSInliner final : public AdvancedReducer {
         jsgraph_(jsgraph),
         source_positions_(source_positions) {}
 
+  const char* reducer_name() const override { return "JSInliner"; }
+
   // Reducer interface, eagerly inlines everything.
   Reduction Reduce(Node* node) final;
 
@@ -59,8 +61,6 @@ class JSInliner final : public AdvancedReducer {
                                    int parameter_count, BailoutId bailout_id,
                                    FrameStateType frame_state_type,
                                    Handle<SharedFunctionInfo> shared);
-
-  Node* CreateTailCallerFrameState(Node* node, Node* outer_frame_state);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, Node* start, Node* end,

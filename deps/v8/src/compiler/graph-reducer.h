@@ -46,6 +46,9 @@ class V8_EXPORT_PRIVATE Reducer {
  public:
   virtual ~Reducer() {}
 
+  // Only used for tracing, when using the --trace_turbo_reduction flag.
+  virtual const char* reducer_name() const = 0;
+
   // Try to reduce a node if possible.
   virtual Reduction Reduce(Node* node) = 0;
 

@@ -256,14 +256,14 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
-#### error.code
+### error.code
 
 * {string}
 
 The `error.code` property is a string label that identifies the kind of error.
 See [Node.js Error Codes][] for details about specific codes.
 
-#### error.message
+### error.message
 
 * {string}
 
@@ -621,6 +621,12 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
+### ERR_CRYPTO_ECDH_INVALID_FORMAT
+
+Used when an invalid value for the `format` argument has been passed to the
+`crypto.ECDH()` class `getPublicKey()` method.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
 
@@ -748,6 +754,7 @@ An invalid HTTP informational status code has been specified. Informational
 status codes must be an integer between `100` and `199` (inclusive).
 
 <a id="ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH"></a>
+### ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH
 
 Input `Buffer` and `Uint8Array` instances passed to the
 `http2.getUnpackedSettings()` API must have a length that is a multiple of
@@ -1249,11 +1256,6 @@ Used when an attempt is made to launch a Node.js process with an unknown
 by errors in user code, although it is not impossible. Occurrences of this error
 are most likely an indication of a bug within Node.js itself.
 
-<a id="ERR_VALUE_OUT_OF_RANGE"></a>
-### ERR_VALUE_OUT_OF_RANGE
-
-Used when a number value is out of range.
-
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR
 
@@ -1298,4 +1300,4 @@ Used when a given value is out of the accepted range.
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
-[WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
+[WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings

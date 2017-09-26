@@ -67,9 +67,12 @@ assert.throws(function() {
 
 
 // update() should only take buffers / strings
-assert.throws(function() {
-  crypto.createHash('sha1').update({ foo: 'bar' });
-}, /^TypeError: Data must be a string or a buffer$/);
+common.expectsError(
+  () => crypto.createHash('sha1').update({ foo: 'bar' }),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
 
 function validateList(list) {
@@ -146,11 +149,11 @@ assert.throws(function() {
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
-  crypto.createSign('RSA-SHA1').update('0', 'hex');
+  crypto.createSign('SHA1').update('0', 'hex');
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
-  crypto.createVerify('RSA-SHA1').update('0', 'hex');
+  crypto.createVerify('SHA1').update('0', 'hex');
 }, /^TypeError: Bad input string$/);
 
 assert.throws(function() {
@@ -163,7 +166,7 @@ assert.throws(function() {
     '-----END RSA PRIVATE KEY-----',
     ''
   ].join('\n');
-  crypto.createSign('RSA-SHA256').update('test').sign(priv);
+  crypto.createSign('SHA256').update('test').sign(priv);
 }, /digest too big for rsa key$/);
 
 assert.throws(function() {

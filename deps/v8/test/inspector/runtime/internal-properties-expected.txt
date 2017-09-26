@@ -339,16 +339,6 @@ expression: gen1.next();gen1
                     }
                 }
             }
-            [4] : {
-                name : [[Scopes]]
-                value : {
-                    className : Array
-                    description : Scopes[2]
-                    objectId : <objectId>
-                    subtype : internal#scopeList
-                    type : object
-                }
-            }
         ]
     }
 }

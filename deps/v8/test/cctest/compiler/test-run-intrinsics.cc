@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compilation-info.h"
+#include "src/objects/string.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

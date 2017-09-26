@@ -30,7 +30,7 @@ const testsToRun = Object.keys(encodings).length;
 let testsFinished = 0;
 
 const server = http2.createServer(common.mustCall((req, res) => {
-  const testEncoding = encodings[req.path.slice(1)];
+  const testEncoding = encodings[req.url.slice(1)];
 
   req.on('data', common.mustCall((chunk) => assert.ok(
     Buffer.from(testString, testEncoding).equals(chunk)

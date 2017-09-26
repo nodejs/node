@@ -1,11 +1,5 @@
 #include "node_url.h"
-#include "node.h"
 #include "node_internals.h"
-#include "env.h"
-#include "env-inl.h"
-#include "util.h"
-#include "util-inl.h"
-#include "v8.h"
 #include "base-object.h"
 #include "base-object-inl.h"
 #include "node_i18n.h"
@@ -556,6 +550,19 @@ static inline bool IsSpecial(std::string scheme) {
   SPECIALS(XX);
 #undef XX
   return false;
+}
+
+// https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
+static inline bool StartsWithWindowsDriveLetter(const char* p,
+                                                const char* end) {
+  const size_t length = end - p;
+  return length >= 2 &&
+    IsWindowsDriveLetter(p[0], p[1]) &&
+    (length == 2 ||
+      p[2] == '/' ||
+      p[2] == '\\' ||
+      p[2] == '?' ||
+      p[2] == '#');
 }
 
 static inline int NormalizePort(std::string scheme, int p) {
@@ -1204,6 +1211,7 @@ void URL::Parse(const char* input,
     bool special = (url->flags & URL_FLAGS_SPECIAL);
     bool cannot_be_base;
     const bool special_back_slash = (special && ch == '\\');
+
     switch (state) {
       case kSchemeStart:
         if (IsASCIIAlpha(ch)) {
@@ -1673,13 +1681,7 @@ void URL::Parse(const char* input,
               state = kFragment;
               break;
             default:
-              if ((remaining == 0 ||
-                   !IsWindowsDriveLetter(ch, p[1]) ||
-                   (remaining >= 2 &&
-                    p[2] != '/' &&
-                    p[2] != '\\' &&
-                    p[2] != '?' &&
-                    p[2] != '#'))) {
+              if (!StartsWithWindowsDriveLetter(p, end)) {
                 if (base->flags & URL_FLAGS_HAS_HOST) {
                   url->flags |= URL_FLAGS_HAS_HOST;
                   url->host = base->host;
@@ -1703,7 +1705,8 @@ void URL::Parse(const char* input,
           state = kFileHost;
         } else {
           if (has_base &&
-              base->scheme == "file:") {
+              base->scheme == "file:" &&
+              !StartsWithWindowsDriveLetter(p, end)) {
             if (IsNormalizedWindowsDriveLetter(base->path[0])) {
               url->flags |= URL_FLAGS_HAS_PATH;
               url->path.push_back(base->path[0]);
