@@ -78,7 +78,7 @@ let options = {
 
 common.expectsError(
   () => spawnSync('cat', [], options),
-  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 1);
+  { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 
 options = {
   input: 'hello world'
