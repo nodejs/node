@@ -247,11 +247,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
     }
     void* context = nullptr;
     INT64 size = (INT64)len;
-#if defined(_WIN64)
-    INT32 id = 0;
-#else
     INT32 id = (INT32)addr1;
-#endif
     INT16 flags = 0;
     INT16 rangeid = 1;
     INT32 col = 1;
