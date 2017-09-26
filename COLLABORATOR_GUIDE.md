@@ -123,44 +123,39 @@ level of V8 within Node.js is updated or new patches are floated on V8.
 
 Due to the nature of the JavaScript language, it can often be difficult to
 establish a clear distinction between which parts of the Node.js implementation
-represent the "public" API Node.js users should assume to be stable and which
-are considered part of the "internal" implementation detail of Node.js itself.
-A general rule of thumb has been to base the determination off what
-functionality is actually *documented* in the official Node.js API
-documentation. However, it has been repeatedly demonstrated that either the
-documentation does not completely cover implemented behavior or that Node.js
-users have come to rely heavily on undocumented aspects of the Node.js
-implementation.
+represent the public API Node.js users should assume to be stable and which
+are part of the internal implementation details of Node.js itself. A rule of
+thumb is to base the determination off what functionality is actually
+documented in the official Node.js API documentation. However, it has been
+repeatedly demonstrated that either the documentation does not completely cover
+implemented behavior or that Node.js users have come to rely heavily on
+undocumented aspects of the Node.js implementation.
 
-While there are numerous exceptions, the following general rules should be
-followed to determine which aspects of the Node.js API are considered
-"internal":
+The following general rules should be followed to determine which aspects of the
+Node.js API are internal:
 
-- Any and all functionality exposed via `process.binding(...)` is considered to
-  be internal and *not* part of the Node.js Public API.
-- Any and all functionality implemented in `lib/internal/**/*.js` that is not
-  re-exported by code in `lib/*.js`, or is not documented as part of the
-  Node.js Public API, is considered to be internal.
-- Any object property or method whose key is a non-exported `Symbol` is
-  considered to be an internal property.
-- Any object property or method whose key begins with the underscore `_` prefix,
-  and is not documented as part of the Node.js Public API, is considered to be
-  an internal property.
+- All functionality exposed via `process.binding(...)` is internal.
+- All functionality implemented in `lib/internal/**/*.js` is internal unless it
+  is re-exported by code in `lib/*.js` or documented as part of the Node.js
+  Public API.
+- Any object property or method whose key is a non-exported `Symbol` is an
+  internal property.
+- Any object property or method whose key begins with the underscore `_` prefix
+  is internal unless it is documented as part of the Node.js Public API.
 - Any object, property, method, argument, behavior, or event not documented in
-  the Node.js documentation is considered to be internal.
+  the Node.js documentation is internal.
 - Any native C/C++ APIs/ABIs exported by the Node.js `*.h` header files that
-  are hidden behind the `NODE_WANT_INTERNALS` flag are considered to be
-  internal.
+  are hidden behind the `NODE_WANT_INTERNALS` flag are internal.
 
 Exception to each of these points can be made if use or behavior of a given
 internal API can be demonstrated to be sufficiently relied upon by the Node.js
 ecosystem such that any changes would cause too much breakage. The threshold
-for what qualifies as "too much breakage" is to be decided on a case-by-case
+for what qualifies as too much breakage is to be decided on a case-by-case
 basis by the TSC.
 
 If it is determined that a currently undocumented object, property, method,
 argument, or event *should* be documented, then a pull request adding the
-documentation is required in order for it to be considered part of the "public"
+documentation is required in order for it to be considered part of the public
 API.
 
 Making a determination about whether something *should* be documented can be
@@ -232,17 +227,12 @@ handling may have been made. Additional CI testing may be required.
 
 #### When breaking changes actually break things
 
-Breaking changes are difficult primarily because they change the fundamental
-assumptions a user of Node.js has when writing their code and can cause
-existing code to stop functioning as expected -- costing developers and users
-time and energy to fix.
-
-Because breaking (semver-major) changes are permitted to land in master at any
-time, it should be *understood and expected* that at least some subset of the
-user ecosystem *may* be adversely affected *in the short term* when attempting
-to build and use Node.js directly from master. This potential instability is
-precisely why Node.js offers distinct Current and LTS release streams that
-offer explicit stability guarantees.
+Because breaking (semver-major) changes are permitted to land on the master
+branch at any time, at least some subset of the user ecosystem may be adversely
+affected in the short term when attempting to build and use Node.js directly
+from the master branch. This potential instability is why Node.js offers
+distinct Current and LTS release streams that offer explicit stability
+guarantees.
 
 Specifically:
 
@@ -255,7 +245,7 @@ Specifically:
   attempt to fix the issue will be made before the next release; If no fix is
   provided then the commit will be reverted.
 
-When any change is landed in master, and it is determined that the such
+When any changes are landed on the master branch and it is determined that the
 changes *do* break existing code, a decision may be made to revert those
 changes either temporarily or permanently. However, the decision to revert or
 not can often be based on many complex factors that are not easily codified. It
@@ -297,18 +287,18 @@ recommended but not required.
 
 ### Deprecations
 
-Deprecation refers to the identification of Public APIs that should no longer
+_Deprecation_ refers to the identification of Public APIs that should no longer
 be used and that may be removed or modified in non-backwards compatible ways in
-a future major release of Node.js. Deprecation *may* be used with internal APIs
-if there is expected impact on the user community.
+a future major release of Node.js. Deprecation may be used with internal APIs if
+there is expected impact on the user community.
 
-Node.js uses three fundamental Deprecation levels:
+Node.js uses three Deprecation levels:
 
 * *Documentation-Only Deprecation* refers to elements of the Public API that are
   being staged for deprecation in a future Node.js major release. An explicit
   notice indicating the deprecated status is added to the API documentation
-  *but no functional changes are implemented in the code*. There will be no
-  runtime deprecation warning emitted for such deprecations.
+  but no functional changes are implemented in the code. There will be no
+  runtime deprecation warnings emitted for such deprecations.
 
 * *Runtime Deprecation* refers to the use of process warnings emitted at
   runtime the first time that a deprecated API is used. A command-line
@@ -320,12 +310,11 @@ Node.js uses three fundamental Deprecation levels:
 * *End-of-life* refers to APIs that have gone through Runtime Deprecation and
   are ready to be removed from Node.js entirely.
 
-Documentation-Only Deprecations *may* be handled as semver-minor or
-semver-major changes. Such deprecations have no impact on the successful
-operation of running code and therefore should not be viewed as breaking
-changes.
+Documentation-Only Deprecations may be handled as semver-minor or semver-major
+changes. Such deprecations have no impact on the successful operation of running
+code and therefore should not be viewed as breaking changes.
 
-Runtime Deprecations and End-of-life APIs (internal or public) *must* be
+Runtime Deprecations and End-of-life APIs (internal or public) must be
 handled as semver-major changes unless there is TSC consensus to land the
 deprecation as a semver-minor.
 
@@ -338,7 +327,7 @@ the documentation for the assigned deprecation identifier must remain in the
 Node.js API documentation.
 
 <a id="deprecation-cycle"></a>
-A "Deprecation cycle" is one full Node.js major release during which an API
+A _Deprecation cycle_ is one full Node.js major release during which an API
 has been in one of the three Deprecation levels. (Note that Documentation-Only
 Deprecations may land in a Node.js minor release but must not be upgraded to
 a Runtime Deprecation until the next major release.)
@@ -347,10 +336,10 @@ No API can be moved to End-of-life without first having gone through a
 Runtime Deprecation cycle.
 
 A best effort will be made to communicate pending deprecations and associated
-mitigations with the ecosystem as soon as possible (preferably *before* the pull
-request adding the deprecation lands in master). All deprecations included in
-a Node.js release should be listed prominently in the "Notable Changes" section
-of the release notes.
+mitigations with the ecosystem as soon as possible (preferably before the pull
+request adding the deprecation lands on the master branch). All deprecations
+included in a Node.js release should be listed prominently in the "Notable
+Changes" section of the release notes.
 
 ### Involving the TSC
 
@@ -375,8 +364,8 @@ The TSC should serve as the final arbiter where required.
     * The rebase method changes the author.
     * The squash & merge method has been known to add metadata to the
     commit title.
-    * If more than one author has contributed to the PR, only the
-    latest author will be considered during the squashing.
+    * If more than one author has contributed to the PR, keep the most recent
+      author when squashing.
 
 Always modify the original commit message to include additional meta
 information regarding the change process:
@@ -628,10 +617,10 @@ TSC for further discussion.
 #### How are LTS Branches Managed?
 
 There are currently two LTS branches: `v6.x` and `v4.x`. Each of these is paired
-with a "staging" branch: `v6.x-staging` and `v4.x-staging`.
+with a staging branch: `v6.x-staging` and `v4.x-staging`.
 
-As commits land in `master`, they are cherry-picked back to each staging
-branch as appropriate. If the commit applies only to the LTS branch, the
+As commits land on the master branch, they are cherry-picked back to each
+staging branch as appropriate. If the commit applies only to the LTS branch, the
 PR must be opened against the *staging* branch. Commits are selectively
 pulled from the staging branch into the LTS branch only when a release is
 being prepared and may be pulled into the LTS branch in a different order
