@@ -34,5 +34,6 @@ common.expectWarning({
   UnhandledPromiseRejectionWarning: expectedPromiseWarning,
 });
 
-// ensure this doesn't crash
-Promise.reject(thorny);
+// Ensure this doesn't crash
+const p = Promise.reject(thorny);
+p.catch(() => {});
