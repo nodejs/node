@@ -86,8 +86,9 @@ static void RunForegroundTask(uv_timer_t* handle) {
 }
 
 void NodePlatform::DrainBackgroundTasks() {
-  while (FlushForegroundTasksInternal())
+  do {
     background_tasks_.BlockingDrain();
+  } while (FlushForegroundTasksInternal());
 }
 
 bool NodePlatform::FlushForegroundTasksInternal() {
