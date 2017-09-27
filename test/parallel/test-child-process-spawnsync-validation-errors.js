@@ -169,8 +169,6 @@ if (!common.isWindows) {
 
 {
   // Validate the maxBuffer option
-  //const err = /^TypeError: "maxBuffer" must be a positive number$/;
-
   pass('maxBuffer', undefined);
   pass('maxBuffer', null);
   pass('maxBuffer', 1);
