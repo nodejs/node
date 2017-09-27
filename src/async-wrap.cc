@@ -274,7 +274,6 @@ PromiseWrap* PromiseWrap::New(Environment* env,
                              Number::New(env->isolate(),
                                          parent_wrap->get_async_id()));
   }
-  CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
   promise->SetInternalField(0, object);
   return new PromiseWrap(env, object, silent);
 }
