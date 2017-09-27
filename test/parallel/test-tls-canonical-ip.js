@@ -33,6 +33,6 @@ assert.strictEqual(
   canonicalIP('0:0:0:0:0:ffff:c0a8:101'),
   '::ffff:192.168.1.1');
 
-  assert.strictEqual(
-    canonicalIP('::ffff:192.168.1.1'),
-    '::ffff:192.168.1.1');
+assert.strictEqual(
+  canonicalIP('::ffff:192.168.1.1'),
+  '::ffff:192.168.1.1');

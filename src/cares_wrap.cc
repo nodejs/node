@@ -1956,8 +1956,6 @@ void canonicalIP(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(err, 0);
 
     args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
-  } else {
-    args.GetReturnValue().Set(Undefined(isolate));
   }
 }
 
