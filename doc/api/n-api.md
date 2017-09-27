@@ -2349,7 +2349,7 @@ napi_status status = napi_status_generic_failure;
 
 // const obj = {};
 napi_value obj;
-status = napi_create_obj(env, &obj);
+status = napi_create_object(env, &obj);
 if (status != napi_ok) return status;
 
 // Create napi_values for 123 and 456
@@ -2360,9 +2360,9 @@ status = napi_create_int32(env, 456, &barValue);
 if (status != napi_ok) return status;
 
 // Set the properties
-napi_property_descriptors descriptors[] = {
-  { "foo", fooValue, 0, 0, 0, napi_default, 0 },
-  { "bar", barValue, 0, 0, 0, napi_default, 0 }
+napi_property_descriptor descriptors[] = {
+  { "foo", nullptr, 0, 0, 0, fooValue, napi_default, 0 },
+  { "bar", nullptr, 0, 0, 0, barValue, napi_default, 0 }
 }
 status = napi_define_properties(env,
                                 obj,
@@ -2932,7 +2932,7 @@ call like the arguments and the `this` pointer from a given callback info.
 
 ### *napi_get_new_target*
 <!-- YAML
-added: REPLACEME
+added: v8.6.0
 -->
 ```C
 napi_status napi_get_new_target(napi_env env,
@@ -3238,7 +3238,7 @@ callback invocation, even when it was cancelled.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: REPLACEME
+  - version: v8.6.0
     pr-url: https://github.com/nodejs/node/pull/14697
     description: Added `async_resource` and `async_resource_name` parameters.
 -->
@@ -3342,7 +3342,7 @@ necessary to ensure an async operation is properly tracked by the runtime.
 
 ### *napi_async_init**
 <!-- YAML
-added: REPLACEME
+added: v8.6.0
 -->
 ```C
 napi_status napi_async_init(napi_env env,
@@ -3363,7 +3363,7 @@ Returns `napi_ok` if the API succeeded.
 
 ### *napi_async_destroy**
 <!-- YAML
-added: REPLACEME
+added: v8.6.0
 -->
 ```C
 napi_status napi_async_destroy(napi_env env,
@@ -3379,7 +3379,7 @@ Returns `napi_ok` if the API succeeded.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: REPLACEME
+  - version: v8.6.0
     description: Added `async_context` parameter.
 -->
 ```C
