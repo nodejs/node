@@ -518,7 +518,7 @@ static inline void PercentDecode(const char* input,
 
   while (pointer < end) {
     const char ch = pointer[0];
-    size_t remaining = (end - pointer) + 1;
+    const size_t remaining = end - pointer - 1;
     if (ch != '%' || remaining < 2 ||
         (ch == '%' &&
          (!IsASCIIHexDigit(pointer[1]) ||
