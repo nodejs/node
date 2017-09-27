@@ -42,6 +42,11 @@ server.listen(0, common.mustCall(function() {
     request.url = '/one';
     assert.strictEqual(request.url, '/one');
 
+    // third-party plugins for packages like express use query params to
+    // change the request method
+    request.method = 'POST';
+    assert.strictEqual(request.method, 'POST');
+
     response.on('finish', common.mustCall(function() {
       server.close();
     }));
