@@ -95,7 +95,7 @@ class AsyncWrap : public BaseObject {
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
             ProviderType provider,
-            bool silent = false);
+            double execution_async_id = -1);
 
   virtual ~AsyncWrap();
 
@@ -133,7 +133,7 @@ class AsyncWrap : public BaseObject {
 
   inline double get_trigger_async_id() const;
 
-  void AsyncReset(bool silent = false);
+  void AsyncReset(double execution_async_id = -1, bool silent = false);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -150,6 +150,10 @@ class AsyncWrap : public BaseObject {
   virtual size_t self_size() const = 0;
 
  private:
+  friend class PromiseWrap;
+
+  // This is specifically used by the PromiseWrap constructor.
+  AsyncWrap(Environment* env, v8::Local<v8::Object> promise, bool silent);
   inline AsyncWrap();
   const ProviderType provider_type_;
   // Because the values may be Reset(), cannot be made const.

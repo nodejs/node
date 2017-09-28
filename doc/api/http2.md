@@ -9,9 +9,6 @@ can be accessed using:
 const http2 = require('http2');
 ```
 
-*Note*: Node.js must be launched with the `--expose-http2` command line flag
-in order to use the `'http2'` module.
-
 ## Core API
 
 The Core API provides a low-level interface designed specifically around
@@ -1147,7 +1144,8 @@ of the given file:
 
 If an error occurs while attempting to read the file data, the `Http2Stream`
 will be closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR`
-code.
+code. If the `onError` callback is defined it will be called, otherwise
+the stream will be destroyed.
 
 Example using a file path:
 
@@ -1170,7 +1168,7 @@ server.on('stream', (stream) => {
 
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
-                         { statCheck });
+                         { statCheck, onError });
 });
 ```
 

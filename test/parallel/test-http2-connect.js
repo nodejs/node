@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const { mustCall, hasCrypto, skip, expectsError } = require('../common');

@@ -515,10 +515,10 @@ static inline void PercentDecode(const char* input,
   dest->reserve(len);
   const char* pointer = input;
   const char* end = input + len;
-  size_t remaining = pointer - end - 1;
+
   while (pointer < end) {
     const char ch = pointer[0];
-    remaining = (end - pointer) + 1;
+    size_t remaining = (end - pointer) + 1;
     if (ch != '%' || remaining < 2 ||
         (ch == '%' &&
          (!IsASCIIHexDigit(pointer[1]) ||
@@ -1206,8 +1206,6 @@ void URL::Parse(const char* input,
 
   while (p <= end) {
     const char ch = p < end ? p[0] : kEOL;
-    const size_t remaining = end == p ? 0 : (end - p - 1);
-
     bool special = (url->flags & URL_FLAGS_SPECIAL);
     bool cannot_be_base;
     const bool special_back_slash = (special && ch == '\\');
