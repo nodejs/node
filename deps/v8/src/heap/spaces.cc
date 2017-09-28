@@ -3308,6 +3308,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
       Marking::MarkWhite(
           ObjectMarking::MarkBitFrom(obj, MarkingState::Internal(obj)));
       MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
       chunk->ResetProgressBar();
       MarkingState::Internal(chunk).SetLiveBytes(0);
     }
