@@ -684,6 +684,7 @@ difference is that `querystring.parse()` does url encoding:
 { '%E5%A5%BD': '1' }
 ```
 
+<<<<<<< HEAD
 <a id="DEP0077"></a>
 ### DEP0077: Module.\_debug()
 
@@ -692,6 +693,15 @@ Type: Runtime
 `Module._debug()` has been deprecated.
 
 *Note*: `Module._debug()` was never documented as an officially supported API.
+=======
+<a id="DEP00XX"></a>
+### DEP00XX: REPLServer.turnOffEditorMode()
+
+Type: Runtime
+
+`REPLServer.turnOffEditorMode()` was removed from userland visibility.
+
+>>>>>>> repl: document REPLServer.turnOffEditorMode deprecation
 
 <a id="DEP0078"></a>
 ### DEP0078: REPLServer.turnOffEditorMode()
