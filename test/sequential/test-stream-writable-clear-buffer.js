@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const Stream = require('stream');
-//this test ensures that the _writeableState.bufferedRequestCount and
+// This test ensures that the _writeableState.bufferedRequestCount and
 // the actual buffered request count are the same
 const assert = require('assert');
 
@@ -10,9 +10,9 @@ class StreamWritable extends Stream.Writable {
     super({ objectMode: true });
   }
 
-  //We need a timeout like on the original issue thread
-  //otherwise the code will never reach our test case
-  //this means this should go on the sequential folder.
+  // We need a timeout like on the original issue thread
+  // otherwise the code will never reach our test case
+  // this means this should go on the sequential folder.
   _write(chunk, encoding, cb) {
     setTimeout(cb, common.platformTimeout(10));
   }
