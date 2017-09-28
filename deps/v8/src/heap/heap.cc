@@ -1814,7 +1814,11 @@ void Heap::Scavenge() {
   ArrayBufferTracker::FreeDeadInNewSpace(this);
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
-    RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
+    if (chunk->SweepingDone()) {
+      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
+    } else {
+      RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
+    }
   });
 
   // Update how much has survived scavenge.
