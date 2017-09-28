@@ -1935,24 +1935,21 @@ void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void canonicalIP(const FunctionCallbackInfo<Value>& args) {
-  node::Utf8Value ip(args.GetIsolate(), args[0]);
+void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
+  v8::Isolate *isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
   char address_buffer[sizeof(struct in6_addr)];
-  v8::Isolate* isolate = args.GetIsolate();
+  char canonical_ip[INET6_ADDRSTRLEN];
 
   if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
-    char canonical_ip[INET_ADDRSTRLEN];
-
     int err = uv_inet_ntop(AF_INET, address_buffer, canonical_ip,
-      sizeof(canonical_ip));
+                           sizeof(canonical_ip));
     CHECK_EQ(err, 0);
 
     args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
   } else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
-    char canonical_ip[INET6_ADDRSTRLEN];
-
     int err = uv_inet_ntop(AF_INET6, address_buffer, canonical_ip,
-      sizeof(canonical_ip));
+                           sizeof(canonical_ip));
     CHECK_EQ(err, 0);
 
     args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
@@ -2168,7 +2165,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "isIP", IsIP);
   env->SetMethod(target, "isIPv4", IsIPv4);
   env->SetMethod(target, "isIPv6", IsIPv6);
-  env->SetMethod(target, "canonicalIP", canonicalIP);
+  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 
