@@ -1323,13 +1323,13 @@ changes:
 -->
 
 * `fd` {integer}
-* `atime` {integer}
-* `mtime` {integer}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
-Change the file timestamps of a file referenced by the supplied file
-descriptor.
+Change the file system timestamps of the object referenced by the supplied file
+descriptor. See [`fs.utimes()`][].
 
 *Note*: This function does not work on AIX versions before 7.1, it will return
 the error `UV_ENOSYS`.
@@ -2354,21 +2354,18 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `atime` {integer}
-* `mtime` {integer}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
 * `callback` {Function}
   * `err` {Error}
 
-Change file timestamps of the file referenced by the supplied path.
+Change the file system timestamps of the object referenced by `path`.
 
-*Note*: The arguments `atime` and `mtime` of the following related functions
-follow these rules:
-
-- The value should be a Unix timestamp in seconds. For example, `Date.now()`
-  returns milliseconds, so it should be divided by 1000 before passing it in.
-- If the value is a numeric string like `'123456789'`, the value will get
-  converted to the corresponding number.
-- If the value is `NaN`, `Infinity` or `-Infinity`, an Error will be thrown.
+The `atime` and `mtime` arguments follow these rules:
+- Values can be either numbers representing Unix epoch time, `Date`s, or a
+  numeric string like `'123456789.0'`.
+- If the value can not be converted to a number, or is `NaN`, `Infinity` or
+  `-Infinity`, a `Error` will be thrown.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
