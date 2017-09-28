@@ -1277,6 +1277,11 @@ entry types were found.
 
 Used when a given value is out of the accepted range.
 
+<a id="ERR_UNDEFINED_DOMAIN_NAME"></a>
+### ERR_UNDEFINED_DOMAIN_NAME
+
+Used when unable to determine the domain name.
+
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
