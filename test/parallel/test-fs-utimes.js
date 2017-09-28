@@ -25,9 +25,6 @@ const assert = require('assert');
 const util = require('util');
 const fs = require('fs');
 
-let tests_ok = 0;
-let tests_run = 0;
-
 function stat_resource(resource) {
   if (typeof resource === 'string') {
     return fs.statSync(resource);
@@ -48,20 +45,15 @@ function check_mtime(resource, mtime) {
 }
 
 function expect_errno(syscall, resource, err, errno) {
-  if (err && (err.code === errno || err.code === 'ENOSYS')) {
-    tests_ok++;
-  } else {
-    console.log('FAILED:', 'expect_errno', util.inspect(arguments));
-  }
+  if (err && (err.code === errno || err.code === 'ENOSYS'))
+    return;
+  assert.fail(null, null, `FAILED:\texpect_errno\t${util.inspect(arguments)}`);
 }
 
 function expect_ok(syscall, resource, err, atime, mtime) {
-  if (!err && check_mtime(resource, mtime) ||
-      err && err.code === 'ENOSYS') {
-    tests_ok++;
-  } else {
-    console.log('FAILED:', 'expect_ok', util.inspect(arguments));
-  }
+  if (!err && check_mtime(resource, mtime) || err && err.code === 'ENOSYS')
+    return;
+  assert.fail(null, null, `FAILED:\texpect_ok\t${util.inspect(arguments)}`);
 }
 
 // the tests assume that __filename belongs to the user running the tests
@@ -76,12 +68,10 @@ function testIt(atime, mtime, callback) {
   function syncTests() {
     fs.utimesSync(__filename, atime, mtime);
     expect_ok('utimesSync', __filename, undefined, atime, mtime);
-    tests_run++;
 
     // some systems don't have futimes
     // if there's an error, it should be ENOSYS
     try {
-      tests_run++;
       fs.futimesSync(fd, atime, mtime);
       expect_ok('futimesSync', fd, undefined, atime, mtime);
     } catch (ex) {
@@ -95,16 +85,18 @@ function testIt(atime, mtime, callback) {
       err = ex;
     }
     expect_errno('utimesSync', 'foobarbaz', err, 'ENOENT');
-    tests_run++;
 
     err = undefined;
-    try {
-      fs.futimesSync(-1, atime, mtime);
-    } catch (ex) {
-      err = ex;
-    }
-    expect_errno('futimesSync', -1, err, 'EBADF');
-    tests_run++;
+
+    common.expectsError(
+      () => fs.futimesSync(-1, atime, mtime),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "fd" argument must be of type unsigned integer'
+      }
+    );
+
   }
 
   //
@@ -126,18 +118,20 @@ function testIt(atime, mtime, callback) {
       fs.futimes(fd, atime, mtime, common.mustCall(function(err) {
         expect_ok('futimes', fd, err, atime, mtime);
 
-        fs.futimes(-1, atime, mtime, common.mustCall(function(err) {
-          expect_errno('futimes', -1, err, 'EBADF');
-          syncTests();
-          callback();
-        }));
-        tests_run++;
+        common.expectsError(
+          () => fs.futimes(-1, atime, mtime, common.mustNotCall()),
+          {
+            code: 'ERR_INVALID_ARG_TYPE',
+            type: TypeError,
+            message: 'The "fd" argument must be of type unsigned integer'
+          }
+        );
+
+        syncTests();
+        callback();
       }));
-      tests_run++;
     }));
-    tests_run++;
   }));
-  tests_run++;
 }
 
 const stats = fs.statSync(__filename);
@@ -161,10 +155,6 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
       });
     });
   });
-});
-
-process.on('exit', function() {
-  assert.strictEqual(tests_ok, tests_run);
 });
 
 

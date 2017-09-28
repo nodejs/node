@@ -136,6 +136,38 @@ if (fs.lchmod) {
   }));
 }
 
+[1, {}, [], true, undefined, null].forEach((i) => {
+  common.expectsError(
+    () => fs.chmodSync(i, 0o664),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+
+  common.expectsError(
+    () => fs.chmod(i, 0o664, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "path" argument must be one of type string, Buffer, or URL'
+    }
+  );
+});
+
+[-1, {}, [], true, undefined, null, Infinity, 'foo'].forEach((i) => {
+  common.expectsError(
+    () => fs.chmod(__filename, i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "mode" argument must be of type unsigned integer'
+    }
+  );
+  fs.chmodSync(__filename, 0o664);
+});
+
 
 process.on('exit', function() {
   assert.strictEqual(0, openCount);
