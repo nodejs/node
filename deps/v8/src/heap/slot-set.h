@@ -225,20 +225,28 @@ class SlotSet : public Malloced {
     return new_count;
   }
 
+  int NumberOfPreFreedEmptyBuckets() {
+    base::LockGuard<base::Mutex> guard(&to_be_freed_buckets_mutex_);
+    return static_cast<int>(to_be_freed_buckets_.size());
+  }
+
   void PreFreeEmptyBuckets() {
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       Bucket bucket = LoadBucket(&buckets_[bucket_index]);
       if (bucket != nullptr) {
-        bool found_non_empty_cell = false;
-        int cell_offset = bucket_index * kBitsPerBucket;
-        for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
-          if (LoadCell(&bucket[i])) {
-            found_non_empty_cell = true;
-            break;
-          }
-        }
-        if (!found_non_empty_cell) {
+        if (IsEmptyBucket(bucket)) {
           PreFreeEmptyBucket(bucket_index);
+        }
+      }
+    }
+  }
+
+  void FreeEmptyBuckets() {
+    for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
+      Bucket bucket = LoadBucket(&buckets_[bucket_index]);
+      if (bucket != nullptr) {
+        if (IsEmptyBucket(bucket)) {
+          ReleaseBucket(bucket_index);
         }
       }
     }
@@ -251,6 +259,7 @@ class SlotSet : public Malloced {
       to_be_freed_buckets_.pop();
       DeleteArray<uint32_t>(top);
     }
+    DCHECK_EQ(0u, to_be_freed_buckets_.size());
   }
 
  private:
@@ -311,6 +320,15 @@ class SlotSet : public Malloced {
     } else {
       *bucket = value;
     }
+  }
+
+  bool IsEmptyBucket(Bucket bucket) {
+    for (int i = 0; i < kCellsPerBucket; i++) {
+      if (LoadCell(&bucket[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC>
