@@ -1273,7 +1273,7 @@ entry types were found.
 
 Used when a given value is out of the accepted range.
 
-<a id="ERR_UNDEFINED_DOMAIN_NAME">
+<a id="ERR_UNDEFINED_DOMAIN_NAME"></a>
 ### ERR_UNDEFINED_DOMAIN_NAME
 
 Used when unable to determine the domain name.
