@@ -1,3 +1,4 @@
+#include <limits.h>  // INT_MAX
 #include <node_api.h>
 #include "../common.h"
 
@@ -203,7 +204,13 @@ napi_value Utf8Length(napi_env env, napi_callback_info info) {
 
 napi_value TestLargeUtf8(napi_env env, napi_callback_info info) {
   napi_value output;
-  NAPI_CALL(env, napi_create_string_utf8(env, "", 4294967296 + 1, &output));
+  if (SIZE_MAX > INT_MAX) { 
+    NAPI_CALL(env, napi_create_string_utf8(env, "", ((size_t)INT_MAX) + 1, &output));
+  } else {
+    // just throw the expected error as there is nothing to test
+    // in this case since we can't overflow
+    NAPI_CALL(env, napi_throw_error(env, NULL, "Invalid argument"));
+  }
 
   return output;
 }
