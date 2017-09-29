@@ -12,11 +12,6 @@ html {
   box-sizing: border-box;
 }
 
-/* increase font size slightly on mobile */
-@media (max-width: 500px) {
-  html { font-size: 1.125rem }
-}
-
 body {
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   margin: 0;
