@@ -2,7 +2,6 @@
 #define SRC_TRACING_AGENT_H_
 
 #include "libplatform/v8-tracing.h"
-#include "node_platform.h"
 #include "uv.h"
 #include "v8.h"
 
