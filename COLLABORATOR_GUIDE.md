@@ -394,8 +394,8 @@ information regarding the change process:
   - Useful for @mentions / contact list if something goes wrong in the PR.
   - Protects against the assumption that GitHub will be around forever.
 
-Review the commit message to ensure that it adheres to the guidelines
-outlined in the [contributing](./CONTRIBUTING.md#step-4-commit) guide.
+Review the commit message to ensure that it adheres to the guidelines outlined
+in the [contributing](./CONTRIBUTING.md#commit-message-guidelines) guide.
 
 See the commit log for examples such as
 [this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
@@ -520,7 +520,7 @@ commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
 * The commit message text must conform to the
-[commit message guidelines](./CONTRIBUTING.md#step-4-commit).
+[commit message guidelines](./CONTRIBUTING.md#commit-message-guidelines).
 
 Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
 successful continuous integration run, other changes may have landed on master
