@@ -8,7 +8,7 @@
    - [Internal vs. Public API](#internal-vs-public-api)
    - [Breaking Changes](#breaking-changes)
    - [Deprecations](#deprecations)
-   - [Involving the TSC](#involving-the-TSC)
+   - [Involving the TSC](#involving-the-tsc)
 * [Landing Pull Requests](#landing-pull-requests)
    - [Technical HOWTO](#technical-howto)
    - [I Just Made a Mistake](#i-just-made-a-mistake)
@@ -367,7 +367,7 @@ The TSC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
-* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-using-the-github-web-interface) button.
+* Please never use GitHub's green ["Merge Pull Request"](https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github) button.
   * If you do, please force-push removing the merge.
   * Reasons for not using the web interface button:
     * The merge method will add an unnecessary merge commit.
@@ -394,8 +394,8 @@ information regarding the change process:
   - Useful for @mentions / contact list if something goes wrong in the PR.
   - Protects against the assumption that GitHub will be around forever.
 
-Review the commit message to ensure that it adheres to the guidelines
-outlined in the [contributing](./CONTRIBUTING.md#step-3-commit) guide.
+Review the commit message to ensure that it adheres to the guidelines outlined
+in the [contributing](./CONTRIBUTING.md#commit-message-guidelines) guide.
 
 See the commit log for examples such as
 [this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
@@ -520,7 +520,7 @@ commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
 * The commit message text must conform to the
-[commit message guidelines](./CONTRIBUTING.md#step-3-commit).
+[commit message guidelines](./CONTRIBUTING.md#commit-message-guidelines).
 
 Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
 successful continuous integration run, other changes may have landed on master
@@ -594,7 +594,8 @@ commit final.
 Long Term Support (often referred to as *LTS*) guarantees application developers
 a 30 month support cycle with specific versions of Node.js.
 
-You can find more information [in the full LTS plan](https://github.com/nodejs/lts#lts-plan).
+You can find more information
+[in the full release plan](https://github.com/nodejs/Release#release-plan).
 
 #### How does LTS work?
 
@@ -674,5 +675,5 @@ release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
 
 [backporting guide]: doc/guides/backporting-to-release-lines.md
-[Stability Index]: https://github.com/nodejs/node/pull/doc/api/documentation.md#stability-index
+[Stability Index]: doc/api/documentation.md#stability-index
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
