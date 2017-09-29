@@ -478,24 +478,53 @@ inline void Nghttp2Session::SendPendingData() {
   // will not be usable.
   if (IsDestroying())
     return;
-  const uint8_t* data;
-  ssize_t len = 0;
-  size_t ncopy = 0;
-  uv_buf_t buf;
-  AllocateSend(SEND_BUFFER_RECOMMENDED_SIZE, &buf);
-  while (nghttp2_session_want_write(session_)) {
-    len = nghttp2_session_mem_send(session_, &data);
-    CHECK_GE(len, 0);  // If this is less than zero, we're out of memory
-    // While len is greater than 0, send a chunk
-    while (len > 0) {
-      ncopy = len;
-      if (ncopy > buf.len)
-        ncopy = buf.len;
-      memcpy(buf.base, data, ncopy);
-      Send(&buf, ncopy);
-      len -= ncopy;
-      CHECK_GE(len, 0);  // This should never be less than zero
+
+  uv_buf_t dest;
+  AllocateSend(SEND_BUFFER_RECOMMENDED_SIZE, &dest);
+  size_t destLength = 0;             // amount of data stored in dest
+  size_t destRemaining = dest.len;   // amount space remaining in dest
+  size_t destOffset = 0;             // current write offset of dest
+
+  const uint8_t* src;                // pointer to the serialized data
+  ssize_t srcLength = 0;             // length of serialized data chunk
+
+  // While srcLength is greater than zero
+  while ((srcLength = nghttp2_session_mem_send(session_, &src)) > 0) {
+    DEBUG_HTTP2("Nghttp2Session %s: nghttp2 has %d bytes to send\n",
+                TypeName(), srcLength);
+    size_t srcRemaining = srcLength;
+    size_t srcOffset = 0;
+
+    // The amount of data we have to copy is greater than the space
+    // remaining. Copy what we can into the remaining space, send it,
+    // the proceed with the rest.
+    while (srcRemaining > destRemaining) {
+      DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
+                  TypeName(), destRemaining);
+      memcpy(dest.base + destOffset, src + srcOffset, destRemaining);
+      destLength += destRemaining;
+      Send(&dest, destLength);
+      destOffset = 0;
+      destLength = 0;
+      srcRemaining -= destRemaining;
+      srcOffset += destRemaining;
+      destRemaining = dest.len;
     }
+
+    if (srcRemaining > 0) {
+      memcpy(dest.base + destOffset, src + srcOffset, srcRemaining);
+      destLength += srcRemaining;
+      destOffset += srcRemaining;
+      destRemaining -= srcRemaining;
+      srcRemaining = 0;
+      srcOffset = 0;
+    }
+  }
+
+  if (destLength > 0) {
+    DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
+                TypeName(), destLength);
+    Send(&dest, destLength);
   }
 }
 
