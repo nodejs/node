@@ -29,8 +29,11 @@ crypto.Cipher;
 
 assert.throws(() => {
   crypto.createCipher('aes-128-cbc', 'this-should-throw');
-}, /no longer supported with ciphers that require initialization vectors/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /no longer supported with ciphers that require initialization vectors/);
 
-assert.doesNotThrow(() => {
-  crypto.createCipher('aes-128-ecb', 'this-should-warn');
-});
+
+if (!common.hasFipsCrypto) {
+  assert.doesNotThrow(() => {
+    crypto.createCipher('aes-128-ecb', 'this-should-warn');
+  });
+}

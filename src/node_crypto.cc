@@ -3537,10 +3537,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher type");
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
-
-  if (!Buffer::HasInstance(args[2]) && !args[2]->IsNull()) {
-    return env->ThrowTypeError("IV must be a buffer or null");
-  }
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[2], "IV");
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
