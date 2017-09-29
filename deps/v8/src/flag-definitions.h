@@ -465,7 +465,7 @@ DEFINE_BOOL(turbo_loop_peeling, true, "Turbofan loop peeling")
 DEFINE_BOOL(turbo_loop_variable, true, "Turbofan loop variable optimization")
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
-DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
+DEFINE_BOOL(turbo_escape, false, "enable escape analysis")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
