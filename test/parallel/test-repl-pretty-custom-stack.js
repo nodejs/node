@@ -45,21 +45,12 @@ const tests = [
   {
     // test .load for a file that throws
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
-    expected: `Error: Whoops!--->
-repl:9:24--->
-d (repl:12:3)--->
-c (repl:9:3)--->
-b (repl:6:3)--->
-a (repl:3:3)
-`
+    expected: 'Error: Whoops!--->\nrepl:9:24--->\nd (repl:12:3)--->\nc ' +
+              '(repl:9:3)--->\nb (repl:6:3)--->\na (repl:3:3)\n'
   },
   {
     command: 'let x y;',
-    expected: `let x y;
-      ^
-
-SyntaxError: Unexpected identifier
-`
+    expected: 'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n'
   },
   {
     command: 'throw new Error(\'Whoops!\')',

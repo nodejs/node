@@ -30,22 +30,12 @@ const tests = [
   {
     // test .load for a file that throws
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
-    expected: `Error: Whoops!
-    at repl:9:24
-    at d (repl:12:3)
-    at c (repl:9:3)
-    at b (repl:6:3)
-    at a (repl:3:3)
-`
+    expected: 'Error: Whoops!\n    at repl:9:24\n    at d (repl:12:3)\n    ' +
+              'at c (repl:9:3)\n    at b (repl:6:3)\n    at a (repl:3:3)\n'
   },
   {
     command: 'let x y;',
-    expected: `let x y;
-      ^
-
-SyntaxError: Unexpected identifier
-
-`
+    expected: 'let x y;\n      ^\n\nSyntaxError: Unexpected identifier\n\n'
   },
   {
     command: 'throw new Error(\'Whoops!\')',
