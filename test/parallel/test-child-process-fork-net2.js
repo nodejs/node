@@ -156,6 +156,7 @@ if (process.argv[2] === 'child') {
   }
 
   process.on('exit', function() {
+    assert.strictEqual(server._slaves.length, 0);
     assert.strictEqual(disconnected, count);
     assert.strictEqual(connected, count);
   });
