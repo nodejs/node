@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   streams: [100, 200, 1000],
   length: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   size: [100000]
-}, { flags: ['--expose-http2', '--no-warnings'] });
+}, { flags: ['--no-warnings'] });
 
 function main(conf) {
   const m = +conf.streams;

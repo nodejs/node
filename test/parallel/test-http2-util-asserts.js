@@ -1,4 +1,4 @@
-// Flags: --expose-internals --expose-http2
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
