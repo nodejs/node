@@ -30,9 +30,6 @@ extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 extern Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
 
-extern Freelist<nghttp2_data_chunks_t, FREELIST_MAX>
-    data_chunks_free_list;
-
 #ifdef NODE_DEBUG_HTTP2
 inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
                                          const char* message,
@@ -903,12 +900,6 @@ inline void Nghttp2Stream::ReadStop() {
   nghttp2_session_set_local_window_size(session_->session(),
                                         NGHTTP2_FLAG_NONE,
                                         id_, 0);
-}
-
-nghttp2_data_chunks_t::~nghttp2_data_chunks_t() {
-  for (unsigned int n = 0; n < nbufs; n++) {
-    free(buf[n].base);
-  }
 }
 
 Nghttp2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
