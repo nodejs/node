@@ -29,6 +29,9 @@
 
 {
   'variables': {
+    # Allows the embedder to add a custom suffix to the version string.
+    'v8_embedder_string%': '',
+
     'v8_enable_disassembler%': 0,
 
     'v8_promise_internal_field_count%': 0,
@@ -79,6 +82,9 @@
   },
   'target_defaults': {
     'conditions': [
+      ['v8_embedder_string!=""', {
+        'defines': ['V8_EMBEDDER_STRING="<(v8_embedder_string)"',],
+      }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
       }],
