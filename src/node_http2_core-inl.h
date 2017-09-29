@@ -614,10 +614,10 @@ inline Nghttp2Stream* Nghttp2Stream::Init(
     int32_t id,
     Nghttp2Session* session,
     nghttp2_headers_category category,
-    bool getTrailers) {
+    int options) {
   DEBUG_HTTP2("Nghttp2Stream %d: initializing stream\n", id);
   Nghttp2Stream* stream = stream_free_list.pop();
-  stream->ResetState(id, session, category, getTrailers);
+  stream->ResetState(id, session, category, options);
   session->AddStream(stream);
   return stream;
 }
@@ -628,7 +628,7 @@ inline void Nghttp2Stream::ResetState(
     int32_t id,
     Nghttp2Session* session,
     nghttp2_headers_category category,
-    bool getTrailers) {
+    int options) {
   DEBUG_HTTP2("Nghttp2Stream %d: resetting stream state\n", id);
   session_ = session;
   queue_head_ = nullptr;
@@ -644,7 +644,7 @@ inline void Nghttp2Stream::ResetState(
   prev_local_window_size_ = 65535;
   queue_head_index_ = 0;
   queue_head_offset_ = 0;
-  getTrailers_ = getTrailers;
+  getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
 }
 
 
@@ -735,7 +735,7 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
     nghttp2_nv* nva,
     size_t len,
     Nghttp2Stream** assigned,
-    bool emptyPayload) {
+    int options) {
   CHECK_GT(len, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: sending push promise\n", id_);
   int32_t ret = nghttp2_submit_push_promise(session_->session(),
@@ -744,7 +744,8 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
                                             nullptr);
   if (ret > 0) {
     auto stream = Nghttp2Stream::Init(ret, session_);
-    if (emptyPayload) stream->Shutdown();
+    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
+      stream->Shutdown();
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;
@@ -756,16 +757,15 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
 // be sent.
 inline int Nghttp2Stream::SubmitResponse(nghttp2_nv* nva,
                                          size_t len,
-                                         bool emptyPayload,
-                                         bool getTrailers) {
+                                         int options) {
   CHECK_GT(len, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: submitting response\n", id_);
-  getTrailers_ = getTrailers;
+  getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider* provider = nullptr;
   nghttp2_data_provider prov;
   prov.source.ptr = this;
   prov.read_callback = Nghttp2Session::OnStreamRead;
-  if (!emptyPayload && IsWritable())
+  if (IsWritable() && !(options & STREAM_OPTION_EMPTY_PAYLOAD))
     provider = &prov;
 
   return nghttp2_submit_response(session_->session(), id_,
@@ -777,11 +777,11 @@ inline int Nghttp2Stream::SubmitFile(int fd,
                                      nghttp2_nv* nva, size_t len,
                                      int64_t offset,
                                      int64_t length,
-                                     bool getTrailers) {
+                                     int options) {
   CHECK_GT(len, 0);
   CHECK_GT(fd, 0);
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
-  getTrailers_ = getTrailers;
+  getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider prov;
   prov.source.ptr = this;
   prov.source.fd = fd;
@@ -802,15 +802,14 @@ inline int32_t Nghttp2Session::SubmitRequest(
     nghttp2_nv* nva,
     size_t len,
     Nghttp2Stream** assigned,
-    bool emptyPayload,
-    bool getTrailers) {
+    int options) {
   CHECK_GT(len, 0);
   DEBUG_HTTP2("Nghttp2Session: submitting request\n");
   nghttp2_data_provider* provider = nullptr;
   nghttp2_data_provider prov;
   prov.source.ptr = this;
   prov.read_callback = OnStreamRead;
-  if (!emptyPayload)
+  if (!(options & STREAM_OPTION_EMPTY_PAYLOAD))
     provider = &prov;
   int32_t ret = nghttp2_submit_request(session_,
                                        prispec, nva, len,
@@ -819,8 +818,9 @@ inline int32_t Nghttp2Session::SubmitRequest(
   if (ret > 0) {
     Nghttp2Stream* stream = Nghttp2Stream::Init(ret, this,
                                                 NGHTTP2_HCAT_HEADERS,
-                                                getTrailers);
-    if (emptyPayload) stream->Shutdown();
+                                                options);
+    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
+      stream->Shutdown();
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;

@@ -479,7 +479,7 @@ void Http2Session::SubmitRstStream(const FunctionCallbackInfo<Value>& args) {
 
 void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
   // args[0] Array of headers
-  // args[1] endStream boolean
+  // args[1] options int
   // args[2] parentStream ID (for priority spec)
   // args[3] weight (for priority spec)
   // args[4] exclusive boolean (for priority spec)
@@ -492,15 +492,14 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   Local<Array> headers = args[0].As<Array>();
-  bool endStream = args[1]->BooleanValue(context).ToChecked();
+  int options = args[1]->IntegerValue(context).ToChecked();
   int32_t parent = args[2]->Int32Value(context).ToChecked();
   int32_t weight = args[3]->Int32Value(context).ToChecked();
   bool exclusive = args[4]->BooleanValue(context).ToChecked();
-  bool getTrailers = args[5]->BooleanValue(context).ToChecked();
 
-  DEBUG_HTTP2("Http2Session: submitting request: headers: %d, end-stream: %d, "
+  DEBUG_HTTP2("Http2Session: submitting request: headers: %d, options: %d, "
               "parent: %d, weight: %d, exclusive: %d\n", headers->Length(),
-              endStream, parent, weight, exclusive);
+              options, parent, weight, exclusive);
 
   nghttp2_priority_spec prispec;
   nghttp2_priority_spec_init(&prispec, parent, weight, exclusive ? 1 : 0);
@@ -509,8 +508,7 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
 
   int32_t ret = session->Nghttp2Session::SubmitRequest(&prispec,
                                                        *list, list.length(),
-                                                       nullptr, endStream,
-                                                       getTrailers);
+                                                       nullptr, options);
   DEBUG_HTTP2("Http2Session: request submitted, response: %d\n", ret);
   args.GetReturnValue().Set(ret);
 }
@@ -529,11 +527,10 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
 
   int32_t id = args[0]->Int32Value(context).ToChecked();
   Local<Array> headers = args[1].As<Array>();
-  bool endStream = args[2]->BooleanValue(context).ToChecked();
-  bool getTrailers = args[3]->BooleanValue(context).ToChecked();
+  int options = args[2]->IntegerValue(context).ToChecked();
 
   DEBUG_HTTP2("Http2Session: submitting response for stream %d: headers: %d, "
-              "end-stream: %d\n", id, headers->Length(), endStream);
+              "options: %d\n", id, headers->Length(), options);
 
   if (!(stream = session->FindStream(id))) {
     return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
@@ -542,7 +539,7 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
   Headers list(isolate, context, headers);
 
   args.GetReturnValue().Set(
-      stream->SubmitResponse(*list, list.length(), endStream, getTrailers));
+      stream->SubmitResponse(*list, list.length(), options));
 }
 
 void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
@@ -566,7 +563,7 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
 
   int64_t offset = args[3]->IntegerValue(context).ToChecked();
   int64_t length = args[4]->IntegerValue(context).ToChecked();
-  bool getTrailers = args[5]->BooleanValue(context).ToChecked();
+  int options = args[5]->IntegerValue(context).ToChecked();
 
   CHECK_GE(offset, 0);
 
@@ -580,7 +577,7 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
   Headers list(isolate, context, headers);
 
   args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
-                                               offset, length, getTrailers));
+                                               offset, length, options));
 }
 
 void Http2Session::SendHeaders(const FunctionCallbackInfo<Value>& args) {
@@ -719,10 +716,10 @@ void Http2Session::SubmitPushPromise(const FunctionCallbackInfo<Value>& args) {
   Nghttp2Stream* parent;
   int32_t id = args[0]->Int32Value(context).ToChecked();
   Local<Array> headers = args[1].As<Array>();
-  bool endStream = args[2]->BooleanValue(context).ToChecked();
+  int options = args[2]->IntegerValue(context).ToChecked();
 
   DEBUG_HTTP2("Http2Session: submitting push promise for stream %d: "
-              "end-stream: %d, headers: %d\n", id, endStream,
+              "options: %d, headers: %d\n", id, options,
               headers->Length());
 
   if (!(parent = session->FindStream(id))) {
@@ -732,7 +729,7 @@ void Http2Session::SubmitPushPromise(const FunctionCallbackInfo<Value>& args) {
   Headers list(isolate, context, headers);
 
   int32_t ret = parent->SubmitPushPromise(*list, list.length(),
-                                          nullptr, endStream);
+                                          nullptr, options);
   DEBUG_HTTP2("Http2Session: push promise submitted, ret: %d\n", ret);
   args.GetReturnValue().Set(ret);
 }
@@ -1249,6 +1246,9 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_INVALID_ARGUMENT);
   NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_STREAM_CLOSED);
   NODE_DEFINE_CONSTANT(constants, NGHTTP2_ERR_FRAME_SIZE_ERROR);
+
+  NODE_DEFINE_HIDDEN_CONSTANT(constants, STREAM_OPTION_EMPTY_PAYLOAD);
+  NODE_DEFINE_HIDDEN_CONSTANT(constants, STREAM_OPTION_GET_TRAILERS);
 
   NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_NONE);
   NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_END_STREAM);
