@@ -37,11 +37,12 @@ namespace v8 {
 namespace internal {
 
 void SetVersion(int major, int minor, int build, int patch,
-                bool candidate, const char* soname) {
+                const char* embedder, bool candidate, const char* soname) {
   Version::major_ = major;
   Version::minor_ = minor;
   Version::build_ = build;
   Version::patch_ = patch;
+  Version::embedder_ = embedder;
   Version::candidate_ = candidate;
   Version::soname_ = soname;
 }
@@ -50,15 +51,15 @@ void SetVersion(int major, int minor, int build, int patch,
 }  // namespace v8
 
 
-static void CheckVersion(int major, int minor, int build,
-                         int patch, bool candidate,
+static void CheckVersion(int major, int minor, int build, int patch,
+                         const char* embedder, bool candidate,
                          const char* expected_version_string,
                          const char* expected_generic_soname) {
   static v8::internal::EmbeddedVector<char, 128> version_str;
   static v8::internal::EmbeddedVector<char, 128> soname_str;
 
   // Test version without specific SONAME.
-  SetVersion(major, minor, build, patch, candidate, "");
+  SetVersion(major, minor, build, patch, embedder, candidate, "");
   Version::GetString(version_str);
   CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
   Version::GetSONAME(soname_str);
@@ -66,7 +67,7 @@ static void CheckVersion(int major, int minor, int build,
 
   // Test version with specific SONAME.
   const char* soname = "libv8.so.1";
-  SetVersion(major, minor, build, patch, candidate, soname);
+  SetVersion(major, minor, build, patch, embedder, candidate, soname);
   Version::GetString(version_str);
   CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
   Version::GetSONAME(soname_str);
@@ -88,18 +89,34 @@ TEST(VersionString) {
   CheckVersion(2, 5, 10, 7, false, "2.5.10.7 SIMULATOR", "libv8-2.5.10.7.so");
   CheckVersion(2, 5, 10, 7, true,
                "2.5.10.7 (candidate) SIMULATOR", "libv8-2.5.10.7-candidate.so");
+  CheckVersion(6, 0, 287, 0, "-emb.1", false, "6.0.287-emb.1 SIMULATOR",
+               "libv8-6.0.287-emb.1.so");
+  CheckVersion(6, 0, 287, 0, "-emb.1", true, "6.0.287-emb.1 (candidate) SIMULATOR",
+               "libv8-6.0.287-emb.1-candidate.so");
+  CheckVersion(6, 0, 287, 53, "-emb.1", false, "6.0.287.53-emb.1 SIMULATOR",
+               "libv8-6.0.287.53-emb.1.so");
+  CheckVersion(6, 0, 287, 53, "-emb.1", true, "6.0.287.53-emb.1 (candidate) SIMULATOR",
+               "libv8-6.0.287.53-emb.1-candidate.so");
 #else
-  CheckVersion(0, 0, 0, 0, false, "0.0.0", "libv8-0.0.0.so");
-  CheckVersion(0, 0, 0, 0, true,
-               "0.0.0 (candidate)", "libv8-0.0.0-candidate.so");
-  CheckVersion(1, 0, 0, 0, false, "1.0.0", "libv8-1.0.0.so");
-  CheckVersion(1, 0, 0, 0, true,
-               "1.0.0 (candidate)", "libv8-1.0.0-candidate.so");
-  CheckVersion(1, 0, 0, 1, false, "1.0.0.1", "libv8-1.0.0.1.so");
-  CheckVersion(1, 0, 0, 1, true,
-               "1.0.0.1 (candidate)", "libv8-1.0.0.1-candidate.so");
-  CheckVersion(2, 5, 10, 7, false, "2.5.10.7", "libv8-2.5.10.7.so");
-  CheckVersion(2, 5, 10, 7, true,
-               "2.5.10.7 (candidate)", "libv8-2.5.10.7-candidate.so");
+  CheckVersion(0, 0, 0, 0, "", false, "0.0.0", "libv8-0.0.0.so");
+  CheckVersion(0, 0, 0, 0, "", true, "0.0.0 (candidate)",
+               "libv8-0.0.0-candidate.so");
+  CheckVersion(1, 0, 0, 0, "", false, "1.0.0", "libv8-1.0.0.so");
+  CheckVersion(1, 0, 0, 0, "", true, "1.0.0 (candidate)",
+               "libv8-1.0.0-candidate.so");
+  CheckVersion(1, 0, 0, 1, "", false, "1.0.0.1", "libv8-1.0.0.1.so");
+  CheckVersion(1, 0, 0, 1, "", true, "1.0.0.1 (candidate)",
+               "libv8-1.0.0.1-candidate.so");
+  CheckVersion(2, 5, 10, 7, "", false, "2.5.10.7", "libv8-2.5.10.7.so");
+  CheckVersion(2, 5, 10, 7, "", true, "2.5.10.7 (candidate)",
+               "libv8-2.5.10.7-candidate.so");
+  CheckVersion(6, 0, 287, 0, "-emb.1", false, "6.0.287-emb.1",
+               "libv8-6.0.287-emb.1.so");
+  CheckVersion(6, 0, 287, 0, "-emb.1", true, "6.0.287-emb.1 (candidate)",
+               "libv8-6.0.287-emb.1-candidate.so");
+  CheckVersion(6, 0, 287, 53, "-emb.1", false, "6.0.287.53-emb.1",
+               "libv8-6.0.287.53-emb.1.so");
+  CheckVersion(6, 0, 287, 53, "-emb.1", true, "6.0.287.53-emb.1 (candidate)",
+               "libv8-6.0.287.53-emb.1-candidate.so");
 #endif
 }

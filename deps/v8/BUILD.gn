@@ -39,6 +39,9 @@ declare_args() {
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
 
+  # Allows the embedder to add a custom suffix to the version string.
+  v8_embedder_string = ""
+
   # Sets -dENABLE_DISASSEMBLER.
   v8_enable_disassembler = ""
 
@@ -217,6 +220,9 @@ config("features") {
 
   defines = []
 
+  if (v8_embedder_string != "") {
+    defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]
+  }
   if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
   }
