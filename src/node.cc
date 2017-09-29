@@ -1376,7 +1376,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
 
   HandleScope handle_scope(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
-  CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
+  CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
   if (env->using_domains() && !object_.IsEmpty()) {
     failed_ = DomainEnter(env, object_);
