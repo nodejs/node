@@ -1936,7 +1936,7 @@ void IsIPv6(const FunctionCallbackInfo<Value>& args) {
 }
 
 void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
-  v8::Isolate *isolate = args.GetIsolate();
+  v8::Isolate* isolate = args.GetIsolate();
   node::Utf8Value ip(isolate, args[0]);
   char address_buffer[sizeof(struct in6_addr)];
   char canonical_ip[INET6_ADDRSTRLEN];
