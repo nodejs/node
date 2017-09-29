@@ -1,4 +1,4 @@
-prefix parallel
+prefix es-module
 
 # To mark a test as flaky, list the test name in the appropriate section
 # below, without ".js", followed by ": PASS,FLAKY". Example:
