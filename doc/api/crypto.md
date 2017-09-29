@@ -1171,7 +1171,11 @@ currently in use. Setting to true requires a FIPS build of Node.js.
 ### crypto.createCipher(algorithm, password)
 <!-- YAML
 added: v0.1.94
+deprecated: vx.x.x
 -->
+
+> Stability: 0 - Deprecated: Use [`crypto.createCipheriv()`][] instead.
+
 - `algorithm` {string}
 - `password` {string | Buffer | TypedArray | DataView}
 
@@ -1213,6 +1217,44 @@ available cipher algorithms.
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
 [Buffers][`Buffer`], `TypedArray`, or `DataView`s.
+
+### crypto.generateLegacyKey(algorithm, key)
+- `algorithm` {string}
+- `key` {string | Buffer | TypedArray | DataView}
+
+Creates and returns a [Buffer][`Buffer`] object, with the given `algorithm` and
+`key`.
+
+Use this function for applications previously reliant on
+[`crypto.createCipher()`][]. Pass its return value to
+[`crypto.createCipheriv()`][] as the `key`.
+
+The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
+recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
+available cipher algorithms.
+
+The `key` must be a `'utf8'` encoded string, [Buffer][`Buffer`], `TypedArray`,
+or `DataView`.
+
+### crypto.generateLegacyIV(algorithm, iv)
+- `algorithm` {string}
+- `iv` {string | Buffer | TypedArray | DataView}
+
+Creates and returns a [Buffer][`Buffer`] object, with the given `algorithm` and
+`iv`.
+
+Use this function for applications previously reliant on
+[`crypto.createCipher()`][]. Pass its return value to
+[`crypto.createCipheriv()`][] as the `iv`.
+
+The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
+recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
+available cipher algorithms.
+
+This function will throw an error if a cipher without an IV is passed.
+
+The `iv` must be a `'utf8'` encoded string, [Buffer][`Buffer`], `TypedArray`,
+or `DataView`.
 
 ### crypto.createCredentials(details)
 <!-- YAML
