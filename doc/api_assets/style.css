@@ -1,6 +1,7 @@
 /*--------------------- Layout and Typography ----------------------------*/
 html {
   font-size: 1rem;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
@@ -264,7 +265,6 @@ h1, h2, h3, h4, h5, h6 {
   text-rendering: optimizeLegibility;
   font-weight: 700;
   position: relative;
-  word-wrap: break-word;
 }
 
 header h1 {
