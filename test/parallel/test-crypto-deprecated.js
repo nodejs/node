@@ -27,13 +27,13 @@ assert.strictEqual(crypto.createCredentials, tls.createSecureContext);
 crypto.createCipher;
 crypto.Cipher;
 
-assert.throws(() => {
-  crypto.createCipher('aes-128-cbc', 'this-should-throw');
-}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /no longer supported with ciphers that require initialization vectors/);
-
 
 if (!common.hasFipsCrypto) {
   assert.doesNotThrow(() => {
     crypto.createCipher('aes-128-ecb', 'this-should-warn');
   });
+} else {
+  assert.throws(() => {
+    crypto.createCipher('aes-128-ecb', 'this-should-throw');
+  }, /not supported in FIPS mode/);
 }

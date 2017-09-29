@@ -679,6 +679,8 @@ argument.
 [`console.log()`]: console.html#console_console_log_data_args
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv
+[`crypto.generateLegacyKey()`]: crypto.html#crypto_crypto_generatelegacykey_algorithm_key
+[`crypto.generateLegacyIV()`]: crypto.html#crypto_crypto_generatelegacyiv_algorithm_iv
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html

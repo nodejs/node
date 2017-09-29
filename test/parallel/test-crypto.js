@@ -141,7 +141,7 @@ if (common.hasFipsCrypto) {
 
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
-}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /no longer supported with ciphers that require initialization vectors/);
+}, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
 
 assert.throws(function() {
   crypto.createDecipher('aes192', 'test').update('0', 'hex');

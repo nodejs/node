@@ -391,9 +391,9 @@ for (const i in TEST_CASES) {
   }
 
   if (test.password) {
-    if (!test.algo.endsWith('ecb')) {
+    if (!test.algo.endsWith('ecb') && common.hasFipsCrypto) {
       assert.throws(() => { crypto.createCipher(test.algo, test.password); },
-                    common.hasFipsCrypto ? errMessages.FIPS : errMessages.IV);
+                    errMessages.FIPS);
     } else {
       const encrypt = crypto.createCipher(test.algo, test.password);
       if (test.aad)
