@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
 
   req.setTimeout(TIMEOUT, () => {
     if (!intervalWasInvoked)
-      common.skip('interval was not invoked quickly enough for test');
+      return common.skip('interval was not invoked quickly enough for test');
     common.fail('Request timeout should not fire');
   });
 
@@ -35,8 +35,8 @@ server.listen(0, common.mustCall(() => {
       // If machine is busy enough that the interval takes more than TIMEOUT ms
       // to be invoked, skip the test.
       const now = Date.now();
-      if (time < now - TIMEOUT)
-        common.skip('interval is not invoked quickly enough for test');
+      if (now - time > TIMEOUT)
+        return common.skip('interval is not invoked quickly enough for test');
       time = now;
       req.write('a');
     }, common.platformTimeout(25));
