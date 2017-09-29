@@ -283,7 +283,7 @@ Note: it is possible to only sign a release by running `./tools/release.sh -s vX
 
 ### 13. Check the Release
 
-Your release should be available at <https://nodejs.org/dist/vx.y.z/> and <https://nodejs.org/dist/latest/>. Check that the appropriate files are in place. You may want to check that the binaries are working as appropriate and have the right internal version strings. Check that the API docs are available at <https://nodejs.org/api/>. Check that the release catalog files are correct at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
+Your release should be available at `https://nodejs.org/dist/vx.y.z/` and <https://nodejs.org/dist/latest/>. Check that the appropriate files are in place. You may want to check that the binaries are working as appropriate and have the right internal version strings. Check that the API docs are available at <https://nodejs.org/api/>. Check that the release catalog files are correct at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
 
 ### 14. Create a Blog Post
 
@@ -304,7 +304,7 @@ Refs: <full URL to your release proposal PR>
 
 ### 15. Announce
 
-The nodejs.org website will automatically rebuild and include the new version. To announce the build on Twitter through the official @nodejs account, email [pr@nodejs.org](pr@nodejs.org) with a message such as:
+The nodejs.org website will automatically rebuild and include the new version. To announce the build on Twitter through the official @nodejs account, email [pr@nodejs.org](mailto:pr@nodejs.org) with a message such as:
 
 > v5.8.0 of @nodejs is out: https://nodejs.org/en/blog/release/v5.8.0/ … something here about notable changes
 
