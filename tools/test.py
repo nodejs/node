@@ -1531,23 +1531,6 @@ def GetSpecialCommandProcessor(value):
       return prefix + args + suffix
     return ExpandCommand
 
-
-BUILT_IN_TESTS = [
-  'sequential',
-  'parallel',
-  'pummel',
-  'message',
-  'internet',
-  'addons',
-  'addons-napi',
-  'gc',
-  'debugger',
-  'doctool',
-  'inspector',
-  'async-hooks',
-]
-
-
 def GetSuites(test_root):
   def IsSuite(path):
     return isdir(path) and exists(join(path, 'testcfg.py'))
@@ -1566,6 +1549,32 @@ def PrintCrashed(code):
     return "CRASHED (Signal: %d)" % -code
 
 
+# these suites represent special cases that should not be run as part of the
+# default JavaScript test-run, e.g., internet/ requires a network connection,
+# addons/ requires compilation.
+IGNORED_SUITES = [
+  'addons',
+  'addons-napi',
+  'gc',
+  'internet',
+  'pummel',
+  'test-known-issues',
+  'tick-processor',
+  'timers'
+]
+
+
+def ArgsToTestPaths(test_root, args, suites):
+  if len(args) == 0 or 'default' in args:
+    def_suites = filter(lambda s: s not in IGNORED_SUITES, suites)
+    args = filter(lambda a: a != 'default', args) + def_suites
+  subsystem_regex = re.compile(r'^[a-zA-Z-]*$')
+  check = lambda arg: subsystem_regex.match(arg) and (arg not in suites)
+  mapped_args = ["*/test*-%s-*" % arg if check(arg) else arg for arg in args]
+  paths = [SplitPath(NormalizePath(a)) for a in mapped_args]
+  return paths
+
+
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
@@ -1581,18 +1590,13 @@ def Main():
     logger.addHandler(fh)
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  suites = GetSuites(join(workspace, 'test'))
+  test_root = join(workspace, 'test')
+  suites = GetSuites(test_root)
   repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories)
-  if len(args) == 0:
-    paths = [SplitPath(t) for t in BUILT_IN_TESTS]
-  else:
-    paths = [ ]
-    for arg in args:
-      path = SplitPath(NormalizePath(arg))
-      paths.append(path)
+  paths = ArgsToTestPaths(test_root, args, suites)
 
   # Check for --valgrind option. If enabled, we overwrite the special
   # command flag with a command that uses the run-valgrind.py script.
