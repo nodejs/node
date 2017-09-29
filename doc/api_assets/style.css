@@ -129,6 +129,7 @@ ol.version-picker {
   display: block;
   border-right: 0;
   margin-right: 0;
+  width: 100%;
 }
 
 ol.version-picker li a {
