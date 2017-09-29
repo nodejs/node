@@ -1,4 +1,4 @@
-// Flags: --expose-http2
+//
 'use strict';
 
 // Response splitting is no longer an issue with HTTP/2. The underlying

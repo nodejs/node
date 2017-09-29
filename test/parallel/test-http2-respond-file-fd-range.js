@@ -1,4 +1,4 @@
-// Flags: --expose-http2
+//
 'use strict';
 
 // Tests the ability to minimally request a byte range with respondWithFD

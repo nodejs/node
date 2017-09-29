@@ -1,4 +1,4 @@
-// Flags: --expose-http2
+//
 'use strict';
 
 const common = require('../common');
