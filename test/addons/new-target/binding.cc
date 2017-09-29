@@ -3,7 +3,11 @@
 
 namespace {
 
-inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>&) {}
+inline void NewClass(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  // this != new.target since we are being invoked through super().
+  assert(args.IsConstructCall());
+  assert(!args.This()->StrictEquals(args.NewTarget()));
+}
 
 inline void Initialize(v8::Local<v8::Object> binding) {
   auto isolate = binding->GetIsolate();
