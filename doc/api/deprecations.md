@@ -707,7 +707,8 @@ Type: Documentation-only
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
-instead.
+instead. (For backwards compatibility with Node.js prior to version 6.4.0, both
+may be specified.)
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
