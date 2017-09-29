@@ -25,9 +25,6 @@ Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
 
-Freelist<nghttp2_data_chunks_t, FREELIST_MAX>
-    data_chunks_free_list;
-
 Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
     Callbacks(false),
     Callbacks(true)};

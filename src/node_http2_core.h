@@ -40,7 +40,6 @@ class Nghttp2Stream;
 
 struct nghttp2_stream_write_t;
 struct nghttp2_data_chunk_t;
-struct nghttp2_data_chunks_t;
 
 #define MAX_BUFFER_COUNT 10
 #define SEND_BUFFER_RECOMMENDED_SIZE 4096
@@ -506,13 +505,6 @@ struct nghttp2_stream_write_t {
 struct nghttp2_data_chunk_t {
   uv_buf_t buf;
   nghttp2_data_chunk_t* next = nullptr;
-};
-
-struct nghttp2_data_chunks_t {
-  unsigned int nbufs = 0;
-  uv_buf_t buf[MAX_BUFFER_COUNT];
-
-  inline ~nghttp2_data_chunks_t();
 };
 
 }  // namespace http2
