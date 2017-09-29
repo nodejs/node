@@ -246,8 +246,8 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap_node.js
 bool config_expose_internals = false;
 
-// Set in node.cc by ParseArgs when --expose-http2 is used.
-bool config_expose_http2 = false;
+// Set to false in node.cc when NODE_NO_HTTP2=1 is used.
+bool config_expose_http2 = true;
 
 bool v8_initialized = false;
 
@@ -3830,7 +3830,6 @@ static void PrintHelp() {
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
-         "  --expose-http2             enable experimental HTTP2 support\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
@@ -3894,7 +3893,8 @@ static void PrintHelp() {
 #endif
 #endif
          "NODE_NO_WARNINGS             set to 1 to silence process warnings\n"
-#if !defined(NODE_WITHOUT_NODE_OPTIONS)
+         "NODE_NO_HTTP2                set to 1 to suppress the http2 module\n"
+         #if !defined(NODE_WITHOUT_NODE_OPTIONS)
          "NODE_OPTIONS                 set CLI options in the environment\n"
          "                             via a space-separated list\n"
 #endif
@@ -4173,7 +4173,7 @@ static void ParseArgs(int* argc,
       config_expose_internals = true;
     } else if (strcmp(arg, "--expose-http2") == 0 ||
                strcmp(arg, "--expose_http2") == 0) {
-      config_expose_http2 = true;
+      // Intentional non-op
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {
@@ -4548,6 +4548,12 @@ void Init(int* argc,
     std::string text;
     config_pending_deprecation =
         SafeGetenv("NODE_PENDING_DEPRECATION", &text) && text[0] == '1';
+  }
+
+  {
+    std::string text;
+    config_expose_http2 =
+      !(SafeGetenv("NODE_NO_HTTP2", &text) && text[0] == '1');
   }
 
   // Allow for environment set preserving symlinks.

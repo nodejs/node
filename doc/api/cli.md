@@ -432,6 +432,13 @@ added: v7.5.0
 
 When set to `1`, process warnings are silenced.
 
+### `NODE_NO_HTTP2=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to `1`, the `http2` module is suppressed.
+
 ### `NODE_OPTIONS=options...`
 <!-- YAML
 added: v8.0.0
