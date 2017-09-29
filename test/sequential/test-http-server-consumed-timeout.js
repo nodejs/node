@@ -35,7 +35,6 @@ server.listen(0, common.mustCall(() => {
       // If machine is busy enough that the interval takes more than TIMEOUT ms
       // to be invoked, skip the test.
       const now = Date.now();
-      console.log('diff is ' + (now - time));
       if (time < now - TIMEOUT)
         common.skip('interval is not invoked quickly enough for test');
       time = now;
