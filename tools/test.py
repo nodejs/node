@@ -1559,6 +1559,7 @@ IGNORED_SUITES = [
   'internet',
   'pummel',
   'test-known-issues',
+  'tick-processor',
   'timers'
 ]
 
