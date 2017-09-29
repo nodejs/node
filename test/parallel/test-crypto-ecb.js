@@ -45,7 +45,7 @@ crypto.DEFAULT_ENCODING = 'buffer';
   assert.strictEqual(hex.toUpperCase(), '6D385F424AAB0CFBF0BB86E07FFB7D71');
 }
 
-{  
+{
   const decrypt = crypto.createDecipheriv('BF-ECB', 'SomeRandomBlahz0c5GZVnR');
   let msg = decrypt.update('6D385F424AAB0CFBF0BB86E07FFB7D71', 'hex', 'ascii');
   msg += decrypt.final('ascii');
