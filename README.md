@@ -316,6 +316,8 @@ For more information about the governance of the Node.js project, see
 **Bradley Farias** &lt;bradley.meck@gmail.com&gt;
 * [bnoordhuis](https://github.com/bnoordhuis) -
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
+* [bmeurer](https://github.com/bmeurer) -
+**Benedikt Meurer** &lt;benedikt.meurer@gmail.com&gt;
 * [brendanashworth](https://github.com/brendanashworth) -
 **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [BridgeAR](https://github.com/BridgeAR) -
