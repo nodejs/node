@@ -404,6 +404,13 @@ If you are updating tests and just want to run a single test to check it:
 $ python tools/test.py -J --mode=release parallel/test-stream2-transform
 ```
 
+You can execute the entire suite of tests for a given subsystem
+by providing the name of a subsystem:
+
+```text
+$ python tools/test.py -J --mode=release child-process
+```
+
 If you want to check the other options, please refer to the help by using
 the `--help` option
 
@@ -419,6 +426,38 @@ $ ./node ./test/parallel/test-stream2-transform.js
 
 Remember to recompile with `make -j4` in between test runs if you change code in
 the `lib` or `src` directories.
+
+##### Test Coverage
+
+It's good practice to ensure any code you add or change is covered by tests.
+You can do so by running the test suite with coverage enabled:
+
+```text
+$ ./configure --coverage && make coverage
+```
+
+A detailed coverage report will be written to `coverage/index.html` for
+JavaScript coverage and to `coverage/cxxcoverage.html` for C++ coverage.
+
+_Note that generating a test coverage report can take several minutes._
+
+To collect coverage for a subset of tests you can set the `CI_JS_SUITES` and
+`CI_NATIVE_SUITES` variables:
+
+```text
+$ CI_JS_SUITES=child-process CI_NATIVE_SUITES= make coverage
+```
+
+The above command executes tests for the `child-process` subsystem and
+outputs the resulting coverage report.
+
+Running tests with coverage will create and modify several directories
+and files. To clean up afterwards, run:
+
+```text
+make coverage-clean
+./configure && make -j4.
+```
 
 #### Step 7: Push
 
