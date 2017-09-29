@@ -105,8 +105,8 @@ class Nghttp2Session {
     return destroying_;
   }
 
-  inline const char* TypeName(nghttp2_session_type type) {
-    switch (type) {
+  inline const char* TypeName() {
+    switch (session_type_) {
       case NGHTTP2_SESSION_SERVER: return "server";
       case NGHTTP2_SESSION_CLIENT: return "client";
       default:
