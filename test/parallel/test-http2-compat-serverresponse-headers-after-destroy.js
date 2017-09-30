@@ -1,3 +1,4 @@
+// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -5,31 +6,29 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-const net = require('net');
 
-// Http2ServerResponse.finished
+// makes sure that Http2ServerResponse setHeader & removeHeader, do not throw
+// any errors if the stream was destroyed before headers were sent
+
 const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
-    assert.ok(response.socket instanceof net.Socket);
-    assert.ok(response.connection instanceof net.Socket);
-    assert.strictEqual(response.socket, response.connection);
+    response.destroy();
 
-    response.on('finish', common.mustCall(function() {
-      assert.ok(request.stream !== undefined);
-      assert.ok(response.stream !== undefined);
-      server.close();
-      process.nextTick(common.mustCall(() => {
-        assert.strictEqual(request.stream, undefined);
+    response.on('finish', common.mustCall(() => {
+      assert.strictEqual(response.headersSent, false);
+      assert.doesNotThrow(() => response.setHeader('test', 'value'));
+      assert.doesNotThrow(() => response.removeHeader('test', 'value'));
+
+      process.nextTick(() => {
         assert.strictEqual(response.stream, undefined);
-        assert.strictEqual(response.socket, undefined);
-        assert.strictEqual(response.connection, undefined);
-      }));
+        assert.doesNotThrow(() => response.setHeader('test', 'value'));
+        assert.doesNotThrow(() => response.removeHeader('test', 'value'));
+
+        server.close();
+      });
     }));
-    assert.strictEqual(response.finished, false);
-    response.end();
-    assert.strictEqual(response.finished, true);
   }));
 
   const url = `http://localhost:${port}`;
