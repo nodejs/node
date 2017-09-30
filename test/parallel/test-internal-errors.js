@@ -323,13 +323,25 @@ assert.strictEqual(
 // `console.log()` results, which is the behavior of `Error` objects in the
 // browser. Note that `name` becomes enumerable after being assigned.
 {
+  let initialConsoleLog = '';
+  common.hijackStdout((data) => { initialConsoleLog += data; });
   const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
   assert.deepStrictEqual(Object.keys(myError), []);
   const initialToString = myError.toString();
+  console.log(myError);
+  assert.notStrictEqual(initialConsoleLog, '');
 
+  common.restoreStdout();
+
+  let subsequentConsoleLog = '';
+  common.hijackStdout((data) => { subsequentConsoleLog += data; });
   myError.name = 'Fhqwhgads';
   assert.deepStrictEqual(Object.keys(myError), ['name']);
   assert.notStrictEqual(myError.toString(), initialToString);
+  console.log(myError);
+  assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
+
+  common.restoreStdout();
 }
 
 // Test that `message` is mutable and that changing it alters `toString()` but
