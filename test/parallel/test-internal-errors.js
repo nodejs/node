@@ -1,9 +1,9 @@
 // Flags: --expose-internals
 'use strict';
-
 const common = require('../common');
-const errors = require('internal/errors');
+
 const assert = require('assert');
+const errors = require('internal/errors');
 
 function invalidKey(key) {
   return new RegExp(`^An invalid error message key was used: ${key}\\.$`);
@@ -300,4 +300,45 @@ assert.strictEqual(
     error.message,
     'The value "bar" is invalid for argument "foo"'
   );
+}
+
+// Test that `code` property is mutable and that changing it does not change the
+// name.
+{
+  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  assert.strictEqual(myError.code, 'ERR_TLS_HANDSHAKE_TIMEOUT');
+  const initialName = myError.name;
+  myError.code = 'FHQWHGADS';
+  assert.strictEqual(myError.code, 'FHQWHGADS');
+  assert.strictEqual(myError.name, initialName);
+  assert.ok(myError.name.includes('ERR_TLS_HANDSHAKE_TIMEOUT'));
+  assert.ok(!myError.name.includes('FHQWHGADS'));
+}
+
+// Test that `name` and `message` are mutable and that changing them alters 
+// `toString()` but not `console.log()` results, which is the behavior of
+// `Error` objects in the browser.
+{
+  function test(prop) {
+    let initialConsoleLog = '';
+    common.hijackStdout((data) => { initialConsoleLog += data; });
+    const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+    const initialToString = myError.toString();
+    console.log(myError);
+    assert.notStrictEqual(initialConsoleLog, '');
+
+    common.restoreStdout();
+
+    let subsequentConsoleLog = '';
+    common.hijackStdout((data) => { subsequentConsoleLog += data; });
+    myError[prop] = 'Fhqwhgads';
+    assert.notStrictEqual(myError.toString(), initialToString);
+    console.log(myError);
+    assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
+
+    common.restoreStdout();
+  }
+
+  test('name');
+  test('message');
 }
