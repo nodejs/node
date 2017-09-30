@@ -7,6 +7,11 @@ const http2 = require('http2');
 const path = require('path');
 const fs = require('fs');
 
+const {
+  HTTP2_HEADER_CONTENT_TYPE,
+  HTTP2_HEADER_METHOD
+} = http2.constants;
+
 const optionsWithTypeError = {
   offset: 'number',
   length: 'number',
@@ -38,7 +43,7 @@ server.on('stream', common.mustCall((stream) => {
 
     common.expectsError(
       () => stream.respondWithFD(types[type], {
-        [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+        [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
       }),
       {
         type: TypeError,
@@ -57,7 +62,7 @@ server.on('stream', common.mustCall((stream) => {
 
       common.expectsError(
         () => stream.respondWithFD(fd, {
-          [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+          [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
         }, {
           [option]: types[type]
         }),
@@ -74,14 +79,37 @@ server.on('stream', common.mustCall((stream) => {
   // Should throw if :status 204, 205 or 304
   [204, 205, 304].forEach((status) => common.expectsError(
     () => stream.respondWithFD(fd, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
       ':status': status,
     }),
     {
       code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
+      type: Error,
       message: `Responses with ${status} status must not have a payload`
     }
   ));
+
+  // should emit an error on the stream if headers aren't valid
+  stream.respondWithFD(fd, {
+    [HTTP2_HEADER_METHOD]: 'POST'
+  }, {
+    statCheck() {
+      return true;
+    }
+  });
+  stream.once('error', common.expectsError({
+    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
+    type: Error,
+    message: '":method" is an invalid pseudoheader or is used incorrectly'
+  }));
+  stream.respondWithFD(fd, {
+    [HTTP2_HEADER_METHOD]: 'POST'
+  });
+  stream.once('error', common.expectsError({
+    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
+    type: Error,
+    message: '":method" is an invalid pseudoheader or is used incorrectly'
+  }));
 
   // Should throw if headers already sent
   stream.respond({
@@ -89,10 +117,11 @@ server.on('stream', common.mustCall((stream) => {
   });
   common.expectsError(
     () => stream.respondWithFD(fd, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
+      type: Error,
       message: 'Response has already been initiated.'
     }
   );
@@ -101,10 +130,11 @@ server.on('stream', common.mustCall((stream) => {
   stream.destroy();
   common.expectsError(
     () => stream.respondWithFD(fd, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
+      type: Error,
       message: 'The stream has been destroyed'
     }
   );
