@@ -4,22 +4,23 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
+const path = require('path');
+
 const {
   constants,
   Http2Session,
   nghttp2ErrorString
 } = process.binding('http2');
 
-// tests error handling within pushStream
+// tests error handling within processRespondWithFD
+// (called by respondWithFD & respondWithFile)
 // - NGHTTP2_ERR_NOMEM (should emit session error)
-// - NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE (should emit session error)
-// - NGHTTP2_ERR_STREAM_CLOSED (should emit stream error)
 // - every other NGHTTP2 error from binding (should emit stream error)
 
+const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+
 const specificTestKeys = [
-  'NGHTTP2_ERR_NOMEM',
-  'NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE',
-  'NGHTTP2_ERR_STREAM_CLOSED'
+  'NGHTTP2_ERR_NOMEM'
 ];
 
 const specificTests = [
@@ -31,26 +32,7 @@ const specificTests = [
       message: 'Out of memory'
     },
     type: 'session'
-  },
-  {
-    ngError: constants.NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE,
-    error: {
-      code: 'ERR_HTTP2_OUT_OF_STREAMS',
-      type: Error,
-      message: 'No stream ID is available because ' +
-               'maximum stream ID has been reached'
-    },
-    type: 'session'
-  },
-  {
-    ngError: constants.NGHTTP2_ERR_STREAM_CLOSED,
-    error: {
-      code: 'ERR_HTTP2_STREAM_CLOSED',
-      type: Error,
-      message: 'The stream is already closed'
-    },
-    type: 'stream'
-  },
+  }
 ];
 
 const genericTests = Object.getOwnPropertyNames(constants)
@@ -72,8 +54,8 @@ const tests = specificTests.concat(genericTests);
 
 let currentError;
 
-// mock submitPushPromise because we only care about testing error handling
-Http2Session.prototype.submitPushPromise = () => currentError.ngError;
+// mock submitFile because we only care about testing error handling
+Http2Session.prototype.submitFile = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
@@ -86,15 +68,14 @@ server.on('stream', common.mustCall((stream, headers) => {
     stream.session.on('error', errorMustNotCall);
     stream.on('error', errorMustCall);
     stream.on('error', common.mustCall(() => {
-      stream.respond();
-      stream.end();
+      stream.destroy();
     }));
   } else {
     stream.session.once('error', errorMustCall);
     stream.on('error', errorMustNotCall);
   }
 
-  stream.pushStream({}, () => {});
+  stream.respondWithFile(fname);
 }, tests.length));
 
 server.listen(0, common.mustCall(() => runTest(tests.shift())));
