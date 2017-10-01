@@ -6237,6 +6237,53 @@ HEAP_TEST(Regress5831) {
   CHECK(chunk->NeverEvacuate());
 }
 
+TEST(Regress6800) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  const int kRootLength = 1000;
+  Handle<FixedArray> root =
+      isolate->factory()->NewFixedArray(kRootLength, TENURED);
+  {
+    HandleScope inner_scope(isolate);
+    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
+    for (int i = 0; i < kRootLength; i++) {
+      root->set(i, *new_space_array);
+    }
+    for (int i = 0; i < kRootLength; i++) {
+      root->set(i, CcTest::heap()->undefined_value());
+    }
+  }
+  CcTest::CollectGarbage(NEW_SPACE);
+  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
+                  MemoryChunk::FromAddress(root->address())));
+}
+
+TEST(Regress6800LargeObject) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  const int kRootLength = i::kMaxRegularHeapObjectSize / kPointerSize;
+  Handle<FixedArray> root =
+      isolate->factory()->NewFixedArray(kRootLength, TENURED);
+  CcTest::heap()->lo_space()->Contains(*root);
+  {
+    HandleScope inner_scope(isolate);
+    Handle<FixedArray> new_space_array = isolate->factory()->NewFixedArray(1);
+    for (int i = 0; i < kRootLength; i++) {
+      root->set(i, *new_space_array);
+    }
+    for (int i = 0; i < kRootLength; i++) {
+      root->set(i, CcTest::heap()->undefined_value());
+    }
+  }
+  CcTest::CollectGarbage(OLD_SPACE);
+  CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
+                  MemoryChunk::FromAddress(root->address())));
+}
+
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   if (!FLAG_incremental_marking) return;
   FLAG_black_allocation = true;
