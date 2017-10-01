@@ -193,7 +193,6 @@
 * [[`9e8b1b3ec6`](https://github.com/nodejs/node/commit/9e8b1b3ec6)] - **util**: refactor inspect for performance and more (Ruben Bridgewater) [#14881](https://github.com/nodejs/node/pull/14881)
 * [[`539445890b`](https://github.com/nodejs/node/commit/539445890b)] - **util**: add fast internal array join method (Ruben Bridgewater) [#14881](https://github.com/nodejs/node/pull/14881)
 * [[`7d95dc385c`](https://github.com/nodejs/node/commit/7d95dc385c)] - **vm**: support parsing a script in a specific context (Timothy Gu) [#14888](https://github.com/nodejs/node/pull/14888)
-james@ubuntu:~/node/main$
 
 <a id="8.5.0"></a>
 ## 2017-09-12, Version 8.5.0 (Current), @MylesBorins
