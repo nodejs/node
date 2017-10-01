@@ -44,6 +44,11 @@ cd $NODE_DIR
 git fetch upstream v6.x-staging:v6.x-staging -f
 # Assume we want to backport PR #10157
 git checkout -b backport-10157-to-v6.x v6.x-staging
+# Ensure there are no test artifacts from previous builds
+# Note that this command deletes all files and directories
+# not under revision control below the ./test directory.
+# It is optional and should be used with caution.
+git clean -xfd ./test/
 ```
 
 4. After creating the branch, apply the changes to the branch. The cherry-pick
