@@ -307,38 +307,52 @@ assert.strictEqual(
 {
   const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
   assert.strictEqual(myError.code, 'ERR_TLS_HANDSHAKE_TIMEOUT');
+  assert.strictEqual(myError.hasOwnProperty('code'), false);
+  assert.strictEqual(myError.hasOwnProperty('name'), false);
+  assert.deepStrictEqual(Object.keys(myError), []);
   const initialName = myError.name;
   myError.code = 'FHQWHGADS';
   assert.strictEqual(myError.code, 'FHQWHGADS');
   assert.strictEqual(myError.name, initialName);
+  assert.deepStrictEqual(Object.keys(myError), ['code']);
   assert.ok(myError.name.includes('ERR_TLS_HANDSHAKE_TIMEOUT'));
   assert.ok(!myError.name.includes('FHQWHGADS'));
 }
 
-// Test that `name` and `message` are mutable and that changing them alters 
-// `toString()` but not `console.log()` results, which is the behavior of
-// `Error` objects in the browser.
+// Test that `name` is mutable and that changing it alters `toString()` but not
+// `console.log()` results, which is the behavior of `Error` objects in the
+// browser. Note that `name` becomes enumerable after being assigned.
 {
-  function test(prop) {
-    let initialConsoleLog = '';
-    common.hijackStdout((data) => { initialConsoleLog += data; });
-    const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
-    const initialToString = myError.toString();
-    console.log(myError);
-    assert.notStrictEqual(initialConsoleLog, '');
+  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  assert.deepStrictEqual(Object.keys(myError), []);
+  const initialToString = myError.toString();
 
-    common.restoreStdout();
+  myError.name = 'Fhqwhgads';
+  assert.deepStrictEqual(Object.keys(myError), ['name']);
+  assert.notStrictEqual(myError.toString(), initialToString);
+}
 
-    let subsequentConsoleLog = '';
-    common.hijackStdout((data) => { subsequentConsoleLog += data; });
-    myError[prop] = 'Fhqwhgads';
-    assert.notStrictEqual(myError.toString(), initialToString);
-    console.log(myError);
-    assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
+// Test that `message` is mutable and that changing it alters `toString()` but
+// not `console.log()` results, which is the behavior of `Error` objects in the
+// browser. Note that `message` remains non-enumerable after being assigned.
+{
+  let initialConsoleLog = '';
+  common.hijackStdout((data) => { initialConsoleLog += data; });
+  const myError = new errors.Error('ERR_TLS_HANDSHAKE_TIMEOUT');
+  assert.deepStrictEqual(Object.keys(myError), []);
+  const initialToString = myError.toString();
+  console.log(myError);
+  assert.notStrictEqual(initialConsoleLog, '');
 
-    common.restoreStdout();
-  }
+  common.restoreStdout();
 
-  test('name');
-  test('message');
+  let subsequentConsoleLog = '';
+  common.hijackStdout((data) => { subsequentConsoleLog += data; });
+  myError.message = 'Fhqwhgads';
+  assert.deepStrictEqual(Object.keys(myError), []);
+  assert.notStrictEqual(myError.toString(), initialToString);
+  console.log(myError);
+  assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
+
+  common.restoreStdout();
 }
