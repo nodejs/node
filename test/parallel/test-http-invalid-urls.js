@@ -1,20 +1,25 @@
+/* eslint-disable crypto-check */
+
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 
-const assert = require('assert');
 const http = require('http');
-const https = require('https');
-const error = 'Unable to determine the domain name';
+const modules = { 'http': http };
+
+if (common.hasCrypto) {
+  const https = require('https');
+  modules.https = https;
+}
 
 function test(host) {
-  ['get', 'request'].forEach((method) => {
-    [http, https].forEach((module) => {
-      assert.throws(() => module[method](host, () => {
-        throw new Error(`${module}.${method} should not connect to ${host}`);
-      }), error);
+  ['get', 'request'].forEach((fn) => {
+    Object.keys(modules).forEach((module) => {
+      const doNotCall = common.mustNotCall(
+        `${module}.${fn} should not connect to ${host}`
+      );
+      const throws = () => { modules[module][fn](host, doNotCall); };
+      common.expectsError(throws, { code: 'ERR_INVALID_DOMAIN_NAME' });
     });
   });
 }
