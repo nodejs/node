@@ -332,6 +332,7 @@ class ModuleWrap;
   V(vm_parsing_context_symbol, v8::Symbol)                                    \
   V(url_constructor_function, v8::Function)                                   \
   V(write_wrap_constructor_function, v8::Function)                            \
+  V(host_import_module_dynamically_callback, v8::Function)                    \
 
 class Environment;
 
