@@ -675,7 +675,7 @@ querystring.parse(str, '\n', '=');
 ```
 
 *Note*: This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does url encoding:
+difference is that `querystring.parse()` does url decoding:
 
 ```sh
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
