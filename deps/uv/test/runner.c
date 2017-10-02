@@ -29,6 +29,13 @@
 char executable_path[sizeof(executable_path)];
 
 
+static int compare_task(const void* va, const void* vb) {
+  const task_entry_t* a = va;
+  const task_entry_t* b = vb;
+  return strcmp(a->task_name, b->task_name);
+}
+
+
 const char* fmt(double d) {
   static char buf[1024];
   static char* p;
@@ -67,6 +74,7 @@ const char* fmt(double d) {
 
 
 int run_tests(int benchmark_output) {
+  int actual;
   int total;
   int passed;
   int failed;
@@ -76,12 +84,15 @@ int run_tests(int benchmark_output) {
   task_entry_t* task;
 
   /* Count the number of tests. */
+  actual = 0;
   total = 0;
-  for (task = TASKS; task->main; task++) {
+  for (task = TASKS; task->main; task++, actual++) {
     if (!task->is_helper) {
       total++;
     }
   }
+
+  qsort(TASKS, actual, sizeof(TASKS[0]), compare_task);
 
   fprintf(stderr, "1..%d\n", total);
   fflush(stderr);
@@ -351,12 +362,6 @@ int run_test_part(const char* test, const char* part) {
   return 255;
 }
 
-
-static int compare_task(const void* va, const void* vb) {
-  const task_entry_t* a = va;
-  const task_entry_t* b = vb;
-  return strcmp(a->task_name, b->task_name);
-}
 
 
 static int find_helpers(const task_entry_t* task,

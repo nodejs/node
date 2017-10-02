@@ -237,8 +237,10 @@ static void uv__udp_sendmsg(uv_udp_t* handle) {
       size = sendmsg(handle->io_watcher.fd, &h, 0);
     } while (size == -1 && errno == EINTR);
 
-    if (size == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-      break;
+    if (size == -1) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
+        break;
+    }
 
     req->status = (size == -1 ? -errno : size);
 
@@ -472,7 +474,7 @@ int uv__udp_try_send(uv_udp_t* handle,
   } while (size == -1 && errno == EINTR);
 
   if (size == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK)
+    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
       return -EAGAIN;
     else
       return -errno;
