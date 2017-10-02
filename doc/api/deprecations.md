@@ -710,8 +710,8 @@ function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
 instead. For backwards compatibility with Node.js prior to version 6.4.0, both
 may be specified.
 
-<a id="DEP00XX"></a>
-### DEP00XX: path.\_makeLong()
+<a id="DEP0080"></a>
+### DEP0080: path.\_makeLong()
 
 Type: Documentation-only
 
