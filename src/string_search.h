@@ -85,12 +85,12 @@ class StringSearchBase {
   static const int kBMMinPatternLength = 8;
 
   // Store for the BoyerMoore(Horspool) bad char shift table.
-  static int kBadCharShiftTable[kUC16AlphabetSize];
+  int kBadCharShiftTable[kUC16AlphabetSize];
   // Store for the BoyerMoore good suffix shift table.
-  static int kGoodSuffixShiftTable[kBMMaxShift + 1];
+  int kGoodSuffixShiftTable[kBMMaxShift + 1];
   // Table used temporarily while building the BoyerMoore good suffix
   // shift table.
-  static int kSuffixTable[kBMMaxShift + 1];
+  int kSuffixTable[kBMMaxShift + 1];
 };
 
 template <typename Char>

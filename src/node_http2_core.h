@@ -279,7 +279,7 @@ class Nghttp2Session {
   };
 
   /* Use callback_struct_saved[kHasGetPaddingCallback ? 1 : 0] */
-  static Callbacks callback_struct_saved[2];
+  static const Callbacks callback_struct_saved[2];
 
   nghttp2_session* session_;
   uv_loop_t* loop_;

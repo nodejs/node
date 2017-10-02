@@ -788,6 +788,9 @@ static int X509_up_ref(X509* cert) {
 
 static X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
+  static Mutex root_certs_vector_mutex;
+  Mutex::ScopedLock lock(root_certs_vector_mutex);
+
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
@@ -5319,8 +5322,13 @@ void PBKDF2Request::After() {
 
 
 void PBKDF2Request::After(uv_work_t* work_req, int status) {
-  CHECK_EQ(status, 0);
   PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
+  req->env()->DecreaseWaitingRequestCounter();
+  if (status == UV_ECANCELED) {
+    delete req;
+    return;
+  }
+  CHECK_EQ(status, 0);
   req->After();
   delete req;
 }
@@ -5427,6 +5435,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
           .FromJust();
     }
 
+    env->IncreaseWaitingRequestCounter();
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   PBKDF2Request::Work,
@@ -5579,10 +5588,15 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
 
 
 void RandomBytesAfter(uv_work_t* work_req, int status) {
-  CHECK_EQ(status, 0);
   RandomBytesRequest* req =
       ContainerOf(&RandomBytesRequest::work_req_, work_req);
   Environment* env = req->env();
+  env->DecreaseWaitingRequestCounter();
+  if (status == UV_ECANCELED) {
+    delete req;
+    return;
+  }
+  CHECK_EQ(status, 0);
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
@@ -5636,6 +5650,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
           .FromJust();
     }
 
+    env->IncreaseWaitingRequestCounter();
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   RandomBytesWork,
@@ -5682,6 +5697,7 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
           .FromJust();
     }
 
+    env->IncreaseWaitingRequestCounter();
     uv_queue_work(env->event_loop(),
                   req->work_req(),
                   RandomBytesWork,

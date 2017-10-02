@@ -868,6 +868,28 @@ void napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
+napi_status napi_add_env_cleanup_hook(napi_env env,
+                                      void (*fun)(void* arg),
+                                      void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::AddEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
+napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                         void (*fun)(void* arg),
+                                         void* arg) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  node::RemoveEnvironmentCleanupHook(env->isolate, fun, arg);
+
+  return napi_ok;
+}
+
 // Warning: Keep in-sync with napi_status enum
 const char* error_messages[] = {nullptr,
                                 "Invalid argument",
@@ -3375,6 +3397,9 @@ class Work : public node::AsyncResource {
       // Establish a handle scope here so that every callback doesn't have to.
       // Also it is needed for the exception-handling below.
       v8::HandleScope scope(env->isolate);
+      auto env_ = node::Environment::GetCurrent(env->isolate);
+      env_->DecreaseWaitingRequestCounter();
+
       CallbackScope callback_scope(work);
 
       work->_complete(env, ConvertUVErrorCode(status), work->_data);
@@ -3463,13 +3488,12 @@ napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
   CHECK_ARG(env, work);
 
   // Consider: Encapsulate the uv_loop_t into an opaque pointer parameter.
-  // Currently the environment event loop is the same as the UV default loop.
-  // Someday (if node ever supports multiple isolates), it may be better to get
-  // the loop from node::Environment::GetCurrent(env->isolate)->event_loop();
-  uv_loop_t* event_loop = uv_default_loop();
+  auto env_ = node::Environment::GetCurrent(env->isolate);
+  uv_loop_t* event_loop = env_->event_loop();
 
   uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
 
+  env_->IncreaseWaitingRequestCounter();
   CALL_UV(env, uv_queue_work(event_loop,
                              w->Request(),
                              uvimpl::Work::ExecuteCallback,

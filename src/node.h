@@ -546,6 +546,19 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
                                 promise_hook_func fn,
                                 void* arg);
 
+/* This is a lot like node::AtExit, except that the hooks added via this
+ * function are run before the AtExit ones and will always be registered
+ * for the current Environment instance.
+ * These functions are safe to use in an addon supporting multiple
+ * threads/isolates. */
+NODE_EXTERN void AddEnvironmentCleanupHook(v8::Isolate* isolate,
+                                           void (*fun)(void* arg),
+                                           void* arg);
+
+NODE_EXTERN void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
+                                              void (*fun)(void* arg),
+                                              void* arg);
+
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */

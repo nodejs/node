@@ -152,6 +152,7 @@ static void DestroyAsyncIdsCallback(uv_timer_t* handle) {
   do {
     std::vector<double> destroy_async_id_list;
     destroy_async_id_list.swap(*env->destroy_async_id_list());
+    if (!env->can_call_into_js()) return;
     for (auto async_id : destroy_async_id_list) {
       // Want each callback to be cleaned up after itself, instead of cleaning
       // them all up after the while() loop completes.
@@ -172,6 +173,9 @@ static void DestroyAsyncIdsCallback(uv_timer_t* handle) {
 
 static void PushBackDestroyAsyncId(Environment* env, double id) {
   if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0)
+    return;
+
+  if (!env->can_call_into_js())
     return;
 
   if (env->destroy_async_id_list()->empty())

@@ -271,11 +271,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
     env->set_init_trigger_async_id(wrap->get_async_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }
@@ -307,11 +306,10 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
     env->set_init_trigger_async_id(wrap->get_async_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
-    err = uv_tcp_connect(req_wrap->req(),
-                         &wrap->handle_,
-                         reinterpret_cast<const sockaddr*>(&addr),
-                         AfterConnect);
-    req_wrap->Dispatched();
+    err = req_wrap->Dispatch(uv_tcp_connect,
+                             &wrap->handle_,
+                             reinterpret_cast<const sockaddr*>(&addr),
+                             AfterConnect);
     if (err)
       delete req_wrap;
   }

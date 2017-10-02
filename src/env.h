@@ -560,7 +560,12 @@ class Environment {
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
-  inline void FinishHandleCleanup(uv_handle_t* handle);
+
+  template <typename T, typename OnCloseCallback>
+  inline void CloseHandle(T* handle, OnCloseCallback callback);
+
+  inline void IncreaseWaitingRequestCounter();
+  inline void DecreaseWaitingRequestCounter();
 
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
@@ -610,6 +615,9 @@ class Environment {
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
+
+  inline bool can_call_into_js() const;
+  inline void set_can_call_into_js(bool can_call_into_js);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -680,6 +688,10 @@ class Environment {
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
 
+  inline void AddCleanupHook(void (*fn)(void*), void* arg);
+  inline void RemoveCleanupHook(void (*fn)(void*), void* arg);
+  void RunCleanup();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -704,6 +716,8 @@ class Environment {
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
+  bool can_call_into_js_ = true;
+
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;
 
@@ -715,7 +729,8 @@ class Environment {
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
-  int handle_cleanup_waiting_;
+  int handle_cleanup_waiting_ = 0;
+  int request_waiting_ = 0;
 
   double* heap_statistics_buffer_ = nullptr;
   double* heap_space_statistics_buffer_ = nullptr;
@@ -723,7 +738,7 @@ class Environment {
   char* http_parser_buffer_;
   http2::http2_state* http2_state_ = nullptr;
 
-  double* fs_stats_field_array_;
+  double* fs_stats_field_array_ = nullptr;
 
   struct AtExitCallback {
     void (*cb_)(void* arg);
@@ -737,6 +752,15 @@ class Environment {
     size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+
+  struct CleanupHookCallback {
+    void (*fun_)(void*);
+    void* arg_;
+    int64_t insertion_order_counter_;
+  };
+
+  std::unordered_map<void*, std::vector<CleanupHookCallback>> cleanup_hooks_;
+  int64_t cleanup_hook_counter_ = 0;
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,
