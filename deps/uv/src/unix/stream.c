@@ -859,7 +859,7 @@ start:
   }
 
   if (n < 0) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK && errno != ENOBUFS) {
       err = -errno;
       goto error;
     } else if (stream->flags & UV_STREAM_BLOCKING) {
