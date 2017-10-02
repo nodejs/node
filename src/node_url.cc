@@ -1598,9 +1598,12 @@ void URL::Parse(const char* input,
                    special_back_slash) {
           if (buffer.size() > 0) {
             int port = 0;
-            for (size_t i = 0; i < buffer.size(); i++)
+            for (size_t i = 0; i < buffer.size(); i++) {
               port = port * 10 + buffer[i] - '0';
-            if (port < 0 || port > 0xffff) {
+              // prevent integer overflow
+              if (port > 0xffff) break;
+            }
+            if (port > 0xffff) {
               // TODO(TimothyGu): This hack is currently needed for the host
               // setter since it needs access to hostname if it is valid, and
               // if the FAILED flag is set the entire response to JS layer
