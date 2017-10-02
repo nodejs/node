@@ -573,30 +573,30 @@ static inline int NormalizePort(std::string scheme, int p) {
 }
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-static inline bool ToUnicode(std::string* input, std::string* output) {
+static inline bool ToUnicode(const std::string& input, std::string* output) {
   MaybeStackBuffer<char> buf;
-  if (i18n::ToUnicode(&buf, input->c_str(), input->length()) < 0)
+  if (i18n::ToUnicode(&buf, input.c_str(), input.length()) < 0)
     return false;
   output->assign(*buf, buf.length());
   return true;
 }
 
-static inline bool ToASCII(std::string* input, std::string* output) {
+static inline bool ToASCII(const std::string& input, std::string* output) {
   MaybeStackBuffer<char> buf;
-  if (i18n::ToASCII(&buf, input->c_str(), input->length()) < 0)
+  if (i18n::ToASCII(&buf, input.c_str(), input.length()) < 0)
     return false;
   output->assign(*buf, buf.length());
   return true;
 }
 #else
 // Intentional non-ops if ICU is not present.
-static inline bool ToUnicode(std::string* input, std::string* output) {
-  *output = *input;
+static inline bool ToUnicode(const std::string& input, std::string* output) {
+  *output = input;
   return true;
 }
 
-static inline bool ToASCII(std::string* input, std::string* output) {
-  *output = *input;
+static inline bool ToASCII(const std::string& input, std::string* output) {
+  *output = input;
   return true;
 }
 #endif
@@ -864,7 +864,7 @@ static url_host_type ParseHost(url_host* host,
   PercentDecode(input, length, &decoded);
 
   // Then we have to punycode toASCII
-  if (!ToASCII(&decoded, &decoded))
+  if (!ToASCII(decoded, &decoded))
     goto end;
 
   // If any of the following characters are still present, we have to fail
@@ -881,7 +881,7 @@ static url_host_type ParseHost(url_host* host,
     goto end;
 
   // If the unicode flag is set, run the result through punycode ToUnicode
-  if (unicode && !ToUnicode(&decoded, &decoded))
+  if (unicode && !ToUnicode(decoded, &decoded))
     goto end;
 
   // It's not an IPv4 or IPv6 address, it must be a domain
@@ -2124,7 +2124,7 @@ std::string URL::ToFilePath() const {
   if ((context_.flags & URL_FLAGS_HAS_HOST) &&
       context_.host.length() > 0) {
     std::string unicode_host;
-    if (!ToUnicode(&context_.host, &unicode_host)) {
+    if (!ToUnicode(context_.host, &unicode_host)) {
       return "";
     }
     return "\\\\" + unicode_host + decoded_path;
