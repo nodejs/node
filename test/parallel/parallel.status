@@ -18,4 +18,3 @@ test-npm-install:      PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
-
