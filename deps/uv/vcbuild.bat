@@ -55,6 +55,8 @@ set "VSINSTALLDIR="
 call tools\vswhere_usability_wrapper.cmd
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
 @rem Need to clear VSINSTALLDIR for vcvarsall to work as expected.
+@rem Keep current working directory after call to vcvarsall
+set "VSCMD_START_DIR=%CD%"
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vs_toolset%
 echo calling: %vcvars_call%
 call %vcvars_call%
