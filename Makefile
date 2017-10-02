@@ -110,6 +110,7 @@ check: test
 cctest: all
 	@out/$(BUILDTYPE)/$@
 
+v8: export GYPFLAGS += -Dclang=0
 v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
