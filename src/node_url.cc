@@ -573,7 +573,7 @@ static inline int NormalizePort(std::string scheme, int p) {
 }
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-static inline bool ToUnicode(std::string* input, std::string* output) {
+static inline bool ToUnicode(const std::string* input, std::string* output) {
   MaybeStackBuffer<char> buf;
   if (i18n::ToUnicode(&buf, input->c_str(), input->length()) < 0)
     return false;
@@ -590,7 +590,7 @@ static inline bool ToASCII(std::string* input, std::string* output) {
 }
 #else
 // Intentional non-ops if ICU is not present.
-static inline bool ToUnicode(std::string* input, std::string* output) {
+static inline bool ToUnicode(const std::string* input, std::string* output) {
   *output = *input;
   return true;
 }
