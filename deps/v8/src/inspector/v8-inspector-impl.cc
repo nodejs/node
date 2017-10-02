@@ -286,18 +286,22 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::captureStackTrace(
 
 void V8InspectorImpl::asyncTaskScheduled(const StringView& taskName, void* task,
                                          bool recurring) {
+  if (!task) return;
   m_debugger->asyncTaskScheduled(taskName, task, recurring);
 }
 
 void V8InspectorImpl::asyncTaskCanceled(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskCanceled(task);
 }
 
 void V8InspectorImpl::asyncTaskStarted(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskStarted(task);
 }
 
 void V8InspectorImpl::asyncTaskFinished(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskFinished(task);
 }
 
