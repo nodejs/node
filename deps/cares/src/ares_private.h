@@ -54,10 +54,16 @@
 
 #define WIN_NS_9X      "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
 #define WIN_NS_NT_KEY  "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+#define WIN_DNSCLIENT  "Software\\Policies\\Microsoft\\System\\DNSClient"
 #define NAMESERVER     "NameServer"
 #define DHCPNAMESERVER "DhcpNameServer"
 #define DATABASEPATH   "DatabasePath"
 #define WIN_PATH_HOSTS  "\\hosts"
+#define SEARCHLIST_KEY "SearchList"
+#define PRIMARYDNSSUFFIX_KEY "PrimaryDNSSuffix"
+#define INTERFACES_KEY "Interfaces"
+#define DOMAIN_KEY     "Domain"
+#define DHCPDOMAIN_KEY "DhcpDomain"
 
 #elif defined(WATT32)
 
@@ -314,6 +320,9 @@ struct ares_channeldata {
 
   ares_sock_config_callback sock_config_cb;
   void *sock_config_cb_data;
+
+  const struct ares_socket_functions * sock_funcs;
+  void *sock_func_cb_data;
 };
 
 /* Memory management functions */
@@ -341,6 +350,8 @@ void ares__destroy_servers_state(ares_channel channel);
 #if 0 /* Not used */
 long ares__tvdiff(struct timeval t1, struct timeval t2);
 #endif
+
+void ares__socket_close(ares_channel, ares_socket_t);
 
 #define ARES_SWAP_BYTE(a,b) \
   { unsigned char swapByte = *(a);  *(a) = *(b);  *(b) = swapByte; }

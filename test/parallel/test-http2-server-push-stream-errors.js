@@ -81,7 +81,6 @@ server.on('stream', common.mustCall((stream, headers) => {
   const errorMustNotCall = common.mustNotCall(
     `${currentError.error.code} should emit on ${currentError.type}`
   );
-  console.log(currentError);
 
   if (currentError.type === 'stream') {
     stream.session.on('error', errorMustNotCall);

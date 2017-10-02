@@ -27,10 +27,13 @@ const t2 = new Transform({});
 t.end(Buffer.from('blerg'));
 t.resume();
 
-assert.throws(() => {
+common.expectsError(() => {
   t2.end(Buffer.from('blerg'));
-}, /^Error: _transform\(\) is not implemented$/);
-
+}, {
+  type: Error,
+  code: 'ERR_METHOD_NOT_IMPLEMENTED',
+  message: 'The _transform method is not implemented'
+});
 
 process.on('exit', () => {
   assert.strictEqual(t._transform, _transform);
