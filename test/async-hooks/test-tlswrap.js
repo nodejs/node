@@ -91,6 +91,10 @@ function onsecureConnect() {
     // TODO: why is client not destroyed here even after 5 ticks?
     // or could it be that it isn't actually destroyed until
     // the server is closed?
+    if (client.before.length < 3) {
+      tick(5, tick1);
+      return;
+    }
     checkInvocations(client, { init: 1, before: 3, after: 3 },
                      'client: when client destroyed');
     //
