@@ -474,7 +474,7 @@ changes:
 
 * `socket` {net.Socket} An instance of [`net.Socket`][]
 * `options` {Object}
-  * `isServer`: The SSL/TLS protocol is asymetrical, TLSSockets must know if
+  * `isServer`: The SSL/TLS protocol is asymmetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
     instantiated as a server.  Defaults to `false`.
   * `server` {net.Server} An optional [`net.Server`][] instance.
