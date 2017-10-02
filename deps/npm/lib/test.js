@@ -1,12 +1,8 @@
 module.exports = test
 
-const testCmd = require('./utils/lifecycle.js').cmd('test')
-const usage = require('./utils/usage')
+const testCmd = require('./utils/lifecycle-cmd.js')('test')
 
-test.usage = usage(
-  'test',
-  'npm test [-- <args>]'
-)
+test.usage = testCmd.usage
 
 function test (args, cb) {
   testCmd(args, function (er) {

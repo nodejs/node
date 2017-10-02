@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "July 2017" "" ""
+.TH "NPM\-CONFIG" "7" "September 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -28,6 +28,9 @@ same\. However, please note that inside npm\-scripts \fI/misc/scripts\fR
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set\.
 For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
+.P
+Notice that you need to use underscores instead of dashes, so \fB\-\-allow\-same\-version\fP
+would become \fBnpm_config_allow_same_version=true\fP\|\.
 .SS npmrc Files
 .P
 The four relevant files are:
@@ -253,7 +256,7 @@ Type: String, Array or null
 .RE
 .P
 The Certificate Authority signing certificate that is trusted for SSL
-connections to the registry\. Values should be in PEM format with newlines
+connections to the registry\. Values should be in PEM format (Windows calls it "Base\-64 encoded X\.509 (\.CER)") with newlines
 replaced by the string "\\n"\. For example:
 .P
 .RS 2
@@ -361,7 +364,7 @@ Type: String
 .RE
 .P
 A client certificate to pass when accessing the registry\.  Values should be in
-PEM format with newlines replaced by the string "\\n"\. For example:
+PEM format (Windows calls it "Base\-64 encoded X\.509 (\.CER)") with newlines replaced by the string "\\n"\. For example:
 .P
 .RS 2
 .nf
@@ -541,6 +544,16 @@ Type: Boolean
 .RE
 .P
 Tag the commit when using the \fBnpm version\fP command\.
+.SS commit\-hooks
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run git commit hooks when using the \fBnpm version\fP command\.
 .SS global
 .RS 0
 .IP \(bu 2
@@ -802,19 +815,19 @@ to the npm registry\.  Must be IPv4 in versions of Node prior to 0\.12\.
 .SS loglevel
 .RS 0
 .IP \(bu 2
-Default: "warn"
+Default: "notice"
 .IP \(bu 2
 Type: String
 .IP \(bu 2
-Values: "silent", "error", "warn", "http", "info", "verbose", "silly"
+Values: "silent", "error", "warn", "notice", "http", "timing", "info",
+"verbose", "silly"
 
 .RE
 .P
 What level of logs to report\.  On failure, \fIall\fR logs are written to
 \fBnpm\-debug\.log\fP in the current working directory\.
 .P
-Any logs of a higher level than the setting are shown\.
-The default is "warn", which shows warn and error output\.
+Any logs of a higher level than the setting are shown\. The default is "notice"\.
 .SS logstream
 .RS 0
 .IP \(bu 2
@@ -1041,21 +1054,6 @@ When set to \fBtrue\fP, npm will display a progress bar during time intensive
 operations, if \fBprocess\.stderr\fP is a TTY\.
 .P
 Set to \fBfalse\fP to suppress the progress bar\.
-.SS proprietary\-attribs
-.RS 0
-.IP \(bu 2
-Default: true
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Whether or not to include proprietary extended attributes in the
-tarballs created by npm\.
-.P
-Unless you are expecting to unpack package tarballs with something other
-than npm \-\- particularly a very outdated tar implementation \-\- leave
-this as true\.
 .SS proxy
 .RS 0
 .IP \(bu 2

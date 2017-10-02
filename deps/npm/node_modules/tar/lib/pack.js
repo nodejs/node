@@ -1,236 +1,399 @@
-// pipe in an fstream, and it'll make a tarball.
-// key-value pair argument is global extended header props.
+'use strict'
 
-module.exports = Pack
+// A readable tar stream creator
+// Technically, this is a transform stream that you write paths into,
+// and tar format comes out of.
+// The `add()` method is like `write()` but returns this,
+// and end() return `this` as well, so you can
+// do `new Pack(opt).add('files').add('dir').end().pipe(output)
+// You could also do something like:
+// streamOfPaths().pipe(new Pack()).pipe(new fs.WriteStream('out.tar'))
 
-var EntryWriter = require("./entry-writer.js")
-  , Stream = require("stream").Stream
-  , path = require("path")
-  , inherits = require("inherits")
-  , GlobalHeaderWriter = require("./global-header-writer.js")
-  , collect = require("fstream").collect
-  , eof = new Buffer(512)
-
-for (var i = 0; i < 512; i ++) eof[i] = 0
-
-inherits(Pack, Stream)
-
-function Pack (props) {
-  // console.error("-- p ctor")
-  var me = this
-  if (!(me instanceof Pack)) return new Pack(props)
-
-  if (props) me._noProprietary = props.noProprietary
-  else me._noProprietary = false
-
-  me._global = props
-
-  me.readable = true
-  me.writable = true
-  me._buffer = []
-  // console.error("-- -- set current to null in ctor")
-  me._currentEntry = null
-  me._processing = false
-
-  me._pipeRoot = null
-  me.on("pipe", function (src) {
-    if (src.root === me._pipeRoot) return
-    me._pipeRoot = src
-    src.on("end", function () {
-      me._pipeRoot = null
-    })
-    me.add(src)
-  })
+class PackJob {
+  constructor (path, absolute) {
+    this.path = path || './'
+    this.absolute = absolute
+    this.entry = null
+    this.stat = null
+    this.readdir = null
+    this.pending = false
+    this.ignore = false
+    this.piped = false
+  }
 }
 
-Pack.prototype.addGlobal = function (props) {
-  // console.error("-- p addGlobal")
-  if (this._didGlobal) return
-  this._didGlobal = true
+const MiniPass = require('minipass')
+const zlib = require('minizlib')
+const ReadEntry = require('./read-entry.js')
+const WriteEntry = require('./write-entry.js')
+const WriteEntrySync = WriteEntry.Sync
+const WriteEntryTar = WriteEntry.Tar
+const Yallist = require('yallist')
+const EOF = Buffer.alloc(1024)
+const ONSTAT = Symbol('onStat')
+const ENDED = Symbol('ended')
+const QUEUE = Symbol('queue')
+const CURRENT = Symbol('current')
+const PROCESS = Symbol('process')
+const PROCESSING = Symbol('processing')
+const PROCESSJOB = Symbol('processJob')
+const JOBS = Symbol('jobs')
+const JOBDONE = Symbol('jobDone')
+const ADDFSENTRY = Symbol('addFSEntry')
+const ADDTARENTRY = Symbol('addTarEntry')
+const STAT = Symbol('stat')
+const READDIR = Symbol('readdir')
+const ONREADDIR = Symbol('onreaddir')
+const PIPE = Symbol('pipe')
+const ENTRY = Symbol('entry')
+const ENTRYOPT = Symbol('entryOpt')
+const WRITEENTRYCLASS = Symbol('writeEntryClass')
+const WRITE = Symbol('write')
+const ONDRAIN = Symbol('ondrain')
 
-  var me = this
-  GlobalHeaderWriter(props)
-    .on("data", function (c) {
-      me.emit("data", c)
-    })
-    .end()
-}
+const fs = require('fs')
+const path = require('path')
+const warner = require('./warn-mixin.js')
 
-Pack.prototype.add = function (stream) {
-  if (this._global && !this._didGlobal) this.addGlobal(this._global)
+const Pack = warner(class Pack extends MiniPass {
+  constructor (opt) {
+    super(opt)
+    opt = opt || Object.create(null)
+    this.opt = opt
+    this.cwd = opt.cwd || process.cwd()
+    this.maxReadSize = opt.maxReadSize
+    this.preservePaths = !!opt.preservePaths
+    this.strict = !!opt.strict
+    this.noPax = !!opt.noPax
+    this.prefix = (opt.prefix || '').replace(/(\\|\/)+$/, '')
+    this.linkCache = opt.linkCache || new Map()
+    this.statCache = opt.statCache || new Map()
+    this.readdirCache = opt.readdirCache || new Map()
+    this[WRITEENTRYCLASS] = WriteEntry
+    if (typeof opt.onwarn === 'function')
+      this.on('warn', opt.onwarn)
 
-  if (this._ended) return this.emit("error", new Error("add after end"))
+    this.zip = null
+    if (opt.gzip) {
+      if (typeof opt.gzip !== 'object')
+        opt.gzip = {}
+      this.zip = new zlib.Gzip(opt.gzip)
+      this.zip.on('data', chunk => super.write(chunk))
+      this.zip.on('end', _ => super.end())
+      this.zip.on('drain', _ => this[ONDRAIN]())
+      this.on('resume', _ => this.zip.resume())
+    } else
+      this.on('drain', this[ONDRAIN])
 
-  collect(stream)
-  this._buffer.push(stream)
-  this._process()
-  this._needDrain = this._buffer.length > 0
-  return !this._needDrain
-}
+    this.portable = !!opt.portable
+    this.noDirRecurse = !!opt.noDirRecurse
+    this.follow = !!opt.follow
 
-Pack.prototype.pause = function () {
-  this._paused = true
-  if (this._currentEntry) this._currentEntry.pause()
-  this.emit("pause")
-}
+    this.filter = typeof opt.filter === 'function' ? opt.filter : _ => true
 
-Pack.prototype.resume = function () {
-  this._paused = false
-  if (this._currentEntry) this._currentEntry.resume()
-  this.emit("resume")
-  this._process()
-}
-
-Pack.prototype.end = function () {
-  this._ended = true
-  this._buffer.push(eof)
-  this._process()
-}
-
-Pack.prototype._process = function () {
-  var me = this
-  if (me._paused || me._processing) {
-    return
+    this[QUEUE] = new Yallist
+    this[JOBS] = 0
+    this.jobs = +opt.jobs || 4
+    this[PROCESSING] = false
+    this[ENDED] = false
   }
 
-  var entry = me._buffer.shift()
+  [WRITE] (chunk) {
+    return super.write(chunk)
+  }
 
-  if (!entry) {
-    if (me._needDrain) {
-      me.emit("drain")
+  add (path) {
+    this.write(path)
+    return this
+  }
+
+  end (path) {
+    if (path)
+      this.write(path)
+    this[ENDED] = true
+    this[PROCESS]()
+    return this
+  }
+
+  write (path) {
+    if (this[ENDED])
+      throw new Error('write after end')
+
+    if (path instanceof ReadEntry)
+      this[ADDTARENTRY](path)
+    else
+      this[ADDFSENTRY](path)
+    return this.flowing
+  }
+
+  [ADDTARENTRY] (p) {
+    const absolute = path.resolve(this.cwd, p.path)
+    if (this.prefix)
+      p.path = this.prefix + '/' + p.path.replace(/^\.(\/+|$)/, '')
+
+    // in this case, we don't have to wait for the stat
+    if (!this.filter(p.path, p))
+      p.resume()
+    else {
+      const job = new PackJob(p.path, absolute, false)
+      job.entry = new WriteEntryTar(p, this[ENTRYOPT](job))
+      job.entry.on('end', _ => this[JOBDONE](job))
+      this[JOBS] += 1
+      this[QUEUE].push(job)
     }
-    return
+
+    this[PROCESS]()
   }
 
-  if (entry.ready === false) {
-    // console.error("-- entry is not ready", entry)
-    me._buffer.unshift(entry)
-    entry.on("ready", function () {
-      // console.error("-- -- ready!", entry)
-      me._process()
+  [ADDFSENTRY] (p) {
+    const absolute = path.resolve(this.cwd, p)
+    if (this.prefix)
+      p = this.prefix + '/' + p.replace(/^\.(\/+|$)/, '')
+
+    this[QUEUE].push(new PackJob(p, absolute))
+    this[PROCESS]()
+  }
+
+  [STAT] (job) {
+    job.pending = true
+    this[JOBS] += 1
+    const stat = this.follow ? 'stat' : 'lstat'
+    fs[stat](job.absolute, (er, stat) => {
+      job.pending = false
+      this[JOBS] -= 1
+      if (er)
+        this.emit('error', er)
+      else
+        this[ONSTAT](job, stat)
     })
-    return
   }
 
-  me._processing = true
+  [ONSTAT] (job, stat) {
+    this.statCache.set(job.absolute, stat)
+    job.stat = stat
 
-  if (entry === eof) {
-    // need 2 ending null blocks.
-    me.emit("data", eof)
-    me.emit("data", eof)
-    me.emit("end")
-    me.emit("close")
-    return
+    // now we have the stat, we can filter it.
+    if (!this.filter(job.path, stat))
+      job.ignore = true
+
+    this[PROCESS]()
   }
 
-  // Change the path to be relative to the root dir that was
-  // added to the tarball.
-  //
-  // XXX This should be more like how -C works, so you can
-  // explicitly set a root dir, and also explicitly set a pathname
-  // in the tarball to use.  That way we can skip a lot of extra
-  // work when resolving symlinks for bundled dependencies in npm.
-
-  var root = path.dirname((entry.root || entry).path);
-  if (me._global && me._global.fromBase && entry.root && entry.root.path) {
-    // user set 'fromBase: true' indicating tar root should be directory itself
-    root = entry.root.path;
+  [READDIR] (job) {
+    job.pending = true
+    this[JOBS] += 1
+    fs.readdir(job.absolute, (er, entries) => {
+      job.pending = false
+      this[JOBS] -= 1
+      if (er)
+        return this.emit('error', er)
+      this[ONREADDIR](job, entries)
+    })
   }
 
-  var wprops = {}
-
-  Object.keys(entry.props || {}).forEach(function (k) {
-    wprops[k] = entry.props[k]
-  })
-
-  if (me._noProprietary) wprops.noProprietary = true
-
-  wprops.path = path.relative(root, entry.path || '')
-
-  // actually not a matter of opinion or taste.
-  if (process.platform === "win32") {
-    wprops.path = wprops.path.replace(/\\/g, "/")
+  [ONREADDIR] (job, entries) {
+    this.readdirCache.set(job.absolute, entries)
+    job.readdir = entries
+    this[PROCESS]()
   }
 
-  if (!wprops.type)
-    wprops.type = 'Directory'
-
-  switch (wprops.type) {
-    // sockets not supported
-    case "Socket":
+  [PROCESS] () {
+    if (this[PROCESSING])
       return
 
-    case "Directory":
-      wprops.path += "/"
-      wprops.size = 0
-      break
-
-    case "Link":
-      var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
-      wprops.linkpath = path.relative(root, lp) || "."
-      wprops.size = 0
-      break
-
-    case "SymbolicLink":
-      var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
-      wprops.linkpath = path.relative(path.dirname(entry.path), lp) || "."
-      wprops.size = 0
-      break
-  }
-
-  // console.error("-- new writer", wprops)
-  // if (!wprops.type) {
-  //   // console.error("-- no type?", entry.constructor.name, entry)
-  // }
-
-  // console.error("-- -- set current to new writer", wprops.path)
-  var writer = me._currentEntry = EntryWriter(wprops)
-
-  writer.parent = me
-
-  // writer.on("end", function () {
-  //   // console.error("-- -- writer end", writer.path)
-  // })
-
-  writer.on("data", function (c) {
-    me.emit("data", c)
-  })
-
-  writer.on("header", function () {
-    Buffer.prototype.toJSON = function () {
-      return this.toString().split(/\0/).join(".")
+    this[PROCESSING] = true
+    for (let w = this[QUEUE].head;
+         w !== null && this[JOBS] < this.jobs;
+         w = w.next) {
+      this[PROCESSJOB](w.value)
+      if (w.value.ignore) {
+        const p = w.next
+        this[QUEUE].removeNode(w)
+        w.next = p
+      }
     }
-    // console.error("-- -- writer header %j", writer.props)
-    if (writer.props.size === 0) nextEntry()
-  })
-  writer.on("close", nextEntry)
 
-  var ended = false
-  function nextEntry () {
-    if (ended) return
-    ended = true
+    this[PROCESSING] = false
 
-    // console.error("-- -- writer close", writer.path)
-    // console.error("-- -- set current to null", wprops.path)
-    me._currentEntry = null
-    me._processing = false
-    me._process()
+    if (this[ENDED] && !this[QUEUE].length && this[JOBS] === 0) {
+      if (this.zip)
+        this.zip.end(EOF)
+      else {
+        super.write(EOF)
+        super.end()
+      }
+    }
   }
 
-  writer.on("error", function (er) {
-    // console.error("-- -- writer error", writer.path)
-    me.emit("error", er)
-  })
-
-  // if it's the root, then there's no need to add its entries,
-  // or data, since they'll be added directly.
-  if (entry === me._pipeRoot) {
-    // console.error("-- is the root, don't auto-add")
-    writer.add = null
+  get [CURRENT] () {
+    return this[QUEUE] && this[QUEUE].head && this[QUEUE].head.value
   }
 
-  entry.pipe(writer)
+  [JOBDONE] (job) {
+    this[QUEUE].shift()
+    this[JOBS] -= 1
+    this[PROCESS]()
+  }
+
+  [PROCESSJOB] (job) {
+    if (job.pending)
+      return
+
+    if (job.entry) {
+      if (job === this[CURRENT] && !job.piped)
+        this[PIPE](job)
+      return
+    }
+
+    if (!job.stat) {
+      if (this.statCache.has(job.absolute))
+        this[ONSTAT](job, this.statCache.get(job.absolute))
+      else
+        this[STAT](job)
+    }
+    if (!job.stat)
+      return
+
+    // filtered out!
+    if (job.ignore)
+      return
+
+    if (!this.noDirRecurse && job.stat.isDirectory() && !job.readdir) {
+      if (this.readdirCache.has(job.absolute))
+        this[ONREADDIR](job, this.readdirCache.get(job.absolute))
+      else
+        this[READDIR](job)
+      if (!job.readdir)
+        return
+    }
+
+    // we know it doesn't have an entry, because that got checked above
+    job.entry = this[ENTRY](job)
+    if (!job.entry) {
+      job.ignore = true
+      return
+    }
+
+    if (job === this[CURRENT] && !job.piped)
+      this[PIPE](job)
+  }
+
+  [ENTRYOPT] (job) {
+    return {
+      onwarn: (msg, data) => {
+        this.warn(msg, data)
+      },
+      noPax: this.noPax,
+      cwd: this.cwd,
+      absolute: job.absolute,
+      preservePaths: this.preservePaths,
+      maxReadSize: this.maxReadSize,
+      strict: this.strict,
+      portable: this.portable,
+      linkCache: this.linkCache,
+      statCache: this.statCache
+    }
+  }
+
+  [ENTRY] (job) {
+    this[JOBS] += 1
+    try {
+      return new this[WRITEENTRYCLASS](
+        job.path, this[ENTRYOPT](job)).on('end', _ => {
+          this[JOBDONE](job)
+        }).on('error', er => this.emit('error', er))
+    } catch (er) {
+      this.emit('error', er)
+    }
+  }
+
+  [ONDRAIN] () {
+    if (this[CURRENT] && this[CURRENT].entry)
+      this[CURRENT].entry.resume()
+  }
+
+  // like .pipe() but using super, because our write() is special
+  [PIPE] (job) {
+    job.piped = true
+
+    if (job.readdir)
+      job.readdir.forEach(entry => {
+        const p = this.prefix ?
+          job.path.slice(this.prefix.length + 1) || './'
+          : job.path
+
+        const base = p === './' ? '' : p.replace(/\/*$/, '/')
+        this[ADDFSENTRY](base + entry)
+      })
+
+    const source = job.entry
+    const zip = this.zip
+
+    if (zip)
+      source.on('data', chunk => {
+        if (!zip.write(chunk))
+          source.pause()
+      })
+    else
+      source.on('data', chunk => {
+        if (!super.write(chunk))
+          source.pause()
+      })
+  }
+
+  pause () {
+    if (this.zip)
+      this.zip.pause()
+    return super.pause()
+  }
+})
+
+class PackSync extends Pack {
+  constructor (opt) {
+    super(opt)
+    this[WRITEENTRYCLASS] = WriteEntrySync
+  }
+
+  // pause/resume are no-ops in sync streams.
+  pause () {}
+  resume () {}
+
+  [STAT] (job) {
+    const stat = this.follow ? 'statSync' : 'lstatSync'
+    this[ONSTAT](job, fs[stat](job.absolute))
+  }
+
+  [READDIR] (job, stat) {
+    this[ONREADDIR](job, fs.readdirSync(job.absolute))
+  }
+
+  // gotta get it all in this tick
+  [PIPE] (job) {
+    const source = job.entry
+    const zip = this.zip
+
+    if (job.readdir)
+      job.readdir.forEach(entry => {
+        const p = this.prefix ?
+          job.path.slice(this.prefix.length + 1) || './'
+          : job.path
+
+
+        const base = p === './' ? '' : p.replace(/\/*$/, '/')
+        this[ADDFSENTRY](base + entry)
+      })
+
+    if (zip)
+      source.on('data', chunk => {
+        zip.write(chunk)
+      })
+    else
+      source.on('data', chunk => {
+        super[WRITE](chunk)
+      })
+  }
 }
 
-Pack.prototype.destroy = function () {}
-Pack.prototype.write = function () {}
+Pack.Sync = PackSync
+
+module.exports = Pack

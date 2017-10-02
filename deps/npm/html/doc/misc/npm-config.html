@@ -33,6 +33,8 @@ same. However, please note that inside <a href="/misc/scripts">npm-scripts</a>
 npm will set its own environment variables and Node will prefer
 those lowercase versions over any uppercase ones that you might set.
 For details see <a href="https://github.com/npm/npm/issues/14528">this issue</a>.</p>
+<p>Notice that you need to use underscores instead of dashes, so <code>--allow-same-version</code>
+would become <code>npm_config_allow_same_version=true</code>.</p>
 <h3 id="npmrc-files">npmrc Files</h3>
 <p>The four relevant files are:</p>
 <ul>
@@ -160,7 +162,7 @@ ostensibly Unix systems.</p>
 <li>Type: String, Array or null</li>
 </ul>
 <p>The Certificate Authority signing certificate that is trusted for SSL
-connections to the registry. Values should be in PEM format with newlines
+connections to the registry. Values should be in PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newlines
 replaced by the string &quot;\n&quot;. For example:</p>
 <pre><code>ca=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;
 </code></pre><p>Set to <code>null</code> to only allow &quot;known&quot; registrars, or to a specific CA cert
@@ -221,7 +223,7 @@ well as for the CA information to be stored in a file on disk.</p>
 <li>Type: String</li>
 </ul>
 <p>A client certificate to pass when accessing the registry.  Values should be in
-PEM format with newlines replaced by the string &quot;\n&quot;. For example:</p>
+PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newlines replaced by the string &quot;\n&quot;. For example:</p>
 <pre><code>cert=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;
 </code></pre><p>It is <em>not</em> the path to a certificate file (and there is no &quot;certfile&quot; option).</p>
 <h3 id="color">color</h3>
@@ -333,6 +335,12 @@ the git binary.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Tag the commit when using the <code>npm version</code> command.</p>
+<h3 id="commit-hooks">commit-hooks</h3>
+<ul>
+<li>Default: <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run git commit hooks when using the <code>npm version</code> command.</p>
 <h3 id="global">global</h3>
 <ul>
 <li>Default: false</li>
@@ -498,14 +506,14 @@ being installed locally.</li>
 to the npm registry.  Must be IPv4 in versions of Node prior to 0.12.</p>
 <h3 id="loglevel">loglevel</h3>
 <ul>
-<li>Default: &quot;warn&quot;</li>
+<li>Default: &quot;notice&quot;</li>
 <li>Type: String</li>
-<li>Values: &quot;silent&quot;, &quot;error&quot;, &quot;warn&quot;, &quot;http&quot;, &quot;info&quot;, &quot;verbose&quot;, &quot;silly&quot;</li>
+<li>Values: &quot;silent&quot;, &quot;error&quot;, &quot;warn&quot;, &quot;notice&quot;, &quot;http&quot;, &quot;timing&quot;, &quot;info&quot;,
+&quot;verbose&quot;, &quot;silly&quot;</li>
 </ul>
 <p>What level of logs to report.  On failure, <em>all</em> logs are written to
 <code>npm-debug.log</code> in the current working directory.</p>
-<p>Any logs of a higher level than the setting are shown.
-The default is &quot;warn&quot;, which shows warn and error output.</p>
+<p>Any logs of a higher level than the setting are shown. The default is &quot;notice&quot;.</p>
 <h3 id="logstream">logstream</h3>
 <ul>
 <li>Default: process.stderr</li>
@@ -648,16 +656,6 @@ local <code>npm install</code> without any arguments.</li>
 <p>When set to <code>true</code>, npm will display a progress bar during time intensive
 operations, if <code>process.stderr</code> is a TTY.</p>
 <p>Set to <code>false</code> to suppress the progress bar.</p>
-<h3 id="proprietary-attribs">proprietary-attribs</h3>
-<ul>
-<li>Default: true</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Whether or not to include proprietary extended attributes in the
-tarballs created by npm.</p>
-<p>Unless you are expecting to unpack package tarballs with something other
-than npm -- particularly a very outdated tar implementation -- leave
-this as true.</p>
 <h3 id="proxy">proxy</h3>
 <ul>
 <li>Default: null</li>
@@ -992,5 +990,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@5.3.0</p>
+<p id="footer">npm-config &mdash; npm@5.4.2</p>
 

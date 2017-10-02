@@ -4,8 +4,8 @@ const BB = require('bluebird')
 
 const cacache = require('cacache')
 const extractStream = require('./lib/extract-stream')
+const mkdirp = BB.promisify(require('mkdirp'))
 const npa = require('npm-package-arg')
-const pipe = BB.promisify(require('mississippi').pipe)
 const optCheck = require('./lib/util/opt-check')
 const retry = require('promise-retry')
 const rimraf = BB.promisify(require('rimraf'))
@@ -59,21 +59,34 @@ function extract (spec, dest, opts) {
 }
 
 function extractByDigest (start, spec, dest, opts) {
-  const xtractor = extractStream(dest, opts)
-  const cached = cacache.get.stream.byDigest(opts.cache, opts.integrity, opts)
-  return pipe(cached, xtractor).then(() => {
+  return mkdirp(dest).then(() => {
+    const xtractor = extractStream(dest, opts)
+    const cached = cacache.get.stream.byDigest(opts.cache, opts.integrity, opts)
+    cached.pipe(xtractor)
+    return new BB((resolve, reject) => {
+      cached.on('error', reject)
+      xtractor.on('error', reject)
+      xtractor.on('close', resolve)
+    })
+  }).then(() => {
     opts.log.silly('pacote', `${spec} extracted to ${dest} by content address ${Date.now() - start}ms`)
   })
 }
 
 let fetch
 function extractByManifest (start, spec, dest, opts) {
-  const xtractor = extractStream(dest, opts)
-  return BB.resolve(null).then(() => {
+  return mkdirp(dest).then(() => {
+    const xtractor = extractStream(dest, opts)
     if (!fetch) {
       fetch = require('./lib/fetch')
     }
-    return pipe(fetch.tarball(spec, opts), xtractor)
+    const tardata = fetch.tarball(spec, opts)
+    tardata.pipe(xtractor)
+    return new BB((resolve, reject) => {
+      tardata.on('error', reject)
+      xtractor.on('error', reject)
+      xtractor.on('close', resolve)
+    })
   }).then(() => {
     opts.log.silly('pacote', `${spec} extracted in ${Date.now() - start}ms`)
   })
