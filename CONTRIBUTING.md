@@ -32,6 +32,7 @@ expect throughout each step of the process.
       * [Commit message guidelines](#commit-message-guidelines)
     * [Step 5: Rebase](#step-5-rebase)
     * [Step 6: Test](#step-6-test)
+      * [Test Coverage](#test-coverage)
     * [Step 7: Push](#step-7-push)
     * [Step 8: Opening the Pull Request](#step-8-opening-the-pull-request)
     * [Step 9: Discuss and Update](#step-9-discuss-and-update)
