@@ -91,6 +91,7 @@ Functions return 0 on success or an error code < 0 (unless the
 return type is void, of course).
 
 .. c:function:: int uv_mutex_init(uv_mutex_t* handle)
+.. c:function:: int uv_mutex_init_recursive(uv_mutex_t* handle)
 .. c:function:: void uv_mutex_destroy(uv_mutex_t* handle)
 .. c:function:: void uv_mutex_lock(uv_mutex_t* handle)
 .. c:function:: int uv_mutex_trylock(uv_mutex_t* handle)

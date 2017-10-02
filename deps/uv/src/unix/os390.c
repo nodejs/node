@@ -117,7 +117,7 @@ void uv_loadavg(double avg[3]) {
 int uv__platform_loop_init(uv_loop_t* loop) {
   uv__os390_epoll* ep;
 
-  ep = epoll_create1(UV__EPOLL_CLOEXEC);
+  ep = epoll_create1(0);
   loop->ep = ep;
   if (ep == NULL)
     return -errno;
@@ -386,7 +386,6 @@ int uv_uptime(double* uptime) {
 
 int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uv_cpu_info_t* cpu_info;
-  int result;
   int idx;
   siv1v2 info;
   data_area_ptr cvt = {0};

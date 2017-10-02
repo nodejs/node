@@ -130,17 +130,17 @@ static void epoll_init(void) {
 uv__os390_epoll* epoll_create1(int flags) {
   uv__os390_epoll* lst;
 
-  uv_once(&once, epoll_init);
-  uv_mutex_lock(&global_epoll_lock);
   lst = uv__malloc(sizeof(*lst));
-  if (lst == -1)
-    return NULL;
-  QUEUE_INSERT_TAIL(&global_epoll_queue, &lst->member);
-  uv_mutex_unlock(&global_epoll_lock);
+  if (lst != NULL) {
+    /* initialize list */
+    lst->size = 0;
+    lst->items = NULL;
+    uv_once(&once, epoll_init);
+    uv_mutex_lock(&global_epoll_lock);
+    QUEUE_INSERT_TAIL(&global_epoll_queue, &lst->member);
+    uv_mutex_unlock(&global_epoll_lock);
+  }
 
-  /* initialize list */
-  lst->size = 0;
-  lst->items = NULL;
   return lst;
 }
 
@@ -149,8 +149,11 @@ int epoll_ctl(uv__os390_epoll* lst,
               int op,
               int fd,
               struct epoll_event *event) {
+  uv_mutex_lock(&global_epoll_lock);
+
   if(op == EPOLL_CTL_DEL) {
     if (fd >= lst->size || lst->items[fd].fd == -1) {
+      uv_mutex_unlock(&global_epoll_lock);
       errno = ENOENT;
       return -1;
     }
@@ -158,6 +161,7 @@ int epoll_ctl(uv__os390_epoll* lst,
   } else if(op == EPOLL_CTL_ADD) {
     maybe_resize(lst, fd + 1);
     if (lst->items[fd].fd != -1) {
+      uv_mutex_unlock(&global_epoll_lock);
       errno = EEXIST;
       return -1;
     }
@@ -165,6 +169,7 @@ int epoll_ctl(uv__os390_epoll* lst,
     lst->items[fd].events = event->events;
   } else if(op == EPOLL_CTL_MOD) {
     if (fd >= lst->size || lst->items[fd].fd == -1) {
+      uv_mutex_unlock(&global_epoll_lock);
       errno = ENOENT;
       return -1;
     }
@@ -172,6 +177,7 @@ int epoll_ctl(uv__os390_epoll* lst,
   } else
     abort();
 
+  uv_mutex_unlock(&global_epoll_lock);
   return 0;
 }
 
@@ -320,4 +326,73 @@ char* mkdtemp(char* path) {
   }
 
   return path;
+}
+
+
+ssize_t os390_readlink(const char* path, char* buf, size_t len) {
+  ssize_t rlen;
+  ssize_t vlen;
+  ssize_t plen;
+  char* delimiter;
+  char old_delim;
+  char* tmpbuf;
+  char realpathstr[PATH_MAX + 1];
+
+  tmpbuf = uv__malloc(len + 1);
+  if (tmpbuf == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+
+  rlen = readlink(path, tmpbuf, len);
+  if (rlen < 0) {
+    uv__free(tmpbuf);
+    return rlen;
+  }
+
+  if (rlen < 3 || strncmp("/$", tmpbuf, 2) != 0) {
+    /* Straightforward readlink. */
+    memcpy(buf, tmpbuf, rlen);
+    uv__free(tmpbuf);
+    return rlen;
+  }
+
+  /*
+   * There is a parmlib variable at the beginning
+   * which needs interpretation.
+   */
+  tmpbuf[rlen] = '\0';
+  delimiter = strchr(tmpbuf + 2, '/');
+  if (delimiter == NULL)
+    /* No slash at the end */
+    delimiter = strchr(tmpbuf + 2, '\0');
+
+  /* Read real path of the variable. */
+  old_delim = *delimiter;
+  *delimiter = '\0';
+  if (realpath(tmpbuf, realpathstr) == NULL) {
+    uv__free(tmpbuf);
+    return -1;
+  }
+
+  /* realpathstr is not guaranteed to end with null byte.*/
+  realpathstr[PATH_MAX] = '\0';
+
+  /* Reset the delimiter and fill up the buffer. */
+  *delimiter = old_delim;
+  plen = strlen(delimiter);
+  vlen = strlen(realpathstr);
+  rlen = plen + vlen;
+  if (rlen > len) {
+    uv__free(tmpbuf);
+    errno = ENAMETOOLONG;
+    return -1;
+  }
+  memcpy(buf, realpathstr, vlen);
+  memcpy(buf + vlen, delimiter, plen);
+
+  /* Done using temporary buffer. */
+  uv__free(tmpbuf);
+
+  return rlen;
 }

@@ -64,7 +64,7 @@ static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2) {
 }
 
 
-RB_GENERATE_STATIC(uv_signal_tree_s, uv_signal_s, tree_entry, uv__signal_compare);
+RB_GENERATE_STATIC(uv_signal_tree_s, uv_signal_s, tree_entry, uv__signal_compare)
 
 
 /*

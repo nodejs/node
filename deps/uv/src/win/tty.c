@@ -112,13 +112,29 @@ static int uv_tty_virtual_offset = -1;
 static int uv_tty_virtual_height = -1;
 static int uv_tty_virtual_width = -1;
 
+/* The console window size
+ * We keep this separate from uv_tty_virtual_*. We use those values to only
+ * handle signalling SIGWINCH
+ */
+
+static HANDLE uv__tty_console_handle = INVALID_HANDLE_VALUE;
+static int uv__tty_console_height = -1;
+static int uv__tty_console_width = -1;
+
+static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param);
+static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
+                                                  DWORD event,
+                                                  HWND hwnd,
+                                                  LONG idObject,
+                                                  LONG idChild,
+                                                  DWORD dwEventThread,
+                                                  DWORD dwmsEventTime);
+
 /* We use a semaphore rather than a mutex or critical section because in some
    cases (uv__cancel_read_console) we need take the lock in the main thread and
    release it in another thread. Using a semaphore ensures that in such
    scenario the main thread will still block when trying to acquire the lock. */
 static uv_sem_t uv_tty_output_lock;
-
-static HANDLE uv_tty_output_handle = INVALID_HANDLE_VALUE;
 
 static WORD uv_tty_default_text_attributes =
     FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
@@ -141,6 +157,18 @@ static void uv__determine_vterm_state(HANDLE handle);
 void uv_console_init(void) {
   if (uv_sem_init(&uv_tty_output_lock, 1))
     abort();
+  uv__tty_console_handle = CreateFileW(L"CONOUT$",
+                                       GENERIC_READ | GENERIC_WRITE,
+                                       FILE_SHARE_WRITE,
+                                       0,
+                                       OPEN_EXISTING,
+                                       0,
+                                       0);
+  if (uv__tty_console_handle != NULL) {
+    QueueUserWorkItem(uv__tty_console_resize_message_loop_thread,
+                      NULL,
+                      WT_EXECUTELONGFUNCTION);
+  }
 }
 
 
@@ -183,11 +211,6 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
 
     if (uv__vterm_state == UV_UNCHECKED)
       uv__determine_vterm_state(handle);
-
-    /* Store the global tty output handle. This handle is used by TTY read */
-    /* streams to update the virtual window when a CONSOLE_BUFFER_SIZE_EVENT */
-    /* is received. */
-    uv_tty_output_handle = handle;
 
     /* Remember the original console text attributes. */
     uv_tty_capture_initial_style(&screen_buffer_info);
@@ -705,25 +728,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
       }
       records_left--;
 
-      /* If the window was resized, recompute the virtual window size. This */
-      /* will trigger a SIGWINCH signal if the window size changed in an */
-      /* way that matters to libuv. */
-      if (handle->tty.rd.last_input_record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
-        CONSOLE_SCREEN_BUFFER_INFO info;
-
-        uv_sem_wait(&uv_tty_output_lock);
-
-        if (uv_tty_output_handle != INVALID_HANDLE_VALUE &&
-            GetConsoleScreenBufferInfo(uv_tty_output_handle, &info)) {
-          uv_tty_update_virtual_window(&info);
-        }
-
-        uv_sem_post(&uv_tty_output_lock);
-
-        continue;
-      }
-
-      /* Ignore other events that are not key or resize events. */
+      /* Ignore other events that are not key events. */
       if (handle->tty.rd.last_input_record.EventType != KEY_EVENT) {
         continue;
       }
@@ -1103,9 +1108,6 @@ static int uv__cancel_read_console(uv_tty_t* handle) {
 
 
 static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info) {
-  int old_virtual_width = uv_tty_virtual_width;
-  int old_virtual_height = uv_tty_virtual_height;
-
   uv_tty_virtual_width = info->dwSize.X;
   uv_tty_virtual_height = info->srWindow.Bottom - info->srWindow.Top + 1;
 
@@ -1124,14 +1126,6 @@ static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info) {
   }
   if (uv_tty_virtual_offset < 0) {
     uv_tty_virtual_offset = 0;
-  }
-
-  /* If the virtual window size changed, emit a SIGWINCH signal. Don't emit */
-  /* if this was the first time the virtual window size was computed. */
-  if (old_virtual_width != -1 && old_virtual_height != -1 &&
-      (uv_tty_virtual_width != old_virtual_width ||
-       uv_tty_virtual_height != old_virtual_height)) {
-    uv__signal_dispatch(SIGWINCH);
   }
 }
 
@@ -2279,4 +2273,53 @@ static void uv__determine_vterm_state(HANDLE handle) {
   }
 
   uv__vterm_state = UV_SUPPORTED;
+}
+
+static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
+  CONSOLE_SCREEN_BUFFER_INFO sb_info;
+  MSG msg;
+
+  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
+    return 0;
+
+  uv__tty_console_width = sb_info.dwSize.X;
+  uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
+
+  if (!SetWinEventHook(EVENT_CONSOLE_LAYOUT,
+                       EVENT_CONSOLE_LAYOUT,
+                       NULL,
+                       uv__tty_console_resize_event,
+                       0,
+                       0,
+                       WINEVENT_OUTOFCONTEXT))
+    return 0;
+
+  while (GetMessage(&msg, NULL, 0, 0)) {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+  }
+  return 0;
+}
+
+static void CALLBACK uv__tty_console_resize_event(HWINEVENTHOOK hWinEventHook,
+                                                  DWORD event,
+                                                  HWND hwnd,
+                                                  LONG idObject,
+                                                  LONG idChild,
+                                                  DWORD dwEventThread,
+                                                  DWORD dwmsEventTime) {
+  CONSOLE_SCREEN_BUFFER_INFO sb_info;
+  int width, height;
+
+  if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
+    return;
+
+  width = sb_info.dwSize.X;
+  height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
+
+  if (width != uv__tty_console_width || height != uv__tty_console_height) {
+    uv__tty_console_width = width;
+    uv__tty_console_height = height;
+    uv__signal_dispatch(SIGWINCH);
+  }
 }
