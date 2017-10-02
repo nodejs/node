@@ -111,8 +111,8 @@ cctest: all
 	@out/$(BUILDTYPE)/$@
 
 v8:
-	tools/make-v8.sh
-	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
+	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) \
+		$(V8_BUILD_OPTIONS) GYPFLAGS="-Dclang=0"
 
 test: | cctest  # Depends on 'all'.
 	$(PYTHON) tools/test.py --mode=release doctool message pseudo-tty parallel sequential -J
