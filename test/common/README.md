@@ -323,11 +323,13 @@ Deletes the 'tmp' dir and recreates it
 
 ### restoreStderr()
 
-Restore the original `process.stderr.write`.
+Restore the original `process.stderr.write`. Used to restore `stderr` to its
+original state after calling [`common.hijackStdErr()`][].
 
 ### restoreStdout()
 
-Restore the original `process.stdout.write`.
+Restore the original `process.stdout.write`. Used to restore `stdout` to its
+original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
 * return [&lt;String>]
@@ -456,4 +458,6 @@ implementation with tests from
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 [&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[`common.hijackStdErr()`]: #hijackstderrlistener
+[`common.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl
