@@ -66,22 +66,32 @@ void uv_loadavg(double avg[3]) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
+  /* Intermediate buffer, retrieving partial path name does not work
+   * As of NetBSD-8(beta), vnode->path translator does not handle files
+   * with longer names than 31 characters.
+   */
+  char int_buf[PATH_MAX];
+  size_t int_size;
   int mib[4];
-  size_t cb;
-  pid_t mypid;
 
   if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-  mypid = getpid();
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC_ARGS;
-  mib[2] = mypid;
-  mib[3] = KERN_PROC_ARGV;
+  mib[2] = -1;
+  mib[3] = KERN_PROC_PATHNAME;
+  int_size = ARRAY_SIZE(int_buf);
 
-  cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0))
+  if (sysctl(mib, 4, int_buf, &int_size, NULL, 0))
     return -errno;
+
+  /* Copy string from the intermediate buffer to outer one with appropriate
+   * length.
+   */
+  strlcpy(buffer, int_buf, *size);
+
+  /* Set new size. */
   *size = strlen(buffer);
 
   return 0;

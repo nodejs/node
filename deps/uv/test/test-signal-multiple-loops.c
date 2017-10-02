@@ -275,6 +275,7 @@ TEST_IMPL(signal_multiple_loops) {
     ASSERT(r == 0);
   }
 
+  uv_sem_destroy(&sem);
   printf("signal1_cb calls: %d\n", signal1_cb_counter);
   printf("signal2_cb calls: %d\n", signal2_cb_counter);
   printf("loops created and destroyed: %d\n", loop_creation_counter);

@@ -50,7 +50,11 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
    */
   if (ent->ifa_addr->sa_family == AF_LINK)
     return 1;
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
+#elif defined(__NetBSD__)
+  if (ent->ifa_addr->sa_family != PF_INET &&
+      ent->ifa_addr->sa_family != PF_INET6)
+    return 1;
+#elif defined(__OpenBSD__)
   if (ent->ifa_addr->sa_family != PF_INET)
     return 1;
 #endif

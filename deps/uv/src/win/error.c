@@ -58,7 +58,7 @@ void uv_fatal_error(const int errorno, const char* syscall) {
     LocalFree(buf);
   }
 
-  *((char*)NULL) = 0xff; /* Force debug break */
+  DebugBreak();
   abort();
 }
 

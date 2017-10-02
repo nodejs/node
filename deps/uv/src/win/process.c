@@ -1058,14 +1058,17 @@ int uv_spawn(uv_loop_t* loop,
   startup.hStdOutput = uv__stdio_handle(process->child_stdio_buffer, 1);
   startup.hStdError = uv__stdio_handle(process->child_stdio_buffer, 2);
 
+  process_flags = CREATE_UNICODE_ENVIRONMENT;
+
   if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
+
+    /* Hide console windows. */
+    process_flags |= CREATE_NO_WINDOW;
   } else {
     startup.wShowWindow = SW_SHOWDEFAULT;
   }
-
-  process_flags = CREATE_UNICODE_ENVIRONMENT;
 
   if (options->flags & UV_PROCESS_DETACHED) {
     /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That
