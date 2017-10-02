@@ -59,7 +59,9 @@ int uv__kqueue_init(uv_loop_t* loop) {
 }
 
 
+#if defined(__APPLE__)
 static int uv__has_forked_with_cfrunloop;
+#endif
 
 int uv__io_fork(uv_loop_t* loop) {
   int err;
