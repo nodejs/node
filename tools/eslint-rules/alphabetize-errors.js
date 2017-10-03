@@ -1,13 +1,10 @@
 'use strict';
 
-const message = 'Errors in lib/internal/errors.js must be alphabetized';
+const prefix = 'Out of ASCIIbetical order - ';
+const opStr = ' >= ';
 
 function errorForNode(node) {
   return node.expression.arguments[0].value;
-}
-
-function isAlphabetized(previousNode, node) {
-  return errorForNode(previousNode).localeCompare(errorForNode(node)) < 0;
 }
 
 function isDefiningError(node) {
@@ -19,16 +16,20 @@ function isDefiningError(node) {
 
 module.exports = {
   create: function(context) {
-    var previousNode;
-
+    let previousNode;
     return {
       ExpressionStatement: function(node) {
-        if (isDefiningError(node)) {
-          if (previousNode && !isAlphabetized(previousNode, node)) {
-            context.report({ node: node, message: message });
-          }
-
+        if (!isDefiningError(node)) return;
+        if (!previousNode) {
           previousNode = node;
+          return;
+        }
+        const prev = errorForNode(previousNode);
+        const curr = errorForNode(node);
+        previousNode = node;
+        if (prev >= curr) {
+          const message = [prefix, prev, opStr, curr].join('');
+          context.report({ node, message });
         }
       }
     };
