@@ -228,14 +228,14 @@ drop membership on all valid interfaces.
 
 ### socket.getRecvBufferSize(size)
 <!-- YAML
-added: REPLACEME
+added: v8.7.0
 -->
 
 * Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
 
 ### socket.getSendBufferSize(size)
 <!-- YAML
-added: REPLACEME
+added: v8.7.0
 -->
 
 * Returns {number} the `SO_SNDBUF` socket send buffer size in bytes.
@@ -491,7 +491,7 @@ between 0 and 255. The default on most systems is `1` but can vary.
 
 ### socket.setRecvBufferSize(size)
 <!-- YAML
-added: REPLACEME
+added: v8.7.0
 -->
 
 * `size` {number} Integer
@@ -501,7 +501,7 @@ in bytes.
 
 ### socket.setSendBufferSize(size)
 <!-- YAML
-added: REPLACEME
+added: v8.7.0
 -->
 
 * `size` {number} Integer
@@ -572,7 +572,7 @@ changes:
   - version: v8.6.0
     pr-url: https://github.com/nodejs/node/pull/14560
     description: The `lookup` option is supported.
-  - version: REPLACEME
+  - version: v8.7.0
     pr-url: https://github.com/nodejs/node/pull/13623
     description: The `recvBufferSize` and `sendBufferSize` options are
                  supported now.
