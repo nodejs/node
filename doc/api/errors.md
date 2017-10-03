@@ -637,6 +637,11 @@ Used when the native call from `process.cpuUsage` cannot be processed properly.
 Used when an invalid value for the `format` argument has been passed to the
 `crypto.ECDH()` class `getPublicKey()` method.
 
+<a id="ERR_CRYPTO_INVALID_DIGEST"></a>
+### ERR_CRYPTO_INVALID_DIGEST
+
+Used when an invalid crypto digest algorithm is specified.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
 

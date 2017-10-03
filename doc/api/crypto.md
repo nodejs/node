@@ -1587,8 +1587,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string}
-- `salt` {string}
+- `password` {string|Buffer|TypedArray}
+- `salt` {string|Buffer|TypedArray}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1602,8 +1602,10 @@ applied to derive a key of the requested byte length (`keylen`) from the
 `password`, `salt` and `iterations`.
 
 The supplied `callback` function is called with two arguments: `err` and
-`derivedKey`. If an error occurs, `err` will be set; otherwise `err` will be
-null. The successfully generated `derivedKey` will be passed as a [`Buffer`][].
+`derivedKey`. If an error occurs while deriving the key, `err` will be set;
+otherwise `err` will be null. By default, the successfully generated
+`derivedKey` will be passed to the callback as a [`Buffer`][]. An error will be
+thrown if any of the input arguments specify invalid values or types.
 
 The `iterations` argument must be a number set as high as possible. The
 higher the number of iterations, the more secure the derived key will be,
@@ -1620,6 +1622,18 @@ const crypto = require('crypto');
 crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
+});
+```
+
+The `crypto.DEFAULT_ENCODING` may be used to change the way the `derivedKey`
+is passed to the callback:
+
+```js
+const crypto = require('crypto');
+crypto.DEFAULT_ENCODING = 'hex';
+crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey);  // '3745e48...aa39b34'
 });
 ```
 
@@ -1643,8 +1657,8 @@ changes:
     description: The default encoding for `password` if it is a string changed
                  from `binary` to `utf8`.
 -->
-- `password` {string}
-- `salt` {string}
+- `password` {string|Buffer|TypedArray}
+- `salt` {string|Buffer|TypedArray}
 - `iterations` {number}
 - `keylen` {number}
 - `digest` {string}
@@ -1671,6 +1685,16 @@ Example:
 const crypto = require('crypto');
 const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
 console.log(key.toString('hex'));  // '3745e48...08d59ae'
+```
+
+The `crypto.DEFAULT_ENCODING` may be used to change the way the `derivedKey`
+is returned:
+
+```js
+const crypto = require('crypto');
+crypto.DEFAULT_ENCODING = 'hex';
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
+console.log(key);  // '3745e48...aa39b34'
 ```
 
 An array of supported digest functions can be retrieved using
