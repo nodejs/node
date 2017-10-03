@@ -78,8 +78,8 @@ elevated for review by the TSC. This does not necessarily mean that the
 PR must be put onto the TSC meeting agenda. If multiple TSC members
 approve (`LGTM`) the PR and no Collaborators oppose the PR, it can be
 landed. Where there is disagreement among TSC members or objections
-from one or more Collaborators, `semver-major` pull requests should be
-put on the TSC meeting agenda.
+from one or more Collaborators, `semver-major` pull requests must be
+tagged `tsc-review`.
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -184,7 +184,11 @@ breaking changes are made.
 ### Breaking Changes
 
 Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by collaborators and approval of at least two TSC members.
+sufficient review by collaborators and after either:
+
+* Approval from at least two TSC members, or
+* Two weeks have passed since the pull request was tagged `tsc-review` and there
+  are no explicit objections.
 
 Examples of breaking changes include, but are not necessarily limited to,
 removal or redefinition of existing API arguments, changing return values
