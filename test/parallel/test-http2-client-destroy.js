@@ -6,50 +6,142 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-const server = h2.createServer();
-server.listen(0);
+{
+  const server = h2.createServer();
+  server.listen(
+    0,
+    common.mustCall(() => {
+      const destroyCallbacks = [
+        (client) => client.destroy(),
+        (client) => client.socket.destroy()
+      ];
 
-server.on('listening', common.mustCall(function() {
-  const port = this.address().port;
+      let remaining = destroyCallbacks.length;
 
-  const destroyCallbacks = [
-    (client) => client.destroy(),
-    (client) => client.socket.destroy()
-  ];
+      destroyCallbacks.forEach((destroyCallback) => {
+        const client = h2.connect(`http://localhost:${server.address().port}`);
+        client.on(
+          'connect',
+          common.mustCall(() => {
+            const socket = client.socket;
 
-  let remaining = destroyCallbacks.length;
+            assert(client.socket, 'client session has associated socket');
+            assert(
+              !client.destroyed,
+              'client has not been destroyed before destroy is called'
+            );
+            assert(
+              !socket.destroyed,
+              'socket has not been destroyed before destroy is called'
+            );
 
-  destroyCallbacks.forEach((destroyCallback) => {
-    const client = h2.connect(`http://localhost:${port}`);
-    client.on('connect', common.mustCall(() => {
-      const socket = client.socket;
+            // Ensure that 'close' event is emitted
+            client.on('close', common.mustCall());
 
-      assert(client.socket, 'client session has associated socket');
-      assert(!client.destroyed,
-             'client has not been destroyed before destroy is called');
-      assert(!socket.destroyed,
-             'socket has not been destroyed before destroy is called');
+            destroyCallback(client);
 
-      // Ensure that 'close' event is emitted
-      client.on('close', common.mustCall());
+            assert(
+              !client.socket,
+              'client.socket undefined after destroy is called'
+            );
 
-      destroyCallback(client);
+            // Must must be closed
+            client.on(
+              'close',
+              common.mustCall(() => {
+                assert(client.destroyed);
+              })
+            );
 
-      assert(!client.socket, 'client.socket undefined after destroy is called');
+            // socket will close on process.nextTick
+            socket.on(
+              'close',
+              common.mustCall(() => {
+                assert(socket.destroyed);
+              })
+            );
 
-      // Must must be closed
-      client.on('close', common.mustCall(() => {
-        assert(client.destroyed);
-      }));
+            if (--remaining === 0) {
+              server.close();
+            }
+          })
+        );
+      });
+    })
+  );
+}
 
-      // socket will close on process.nextTick
-      socket.on('close', common.mustCall(() => {
-        assert(socket.destroyed);
-      }));
+// test destroy before connect
+{
+  const server = h2.createServer();
+  server.listen(
+    0,
+    common.mustCall(() => {
+      const client = h2.connect(`http://localhost:${server.address().port}`);
 
-      if (--remaining === 0) {
-        server.close();
-      }
-    }));
-  });
-}));
+      const req = client.request({ ':path': '/' });
+      client.destroy();
+
+      req.on('response', common.mustNotCall());
+      req.resume();
+      req.on(
+        'end',
+        common.mustCall(() => {
+          server.close();
+        })
+      );
+      req.end();
+    })
+  );
+}
+
+// test destroy before request
+{
+  const server = h2.createServer();
+  server.listen(
+    0,
+    common.mustCall(() => {
+      const client = h2.connect(`http://localhost:${server.address().port}`);
+      client.destroy();
+
+      assert.throws(
+        () => client.request({ ':path': '/' }),
+        common.expectsError({
+          code: 'ERR_HTTP2_INVALID_SESSION',
+          message: 'The session has been destroyed'
+        })
+      );
+
+      server.close();
+    })
+  );
+}
+
+// test destroy before goaway
+{
+  const server = h2.createServer();
+  server.on(
+    'stream',
+    common.mustCall((stream) => {
+      stream.on('error', common.mustCall());
+      stream.session.shutdown();
+    })
+  );
+  server.listen(
+    0,
+    common.mustCall(() => {
+      const client = h2.connect(`http://localhost:${server.address().port}`);
+
+      client.on(
+        'goaway',
+        common.mustCall(() => {
+          // We ought to be able to destroy the client in here without an error
+          server.close();
+          client.destroy();
+        })
+      );
+
+      client.request();
+    })
+  );
+}
