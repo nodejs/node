@@ -202,28 +202,6 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  crypto.createSign('SHA1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
-
-assert.throws(function() {
-  crypto.createVerify('SHA1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
-
-assert.throws(function() {
   const priv = [
     '-----BEGIN RSA PRIVATE KEY-----',
     'MIGrAgEAAiEA+3z+1QNF2/unumadiwEr+C5vfhezsb3hp4jAnCNRpPcCAwEAAQIgQNriSQK4',

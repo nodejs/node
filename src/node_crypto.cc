@@ -4036,13 +4036,6 @@ SignBase::Error Sign::SignInit(const char* sign_type) {
 void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
-  Environment* env = sign->env();
-
-  if (args.Length() == 0) {
-    return env->ThrowError("Sign type argument is mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Sign type");
 
   const node::Utf8Value sign_type(args.GetIsolate(), args[0]);
   sign->CheckThrow(sign->SignInit(*sign_type));
@@ -4059,25 +4052,13 @@ SignBase::Error Sign::SignUpdate(const char* data, int len) {
 
 
 void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   Sign* sign;
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
-
-  // Only copy the data if we have to, because it's a string
   Error err;
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
-      return;
-    err = sign->SignUpdate(decoder.out(), decoder.size());
-  } else {
-    char* buf = Buffer::Data(args[0]);
-    size_t buflen = Buffer::Length(args[0]);
-    err = sign->SignUpdate(buf, buflen);
-  }
+  char* buf = Buffer::Data(args[0]);
+  size_t buflen = Buffer::Length(args[0]);
+  err = sign->SignUpdate(buf, buflen);
 
   sign->CheckThrow(err);
 }
@@ -4195,7 +4176,6 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   node::Utf8Value passphrase(env->isolate(), args[1]);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Data");
   size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
@@ -4269,13 +4249,6 @@ SignBase::Error Verify::VerifyInit(const char* verify_type) {
 void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
-  Environment* env = verify->env();
-
-  if (args.Length() == 0) {
-    return env->ThrowError("Verify type argument is mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Verify type");
 
   const node::Utf8Value verify_type(args.GetIsolate(), args[0]);
   verify->CheckThrow(verify->VerifyInit(*verify_type));
@@ -4294,25 +4267,13 @@ SignBase::Error Verify::VerifyUpdate(const char* data, int len) {
 
 
 void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
-
-  // Only copy the data if we have to, because it's a string
   Error err;
-  if (args[0]->IsString()) {
-    StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
-      return;
-    err = verify->VerifyUpdate(decoder.out(), decoder.size());
-  } else {
-    char* buf = Buffer::Data(args[0]);
-    size_t buflen = Buffer::Length(args[0]);
-    err = verify->VerifyUpdate(buf, buflen);
-  }
+  char* buf = Buffer::Data(args[0]);
+  size_t buflen = Buffer::Length(args[0]);
+  err = verify->VerifyUpdate(buf, buflen);
 
   verify->CheckThrow(err);
 }
@@ -4421,11 +4382,8 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   Verify* verify;
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Key");
   char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
-
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Hash");
 
   char* hbuf = Buffer::Data(args[1]);
   ssize_t hlen = Buffer::Length(args[1]);
