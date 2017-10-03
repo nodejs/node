@@ -69,7 +69,7 @@ enum CategoryGroupEnabledFlags {
 // const uint8_t*
 //     TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(const char* category_group)
 #define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED              \
-  node::tracing::TraceEventHelper::GetTracingController() \
+  node::tracing::TraceEventHelper::GetTracingController()       \
       ->GetCategoryGroupEnabled
 
 // Get the number of times traces have been recorded. This is used to implement
@@ -98,7 +98,7 @@ enum CategoryGroupEnabledFlags {
 //     const char* name,
 //     uint64_t id)
 #define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION             \
-  node::tracing::TraceEventHelper::GetTracingController() \
+  node::tracing::TraceEventHelper::GetTracingController()       \
       ->UpdateTraceEventDuration
 
 // Defines atomic operations used internally by the tracing system.
@@ -148,10 +148,10 @@ enum CategoryGroupEnabledFlags {
   do {                                                                       \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                  \
     if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {  \
-      node::tracing::AddTraceEvent(                                  \
+      node::tracing::AddTraceEvent(                                          \
           phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,     \
-          node::tracing::kGlobalScope, node::tracing::kNoId, \
-          node::tracing::kNoId, flags, ##__VA_ARGS__);               \
+          node::tracing::kGlobalScope, node::tracing::kNoId,                 \
+          node::tracing::kNoId, flags, ##__VA_ARGS__);                       \
     }                                                                        \
   } while (0)
 
@@ -160,13 +160,13 @@ enum CategoryGroupEnabledFlags {
 // ends.
 #define INTERNAL_TRACE_EVENT_ADD_SCOPED(category_group, name, ...)           \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                    \
-  node::tracing::ScopedTracer INTERNAL_TRACE_EVENT_UID(tracer);      \
+  node::tracing::ScopedTracer INTERNAL_TRACE_EVENT_UID(tracer);              \
   if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {    \
-    uint64_t h = node::tracing::AddTraceEvent(                       \
+    uint64_t h = node::tracing::AddTraceEvent(                               \
         TRACE_EVENT_PHASE_COMPLETE,                                          \
         INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,              \
-        node::tracing::kGlobalScope, node::tracing::kNoId,   \
-        node::tracing::kNoId, TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__); \
+        node::tracing::kGlobalScope, node::tracing::kNoId,                   \
+        node::tracing::kNoId, TRACE_EVENT_FLAG_NONE, ##__VA_ARGS__);         \
     INTERNAL_TRACE_EVENT_UID(tracer)                                         \
         .Initialize(INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,  \
                     h);                                                      \
@@ -175,15 +175,15 @@ enum CategoryGroupEnabledFlags {
 #define INTERNAL_TRACE_EVENT_ADD_SCOPED_WITH_FLOW(category_group, name,     \
                                                   bind_id, flow_flags, ...) \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                   \
-  node::tracing::ScopedTracer INTERNAL_TRACE_EVENT_UID(tracer);     \
+  node::tracing::ScopedTracer INTERNAL_TRACE_EVENT_UID(tracer);             \
   if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {   \
     unsigned int trace_event_flags = flow_flags;                            \
-    node::tracing::TraceID trace_event_bind_id(bind_id,             \
-                                                       &trace_event_flags); \
-    uint64_t h = node::tracing::AddTraceEvent(                      \
+    node::tracing::TraceID trace_event_bind_id(bind_id,                     \
+                                               &trace_event_flags);         \
+    uint64_t h = node::tracing::AddTraceEvent(                              \
         TRACE_EVENT_PHASE_COMPLETE,                                         \
         INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,             \
-        node::tracing::kGlobalScope, node::tracing::kNoId,  \
+        node::tracing::kGlobalScope, node::tracing::kNoId,                  \
         trace_event_bind_id.raw_id(), trace_event_flags, ##__VA_ARGS__);    \
     INTERNAL_TRACE_EVENT_UID(tracer)                                        \
         .Initialize(INTERNAL_TRACE_EVENT_UID(category_group_enabled), name, \
@@ -198,12 +198,12 @@ enum CategoryGroupEnabledFlags {
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                    \
     if (INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE()) {    \
       unsigned int trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID;        \
-      node::tracing::TraceID trace_event_trace_id(id,                  \
-                                                          &trace_event_flags); \
-      node::tracing::AddTraceEvent(                                    \
+      node::tracing::TraceID trace_event_trace_id(id,                          \
+                                                  &trace_event_flags);         \
+      node::tracing::AddTraceEvent(                                            \
           phase, INTERNAL_TRACE_EVENT_UID(category_group_enabled), name,       \
           trace_event_trace_id.scope(), trace_event_trace_id.raw_id(),         \
-          node::tracing::kNoId, trace_event_flags, ##__VA_ARGS__);     \
+          node::tracing::kNoId, trace_event_flags, ##__VA_ARGS__);             \
     }                                                                          \
   } while (0)
 
@@ -417,8 +417,8 @@ static inline uint64_t AddTraceEventImpl(
 // structures so that it is portable to third_party libraries.
 #define INTERNAL_DECLARE_SET_TRACE_VALUE(actual_type, union_member,         \
                                          value_type_id)                     \
-  static inline void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
+  static inline void SetTraceValue(actual_type arg, unsigned char* type,    \
+                                   uint64_t* value) {                       \
     TraceValueUnion type_value;                                             \
     type_value.union_member = arg;                                          \
     *type = value_type_id;                                                  \
@@ -426,8 +426,8 @@ static inline uint64_t AddTraceEventImpl(
   }
 // Simpler form for int types that can be safely casted.
 #define INTERNAL_DECLARE_SET_TRACE_VALUE_INT(actual_type, value_type_id)    \
-  static inline void SetTraceValue(actual_type arg, unsigned char* type, \
-                                      uint64_t* value) {                    \
+  static inline void SetTraceValue(actual_type arg, unsigned char* type,    \
+                                   uint64_t* value) {                       \
     *type = value_type_id;                                                  \
     *value = static_cast<uint64_t>(arg);                                    \
   }
