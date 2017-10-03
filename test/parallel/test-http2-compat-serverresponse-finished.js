@@ -5,19 +5,23 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const net = require('net');
 
 // Http2ServerResponse.finished
 const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
+    assert.ok(response.socket instanceof net.Socket);
+    assert.ok(response.connection instanceof net.Socket);
+    assert.strictEqual(response.socket, response.connection);
+
     response.on('finish', common.mustCall(function() {
-      assert.ok(request.stream !== undefined);
-      assert.ok(response.stream !== undefined);
-      server.close();
+      assert.strictEqual(response.socket, undefined);
+      assert.strictEqual(response.connection, undefined);
       process.nextTick(common.mustCall(() => {
-        assert.strictEqual(request.stream, undefined);
-        assert.strictEqual(response.stream, undefined);
+        assert.ok(response.stream);
+        server.close();
       }));
     }));
     assert.strictEqual(response.finished, false);
