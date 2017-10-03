@@ -10,5 +10,7 @@ prefix inspector
 test-stop-profile-after-done: PASS, FLAKY
 
 [$system==win32]
+test-bindings               : PASS, FLAKY
+test-debug-end              : PASS, FLAKY
 test-stop-profile-after-done: PASS, FLAKY
 
