@@ -103,10 +103,9 @@ example `fs.readdirSync('c:\\')` can potentially return a different result than
 [this MSDN page][MSDN-Rel-Path].
 
 *Note:* On Windows, opening an existing hidden file using the `w` flag (either
-through `fs.open` or `fs.writeFile`) will fail with `EPERM`. Hidden files
-can be opened for writing with either `a` or `r+` flag. A call to
-`fs.truncate` with filename before opening the file can be used to reset the
-file contents.
+through `fs.open` or `fs.writeFile`) will fail with `EPERM`. Existing hidden
+files can be opened for writing with the `r+` flag. A call to `fs.truncate` can
+be used to reset the file contents.
 
 ## Threadpool Usage
 
