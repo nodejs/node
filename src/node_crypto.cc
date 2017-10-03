@@ -5330,7 +5330,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const EVP_MD* digest = nullptr;
-  const char* type_error = nullptr;
   char* pass = nullptr;
   char* salt = nullptr;
   int passlen = -1;
@@ -5341,54 +5340,19 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   PBKDF2Request* req = nullptr;
   Local<Object> obj;
 
-  if (args.Length() != 5 && args.Length() != 6) {
-    type_error = "Bad parameter";
-    goto err;
-  }
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Pass phrase");
   passlen = Buffer::Length(args[0]);
-  if (passlen < 0) {
-    type_error = "Bad password";
-    goto err;
-  }
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Salt");
 
   pass = node::Malloc(passlen);
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
   saltlen = Buffer::Length(args[1]);
-  if (saltlen < 0) {
-    type_error = "Bad salt";
-    goto err;
-  }
 
   salt = node::Malloc(saltlen);
   memcpy(salt, Buffer::Data(args[1]), saltlen);
 
-  if (!args[2]->IsNumber()) {
-    type_error = "Iterations not a number";
-    goto err;
-  }
-
   iter = args[2]->Int32Value();
-  if (iter < 0) {
-    type_error = "Bad iterations";
-    goto err;
-  }
-
-  if (!args[3]->IsNumber()) {
-    type_error = "Key length not a number";
-    goto err;
-  }
 
   raw_keylen = args[3]->NumberValue();
-  if (raw_keylen < 0.0 || isnan(raw_keylen) || isinf(raw_keylen) ||
-      raw_keylen > INT_MAX) {
-    type_error = "Bad key length";
-    goto err;
-  }
 
   keylen = static_cast<int>(raw_keylen);
 
@@ -5396,8 +5360,10 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     node::Utf8Value digest_name(env->isolate(), args[4]);
     digest = EVP_get_digestbyname(*digest_name);
     if (digest == nullptr) {
-      type_error = "Bad digest name";
-      goto err;
+      free(salt);
+      free(pass);
+      args.GetReturnValue().Set(-1);
+      return;
     }
   }
 
@@ -5443,12 +5409,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     else
       args.GetReturnValue().Set(argv[1]);
   }
-  return;
-
- err:
-  free(salt);
-  free(pass);
-  return env->ThrowTypeError(type_error);
 }
 
 
