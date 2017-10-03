@@ -64,11 +64,12 @@ console.log(challenge.toString('utf8'));
 // Prints: the challenge as a UTF8 string
 ```
 
-### Certificate.exportPublicKey(spkac)
+### Certificate.exportPublicKey(spkac[, encoding])
 <!-- YAML
 added: REPLACEME
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
+- `encoding` {string}
 - Returns {Buffer} The public key component of the `spkac` data structure,
 which includes a public key and a challenge.
 
