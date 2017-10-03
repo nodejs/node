@@ -10,11 +10,11 @@ const myEE = new EventEmitter();
 async function main() {
 
     // Input
-    const inputArray = ["a", "b", "c"];
+    const inputArray = ["a", "b", Symbol('symbol')];
     const emptyFunction = function() {};
 
     // Test
-    await myEE.onMultiple(["a", "b", "c"], emptyFunction);
+    await myEE.onMultiple(inputArray, emptyFunction);
     const outputArray = await myEE.eventNames();
     
     // Assert
