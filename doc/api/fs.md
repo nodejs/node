@@ -104,7 +104,7 @@ example `fs.readdirSync('c:\\')` can potentially return a different result than
 
 *Note:* On Windows, opening an existing hidden file using the `w` flag (either
 through `fs.open` or `fs.writeFile`) will fail with `EPERM`. Existing hidden
-files can be opened for writing with the `r+` flag. A call to `fs.truncate` can
+files can be opened for writing with the `r+` flag. A call to `fs.ftruncate` can
 be used to reset the file contents.
 
 ## Threadpool Usage
