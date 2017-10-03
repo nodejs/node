@@ -304,6 +304,7 @@ inline Environment::Environment(IsolateData* isolate_data,
   v8::Context::Scope context_scope(context);
   set_as_external(v8::External::New(isolate(), this));
   set_binding_cache_object(v8::Object::New(isolate()));
+  set_internal_binding_cache_object(v8::Object::New(isolate()));
   set_module_load_list_array(v8::Array::New(isolate()));
 
   AssignToContext(context);
