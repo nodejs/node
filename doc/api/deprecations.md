@@ -675,7 +675,7 @@ querystring.parse(str, '\n', '=');
 ```
 
 *Note*: This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does url encoding:
+difference is that `querystring.parse()` does url decoding:
 
 ```sh
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
@@ -709,6 +709,16 @@ Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
 instead. For backwards compatibility with Node.js prior to version 6.4.0, both
 may be specified.
+
+<a id="DEP0080"></a>
+### DEP0080: path.\_makeLong()
+
+Type: Documentation-only
+
+The internal `path._makeLong()` was not intended for public use. However,
+userland modules have found it useful. The internal API has been deprecated
+and replaced with an identical, public `path.toNamespacedPath()` method.
+
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

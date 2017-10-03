@@ -40,7 +40,6 @@ class Nghttp2Stream;
 
 struct nghttp2_stream_write_t;
 struct nghttp2_data_chunk_t;
-struct nghttp2_data_chunks_t;
 
 #define MAX_BUFFER_COUNT 10
 #define SEND_BUFFER_RECOMMENDED_SIZE 4096
@@ -68,6 +67,10 @@ enum nghttp2_stream_flags {
   NGHTTP2_STREAM_FLAG_DESTROYED = 0x10
 };
 
+enum nghttp2_stream_options {
+  STREAM_OPTION_EMPTY_PAYLOAD = 0x1,
+  STREAM_OPTION_GET_TRAILERS = 0x2,
+};
 
 // Callbacks
 typedef void (*nghttp2_stream_write_cb)(
@@ -105,8 +108,8 @@ class Nghttp2Session {
     return destroying_;
   }
 
-  inline const char* TypeName(nghttp2_session_type type) {
-    switch (type) {
+  inline const char* TypeName() {
+    switch (session_type_) {
       case NGHTTP2_SESSION_SERVER: return "server";
       case NGHTTP2_SESSION_CLIENT: return "client";
       default:
@@ -127,8 +130,7 @@ class Nghttp2Session {
       nghttp2_nv* nva,
       size_t len,
       Nghttp2Stream** assigned = nullptr,
-      bool emptyPayload = true,
-      bool getTrailers = false);
+      int options = 0);
 
   // Submits a notice to the connected peer that the session is in the
   // process of shutting down.
@@ -299,7 +301,7 @@ class Nghttp2Stream {
       int32_t id,
       Nghttp2Session* session,
       nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      bool getTrailers = false);
+      int options = 0);
 
   inline ~Nghttp2Stream() {
     CHECK_EQ(session_, nullptr);
@@ -319,7 +321,7 @@ class Nghttp2Stream {
       int32_t id,
       Nghttp2Session* session,
       nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      bool getTrailers = false);
+      int options = 0);
 
   // Destroy this stream instance and free all held memory.
   // Note that this will free queued outbound and inbound
@@ -347,15 +349,14 @@ class Nghttp2Stream {
   // Initiate a response on this stream.
   inline int SubmitResponse(nghttp2_nv* nva,
                             size_t len,
-                            bool emptyPayload = false,
-                            bool getTrailers = false);
+                            int options);
 
   // Send data read from a file descriptor as the response on this stream.
   inline int SubmitFile(int fd,
                         nghttp2_nv* nva, size_t len,
                         int64_t offset,
                         int64_t length,
-                        bool getTrailers = false);
+                        int options);
 
   // Submit informational headers for this stream
   inline int SubmitInfo(nghttp2_nv* nva, size_t len);
@@ -372,7 +373,7 @@ class Nghttp2Stream {
       nghttp2_nv* nva,
       size_t len,
       Nghttp2Stream** assigned = nullptr,
-      bool writable = true);
+      int options = 0);
 
   // Marks the Writable side of the stream as being shutdown
   inline void Shutdown() {
@@ -504,13 +505,6 @@ struct nghttp2_stream_write_t {
 struct nghttp2_data_chunk_t {
   uv_buf_t buf;
   nghttp2_data_chunk_t* next = nullptr;
-};
-
-struct nghttp2_data_chunks_t {
-  unsigned int nbufs = 0;
-  uv_buf_t buf[MAX_BUFFER_COUNT];
-
-  inline ~nghttp2_data_chunks_t();
 };
 
 }  // namespace http2
