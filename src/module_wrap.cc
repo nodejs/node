@@ -524,4 +524,4 @@ void ModuleWrap::Initialize(Local<Object> target,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(module_wrap,
-                                  node::loader::ModuleWrap::Initialize)
+                                   node::loader::ModuleWrap::Initialize)
