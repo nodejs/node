@@ -439,7 +439,8 @@ a code {
 }
 
 #column2 > :first-child {
-  margin: 1.25rem 1rem;
+  margin: 1.25rem;
+  font-size: 1.5rem;
 }
 
 #column2 > ul:nth-child(2) {
@@ -451,7 +452,7 @@ a code {
 }
 
 #column2 ul li {
-  padding-left: 1.4rem;
+  padding-left: 1.25rem;
   margin-bottom: .5rem;
   padding-bottom: .5rem;
 }
