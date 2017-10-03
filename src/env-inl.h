@@ -303,8 +303,25 @@ inline Environment::Environment(IsolateData* isolate_data,
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(context);
   set_as_external(v8::External::New(isolate(), this));
-  set_binding_cache_object(v8::Object::New(isolate()));
-  set_internal_binding_cache_object(v8::Object::New(isolate()));
+
+  v8::Local<v8::Primitive> Null = v8::Null(isolate());
+  v8::Local<v8::Object> binding_cache_object = v8::Object::New(isolate());
+  v8::Maybe<bool> binding_ok = binding_cache_object->SetPrototype(context,
+                                                                  Null);
+  if (binding_ok.ToChecked() == false) {
+    UNREACHABLE();
+  }
+  set_binding_cache_object(binding_cache_object);
+
+  v8::Local<v8::Object> internal_binding_cache_object =
+    v8::Object::New(isolate());
+  v8::Maybe<bool> internal_binding_ok =
+    internal_binding_cache_object->SetPrototype(context, Null);
+  if (internal_binding_ok.ToChecked() == false) {
+    UNREACHABLE();
+  }
+  set_internal_binding_cache_object(internal_binding_cache_object);
+
   set_module_load_list_array(v8::Array::New(isolate()));
 
   AssignToContext(context);
