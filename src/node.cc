@@ -2857,11 +2857,11 @@ static bool PullFromCache(Environment* env,
                           const FunctionCallbackInfo<Value>& args,
                           Local<String> module,
                           Local<Object> cache) {
+  Local<Value> exports_v;
   Local<Object> exports;
-  Local<Context> context = env->context();
-  if (cache->Has(context, module).FromJust()) {
-    exports = cache->Get(context, module).ToLocalChecked()->
-        ToObject(context).ToLocalChecked();
+  if (cache->Get(context, module).ToLocal(&exports_v) &&
+      exports_v->IsObject() &&
+      exports_v->ToObject(context).ToLocal(&exports)) {
     args.GetReturnValue().Set(exports);
     return true;
   }
@@ -2892,17 +2892,12 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   env->ThrowError(errmsg);
 }
 
-static void ThrowInvalidBindingName(Environment* env) {
-  env->ThrowError("Invalid binding name");
-}
-
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
-  if (maybe_module.IsEmpty()) {
-    return ThrowInvalidBindingName(env);
-  }
-  Local<String> module = maybe_module.ToLocalChecked();
+
+  Local<String> module;
+  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+
   Local<Object> cache = env->binding_cache_object();
 
   if (PullFromCache(env, args, module, cache))
@@ -2939,11 +2934,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
 static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
-  if (maybe_module.IsEmpty()) {
-    return ThrowInvalidBindingName(env);
-  }
-  Local<String> module = maybe_module.ToLocalChecked();
+
+  Local<String> module;
+  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+
   Local<Object> cache = env->internal_binding_cache_object();
 
   if (PullFromCache(env, args, module, cache))
@@ -2969,11 +2963,8 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
-  if (maybe_module.IsEmpty()) {
-    return ThrowInvalidBindingName(env);
-  }
-  Local<String> module_name = maybe_module.ToLocalChecked();
+  Local<String> module_name;
+  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module_name);
