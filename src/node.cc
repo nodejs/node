@@ -1714,6 +1714,7 @@ void AppendExceptionLine(Environment* env,
   }
 
   // Print (filename):(line number): (message).
+  ScriptOrigin origin = message->GetScriptOrigin();
   node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber();
@@ -1742,8 +1743,16 @@ void AppendExceptionLine(Environment* env,
   // sourceline to 78 characters, and we end up not providing very much
   // useful debugging info to the user if we remove 62 characters.
 
+  int script_start =
+      (linenum - origin.ResourceLineOffset()->Value()) == 1 ?
+          origin.ResourceColumnOffset()->Value() : 0;
   int start = message->GetStartColumn(env->context()).FromMaybe(0);
   int end = message->GetEndColumn(env->context()).FromMaybe(0);
+  if (start >= script_start) {
+    CHECK_GE(end, start);
+    start -= script_start;
+    end -= script_start;
+  }
 
   char arrow[1024];
   int max_off = sizeof(arrow) - 2;
