@@ -7,6 +7,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
+* [DNS module](#dns-module)
 * [Fixtures module](#fixtures-module)
 * [WPT module](#wpt-module)
 
@@ -404,10 +405,53 @@ Creates a new `Countdown` instance.
 
 Decrements the `Countdown` counter.
 
-### Coutndown.prototype.remaining
+### Countdown.prototype.remaining
 
 Specifies the remaining number of times `Countdown.prototype.dec()` must be
 called before the callback is invoked.
+
+## DNS Module
+
+The `DNS` module provides a naïve DNS parser/serializer.
+
+### readDomainFromPacket(buffer, offset)
+
+* `buffer` [&lt;Buffer>]
+* `offset` [&lt;Number>]
+* return [&lt;Object>]
+
+Reads the domain string from a packet and returns an object containing the
+number of bytes read and the domain.
+
+### parseDNSPacket(buffer)
+
+* `buffer` [&lt;Buffer>]
+* return [&lt;Object>]
+
+Parses a DNS packet. Returns an object with the values of the various flags of
+the packet depending on the type of packet.
+
+### writeIPv6(ip)
+
+* `ip` [&lt;String>]
+* return [&lt;Buffer>]
+
+Reads an IPv6 String and returns a Buffer containing the parts.
+
+### writeDomainName(domain)
+
+* `domain` [&lt;String>]
+* return [&lt;Buffer>]
+
+Reads a Domain String and returns a Buffer containing the domain.
+
+### writeDNSPacket(parsed)
+
+* `parsed` [&lt;Object>]
+* return [&lt;Buffer>]
+
+Takes in a parsed Object and writes its fields to a DNS packet as a Buffer
+object.
 
 ## Fixtures Module
 
