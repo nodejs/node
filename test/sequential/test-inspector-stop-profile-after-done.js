@@ -5,7 +5,7 @@ const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function runTests() {
-  const child = new NodeInstance(['--inspect=0'],
+  const child = new NodeInstance(['--inspect-brk=0'],
                                  `let c = 0;
                                   const interval = setInterval(() => {
                                    console.log(new Object());
