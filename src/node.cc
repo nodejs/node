@@ -2558,23 +2558,27 @@ extern "C" void node_module_register(void* m) {
   }
 }
 
-#define GET_MODULE_FN(modlist, flag)                                  \
-  struct node_module* get_ ## modlist ## _module(const char* name) {  \
-    struct node_module* mp;                                           \
-                                                                      \
-    for (mp = modlist_ ## modlist; mp != nullptr; mp = mp->nm_link) { \
-      if (strcmp(mp->nm_modname, name) == 0)                          \
-        break;                                                        \
-    }                                                                 \
-                                                                      \
-    CHECK(mp == nullptr || (mp->nm_flags & flag) != 0);               \
-    return (mp);                                                      \
-  }                                                                   \
+inline struct node_module* FindModule(struct node_module* list, const char* name, int flag) {
+  struct node_module* mp;
 
-GET_MODULE_FN(builtin, NM_F_BUILTIN);
-GET_MODULE_FN(internal, NM_F_INTERNAL);
-GET_MODULE_FN(linked, NM_F_LINKED);
-#undef GET_MODULE_FN
+  for (mp = list; mp != nullptr; mp = mp->nm_link) {
+    if (strcmp(mp->nm_modname, name) == 0)
+      break;
+  }
+
+  CHECK(mp == nullptr || (mp->nm_flags & flag) != 0);
+  return mp;
+}
+
+node_module* get_builtin_module(const char* name) {
+  return FindModule(modlist_builtin, name, NM_F_BUILTIN);
+}
+node_module* get_internal_module(const char* name) {
+  return FindModule(modlist_internal, name, NM_F_INTERNAL);
+}
+node_module* get_linked_module(const char* name) {
+  return FindModule(modlist_linked, name, NM_F_LINKED);
+}
 
 struct DLib {
   std::string filename_;
@@ -2847,20 +2851,21 @@ void ProcessEmitWarning(Environment* env, const char* fmt, ...) {
   f.As<v8::Function>()->Call(process, 1, &arg);
 }
 
-static bool pullFromCache(Environment* env,
+static bool PullFromCache(Environment* env,
                           const FunctionCallbackInfo<Value>& args,
                           Local<String> module,
                           Local<Object> cache) {
   Local<Object> exports;
-  if (cache->Has(env->context(), module).FromJust()) {
-    exports = cache->Get(module)->ToObject(env->isolate());
+  Local<Context> context = env->context();
+  if (cache->Has(context, module).FromJust()) {
+    exports = cache->Get(context, module)->ToObject(context, env->isolate());
     args.GetReturnValue().Set(exports);
     return true;
   }
   return false;
 }
 
-static Local<Object> init_module(Environment* env,
+static Local<Object> InitModule(Environment* env,
                                  node_module* mod,
                                  Local<String> module) {
   Local<Object> exports = Object::New(env->isolate());
@@ -2868,12 +2873,14 @@ static Local<Object> init_module(Environment* env,
   CHECK_EQ(mod->nm_register_func, nullptr);
   CHECK_NE(mod->nm_context_register_func, nullptr);
   Local<Value> unused = Undefined(env->isolate());
-  mod->nm_context_register_func(exports, unused,
-    env->context(), mod->nm_priv);
+  mod->nm_context_register_func(exports,
+                                unused,
+                                env->context(),
+                                mod->nm_priv);
   return exports;
 }
 
-static void no_such_module(Environment* env, const char* module_v) {
+static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   char errmsg[1024];
   snprintf(errmsg,
            sizeof(errmsg),
@@ -2887,7 +2894,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   Local<String> module = args[0]->ToString(env->isolate());
   Local<Object> cache = env->binding_cache_object();
 
-  if (pullFromCache(env, args, module, cache))
+  if (PullFromCache(env, args, module, cache))
     return;
 
   // Append a string to process.moduleLoadList
@@ -2902,7 +2909,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   node_module* mod = get_builtin_module(*module_v);
   Local<Object> exports;
   if (mod != nullptr) {
-    exports = init_module(env, mod, module);
+    exports = InitModule(env, mod, module);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(exports->SetPrototype(env->context(),
@@ -2912,7 +2919,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     exports = Object::New(env->isolate());
     DefineJavaScript(env, exports);
   } else {
-    return no_such_module(env, *module_v);
+    return ThrowIfNoSuchModule(env, *module_v);
   }
   cache->Set(module, exports);
 
@@ -2921,10 +2928,10 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
 static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<String> module = args[0]->ToString(env->isolate());
+  Local<String> module = args[0]->ToString(env->context());
   Local<Object> cache = env->internal_binding_cache_object();
 
-  if (pullFromCache(env, args, module, cache))
+  if (PullFromCache(env, args, module, cache))
     return;
 
   // Append a string to process.moduleLoadList
@@ -2937,12 +2944,8 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_internal_module(*module_v);
-  Local<Object> exports;
-  if (mod != nullptr) {
-    exports = init_module(env, mod, module);
-  } else {
-    return no_such_module(env, *module_v);
-  }
+  if (mod === nullptr) return ThrowIfNoSuchModule(env, *module_v);
+  Local<Object> exports = InitModule(env, mod, module);
   cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);

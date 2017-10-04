@@ -437,9 +437,6 @@ struct node_module {
   struct node_module* nm_link;
 };
 
-node_module* get_builtin_module(const char *name);
-node_module* get_linked_module(const char *name);
-
 extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #ifdef _WIN32
@@ -513,9 +510,6 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_BUILTIN)   \
-
-#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)          \
-  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_INTERNAL)  \
 
 /*
  * For backward compatibility in add-on modules.
