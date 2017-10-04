@@ -6,39 +6,17 @@ if (!common.hasCrypto)
 
 const http2 = require('http2');
 
+const invalidOptions = [() => {}, 1, 'test', null, undefined];
+const invalidArgTypeError = {
+  type: TypeError,
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: 'The "options" argument must be of type object'
+};
+
 // Error if options are not passed to createSecureServer
-
-common.expectsError(
-  () => http2.createSecureServer(),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
-
-common.expectsError(
-  () => http2.createSecureServer(() => {}),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
-
-common.expectsError(
-  () => http2.createSecureServer(1),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
-
-common.expectsError(
-  () => http2.createSecureServer('test'),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
-
-common.expectsError(
-  () => http2.createSecureServer(null),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    type: TypeError
-  });
+invalidOptions.forEach((invalidOption) =>
+  common.expectsError(
+    () => http2.createSecureServer(invalidOption),
+    invalidArgTypeError
+  )
+);
