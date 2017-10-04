@@ -361,8 +361,8 @@ changes:
 > [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
 > instead.
 
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`], [`SharedArrayBuffer`] or the
-  `.buffer` property of a [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
+  [`SharedArrayBuffer`] or the `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
@@ -679,8 +679,8 @@ changes:
                  or `ArrayBuffer`.
 -->
 
-* `string` {string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer} A value to
-  calculate the length of
+* `string` {string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer} A
+  value to calculate the length of
 * `encoding` {string} If `string` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {integer} The number of bytes contained within `string`
@@ -807,8 +807,8 @@ A `TypeError` will be thrown if `array` is not an `Array`.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`], [`SharedArrayBuffer`], or the
-  `.buffer` property of a [`TypedArray`].
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An [`ArrayBuffer`],
+  [`SharedArrayBuffer`], or the `.buffer` property of a [`TypedArray`].
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`
 * `length` {integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
