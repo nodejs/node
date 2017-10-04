@@ -93,13 +93,14 @@ assert.strictEqual(script.runInContext(ctx), false);
 // Error on the first line of a module should
 // have the correct line and column number
 assert.throws(() => {
-  vm.runInContext('throw new Error()', context, {
+  vm.runInContext(' throw new Error()', context, {
     filename: 'expected-filename.js',
     lineOffset: 32,
     columnOffset: 123
   });
 }, (err) => {
-  return /expected-filename\.js:33:130/.test(err.stack);
+  return /^ \^/m.test(err.stack) &&
+         /expected-filename\.js:33:131/.test(err.stack);
 }, 'Expected appearance of proper offset in Error stack');
 
 // https://github.com/nodejs/node/issues/6158
