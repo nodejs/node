@@ -306,20 +306,12 @@ inline Environment::Environment(IsolateData* isolate_data,
 
   v8::Local<v8::Primitive> Null = v8::Null(isolate());
   v8::Local<v8::Object> binding_cache_object = v8::Object::New(isolate());
-  v8::Maybe<bool> binding_ok = binding_cache_object->SetPrototype(context,
-                                                                  Null);
-  if (binding_ok.ToChecked() == false) {
-    UNREACHABLE();
-  }
+  CHECK(binding_cache_object->SetPrototype(context, Null).FromJust());
   set_binding_cache_object(binding_cache_object);
 
   v8::Local<v8::Object> internal_binding_cache_object =
     v8::Object::New(isolate());
-  v8::Maybe<bool> internal_binding_ok =
-    internal_binding_cache_object->SetPrototype(context, Null);
-  if (internal_binding_ok.ToChecked() == false) {
-    UNREACHABLE();
-  }
+  CHECK(internal_binding_cache_object->SetPrototype(context, Null).FromJust());
   set_internal_binding_cache_object(internal_binding_cache_object);
 
   set_module_load_list_array(v8::Array::New(isolate()));
