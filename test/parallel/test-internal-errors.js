@@ -284,3 +284,20 @@ assert.strictEqual(
 assert.strictEqual(
   errors.message('ERR_INVALID_ASYNC_ID', ['asyncId', undefined]),
   'Invalid asyncId value: undefined');
+
+{
+  const { kMaxLength } = process.binding('buffer');
+  const error = new errors.Error('ERR_BUFFER_TOO_LARGE');
+  assert.strictEqual(
+    error.message,
+    `Cannot create a Buffer larger than 0x${kMaxLength.toString(16)} bytes`
+  );
+}
+
+{
+  const error = new errors.Error('ERR_INVALID_ARG_VALUE', 'foo', 'bar');
+  assert.strictEqual(
+    error.message,
+    'The value "bar" is invalid for argument "foo"'
+  );
+}

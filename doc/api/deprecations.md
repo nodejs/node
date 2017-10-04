@@ -146,9 +146,9 @@ instead.
 <a id="DEP0012"></a>
 ### DEP0012: Domain.dispose
 
-Type: Runtime
+Type: End-of-Life
 
-[`Domain.dispose()`][] is deprecated. Recover from failed I/O actions
+`Domain.dispose()` is removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
@@ -661,8 +661,8 @@ Type: Runtime
 
 `REPLServer.parseREPLKeyword()` was removed from userland visibility.
 
-<a id="DEP00XX"></a>
-### DEP00XX: tls.parseCertString()
+<a id="DEP0076"></a>
+### DEP0076: tls.parseCertString()
 
 Type: Runtime
 
@@ -675,7 +675,7 @@ querystring.parse(str, '\n', '=');
 ```
 
 *Note*: This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does url encoding:
+difference is that `querystring.parse()` does url decoding:
 
 ```sh
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
@@ -684,11 +684,46 @@ difference is that `querystring.parse()` does url encoding:
 { '%E5%A5%BD': '1' }
 ```
 
+<a id="DEP0077"></a>
+### DEP0077: Module.\_debug()
+
+Type: Runtime
+
+`Module._debug()` has been deprecated.
+
+*Note*: `Module._debug()` was never documented as an officially supported API.
+
+<a id="DEP0078"></a>
+### DEP0078: REPLServer.turnOffEditorMode()
+
+Type: Runtime
+
+`REPLServer.turnOffEditorMode()` was removed from userland visibility.
+
+<a id="DEP0079"></a>
+### DEP0079: Custom inspection function on Objects via .inspect()
+
+Type: Documentation-only
+
+Using a property named `inspect` on an object to specify a custom inspection
+function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
+instead. For backwards compatibility with Node.js prior to version 6.4.0, both
+may be specified.
+
+<a id="DEP0080"></a>
+### DEP0080: path.\_makeLong()
+
+Type: Documentation-only
+
+The internal `path._makeLong()` was not intended for public use. However,
+userland modules have found it useful. The internal API has been deprecated
+and replaced with an identical, public `path.toNamespacedPath()` method.
+
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Domain.dispose()`]: domain.html#domain_domain_dispose
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
@@ -723,6 +758,8 @@ difference is that `querystring.parse()` does url encoding:
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
+[`util.inspect()`]: util.html#util_util_inspect_object_options
+[`util.inspect.custom`]: util.html#util_util_inspect_custom
 [`util.isArray()`]: util.html#util_util_isarray_object
 [`util.isBoolean()`]: util.html#util_util_isboolean_object
 [`util.isBuffer()`]: util.html#util_util_isbuffer_object

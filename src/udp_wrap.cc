@@ -233,31 +233,26 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
                           args.GetReturnValue().Set(UV_EBADF));
 
   CHECK(args[0]->IsUint32());
-  CHECK(args[1]->IsUint32());
+  CHECK(args[1]->IsBoolean());
+  bool is_recv = args[1].As<v8::Boolean>()->Value();
+  const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
+                                       "uv_send_buffer_size";
+
+  if (!args[0]->IsInt32())
+    return env->ThrowUVException(UV_EINVAL, uv_func_name);
+
+  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
   int size = static_cast<int>(args[0].As<Uint32>()->Value());
-
-  if (size != args[0].As<Uint32>()->Value()) {
-    if (args[1].As<Uint32>()->Value() == 0)
-      return env->ThrowUVException(EINVAL, "uv_recv_buffer_size");
-    else
-      return env->ThrowUVException(EINVAL, "uv_send_buffer_size");
-  }
-
   int err;
-  if (args[1].As<Uint32>()->Value() == 0) {
-    err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                              &size);
-  } else {
-    err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                              &size);
-  }
 
-  if (err != 0) {
-    if (args[1].As<Uint32>()->Value() == 0)
-      return env->ThrowUVException(err, "uv_recv_buffer_size");
-    else
-      return env->ThrowUVException(err, "uv_send_buffer_size");
-  }
+  if (is_recv)
+    err = uv_recv_buffer_size(handle, &size);
+  else
+    err = uv_send_buffer_size(handle, &size);
+
+  if (err != 0)
+    return env->ThrowUVException(err, uv_func_name);
+
   args.GetReturnValue().Set(size);
 }
 
@@ -355,7 +350,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
-  env->set_init_trigger_id(wrap->get_id());
+  env->set_init_trigger_async_id(wrap->get_async_id());
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
@@ -503,7 +498,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope scope(env->isolate());
-  AsyncHooks::InitScope init_scope(env, parent->get_id());
+  AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
   Local<Object> instance = env->udp_constructor_function()

@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -32,6 +31,15 @@ function onStream(stream, headers, flags) {
                   type: Error,
                   message: status101regex
                 }));
+
+  common.expectsError(
+    () => stream.additionalHeaders({ ':method': 'POST' }),
+    {
+      code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
+      type: Error,
+      message: '":method" is an invalid pseudoheader or is used incorrectly'
+    }
+  );
 
   // Can send more than one
   stream.additionalHeaders({ ':status': 100 });

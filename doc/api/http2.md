@@ -9,14 +9,12 @@ can be accessed using:
 const http2 = require('http2');
 ```
 
-*Note*: Node.js must be launched with the `--expose-http2` command line flag
-in order to use the `'http2'` module.
-
 ## Core API
 
 The Core API provides a low-level interface designed specifically around
 support for HTTP/2 protocol features. It is specifically *not* designed for
-compatibility with the existing [HTTP/1][] module API. However, the [Compatibility API][] is.
+compatibility with the existing [HTTP/1][] module API. However,
+the [Compatibility API][] is.
 
 The following illustrates a simple, plain-text HTTP/2 server using the
 Core API:
@@ -1146,7 +1144,8 @@ of the given file:
 
 If an error occurs while attempting to read the file data, the `Http2Stream`
 will be closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR`
-code.
+code. If the `onError` callback is defined it will be called, otherwise
+the stream will be destroyed.
 
 Example using a file path:
 
@@ -1169,7 +1168,7 @@ server.on('stream', (stream) => {
 
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
-                         { statCheck });
+                         { statCheck, onError });
 });
 ```
 
@@ -1305,7 +1304,7 @@ added: v8.4.0
 * `response` {http2.Http2ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per session. See the [Compatibility API](compatiblity-api).
+per session. See the [Compatibility API][].
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1413,7 +1412,7 @@ added: v8.4.0
 * `response` {http2.Http2ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per session. See the [Compatibility API](compatiblity-api).
+per session. See the [Compatibility API][].
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1915,8 +1914,8 @@ req.end('Jane');
 
 The Compatibility API has the goal of providing a similar developer experience
 of HTTP/1 when using HTTP/2, making it possible to develop applications
-that supports both [HTTP/1](HTTP/1) and HTTP/2. This API targets only the
-**public API** of the [HTTP/1](HTTP/1), however many modules uses internal
+that supports both [HTTP/1][] and HTTP/2. This API targets only the
+**public API** of the [HTTP/1][], however many modules uses internal
 methods or state, and those _are not supported_ as it is a completely
 different implementation.
 
@@ -1976,7 +1975,7 @@ function onRequest(req, res) {
 }
 ```
 
-The `'request'` event works identically on both [HTTPS](https) and
+The `'request'` event works identically on both [HTTPS][] and
 HTTP/2.
 
 ### Class: http2.Http2ServerRequest
@@ -2605,7 +2604,7 @@ added: v8.4.0
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
 
-For compatibility with [HTTP/1](), a human-readable `statusMessage` may be
+For compatibility with [HTTP/1][], a human-readable `statusMessage` may be
 passed as the second argument. However, because the `statusMessage` has no
 meaning within HTTP/2, the argument will have no effect and a process warning
 will be emitted.

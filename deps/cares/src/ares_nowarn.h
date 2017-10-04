@@ -25,9 +25,9 @@ short aresx_sitoss(int sinum);
 
 int aresx_sltosi(long slnum);
 
-int aresx_sztosi(ssize_t sznum);
+int aresx_sztosi(ares_ssize_t sznum);
 
-unsigned int aresx_sztoui(ssize_t sznum);
+unsigned int aresx_sztoui(ares_ssize_t sznum);
 
 unsigned short aresx_sitous(int sinum);
 

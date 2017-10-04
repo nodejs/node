@@ -1,10 +1,7 @@
-#include "node.h"
+#include "node_internals.h"
 #include "node_buffer.h"
 #include "base-object.h"
 #include "base-object-inl.h"
-#include "env.h"
-#include "env-inl.h"
-#include "v8.h"
 
 namespace node {
 

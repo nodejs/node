@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -6,6 +5,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 const path = require('path');
+
+const {
+  HTTP2_HEADER_CONTENT_TYPE,
+  HTTP2_HEADER_METHOD
+} = http2.constants;
 
 const optionsWithTypeError = {
   offset: 'number',
@@ -55,7 +59,7 @@ server.on('stream', common.mustCall((stream) => {
   // Should throw if :status 204, 205 or 304
   [204, 205, 304].forEach((status) => common.expectsError(
     () => stream.respondWithFile(fname, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
       ':status': status,
     }),
     {
@@ -64,13 +68,31 @@ server.on('stream', common.mustCall((stream) => {
     }
   ));
 
+  // should emit an error on the stream if headers aren't valid
+  stream.respondWithFile(fname, {
+    [HTTP2_HEADER_METHOD]: 'POST'
+  }, {
+    statCheck: common.mustCall(() => {
+      // give time to the current test case to finish
+      process.nextTick(continueTest, stream);
+      return true;
+    })
+  });
+  stream.once('error', common.expectsError({
+    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
+    type: Error,
+    message: '":method" is an invalid pseudoheader or is used incorrectly'
+  }));
+}));
+
+function continueTest(stream) {
   // Should throw if headers already sent
   stream.respond({
     ':status': 200,
   });
   common.expectsError(
     () => stream.respondWithFile(fname, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
@@ -82,14 +104,14 @@ server.on('stream', common.mustCall((stream) => {
   stream.destroy();
   common.expectsError(
     () => stream.respondWithFile(fname, {
-      [http2.constants.HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+      [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
     }),
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
       message: 'The stream has been destroyed'
     }
   );
-}));
+}
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);

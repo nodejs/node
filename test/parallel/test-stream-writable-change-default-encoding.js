@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
@@ -55,13 +55,17 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
   m.end();
 }());
 
-assert.throws(function changeDefaultEncodingToInvalidValue() {
+common.expectsError(function changeDefaultEncodingToInvalidValue() {
   const m = new MyWritable(function(isBuffer, type, enc) {
   }, { decodeStrings: false });
   m.setDefaultEncoding({});
   m.write('bar');
   m.end();
-}, /^TypeError: Unknown encoding: \[object Object\]$/);
+}, {
+  type: TypeError,
+  code: 'ERR_UNKNOWN_ENCODING',
+  message: 'Unknown encoding: [object Object]'
+});
 
 (function checkVairableCaseEncoding() {
   const m = new MyWritable(function(isBuffer, type, enc) {

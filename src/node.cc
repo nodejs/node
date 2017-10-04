@@ -244,9 +244,6 @@ std::string config_warning_file;  // NOLINT(runtime/string)
 // that is used by lib/internal/bootstrap_node.js
 bool config_expose_internals = false;
 
-// Set in node.cc by ParseArgs when --expose-http2 is used.
-bool config_expose_http2 = false;
-
 bool v8_initialized = false;
 
 bool linux_at_secure = false;
@@ -1159,12 +1156,10 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
-bool DomainEnter(Environment* env, Local<Object> object) {
+void DomainEnter(Environment* env, Local<Object> object) {
   Local<Value> domain_v = object->Get(env->domain_string());
   if (domain_v->IsObject()) {
     Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
     Local<Value> enter_v = domain->Get(env->enter_string());
     if (enter_v->IsFunction()) {
       if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
@@ -1173,16 +1168,13 @@ bool DomainEnter(Environment* env, Local<Object> object) {
       }
     }
   }
-  return false;
 }
 
 
-bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
+void DomainExit(Environment* env, v8::Local<v8::Object> object) {
   Local<Value> domain_v = object->Get(env->domain_string());
   if (domain_v->IsObject()) {
     Local<Object> domain = domain_v.As<Object>();
-    if (domain->Get(env->disposed_string())->IsTrue())
-      return true;
     Local<Value> exit_v = domain->Get(env->exit_string());
     if (exit_v->IsFunction()) {
       if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
@@ -1191,7 +1183,6 @@ bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
       }
     }
   }
-  return false;
 }
 
 
@@ -1345,30 +1336,6 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
   env->AddPromiseHook(fn, arg);
 }
 
-class InternalCallbackScope {
- public:
-  InternalCallbackScope(Environment* env,
-                        Local<Object> object,
-                        const async_context& asyncContext);
-  ~InternalCallbackScope();
-  void Close();
-
-  inline bool Failed() const { return failed_; }
-  inline void MarkAsFailed() { failed_ = true; }
-  inline bool IsInnerMakeCallback() const {
-    return callback_scope_.in_makecallback();
-  }
-
- private:
-  Environment* env_;
-  async_context async_context_;
-  v8::Local<v8::Object> object_;
-  Environment::AsyncCallbackScope callback_scope_;
-  bool failed_ = false;
-  bool pushed_ids_ = false;
-  bool closed_ = false;
-};
-
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context asyncContext)
@@ -1387,20 +1354,22 @@ CallbackScope::~CallbackScope() {
 
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
-                                             const async_context& asyncContext)
+                                             const async_context& asyncContext,
+                                             ResourceExpectation expect)
   : env_(env),
     async_context_(asyncContext),
     object_(object),
     callback_scope_(env) {
-  CHECK(!object.IsEmpty());
+  if (expect == kRequireResource) {
+    CHECK(!object.IsEmpty());
+  }
 
+  HandleScope handle_scope(env->isolate());
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  if (env->using_domains()) {
-    failed_ = DomainEnter(env, object_);
-    if (failed_)
-      return;
+  if (env->using_domains() && !object_.IsEmpty()) {
+    DomainEnter(env, object_);
   }
 
   if (asyncContext.async_id != 0) {
@@ -1409,7 +1378,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
 
-  env->async_hooks()->push_ids(async_context_.async_id,
+  env->async_hooks()->push_async_ids(async_context_.async_id,
                                async_context_.trigger_async_id);
   pushed_ids_ = true;
 }
@@ -1421,9 +1390,10 @@ InternalCallbackScope::~InternalCallbackScope() {
 void InternalCallbackScope::Close() {
   if (closed_) return;
   closed_ = true;
+  HandleScope handle_scope(env_->isolate());
 
   if (pushed_ids_)
-    env_->async_hooks()->pop_ids(async_context_.async_id);
+    env_->async_hooks()->pop_async_id(async_context_.async_id);
 
   if (failed_) return;
 
@@ -1431,9 +1401,8 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (env_->using_domains()) {
-    failed_ = DomainExit(env_, object_);
-    if (failed_) return;
+  if (env_->using_domains() && !object_.IsEmpty()) {
+    DomainExit(env_, object_);
   }
 
   if (IsInnerMakeCallback()) {
@@ -1448,8 +1417,8 @@ void InternalCallbackScope::Close() {
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env_->current_async_id(), 0);
-  CHECK_EQ(env_->trigger_id(), 0);
+  CHECK_EQ(env_->execution_async_id(), 0);
+  CHECK_EQ(env_->trigger_async_id(), 0);
 
   Local<Object> process = env_->process_object();
 
@@ -1458,8 +1427,8 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  CHECK_EQ(env_->current_async_id(), 0);
-  CHECK_EQ(env_->trigger_id(), 0);
+  CHECK_EQ(env_->execution_async_id(), 0);
+  CHECK_EQ(env_->trigger_async_id(), 0);
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
@@ -1472,6 +1441,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
                                        int argc,
                                        Local<Value> argv[],
                                        async_context asyncContext) {
+  CHECK(!recv.IsEmpty());
   InternalCallbackScope scope(env, recv, asyncContext);
   if (scope.Failed()) {
     return Undefined(env->isolate());
@@ -3780,7 +3750,16 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
-  f->Call(Null(env->isolate()), 1, &arg);
+  auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
+  // If there was an error during bootstrap then it was either handled by the
+  // FatalException handler or it's unrecoverable (e.g. max call stack
+  // exceeded). Either way, clear the stack so that the AsyncCallbackScope
+  // destructor doesn't fail on the id check.
+  // There are only two ways to have a stack size > 1: 1) the user manually
+  // called MakeCallback or 2) user awaited during bootstrap, which triggered
+  // _tickCallback().
+  if (ret.IsEmpty())
+    env->async_hooks()->clear_async_id_stack();
 }
 
 static void PrintHelp() {
@@ -3819,7 +3798,6 @@ static void PrintHelp() {
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
-         "  --expose-http2             enable experimental HTTP2 support\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
@@ -3893,6 +3871,8 @@ static void PrintHelp() {
          "NODE_PATH                    ':'-separated list of directories\n"
 #endif
          "                             prefixed to the module search path\n"
+         "NODE_PENDING_DEPRECATION     set to 1 to emit pending deprecation\n"
+         "                             warnings\n"
          "NODE_REPL_HISTORY            path to the persistent REPL history\n"
          "                             file\n"
          "NODE_REDIRECT_WARNINGS       write warnings to path instead of\n"
@@ -3940,9 +3920,10 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--no-deprecation",
     "--trace-deprecation",
     "--throw-deprecation",
+    "--pending-deprecation",
     "--no-warnings",
     "--napi-modules",
-    "--expose-http2",
+    "--expose-http2",   // keep as a non-op through v9.x
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
@@ -4144,7 +4125,7 @@ static void ParseArgs(int* argc,
       config_expose_internals = true;
     } else if (strcmp(arg, "--expose-http2") == 0 ||
                strcmp(arg, "--expose_http2") == 0) {
-      config_expose_http2 = true;
+      // Keep as a non-op through v9.x
     } else if (strcmp(arg, "-") == 0) {
       break;
     } else if (strcmp(arg, "--") == 0) {
@@ -4721,9 +4702,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
-    env.async_hooks()->push_ids(1, 0);
+    env.async_hooks()->push_async_ids(1, 0);
     LoadEnvironment(&env);
-    env.async_hooks()->pop_ids(1);
+    env.async_hooks()->pop_async_id(1);
   }
 
   env.set_trace_sync_io(trace_sync_io);
@@ -4735,9 +4716,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
+      v8_platform.DrainVMTasks();
+
+      more = uv_loop_alive(env.event_loop());
+      if (more)
+        continue;
+
       EmitBeforeExit(&env);
 
-      v8_platform.DrainVMTasks();
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env.event_loop());

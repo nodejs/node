@@ -22,7 +22,8 @@ const bench = common.createBenchmark(main, {
     'Error',
     'Array',
     'TypedArray',
-    'TypedArray_extra'
+    'TypedArray_extra',
+    'Number'
   ],
   option: Object.keys(opts)
 });
@@ -91,6 +92,9 @@ function main({ method, n, option }) {
       obj.foo = 'bar';
       obj[Symbol('baz')] = 5;
       benchmark(n, obj, options);
+      break;
+    case 'Number':
+      benchmark(n, 0, options);
       break;
     default:
       throw new Error(`Unsupported method "${method}"`);

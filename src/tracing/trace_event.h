@@ -5,8 +5,6 @@
 #ifndef SRC_TRACING_TRACE_EVENT_H_
 #define SRC_TRACING_TRACE_EVENT_H_
 
-#include <stddef.h>
-
 #include "node_platform.h"
 #include "v8-platform.h"
 #include "trace_event_common.h"
@@ -30,7 +28,7 @@ enum CategoryGroupEnabledFlags {
   kEnabledForETWExport_CategoryGroupEnabledFlags = 1 << 3,
 };
 
-// By default, const char* asrgument values are assumed to have long-lived scope
+// By default, const char* argument values are assumed to have long-lived scope
 // and will not be copied. Use this macro to force a const char* to be copied.
 #define TRACE_STR_COPY(str) node::tracing::TraceStringWithCopy(str)
 

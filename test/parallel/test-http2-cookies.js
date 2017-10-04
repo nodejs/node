@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -11,7 +10,8 @@ const server = h2.createServer();
 
 const setCookie = [
   'a=b',
-  'c=d; Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly'
+  'c=d; Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly',
+  'e=f'
 ];
 
 // we use the lower-level API here

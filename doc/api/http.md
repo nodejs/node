@@ -321,14 +321,6 @@ added: v1.4.1
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
-### Event: 'aborted'
-<!-- YAML
-added: v0.3.8
--->
-
-Emitted when the request has been aborted by the server and the network
-socket has closed.
-
 ### Event: 'connect'
 <!-- YAML
 added: v0.7.0
@@ -426,6 +418,16 @@ added: v0.5.3
 * `socket` {net.Socket}
 
 Emitted after a socket is assigned to this request.
+
+### Event: 'timeout'
+<!-- YAML
+added: v0.7.8
+-->
+
+Emitted when the underlying socket times out from inactivity. This only notifies
+that the socket has been idle. The request must be aborted manually.
+
+See also: [`request.setTimeout()`][]
 
 ### Event: 'upgrade'
 <!-- YAML
@@ -1457,8 +1459,7 @@ following additional events, methods, and properties.
 added: v0.3.8
 -->
 
-Emitted when the request has been aborted by the client and the network
-socket has closed.
+Emitted when the request has been aborted and the network socket has closed.
 
 ### Event: 'close'
 <!-- YAML
@@ -1949,7 +1950,7 @@ const req = http.request(options, (res) => {
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
-[`getHeader(name)`]: #requestgetheadername
+[`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
@@ -1964,8 +1965,9 @@ const req = http.request(options, (res) => {
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
-[`removeHeader(name)`]: #requestremoveheadername
+[`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
+[`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket`]: #http_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
@@ -1977,7 +1979,7 @@ const req = http.request(options, (res) => {
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
 [`server.timeout`]: #http_server_timeout
-[`setHeader(name, value)`]: #requestsetheadername-value
+[`setHeader(name, value)`]: #http_request_setheader_name_value
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
 [`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback

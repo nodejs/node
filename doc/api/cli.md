@@ -53,6 +53,10 @@ changes:
 Evaluate the following argument as JavaScript. The modules which are
 predefined in the REPL can also be used in `script`.
 
+*Note*: On Windows, using `cmd.exe` a single quote will not work correctly
+because it only recognizes double `"` for quoting. In Powershell or
+Git bash, both `'` and `"` are usable.
+
 
 ### `-p`, `--print "script"`
 <!-- YAML
@@ -170,13 +174,6 @@ added: v6.0.0
 -->
 
 Silence all process warnings (including deprecations).
-
-### `--expose-http2`
-<!-- YAML
-added: v8.4.0
--->
-
-Enable the experimental `'http2'` module.
 
 ### `--abort-on-uncaught-exception`
 <!-- YAML

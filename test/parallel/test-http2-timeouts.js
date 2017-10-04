@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -14,6 +13,32 @@ server.on('stream', common.mustCall((stream) => {
     stream.respond({ ':status': 200 });
     stream.end('hello world');
   }));
+
+  // check that expected errors are thrown with wrong args
+  common.expectsError(
+    () => stream.setTimeout('100'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "msecs" argument must be of type number'
+    }
+  );
+  common.expectsError(
+    () => stream.setTimeout(0, Symbol('test')),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function'
+    }
+  );
+  common.expectsError(
+    () => stream.setTimeout(100, {}),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function'
+    }
+  );
 }));
 server.listen(0);
 

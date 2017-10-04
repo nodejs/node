@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -34,7 +33,10 @@ server.listen(0, common.mustCall(function() {
     response.on('finish', common.mustCall(function() {
       assert.strictEqual(request.closed, true);
       assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
-      server.close();
+      process.nextTick(() => {
+        assert.strictEqual(request.socket, undefined);
+        server.close();
+      });
     }));
     response.end();
   }));

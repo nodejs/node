@@ -118,7 +118,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   req.oncomplete = () => { };
 
   testUninitialized(req, 'FSReqWrap');
-  binding.access(path._makeLong('../'), fs.F_OK, req);
+  binding.access(path.toNamespacedPath('../'), fs.F_OK, req);
   testInitialized(req, 'FSReqWrap');
 
   const StatWatcher = binding.StatWatcher;
@@ -272,4 +272,11 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   req.oncomplete = () => handle.close();
   handle.send(req, [Buffer.alloc(1)], 1, req.port, req.address, true);
   testInitialized(req, 'SendWrap');
+}
+
+if (process.config.variables.v8_enable_inspector !== 0) {
+  const binding = process.binding('inspector');
+  const handle = new binding.Connection(() => {});
+  testInitialized(handle, 'Connection');
+  handle.disconnect();
 }

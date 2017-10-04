@@ -36,7 +36,8 @@ const eid = async_hooks.executionAsyncId();
 const tid = async_hooks.triggerAsyncId();
 
 // Create a new AsyncHook instance. All of these callbacks are optional.
-const asyncHook = async_hooks.createHook({ init, before, after, destroy });
+const asyncHook =
+    async_hooks.createHook({ init, before, after, destroy, promiseResolve });
 
 // Allow callbacks of this AsyncHook instance to call. This is not an implicit
 // action after running the constructor, and must be explicitly run to begin
@@ -65,6 +66,11 @@ function after(asyncId) { }
 
 // destroy is called when an AsyncWrap instance is destroyed.
 function destroy(asyncId) { }
+
+// promiseResolve is called only for promise resources, when the
+// `resolve` function passed to the `Promise` constructor is invoked
+// (either directly or through other means of resolving a promise).
+function promiseResolve(asyncId) { }
 ```
 
 #### `async_hooks.createHook(callbacks)`
@@ -73,12 +79,12 @@ function destroy(asyncId) { }
 added: REPLACEME
 -->
 
-* `callbacks` {Object} the [Hook Callbacks][] to register
+* `callbacks` {Object} The [Hook Callbacks][] to register
   * `init` {Function} The [`init` callback][].
   * `before` {Function} The [`before` callback][].
   * `after` {Function} The [`after` callback][].
   * `destroy` {Function} The [`destroy` callback][].
-* Returns: `{AsyncHook}` instance used for disabling and enabling hooks
+* Returns: `{AsyncHook}` Instance used for disabling and enabling hooks
 
 Registers functions to be called for different lifetime events of each async
 operation.
@@ -162,7 +168,7 @@ doing this the otherwise infinite recursion is broken.
 
 #### `asyncHook.enable()`
 
-* Returns {AsyncHook} A reference to `asyncHook`.
+* Returns: {AsyncHook} A reference to `asyncHook`.
 
 Enable the callbacks for a given `AsyncHook` instance. If no callbacks are
 provided enabling is a noop.
@@ -178,7 +184,7 @@ const hook = async_hooks.createHook(callbacks).enable();
 
 #### `asyncHook.disable()`
 
-* Returns {AsyncHook} A reference to `asyncHook`.
+* Returns: {AsyncHook} A reference to `asyncHook`.
 
 Disable the callbacks for a given `AsyncHook` instance from the global pool of
 AsyncHook callbacks to be executed. Once a hook has been disabled it will not
@@ -194,12 +200,12 @@ instance is destructed.
 
 ##### `init(asyncId, type, triggerAsyncId, resource)`
 
-* `asyncId` {number} a unique ID for the async resource
-* `type` {string} the type of the async resource
-* `triggerAsyncId` {number} the unique ID of the async resource in whose
-  execution context this async resource was created
-* `resource` {Object} reference to the resource representing the async operation,
-  needs to be released during _destroy_
+* `asyncId` {number} A unique ID for the async resource.
+* `type` {string} The type of the async resource.
+* `triggerAsyncId` {number} The unique ID of the async resource in whose
+  execution context this async resource was created.
+* `resource` {Object} Reference to the resource representing the async operation,
+  needs to be released during _destroy_.
 
 Called when a class is constructed that has the _possibility_ to emit an
 asynchronous event. This _does not_ mean the instance must call
@@ -430,9 +436,39 @@ reference is made to the `resource` object passed to `init` it is possible that
 the resource does not depend on garbage collection, then this will not be an
 issue.
 
+##### `promiseResolve(asyncId)`
+
+* `asyncId` {number}
+
+Called when the `resolve` function passed to the `Promise` constructor is
+invoked (either directly or through other means of resolving a promise).
+
+Note that `resolve()` does not do any observable synchronous work.
+
+*Note:* This does not necessarily mean that the `Promise` is fulfilled or
+rejected at this point, if the `Promise` was resolved by assuming the state
+of another `Promise`.
+
+For example:
+
+```js
+new Promise((resolve) => resolve(true)).then((a) => {});
+```
+
+calls the following callbacks:
+
+```
+init for PROMISE with id 5, trigger id: 1
+  promise resolve 5      # corresponds to resolve(true)
+init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
+  before 6               # the then() callback is entered
+  promise resolve 6      # the then() callback resolves the promise by returning
+  after 6
+```
+
 #### `async_hooks.executionAsyncId()`
 
-* Returns {number} the `asyncId` of the current execution context. Useful to
+* Returns: {number} The `asyncId` of the current execution context. Useful to
   track when something calls.
 
 For example:
@@ -466,7 +502,7 @@ const server = net.createServer(function onConnection(conn) {
 
 #### `async_hooks.triggerAsyncId()`
 
-* Returns {number} the ID of the resource responsible for calling the callback
+* Returns: {number} The ID of the resource responsible for calling the callback
   that is currently being executed.
 
 For example:
@@ -533,9 +569,9 @@ asyncResource.triggerAsyncId();
 #### `AsyncResource(type[, triggerAsyncId])`
 
 * arguments
-  * `type` {string} the type of async event
-  * `triggerAsyncId` {number} the ID of the execution context that created this
-    async event
+  * `type` {string} The type of async event.
+  * `triggerAsyncId` {number} The ID of the execution context that created this
+    async event.
 
 Example usage:
 
@@ -563,7 +599,7 @@ class DBQuery extends AsyncResource {
 
 #### `asyncResource.emitBefore()`
 
-* Returns {undefined}
+* Returns: {undefined}
 
 Call all `before` callbacks to notify that a new asynchronous execution context
 is being entered. If nested calls to `emitBefore()` are made, the stack of
@@ -571,7 +607,7 @@ is being entered. If nested calls to `emitBefore()` are made, the stack of
 
 #### `asyncResource.emitAfter()`
 
-* Returns {undefined}
+* Returns: {undefined}
 
 Call all `after` callbacks. If nested calls to `emitBefore()` were made, then
 make sure the stack is unwound properly. Otherwise an error will be thrown.
@@ -582,7 +618,7 @@ called for all `asyncId`s on the stack if the error is handled by a domain or
 
 #### `asyncResource.emitDestroy()`
 
-* Returns {undefined}
+* Returns: {undefined}
 
 Call all `destroy` hooks. This should only ever be called once. An error will
 be thrown if it is called more than once. This **must** be manually called. If
@@ -591,11 +627,11 @@ never be called.
 
 #### `asyncResource.asyncId()`
 
-* Returns {number} the unique `asyncId` assigned to the resource.
+* Returns: {number} The unique `asyncId` assigned to the resource.
 
 #### `asyncResource.triggerAsyncId()`
 
-* Returns {number} the same `triggerAsyncId` that is passed to the `AsyncResource`
+* Returns: {number} The same `triggerAsyncId` that is passed to the `AsyncResource`
 constructor.
 
 [`after` callback]: #async_hooks_after_asyncid

@@ -77,7 +77,7 @@ napi_value Init(napi_env env, napi_value exports) {
   };
 
   napi_value cons;
-  NAPI_CALL(env, napi_define_class(env, "MyObject", -1, New,
+  NAPI_CALL(env, napi_define_class(env, "MyObject", NAPI_AUTO_LENGTH, New,
       NULL, sizeof(properties)/sizeof(*properties), properties, &cons));
 
   NAPI_CALL(env, napi_create_reference(env, cons, 1, &constructor_));

@@ -12,7 +12,6 @@
 #include "v8.h"
 #include "uv.h"
 
-#include <limits>
 #include <string>
 
 namespace node {
@@ -40,8 +39,6 @@ static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
 #undef V
   return NODE_PERFORMANCE_ENTRY_TYPE_INVALID;
 }
-
-const double MAX_DOUBLE = std::numeric_limits<double>::max();
 
 NODE_EXTERN inline void MarkPerformanceMilestone(
     Environment* env,
@@ -73,11 +70,11 @@ class PerformanceEntry : public BaseObject {
       return env_;
     }
 
-    std::string name() const {
+    const std::string& name() const {
       return name_;
     }
 
-    std::string type() const {
+    const std::string& type() const {
       return type_;
     }
 
@@ -94,12 +91,12 @@ class PerformanceEntry : public BaseObject {
     }
 
    private:
-    Environment* env_;
-    std::string name_;
-    std::string type_;
-    uint64_t startTime_;
-    uint64_t endTime_;
-    int data_;
+    Environment* const env_;
+    const std::string name_;
+    const std::string type_;
+    const uint64_t startTime_;
+    const uint64_t endTime_;
+    const int data_;
   };
 
   static void NotifyObservers(Environment* env, PerformanceEntry* entry);
@@ -135,11 +132,11 @@ class PerformanceEntry : public BaseObject {
 
   ~PerformanceEntry() {}
 
-  std::string name() const {
+  const std::string& name() const {
     return name_;
   }
 
-  std::string type() const {
+  const std::string& type() const {
     return type_;
   }
 
@@ -160,10 +157,10 @@ class PerformanceEntry : public BaseObject {
   }
 
  private:
-  std::string name_;
-  std::string type_;
-  uint64_t startTime_;
-  uint64_t endTime_;
+  const std::string name_;
+  const std::string type_;
+  const uint64_t startTime_;
+  const uint64_t endTime_;
 };
 
 enum PerformanceGCKind {
