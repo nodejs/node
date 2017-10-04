@@ -2857,6 +2857,7 @@ static bool PullFromCache(Environment* env,
                           const FunctionCallbackInfo<Value>& args,
                           Local<String> module,
                           Local<Object> cache) {
+  Local<Context> context = env->context();
   Local<Value> exports_v;
   Local<Object> exports;
   if (cache->Get(context, module).ToLocal(&exports_v) &&
@@ -2964,7 +2965,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<String> module_name;
-  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+  if (!args[0]->ToString(env->context()).ToLocal(&module_name)) return;
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module_name);
