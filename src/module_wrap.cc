@@ -7,6 +7,7 @@
 #include "node_url.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_internals.h"
 
 namespace node {
 namespace loader {

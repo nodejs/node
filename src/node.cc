@@ -2558,7 +2558,9 @@ extern "C" void node_module_register(void* m) {
   }
 }
 
-inline struct node_module* FindModule(struct node_module* list, const char* name, int flag) {
+inline struct node_module* FindModule(struct node_module* list,
+                                      const char* name,
+                                      int flag) {
   struct node_module* mp;
 
   for (mp = list; mp != nullptr; mp = mp->nm_link) {
@@ -2858,7 +2860,8 @@ static bool PullFromCache(Environment* env,
   Local<Object> exports;
   Local<Context> context = env->context();
   if (cache->Has(context, module).FromJust()) {
-    exports = cache->Get(context, module)->ToObject(context, env->isolate());
+    exports = cache->Get(context, module).ToLocalChecked()->
+        ToObject(context).ToLocalChecked();
     args.GetReturnValue().Set(exports);
     return true;
   }
@@ -2889,9 +2892,17 @@ static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
   env->ThrowError(errmsg);
 }
 
+static void ThrowInvalidBindingName(Environment* env) {
+  env->ThrowError("Invalid binding name");
+}
+
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<String> module = args[0]->ToString(env->isolate());
+  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
+  if (maybe_module.IsEmpty()) {
+    return ThrowInvalidBindingName(env);
+  }
+  Local<String> module = maybe_module.ToLocalChecked();
   Local<Object> cache = env->binding_cache_object();
 
   if (PullFromCache(env, args, module, cache))
@@ -2928,7 +2939,11 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
 static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<String> module = args[0]->ToString(env->context());
+  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
+  if (maybe_module.IsEmpty()) {
+    return ThrowInvalidBindingName(env);
+  }
+  Local<String> module = maybe_module.ToLocalChecked();
   Local<Object> cache = env->internal_binding_cache_object();
 
   if (PullFromCache(env, args, module, cache))
@@ -2944,7 +2959,7 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
   modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_internal_module(*module_v);
-  if (mod === nullptr) return ThrowIfNoSuchModule(env, *module_v);
+  if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
   Local<Object> exports = InitModule(env, mod, module);
   cache->Set(module, exports);
 
@@ -2954,7 +2969,11 @@ static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module_name = args[0]->ToString(env->isolate());
+  MaybeLocal<String> maybe_module = args[0]->ToString(env->context());
+  if (maybe_module.IsEmpty()) {
+    return ThrowInvalidBindingName(env);
+  }
+  Local<String> module_name = maybe_module.ToLocalChecked();
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module_name);
