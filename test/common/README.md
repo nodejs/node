@@ -418,14 +418,16 @@ The `DNS` module provides a naïve DNS parser/serializer.
 * `offset` [&lt;Number>]
 * return [&lt;Object>]
 
-Reads the domain string from a packet and returns an object containing the number of bytes read and the domain.
+Reads the domain string from a packet and returns an object containing the
+number of bytes read and the domain.
 
 ### parseDNSPacket(buffer)
 
 * `buffer` [&lt;Buffer>]
 * return [&lt;Object>]
 
-Parses a DNS packet. Returns an object with the values of the various flags of the packet depending on the type of packet.
+Parses a DNS packet. Returns an object with the values of the various flags of
+the packet depending on the type of packet.
 
 ### writeIPv6(ip)
 
@@ -446,7 +448,8 @@ Reads a Domain String and returns a Buffer containing the domain.
 * `parsed` [&lt;Object>]
 * return [&lt;Buffer>]
 
-Takes in a parsed Object and writes its fields to a DNS packet as a Buffer object.
+Takes in a parsed Object and writes its fields to a DNS packet as a Buffer
+object.
 
 ## Fixtures Module
 
