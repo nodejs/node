@@ -4,8 +4,13 @@ const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const signals = process.binding('constants').os.signals;
 
-const invalidArgTypeError =
-  common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
+if (common.isWindows()) {
+  const invalidArgTypeError =
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 36);
+} else {
+  const invalidArgTypeError =
+    common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 56);
+}
 
 const invalidRangeError =
   common.expectsError({ code: 'ERR_VALUE_OUT_OF_RANGE', type: RangeError }, 20);
