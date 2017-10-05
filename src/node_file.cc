@@ -827,24 +827,15 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void RealPath(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);
   Environment* env = Environment::GetCurrent(args);
-
-  const int argc = args.Length();
-
-  if (argc < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
   ASSERT_PATH(path)
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
-  Local<Value> callback = Null(env->isolate());
-  if (argc == 3)
-    callback = args[2];
-
-  if (callback->IsObject()) {
-    ASYNC_CALL(realpath, callback, encoding, *path);
+  if (args[2]->IsObject()) {
+    ASYNC_CALL(realpath, args[2], encoding, *path);
   } else {
     SYNC_CALL(realpath, *path, *path);
     const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
