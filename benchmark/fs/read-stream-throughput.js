@@ -33,7 +33,7 @@ function main(conf) {
       throw new Error('invalid type');
   }
 
-  makeFile(runTest);
+  makeFile();
 }
 
 function runTest() {
