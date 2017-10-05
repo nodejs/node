@@ -2341,7 +2341,7 @@ added: v0.4.2
 changes:
    - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11919
-    description: `NaN`, `Infinity`, and `-Infinity` are no longer valid time
+    description: The `NaN`, `Infinity`, and `-Infinity` are no longer valid time
                  specifiers.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
@@ -2377,7 +2377,7 @@ added: v0.4.2
 changes:
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11919
-    description: `NaN`, `Infinity`, and `-Infinity` are no longer valid time
+    description: The `NaN`, `Infinity`, and `-Infinity` are no longer valid time
                  specifiers.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
