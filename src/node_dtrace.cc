@@ -59,76 +59,76 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-#define SLURP_STRING(obj, member, valp) \
-  if (!(obj)->IsObject()) { \
-    return env->ThrowError( \
+#define SLURP_STRING(obj, member, valp)                                    \
+  if (!(obj)->IsObject()) {                                                \
+    return env->ThrowError(                                                \
         "expected object for " #obj " to contain string member " #member); \
-  } \
-  node::Utf8Value _##member(env->isolate(), \
-      obj->Get(OneByteString(env->isolate(), #member))); \
-  if ((*(const char **)valp = *_##member) == nullptr) \
+  }                                                                        \
+  node::Utf8Value _##member(env->isolate(),                                \
+      obj->Get(OneByteString(env->isolate(), #member)));                   \
+  if ((*(const char **)valp = *_##member) == nullptr)                      \
     *(const char **)valp = "<unknown>";
 
-#define SLURP_INT(obj, member, valp) \
-  if (!(obj)->IsObject()) { \
-    return env->ThrowError( \
-      "expected object for " #obj " to contain integer member " #member); \
-  } \
-  *valp = obj->Get(OneByteString(env->isolate(), #member)) \
+#define SLURP_INT(obj, member, valp)                                       \
+  if (!(obj)->IsObject()) {                                                \
+    return env->ThrowError(                                                \
+      "expected object for " #obj " to contain integer member " #member);  \
+  }                                                                        \
+  *valp = obj->Get(OneByteString(env->isolate(), #member))                 \
       ->Int32Value();
 
-#define SLURP_OBJECT(obj, member, valp) \
-  if (!(obj)->IsObject()) { \
-    return env->ThrowError( \
-      "expected object for " #obj " to contain object member " #member); \
-  } \
+#define SLURP_OBJECT(obj, member, valp)                                    \
+  if (!(obj)->IsObject()) {                                                \
+    return env->ThrowError(                                                \
+      "expected object for " #obj " to contain object member " #member);   \
+  }                                                                        \
   *valp = Local<Object>::Cast(obj->Get(OneByteString(env->isolate(), #member)));
 
-#define SLURP_CONNECTION(arg, conn) \
-  if (!(arg)->IsObject()) { \
-    return env->ThrowError( \
-      "expected argument " #arg " to be a connection object"); \
-  } \
-  node_dtrace_connection_t conn; \
-  Local<Object> _##conn = Local<Object>::Cast(arg); \
-  Local<Value> _handle = \
-      (_##conn)->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "_handle")); \
-  if (_handle->IsObject()) { \
-    SLURP_INT(_handle.As<Object>(), fd, &conn.fd); \
-  } else { \
-    conn.fd = -1; \
-  } \
-  SLURP_STRING(_##conn, remoteAddress, &conn.remote); \
-  SLURP_INT(_##conn, remotePort, &conn.port); \
+#define SLURP_CONNECTION(arg, conn)                                        \
+  if (!(arg)->IsObject()) {                                                \
+    return env->ThrowError(                                                \
+      "expected argument " #arg " to be a connection object");             \
+  }                                                                        \
+  node_dtrace_connection_t conn;                                           \
+  Local<Object> _##conn = Local<Object>::Cast(arg);                        \
+  Local<Value> _handle =                                                   \
+      (_##conn)->Get(FIXED_ONE_BYTE_STRING(env->isolate(), "_handle"));    \
+  if (_handle->IsObject()) {                                               \
+    SLURP_INT(_handle.As<Object>(), fd, &conn.fd);                         \
+  } else {                                                                 \
+    conn.fd = -1;                                                          \
+  }                                                                        \
+  SLURP_STRING(_##conn, remoteAddress, &conn.remote);                      \
+  SLURP_INT(_##conn, remotePort, &conn.port);                              \
   SLURP_INT(_##conn, bufferSize, &conn.buffered);
 
-#define SLURP_CONNECTION_HTTP_CLIENT(arg, conn) \
-  if (!(arg)->IsObject()) { \
-    return env->ThrowError( \
-      "expected argument " #arg " to be a connection object"); \
-  } \
-  node_dtrace_connection_t conn; \
-  Local<Object> _##conn = Local<Object>::Cast(arg); \
-  SLURP_INT(_##conn, fd, &conn.fd); \
-  SLURP_STRING(_##conn, host, &conn.remote); \
-  SLURP_INT(_##conn, port, &conn.port); \
+#define SLURP_CONNECTION_HTTP_CLIENT(arg, conn)                            \
+  if (!(arg)->IsObject()) {                                                \
+    return env->ThrowError(                                                \
+      "expected argument " #arg " to be a connection object");             \
+  }                                                                        \
+  node_dtrace_connection_t conn;                                           \
+  Local<Object> _##conn = Local<Object>::Cast(arg);                        \
+  SLURP_INT(_##conn, fd, &conn.fd);                                        \
+  SLURP_STRING(_##conn, host, &conn.remote);                               \
+  SLURP_INT(_##conn, port, &conn.port);                                    \
   SLURP_INT(_##conn, bufferSize, &conn.buffered);
 
-#define SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(arg0, arg1, conn) \
-  if (!(arg0)->IsObject()) { \
-    return env->ThrowError( \
-      "expected argument " #arg0 " to be a connection object"); \
-  } \
-  if (!(arg1)->IsObject()) { \
-    return env->ThrowError( \
-      "expected argument " #arg1 " to be a connection object"); \
-  } \
-  node_dtrace_connection_t conn; \
-  Local<Object> _##conn = Local<Object>::Cast(arg0); \
-  SLURP_INT(_##conn, fd, &conn.fd); \
-  SLURP_INT(_##conn, bufferSize, &conn.buffered); \
-  _##conn = Local<Object>::Cast(arg1); \
-  SLURP_STRING(_##conn, host, &conn.remote); \
+#define SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(arg0, arg1, conn)            \
+  if (!(arg0)->IsObject()) {                                               \
+    return env->ThrowError(                                                \
+      "expected argument " #arg0 " to be a connection object");            \
+  }                                                                        \
+  if (!(arg1)->IsObject()) {                                               \
+    return env->ThrowError(                                                \
+      "expected argument " #arg1 " to be a connection object");            \
+  }                                                                        \
+  node_dtrace_connection_t conn;                                           \
+  Local<Object> _##conn = Local<Object>::Cast(arg0);                       \
+  SLURP_INT(_##conn, fd, &conn.fd);                                        \
+  SLURP_INT(_##conn, bufferSize, &conn.buffered);                          \
+  _##conn = Local<Object>::Cast(arg1);                                     \
+  SLURP_STRING(_##conn, host, &conn.remote);                               \
   SLURP_INT(_##conn, port, &conn.port);
 
 
