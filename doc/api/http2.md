@@ -1714,6 +1714,14 @@ changes:
   * `Http1ServerResponse` {http.ServerResponse} Specifies the ServerResponse
     class to used for HTTP/1 fallback. Useful for extending the original
     `http.ServerResponse`. **Default:** `http.ServerResponse`
+  * `Http2ServerRequest` {http2.Http2ServerRequest} Specifies the
+    Http2ServerRequest class to use.
+    Useful for extending the original `Http2ServerRequest`.
+    **Default:** `Http2ServerRequest`
+  * `Http2ServerResponse` {htt2.Http2ServerResponse} Specifies the
+    Http2ServerResponse class to use.
+    Useful for extending the original `Http2ServerResponse`.
+    **Default:** `Http2ServerResponse`
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
 
