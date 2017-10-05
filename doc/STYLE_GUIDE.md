@@ -6,8 +6,6 @@
     topic the document will describe (e.g., `child_process`).
   * Filenames should be **lowercase**.
   * Some files, such as top-level markdown files, are exceptions.
-  * Older files may use the `.markdown` extension. These may be ported to `.md`
-    at will. **Prefer `.md` for all new documents.**
 * Documents should be word-wrapped at 80 characters.
 * The formatting described in `.editorconfig` is preferred.
   * A [plugin][] is available for some editors to automatically apply these
