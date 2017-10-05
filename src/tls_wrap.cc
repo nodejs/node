@@ -66,7 +66,6 @@ TLSWrap::TLSWrap(Environment* env,
       started_(false),
       established_(false),
       shutdown_(false),
-      error_(nullptr),
       cycle_depth_(0),
       eof_(false) {
   node::Wrap(object(), this);
@@ -103,8 +102,6 @@ TLSWrap::~TLSWrap() {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   sni_context_.Reset();
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-
-  ClearError();
 }
 
 
@@ -367,7 +364,7 @@ void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
 }
 
 
-Local<Value> TLSWrap::GetSSLError(int status, int* err, const char** msg) {
+Local<Value> TLSWrap::GetSSLError(int status, int* err, std::string* msg) {
   EscapableHandleScope scope(env()->isolate());
 
   // ssl_ is already destroyed in reading EOF by close notify alert.
@@ -398,13 +395,9 @@ Local<Value> TLSWrap::GetSSLError(int status, int* err, const char** msg) {
             OneByteString(env()->isolate(), mem->data, mem->length);
         Local<Value> exception = Exception::Error(message);
 
-        if (msg != nullptr) {
-          CHECK_EQ(*msg, nullptr);
-          char* const buf = new char[mem->length + 1];
-          memcpy(buf, mem->data, mem->length);
-          buf[mem->length] = '\0';
-          *msg = buf;
-        }
+        if (msg != nullptr)
+          msg->assign(mem->data, mem->data + mem->length);
+
         BIO_free_all(bio);
 
         return scope.Escape(exception);
@@ -516,12 +509,11 @@ bool TLSWrap::ClearIn() {
 
   // Error or partial write
   int err;
-  const char* error_str = nullptr;
+  std::string error_str;
   Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
     MakePending();
-    InvokeQueued(UV_EPROTO, error_str);
-    delete[] error_str;
+    InvokeQueued(UV_EPROTO, error_str.c_str());
     clear_in_->Reset();
   }
 
@@ -570,13 +562,12 @@ int TLSWrap::ReadStop() {
 
 
 const char* TLSWrap::Error() const {
-  return error_;
+  return error_.empty() ? nullptr : error_.c_str();
 }
 
 
 void TLSWrap::ClearError() {
-  delete[] error_;
-  error_ = nullptr;
+  error_.clear();
 }
 
 
@@ -624,11 +615,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   if (ssl_ == nullptr) {
     ClearError();
-
-    static char msg[] = "Write after DestroySSL";
-    char* tmp = new char[sizeof(msg)];
-    memcpy(tmp, msg, sizeof(msg));
-    error_ = tmp;
+    error_ = "Write after DestroySSL";
     return UV_EPROTO;
   }
 
