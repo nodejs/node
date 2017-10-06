@@ -8,18 +8,18 @@ const fs = require('fs');
 
 const bench = common.createBenchmark(main, {
   dur: [5],
-  type: ['buf', 'asc', 'utf'],
+  encodingType: ['buf', 'asc', 'utf'],
   size: [2, 1024, 65535, 1024 * 1024]
 });
 
 function main(conf) {
   const dur = +conf.dur;
-  const type = conf.type;
+  const encodingType = conf.encodingType;
   const size = +conf.size;
   var encoding;
 
   var chunk;
-  switch (type) {
+  switch (encodingType) {
     case 'buf':
       chunk = Buffer.alloc(size, 'b');
       break;
@@ -32,7 +32,7 @@ function main(conf) {
       encoding = 'utf8';
       break;
     default:
-      throw new Error('invalid type');
+      throw new Error(`invalid encodingType: ${encodingType}`);
   }
 
   try { fs.unlinkSync(filename); } catch (e) {}
