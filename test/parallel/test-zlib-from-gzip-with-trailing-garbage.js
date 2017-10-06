@@ -19,7 +19,7 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   assert.strictEqual(
     result.toString(),
     'abcdef',
-    'result should match original string'
+    `result '${result.toString()}' should match original string`
   );
 }));
 
