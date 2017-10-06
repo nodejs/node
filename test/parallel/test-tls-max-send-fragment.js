@@ -20,7 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+const path = require('path');
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -33,8 +36,8 @@ let received = 0;
 const maxChunk = 768;
 
 const server = tls.createServer({
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fs.readFileSync(path.join(fixtures.fixturesDir, `/keys/agent1-key.pem`)),
+  cert: fs.readFileSync(path.join(fixtures.fixturesDir, `/keys/agent1-cert.pem`))
 }, function(c) {
   // Lower and upper limits
   assert(!c.setMaxSendFragment(511));
