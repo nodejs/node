@@ -20,15 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.fixturesDir, 'non-existent');
-const existingFile = path.join(common.fixturesDir, 'exit.js');
-const existingFile2 = path.join(common.fixturesDir, 'create-file.js');
-const existingDir = path.join(common.fixturesDir, 'empty');
-const existingDir2 = path.join(common.fixturesDir, 'keys');
+const fn = fixtures.path('non-existent');
+const existingFile = fixtures.path('exit.js');
+const existingFile2 = fixtures.path('create-file.js');
+const existingDir = fixtures.path('empty');
+const existingDir2 = fixtures.path('keys');
 
 // ASYNC_CALL
 
