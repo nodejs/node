@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixturesDir = require('../common/fixtures').fixturesDir;
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -30,8 +31,8 @@ const https = require('https');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fs.readFileSync(`${fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${fixturesDir}/keys/agent1-cert.pem`)
 };
 
 const tests = 2;
