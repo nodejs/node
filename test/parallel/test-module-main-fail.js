@@ -1,28 +1,22 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const child_process = require('child_process');
-const { promisify } = require('util');
-const execFile = promisify(child_process.execFile);
-
-common.crashOnUnhandledRejection();
+const { execFileSync } = require('child_process');
 
 const entryPoints = ['iDoNotExist', 'iDoNotExist.js', 'iDoNotExist.mjs'];
 const flags = [[], ['--experimental-modules']];
 const node = process.argv[0];
 
-(async () => {
-  for (const args of flags) {
-    for (const entryPoint of entryPoints) {
-      try {
-        await execFile(node, args.concat(entryPoint));
-      } catch (e) {
-        assert.strictEqual(e.stdout, '');
-        assert(e.stderr.match(/Error: Cannot find module/));
-        continue;
-      }
-      throw new Error('Executing node with inexistent entry point should ' +
-                      `fail. Entry point: ${entryPoint}, Flags: [${args}]`);
+for (const args of flags) {
+  for (const entryPoint of entryPoints) {
+    try {
+      execFileSync(node, args.concat(entryPoint), { stdio: 'pipe' });
+    } catch (e) {
+      assert.strictEqual(e.stdout.toString(), '');
+      assert(e.stderr.toString().match(/Error: Cannot find module/));
+      continue;
     }
+    assert.fail('Executing node with inexistent entry point should fail. ' +
+                `Entry point: ${entryPoint}, Flags: [${args}]`);
   }
-})();
+}
