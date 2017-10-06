@@ -95,7 +95,7 @@ static int do_kill(client_ctx *cx);
 static int do_almost_dead(client_ctx *cx);
 static int conn_cycle(const char *who, conn *a, conn *b);
 static void conn_timer_reset(conn *c);
-static void conn_timer_expire(uv_timer_t *handle, int status);
+static void conn_timer_expire(uv_timer_t *handle);
 static void conn_getaddrinfo(conn *c, const char *hostname);
 static void conn_getaddrinfo_done(uv_getaddrinfo_t *req,
                                   int status,
@@ -582,10 +582,9 @@ static void conn_timer_reset(conn *c) {
                             0));
 }
 
-static void conn_timer_expire(uv_timer_t *handle, int status) {
+static void conn_timer_expire(uv_timer_t *handle) {
   conn *c;
 
-  CHECK(0 == status);
   c = CONTAINER_OF(handle, conn, timer_handle);
   c->result = UV_ETIMEDOUT;
   do_next(c->client);

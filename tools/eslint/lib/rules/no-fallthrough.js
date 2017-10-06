@@ -25,7 +25,7 @@ const DEFAULT_FALLTHROUGH_COMMENT = /falls?\s?through/i;
  */
 function hasFallthroughComment(node, context, fallthroughCommentPattern) {
     const sourceCode = context.getSourceCode();
-    const comment = lodash.last(sourceCode.getComments(node).leading);
+    const comment = lodash.last(sourceCode.getCommentsBefore(node));
 
     return Boolean(comment && fallthroughCommentPattern.test(comment.value));
 }

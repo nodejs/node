@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  ********************************************************************
@@ -168,7 +168,7 @@ public:
    * @param mode  The normalization mode.
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  Normalizer(const UChar* str, int32_t length, UNormalizationMode mode);
+  Normalizer(ConstChar16Ptr str, int32_t length, UNormalizationMode mode);
 
   /**
    * Creates a new <code>Normalizer</code> object for iterating over the
@@ -704,7 +704,7 @@ public:
    * @param status a UErrorCode
    * @deprecated ICU 56 Use Normalizer2 instead.
    */
-  void setText(const UChar* newText,
+  void setText(ConstChar16Ptr newText,
                     int32_t length,
             UErrorCode &status);
   /**
@@ -796,8 +796,8 @@ Normalizer::compare(const UnicodeString &s1, const UnicodeString &s2,
                     uint32_t options,
                     UErrorCode &errorCode) {
   // all argument checking is done in unorm_compare
-  return unorm_compare(s1.getBuffer(), s1.length(),
-                       s2.getBuffer(), s2.length(),
+  return unorm_compare(toUCharPtr(s1.getBuffer()), s1.length(),
+                       toUCharPtr(s2.getBuffer()), s2.length(),
                        options,
                        &errorCode);
 }

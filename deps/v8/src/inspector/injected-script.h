@@ -31,8 +31,9 @@
 #ifndef V8_INSPECTOR_INJECTEDSCRIPT_H_
 #define V8_INSPECTOR_INJECTEDSCRIPT_H_
 
+#include <unordered_map>
+
 #include "src/base/macros.h"
-#include "src/inspector/injected-script-native.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -48,66 +49,66 @@ class V8FunctionCall;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
 
-using protocol::ErrorString;
 using protocol::Maybe;
+using protocol::Response;
 
 class InjectedScript final {
  public:
-  static std::unique_ptr<InjectedScript> create(InspectedContext*);
+  static std::unique_ptr<InjectedScript> create(InspectedContext*,
+                                                int sessionId);
   ~InjectedScript();
+  static InjectedScript* fromInjectedScriptHost(v8::Isolate* isolate,
+                                                v8::Local<v8::Object>);
 
   InspectedContext* context() const { return m_context; }
 
-  void getProperties(
-      ErrorString*, v8::Local<v8::Object>, const String16& groupName,
-      bool ownProperties, bool accessorPropertiesOnly, bool generatePreview,
+  Response getProperties(
+      v8::Local<v8::Object>, const String16& groupName, bool ownProperties,
+      bool accessorPropertiesOnly, bool generatePreview,
       std::unique_ptr<protocol::Array<protocol::Runtime::PropertyDescriptor>>*
           result,
       Maybe<protocol::Runtime::ExceptionDetails>*);
   void releaseObject(const String16& objectId);
 
-  std::unique_ptr<protocol::Runtime::RemoteObject> wrapObject(
-      ErrorString*, v8::Local<v8::Value>, const String16& groupName,
-      bool forceValueType = false, bool generatePreview = false) const;
-  bool wrapObjectProperty(ErrorString*, v8::Local<v8::Object>,
-                          v8::Local<v8::Name> key, const String16& groupName,
-                          bool forceValueType = false,
-                          bool generatePreview = false) const;
-  bool wrapPropertyInArray(ErrorString*, v8::Local<v8::Array>,
-                           v8::Local<v8::String> property,
-                           const String16& groupName,
-                           bool forceValueType = false,
-                           bool generatePreview = false) const;
-  bool wrapObjectsInArray(ErrorString*, v8::Local<v8::Array>,
-                          const String16& groupName,
-                          bool forceValueType = false,
-                          bool generatePreview = false) const;
+  Response wrapObject(
+      v8::Local<v8::Value>, const String16& groupName, bool forceValueType,
+      bool generatePreview,
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result) const;
+  Response wrapObjectProperty(v8::Local<v8::Object>, v8::Local<v8::Name> key,
+                              const String16& groupName,
+                              bool forceValueType = false,
+                              bool generatePreview = false) const;
+  Response wrapPropertyInArray(v8::Local<v8::Array>,
+                               v8::Local<v8::String> property,
+                               const String16& groupName,
+                               bool forceValueType = false,
+                               bool generatePreview = false) const;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Value> table, v8::Local<v8::Value> columns) const;
 
-  bool findObject(ErrorString*, const RemoteObjectId&,
-                  v8::Local<v8::Value>*) const;
+  Response findObject(const RemoteObjectId&, v8::Local<v8::Value>*) const;
   String16 objectGroupName(const RemoteObjectId&) const;
   void releaseObjectGroup(const String16&);
   void setCustomObjectFormatterEnabled(bool);
-  v8::MaybeLocal<v8::Value> resolveCallArgument(
-      ErrorString*, protocol::Runtime::CallArgument*);
+  Response resolveCallArgument(protocol::Runtime::CallArgument*,
+                               v8::Local<v8::Value>* result);
 
-  std::unique_ptr<protocol::Runtime::ExceptionDetails> createExceptionDetails(
-      ErrorString*, const v8::TryCatch&, const String16& groupName,
-      bool generatePreview);
-  void wrapEvaluateResult(
-      ErrorString*, v8::MaybeLocal<v8::Value> maybeResultValue,
-      const v8::TryCatch&, const String16& objectGroup, bool returnByValue,
-      bool generatePreview,
+  Response createExceptionDetails(
+      const v8::TryCatch&, const String16& groupName, bool generatePreview,
+      Maybe<protocol::Runtime::ExceptionDetails>* result);
+  Response wrapEvaluateResult(
+      v8::MaybeLocal<v8::Value> maybeResultValue, const v8::TryCatch&,
+      const String16& objectGroup, bool returnByValue, bool generatePreview,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*);
   v8::Local<v8::Value> lastEvaluationResult() const;
 
+  int bindObject(v8::Local<v8::Value>, const String16& groupName);
+
   class Scope {
    public:
-    bool initialize();
-    bool installCommandLineAPI();
+    Response initialize();
+    void installCommandLineAPI();
     void ignoreExceptionsAndMuteConsole();
     void pretendUserGesture();
     v8::Local<v8::Context> context() const { return m_context; }
@@ -115,37 +116,36 @@ class InjectedScript final {
     const v8::TryCatch& tryCatch() const { return m_tryCatch; }
 
    protected:
-    Scope(ErrorString*, V8InspectorImpl*, int contextGroupId);
+    explicit Scope(V8InspectorSessionImpl*);
     virtual ~Scope();
-    virtual void findInjectedScript(V8InspectorSessionImpl*) = 0;
+    virtual Response findInjectedScript(V8InspectorSessionImpl*) = 0;
 
-    ErrorString* m_errorString;
     V8InspectorImpl* m_inspector;
-    int m_contextGroupId;
     InjectedScript* m_injectedScript;
 
    private:
     void cleanup();
-    V8Debugger::PauseOnExceptionsState setPauseOnExceptionsState(
-        V8Debugger::PauseOnExceptionsState);
+    v8::debug::ExceptionBreakState setPauseOnExceptionsState(
+        v8::debug::ExceptionBreakState);
 
     v8::HandleScope m_handleScope;
     v8::TryCatch m_tryCatch;
     v8::Local<v8::Context> m_context;
     std::unique_ptr<V8Console::CommandLineAPIScope> m_commandLineAPIScope;
     bool m_ignoreExceptionsAndMuteConsole;
-    V8Debugger::PauseOnExceptionsState m_previousPauseOnExceptionsState;
+    v8::debug::ExceptionBreakState m_previousPauseOnExceptionsState;
     bool m_userGesture;
+    int m_contextGroupId;
+    int m_sessionId;
   };
 
   class ContextScope : public Scope {
    public:
-    ContextScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
-                 int executionContextId);
+    ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope();
 
    private:
-    void findInjectedScript(V8InspectorSessionImpl*) override;
+    Response findInjectedScript(V8InspectorSessionImpl*) override;
     int m_executionContextId;
 
     DISALLOW_COPY_AND_ASSIGN(ContextScope);
@@ -153,14 +153,13 @@ class InjectedScript final {
 
   class ObjectScope : public Scope {
    public:
-    ObjectScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
-                const String16& remoteObjectId);
+    ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
     ~ObjectScope();
     const String16& objectGroupName() const { return m_objectGroupName; }
     v8::Local<v8::Value> object() const { return m_object; }
 
    private:
-    void findInjectedScript(V8InspectorSessionImpl*) override;
+    Response findInjectedScript(V8InspectorSessionImpl*) override;
     String16 m_remoteObjectId;
     String16 m_objectGroupName;
     v8::Local<v8::Value> m_object;
@@ -170,13 +169,12 @@ class InjectedScript final {
 
   class CallFrameScope : public Scope {
    public:
-    CallFrameScope(ErrorString*, V8InspectorImpl*, int contextGroupId,
-                   const String16& remoteCallFrameId);
+    CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
     ~CallFrameScope();
     size_t frameOrdinal() const { return m_frameOrdinal; }
 
    private:
-    void findInjectedScript(V8InspectorSessionImpl*) override;
+    Response findInjectedScript(V8InspectorSessionImpl*) override;
     String16 m_remoteCallFrameId;
     size_t m_frameOrdinal;
 
@@ -184,20 +182,23 @@ class InjectedScript final {
   };
 
  private:
-  InjectedScript(InspectedContext*, v8::Local<v8::Object>,
-                 std::unique_ptr<InjectedScriptNative>);
+  InjectedScript(InspectedContext*, v8::Local<v8::Object>, int sessionId);
   v8::Local<v8::Value> v8Value() const;
-  v8::MaybeLocal<v8::Value> wrapValue(ErrorString*, v8::Local<v8::Value>,
-                                      const String16& groupName,
-                                      bool forceValueType,
-                                      bool generatePreview) const;
+  Response wrapValue(v8::Local<v8::Value>, const String16& groupName,
+                     bool forceValueType, bool generatePreview,
+                     v8::Local<v8::Value>* result) const;
   v8::Local<v8::Object> commandLineAPI();
+  void unbindObject(int id);
 
   InspectedContext* m_context;
   v8::Global<v8::Value> m_value;
+  int m_sessionId;
   v8::Global<v8::Value> m_lastEvaluationResult;
-  std::unique_ptr<InjectedScriptNative> m_native;
   v8::Global<v8::Object> m_commandLineAPI;
+  int m_lastBoundObjectId = 1;
+  std::unordered_map<int, v8::Global<v8::Value>> m_idToWrappedObject;
+  std::unordered_map<int, String16> m_idToObjectGroupName;
+  std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
 
   DISALLOW_COPY_AND_ASSIGN(InjectedScript);
 };

@@ -17,7 +17,7 @@ let gotServerError = false;
 const server = net.createServer(function(sock) {
   sock.setEncoding('utf8');
   sock.on('error', function(er) {
-    console.error(er.code + ': ' + er.message);
+    console.error(`${er.code}: ${er.message}`);
     gotServerError = er;
   });
 

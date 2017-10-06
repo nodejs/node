@@ -38,6 +38,7 @@ parser.on('data', function (data) {
     value: {rev: it.typeof('string')},
     key:it.typeof('string')
   })
+  it(headerCalled).equal(1)
   parsed.push(data)
 })
 

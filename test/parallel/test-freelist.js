@@ -4,12 +4,11 @@
 
 require('../common');
 const assert = require('assert');
-const freelist = require('internal/freelist');
+const FreeList = require('internal/freelist');
 
-assert.strictEqual(typeof freelist, 'object');
-assert.strictEqual(typeof freelist.FreeList, 'function');
+assert.strictEqual(typeof FreeList, 'function');
 
-const flist1 = new freelist.FreeList('flist1', 3, String);
+const flist1 = new FreeList('flist1', 3, String);
 
 // Allocating when empty, should not change the list size
 const result = flist1.alloc('test');

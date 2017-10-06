@@ -81,8 +81,17 @@ static void uv_relative_path(const WCHAR* filename,
 
 static int uv_split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
-  int len = wcslen(filename);
-  int i = len;
+  size_t len, i;
+ 
+  if (filename == NULL) {
+    if (dir != NULL)
+      *dir = NULL;
+    *file = NULL;
+    return 0;
+  }
+
+  len = wcslen(filename);
+  i = len;
   while (i > 0 && filename[--i] != '\\' && filename[i] != '/');
 
   if (i == 0) {
@@ -131,8 +140,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle) {
   handle->short_filew = NULL;
   handle->dirw = NULL;
 
-  uv_req_init(loop, (uv_req_t*)&handle->req);
-  handle->req.type = UV_FS_EVENT_REQ;
+  UV_REQ_INIT(&handle->req, UV_FS_EVENT_REQ);
   handle->req.data = handle;
 
   return 0;
@@ -146,7 +154,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   int name_size, is_path_dir;
   DWORD attr, last_error;
   WCHAR* dir = NULL, *dir_to_watch, *pathw = NULL;
-  WCHAR short_path[MAX_PATH];
+  WCHAR short_path_buffer[MAX_PATH];
+  WCHAR* short_path;
 
   if (uv__is_active(handle))
     return UV_EINVAL;
@@ -188,7 +197,6 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (is_path_dir) {
      /* path is a directory, so that's the directory that we will watch. */
-    handle->dirw = pathw;
     dir_to_watch = pathw;
   } else {
     /*
@@ -197,9 +205,9 @@ int uv_fs_event_start(uv_fs_event_t* handle,
      */
 
     /* Convert to short path. */
+    short_path = short_path_buffer;
     if (!GetShortPathNameW(pathw, short_path, ARRAY_SIZE(short_path))) {
-      last_error = GetLastError();
-      goto error;
+      short_path = NULL;
     }
 
     if (uv_split_path(pathw, &dir, &handle->filew) != 0) {
@@ -274,6 +282,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
     goto error;
   }
 
+  assert(is_path_dir ? pathw != NULL : pathw == NULL);
+  handle->dirw = pathw;
   handle->req_pending = 1;
   return 0;
 
@@ -304,6 +314,9 @@ error:
     uv__free(handle->buffer);
     handle->buffer = NULL;
   }
+
+  if (uv__is_active(handle))
+    uv__handle_stop(handle);
 
   return uv_translate_sys_error(last_error);
 }
@@ -344,8 +357,11 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
 }
 
 
-static int file_info_cmp(WCHAR* str, WCHAR* file_name, int file_name_len) {
-  int str_len;
+static int file_info_cmp(WCHAR* str, WCHAR* file_name, size_t file_name_len) {
+  size_t str_len;
+
+  if (str == NULL)
+    return -1;
 
   str_len = wcslen(str);
 

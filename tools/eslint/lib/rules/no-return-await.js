@@ -19,7 +19,7 @@ module.exports = {
             category: "Best Practices",
             recommended: false // TODO: set to true
         },
-        fixable: false,
+        fixable: null,
         schema: [
         ]
     },
@@ -35,7 +35,7 @@ module.exports = {
             context.report({
                 node: context.getSourceCode().getFirstToken(node),
                 loc: node.loc,
-                message,
+                message
             });
         }
 
@@ -88,7 +88,7 @@ module.exports = {
                 if (isInTailCallPosition(node) && !hasErrorHandler(node)) {
                     reportUnnecessaryAwait(node);
                 }
-            },
+            }
         };
     }
 };

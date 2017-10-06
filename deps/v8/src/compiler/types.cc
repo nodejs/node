@@ -7,6 +7,7 @@
 #include "src/compiler/types.h"
 
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -56,12 +57,6 @@ bool Type::Contains(RangeType* lhs, RangeType* rhs) {
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
-bool Type::Contains(RangeType* lhs, ConstantType* rhs) {
-  DisallowHeapAllocation no_allocation;
-  return IsInteger(*rhs->Value()) && lhs->Min() <= rhs->Value()->Number() &&
-         rhs->Value()->Number() <= lhs->Max();
-}
-
 bool Type::Contains(RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(val) && range->Min() <= val->Number() &&
@@ -82,9 +77,9 @@ double Type::Min() {
     return min;
   }
   if (this->IsRange()) return this->AsRange()->Min();
-  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  if (this->IsOtherNumberConstant())
+    return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 double Type::Max() {
@@ -98,9 +93,9 @@ double Type::Max() {
     return max;
   }
   if (this->IsRange()) return this->AsRange()->Max();
-  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  if (this->IsOtherNumberConstant())
+    return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
-  return 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -139,20 +134,21 @@ Type::bitset BitsetType::Lub(Type* type) {
     }
     return bitset;
   }
-  if (type->IsConstant()) return type->AsConstant()->Lub();
+  if (type->IsHeapConstant()) return type->AsHeapConstant()->Lub();
+  if (type->IsOtherNumberConstant())
+    return type->AsOtherNumberConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Map* map) {
   DisallowHeapAllocation no_allocation;
   switch (map->instance_type()) {
-    case STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
+    case THIN_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -161,16 +157,20 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SHORT_EXTERNAL_STRING_TYPE:
     case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return kOtherString;
-    case INTERNALIZED_STRING_TYPE:
-    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      return kOtherNonSeqString;
+    case STRING_TYPE:
+    case ONE_BYTE_STRING_TYPE:
+      return kOtherSeqString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
     case SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return kInternalizedString;
+      return kInternalizedNonSeqString;
+    case INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      return kInternalizedSeqString;
     case SYMBOL_TYPE:
       return kSymbol;
     case ODDBALL_TYPE: {
@@ -180,7 +180,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       if (map == heap->boolean_map()) return kBoolean;
       if (map == heap->the_hole_map()) return kHole;
       DCHECK(map == heap->uninitialized_map() ||
-             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
              map == heap->optimized_out_map() ||
@@ -189,8 +188,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     }
     case HEAP_NUMBER_TYPE:
       return kNumber;
-    case SIMD128_VALUE_TYPE:
-      return kSimd;
     case JS_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
@@ -198,50 +195,117 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (map->is_undetectable()) return kOtherUndetectable;
+      if (map->is_undetectable()) {
+        // Currently we assume that every undetectable receiver is also
+        // callable, which is what we need to support document.all.  We
+        // could add another Type bit to support other use cases in the
+        // future if necessary.
+        DCHECK(map->is_callable());
+        return kOtherUndetectable;
+      }
+      if (map->is_callable()) {
+        return kOtherCallable;
+      }
       return kOtherObject;
+    case JS_ARRAY_TYPE:
+      return kArray;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
+    case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
-    case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
-    case JS_SET_ITERATOR_TYPE:
-    case JS_MAP_ITERATOR_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_MAP_KEY_ITERATOR_TYPE:
+    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+
+    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE:
+
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
+    case WASM_MODULE_TYPE:
+    case WASM_INSTANCE_TYPE:
+    case WASM_MEMORY_TYPE:
+    case WASM_TABLE_TYPE:
+      DCHECK(!map->is_callable());
       DCHECK(!map->is_undetectable());
       return kOtherObject;
+    case JS_BOUND_FUNCTION_TYPE:
+      DCHECK(!map->is_undetectable());
+      return kBoundFunction;
     case JS_FUNCTION_TYPE:
       DCHECK(!map->is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
       DCHECK(!map->is_undetectable());
-      return kProxy;
+      if (map->is_callable()) return kCallableProxy;
+      return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
+    case FUNCTION_TEMPLATE_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
+    case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
+    case MODULE_INFO_ENTRY_TYPE:
+    case CELL_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -256,27 +320,25 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
-    case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
-    case SIGNATURE_INFO_TYPE:
-    case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case BOX_TYPE:
-    case PROMISE_CONTAINER_TYPE:
+    case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
+    case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
-    case CELL_TYPE:
+    case STACK_FRAME_INFO_TYPE:
     case WEAK_CELL_TYPE:
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE2_TYPE:
+    case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
+    case PREPARSED_SCOPE_DATA_TYPE:
       UNREACHABLE();
-      return kNone;
   }
   UNREACHABLE();
-  return kNone;
 }
 
 Type::bitset BitsetType::Lub(i::Object* value) {
@@ -284,7 +346,11 @@ Type::bitset BitsetType::Lub(i::Object* value) {
   if (value->IsNumber()) {
     return Lub(value->Number());
   }
-  return Lub(i::HeapObject::cast(value)->map());
+  i::HeapObject* heap_value = i::HeapObject::cast(value);
+  if (value == heap_value->GetHeap()->empty_string()) {
+    return kEmptyString;
+  }
+  return Lub(heap_value->map()) & ~kEmptyString;
 }
 
 Type::bitset BitsetType::Lub(double value) {
@@ -390,14 +456,45 @@ double BitsetType::Max(bitset bits) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
+// static
+bool OtherNumberConstantType::IsOtherNumberConstant(double value) {
+  // Not an integer, not NaN, and not -0.
+  return !std::isnan(value) && !Type::IsInteger(value) &&
+         !i::IsMinusZero(value);
+}
+
+// static
+bool OtherNumberConstantType::IsOtherNumberConstant(Object* value) {
+  return value->IsHeapNumber() &&
+         IsOtherNumberConstant(HeapNumber::cast(value)->value());
+}
+
+HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
+                                   i::Handle<i::HeapObject> object)
+    : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
+  DCHECK(!object->IsHeapNumber());
+  DCHECK_IMPLIES(object->IsString(), object->IsInternalizedString());
+  DCHECK_IMPLIES(object->IsString(),
+                 i::Handle<i::String>::cast(object)->length() != 0);
+}
+
 // -----------------------------------------------------------------------------
 // Predicates.
 
 bool Type::SimplyEquals(Type* that) {
   DisallowHeapAllocation no_allocation;
-  if (this->IsConstant()) {
-    return that->IsConstant() &&
-           *this->AsConstant()->Value() == *that->AsConstant()->Value();
+  if (this->IsHeapConstant()) {
+    return that->IsHeapConstant() &&
+           this->AsHeapConstant()->Value().address() ==
+               that->AsHeapConstant()->Value().address();
+  }
+  if (this->IsOtherNumberConstant()) {
+    return that->IsOtherNumberConstant() &&
+           this->AsOtherNumberConstant()->Value() ==
+               that->AsOtherNumberConstant()->Value();
+  }
+  if (this->IsRange()) {
+    if (that->IsHeapConstant() || that->IsOtherNumberConstant()) return false;
   }
   if (this->IsTuple()) {
     if (!that->IsTuple()) return false;
@@ -412,7 +509,6 @@ bool Type::SimplyEquals(Type* that) {
     return true;
   }
   UNREACHABLE();
-  return false;
 }
 
 // Check if [this] <= [that].
@@ -446,9 +542,7 @@ bool Type::SlowIs(Type* that) {
   }
 
   if (that->IsRange()) {
-    return (this->IsRange() && Contains(that->AsRange(), this->AsRange())) ||
-           (this->IsConstant() &&
-            Contains(that->AsRange(), this->AsConstant()));
+    return (this->IsRange() && Contains(that->AsRange(), this->AsRange()));
   }
   if (this->IsRange()) return false;
 
@@ -481,9 +575,6 @@ bool Type::Maybe(Type* that) {
   if (this->IsBitset() && that->IsBitset()) return true;
 
   if (this->IsRange()) {
-    if (that->IsConstant()) {
-      return Contains(this->AsRange(), that->AsConstant());
-    }
     if (that->IsRange()) {
       return Overlap(this->AsRange(), that->AsRange());
     }
@@ -673,9 +764,6 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
       }
       return size;
     }
-    if (rhs->IsConstant() && Contains(lhs->AsRange(), rhs->AsConstant())) {
-      return AddToUnion(rhs, result, size, zone);
-    }
     if (rhs->IsRange()) {
       RangeType::Limits lim = RangeType::Limits::Intersect(
           RangeType::Limits(lhs->AsRange()), RangeType::Limits(rhs->AsRange()));
@@ -741,6 +829,36 @@ Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
     range_max = bitset_max;
   }
   return RangeType::New(range_min, range_max, zone);
+}
+
+Type* Type::NewConstant(double value, Zone* zone) {
+  if (IsInteger(value)) {
+    return Range(value, value, zone);
+  } else if (i::IsMinusZero(value)) {
+    return Type::MinusZero();
+  } else if (std::isnan(value)) {
+    return Type::NaN();
+  }
+
+  DCHECK(OtherNumberConstantType::IsOtherNumberConstant(value));
+  return OtherNumberConstant(value, zone);
+}
+
+Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
+  if (IsInteger(*value)) {
+    double v = value->Number();
+    return Range(v, v, zone);
+  } else if (value->IsHeapNumber()) {
+    return NewConstant(value->Number(), zone);
+  } else if (value->IsString()) {
+    i::Isolate* isolate = i::Handle<i::HeapObject>::cast(value)->GetIsolate();
+    if (!value->IsInternalizedString()) {
+      return Type::OtherString();
+    } else if (*value == isolate->heap()->empty_string()) {
+      return Type::EmptyString();
+    }
+  }
+  return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }
 
 Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
@@ -833,17 +951,14 @@ Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   return union_type;
 }
 
-// -----------------------------------------------------------------------------
-// Iteration.
-
 int Type::NumConstants() {
   DisallowHeapAllocation no_allocation;
-  if (this->IsConstant()) {
+  if (this->IsHeapConstant() || this->IsOtherNumberConstant()) {
     return 1;
   } else if (this->IsUnion()) {
     int result = 0;
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (this->AsUnion()->Get(i)->IsConstant()) ++result;
+      if (this->AsUnion()->Get(i)->IsHeapConstant()) ++result;
     }
     return result;
   } else {
@@ -905,8 +1020,11 @@ void Type::PrintTo(std::ostream& os) {
   DisallowHeapAllocation no_allocation;
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
-  } else if (this->IsConstant()) {
-    os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
+  } else if (this->IsHeapConstant()) {
+    os << "HeapConstant(" << Brief(*this->AsHeapConstant()->Value()) << ")";
+  } else if (this->IsOtherNumberConstant()) {
+    os << "OtherNumberConstant(" << this->AsOtherNumberConstant()->Value()
+       << ")";
   } else if (this->IsRange()) {
     std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
     std::streamsize saved_precision = os.precision(0);

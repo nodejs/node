@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_MUTEX_H_
 #define V8_BASE_PLATFORM_MUTEX_H_
 
+#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
@@ -33,7 +34,7 @@ namespace base {
 // |TryLock()|. The behavior of a program is undefined if a mutex is destroyed
 // while still owned by some thread. The Mutex class is non-copyable.
 
-class Mutex final {
+class V8_BASE_EXPORT Mutex final {
  public:
   Mutex();
   ~Mutex();
@@ -56,7 +57,7 @@ class Mutex final {
 #if V8_OS_POSIX
   typedef pthread_mutex_t NativeHandle;
 #elif V8_OS_WIN
-  typedef CRITICAL_SECTION NativeHandle;
+  typedef SRWLOCK NativeHandle;
 #endif
 
   NativeHandle& native_handle() {
@@ -127,7 +128,7 @@ typedef LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
 // The behavior of a program is undefined if a recursive mutex is destroyed
 // while still owned by some thread. The RecursiveMutex class is non-copyable.
 
-class RecursiveMutex final {
+class V8_BASE_EXPORT RecursiveMutex final {
  public:
   RecursiveMutex();
   ~RecursiveMutex();
@@ -152,7 +153,11 @@ class RecursiveMutex final {
   bool TryLock() WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
-  typedef Mutex::NativeHandle NativeHandle;
+#if V8_OS_POSIX
+  typedef pthread_mutex_t NativeHandle;
+#elif V8_OS_WIN
+  typedef CRITICAL_SECTION NativeHandle;
+#endif
 
   NativeHandle& native_handle() {
     return native_handle_;

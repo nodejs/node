@@ -18,8 +18,8 @@ namespace {
 
 size_t HashCode(Node* node) {
   size_t h = base::hash_combine(node->op()->HashCode(), node->InputCount());
-  for (int j = 0; j < node->InputCount(); ++j) {
-    h = base::hash_combine(h, node->InputAt(j)->id());
+  for (Node* input : node->inputs()) {
+    h = base::hash_combine(h, input->id());
   }
   return h;
 }
@@ -32,10 +32,17 @@ bool Equals(Node* a, Node* b) {
   DCHECK_NOT_NULL(b->op());
   if (!a->op()->Equals(b->op())) return false;
   if (a->InputCount() != b->InputCount()) return false;
-  for (int j = 0; j < a->InputCount(); ++j) {
-    DCHECK_NOT_NULL(a->InputAt(j));
-    DCHECK_NOT_NULL(b->InputAt(j));
-    if (a->InputAt(j)->id() != b->InputAt(j)->id()) return false;
+  Node::Inputs aInputs = a->inputs();
+  Node::Inputs bInputs = b->inputs();
+
+  auto aIt = aInputs.begin();
+  auto bIt = bInputs.begin();
+  auto aEnd = aInputs.end();
+
+  for (; aIt != aEnd; ++aIt, ++bIt) {
+    DCHECK_NOT_NULL(*aIt);
+    DCHECK_NOT_NULL(*bIt);
+    if ((*aIt)->id() != (*bIt)->id()) return false;
   }
   return true;
 }
@@ -69,7 +76,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
   }
 
   DCHECK(size_ < capacity_);
-  DCHECK(size_ * kCapacityToSizeRatio < capacity_);
+  DCHECK(size_ + size_ / 4 < capacity_);
 
   const size_t mask = capacity_ - 1;
   size_t dead = capacity_;
@@ -85,10 +92,10 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
         entries_[i] = node;
         size_++;
 
-        // Resize to keep load factor below 1/kCapacityToSizeRatio.
-        if (size_ * kCapacityToSizeRatio >= capacity_) Grow();
+        // Resize to keep load factor below 80%
+        if (size_ + size_ / 4 >= capacity_) Grow();
       }
-      DCHECK(size_ * kCapacityToSizeRatio < capacity_);
+      DCHECK(size_ + size_ / 4 < capacity_);
       return NoChange();
     }
 
@@ -112,10 +119,31 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
         if (entry->IsDead()) {
           continue;
         }
+        if (entry == node) {
+          // Collision with ourselves, doesn't count as a real collision.
+          // Opportunistically clean-up the duplicate entry if we're at the end
+          // of a bucket.
+          if (!entries_[(j + 1) & mask]) {
+            entries_[j] = nullptr;
+            size_--;
+            return NoChange();
+          }
+          // Otherwise, keep searching for another collision.
+          continue;
+        }
         if (Equals(entry, node)) {
-          // Overwrite the colliding entry with the actual entry.
-          entries_[i] = entry;
-          return Replace(entry);
+          Reduction reduction = ReplaceIfTypesMatch(node, entry);
+          if (reduction.Changed()) {
+            // Overwrite the colliding entry with the actual entry.
+            entries_[i] = entry;
+            // Opportunistically clean-up the duplicate entry if we're at the
+            // end of a bucket.
+            if (!entries_[(j + 1) & mask]) {
+              entries_[j] = nullptr;
+              size_--;
+            }
+          }
+          return reduction;
         }
       }
     }
@@ -126,37 +154,40 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       continue;
     }
     if (Equals(entry, node)) {
-      // Make sure the replacement has at least as good type as the original
-      // node.
-      if (NodeProperties::IsTyped(entry) && NodeProperties::IsTyped(node)) {
-        Type* entry_type = NodeProperties::GetType(entry);
-        Type* node_type = NodeProperties::GetType(node);
-        if (!entry_type->Is(node_type)) {
-          // Ideally, we would set an intersection of {entry_type} and
-          // {node_type} here. However, typing of NumberConstants assigns
-          // different types to constants with the same value (it creates
-          // a fresh heap number), which would make the intersection empty.
-          // To be safe, we use the smaller type if the types are comparable.
-          if (node_type->Is(entry_type)) {
-            NodeProperties::SetType(entry, node_type);
-          } else {
-            // Types are not comparable => do not replace.
-            return NoChange();
-          }
-        }
-      }
-      return Replace(entry);
+      return ReplaceIfTypesMatch(node, entry);
     }
   }
 }
 
+Reduction ValueNumberingReducer::ReplaceIfTypesMatch(Node* node,
+                                                     Node* replacement) {
+  // Make sure the replacement has at least as good type as the original node.
+  if (NodeProperties::IsTyped(replacement) && NodeProperties::IsTyped(node)) {
+    Type* replacement_type = NodeProperties::GetType(replacement);
+    Type* node_type = NodeProperties::GetType(node);
+    if (!replacement_type->Is(node_type)) {
+      // Ideally, we would set an intersection of {replacement_type} and
+      // {node_type} here. However, typing of NumberConstants assigns different
+      // types to constants with the same value (it creates a fresh heap
+      // number), which would make the intersection empty. To be safe, we use
+      // the smaller type if the types are comparable.
+      if (node_type->Is(replacement_type)) {
+        NodeProperties::SetType(replacement, node_type);
+      } else {
+        // Types are not comparable => do not replace.
+        return NoChange();
+      }
+    }
+  }
+  return Replace(replacement);
+}
+
 
 void ValueNumberingReducer::Grow() {
-  // Allocate a new block of entries kCapacityToSizeRatio times the previous
-  // capacity.
+  // Allocate a new block of entries double the previous capacity.
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
-  capacity_ *= kCapacityToSizeRatio;
+  capacity_ *= 2;
   entries_ = temp_zone()->NewArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;

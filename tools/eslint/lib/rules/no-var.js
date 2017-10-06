@@ -19,8 +19,8 @@ const astUtils = require("../ast-utils");
  * Finds the nearest function scope or global scope walking up the scope
  * hierarchy.
  *
- * @param {escope.Scope} scope - The scope to traverse.
- * @returns {escope.Scope} a function scope or global scope containing the given
+ * @param {eslint-scope.Scope} scope - The scope to traverse.
+ * @returns {eslint-scope.Scope} a function scope or global scope containing the given
  *      scope.
  */
 function getEnclosingFunctionScope(scope) {
@@ -34,7 +34,7 @@ function getEnclosingFunctionScope(scope) {
  * Checks whether the given variable has any references from a more specific
  * function expression (i.e. a closure).
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is used from a closure.
  */
 function isReferencedInClosure(variable) {
@@ -93,7 +93,7 @@ function getScopeNode(node) {
 /**
  * Checks whether a given variable is redeclared or not.
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is redeclared.
  */
 function isRedeclared(variable) {
@@ -112,7 +112,7 @@ function isUsedFromOutsideOf(scopeNode) {
     /**
      * Checks whether a given reference is inside of the specified scope or not.
      *
-     * @param {escope.Reference} reference - A reference to check.
+     * @param {eslint-scope.Reference} reference - A reference to check.
      * @returns {boolean} `true` if the reference is inside of the specified
      *      scope.
      */
@@ -125,6 +125,43 @@ function isUsedFromOutsideOf(scopeNode) {
 
     return function(variable) {
         return variable.references.some(isOutsideOfScope);
+    };
+}
+
+/**
+ * Creates the predicate function which checks whether a variable has their references in TDZ.
+ *
+ * The predicate function would return `true`:
+ *
+ * - if a reference is before the declarator. E.g. (var a = b, b = 1;)(var {a = b, b} = {};)
+ * - if a reference is in the expression of their default value.  E.g. (var {a = a} = {};)
+ * - if a reference is in the expression of their initializer.  E.g. (var a = a;)
+ *
+ * @param {ASTNode} node - The initializer node of VariableDeclarator.
+ * @returns {Function} The predicate function.
+ * @private
+ */
+function hasReferenceInTDZ(node) {
+    const initStart = node.range[0];
+    const initEnd = node.range[1];
+
+    return variable => {
+        const id = variable.defs[0].name;
+        const idStart = id.range[0];
+        const defaultValue = (id.parent.type === "AssignmentPattern" ? id.parent.right : null);
+        const defaultStart = defaultValue && defaultValue.range[0];
+        const defaultEnd = defaultValue && defaultValue.range[1];
+
+        return variable.references.some(reference => {
+            const start = reference.identifier.range[0];
+            const end = reference.identifier.range[1];
+
+            return !reference.init && (
+                start < idStart ||
+                (defaultValue !== null && start >= defaultStart && end <= defaultEnd) ||
+                (start >= initStart && end <= initEnd)
+            );
+        });
     };
 }
 
@@ -148,6 +185,21 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
+         * Checks whether the variables which are defined by the given declarator node have their references in TDZ.
+         *
+         * @param {ASTNode} declarator - The VariableDeclarator node to check.
+         * @returns {boolean} `true` if one of the variables which are defined by the given declarator node have their references in TDZ.
+         */
+        function hasSelfReferenceInTDZ(declarator) {
+            if (!declarator.init) {
+                return false;
+            }
+            const variables = context.getDeclaredVariables(declarator);
+
+            return variables.some(hasReferenceInTDZ(declarator.init));
+        }
+
+        /**
          * Checks whether it can fix a given variable declaration or not.
          * It cannot fix if the following cases:
          *
@@ -156,6 +208,8 @@ module.exports = {
          * - A variable is used from outside the scope.
          * - A variable is used from a closure within a loop.
          * - A variable might be used before it is assigned within a loop.
+         * - A variable might be used in TDZ.
+         * - A variable is declared in statement position (e.g. a single-line `IfStatement`)
          *
          * ## A variable is declared on a SwitchCase node.
          *
@@ -201,8 +255,10 @@ module.exports = {
             const scopeNode = getScopeNode(node);
 
             if (node.parent.type === "SwitchCase" ||
-                    variables.some(isRedeclared) ||
-                    variables.some(isUsedFromOutsideOf(scopeNode))) {
+                node.declarations.some(hasSelfReferenceInTDZ) ||
+                variables.some(isRedeclared) ||
+                variables.some(isUsedFromOutsideOf(scopeNode))
+            ) {
                 return false;
             }
 
@@ -213,6 +269,16 @@ module.exports = {
                 if (!isLoopAssignee(node) && !isDeclarationInitialized(node)) {
                     return false;
                 }
+            }
+
+            if (
+                !isLoopAssignee(node) &&
+                !(node.parent.type === "ForStatement" && node.parent.init === node) &&
+                !astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type)
+            ) {
+
+                // If the declaration is not in a block, e.g. `if (foo) var bar = 1;`, then it can't be fixed.
+                return false;
             }
 
             return true;
@@ -241,7 +307,7 @@ module.exports = {
         }
 
         return {
-            VariableDeclaration(node) {
+            "VariableDeclaration:exit"(node) {
                 if (node.kind === "var") {
                     report(node);
                 }

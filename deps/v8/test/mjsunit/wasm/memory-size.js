@@ -10,8 +10,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function testMemorySizeZero() {
   print("testMemorySizeZero()");
   var builder = new WasmModuleBuilder();
+  builder.addMemory(0, 0, false);
   builder.addFunction("memory_size", kSig_i_v)
-         .addBody([kExprMemorySize])
+         .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
   var module = builder.instantiate();
   assertEquals(0, module.exports.memory_size());
@@ -23,7 +24,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var size = 11;
   builder.addMemory(size, size, false);
   builder.addFunction("memory_size", kSig_i_v)
-         .addBody([kExprMemorySize])
+         .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
   var module = builder.instantiate();
   assertEquals(size, module.exports.memory_size());

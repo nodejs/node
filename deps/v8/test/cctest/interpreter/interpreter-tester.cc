@@ -4,6 +4,8 @@
 
 #include "test/cctest/interpreter/interpreter-tester.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {
@@ -16,26 +18,25 @@ MaybeHandle<Object> CallInterpreter(Isolate* isolate,
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, const char* source, MaybeHandle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
+    MaybeHandle<FeedbackMetadata> feedback_metadata, const char* filter)
     : isolate_(isolate),
       source_(source),
       bytecode_(bytecode),
-      feedback_vector_(feedback_vector) {
-  i::FLAG_ignition = true;
+      feedback_metadata_(feedback_metadata) {
+  i::FLAG_stress_fullcodegen = false;
   i::FLAG_always_opt = false;
-  // Ensure handler table is generated.
-  isolate->interpreter()->Initialize();
 }
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, Handle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
-    : InterpreterTester(isolate, nullptr, bytecode, feedback_vector, filter) {}
+    MaybeHandle<FeedbackMetadata> feedback_metadata, const char* filter)
+    : InterpreterTester(isolate, nullptr, bytecode, feedback_metadata, filter) {
+}
 
 InterpreterTester::InterpreterTester(Isolate* isolate, const char* source,
                                      const char* filter)
     : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
-                        MaybeHandle<TypeFeedbackVector>(), filter) {}
+                        MaybeHandle<FeedbackMetadata>(), filter) {}
 
 InterpreterTester::~InterpreterTester() {}
 

@@ -1,16 +1,35 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 
 // This test requires the program 'wrk'
 const common = require('../common');
+if (common.isWindows)
+  common.skip('no `wrk` on windows');
+
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 const http = require('http');
 const url = require('url');
-
-if (common.isWindows) {
-  common.skip('no `wrk` on windows');
-  return;
-}
 
 const body = 'hello world\n';
 const server = http.createServer(function(req, res) {
@@ -39,7 +58,7 @@ function runAb(opts, callback) {
   }
 
   args.push(url.format({ hostname: '127.0.0.1',
-                         port: common.PORT, protocol: 'http'}));
+                         port: common.PORT, protocol: 'http' }));
 
   const child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);
@@ -58,10 +77,10 @@ function runAb(opts, callback) {
       return;
     }
 
-    let matches = /Requests\/sec:\s*(\d+)\./mi.exec(stdout);
+    let matches = /Requests\/sec:\s*(\d+)\./i.exec(stdout);
     const reqSec = parseInt(matches[1]);
 
-    matches = /Keep-Alive requests:\s*(\d+)/mi.exec(stdout);
+    matches = /Keep-Alive requests:\s*(\d+)/i.exec(stdout);
     let keepAliveRequests;
     if (matches) {
       keepAliveRequests = parseInt(matches[1]);

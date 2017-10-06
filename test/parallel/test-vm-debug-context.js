@@ -1,16 +1,38 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 /* eslint-disable no-debugger */
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
+const fixtures = require('../common/fixtures');
 
 assert.throws(function() {
   vm.runInDebugContext('*');
 }, /SyntaxError/);
 
 assert.throws(function() {
-  vm.runInDebugContext({ toString: common.fail });
+  vm.runInDebugContext({ toString: assert.fail });
 }, /AssertionError/);
 
 assert.throws(function() {
@@ -56,7 +78,7 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 // Can set listeners and breakpoints on a single line file
 {
   const Debug = vm.runInDebugContext('Debug');
-  const fn = require(common.fixturesDir + '/exports-function-with-param');
+  const fn = require(fixtures.path('exports-function-with-param'));
   let called = false;
 
   Debug.setListener(function(event, state, data) {
@@ -73,10 +95,10 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 
 // See https://github.com/nodejs/node/issues/1190, fatal errors should not
 // crash the process.
-const script = common.fixturesDir + '/vm-run-in-debug-context.js';
+const script = fixtures.path('vm-run-in-debug-context.js');
 let proc = spawn(process.execPath, [script]);
 const data = [];
-proc.stdout.on('data', common.fail);
+proc.stdout.on('data', common.mustNotCall());
 proc.stderr.on('data', data.push.bind(data));
 proc.stderr.once('end', common.mustCall(function() {
   const haystack = Buffer.concat(data).toString('utf8');
@@ -88,8 +110,8 @@ proc.once('exit', common.mustCall(function(exitCode, signalCode) {
 }));
 
 proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
-proc.stdout.on('data', common.fail);
-proc.stderr.on('data', common.fail);
+proc.stdout.on('data', common.mustNotCall());
+proc.stderr.on('data', common.mustNotCall());
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
   assert.strictEqual(exitCode, 42);
   assert.strictEqual(signalCode, null);

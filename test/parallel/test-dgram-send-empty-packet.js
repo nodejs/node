@@ -1,12 +1,9 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (common.isOSX) {
+if (common.isOSX)
   common.skip('because of 17894467 Apple bug');
-  return;
-}
 
+const assert = require('assert');
 const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');

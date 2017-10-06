@@ -16,10 +16,10 @@ const server = http.createServer((req, res) => {
       res.setHeader('content-length', [2, 1]);
       break;
     case '2':
-      res.writeHead(200, {'content-length': [1, 2]});
+      res.writeHead(200, { 'content-length': [1, 2] });
       break;
     default:
-      common.fail('should never get here');
+      assert.fail('should never get here');
   }
   res.end('ok');
 });
@@ -33,9 +33,9 @@ server.listen(0, common.mustCall(() => {
     // case, the error handler must be called because the client
     // is not allowed to accept multiple content-length headers.
     http.get(
-      {port: server.address().port, headers: {'x-num': n}},
+      { port: server.address().port, headers: { 'x-num': n } },
       (res) => {
-        common.fail('client allowed multiple content-length headers.');
+        assert.fail('client allowed multiple content-length headers.');
       }
     ).on('error', common.mustCall((err) => {
       assert(/^Parse Error/.test(err.message));

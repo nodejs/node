@@ -8,7 +8,6 @@
 namespace node {
 
 namespace {
-const int default_debugger_port = 5858;
 const int default_inspector_port = 9229;
 
 inline std::string remove_brackets(const std::string& host) {
@@ -22,8 +21,9 @@ int parse_and_validate_port(const std::string& port) {
   char* endptr;
   errno = 0;
   const long result = strtol(port.c_str(), &endptr, 10);  // NOLINT(runtime/int)
-  if (errno != 0 || *endptr != '\0'|| result < 1024 || result > 65535) {
-    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+  if (errno != 0 || *endptr != '\0'||
+      (result != 0 && result < 1024) || result > 65535) {
+    fprintf(stderr, "Debug port must be 0 or in range 1024 to 65535.\n");
     exit(12);
   }
   return static_cast<int>(result);
@@ -54,31 +54,13 @@ std::pair<std::string, int> split_host_port(const std::string& arg) {
 
 }  // namespace
 
-DebugOptions::DebugOptions() : debugger_enabled_(false),
-#if HAVE_INSPECTOR
+DebugOptions::DebugOptions() :
                                inspector_enabled_(false),
-#endif  // HAVE_INSPECTOR
-                               wait_connect_(false), http_enabled_(false),
+                               deprecated_debug_(false),
+                               break_first_line_(false),
                                host_name_("127.0.0.1"), port_(-1) { }
 
-void DebugOptions::EnableDebugAgent(DebugAgentType tool) {
-  switch (tool) {
-#if HAVE_INSPECTOR
-    case DebugAgentType::kInspector:
-      inspector_enabled_ = true;
-      debugger_enabled_ = true;
-      break;
-#endif  // HAVE_INSPECTOR
-    case DebugAgentType::kDebugger:
-      debugger_enabled_ = true;
-      break;
-    case DebugAgentType::kNone:
-      break;
-  }
-}
-
-bool DebugOptions::ParseOption(const std::string& option) {
-  bool enable_inspector = false;
+bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
   bool has_argument = false;
   std::string option_name;
   std::string argument;
@@ -87,41 +69,49 @@ bool DebugOptions::ParseOption(const std::string& option) {
   if (pos == std::string::npos) {
     option_name = option;
   } else {
-    has_argument = true;
     option_name = option.substr(0, pos);
     argument = option.substr(pos + 1);
+
+    if (argument.length() > 0)
+      has_argument = true;
+    else
+      argument.clear();
   }
 
-  // --debug and --inspect are mutually exclusive
-  if (option_name == "--debug") {
-    debugger_enabled_ = true;
-  } else if (option_name == "--debug-brk") {
-    debugger_enabled_ = true;
-    wait_connect_ = true;
-  } else if (option_name == "--inspect") {
-    debugger_enabled_ = true;
-    enable_inspector = true;
+  // Note that --debug-port and --debug-brk in conjunction with --inspect
+  // work but are undocumented.
+  // --debug is no longer valid.
+  // Ref: https://github.com/nodejs/node/issues/12630
+  // Ref: https://github.com/nodejs/node/pull/12949
+  if (option_name == "--inspect") {
+    inspector_enabled_ = true;
+  } else if (option_name == "--debug") {
+    deprecated_debug_ = true;
   } else if (option_name == "--inspect-brk") {
-    debugger_enabled_ = true;
-    enable_inspector = true;
-    wait_connect_ = true;
-  } else if ((option_name != "--debug-port" &&
-              option_name != "--inspect-port") ||
-              !has_argument) {
-    // only other valid possibility is --debug-port,
-    // which requires an argument
+    inspector_enabled_ = true;
+    break_first_line_ = true;
+  } else if (option_name == "--debug-brk") {
+    break_first_line_ = true;
+    deprecated_debug_ = true;
+  } else if (option_name == "--debug-port" ||
+             option_name == "--inspect-port") {
+    if (!has_argument) {
+      fprintf(stderr, "%s: %s requires an argument\n",
+              argv0, option.c_str());
+      exit(9);
+    }
+  } else {
     return false;
   }
 
-  if (enable_inspector) {
-#if HAVE_INSPECTOR
-    inspector_enabled_ = true;
-#else
+#if !HAVE_INSPECTOR
+  if (inspector_enabled_) {
     fprintf(stderr,
             "Inspector support is not available with this Node.js build\n");
-    return false;
-#endif
   }
+  inspector_enabled_ = false;
+  return false;
+#endif
 
   // argument can be specified for *any* option to specify host:port
   if (has_argument) {
@@ -140,11 +130,7 @@ bool DebugOptions::ParseOption(const std::string& option) {
 int DebugOptions::port() const {
   int port = port_;
   if (port < 0) {
-#if HAVE_INSPECTOR
-    port = inspector_enabled_ ? default_inspector_port : default_debugger_port;
-#else
-    port = default_debugger_port;
-#endif  // HAVE_INSPECTOR
+    port = default_inspector_port;
   }
   return port;
 }

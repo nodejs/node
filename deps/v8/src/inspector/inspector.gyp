@@ -4,15 +4,16 @@
 
 {
   'variables': {
-    'protocol_path': '<(PRODUCT_DIR)/../../third_party/WebKit/Source/platform/inspector_protocol',
+    'protocol_path': '../../third_party/inspector_protocol',
   },
   'includes': [
     'inspector.gypi',
-    '<(PRODUCT_DIR)/../../../third_party/WebKit/Source/platform/inspector_protocol/inspector_protocol.gypi',
+    '<(PRODUCT_DIR)/../../../third_party/inspector_protocol/inspector_protocol.gypi',
   ],
   'targets': [
     { 'target_name': 'inspector_injected_script',
       'type': 'none',
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'convert_js_to_cpp_char_array',
@@ -37,6 +38,7 @@
     },
     { 'target_name': 'inspector_debugger_script',
       'type': 'none',
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'convert_js_to_cpp_char_array',
@@ -61,6 +63,7 @@
     },
     { 'target_name': 'protocol_compatibility',
       'type': 'none',
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'protocol_compatibility',
@@ -83,6 +86,7 @@
     { 'target_name': 'protocol_generated_sources',
       'type': 'none',
       'dependencies': [ 'protocol_compatibility' ],
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'protocol_generated_sources',
@@ -97,7 +101,7 @@
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--jinja_dir', '<(PRODUCT_DIR)/../../third_party',
+            '--jinja_dir', '../../third_party',
             '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
             '--config', 'inspector_protocol_config.json',
           ],

@@ -4,7 +4,7 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/wasm/wasm-macro-gen.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -12,18 +12,19 @@ namespace wasm {
 
 class WasmMacroGenTest : public TestWithZone {};
 
-#define EXPECT_SIZE(size, ...)     \
-  do {                             \
-    byte code[] = {__VA_ARGS__};   \
-    EXPECT_EQ(size, sizeof(code)); \
+#define EXPECT_SIZE(size, ...)                          \
+  do {                                                  \
+    byte code[] = {__VA_ARGS__};                        \
+    USE(code);                                          \
+    EXPECT_EQ(static_cast<size_t>(size), sizeof(code)); \
   } while (false)
 
 TEST_F(WasmMacroGenTest, Constants) {
   EXPECT_SIZE(2, WASM_ONE);
   EXPECT_SIZE(2, WASM_ZERO);
 
-  EXPECT_SIZE(2, WASM_I8(122));
-  EXPECT_SIZE(2, WASM_I8(254));
+  EXPECT_SIZE(2, WASM_I32V_1(-22));
+  EXPECT_SIZE(2, WASM_I32V_1(54));
 
   EXPECT_SIZE(2, WASM_I32V_1(1));
   EXPECT_SIZE(3, WASM_I32V_2(200));
@@ -49,6 +50,7 @@ TEST_F(WasmMacroGenTest, Constants) {
 
 TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(1, WASM_NOP);
+  EXPECT_SIZE(1, WASM_END);
 
   EXPECT_SIZE(4, WASM_SET_LOCAL(0, WASM_ZERO));
 
@@ -84,7 +86,7 @@ TEST_F(WasmMacroGenTest, Statements) {
 }
 
 TEST_F(WasmMacroGenTest, MacroStatements) {
-  EXPECT_SIZE(11, WASM_WHILE(WASM_I8(0), WASM_NOP));
+  EXPECT_SIZE(11, WASM_WHILE(WASM_ZERO, WASM_NOP));
   EXPECT_SIZE(7, WASM_INC_LOCAL(0));
   EXPECT_SIZE(7, WASM_INC_LOCAL_BY(0, 3));
 
@@ -131,12 +133,12 @@ TEST_F(WasmMacroGenTest, CallFunction) {
 }
 
 TEST_F(WasmMacroGenTest, CallIndirect) {
-  EXPECT_SIZE(4, WASM_CALL_INDIRECT0(0, WASM_ZERO));
-  EXPECT_SIZE(4, WASM_CALL_INDIRECT0(1, WASM_ZERO));
-  EXPECT_SIZE(4, WASM_CALL_INDIRECT0(11, WASM_ZERO));
+  EXPECT_SIZE(5, WASM_CALL_INDIRECT0(0, WASM_ZERO));
+  EXPECT_SIZE(5, WASM_CALL_INDIRECT0(1, WASM_ZERO));
+  EXPECT_SIZE(5, WASM_CALL_INDIRECT0(11, WASM_ZERO));
 
-  EXPECT_SIZE(6, WASM_CALL_INDIRECT1(0, WASM_ZERO, WASM_ZERO));
-  EXPECT_SIZE(8, WASM_CALL_INDIRECT2(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  EXPECT_SIZE(7, WASM_CALL_INDIRECT1(0, WASM_ZERO, WASM_ZERO));
+  EXPECT_SIZE(9, WASM_CALL_INDIRECT2(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
 
 TEST_F(WasmMacroGenTest, Int32Ops) {

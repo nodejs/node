@@ -10,6 +10,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -18,8 +19,6 @@ void IncrementalMarkingJob::Start(Heap* heap) {
   DCHECK(!heap->incremental_marking()->IsStopped());
   ScheduleTask(heap);
 }
-
-void IncrementalMarkingJob::NotifyTask() { task_pending_ = false; }
 
 void IncrementalMarkingJob::ScheduleTask(Heap* heap) {
   if (!task_pending_) {
@@ -42,17 +41,25 @@ void IncrementalMarkingJob::Task::Step(Heap* heap) {
 }
 
 void IncrementalMarkingJob::Task::RunInternal() {
+  VMState<GC> state(isolate());
+  RuntimeCallTimerScope runtime_timer(
+      isolate(), &RuntimeCallStats::GC_IncrementalMarkingJob);
+
   Heap* heap = isolate()->heap();
-  job_->NotifyTask();
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
     if (heap->IncrementalMarkingLimitReached() !=
         Heap::IncrementalMarkingLimit::kNoLimit) {
       heap->StartIncrementalMarking(Heap::kNoGCFlags,
                                     GarbageCollectionReason::kIdleTask,
-                                    kNoGCCallbackFlags);
+                                    kGCCallbackScheduleIdleGarbageCollection);
     }
   }
+
+  // Clear this flag after StartIncrementalMarking call to avoid
+  // scheduling a new task when startining incremental marking.
+  job_->task_pending_ = false;
+
   if (!incremental_marking->IsStopped()) {
     Step(heap);
     if (!incremental_marking->IsStopped()) {

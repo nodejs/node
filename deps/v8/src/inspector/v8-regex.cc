@@ -49,6 +49,7 @@ int V8Regex::match(const String16& string, int startFrom,
   v8::Isolate* isolate = m_inspector->isolate();
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::Context> context = m_inspector->regexContext();
+  v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasks(isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);

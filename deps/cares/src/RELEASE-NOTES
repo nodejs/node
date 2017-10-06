@@ -1,35 +1,53 @@
-c-ares version 1.10.0
+c-ares version 1.13.0
 
 Changes:
 
- o Added ares_create_query(), to be used instead of ares_mkquery()
- o ares_inet_ntop() and ares_inet_pton() are now recognized c-ares functions
+ o cmake build system support added
+ o Add virtual function set for socket IO: ares_set_socket_functions [5]
 
 Bug fixes:
 
- o include the ares_parse_soa_reply.* files in the tarball
- o read_udp_packets: bail out loop on bad sockets
- o get_DNS_AdaptersAddresses: fix IPv6 parsing
- o adig: perror() doesn't work for socket errors on windows
- o ares_parse_aaaa_reply: fix memory leak
- o setup_once.h: HP-UX <sys/socket.h> issue workaround
- o configure: several fixes
- o config-dos.h: define strerror() to strerror_s_() for High-C
- o config-dos.h: define HAVE_CLOSE_S for MSDOS/Watt-32
- o ares_build.h.dist: enhance non-configure GCC ABI detection logic
- o ares.h: stricter CARES_EXTERN linkage decorations logic
- o ares_cancel(): cancel requests safely
- o protocol parsing: check input data stricter
- o library init: be recursive, reference count inits/cleanups
- o ares_parse_txt_reply: return a ares_txt_reply node for each sub-string
- o ares_set_servers_csv: fixed IPv6 address parsing
- o build: fix build on msvc11
- 
+ o CVE-2017-1000381: c-ares NAPTR parser out of bounds access [1]
+ o macos: do not set HAVE_CLOCK_GETTIME_MONOTONIC
+ o test: check ares_create_query with too-long name
+ o dist: add ares_library_initialized.* to the tarball
+ o fix build on OpenBSD
+ o dist: ship msvc_ver.inc too [2]
+ o test: Add gTest/gMock files to SOURCES
+ o test: add fuzz entrypoint for ares_create_query()
+ o configure: clock_gettime workaround [3]
+ o docs: convert INSTALL to MarkDown & tweak [4]
+ o ares_process: fix return type of socket_create function (win32 warning)
+ o docs: fixed references to ares_set_local_ip4 and ares_set_local_ip6
+ o Windows DNS server sorting [6]
+ o Use ares_socklen_t instead of socket_t [7]
+ o ares_create_query: use ares_free not naked free
+ o msvc_ver.inc support most recent Visual Studio 2017 [8]
+ o acountry: Convert char from ISO-8859-1 to UTF-8 [9]
+ o ares_expand_name: limit number of indirections
+ o configure: do not check for ar if specified manually [10]
+ o Added support for Windows DNS Suffix Search List [11]
+ o ares.h: support compiling with QNX [12]
+
 Thanks go to these friendly people for their efforts and contributions:
 
- Eugeny Gladkih, Yang Tse, Gisle Vanem, Guenter Knauf, Horatiu Popescu,
- Alexander Klauer, Patrick Valsecchi, Paul Saab, Keith Shaw,
- Alex Loukissas
- 
+  Aaron Bieber, Andrew Sullivan, Brad House, Bruce Stephens, Calle Wilund,
+  Chris Araman, Christian Ammer, Daniel Stenberg, David Drysdale, David Hotham,
+  Dionna Glaze, Gregor Jasny, Michael Osei, Mulle kybernetiK, noiz at github,
+  Sergii Pylypenko, Stephen Sorley, Thomas Köckerbauer,
+  (18 contributors)
 
-Have fun!
+References to bug reports and discussions on issues:
+
+ [1] = https://c-ares.haxx.se/adv_20170620.html
+ [2] = https://github.com/c-ares/c-ares/issues/69
+ [3] = https://github.com/c-ares/c-ares/issues/71
+ [4] = https://github.com/c-ares/c-ares/issues/83
+ [5] = https://github.com/c-ares/c-ares/issues/72
+ [6] = https://github.com/c-ares/c-ares/issues/81
+ [7] = https://github.com/c-ares/c-ares/issues/92
+ [8] = https://github.com/c-ares/c-ares/issues/101
+ [9] = https://github.com/c-ares/c-ares/issues/97
+ [10] = https://github.com/c-ares/c-ares/issues/62
+ [11] = https://github.com/c-ares/c-ares/issues/93
+ [12] = https://github.com/c-ares/c-ares/issues/113

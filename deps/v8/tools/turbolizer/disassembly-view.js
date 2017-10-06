@@ -87,7 +87,7 @@ class DisassemblyView extends TextView {
         [/^.*/, UNCLASSIFIED_STYLE, -1]
       ],
       [
-        [/^\s+\d+\s+[0-9a-f]+\s+/, NUMBER_STYLE, 2],
+        [/^\s+[0-9a-f]+\s+[0-9a-f]+\s+/, NUMBER_STYLE, 2],
         [/^.*/, null, -1]
       ],
       [

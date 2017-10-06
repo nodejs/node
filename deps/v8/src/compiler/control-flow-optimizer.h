@@ -6,6 +6,7 @@
 #define V8_COMPILER_CONTROL_FLOW_OPTIMIZER_H_
 
 #include "src/compiler/node-marker.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -18,8 +19,7 @@ class Graph;
 class MachineOperatorBuilder;
 class Node;
 
-
-class ControlFlowOptimizer final {
+class V8_EXPORT_PRIVATE ControlFlowOptimizer final {
  public:
   ControlFlowOptimizer(Graph* graph, CommonOperatorBuilder* common,
                        MachineOperatorBuilder* machine, Zone* zone);

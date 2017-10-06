@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const https = require('https');
@@ -13,8 +11,8 @@ const fs = require('fs');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
   secureOptions: SSL_OP_NO_TICKET
 };
 
@@ -81,6 +79,6 @@ function third(server) {
     assert(!req.socket.isSessionReused());
     server.close();
   });
-  req.on('error', common.fail);
+  req.on('error', common.mustNotCall());
   req.end();
 }

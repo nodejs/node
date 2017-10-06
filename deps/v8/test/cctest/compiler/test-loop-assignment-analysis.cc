@@ -5,8 +5,9 @@
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 
@@ -32,12 +33,14 @@ struct TestHelper : public HandleAndZoneScope {
 
   void CheckLoopAssignedCount(int expected, const char* var_name) {
     // TODO(titzer): don't scope analyze every single time.
-    ParseInfo parse_info(main_zone(), function);
-    CompilationInfo info(&parse_info, function);
+    ParseInfo parse_info(handle(function->shared()));
+    CompilationInfo info(parse_info.zone(), &parse_info, function->GetIsolate(),
+                         function);
 
-    CHECK(Parser::ParseStatic(&parse_info));
-    CHECK(Rewriter::Rewrite(&parse_info));
-    DeclarationScope::Analyze(&parse_info, AnalyzeMode::kRegular);
+    CHECK(parsing::ParseFunction(&parse_info, info.isolate()));
+    CHECK(Rewriter::Rewrite(&parse_info, function->GetIsolate()));
+    DeclarationScope::Analyze(&parse_info, info.isolate(),
+                              AnalyzeMode::kRegular);
 
     DeclarationScope* scope = info.literal()->scope();
     AstValueFactory* factory = parse_info.ast_value_factory();
@@ -71,27 +74,8 @@ TEST(SimpleLoop1) {
   f.CheckLoopAssignedCount(0, "x");
 }
 
-
-TEST(SimpleLoop2) {
-  const char* loops[] = {
-      "while (x) { var x = 0; }",            "for(;;) { var x = 0; }",
-      "for(;x;) { var x = 0; }",             "for(;x;x) { var x = 0; }",
-      "for(var i = x; x; x) { var x = 0; }", "for(y in 0) { var x = 0; }",
-      "for(y of 0) { var x = 0; }",          "for(var x = 0; x; x++) { }",
-      "for(var x = 0; x++;) { }",            "var x; for(;x;x++) { }",
-      "var x; do { x = 1; } while (0);",     "do { var x = 1; } while (0);"};
-
-  for (size_t i = 0; i < arraysize(loops); i++) {
-    TestHelper f(loops[i]);
-    f.CheckLoopAssignedCount(1, "x");
-  }
-}
-
-
-TEST(ForInOf1) {
-  const char* loops[] = {
-      "for(x in 0) { }", "for(x of 0) { }",
-  };
+TEST(ForIn1) {
+  const char* loops[] = {"for(x in 0) { }"};
 
   for (size_t i = 0; i < arraysize(loops); i++) {
     TestHelper f(loops[i]);

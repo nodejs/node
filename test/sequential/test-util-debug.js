@@ -1,35 +1,64 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 
-if (process.argv[2] === 'child')
-  child();
+const [, , modeArgv, sectionArgv] = process.argv;
+
+if (modeArgv === 'child')
+  child(sectionArgv);
 else
   parent();
 
 function parent() {
-  test('foo,tud,bar', true);
-  test('foo,tud', true);
-  test('tud,bar', true);
-  test('tud', true);
-  test('foo,bar', false);
-  test('', false);
+  test('foo,tud,bar', true, 'tud');
+  test('foo,tud', true, 'tud');
+  test('tud,bar', true, 'tud');
+  test('tud', true, 'tud');
+  test('foo,bar', false, 'tud');
+  test('', false, 'tud');
+
+  test('###', true, '###');
+  test('hi:)', true, 'hi:)');
+  test('f$oo', true, 'f$oo');
+  test('f$oo', false, 'f.oo');
+  test('no-bar-at-all', false, 'bar');
 }
 
-function test(environ, shouldWrite) {
+function test(environ, shouldWrite, section) {
   let expectErr = '';
-  if (shouldWrite) {
-    expectErr = 'TUD %PID%: this { is: \'a\' } /debugging/\n' +
-                'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
-  }
   const expectOut = 'ok\n';
 
   const spawn = require('child_process').spawn;
-  const child = spawn(process.execPath, [__filename, 'child'], {
+  const child = spawn(process.execPath, [__filename, 'child', section], {
     env: Object.assign(process.env, { NODE_DEBUG: environ })
   });
 
-  expectErr = expectErr.split('%PID%').join(child.pid);
+  if (shouldWrite) {
+    expectErr =
+      `${section.toUpperCase()} ${child.pid}: this { is: 'a' } /debugging/\n${
+        section.toUpperCase()} ${child.pid}: num=1 str=a obj={"foo":"bar"}\n`;
+  }
 
   let err = '';
   child.stderr.setEncoding('utf8');
@@ -51,10 +80,10 @@ function test(environ, shouldWrite) {
 }
 
 
-function child() {
+function child(section) {
   const util = require('util');
-  const debug = util.debuglog('tud');
+  const debug = util.debuglog(section);
   debug('this', { is: 'a' }, /debugging/);
-  debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
+  debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
   console.log('ok');
 }

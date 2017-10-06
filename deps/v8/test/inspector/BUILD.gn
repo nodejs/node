@@ -8,9 +8,9 @@ v8_executable("inspector-test") {
   testonly = true
 
   sources = [
-    "inspector-impl.cc",
-    "inspector-impl.h",
     "inspector-test.cc",
+    "isolate-data.cc",
+    "isolate-data.h",
     "task-runner.cc",
     "task-runner.h",
   ]
@@ -21,18 +21,12 @@ v8_executable("inspector-test") {
   ]
 
   deps = [
+    "../..:v8",
+    "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/config/sanitizers:deps",
+    "//build/config:exe_and_shlib_deps",
     "//build/win:default_exe_manifest",
   ]
-
-  if (is_component_build) {
-    # inspector-test can't be built against a shared library, so we
-    # need to depend on the underlying static target in that case.
-    deps += [ "../..:v8_maybe_snapshot" ]
-  } else {
-    deps += [ "../..:v8" ]
-  }
 
   cflags = []
   ldflags = []

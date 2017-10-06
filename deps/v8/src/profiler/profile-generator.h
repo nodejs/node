@@ -49,13 +49,6 @@ class CodeEntry {
                    Address instruction_start = NULL);
   ~CodeEntry();
 
-  // Container describing inlined frames at eager deopt points. Is eventually
-  // being translated into v8::CpuProfileDeoptFrame by the profiler.
-  struct DeoptInlinedFrame {
-    int position;
-    int script_id;
-  };
-
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
   const char* name() const { return name_; }
@@ -72,18 +65,15 @@ class CodeEntry {
   }
   const char* bailout_reason() const { return bailout_reason_; }
 
-  void set_deopt_info(const char* deopt_reason, SourcePosition position,
-                      int deopt_id) {
+  void set_deopt_info(const char* deopt_reason, int deopt_id) {
     DCHECK(!has_deopt_info());
     deopt_reason_ = deopt_reason;
-    deopt_position_ = position;
     deopt_id_ = deopt_id;
   }
   CpuProfileDeoptInfo GetDeoptInfo();
   bool has_deopt_info() const { return deopt_id_ != kNoDeoptimizationId; }
   void clear_deopt_info() {
     deopt_reason_ = kNoDeoptReason;
-    deopt_position_ = SourcePosition::Unknown();
     deopt_id_ = kNoDeoptimizationId;
   }
 
@@ -99,10 +89,10 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
-  void AddInlineStack(int pc_offset, std::vector<CodeEntry*>& inline_stack);
+  void AddInlineStack(int pc_offset, std::vector<CodeEntry*> inline_stack);
   const std::vector<CodeEntry*>* GetInlineStack(int pc_offset) const;
 
-  void AddDeoptInlinedFrames(int deopt_id, std::vector<DeoptInlinedFrame>&);
+  void AddDeoptInlinedFrames(int deopt_id, std::vector<CpuProfileDeoptFrame>);
   bool HasDeoptInlinedFramesFor(int deopt_id) const;
 
   Address instruction_start() const { return instruction_start_; }
@@ -167,13 +157,12 @@ class CodeEntry {
   int position_;
   const char* bailout_reason_;
   const char* deopt_reason_;
-  SourcePosition deopt_position_;
   int deopt_id_;
   JITLineInfoTable* line_info_;
   Address instruction_start_;
   // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
   std::map<int, std::vector<CodeEntry*>> inline_locations_;
-  std::map<int, std::vector<DeoptInlinedFrame>> deopt_inlined_frames_;
+  std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
 };
@@ -183,7 +172,7 @@ class ProfileTree;
 
 class ProfileNode {
  public:
-  inline ProfileNode(ProfileTree* tree, CodeEntry* entry);
+  inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent);
 
   ProfileNode* FindChild(CodeEntry* entry);
   ProfileNode* FindOrAddChild(CodeEntry* entry);
@@ -196,6 +185,7 @@ class ProfileNode {
   const List<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
   unsigned function_id() const;
+  ProfileNode* parent() const { return parent_; }
   unsigned int GetHitLineCount() const { return line_ticks_.occupancy(); }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
@@ -223,6 +213,7 @@ class ProfileNode {
   // Mapping from CodeEntry* to ProfileNode*
   base::CustomMatcherHashMap children_;
   List<ProfileNode*> children_list_;
+  ProfileNode* parent_;
   unsigned id_;
   base::CustomMatcherHashMap line_ticks_;
 
@@ -251,9 +242,17 @@ class ProfileTree {
 
   Isolate* isolate() const { return isolate_; }
 
+  void EnqueueNode(const ProfileNode* node) { pending_nodes_.push_back(node); }
+  size_t pending_nodes_count() const { return pending_nodes_.size(); }
+  std::vector<const ProfileNode*> TakePendingNodes() {
+    return std::move(pending_nodes_);
+  }
+
  private:
   template <typename Callback>
   void TraverseDepthFirst(Callback* callback);
+
+  std::vector<const ProfileNode*> pending_nodes_;
 
   CodeEntry root_entry_;
   unsigned next_node_id_;
@@ -274,7 +273,7 @@ class CpuProfile {
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const std::vector<CodeEntry*>& path,
                int src_line, bool update_stats);
-  void CalculateTotalTicksAndSamplingRate();
+  void FinishProfile();
 
   const char* title() const { return title_; }
   const ProfileTree* top_down() const { return &top_down_; }
@@ -294,6 +293,8 @@ class CpuProfile {
   void Print();
 
  private:
+  void StreamPendingTraceEvents();
+
   const char* title_;
   bool record_samples_;
   base::TimeTicks start_time_;
@@ -302,6 +303,7 @@ class CpuProfile {
   List<base::TimeTicks> timestamps_;
   ProfileTree top_down_;
   CpuProfiler* const profiler_;
+  int streaming_next_sample_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
@@ -373,6 +375,7 @@ class ProfileGenerator {
   CodeMap* code_map() { return &code_map_; }
 
  private:
+  CodeEntry* FindEntry(void* address);
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;

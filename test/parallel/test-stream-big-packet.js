@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -22,7 +43,7 @@ util.inherits(TestStream, stream.Transform);
 TestStream.prototype._transform = function(chunk, encoding, done) {
   if (!passed) {
     // Char 'a' only exists in the last write
-    passed = chunk.toString().indexOf('a') >= 0;
+    passed = chunk.toString().includes('a');
   }
   done();
 };
@@ -32,7 +53,7 @@ const s2 = new PassThrough();
 const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
-s2.pipe(s3, {end: false});
+s2.pipe(s3, { end: false });
 
 // We must write a buffer larger than highWaterMark
 const big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');

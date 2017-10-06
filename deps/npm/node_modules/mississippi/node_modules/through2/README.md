@@ -20,6 +20,9 @@ fs.createReadStream('ex.txt')
     callback()
    }))
   .pipe(fs.createWriteStream('out.txt'))
+  .on('finish', function () {
+    doSomethingSpecial()
+  })
 ```
 
 Or object streams:

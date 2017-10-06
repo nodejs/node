@@ -1,16 +1,14 @@
 'use strict';
 const common = require('../common');
+// Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
+if (common.isSunOS || common.isWindows || common.isAIX)
+  common.skip('cannot rmdir current working directory');
+
 const assert = require('assert');
 const fs = require('fs');
 const spawn = require('child_process').spawn;
 
-// Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (common.isSunOS || common.isWindows || common.isAix) {
-  common.skip('cannot rmdir current working directory');
-  return;
-}
-
-const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
 common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);

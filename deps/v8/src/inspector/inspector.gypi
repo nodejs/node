@@ -38,13 +38,10 @@
       '../../include/v8-inspector-protocol.h',
       'inspector/injected-script.cc',
       'inspector/injected-script.h',
-      'inspector/injected-script-native.cc',
-      'inspector/injected-script-native.h',
       'inspector/inspected-context.cc',
       'inspector/inspected-context.h',
       'inspector/java-script-call-frame.cc',
       'inspector/java-script-call-frame.h',
-      'inspector/protocol-platform.h',
       'inspector/remote-object-id.cc',
       'inspector/remote-object-id.h',
       'inspector/script-breakpoint.h',
@@ -54,6 +51,8 @@
       'inspector/string-16.h',
       'inspector/string-util.cc',
       'inspector/string-util.h',
+      'inspector/test-interface.cc',
+      'inspector/test-interface.h',
       'inspector/v8-console.cc',
       'inspector/v8-console.h',
       'inspector/v8-console-agent-impl.cc',
@@ -90,6 +89,8 @@
       'inspector/v8-stack-trace-impl.h',
       'inspector/v8-value-copier.cc',
       'inspector/v8-value-copier.h',
+      'inspector/wasm-translation.cc',
+      'inspector/wasm-translation.h',
     ]
   }
 }

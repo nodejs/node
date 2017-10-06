@@ -70,11 +70,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
     return buffer;
   }
 
-  Matcher<Node*> IsIntPtrConstant(intptr_t value) {
-    return sizeof(value) == 4 ? IsInt32Constant(static_cast<int32_t>(value))
-                              : IsInt64Constant(static_cast<int64_t>(value));
-  }
-
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:
@@ -116,6 +111,36 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNumber) {
   EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
 }
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithDetectableReceiverOrNull) {
+  Node* input = Parameter(Type::DetectableReceiverOrNull(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(input, IsNullConstant())));
+}
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithReceiverOrNullOrUndefined) {
+  Node* input = Parameter(Type::ReceiverOrNullOrUndefined(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
+}
+
+TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
+  Node* input = Parameter(Type::String(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(
+                  input, IsHeapConstant(factory()->empty_string()))));
+}
+
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
@@ -126,8 +151,42 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
 
 
 // -----------------------------------------------------------------------------
-// JSToNumber
+// JSToName
 
+TEST_F(JSTypedLoweringTest, JSToNameWithString) {
+  Node* const input = Parameter(Type::String(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithSymbol) {
+  Node* const input = Parameter(Type::Symbol(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithAny) {
+  Node* const input = Parameter(Type::Any(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_FALSE(r.Changed());
+}
+
+// -----------------------------------------------------------------------------
+// JSToNumber
 
 TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Node* const input = Parameter(Type::PlainPrimitive(), 0);
@@ -191,10 +250,26 @@ TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
                        IsHeapConstant(factory()->false_string())));
 }
 
+// -----------------------------------------------------------------------------
+// JSToPrimitiveToString
+
+TEST_F(JSTypedLoweringTest, JSToPrimitiveToStringWithBoolean) {
+  Node* const input = Parameter(Type::Boolean(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const frame_state = EmptyFrameState();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToString(), input,
+                                        context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsSelect(MachineRepresentation::kTagged, input,
+                       IsHeapConstant(factory()->true_string()),
+                       IsHeapConstant(factory()->false_string())));
+}
 
 // -----------------------------------------------------------------------------
 // JSStrictEqual
-
 
 TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
   Node* const the_hole = HeapConstant(factory()->the_hole_value());
@@ -222,7 +297,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
       graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
                        lhs, rhs, context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsReferenceEqual(Type::Unique(), lhs, rhs));
+  EXPECT_THAT(r.replacement(), IsReferenceEqual(lhs, rhs));
 }
 
 
@@ -230,13 +305,12 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
 // JSShiftLeft
 
 TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Signed32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hint), lhs,
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs,
                                           NumberConstant(rhs), context,
                                           EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
@@ -246,76 +320,30 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
 }
 
 TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Signed32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftLeft(hint), lhs, rhs, context,
+      Reduce(graph()->NewNode(javascript()->ShiftLeft(), lhs, rhs, context,
                               EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
 }
 
-TEST_F(JSTypedLoweringTest, JSShiftLeftWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberShiftLeft(NumberOperationHint::kSignedSmall,
-                                           lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberShiftLeft(NumberOperationHint::kSigned32, lhs,
-                                           rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftLeftWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftLeft(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
-}
 
 // -----------------------------------------------------------------------------
 // JSShiftRight
 
 
 TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Signed32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hint), lhs,
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs,
                                           NumberConstant(rhs), context,
                                           EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
@@ -326,63 +354,18 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
 
 
 TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Signed32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftRight(hint), lhs, rhs, context,
+      Reduce(graph()->NewNode(javascript()->ShiftRight(), lhs, rhs, context,
                               EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
 }
 
-TEST_F(JSTypedLoweringTest, JSShiftRightWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberShiftRight(NumberOperationHint::kSignedSmall,
-                                            lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberShiftRight(NumberOperationHint::kSigned32, lhs,
-                                            rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftRightWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftRight(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
-}
 
 // -----------------------------------------------------------------------------
 // JSShiftRightLogical
@@ -390,13 +373,12 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithNumberOrOddballHint) {
 
 TEST_F(JSTypedLoweringTest,
                    JSShiftRightLogicalWithUnsigned32AndConstant) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hint),
+    Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(),
                                           lhs, NumberConstant(rhs), context,
                                           EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
@@ -407,63 +389,18 @@ TEST_F(JSTypedLoweringTest,
 
 
 TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
-  BinaryOperationHint const hint = BinaryOperationHint::kAny;
   Node* const lhs = Parameter(Type::Unsigned32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
-      Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hint), lhs, rhs,
+      Reduce(graph()->NewNode(javascript()->ShiftRightLogical(), lhs, rhs,
                               context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
 }
 
-TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hint),
-                                        lhs, rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftRightLogical(
-                                   NumberOperationHint::kSignedSmall, lhs, rhs,
-                                   effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hint),
-                                        lhs, rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberShiftRightLogical(
-                  NumberOperationHint::kSigned32, lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hint),
-                                        lhs, rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberShiftRightLogical(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
-}
 
 // -----------------------------------------------------------------------------
 // JSLoadContext
@@ -475,17 +412,15 @@ TEST_F(JSTypedLoweringTest, JSLoadContext) {
   static bool kBooleans[] = {false, true};
   TRACED_FOREACH(size_t, index, kIndices) {
     TRACED_FOREACH(bool, immutable, kBooleans) {
-      Reduction const r1 = Reduce(
-          graph()->NewNode(javascript()->LoadContext(0, index, immutable),
-                           context, context, effect));
+      Reduction const r1 = Reduce(graph()->NewNode(
+          javascript()->LoadContext(0, index, immutable), context, effect));
       ASSERT_TRUE(r1.Changed());
       EXPECT_THAT(r1.replacement(),
                   IsLoadField(AccessBuilder::ForContextSlot(index), context,
                               effect, graph()->start()));
 
-      Reduction const r2 = Reduce(
-          graph()->NewNode(javascript()->LoadContext(1, index, immutable),
-                           context, context, effect));
+      Reduction const r2 = Reduce(graph()->NewNode(
+          javascript()->LoadContext(1, index, immutable), context, effect));
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
                   IsLoadField(AccessBuilder::ForContextSlot(index),
@@ -511,16 +446,16 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
       Node* const value = Parameter(type);
 
       Reduction const r1 =
-          Reduce(graph()->NewNode(javascript()->StoreContext(0, index), context,
-                                  value, context, effect, control));
+          Reduce(graph()->NewNode(javascript()->StoreContext(0, index), value,
+                                  context, effect, control));
       ASSERT_TRUE(r1.Changed());
       EXPECT_THAT(r1.replacement(),
                   IsStoreField(AccessBuilder::ForContextSlot(index), context,
                                value, effect, control));
 
       Reduction const r2 =
-          Reduce(graph()->NewNode(javascript()->StoreContext(1, index), context,
-                                  value, context, effect, control));
+          Reduce(graph()->NewNode(javascript()->StoreContext(1, index), value,
+                                  context, effect, control));
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
                   IsStoreField(AccessBuilder::ForContextSlot(index),
@@ -551,13 +486,12 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     Node* key = Parameter(
         Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
     Node* base = HeapConstant(array);
-    Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
-                                          base, key, vector, context,
-                                          EmptyFrameState(), effect, control));
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
+                                context, EmptyFrameState(), effect, control));
 
     Matcher<Node*> offset_matcher =
         element_size == 1
@@ -569,7 +503,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     EXPECT_THAT(
         r.replacement(),
         IsLoadBuffer(BufferAccess(type),
-                     IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                     IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
                      offset_matcher,
                      IsNumberConstant(array->byte_length()->Number()), effect,
                      control));
@@ -593,19 +527,18 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     if (min > max) std::swap(min, max);
     Node* key = Parameter(Type::Range(min, max, zone()));
     Node* base = HeapConstant(array);
-    Node* vector = UndefinedConstant();
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->LoadProperty(feedback),
-                                          base, key, vector, context,
-                                          EmptyFrameState(), effect, control));
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
+                                context, EmptyFrameState(), effect, control));
 
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
         IsLoadElement(access,
-                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
                       key, effect, control));
   }
 }
@@ -631,13 +564,12 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       Node* base = HeapConstant(array);
       Node* value =
           Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
-      Node* vector = UndefinedConstant();
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
+      Node* node = graph()->NewNode(op, base, key, value, context,
                                     EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
@@ -650,11 +582,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
           r.replacement(),
-          IsStoreBuffer(BufferAccess(type),
-                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                        offset_matcher,
-                        IsNumberConstant(array->byte_length()->Number()), value,
-                        effect, control));
+          IsStoreBuffer(
+              BufferAccess(type),
+              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
+              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
+              value, effect, control));
     }
   }
 }
@@ -674,19 +606,14 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* key = Parameter(
           Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
       Node* base = HeapConstant(array);
-      Node* value = Parameter(Type::Any());
-      Node* vector = UndefinedConstant();
+      Node* value = Parameter(Type::PlainPrimitive());
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      // TODO(mstarzinger): Once the effect-control-linearizer provides a frame
-      // state we can get rid of this checkpoint again. The reducer won't care.
-      Node* checkpoint = graph()->NewNode(common()->Checkpoint(),
-                                          EmptyFrameState(), effect, control);
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
-                                    EmptyFrameState(), checkpoint, control);
+      Node* node = graph()->NewNode(op, base, key, value, context,
+                                    EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -695,19 +622,16 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
               : IsNumberShiftLeft(
                     key, IsNumberConstant(WhichPowerOf2(element_size)));
 
-      Matcher<Node*> value_matcher =
-          IsToNumber(value, context, checkpoint, control);
-      Matcher<Node*> effect_matcher = value_matcher;
-      Matcher<Node*> control_matcher = IsIfSuccess(value_matcher);
+      Matcher<Node*> value_matcher = IsPlainPrimitiveToNumber(value);
 
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
           r.replacement(),
-          IsStoreBuffer(BufferAccess(type),
-                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                        offset_matcher,
-                        IsNumberConstant(array->byte_length()->Number()),
-                        value_matcher, effect_matcher, control_matcher));
+          IsStoreBuffer(
+              BufferAccess(type),
+              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
+              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
+              value_matcher, effect, control));
     }
   }
 }
@@ -730,13 +654,12 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       Node* key = Parameter(Type::Range(min, max, zone()));
       Node* base = HeapConstant(array);
       Node* value = Parameter(access.type);
-      Node* vector = UndefinedConstant();
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, vector, context,
+      Node* node = graph()->NewNode(op, base, key, value, context,
                                     EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
@@ -744,7 +667,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       EXPECT_THAT(
           r.replacement(),
           IsStoreElement(
-              access, IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+              access, IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
               key, value, effect, control));
     }
   }
@@ -759,13 +682,12 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedStringLength) {
   VectorSlotPair feedback;
   Handle<Name> name = factory()->length_string();
   Node* const receiver = Parameter(Type::String(), 0);
-  Node* const vector = Parameter(Type::Internal(), 1);
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
-                       vector, context, EmptyFrameState(), effect, control));
+  Reduction const r =
+      Reduce(graph()->NewNode(javascript()->LoadNamed(name, feedback), receiver,
+                              context, EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
                                            receiver, effect, control));
@@ -793,185 +715,6 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
                                 isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED)
                                 .code()),
                      lhs, rhs, context, frame_state, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSAddSmis) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 0);
-  Node* rhs = Parameter(Type::Number(), 1);
-  Node* context = Parameter(Type::Any(), 2);
-  Node* frame_state = EmptyFrameState();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
-                                        context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberAdd(NumberOperationHint::kSignedSmall, lhs,
-                                     rhs, effect, control));
-}
-
-// -----------------------------------------------------------------------------
-// JSSubtract
-
-TEST_F(JSTypedLoweringTest, JSSubtractSmis) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 0);
-  Node* rhs = Parameter(Type::Number(), 1);
-  Node* context = Parameter(Type::Any(), 2);
-  Node* frame_state = EmptyFrameState();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->Subtract(hint), lhs, rhs,
-                                        context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberSubtract(NumberOperationHint::kSignedSmall,
-                                          lhs, rhs, effect, control));
-}
-
-// -----------------------------------------------------------------------------
-// JSBitwiseAnd
-
-TEST_F(JSTypedLoweringTest, JSBitwiseAndWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseAnd(NumberOperationHint::kSignedSmall,
-                                            lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseAndWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseAnd(NumberOperationHint::kSigned32, lhs,
-                                            rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseAndWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseAnd(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseAnd(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
-}
-
-// -----------------------------------------------------------------------------
-// JSBitwiseOr
-
-TEST_F(JSTypedLoweringTest, JSBitwiseOrWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseOr(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseOr(NumberOperationHint::kSignedSmall,
-                                           lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseOrWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseOr(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseOr(NumberOperationHint::kSigned32, lhs,
-                                           rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseOrWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseOr(hint), lhs, rhs,
-                                        UndefinedConstant(), EmptyFrameState(),
-                                        effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseOr(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
-}
-
-// -----------------------------------------------------------------------------
-// JSBitwiseXor
-
-TEST_F(JSTypedLoweringTest, JSBitwiseXorWithSignedSmallHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseXor(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseXor(NumberOperationHint::kSignedSmall,
-                                            lhs, rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseXorWithSigned32Hint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSigned32;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseXor(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberBitwiseXor(NumberOperationHint::kSigned32, lhs,
-                                            rhs, effect, control));
-}
-
-TEST_F(JSTypedLoweringTest, JSBitwiseXorWithNumberOrOddballHint) {
-  BinaryOperationHint const hint = BinaryOperationHint::kNumberOrOddball;
-  Node* lhs = Parameter(Type::Number(), 2);
-  Node* rhs = Parameter(Type::Number(), 3);
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->BitwiseXor(hint), lhs,
-                                        rhs, UndefinedConstant(),
-                                        EmptyFrameState(), effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSpeculativeNumberBitwiseXor(
-                                   NumberOperationHint::kNumberOrOddball, lhs,
-                                   rhs, effect, control));
 }
 
 }  // namespace compiler

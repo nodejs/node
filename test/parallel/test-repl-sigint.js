@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-const spawn = require('child_process').spawn;
-
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
-  return;
 }
+
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 process.env.REPL_TEST_PPID = process.pid;
 const child = spawn(process.execPath, [ '-i' ], {
@@ -17,17 +15,9 @@ const child = spawn(process.execPath, [ '-i' ], {
 
 let stdout = '';
 child.stdout.setEncoding('utf8');
-child.stdout.pipe(process.stdout);
 child.stdout.on('data', function(c) {
   stdout += c;
 });
-
-child.stdin.write = ((original) => {
-  return (chunk) => {
-    process.stderr.write(chunk);
-    return original.call(child.stdin, chunk);
-  };
-})(child.stdin.write);
 
 child.stdout.once('data', common.mustCall(() => {
   process.on('SIGUSR2', common.mustCall(() => {
@@ -45,6 +35,12 @@ child.stdout.once('data', common.mustCall(() => {
 
 child.on('close', function(code) {
   assert.strictEqual(code, 0);
-  assert.notStrictEqual(stdout.indexOf('Script execution interrupted.\n'), -1);
-  assert.notStrictEqual(stdout.indexOf('42042\n'), -1);
+  assert.ok(
+    stdout.includes('Script execution interrupted.\n'),
+    `Expected stdout to contain "Script execution interrupted.", got ${stdout}`
+  );
+  assert.ok(
+    stdout.includes('42042\n'),
+    `Expected stdout to contain "42042", got ${stdout}`
+  );
 });

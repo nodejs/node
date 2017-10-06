@@ -25,8 +25,13 @@ class MachineRepresentationInferrer {
                                 Linkage* linkage, Zone* zone)
       : schedule_(schedule),
         linkage_(linkage),
-        representation_vector_(graph->NodeCount(), zone) {
+        representation_vector_(graph->NodeCount(), MachineRepresentation::kNone,
+                               zone) {
     Run();
+  }
+
+  CallDescriptor* call_descriptor() const {
+    return linkage_->GetIncomingDescriptor();
   }
 
   MachineRepresentation GetRepresentation(Node const* node) const {
@@ -52,7 +57,6 @@ class MachineRepresentationInferrer {
       case IrOpcode::kTryTruncateFloat32ToInt64:
       case IrOpcode::kTryTruncateFloat64ToInt64:
       case IrOpcode::kTryTruncateFloat32ToUint64:
-      case IrOpcode::kTryTruncateFloat64ToUint64:
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
                           : MachineRepresentation::kBit;
@@ -65,9 +69,22 @@ class MachineRepresentationInferrer {
     }
   }
 
+  MachineRepresentation PromoteRepresentation(MachineRepresentation rep) {
+    switch (rep) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return MachineRepresentation::kWord32;
+      default:
+        break;
+    }
+    return rep;
+  }
+
   void Run() {
     auto blocks = schedule_->all_blocks();
     for (BasicBlock* block : *blocks) {
+      current_block_ = block;
       for (size_t i = 0; i <= block->NodeCount(); ++i) {
         Node const* node =
             i < block->NodeCount() ? block->NodeAt(i) : block->control_input();
@@ -81,6 +98,11 @@ class MachineRepresentationInferrer {
                 linkage_->GetParameterType(ParameterIndexOf(node->op()))
                     .representation();
             break;
+          case IrOpcode::kReturn: {
+            representation_vector_[node->id()] = PromoteRepresentation(
+                linkage_->GetReturnType().representation());
+            break;
+          }
           case IrOpcode::kProjection: {
             representation_vector_[node->id()] = GetProjectionType(node);
           } break;
@@ -90,18 +112,22 @@ class MachineRepresentationInferrer {
           case IrOpcode::kAtomicLoad:
           case IrOpcode::kLoad:
           case IrOpcode::kProtectedLoad:
-            representation_vector_[node->id()] =
-                LoadRepresentationOf(node->op()).representation();
+            representation_vector_[node->id()] = PromoteRepresentation(
+                LoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kCheckedLoad:
-            representation_vector_[node->id()] =
-                CheckedLoadRepresentationOf(node->op()).representation();
+            representation_vector_[node->id()] = PromoteRepresentation(
+                CheckedLoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
+            break;
+          case IrOpcode::kUnalignedLoad:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                UnalignedLoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kPhi:
             representation_vector_[node->id()] =
@@ -118,9 +144,32 @@ class MachineRepresentationInferrer {
             }
             break;
           }
-          case IrOpcode::kUnalignedLoad:
+          case IrOpcode::kAtomicStore:
             representation_vector_[node->id()] =
-                UnalignedLoadRepresentationOf(node->op()).representation();
+                PromoteRepresentation(AtomicStoreRepresentationOf(node->op()));
+            break;
+          case IrOpcode::kAtomicExchange:
+          case IrOpcode::kAtomicCompareExchange:
+          case IrOpcode::kAtomicAdd:
+          case IrOpcode::kAtomicSub:
+          case IrOpcode::kAtomicAnd:
+          case IrOpcode::kAtomicOr:
+          case IrOpcode::kAtomicXor:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                AtomicOpRepresentationOf(node->op()).representation());
+            break;
+          case IrOpcode::kStore:
+          case IrOpcode::kProtectedStore:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                StoreRepresentationOf(node->op()).representation());
+            break;
+          case IrOpcode::kCheckedStore:
+            representation_vector_[node->id()] =
+                PromoteRepresentation(CheckedStoreRepresentationOf(node->op()));
+            break;
+          case IrOpcode::kUnalignedStore:
+            representation_vector_[node->id()] = PromoteRepresentation(
+                UnalignedStoreRepresentationOf(node->op()));
             break;
           case IrOpcode::kHeapConstant:
           case IrOpcode::kNumberConstant:
@@ -168,7 +217,9 @@ class MachineRepresentationInferrer {
           case IrOpcode::kTruncateFloat32ToInt32:
           case IrOpcode::kTruncateFloat32ToUint32:
           case IrOpcode::kBitcastFloat32ToInt32:
-          case IrOpcode::kInt32x4ExtractLane:
+          case IrOpcode::kI32x4ExtractLane:
+          case IrOpcode::kI16x8ExtractLane:
+          case IrOpcode::kI8x16ExtractLane:
           case IrOpcode::kInt32Constant:
           case IrOpcode::kRelocatableInt32Constant:
           case IrOpcode::kTruncateFloat64ToWord32:
@@ -189,6 +240,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kInt64Constant:
           case IrOpcode::kRelocatableInt64Constant:
           case IrOpcode::kBitcastFloat64ToInt64:
+          case IrOpcode::kChangeFloat64ToUint64:
             MACHINE_BINOP_64_LIST(LABEL) {
               representation_vector_[node->id()] =
                   MachineRepresentation::kWord64;
@@ -230,17 +282,25 @@ class MachineRepresentationInferrer {
   Schedule const* const schedule_;
   Linkage const* const linkage_;
   ZoneVector<MachineRepresentation> representation_vector_;
+  BasicBlock* current_block_;
 };
 
 class MachineRepresentationChecker {
  public:
-  MachineRepresentationChecker(Schedule const* const schedule,
-                               MachineRepresentationInferrer const* const typer)
-      : schedule_(schedule), typer_(typer) {}
+  MachineRepresentationChecker(
+      Schedule const* const schedule,
+      MachineRepresentationInferrer const* const inferrer, bool is_stub,
+      const char* name)
+      : schedule_(schedule),
+        inferrer_(inferrer),
+        is_stub_(is_stub),
+        name_(name),
+        current_block_(nullptr) {}
 
   void Run() {
     BasicBlockVector const* blocks = schedule_->all_blocks();
     for (BasicBlock* block : *blocks) {
+      current_block_ = block;
       for (size_t i = 0; i <= block->NodeCount(); ++i) {
         Node const* node =
             i < block->NodeCount() ? block->NodeAt(i) : block->control_input();
@@ -255,11 +315,11 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kChangeBitToTagged:
             CHECK_EQ(MachineRepresentation::kBit,
-                     typer_->GetRepresentation(node->InputAt(0)));
+                     inferrer_->GetRepresentation(node->InputAt(0)));
             break;
           case IrOpcode::kChangeTaggedToBit:
             CHECK_EQ(MachineRepresentation::kTagged,
-                     typer_->GetRepresentation(node->InputAt(0)));
+                     inferrer_->GetRepresentation(node->InputAt(0)));
             break;
           case IrOpcode::kRoundInt64ToFloat64:
           case IrOpcode::kRoundUint64ToFloat64:
@@ -285,12 +345,21 @@ class MachineRepresentationChecker {
           case IrOpcode::kFloat64ExtractLowWord32:
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kBitcastFloat64ToInt64:
+          case IrOpcode::kTryTruncateFloat64ToInt64:
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:
-            CheckValueInputIsTaggedOrPointer(node, 0);
-            CheckValueInputRepresentationIs(
-                node, 1, typer_->GetRepresentation(node->InputAt(0)));
+            if (Is64()) {
+              CheckValueInputIsTaggedOrPointer(node, 0);
+              CheckValueInputIsTaggedOrPointer(node, 1);
+              if (!is_stub_) {
+                CheckValueInputRepresentationIs(
+                    node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
+              }
+            } else {
+              CheckValueInputForInt64Op(node, 0);
+              CheckValueInputForInt64Op(node, 1);
+            }
             break;
           case IrOpcode::kInt64LessThan:
           case IrOpcode::kInt64LessThanOrEqual:
@@ -299,7 +368,9 @@ class MachineRepresentationChecker {
             CheckValueInputForInt64Op(node, 0);
             CheckValueInputForInt64Op(node, 1);
             break;
-          case IrOpcode::kInt32x4ExtractLane:
+          case IrOpcode::kI32x4ExtractLane:
+          case IrOpcode::kI16x8ExtractLane:
+          case IrOpcode::kI8x16ExtractLane:
             CheckValueInputRepresentationIs(node, 0,
                                             MachineRepresentation::kSimd128);
             break;
@@ -315,6 +386,19 @@ class MachineRepresentationChecker {
             MACHINE_UNOP_32_LIST(LABEL) { CheckValueInputForInt32Op(node, 0); }
             break;
           case IrOpcode::kWord32Equal:
+            if (Is32()) {
+              CheckValueInputIsTaggedOrPointer(node, 0);
+              CheckValueInputIsTaggedOrPointer(node, 1);
+              if (!is_stub_) {
+                CheckValueInputRepresentationIs(
+                    node, 1, inferrer_->GetRepresentation(node->InputAt(0)));
+              }
+            } else {
+              CheckValueInputForInt32Op(node, 0);
+              CheckValueInputForInt32Op(node, 1);
+            }
+            break;
+
           case IrOpcode::kInt32LessThan:
           case IrOpcode::kInt32LessThanOrEqual:
           case IrOpcode::kUint32LessThan:
@@ -354,6 +438,7 @@ class MachineRepresentationChecker {
             }
             break;
           case IrOpcode::kFloat64SilenceNaN:
+          case IrOpcode::kChangeFloat64ToUint64:
             MACHINE_FLOAT64_UNOP_LIST(LABEL) {
               CheckValueInputForFloat64Op(node, 0);
             }
@@ -369,10 +454,17 @@ class MachineRepresentationChecker {
                 node, 1, MachineType::PointerRepresentation());
             break;
           case IrOpcode::kStore:
+          case IrOpcode::kAtomicStore:
+          case IrOpcode::kAtomicExchange:
+          case IrOpcode::kAtomicAdd:
+          case IrOpcode::kAtomicSub:
+          case IrOpcode::kAtomicAnd:
+          case IrOpcode::kAtomicOr:
+          case IrOpcode::kAtomicXor:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
-            switch (StoreRepresentationOf(node->op()).representation()) {
+            switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
@@ -380,27 +472,29 @@ class MachineRepresentationChecker {
                 break;
               default:
                 CheckValueInputRepresentationIs(
-                    node, 2,
-                    StoreRepresentationOf(node->op()).representation());
+                    node, 2, inferrer_->GetRepresentation(node));
             }
             break;
-          case IrOpcode::kAtomicStore:
+          case IrOpcode::kAtomicCompareExchange:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());
-            switch (AtomicStoreRepresentationOf(node->op())) {
+            switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
                 CheckValueInputIsTagged(node, 2);
+                CheckValueInputIsTagged(node, 3);
                 break;
               default:
                 CheckValueInputRepresentationIs(
-                    node, 2, AtomicStoreRepresentationOf(node->op()));
+                    node, 2, inferrer_->GetRepresentation(node));
+                CheckValueInputRepresentationIs(
+                    node, 3, inferrer_->GetRepresentation(node));
             }
             break;
           case IrOpcode::kPhi:
-            switch (typer_->GetRepresentation(node)) {
+            switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
@@ -408,10 +502,15 @@ class MachineRepresentationChecker {
                   CheckValueInputIsTagged(node, i);
                 }
                 break;
+              case MachineRepresentation::kWord32:
+                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                  CheckValueInputForInt32Op(node, i);
+                }
+                break;
               default:
                 for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
                   CheckValueInputRepresentationIs(
-                      node, i, typer_->GetRepresentation(node));
+                      node, i, inferrer_->GetRepresentation(node));
                 }
                 break;
             }
@@ -420,10 +519,34 @@ class MachineRepresentationChecker {
           case IrOpcode::kSwitch:
             CheckValueInputForInt32Op(node, 0);
             break;
-          case IrOpcode::kReturn:
-            // TODO(epertoso): use the linkage to determine which tipe we
-            // should have here.
+          case IrOpcode::kReturn: {
+            // TODO(ishell): enable once the pop count parameter type becomes
+            // MachineType::PointerRepresentation(). Currently it's int32 or
+            // word-size.
+            // CheckValueInputRepresentationIs(
+            //     node, 0, MachineType::PointerRepresentation());  // Pop count
+            size_t return_count = inferrer_->call_descriptor()->ReturnCount();
+            for (size_t i = 0; i < return_count; i++) {
+              MachineType type = inferrer_->call_descriptor()->GetReturnType(i);
+              int input_index = static_cast<int>(i + 1);
+              switch (type.representation()) {
+                case MachineRepresentation::kTagged:
+                case MachineRepresentation::kTaggedPointer:
+                case MachineRepresentation::kTaggedSigned:
+                  CheckValueInputIsTagged(node, input_index);
+                  break;
+                case MachineRepresentation::kWord32:
+                  CheckValueInputForInt32Op(node, input_index);
+                  break;
+                default:
+                  CheckValueInputRepresentationIs(
+                      node, 2, inferrer_->GetRepresentation(node));
+              }
+              break;
+            }
             break;
+          }
+          case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
             break;
@@ -432,6 +555,7 @@ class MachineRepresentationChecker {
               std::stringstream str;
               str << "Node #" << node->id() << ":" << *node->op()
                   << " in the machine graph is not being checked.";
+              PrintDebugHelp(str, node);
               FATAL(str.str().c_str());
             }
             break;
@@ -441,22 +565,34 @@ class MachineRepresentationChecker {
   }
 
  private:
+  static bool Is32() {
+    return MachineType::PointerRepresentation() ==
+           MachineRepresentation::kWord32;
+  }
+  static bool Is64() {
+    return MachineType::PointerRepresentation() ==
+           MachineRepresentation::kWord64;
+  }
+
   void CheckValueInputRepresentationIs(Node const* node, int index,
                                        MachineRepresentation representation) {
     Node const* input = node->InputAt(index);
-    if (typer_->GetRepresentation(input) != representation) {
+    MachineRepresentation input_representation =
+        inferrer_->GetRepresentation(input);
+    if (input_representation != representation) {
       std::stringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
-          << " uses node #" << input->id() << ":" << *input->op()
-          << " which doesn't have a " << MachineReprToString(representation)
+          << " uses node #" << input->id() << ":" << *input->op() << ":"
+          << input_representation << " which doesn't have a " << representation
           << " representation.";
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
 
   void CheckValueInputIsTagged(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (typer_->GetRepresentation(input)) {
+    switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
@@ -468,32 +604,47 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a tagged representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (typer_->GetRepresentation(input)) {
+    switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
         return;
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        if (Is32()) {
+          return;
+        }
+        break;
+      case MachineRepresentation::kWord64:
+        if (Is64()) {
+          return;
+        }
+        break;
       default:
         break;
     }
-    if (typer_->GetRepresentation(input) !=
+    if (inferrer_->GetRepresentation(input) !=
         MachineType::PointerRepresentation()) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " uses node #" << input->id() << ":" << *input->op()
           << " which doesn't have a tagged or pointer representation.";
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
 
   void CheckValueInputForInt32Op(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (typer_->GetRepresentation(input)) {
+    switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
@@ -503,6 +654,7 @@ class MachineRepresentationChecker {
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
+        PrintDebugHelp(str, node);
         FATAL(str.str().c_str());
         break;
       }
@@ -513,18 +665,22 @@ class MachineRepresentationChecker {
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have an int32-compatible representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
   void CheckValueInputForInt64Op(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    switch (typer_->GetRepresentation(input)) {
+    MachineRepresentation input_representation =
+        inferrer_->GetRepresentation(input);
+    switch (input_representation) {
       case MachineRepresentation::kWord64:
         return;
       case MachineRepresentation::kNone: {
         std::ostringstream str;
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
+        PrintDebugHelp(str, node);
         FATAL(str.str().c_str());
         break;
       }
@@ -534,32 +690,38 @@ class MachineRepresentationChecker {
     }
     std::ostringstream str;
     str << "TypeError: node #" << node->id() << ":" << *node->op()
-        << " uses node #" << input->id() << ":" << *input->op()
+        << " uses node #" << input->id() << ":" << *input->op() << ":"
+        << input_representation
         << " which doesn't have a kWord64 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
   void CheckValueInputForFloat32Op(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    if (MachineRepresentation::kFloat32 == typer_->GetRepresentation(input)) {
+    if (MachineRepresentation::kFloat32 ==
+        inferrer_->GetRepresentation(input)) {
       return;
     }
     std::ostringstream str;
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat32 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
   void CheckValueInputForFloat64Op(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    if (MachineRepresentation::kFloat64 == typer_->GetRepresentation(input)) {
+    if (MachineRepresentation::kFloat64 ==
+        inferrer_->GetRepresentation(input)) {
       return;
     }
     std::ostringstream str;
     str << "TypeError: node #" << node->id() << ":" << *node->op()
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat64 representation.";
+    PrintDebugHelp(str, node);
     FATAL(str.str().c_str());
   }
 
@@ -569,7 +731,8 @@ class MachineRepresentationChecker {
     bool should_log_error = false;
     for (size_t i = 0; i < desc->InputCount(); ++i) {
       Node const* input = node->InputAt(static_cast<int>(i));
-      MachineRepresentation const input_type = typer_->GetRepresentation(input);
+      MachineRepresentation const input_type =
+          inferrer_->GetRepresentation(input);
       MachineRepresentation const expected_input_type =
           desc->GetInputType(i).representation();
       if (!IsCompatible(expected_input_type, input_type)) {
@@ -581,11 +744,11 @@ class MachineRepresentationChecker {
           str << std::endl;
         }
         str << " * input " << i << " (" << input->id() << ":" << *input->op()
-            << ") doesn't have a " << MachineReprToString(expected_input_type)
-            << " representation.";
+            << ") doesn't have a " << expected_input_type << " representation.";
       }
     }
     if (should_log_error) {
+      PrintDebugHelp(str, node);
       FATAL(str.str().c_str());
     }
   }
@@ -648,17 +811,30 @@ class MachineRepresentationChecker {
     return false;
   }
 
+  void PrintDebugHelp(std::ostream& out, Node const* node) {
+    if (DEBUG_BOOL) {
+      out << "\n#     Current block: " << *current_block_;
+      out << "\n#\n#     Specify option --csa-trap-on-node=" << name_ << ","
+          << node->id() << " for debugging.";
+    }
+  }
+
   Schedule const* const schedule_;
-  MachineRepresentationInferrer const* const typer_;
+  MachineRepresentationInferrer const* const inferrer_;
+  bool is_stub_;
+  const char* name_;
+  BasicBlock* current_block_;
 };
 
 }  // namespace
 
 void MachineGraphVerifier::Run(Graph* graph, Schedule const* const schedule,
-                               Linkage* linkage, Zone* temp_zone) {
+                               Linkage* linkage, bool is_stub, const char* name,
+                               Zone* temp_zone) {
   MachineRepresentationInferrer representation_inferrer(schedule, graph,
                                                         linkage, temp_zone);
-  MachineRepresentationChecker checker(schedule, &representation_inferrer);
+  MachineRepresentationChecker checker(schedule, &representation_inferrer,
+                                       is_stub, name);
   checker.Run();
 }
 

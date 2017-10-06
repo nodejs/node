@@ -56,6 +56,7 @@ def icu_ignore(dir, files):
     elif subdir == 'source':
         ign = ign + ['layout','samples','test','extra','config','layoutex','allinone','data']
         ign = ign + ['runConfigureICU','install-sh','mkinstalldirs','configure']
+        ign = ign + ['io']
     elif subdir == 'source/tools':
         ign = ign + ['tzcode','ctestfw','gensprep','gennorm2','gendict','icuswap',
         'genbrk','gencfu','gencolusb','genren','memcheck','makeconv','gencnval','icuinfo','gentest']

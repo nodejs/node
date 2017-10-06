@@ -1,0 +1,16 @@
+{
+  "name": "0-dns",
+  "version": "1.0.0",
+  "description": "create certificate for 0-dns test",
+  "main": "createCert.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "SEE LICENSE IN ../../../LICENSE",
+  "private": true,
+  "dependencies": {
+    "asn1.js": "^4.9.1",
+    "asn1.js-rfc5280": "^1.2.2"
+  }
+}

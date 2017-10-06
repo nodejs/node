@@ -1,36 +1,43 @@
-var common = require('../common-tap.js')
-var test = require('tap').test
-var fs = require('fs')
-var osenv = require('osenv')
-var pkg = process.env.npm_config_tmp || '/tmp'
-pkg += '/npm-test-publish-config'
+'use strict'
+
+const common = require('../common-tap.js')
+const test = require('tap').test
+const fs = require('fs')
+const osenv = require('osenv')
+const pkg = `${process.env.npm_config_tmp || '/tmp'}/npm-test-publish-config`
 
 require('mkdirp').sync(pkg)
 
 fs.writeFileSync(pkg + '/package.json', JSON.stringify({
   name: 'npm-test-publish-config',
   version: '1.2.3',
-  publishConfig: { registry: common.registry }
+  publishConfig: {
+    registry: common.registry
+  }
 }), 'utf8')
 
 fs.writeFileSync(pkg + '/fixture_npmrc',
   '//localhost:1337/:email = fancy@feast.net\n' +
   '//localhost:1337/:username = fancy\n' +
-  '//localhost:1337/:_password = ' + new Buffer('feast').toString('base64') + '\n' +
-  'registry = http://localhost:1337/')
+  '//localhost:1337/:_password = ' + new Buffer('feast').toString('base64'))
 
 test(function (t) {
-  var child
-  t.plan(4)
+  let child
+  t.plan(5)
   require('http').createServer(function (req, res) {
     t.pass('got request on the fakey fake registry')
-    this.close()
-    res.statusCode = 500
-    res.end(JSON.stringify({
-      error: 'sshhh. naptime nao. \\^O^/ <(YAWWWWN!)'
-    }))
-    child.kill('SIGINT')
-  }).listen(common.port, function () {
+    let body = ''
+    req.on('data', (d) => { body += d })
+    req.on('end', () => {
+      this.close()
+      res.statusCode = 500
+      res.end(JSON.stringify({
+        error: 'sshhh. naptime nao. \\^O^/ <(YAWWWWN!)'
+      }))
+      t.match(body, /"beta"/, 'got expected tag')
+      child.kill('SIGINT')
+    })
+  }).listen(common.port, () => {
     t.pass('server is listening')
 
     // don't much care about listening to the child's results
@@ -40,7 +47,7 @@ test(function (t) {
     // itself functions normally.
     //
     // Make sure that we don't sit around waiting for lock files
-    child = common.npm(['publish', '--userconfig=' + pkg + '/fixture_npmrc'], {
+    child = common.npm(['publish', '--userconfig=' + pkg + '/fixture_npmrc', '--tag=beta'], {
       cwd: pkg,
       stdio: 'inherit',
       env: {

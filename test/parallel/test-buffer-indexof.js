@@ -1,8 +1,6 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-
-const Buffer = require('buffer').Buffer;
 
 const b = Buffer.from('abcdef');
 const buf_a = Buffer.from('a');
@@ -31,10 +29,10 @@ assert.strictEqual(b.indexOf('bc', -Infinity), 1);
 assert.strictEqual(b.indexOf('bc', Infinity), -1);
 assert.strictEqual(b.indexOf('f'), b.length - 1);
 assert.strictEqual(b.indexOf('z'), -1);
-assert.strictEqual(b.indexOf(''), -1);
-assert.strictEqual(b.indexOf('', 1), -1);
-assert.strictEqual(b.indexOf('', b.length + 1), -1);
-assert.strictEqual(b.indexOf('', Infinity), -1);
+assert.strictEqual(b.indexOf(''), 0);
+assert.strictEqual(b.indexOf('', 1), 1);
+assert.strictEqual(b.indexOf('', b.length + 1), b.length);
+assert.strictEqual(b.indexOf('', Infinity), b.length);
 assert.strictEqual(b.indexOf(buf_a), 0);
 assert.strictEqual(b.indexOf(buf_a, 1), -1);
 assert.strictEqual(b.indexOf(buf_a, -1), -1);
@@ -53,10 +51,10 @@ assert.strictEqual(b.indexOf(buf_bc, -Infinity), 1);
 assert.strictEqual(b.indexOf(buf_bc, Infinity), -1);
 assert.strictEqual(b.indexOf(buf_f), b.length - 1);
 assert.strictEqual(b.indexOf(buf_z), -1);
-assert.strictEqual(b.indexOf(buf_empty), -1);
-assert.strictEqual(b.indexOf(buf_empty, 1), -1);
-assert.strictEqual(b.indexOf(buf_empty, b.length + 1), -1);
-assert.strictEqual(b.indexOf(buf_empty, Infinity), -1);
+assert.strictEqual(b.indexOf(buf_empty), 0);
+assert.strictEqual(b.indexOf(buf_empty, 1), 1);
+assert.strictEqual(b.indexOf(buf_empty, b.length + 1), b.length);
+assert.strictEqual(b.indexOf(buf_empty, Infinity), b.length);
 assert.strictEqual(b.indexOf(0x61), 0);
 assert.strictEqual(b.indexOf(0x61, 1), -1);
 assert.strictEqual(b.indexOf(0x61, -1), -1);
@@ -200,11 +198,11 @@ assert.strictEqual(10, mixedByteStringUcs2.indexOf('\u03a3', 0, 'ucs2'));
 assert.strictEqual(-1, mixedByteStringUcs2.indexOf('\u0396', 0, 'ucs2'));
 
 assert.strictEqual(
-    6, mixedByteStringUcs2.indexOf(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
+  6, mixedByteStringUcs2.indexOf(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
 assert.strictEqual(
-    10, mixedByteStringUcs2.indexOf(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
+  10, mixedByteStringUcs2.indexOf(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
 assert.strictEqual(
-    -1, mixedByteStringUcs2.indexOf(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
+  -1, mixedByteStringUcs2.indexOf(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
 
 {
   const twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
@@ -224,13 +222,13 @@ assert.strictEqual(
 
   // Test multi-char pattern
   assert.strictEqual(
-      0, twoByteString.indexOf('\u039a\u0391', 0, 'ucs2'), 'Lambda Alpha');
+    0, twoByteString.indexOf('\u039a\u0391', 0, 'ucs2'), 'Lambda Alpha');
   assert.strictEqual(
-      2, twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
+    2, twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
   assert.strictEqual(
-      4, twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
+    4, twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
   assert.strictEqual(
-      6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
+    6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
 }
 
 const mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
@@ -255,22 +253,22 @@ let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const index = longBufferString.indexOf(pattern, i);
   assert.strictEqual((i + 15) & ~0xf, index,
-                     'Long ABACABA...-string at index ' + i);
+                     `Long ABACABA...-string at index ${i}`);
 }
 assert.strictEqual(510, longBufferString.indexOf('AJABACA'),
                    'Long AJABACA, First J');
 assert.strictEqual(
-    1534, longBufferString.indexOf('AJABACA', 511), 'Long AJABACA, Second J');
+  1534, longBufferString.indexOf('AJABACA', 511), 'Long AJABACA, Second J');
 
 pattern = 'JABACABADABACABA';
 assert.strictEqual(
-    511, longBufferString.indexOf(pattern), 'Long JABACABA..., First J');
+  511, longBufferString.indexOf(pattern), 'Long JABACABA..., First J');
 assert.strictEqual(
-    1535, longBufferString.indexOf(pattern, 512), 'Long JABACABA..., Second J');
+  1535, longBufferString.indexOf(pattern, 512), 'Long JABACABA..., Second J');
 
 // Search for a non-ASCII string in a pure ASCII string.
 const asciiString = Buffer.from(
-    'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
+  'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
 assert.strictEqual(-1, asciiString.indexOf('\x2061'));
 assert.strictEqual(3, asciiString.indexOf('leb', 0));
 
@@ -337,29 +335,30 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
       const patternBufferUcs2 =
           allCharsBufferUcs2.slice(index, index + length);
       assert.strictEqual(
-          index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
+        index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
 
       const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
       assert.strictEqual(
-          index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
+        index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
     }
   }
 }
 
-const argumentExpected =
-    /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
-
-assert.throws(() => {
-  b.indexOf(() => { });
-}, argumentExpected);
-
-assert.throws(() => {
-  b.indexOf({});
-}, argumentExpected);
-
-assert.throws(() => {
-  b.indexOf([]);
-}, argumentExpected);
+[
+  () => {},
+  {},
+  []
+].forEach((val) => {
+  common.expectsError(
+    () => b.indexOf(val),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "value" argument must be one of type string, ' +
+               `buffer, or uint8Array. Received type ${typeof val}`
+    }
+  );
+});
 
 // Test weird offset arguments.
 // The following offsets coerce to NaN or 0, searching the whole Buffer
@@ -429,10 +428,10 @@ assert.strictEqual(b.lastIndexOf(buf_bc, -Infinity), -1);
 assert.strictEqual(b.lastIndexOf(buf_bc, Infinity), 1);
 assert.strictEqual(b.lastIndexOf(buf_f), b.length - 1);
 assert.strictEqual(b.lastIndexOf(buf_z), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, 1), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, b.length + 1), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, Infinity), -1);
+assert.strictEqual(b.lastIndexOf(buf_empty), b.length);
+assert.strictEqual(b.lastIndexOf(buf_empty, 1), 1);
+assert.strictEqual(b.lastIndexOf(buf_empty, b.length + 1), b.length);
+assert.strictEqual(b.lastIndexOf(buf_empty, Infinity), b.length);
 // lastIndexOf number:
 assert.strictEqual(b.lastIndexOf(0x61), 0);
 assert.strictEqual(b.lastIndexOf(0x61, 1), 0);

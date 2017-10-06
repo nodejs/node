@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 
 var last_func_index = builder.addFunction("exec_unreachable", kSig_v_v)
-  .addBody([kExprUnreachable])
+  .addBody([kExprUnreachable]).index
 
 var illegal_func_name = [0xff];
 var func_names = [ "☠", illegal_func_name, "some math: (½)² = ¼", "" ];
@@ -54,16 +54,16 @@ Error.prepareStackTrace = function(error, frames) {
   return frames;
 };
 
-
 (function testFunctionNamesAsCallSites() {
-  var names = expected_names.concat(["testFunctionNamesAsCallSites", null]);
+  var names = expected_names.concat(['testFunctionNamesAsCallSites', null]);
   try {
     module.exports.main();
-    assertFalse("should throw");
+    assertFalse('should throw');
   } catch (e) {
-    assertEquals(names.length, e.stack.length);
+    assertEquals(names.length, e.stack.length, 'stack length');
     for (var i = 0; i < names.length; ++i) {
-      assertEquals(names[i], e.stack[i].getFunctionName());
+      assertEquals(
+          names[i], e.stack[i].getFunctionName(), 'function name at ' + i);
     }
   }
 })();

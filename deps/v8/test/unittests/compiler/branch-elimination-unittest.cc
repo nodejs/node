@@ -65,8 +65,9 @@ TEST_F(BranchEliminationTest, NestedBranchSameTrue) {
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
                        inner_phi, Int32Constant(3), outer_merge);
 
-  Node* ret = graph()->NewNode(common()->Return(), outer_phi, graph()->start(),
-                               outer_merge);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, outer_phi,
+                               graph()->start(), outer_merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduce();
@@ -106,8 +107,9 @@ TEST_F(BranchEliminationTest, NestedBranchSameFalse) {
       graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
                        Int32Constant(1), inner_phi, outer_merge);
 
-  Node* ret = graph()->NewNode(common()->Return(), outer_phi, graph()->start(),
-                               outer_merge);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, outer_phi,
+                               graph()->start(), outer_merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduce();
@@ -144,8 +146,9 @@ TEST_F(BranchEliminationTest, BranchAfterDiamond) {
 
 
   Node* add = graph()->NewNode(machine()->Int32Add(), phi1, phi2);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
   Node* ret =
-      graph()->NewNode(common()->Return(), add, graph()->start(), merge2);
+      graph()->NewNode(common()->Return(), zero, add, graph()->start(), merge2);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
 
   Reduce();
@@ -176,8 +179,9 @@ TEST_F(BranchEliminationTest, BranchInsideLoopSame) {
   Node* inner_branch = graph()->NewNode(common()->Branch(), condition, loop);
 
   Node* inner_if_true = graph()->NewNode(common()->IfTrue(), inner_branch);
-  Node* ret1 = graph()->NewNode(common()->Return(), Int32Constant(2), effect,
-                                inner_if_true);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret1 = graph()->NewNode(common()->Return(), zero, Int32Constant(2),
+                                effect, inner_if_true);
 
   Node* inner_if_false = graph()->NewNode(common()->IfFalse(), inner_branch);
   loop->AppendInput(zone(), inner_if_false);
@@ -191,7 +195,7 @@ TEST_F(BranchEliminationTest, BranchInsideLoopSame) {
   Node* outer_ephi = graph()->NewNode(common()->EffectPhi(2), effect,
                                       graph()->start(), outer_merge);
 
-  Node* ret2 = graph()->NewNode(common()->Return(), Int32Constant(1),
+  Node* ret2 = graph()->NewNode(common()->Return(), zero, Int32Constant(1),
                                 outer_ephi, outer_merge);
 
   Node* terminate = graph()->NewNode(common()->Terminate(), effect, loop);

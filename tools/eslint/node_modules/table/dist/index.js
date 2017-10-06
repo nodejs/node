@@ -1,9 +1,9 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
-exports.getBorderCharacters = exports.createStream = undefined;
+exports.getBorderCharacters = exports.createStream = exports.table = undefined;
 
 var _table = require('./table');
 
@@ -19,6 +19,6 @@ var _getBorderCharacters2 = _interopRequireDefault(_getBorderCharacters);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+exports.table = _table2.default;
 exports.createStream = _createStream2.default;
 exports.getBorderCharacters = _getBorderCharacters2.default;
-exports.default = _table2.default;

@@ -64,12 +64,13 @@ test('authed npm install with tarball not on registry', function (t) {
       }
 
       if (results) {
-        var installedversion = {
-          'version': '1.3.1',
-          'from': '>=1.3.1 <2',
-          'resolved': tarballURL
-        }
-        t.isDeeply(results.dependencies['@scoped/underscore'], installedversion, '@scoped/underscore installed')
+        var installedversion = [
+          {
+            'name': '@scoped/underscore',
+            'version': '1.3.1'
+          }
+        ]
+        t.match(results.added, installedversion, '@scoped/underscore installed')
       }
 
       t.end()
@@ -88,7 +89,10 @@ var contents = '@scoped:registry=' + common.registry + '\n' +
 
 var json = {
   name: 'test-package-install',
-  version: '1.0.0'
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': '1.3.1'
+  }
 }
 
 var shrinkwrap = {
@@ -97,7 +101,6 @@ var shrinkwrap = {
   dependencies: {
     '@scoped/underscore': {
       resolved: tarballURL,
-      from: '>=1.3.1 <2',
       version: '1.3.1'
     }
   }

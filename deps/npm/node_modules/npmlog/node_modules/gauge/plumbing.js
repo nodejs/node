@@ -43,5 +43,6 @@ Plumbing.prototype.show = function (status) {
   }
 
   return renderTemplate(this.width, this.template, values).trim() +
+         consoleControl.color('reset') +
          consoleControl.eraseLine() + consoleControl.gotoSOL()
 }

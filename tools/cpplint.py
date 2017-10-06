@@ -1074,7 +1074,8 @@ class FileInfo(object):
     """
     fullname = self.FullName()
     # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
-    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    toplevel = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..')).replace('\\', '/')
     prefix = os.path.commonprefix([fullname, toplevel])
     return fullname[len(prefix) + 1:]
 
@@ -6050,7 +6051,7 @@ def ParseArguments(args):
       try:
           _valid_extensions = set(val.split(','))
       except ValueError:
-          PrintUsage('Extensions must be comma seperated list.')
+          PrintUsage('Extensions must be comma separated list.')
     elif opt == '--logfile':
       logger.addHandler(logging.FileHandler(val, mode='wb'))
 

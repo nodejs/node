@@ -173,8 +173,8 @@ function TestAllScenarios(f) {
       // Make sure that the assignments are monomorphic.
       %DeoptimizeFunction(Assign);
       %DeoptimizeFunction(AssignStrict);
-      %ClearFunctionTypeFeedback(Assign);
-      %ClearFunctionTypeFeedback(AssignStrict);
+      %ClearFunctionFeedback(Assign);
+      %ClearFunctionFeedback(AssignStrict);
       for (var i = 0; i < t; ++i) {
         var o = create();
         assertFalse("a" in o && !("a" in o.__proto__));

@@ -259,6 +259,7 @@ void ERR_load_CONF_strings(void);
 # define CONF_R_NO_VALUE                                  108
 # define CONF_R_UNABLE_TO_CREATE_NEW_SECTION              103
 # define CONF_R_UNKNOWN_MODULE_NAME                       113
+# define CONF_R_VARIABLE_EXPANSION_TOO_LONG               116
 # define CONF_R_VARIABLE_HAS_NO_VALUE                     104
 
 #ifdef  __cplusplus

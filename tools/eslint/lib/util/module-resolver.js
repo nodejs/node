@@ -68,7 +68,7 @@ class ModuleResolver {
          * lookup file paths when require() is called. So, we are hooking into the
          * exact same logic that Node.js uses.
          */
-        const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
+        const result = Module._findPath(name, lookupPaths); // eslint-disable-line no-underscore-dangle
 
         if (!result) {
             throw new Error(`Cannot find module '${name}'`);

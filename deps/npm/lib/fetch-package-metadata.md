@@ -5,7 +5,7 @@ fetch-package-metadata
     fetchPackageMetadata(spec, contextdir, callback)
 
 This will get package metadata (and if possible, ONLY package metadata) for
-a specifer as passed to `npm install` et al, eg `npm@next` or `npm@^2.0.3`
+a specifier as passed to `npm install` et al, eg `npm@next` or `npm@^2.0.3`
 
 ## fetchPackageMetadata(*spec*, *contextdir*, *tracker*, *callback*)
 
@@ -29,7 +29,7 @@ a specifer as passed to `npm install` et al, eg `npm@next` or `npm@^2.0.3`
 
 In the case of tarballs and git repos, it will use the cache to download
 them in order to get the package metadata.  For named packages, only the
-metadata is downloaded (eg http://registry.npmjs.org/package).  For local
+metadata is downloaded (eg https://registry.npmjs.org/package).  For local
 directories, the package.json is read directly.  For local tarballs, the
 tarball is streamed in memory and just the package.json is extracted from
 it.  (Due to the nature of tars, having the package.json early in the file

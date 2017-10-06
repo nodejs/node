@@ -25,7 +25,7 @@ test('setup', function (t) {
 test('gitlab-shortcut', function (t) {
   var cloneUrls = [
     ['https://gitlab.com/foo/private.git', 'GitLab shortcuts try HTTPS URLs second'],
-    ['git@gitlab.com:foo/private.git', 'GitLab shortcuts try SSH first']
+    ['ssh://git@gitlab.com/foo/private.git', 'GitLab shortcuts try SSH first']
   ]
   var npm = requireInject.installGlobally('../../lib/npm.js', {
     'child_process': {

@@ -4,11 +4,14 @@
 
 #include "src/heap/object-stats.h"
 
+#include "src/assembler-inl.h"
 #include "src/compilation-cache.h"
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/code-cache-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -52,55 +55,59 @@ V8_NOINLINE static void DumpJSONArray(std::stringstream& stream, size_t* array,
   stream << "]";
 }
 
+void ObjectStats::PrintKeyAndId(const char* key, int gc_count) {
+  PrintF("\"isolate\": \"%p\", \"id\": %d, \"key\": \"%s\", ",
+         reinterpret_cast<void*>(isolate()), gc_count, key);
+}
+
+void ObjectStats::PrintInstanceTypeJSON(const char* key, int gc_count,
+                                        const char* name, int index) {
+  PrintF("{ ");
+  PrintKeyAndId(key, gc_count);
+  PrintF("\"type\": \"instance_type_data\", ");
+  PrintF("\"instance_type\": %d, ", index);
+  PrintF("\"instance_type_name\": \"%s\", ", name);
+  PrintF("\"overall\": %zu, ", object_sizes_[index]);
+  PrintF("\"count\": %zu, ", object_counts_[index]);
+  PrintF("\"over_allocated\": %zu, ", over_allocated_[index]);
+  PrintF("\"histogram\": ");
+  PrintJSONArray(size_histogram_[index], kNumberOfBuckets);
+  PrintF(",");
+  PrintF("\"over_allocated_histogram\": ");
+  PrintJSONArray(over_allocated_histogram_[index], kNumberOfBuckets);
+  PrintF(" }\n");
+}
+
 void ObjectStats::PrintJSON(const char* key) {
   double time = isolate()->time_millis_since_init();
   int gc_count = heap()->gc_count();
 
-#define PRINT_KEY_AND_ID()                                     \
-  PrintF("\"isolate\": \"%p\", \"id\": %d, \"key\": \"%s\", ", \
-         reinterpret_cast<void*>(isolate()), gc_count, key);
-
   // gc_descriptor
   PrintF("{ ");
-  PRINT_KEY_AND_ID();
+  PrintKeyAndId(key, gc_count);
   PrintF("\"type\": \"gc_descriptor\", \"time\": %f }\n", time);
   // bucket_sizes
   PrintF("{ ");
-  PRINT_KEY_AND_ID();
+  PrintKeyAndId(key, gc_count);
   PrintF("\"type\": \"bucket_sizes\", \"sizes\": [ ");
   for (int i = 0; i < kNumberOfBuckets; i++) {
     PrintF("%d", 1 << (kFirstBucketShift + i));
     if (i != (kNumberOfBuckets - 1)) PrintF(", ");
   }
   PrintF(" ] }\n");
-// instance_type_data
-#define PRINT_INSTANCE_TYPE_DATA(name, index)                         \
-  PrintF("{ ");                                                       \
-  PRINT_KEY_AND_ID();                                                 \
-  PrintF("\"type\": \"instance_type_data\", ");                       \
-  PrintF("\"instance_type\": %d, ", index);                           \
-  PrintF("\"instance_type_name\": \"%s\", ", name);                   \
-  PrintF("\"overall\": %zu, ", object_sizes_[index]);                 \
-  PrintF("\"count\": %zu, ", object_counts_[index]);                  \
-  PrintF("\"over_allocated\": %zu, ", over_allocated_[index]);        \
-  PrintF("\"histogram\": ");                                          \
-  PrintJSONArray(size_histogram_[index], kNumberOfBuckets);           \
-  PrintF(",");                                                        \
-  PrintF("\"over_allocated_histogram\": ");                           \
-  PrintJSONArray(over_allocated_histogram_[index], kNumberOfBuckets); \
-  PrintF(" }\n");
 
-#define INSTANCE_TYPE_WRAPPER(name) PRINT_INSTANCE_TYPE_DATA(#name, name)
-#define CODE_KIND_WRAPPER(name)            \
-  PRINT_INSTANCE_TYPE_DATA("*CODE_" #name, \
-                           FIRST_CODE_KIND_SUB_TYPE + Code::name)
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name) \
-  PRINT_INSTANCE_TYPE_DATA("*FIXED_ARRAY_" #name,   \
-                           FIRST_FIXED_ARRAY_SUB_TYPE + name)
-#define CODE_AGE_WRAPPER(name) \
-  PRINT_INSTANCE_TYPE_DATA(    \
-      "*CODE_AGE_" #name,      \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge)
+#define INSTANCE_TYPE_WRAPPER(name) \
+  PrintInstanceTypeJSON(key, gc_count, #name, name);
+#define CODE_KIND_WRAPPER(name)                        \
+  PrintInstanceTypeJSON(key, gc_count, "*CODE_" #name, \
+                        FIRST_CODE_KIND_SUB_TYPE + Code::name);
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)           \
+  PrintInstanceTypeJSON(key, gc_count, "*FIXED_ARRAY_" #name, \
+                        FIRST_FIXED_ARRAY_SUB_TYPE + name);
+#define CODE_AGE_WRAPPER(name)           \
+  PrintInstanceTypeJSON(                 \
+      key, gc_count, "*CODE_AGE_" #name, \
+      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER)
   CODE_KIND_LIST(CODE_KIND_WRAPPER)
@@ -113,6 +120,20 @@ void ObjectStats::PrintJSON(const char* key) {
 #undef CODE_AGE_WRAPPER
 #undef PRINT_INSTANCE_TYPE_DATA
 #undef PRINT_KEY_AND_ID
+}
+
+void ObjectStats::DumpInstanceTypeData(std::stringstream& stream,
+                                       const char* name, int index) {
+  stream << "\"" << name << "\":{";
+  stream << "\"type\":" << static_cast<int>(index) << ",";
+  stream << "\"overall\":" << object_sizes_[index] << ",";
+  stream << "\"count\":" << object_counts_[index] << ",";
+  stream << "\"over_allocated\":" << over_allocated_[index] << ",";
+  stream << "\"histogram\":";
+  DumpJSONArray(stream, size_histogram_[index], kNumberOfBuckets);
+  stream << ",\"over_allocated_histogram\":";
+  DumpJSONArray(stream, over_allocated_histogram_[index], kNumberOfBuckets);
+  stream << "},";
 }
 
 void ObjectStats::Dump(std::stringstream& stream) {
@@ -131,29 +152,19 @@ void ObjectStats::Dump(std::stringstream& stream) {
   stream << "],";
   stream << "\"type_data\":{";
 
-#define PRINT_INSTANCE_TYPE_DATA(name, index)                                \
-  stream << "\"" << name << "\":{";                                          \
-  stream << "\"type\":" << static_cast<int>(index) << ",";                   \
-  stream << "\"overall\":" << object_sizes_[index] << ",";                   \
-  stream << "\"count\":" << object_counts_[index] << ",";                    \
-  stream << "\"over_allocated\":" << over_allocated_[index] << ",";          \
-  stream << "\"histogram\":";                                                \
-  DumpJSONArray(stream, size_histogram_[index], kNumberOfBuckets);           \
-  stream << ",\"over_allocated_histogram\":";                                \
-  DumpJSONArray(stream, over_allocated_histogram_[index], kNumberOfBuckets); \
-  stream << "},";
+#define INSTANCE_TYPE_WRAPPER(name) DumpInstanceTypeData(stream, #name, name);
+#define CODE_KIND_WRAPPER(name)                \
+  DumpInstanceTypeData(stream, "*CODE_" #name, \
+                       FIRST_CODE_KIND_SUB_TYPE + Code::name);
 
-#define INSTANCE_TYPE_WRAPPER(name) PRINT_INSTANCE_TYPE_DATA(#name, name)
-#define CODE_KIND_WRAPPER(name)            \
-  PRINT_INSTANCE_TYPE_DATA("*CODE_" #name, \
-                           FIRST_CODE_KIND_SUB_TYPE + Code::name)
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name) \
-  PRINT_INSTANCE_TYPE_DATA("*FIXED_ARRAY_" #name,   \
-                           FIRST_FIXED_ARRAY_SUB_TYPE + name)
-#define CODE_AGE_WRAPPER(name) \
-  PRINT_INSTANCE_TYPE_DATA(    \
-      "*CODE_AGE_" #name,      \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge)
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)   \
+  DumpInstanceTypeData(stream, "*FIXED_ARRAY_" #name, \
+                       FIRST_FIXED_ARRAY_SUB_TYPE + name);
+
+#define CODE_AGE_WRAPPER(name)    \
+  DumpInstanceTypeData(           \
+      stream, "*CODE_AGE_" #name, \
+      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER);
   CODE_KIND_LIST(CODE_KIND_WRAPPER);
@@ -260,13 +271,12 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
-class ObjectStatsCollector::CompilationCacheTableVisitor
-    : public ObjectVisitor {
+class ObjectStatsCollector::CompilationCacheTableVisitor : public RootVisitor {
  public:
   explicit CompilationCacheTableVisitor(ObjectStatsCollector* parent)
       : parent_(parent) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       HeapObject* obj = HeapObject::cast(*current);
       if (obj->IsUndefined(parent_->heap_->isolate())) continue;
@@ -310,7 +320,7 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
                         OBJECT_TO_CODE_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->code_stubs(),
                         CODE_STUBS_TABLE_SUB_TYPE);
-  RecordHashTableHelper(nullptr, heap_->empty_properties_dictionary(),
+  RecordHashTableHelper(nullptr, heap_->empty_property_dictionary(),
                         EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE);
   CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();
   CompilationCacheTableVisitor v(this);
@@ -322,11 +332,10 @@ static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
          array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
          array != heap->empty_byte_array() &&
-         array != heap->empty_literals_array() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
          array != heap->empty_descriptor_array() &&
-         array != heap->empty_properties_dictionary();
+         array != heap->empty_property_dictionary();
 }
 
 static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
@@ -335,7 +344,8 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
 
 static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
-         ObjectMarking::Color(obj1) == ObjectMarking::Color(obj2);
+         ObjectMarking::Color(obj1, MarkingState::Internal(obj1)) ==
+             ObjectMarking::Color(obj2, MarkingState::Internal(obj2));
 }
 
 bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,
@@ -383,27 +393,29 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
       SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
       RecordHashTableHelper(object, dict, DICTIONARY_ELEMENTS_SUB_TYPE);
     } else {
-      if (IsFastHoleyElementsKind(object->GetElementsKind())) {
+      if (IsHoleyElementsKind(object->GetElementsKind())) {
         int used = object->GetFastElementsUsage() * kPointerSize;
-        if (object->GetElementsKind() == FAST_HOLEY_DOUBLE_ELEMENTS) used *= 2;
+        if (object->GetElementsKind() == HOLEY_DOUBLE_ELEMENTS) used *= 2;
         CHECK_GE(elements->Size(), used);
         overhead = elements->Size() - used - FixedArray::kHeaderSize;
       }
-      stats_->RecordFixedArraySubTypeStats(elements, FAST_ELEMENTS_SUB_TYPE,
+      stats_->RecordFixedArraySubTypeStats(elements, PACKED_ELEMENTS_SUB_TYPE,
                                            elements->Size(), overhead);
     }
   }
 
-  overhead = 0;
-  FixedArrayBase* properties = object->properties();
-  if (CanRecordFixedArray(heap_, properties) &&
-      SameLiveness(object, properties) && !IsCowArray(heap_, properties)) {
-    if (properties->IsDictionary()) {
-      NameDictionary* dict = NameDictionary::cast(properties);
-      RecordHashTableHelper(object, dict, DICTIONARY_PROPERTIES_SUB_TYPE);
-    } else {
-      stats_->RecordFixedArraySubTypeStats(properties, FAST_PROPERTIES_SUB_TYPE,
-                                           properties->Size(), overhead);
+  if (object->IsJSGlobalObject()) {
+    GlobalDictionary* properties =
+        JSGlobalObject::cast(object)->global_dictionary();
+    if (CanRecordFixedArray(heap_, properties) &&
+        SameLiveness(object, properties)) {
+      RecordHashTableHelper(object, properties, DICTIONARY_PROPERTIES_SUB_TYPE);
+    }
+  } else if (!object->HasFastProperties()) {
+    NameDictionary* properties = object->property_dictionary();
+    if (CanRecordFixedArray(heap_, properties) &&
+        SameLiveness(object, properties)) {
+      RecordHashTableHelper(object, properties, DICTIONARY_PROPERTIES_SUB_TYPE);
     }
   }
 }
@@ -433,10 +445,8 @@ void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
 }
 
 void ObjectStatsCollector::RecordScriptDetails(Script* obj) {
-  Object* infos = WeakFixedArray::cast(obj->shared_function_infos());
-  if (infos->IsWeakFixedArray())
-    RecordFixedArrayHelper(obj, WeakFixedArray::cast(infos),
-                           SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
+  FixedArray* infos = FixedArray::cast(obj->shared_function_infos());
+  RecordFixedArrayHelper(obj, infos, SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
@@ -454,8 +464,8 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
     }
   }
 
-  if (map_obj->has_code_cache()) {
-    FixedArray* code_cache = map_obj->code_cache();
+  FixedArray* code_cache = map_obj->code_cache();
+  if (code_cache->length() > 0) {
     if (code_cache->IsCodeCacheHashTable()) {
       RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
                             MAP_CODE_CACHE_SUB_TYPE);
@@ -534,52 +544,19 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     SharedFunctionInfo* sfi) {
   FixedArray* scope_info = sfi->scope_info();
   RecordFixedArrayHelper(sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
-  TypeFeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
+  FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
-    RecordFixedArrayHelper(sfi, feedback_metadata,
-                           TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
-    Object* names =
-        feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex);
-    if (!names->IsSmi()) {
-      UnseededNumberDictionary* names = UnseededNumberDictionary::cast(
-          feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex));
-      RecordHashTableHelper(sfi, names, TYPE_FEEDBACK_METADATA_SUB_TYPE);
-    }
-  }
-
-  if (!sfi->OptimizedCodeMapIsCleared()) {
-    FixedArray* optimized_code_map = sfi->optimized_code_map();
-    RecordFixedArrayHelper(sfi, optimized_code_map, OPTIMIZED_CODE_MAP_SUB_TYPE,
+    RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
                            0);
-    // Optimized code map should be small, so skip accounting.
-    int len = optimized_code_map->length();
-    for (int i = SharedFunctionInfo::kEntriesStart; i < len;
-         i += SharedFunctionInfo::kEntryLength) {
-      Object* slot =
-          optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset);
-      LiteralsArray* literals = nullptr;
-      if (slot->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(slot);
-        if (!cell->cleared()) {
-          literals = LiteralsArray::cast(cell->value());
-        }
-      } else {
-        literals = LiteralsArray::cast(slot);
-      }
-      if (literals != nullptr) {
-        RecordFixedArrayHelper(sfi, literals, LITERALS_ARRAY_SUB_TYPE, 0);
-        RecordFixedArrayHelper(sfi, literals->feedback_vector(),
-                               TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
-      }
-    }
   }
 }
 
 void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  LiteralsArray* literals = function->literals();
-  RecordFixedArrayHelper(function, literals, LITERALS_ARRAY_SUB_TYPE, 0);
-  RecordFixedArrayHelper(function, literals->feedback_vector(),
-                         TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
+  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* feedback_vector = function->feedback_vector();
+    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
+                           0);
+  }
 }
 
 void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {

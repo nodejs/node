@@ -32,9 +32,9 @@
 // (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/type-feedback-vector.h ->
-// src/type-feedback-vector-inl.h
-#include "src/type-feedback-vector-inl.h"
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -46,7 +46,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -57,7 +57,8 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // site pointer.
   AllocationMemento* memento =
       reinterpret_cast<AllocationMemento*>(new_space->top() + kHeapObjectTag);
-  memento->set_map_no_write_barrier(heap->allocation_memento_map());
+  memento->set_map_after_allocation(heap->allocation_memento_map(),
+                                    SKIP_WRITE_BARRIER);
   memento->set_allocation_site(
       reinterpret_cast<AllocationSite*>(kHeapObjectTag), SKIP_WRITE_BARRIER);
 }

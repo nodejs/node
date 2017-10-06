@@ -21,10 +21,6 @@ function Reader (props, currentStat) {
     props = { path: props }
   }
 
-  if (!props.path) {
-    self.error('Must provide a path', null, true)
-  }
-
   // polymorphism.
   // call fstream.Reader(dir) to get a DirReader object, etc.
   // Note that, unlike in the Writer case, ProxyReader is going
@@ -84,6 +80,10 @@ function Reader (props, currentStat) {
   }
 
   Abstract.call(self)
+
+  if (!props.path) {
+    self.error('Must provide a path', null, true)
+  }
 
   self.readable = true
   self.writable = false

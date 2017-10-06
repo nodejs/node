@@ -18,12 +18,14 @@ namespace compiler {
 // Forward declarations.
 class JSGraph;
 
-
-class JSFrameSpecialization final : public Reducer {
+class JSFrameSpecialization final : public AdvancedReducer {
  public:
-  JSFrameSpecialization(JavaScriptFrame const* frame, JSGraph* jsgraph)
-      : frame_(frame), jsgraph_(jsgraph) {}
+  JSFrameSpecialization(Editor* editor, JavaScriptFrame const* frame,
+                        JSGraph* jsgraph)
+      : AdvancedReducer(editor), frame_(frame), jsgraph_(jsgraph) {}
   ~JSFrameSpecialization() final {}
+
+  const char* reducer_name() const override { return "JSFrameSpecialization"; }
 
   Reduction Reduce(Node* node) final;
 

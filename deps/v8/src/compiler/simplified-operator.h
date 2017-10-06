@@ -7,11 +7,14 @@
 
 #include <iosfwd>
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -45,15 +48,15 @@ class BufferAccess final {
   ExternalArrayType const external_array_type_;
 };
 
-bool operator==(BufferAccess, BufferAccess);
+V8_EXPORT_PRIVATE bool operator==(BufferAccess, BufferAccess);
 bool operator!=(BufferAccess, BufferAccess);
 
 size_t hash_value(BufferAccess);
 
-std::ostream& operator<<(std::ostream&, BufferAccess);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BufferAccess);
 
-BufferAccess const BufferAccessOf(const Operator* op) WARN_UNUSED_RESULT;
-
+V8_EXPORT_PRIVATE BufferAccess const BufferAccessOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
@@ -62,6 +65,7 @@ struct FieldAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int offset;                     // offset of the field, without tag.
   MaybeHandle<Name> name;         // debugging only.
+  MaybeHandle<Map> map;           // map of the field value (if known).
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
@@ -69,12 +73,12 @@ struct FieldAccess {
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
-bool operator==(FieldAccess const&, FieldAccess const&);
+V8_EXPORT_PRIVATE bool operator==(FieldAccess const&, FieldAccess const&);
 bool operator!=(FieldAccess const&, FieldAccess const&);
 
 size_t hash_value(FieldAccess const&);
 
-std::ostream& operator<<(std::ostream&, FieldAccess const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
 FieldAccess const& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -96,14 +100,15 @@ struct ElementAccess {
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
-bool operator==(ElementAccess const&, ElementAccess const&);
+V8_EXPORT_PRIVATE bool operator==(ElementAccess const&, ElementAccess const&);
 bool operator!=(ElementAccess const&, ElementAccess const&);
 
 size_t hash_value(ElementAccess const&);
 
-std::ostream& operator<<(std::ostream&, ElementAccess const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
-ElementAccess const& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -136,9 +141,45 @@ enum class CheckForMinusZeroMode : uint8_t {
 
 size_t hash_value(CheckForMinusZeroMode);
 
-std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
+
+// Flags for map checks.
+enum class CheckMapsFlag : uint8_t {
+  kNone = 0u,
+  kTryMigrateInstance = 1u << 0,  // Try instance migration.
+};
+typedef base::Flags<CheckMapsFlag> CheckMapsFlags;
+
+DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
+
+std::ostream& operator<<(std::ostream&, CheckMapsFlags);
+
+// A descriptor for map checks.
+class CheckMapsParameters final {
+ public:
+  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps)
+      : flags_(flags), maps_(maps) {}
+
+  CheckMapsFlags flags() const { return flags_; }
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
+
+ private:
+  CheckMapsFlags const flags_;
+  ZoneHandleSet<Map> const maps_;
+};
+
+bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
+bool operator!=(CheckMapsParameters const&, CheckMapsParameters const&);
+
+size_t hash_value(CheckMapsParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
+
+CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
+    WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
 enum class GrowFastElementsFlag : uint8_t {
@@ -157,16 +198,39 @@ GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator*)
     WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
-enum class ElementsTransition : uint8_t {
-  kFastTransition,  // simple transition, just updating the map.
-  kSlowTransition   // full transition, round-trip to the runtime.
+class ElementsTransition final {
+ public:
+  enum Mode : uint8_t {
+    kFastTransition,  // simple transition, just updating the map.
+    kSlowTransition   // full transition, round-trip to the runtime.
+  };
+
+  ElementsTransition(Mode mode, Handle<Map> source, Handle<Map> target)
+      : mode_(mode), source_(source), target_(target) {}
+
+  Mode mode() const { return mode_; }
+  Handle<Map> source() const { return source_; }
+  Handle<Map> target() const { return target_; }
+
+ private:
+  Mode const mode_;
+  Handle<Map> const source_;
+  Handle<Map> const target_;
 };
+
+bool operator==(ElementsTransition const&, ElementsTransition const&);
+bool operator!=(ElementsTransition const&, ElementsTransition const&);
 
 size_t hash_value(ElementsTransition);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
-ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
+ElementsTransition const& ElementsTransitionOf(const Operator* op)
+    WARN_UNUSED_RESULT;
+
+// Parameters for TransitionAndStoreElement.
+Handle<Map> DoubleMapParameterOf(const Operator* op);
+Handle<Map> FastMapParameterOf(const Operator* op);
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -178,12 +242,37 @@ enum class NumberOperationHint : uint8_t {
 
 size_t hash_value(NumberOperationHint);
 
-std::ostream& operator<<(std::ostream&, NumberOperationHint);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 
 NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
+int FormalParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
+bool IsRestLengthOf(const Operator* op) WARN_UNUSED_RESULT;
+
+class AllocateParameters {
+ public:
+  AllocateParameters(Type* type, PretenureFlag pretenure)
+      : type_(type), pretenure_(pretenure) {}
+
+  Type* type() const { return type_; }
+  PretenureFlag pretenure() const { return pretenure_; }
+
+ private:
+  Type* type_;
+  PretenureFlag pretenure_;
+};
+
+size_t hash_value(AllocateParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
+
+bool operator==(AllocateParameters const&, AllocateParameters const&);
+bool operator!=(AllocateParameters const&, AllocateParameters const&);
+
 PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
+
+Type* AllocateTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
 
@@ -209,7 +298,8 @@ UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
 //   - Bool: a tagged pointer to either the canonical JS #false or
 //           the canonical JS #true object
 //   - Bit: an untagged integer 0 or 1, but word-sized
-class SimplifiedOperatorBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
@@ -265,6 +355,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* NumberToBoolean();
   const Operator* NumberToInt32();
   const Operator* NumberToUint32();
+  const Operator* NumberToUint8Clamped();
 
   const Operator* NumberSilenceNaN();
 
@@ -289,9 +380,19 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
+  const Operator* SeqStringCharCodeAt();
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
+  const Operator* StringIndexOf();
+  const Operator* StringToLowerCaseIntl();
+  const Operator* StringToUpperCaseIntl();
+
+  const Operator* LookupHashStorageIndex();
+  const Operator* LoadHashMapValue();
+
+  const Operator* SpeculativeToNumber(NumberOperationHint hint);
 
   const Operator* PlainPrimitiveToNumber();
   const Operator* PlainPrimitiveToWord32();
@@ -301,24 +402,32 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ChangeTaggedToInt32();
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
+  const Operator* ChangeTaggedToTaggedSigned();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeUint32ToTagged();
-  const Operator* ChangeFloat64ToTagged();
+  const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
+  const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
   const Operator* TruncateTaggedToBit();
+  const Operator* TruncateTaggedPointerToBit();
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
-  const Operator* CheckMaps(int map_input_count);
+  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
 
   const Operator* CheckHeapObject();
+  const Operator* CheckInternalizedString();
   const Operator* CheckNumber();
   const Operator* CheckSmi();
   const Operator* CheckString();
+  const Operator* CheckSeqString();
+  const Operator* CheckNonEmptyString();
+  const Operator* CheckSymbol();
+  const Operator* CheckReceiver();
 
   const Operator* CheckedInt32Add();
   const Operator* CheckedInt32Sub();
@@ -335,18 +444,29 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
   const Operator* CheckedTaggedToTaggedSigned();
-  const Operator* CheckedTruncateTaggedToWord32();
+  const Operator* CheckedTaggedToTaggedPointer();
+  const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode);
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
-  const Operator* CheckTaggedHole();
+  const Operator* CheckNotTaggedHole();
   const Operator* ConvertTaggedHoleToUndefined();
 
-  const Operator* ObjectIsCallable();
+  const Operator* ObjectIsDetectableCallable();
+  const Operator* ObjectIsNaN();
+  const Operator* ObjectIsNonCallable();
   const Operator* ObjectIsNumber();
   const Operator* ObjectIsReceiver();
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
+  const Operator* ObjectIsSymbol();
   const Operator* ObjectIsUndetectable();
+
+  const Operator* ArgumentsFrame();
+  const Operator* ArgumentsLength(int formal_parameter_count,
+                                  bool is_rest_length);
+
+  // new-unmapped-arguments-elements
+  const Operator* NewUnmappedArgumentsElements();
 
   // array-buffer-was-neutered buffer
   const Operator* ArrayBufferWasNeutered();
@@ -360,7 +480,7 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
 
-  const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
+  const Operator* Allocate(Type* type, PretenureFlag pretenure = NOT_TENURED);
 
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
@@ -376,6 +496,10 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
 
   // store-element [base + index], value
   const Operator* StoreElement(ElementAccess const&);
+
+  // store-element [base + index], value, only with fast arrays.
+  const Operator* TransitionAndStoreElement(Handle<Map> double_map,
+                                            Handle<Map> fast_map);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noharmony-for-in
-
 function props(x) {
   var array = [];
   for (var p in x) array.push(p);
@@ -116,6 +114,32 @@ function props(x) {
   }
 })();
 
+(function forInShadowingSlowReceiver() {
+  // crbug 688307
+  // Make sure we track all non-enumerable keys on a slow-mode receiver.
+  let receiver = {a:1};
+  delete receiver.a;
+  let proto = Object.create(null);
+  let enumProperties = [];
+  for (let i = 0; i < 10; i++) {
+    let key = "property_"+i;
+    enumProperties.push(key);
+    receiver[key] = i;
+    proto[key] = i;
+  }
+  for (let i = 0; i < 1000; i++) {
+    let nonEnumKey = "nonEnumerableProperty_"+ i;
+    Object.defineProperty(receiver, nonEnumKey, {});
+    // Add both keys as enumerable to the prototype.
+    proto[nonEnumKey] = i;
+  }
+  receiver.__proto__ = proto;
+  // Only the enumerable properties from the receiver should be visible.
+  for (let key in receiver) {
+    assertEquals(key, enumProperties.shift());
+  }
+})();
+
 (function forInCharCodes() {
   var o = {};
   var a = [];
@@ -141,6 +165,13 @@ function props(x) {
 (function forInInitialize() {
   for (var hest = 'hest' in {}) { }
   assertEquals('hest', hest, "empty-no-override");
+
+  // Lexical variables are disallowed
+  assertThrows("for (const x = 0 in {});", SyntaxError);
+  assertThrows("for (let x = 0 in {});", SyntaxError);
+
+  // In strict mode, var is disallowed
+  assertThrows("'use strict'; for (var x = 0 in {});", SyntaxError);
 })();
 
 (function forInObjects() {

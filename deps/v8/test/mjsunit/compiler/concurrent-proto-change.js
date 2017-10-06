@@ -25,8 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-always-opt
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -55,4 +56,4 @@ assertUnoptimized(f, "no sync");
 assertUnoptimized(f, "sync");
 assertEquals(2, f(o));
 //Clear type info for stress runs.
-%ClearFunctionTypeFeedback(f);
+%ClearFunctionFeedback(f);

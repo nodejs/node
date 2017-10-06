@@ -10,8 +10,8 @@
 //------------------------------------------------------------------------------
 
 const fs = require("fs"),
+    spawn = require("cross-spawn"),
     path = require("path"),
-    shell = require("shelljs"),
     log = require("../logging");
 
 //------------------------------------------------------------------------------
@@ -29,13 +29,13 @@ function findPackageJson(startDir) {
     let dir = path.resolve(startDir || process.cwd());
 
     do {
-        const pkgfile = path.join(dir, "package.json");
+        const pkgFile = path.join(dir, "package.json");
 
-        if (!shell.test("-f", pkgfile)) {
+        if (!fs.existsSync(pkgFile) || !fs.statSync(pkgFile).isFile()) {
             dir = path.join(dir, "..");
             continue;
         }
-        return pkgfile;
+        return pkgFile;
     } while (dir !== path.resolve(dir, ".."));
     return null;
 }
@@ -50,10 +50,25 @@ function findPackageJson(startDir) {
  * @returns {void}
  */
 function installSyncSaveDev(packages) {
-    if (Array.isArray(packages)) {
-        packages = packages.join(" ");
+    if (!Array.isArray(packages)) {
+        packages = [packages];
     }
-    shell.exec(`npm i --save-dev ${packages}`, { stdio: "inherit" });
+    spawn.sync("npm", ["i", "--save-dev"].concat(packages), { stdio: "inherit" });
+}
+
+/**
+ * Fetch `peerDependencies` of the given package by `npm show` command.
+ * @param {string} packageName The package name to fetch peerDependencies.
+ * @returns {Object} Gotten peerDependencies.
+ */
+function fetchPeerDependencies(packageName) {
+    const fetchedText = spawn.sync(
+        "npm",
+        ["show", "--json", packageName, "peerDependencies"],
+        { encoding: "utf8" }
+    ).stdout.trim();
+
+    return JSON.parse(fetchedText || "{}");
 }
 
 /**
@@ -140,6 +155,7 @@ function checkPackageJson(startDir) {
 
 module.exports = {
     installSyncSaveDev,
+    fetchPeerDependencies,
     checkDeps,
     checkDevDeps,
     checkPackageJson

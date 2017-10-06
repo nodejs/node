@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -23,16 +29,24 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         return {
             Literal(node) {
 
                 if (typeof node.value === "number") {
-                    if (node.raw.indexOf(".") === 0) {
+                    if (node.raw.startsWith(".")) {
                         context.report({
                             node,
                             message: "A leading decimal point can be confused with a dot.",
-                            fix: fixer => fixer.insertTextBefore(node, "0")
+                            fix(fixer) {
+                                const tokenBefore = sourceCode.getTokenBefore(node);
+                                const needsSpaceBefore = tokenBefore &&
+                                    tokenBefore.range[1] === node.range[0] &&
+                                    !astUtils.canTokensBeAdjacent(tokenBefore, `0${node.raw}`);
+
+                                return fixer.insertTextBefore(node, needsSpaceBefore ? " 0" : "0");
+                            }
                         });
                     }
                     if (node.raw.indexOf(".") === node.raw.length - 1) {

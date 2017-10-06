@@ -27,4 +27,8 @@ process.stdout._refreshSize = wrap(originalRefreshSizeStdout,
                                    process.stdout,
                                    'calling stdout._refreshSize');
 
-process.emit('SIGWINCH');
+// In AIX, the child exits even before the python parent
+// can setup the readloop. Provide a reasonable delay.
+setTimeout(function() {
+  process.emit('SIGWINCH');
+}, common.isAIX ? 200 : 0);

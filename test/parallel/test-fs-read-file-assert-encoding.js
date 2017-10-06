@@ -1,13 +1,11 @@
 'use strict';
-require('../common');
 
-const assert = require('assert');
+const common = require('../common');
 const fs = require('fs');
 
 const encoding = 'foo-8';
 const filename = 'bar.txt';
-
-assert.throws(
-  fs.readFile.bind(fs, filename, { encoding }, () => {}),
-  new RegExp(`Error: Unknown encoding: ${encoding}$`)
+common.expectsError(
+  fs.readFile.bind(fs, filename, { encoding }, common.mustNotCall()),
+  { code: 'ERR_INVALID_OPT_VALUE_ENCODING', type: TypeError }
 );

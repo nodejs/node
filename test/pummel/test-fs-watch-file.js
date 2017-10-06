@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -37,21 +58,21 @@ process.on('exit', function() {
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-    function() {
-      fs.watchFile(filepathOne);
-    },
-    function(e) {
-      return e.message === '"watchFile()" requires a listener function';
-    }
+  function() {
+    fs.watchFile(filepathOne);
+  },
+  function(e) {
+    return e.message === '"watchFile()" requires a listener function';
+  }
 );
 
 assert.doesNotThrow(
-    function() {
-      fs.watchFile(filepathOne, function() {
-        fs.unwatchFile(filepathOne);
-        ++watchSeenOne;
-      });
-    }
+  function() {
+    fs.watchFile(filepathOne, function() {
+      fs.unwatchFile(filepathOne);
+      ++watchSeenOne;
+    });
+  }
 );
 
 setTimeout(function() {
@@ -64,27 +85,27 @@ process.chdir(testDir);
 fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-    function() {
-      fs.watchFile(filepathTwo);
-    },
-    function(e) {
-      return e.message === '"watchFile()" requires a listener function';
-    }
+  function() {
+    fs.watchFile(filepathTwo);
+  },
+  function(e) {
+    return e.message === '"watchFile()" requires a listener function';
+  }
 );
 
 assert.doesNotThrow(
-    function() {
-      function a() {
-        fs.unwatchFile(filepathTwo, a);
-        ++watchSeenTwo;
-      }
-      function b() {
-        fs.unwatchFile(filepathTwo, b);
-        ++watchSeenTwo;
-      }
-      fs.watchFile(filepathTwo, a);
-      fs.watchFile(filepathTwo, b);
+  function() {
+    function a() {
+      fs.unwatchFile(filepathTwo, a);
+      ++watchSeenTwo;
     }
+    function b() {
+      fs.unwatchFile(filepathTwo, b);
+      ++watchSeenTwo;
+    }
+    fs.watchFile(filepathTwo, a);
+    fs.watchFile(filepathTwo, b);
+  }
 );
 
 setTimeout(function() {
@@ -92,15 +113,15 @@ setTimeout(function() {
 }, 1000);
 
 assert.doesNotThrow(
-    function() {
-      function b() {
-        fs.unwatchFile(filenameThree, b);
-        ++watchSeenThree;
-      }
-      fs.watchFile(filenameThree, common.fail);
-      fs.watchFile(filenameThree, b);
-      fs.unwatchFile(filenameThree, common.fail);
+  function() {
+    function b() {
+      fs.unwatchFile(filenameThree, b);
+      ++watchSeenThree;
     }
+    fs.watchFile(filenameThree, common.mustNotCall());
+    fs.watchFile(filenameThree, b);
+    fs.unwatchFile(filenameThree, common.mustNotCall());
+  }
 );
 
 setTimeout(function() {
@@ -116,12 +137,12 @@ setTimeout(function() {
 }, 500);
 
 assert.doesNotThrow(
-    function() {
-      function a() {
-        ++watchSeenFour;
-        assert.strictEqual(1, watchSeenFour);
-        fs.unwatchFile('.' + path.sep + filenameFour, a);
-      }
-      fs.watchFile(filenameFour, a);
+  function() {
+    function a() {
+      ++watchSeenFour;
+      assert.strictEqual(1, watchSeenFour);
+      fs.unwatchFile(`.${path.sep}${filenameFour}`, a);
     }
+    fs.watchFile(filenameFour, a);
+  }
 );

@@ -53,7 +53,7 @@ ScreenManager.prototype.render = function (content, bottomContent) {
   // This prevent the cursor from appearing at the beginning of the
   // current line.
   if (rawPromptLine.length % width === 0) {
-    content = content + '\n';
+    content += '\n';
   }
   var fullContent = content + (bottomContent ? '\n' + bottomContent : '');
   this.rl.output.write(fullContent);
@@ -98,6 +98,12 @@ ScreenManager.prototype.done = function () {
   this.rl.output.write('\n');
 };
 
+ScreenManager.prototype.releaseCursor = function () {
+  if (this.extraLinesUnderPrompt > 0) {
+    util.down(this.rl, this.extraLinesUnderPrompt);
+  }
+};
+
 ScreenManager.prototype.normalizedCliWidth = function () {
   var width = cliWidth({
     defaultWidth: 80,
@@ -113,7 +119,7 @@ function breakLines(lines, width) {
   // Break lines who're longuer than the cli width so we can normalize the natural line
   // returns behavior accross terminals.
   var regex = new RegExp(
-    '(?:(?:\\033\[[0-9;]*m)*.?){1,' + width + '}',
+    '(?:(?:\\033[[0-9;]*m)*.?){1,' + width + '}',
     'g'
   );
   return lines.map(function (line) {

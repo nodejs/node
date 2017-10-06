@@ -49,7 +49,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
               MachineType::PointerRepresentation(),
-              MachineOperatorBuilder::kAllOptionalOps),
+              MachineOperatorBuilder::kAllOptionalOps,
+              InstructionSelector::AlignmentRequirements()),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
@@ -200,7 +201,7 @@ class InstructionSelectorTest : public TestWithContext,
     }
 
     double ToFloat64(const InstructionOperand* operand) const {
-      return ToConstant(operand).ToFloat64();
+      return ToConstant(operand).ToFloat64().value();
     }
 
     int32_t ToInt32(const InstructionOperand* operand) const {

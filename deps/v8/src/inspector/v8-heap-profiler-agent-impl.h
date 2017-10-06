@@ -15,8 +15,8 @@ namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
-using protocol::ErrorString;
 using protocol::Maybe;
+using protocol::Response;
 
 class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
  public:
@@ -25,32 +25,26 @@ class V8HeapProfilerAgentImpl : public protocol::HeapProfiler::Backend {
   ~V8HeapProfilerAgentImpl() override;
   void restore();
 
-  void collectGarbage(ErrorString*) override;
+  Response collectGarbage() override;
 
-  void enable(ErrorString*) override;
-  void startTrackingHeapObjects(ErrorString*,
-                                const Maybe<bool>& trackAllocations) override;
-  void stopTrackingHeapObjects(ErrorString*,
-                               const Maybe<bool>& reportProgress) override;
+  Response enable() override;
+  Response startTrackingHeapObjects(Maybe<bool> trackAllocations) override;
+  Response stopTrackingHeapObjects(Maybe<bool> reportProgress) override;
 
-  void disable(ErrorString*) override;
+  Response disable() override;
 
-  void takeHeapSnapshot(ErrorString*,
-                        const Maybe<bool>& reportProgress) override;
+  Response takeHeapSnapshot(Maybe<bool> reportProgress) override;
 
-  void getObjectByHeapObjectId(
-      ErrorString*, const String16& heapSnapshotObjectId,
-      const Maybe<String16>& objectGroup,
+  Response getObjectByHeapObjectId(
+      const String16& heapSnapshotObjectId, Maybe<String16> objectGroup,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result) override;
-  void addInspectedHeapObject(ErrorString*,
-                              const String16& inspectedHeapObjectId) override;
-  void getHeapObjectId(ErrorString*, const String16& objectId,
-                       String16* heapSnapshotObjectId) override;
+  Response addInspectedHeapObject(
+      const String16& inspectedHeapObjectId) override;
+  Response getHeapObjectId(const String16& objectId,
+                           String16* heapSnapshotObjectId) override;
 
-  void startSampling(ErrorString*,
-                     const Maybe<double>& samplingInterval) override;
-  void stopSampling(
-      ErrorString*,
+  Response startSampling(Maybe<double> samplingInterval) override;
+  Response stopSampling(
       std::unique_ptr<protocol::HeapProfiler::SamplingHeapProfile>*) override;
 
  private:

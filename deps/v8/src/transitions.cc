@@ -181,7 +181,7 @@ Map* TransitionArray::SearchTransition(Map* map, PropertyKind kind, Name* name,
 
 
 // static
-Map* TransitionArray::SearchSpecial(Map* map, Symbol* name) {
+Map* TransitionArray::SearchSpecial(const Map* map, Symbol* name) {
   Object* raw_transitions = map->raw_transitions();
   if (IsFullTransitionArray(raw_transitions)) {
     TransitionArray* transitions = TransitionArray::cast(raw_transitions);
@@ -202,7 +202,8 @@ Handle<Map> TransitionArray::FindTransitionToField(Handle<Map> map,
   if (target == NULL) return Handle<Map>::null();
   PropertyDetails details = target->GetLastDescriptorDetails();
   DCHECK_EQ(NONE, details.attributes());
-  if (details.type() != DATA) return Handle<Map>::null();
+  if (details.location() != kField) return Handle<Map>::null();
+  DCHECK_EQ(kData, details.kind());
   return Handle<Map>(target);
 }
 
@@ -214,7 +215,8 @@ Handle<String> TransitionArray::ExpectedTransitionKey(Handle<Map> map) {
   if (!IsSimpleTransition(raw_transition)) return Handle<String>::null();
   Map* target = GetSimpleTransition(raw_transition);
   PropertyDetails details = GetSimpleTargetDetails(target);
-  if (details.type() != DATA) return Handle<String>::null();
+  if (details.location() != kField) return Handle<String>::null();
+  DCHECK_EQ(kData, details.kind());
   if (details.attributes() != NONE) return Handle<String>::null();
   Name* name = GetSimpleTransitionKey(target);
   if (!name->IsString()) return Handle<String>::null();
@@ -395,7 +397,7 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
                                                   int slack) {
   Handle<FixedArray> array = isolate->factory()->NewTransitionArray(
       LengthFor(number_of_transitions + slack));
-  array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
+  array->set(kPrototypeTransitionsIndex, Smi::kZero);
   array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
   return Handle<TransitionArray>::cast(array);
 }
@@ -549,5 +551,47 @@ int TransitionArray::Search(PropertyKind kind, Name* name,
   if (transition == kNotFound) return kNotFound;
   return SearchDetails(transition, kind, attributes, out_insertion_index);
 }
+
+void TransitionArray::Sort() {
+  DisallowHeapAllocation no_gc;
+  // In-place insertion sort.
+  int length = number_of_transitions();
+  for (int i = 1; i < length; i++) {
+    Name* key = GetKey(i);
+    Map* target = GetTarget(i);
+    PropertyKind kind = kData;
+    PropertyAttributes attributes = NONE;
+    if (!IsSpecialTransition(key)) {
+      PropertyDetails details = GetTargetDetails(key, target);
+      kind = details.kind();
+      attributes = details.attributes();
+    }
+    int j;
+    for (j = i - 1; j >= 0; j--) {
+      Name* temp_key = GetKey(j);
+      Map* temp_target = GetTarget(j);
+      PropertyKind temp_kind = kData;
+      PropertyAttributes temp_attributes = NONE;
+      if (!IsSpecialTransition(temp_key)) {
+        PropertyDetails details = GetTargetDetails(temp_key, temp_target);
+        temp_kind = details.kind();
+        temp_attributes = details.attributes();
+      }
+      int cmp =
+          CompareKeys(temp_key, temp_key->Hash(), temp_kind, temp_attributes,
+                      key, key->Hash(), kind, attributes);
+      if (cmp > 0) {
+        SetKey(j + 1, temp_key);
+        SetTarget(j + 1, temp_target);
+      } else {
+        break;
+      }
+    }
+    SetKey(j + 1, key);
+    SetTarget(j + 1, target);
+  }
+  DCHECK(IsSortedNoDuplicates());
+}
+
 }  // namespace internal
 }  // namespace v8

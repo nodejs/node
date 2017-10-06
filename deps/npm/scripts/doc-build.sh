@@ -62,7 +62,7 @@ src=$1
 dest=$2
 name=$(basename ${src%.*})
 date=$(date -u +'%Y-%m-%d %H:%M:%S')
-version=$(node cli.js -v)
+version=$(node bin/npm-cli.js -v)
 
 mkdir -p $(dirname $dest)
 

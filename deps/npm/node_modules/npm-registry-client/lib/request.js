@@ -111,13 +111,17 @@ function makeRequest (uri, params, cb_) {
   // metadata should be compressed
   headers['accept-encoding'] = 'gzip'
 
+  // metadata should be minified, if the registry supports it
+
   var er = this.authify(params.authed, parsed, headers, params.auth)
   if (er) return cb_(er)
+
+  var useCorgi = params.fullMetadata == null ? false : !params.fullMetadata
 
   var opts = this.initialize(
     parsed,
     params.method,
-    'application/json',
+    useCorgi ? 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*' : 'application/json',
     headers
   )
 
@@ -269,13 +273,19 @@ function requestDone (method, where, cb) {
     }
 
     // for the search endpoint, the 'error' property can be an object
-    if (parsed && parsed.error && typeof parsed.error !== 'object' ||
+    if ((parsed && parsed.error && typeof parsed.error !== 'object') ||
         response.statusCode >= 400) {
       var w = url.parse(where).pathname.substr(1)
       var name
       if (!w.match(/^-/)) {
         w = w.split('/')
-        name = decodeURIComponent(w[w.indexOf('_rewrite') + 1])
+        var index = w.indexOf('_rewrite')
+        if (index === -1) {
+          index = w.length - 1
+        } else {
+          index++
+        }
+        name = decodeURIComponent(w[index])
       }
 
       if (!parsed.error) {

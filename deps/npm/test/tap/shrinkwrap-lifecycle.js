@@ -22,22 +22,21 @@ test('npm shrinkwrap execution order', function (t) {
       postshrinkwrap: 'echo this happens third'
     }
   }), 'utf8')
-  common.npm(['shrinkwrap'], [], function (err, code, stdout) {
+  common.npm(['shrinkwrap', '--loglevel=error'], [], function (err, code, stdout, stderr) {
     if (err) throw err
 
+    t.comment(stdout)
+    t.comment(stderr)
     var indexOfFirst = stdout.indexOf('echo this happens first')
     var indexOfSecond = stdout.indexOf('echo this happens second')
-    var indexOfThird = stdout.indexOf('wrote npm-shrinkwrap.json')
-    var indexOfFourth = stdout.indexOf('echo this happens third')
+    var indexOfThird = stdout.indexOf('echo this happens third')
 
     t.ok(indexOfFirst >= 0)
     t.ok(indexOfSecond >= 0)
     t.ok(indexOfThird >= 0)
-    t.ok(indexOfFourth >= 0)
 
     t.ok(indexOfFirst < indexOfSecond)
     t.ok(indexOfSecond < indexOfThird)
-    t.ok(indexOfThird < indexOfFourth)
 
     t.end()
   })

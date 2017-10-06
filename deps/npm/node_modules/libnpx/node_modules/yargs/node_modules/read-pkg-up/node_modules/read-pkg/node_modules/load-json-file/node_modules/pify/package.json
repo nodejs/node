@@ -1,0 +1,45 @@
+{
+  "_from": "pify@^2.0.0",
+  "_id": "pify@2.3.0",
+  "_inBundle": false,
+  "_integrity": "sha1-7RQaasBDqEnqWISY59yosVMw6Qw=",
+  "_location": "/libnpx/yargs/read-pkg-up/read-pkg/load-json-file/pify",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "pify@^2.0.0",
+    "name": "pify",
+    "escapedName": "pify",
+    "rawSpec": "^2.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up/read-pkg/load-json-file"
+  ],
+  "_resolved": "https://registry.npmjs.org/pify/-/pify-2.3.0.tgz",
+  "_shasum": "ed141a6ac043a849ea588498e7dca8b15330e90c",
+  "_shrinkwrap": null,
+  "_spec": "pify@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up/node_modules/read-pkg/node_modules/load-json-file",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Promisify a callback-style function",
+  "devDependencies": {
+    "ava": "*",
+    "pinkie-promise": "^1.0.0",
+    "v8-natives": "0.0.2",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "pify",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.3.0"
+}

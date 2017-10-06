@@ -16,7 +16,7 @@ TEST(AtomicNumber, Constructor) {
   AtomicNumber<size_t> zero_size_t;
   AtomicNumber<intptr_t> zero_intptr_t;
   EXPECT_EQ(0, zero_int.Value());
-  EXPECT_EQ(0U, zero_size_t.Value());
+  EXPECT_EQ(0u, zero_size_t.Value());
   EXPECT_EQ(0, zero_intptr_t.Value());
 }
 
@@ -27,7 +27,7 @@ TEST(AtomicNumber, Value) {
   AtomicNumber<int> b(-1);
   EXPECT_EQ(-1, b.Value());
   AtomicNumber<size_t> c(1);
-  EXPECT_EQ(1U, c.Value());
+  EXPECT_EQ(1u, c.Value());
   AtomicNumber<size_t> d(static_cast<size_t>(-1));
   EXPECT_EQ(std::numeric_limits<size_t>::max(), d.Value());
 }
@@ -53,7 +53,7 @@ TEST(AtomicNumber, Increment) {
   // Should work as decrement as well.
   AtomicNumber<size_t> c(1);
   c.Increment(-1);
-  EXPECT_EQ(0U, c.Value());
+  EXPECT_EQ(0u, c.Value());
   c.Increment(-1);
   EXPECT_EQ(std::numeric_limits<size_t>::max(), c.Value());
 }
@@ -61,7 +61,7 @@ TEST(AtomicNumber, Increment) {
 TEST(AtomicNumber, Decrement) {
   AtomicNumber<size_t> a(std::numeric_limits<size_t>::max());
   a.Increment(1);
-  EXPECT_EQ(0, a.Value());
+  EXPECT_EQ(0u, a.Value());
   a.Decrement(1);
   EXPECT_EQ(std::numeric_limits<size_t>::max(), a.Value());
 }
@@ -84,7 +84,7 @@ TEST(AtomicNumber, OperatorSubtractionAssignment) {
 
 namespace {
 
-enum TestFlag {
+enum TestFlag : base::AtomicWord {
   kA,
   kB,
   kC,
@@ -125,6 +125,40 @@ TEST(AtomicValue, WithVoidStar) {
   EXPECT_EQ(&dummy, a.Value());
 }
 
+TEST(NoBarrierAtomicValue, Initial) {
+  NoBarrierAtomicValue<TestFlag> a(kA);
+  EXPECT_EQ(TestFlag::kA, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, SetValue) {
+  NoBarrierAtomicValue<TestFlag> a(kB);
+  a.SetValue(kC);
+  EXPECT_EQ(TestFlag::kC, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, WithVoidStar) {
+  NoBarrierAtomicValue<void*> a(nullptr);
+  NoBarrierAtomicValue<void*> dummy(nullptr);
+  EXPECT_EQ(nullptr, a.Value());
+  a.SetValue(&a);
+  EXPECT_EQ(&a, a.Value());
+}
+
+TEST(NoBarrierAtomicValue, Construction) {
+  NoBarrierAtomicValue<TestFlag> a(kA);
+  TestFlag b = kA;
+  NoBarrierAtomicValue<TestFlag>* ptr =
+      NoBarrierAtomicValue<TestFlag>::FromAddress(&b);
+  EXPECT_EQ(ptr->Value(), a.Value());
+}
+
+TEST(NoBarrierAtomicValue, ConstructionVoidStar) {
+  NoBarrierAtomicValue<void*> a(nullptr);
+  void* b = nullptr;
+  NoBarrierAtomicValue<void*>* ptr =
+      NoBarrierAtomicValue<void*>::FromAddress(&b);
+  EXPECT_EQ(ptr->Value(), a.Value());
+}
 
 namespace {
 

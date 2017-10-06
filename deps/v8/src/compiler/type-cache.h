@@ -7,6 +7,7 @@
 
 #include "src/compiler/types.h"
 #include "src/date.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -21,11 +22,13 @@ class TypeCache final {
  public:
   static TypeCache const& Get();
 
-  TypeCache() : zone_(&allocator) {}
+  TypeCache() : zone_(&allocator, ZONE_NAME) {}
 
   Type* const kInt8 = CreateRange<int8_t>();
   Type* const kUint8 = CreateRange<uint8_t>();
   Type* const kUint8Clamped = kUint8;
+  Type* const kUint8OrMinusZeroOrNaN =
+      Type::Union(kUint8, Type::MinusZeroOrNaN(), zone());
   Type* const kInt16 = CreateRange<int16_t>();
   Type* const kUint16 = CreateRange<uint16_t>();
   Type* const kInt32 = Type::Signed32();
@@ -33,9 +36,8 @@ class TypeCache final {
   Type* const kFloat32 = Type::Number();
   Type* const kFloat64 = Type::Number();
 
-  Type* const kSmi = Type::SignedSmall();
-  Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
-  Type* const kHeapNumber = Type::Number();
+  Type* const kHoleySmi =
+      Type::Union(Type::SignedSmall(), Type::Hole(), zone());
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
@@ -63,6 +65,8 @@ class TypeCache final {
   Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
   Type* const kPositiveIntegerOrMinusZero =
       Type::Union(kPositiveInteger, Type::MinusZero(), zone());
+  Type* const kPositiveIntegerOrNaN =
+      Type::Union(kPositiveInteger, Type::NaN(), zone());
   Type* const kPositiveIntegerOrMinusZeroOrNaN =
       Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 
@@ -96,6 +100,11 @@ class TypeCache final {
   // [0, String::kMaxLength].
   Type* const kStringLengthType = CreateRange(0.0, String::kMaxLength);
 
+  // A time value always contains a tagged number in the range
+  // [-kMaxTimeInMs, kMaxTimeInMs].
+  Type* const kTimeValueType =
+      CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs);
+
   // The JSDate::day property always contains a tagged number in the range
   // [1, 31] or NaN.
   Type* const kJSDateDayType =
@@ -122,9 +131,8 @@ class TypeCache final {
 
   // The JSDate::value property always contains a tagged number in the range
   // [-kMaxTimeInMs, kMaxTimeInMs] or NaN.
-  Type* const kJSDateValueType = Type::Union(
-      CreateRange(-DateCache::kMaxTimeInMs, DateCache::kMaxTimeInMs),
-      Type::NaN(), zone());
+  Type* const kJSDateValueType =
+      Type::Union(kTimeValueType, Type::NaN(), zone());
 
   // The JSDate::weekday property always contains a tagged number in the range
   // [0, 6] or NaN.
@@ -135,6 +143,10 @@ class TypeCache final {
   // small range or NaN.
   Type* const kJSDateYearType =
       Type::Union(Type::SignedSmall(), Type::NaN(), zone());
+
+  // The valid number of arguments for JavaScript functions.
+  Type* const kArgumentsLengthType =
+      Type::Range(0.0, Code::kMaxArguments, zone());
 
  private:
   template <typename T>

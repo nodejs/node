@@ -90,7 +90,7 @@ function getTopLoopNode(node, excludedNode) {
  *
  * @param {ASTNode} funcNode - A target function node.
  * @param {ASTNode} loopNode - A containing loop node.
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is safe or not.
  */
 function isSafe(funcNode, loopNode, reference) {
@@ -131,7 +131,7 @@ function isSafe(funcNode, loopNode, reference) {
      * - is readonly.
      * - doesn't exist inside a local function and after the border.
      *
-     * @param {escope.Reference} upperRef - A reference to check.
+     * @param {eslint-scope.Reference} upperRef - A reference to check.
      * @returns {boolean} `true` if the reference is safe.
      */
     function isSafeReference(upperRef) {

@@ -21,10 +21,11 @@ enum ArchOpcodeFlags {
   kHasSideEffect = 2,      // The instruction has some side effects (memory
                            // store, function call...)
   kIsLoadOperation = 4,    // The instruction is a memory load.
-  kMayNeedDeoptCheck = 8,  // The instruction might be associated with a deopt
-                           // check. This is the case of instruction which can
-                           // blow up with particular inputs (e.g.: division by
-                           // zero on Intel platforms).
+  kMayNeedDeoptOrTrapCheck = 8,  // The instruction may be associated with a
+                                 // deopt or trap check which must be run before
+                                 // instruction e.g. div on Intel platform which
+                                 // will raise an exception when the divisor is
+                                 // zero.
 };
 
 class InstructionScheduler final : public ZoneObject {
@@ -166,17 +167,22 @@ class InstructionScheduler final : public ZoneObject {
     return (GetInstructionFlags(instr) & kIsLoadOperation) != 0;
   }
 
-  // Return true if this instruction is usually associated with a deopt check
-  // to validate its input.
-  bool MayNeedDeoptCheck(const Instruction* instr) const {
-    return (GetInstructionFlags(instr) & kMayNeedDeoptCheck) != 0;
+  // The scheduler will not move the following instructions before the last
+  // deopt/trap check:
+  //  * loads (this is conservative)
+  //  * instructions with side effect
+  //  * other deopts/traps
+  // Any other instruction can be moved, apart from those that raise exceptions
+  // on specific inputs - these are filtered out by the deopt/trap check.
+  bool MayNeedDeoptOrTrapCheck(const Instruction* instr) const {
+    return (GetInstructionFlags(instr) & kMayNeedDeoptOrTrapCheck) != 0;
   }
 
-  // Return true if the instruction cannot be moved before the last deopt
-  // point we encountered.
-  bool DependsOnDeoptimization(const Instruction* instr) const {
-    return MayNeedDeoptCheck(instr) || instr->IsDeoptimizeCall() ||
-           HasSideEffect(instr) || IsLoadOperation(instr);
+  // Return true if the instruction cannot be moved before the last deopt or
+  // trap point we encountered.
+  bool DependsOnDeoptOrTrap(const Instruction* instr) const {
+    return MayNeedDeoptOrTrapCheck(instr) || instr->IsDeoptimizeCall() ||
+           instr->IsTrap() || HasSideEffect(instr) || IsLoadOperation(instr);
   }
 
   // Identify nops used as a definition point for live-in registers at
@@ -217,8 +223,9 @@ class InstructionScheduler final : public ZoneObject {
   // other instructions in the basic block.
   ScheduleGraphNode* last_live_in_reg_marker_;
 
-  // Last deoptimization instruction encountered while building the graph.
-  ScheduleGraphNode* last_deopt_;
+  // Last deoptimization or trap instruction encountered while building the
+  // graph.
+  ScheduleGraphNode* last_deopt_or_trap_;
 
   // Keep track of definition points for virtual registers. This is used to
   // record operand dependencies in the scheduling graph.

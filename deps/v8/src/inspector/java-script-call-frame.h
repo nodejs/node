@@ -31,10 +31,10 @@
 #ifndef V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 #define V8_INSPECTOR_JAVASCRIPTCALLFRAME_H_
 
+#include <memory>
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/inspector/protocol-platform.h"
 
 #include "include/v8.h"
 
@@ -44,19 +44,18 @@ class JavaScriptCallFrame {
  public:
   static std::unique_ptr<JavaScriptCallFrame> create(
       v8::Local<v8::Context> debuggerContext, v8::Local<v8::Object> callFrame) {
-    return wrapUnique(new JavaScriptCallFrame(debuggerContext, callFrame));
+    return std::unique_ptr<JavaScriptCallFrame>(
+        new JavaScriptCallFrame(debuggerContext, callFrame));
   }
   ~JavaScriptCallFrame();
 
-  int sourceID() const;
-  int line() const;
-  int column() const;
   int contextId() const;
 
   bool isAtReturn() const;
-  v8::Local<v8::Object> details() const;
+  v8::MaybeLocal<v8::Object> details() const;
 
-  v8::MaybeLocal<v8::Value> evaluate(v8::Local<v8::Value> expression);
+  v8::MaybeLocal<v8::Value> evaluate(v8::Local<v8::Value> expression,
+                                     bool throwOnSideEffect);
   v8::MaybeLocal<v8::Value> restart();
   v8::MaybeLocal<v8::Value> setVariableValue(int scopeNumber,
                                              v8::Local<v8::Value> variableName,

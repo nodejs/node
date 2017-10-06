@@ -5,7 +5,7 @@
 #include "src/inspector/v8-injected-script-host.h"
 
 #include "src/base/macros.h"
-#include "src/inspector/injected-script-native.h"
+#include "src/inspector/injected-script.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
@@ -55,6 +55,12 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   USE(success);
   v8::Local<v8::External> debuggerExternal =
       v8::External::New(isolate, inspector);
+  setFunctionProperty(context, injectedScriptHost, "nullifyPrototype",
+                      V8InjectedScriptHost::nullifyPrototypeCallback,
+                      debuggerExternal);
+  setFunctionProperty(context, injectedScriptHost, "getProperty",
+                      V8InjectedScriptHost::getPropertyCallback,
+                      debuggerExternal);
   setFunctionProperty(context, injectedScriptHost, "internalConstructorName",
                       V8InjectedScriptHost::internalConstructorNameCallback,
                       debuggerExternal);
@@ -74,7 +80,57 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   setFunctionProperty(context, injectedScriptHost, "proxyTargetValue",
                       V8InjectedScriptHost::proxyTargetValueCallback,
                       debuggerExternal);
+  createDataProperty(context, injectedScriptHost,
+                     toV8StringInternalized(isolate, "keys"),
+                     v8::debug::GetBuiltin(isolate, v8::debug::kObjectKeys));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getPrototypeOf"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetPrototypeOf));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertyDescriptor"),
+      v8::debug::GetBuiltin(isolate,
+                            v8::debug::kObjectGetOwnPropertyDescriptor));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertyNames"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetOwnPropertyNames));
+  createDataProperty(
+      context, injectedScriptHost,
+      toV8StringInternalized(isolate, "getOwnPropertySymbols"),
+      v8::debug::GetBuiltin(isolate, v8::debug::kObjectGetOwnPropertySymbols));
   return injectedScriptHost;
+}
+
+void V8InjectedScriptHost::nullifyPrototypeCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(info.Length() == 1);
+  DCHECK(info[0]->IsObject());
+  if (!info[0]->IsObject()) return;
+  v8::Isolate* isolate = info.GetIsolate();
+  info[0]
+      .As<v8::Object>()
+      ->SetPrototype(isolate->GetCurrentContext(), v8::Null(isolate))
+      .ToChecked();
+}
+
+void V8InjectedScriptHost::getPropertyCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(info.Length() == 2 && info[1]->IsString());
+  if (!info[0]->IsObject()) return;
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::TryCatch tryCatch(isolate);
+  v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+      isolate, v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  v8::Local<v8::Value> property;
+  if (info[0]
+          .As<v8::Object>()
+          ->Get(context, v8::Local<v8::String>::Cast(info[1]))
+          .ToLocal(&property)) {
+    info.GetReturnValue().Set(property);
+  }
 }
 
 void V8InjectedScriptHost::internalConstructorNameCallback(
@@ -127,12 +183,20 @@ void V8InjectedScriptHost::subtypeCallback(
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "regexp"));
     return;
   }
-  if (value->IsMap() || value->IsWeakMap()) {
+  if (value->IsMap()) {
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "map"));
     return;
   }
-  if (value->IsSet() || value->IsWeakSet()) {
+  if (value->IsWeakMap()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "weakmap"));
+    return;
+  }
+  if (value->IsSet()) {
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "set"));
+    return;
+  }
+  if (value->IsWeakSet()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "weakset"));
     return;
   }
   if (value->IsMapIterator() || value->IsSetIterator()) {
@@ -166,12 +230,69 @@ void V8InjectedScriptHost::subtypeCallback(
 void V8InjectedScriptHost::getInternalPropertiesCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() < 1) return;
-  v8::Local<v8::Array> properties;
-  if (unwrapInspector(info)
-          ->debugger()
-          ->internalProperties(info.GetIsolate()->GetCurrentContext(), info[0])
-          .ToLocal(&properties))
+
+  std::unordered_set<String16> allowedProperties;
+  if (info[0]->IsBooleanObject() || info[0]->IsNumberObject() ||
+      info[0]->IsStringObject() || info[0]->IsSymbolObject()) {
+    allowedProperties.insert(String16("[[PrimitiveValue]]"));
+  } else if (info[0]->IsPromise()) {
+    allowedProperties.insert(String16("[[PromiseStatus]]"));
+    allowedProperties.insert(String16("[[PromiseValue]]"));
+  } else if (info[0]->IsGeneratorObject()) {
+    allowedProperties.insert(String16("[[GeneratorStatus]]"));
+  } else if (info[0]->IsMapIterator() || info[0]->IsSetIterator()) {
+    allowedProperties.insert(String16("[[IteratorHasMore]]"));
+    allowedProperties.insert(String16("[[IteratorIndex]]"));
+    allowedProperties.insert(String16("[[IteratorKind]]"));
+    allowedProperties.insert(String16("[[Entries]]"));
+  } else if (info[0]->IsMap() || info[0]->IsWeakMap() || info[0]->IsSet() ||
+             info[0]->IsWeakSet()) {
+    allowedProperties.insert(String16("[[Entries]]"));
+  }
+  if (!allowedProperties.size()) return;
+
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Array> allProperties;
+  if (!unwrapInspector(info)
+           ->debugger()
+           ->internalProperties(isolate->GetCurrentContext(), info[0])
+           .ToLocal(&allProperties) ||
+      !allProperties->IsArray() || allProperties->Length() % 2 != 0)
+    return;
+
+  {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::TryCatch tryCatch(isolate);
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+
+    v8::Local<v8::Array> properties = v8::Array::New(isolate);
+    if (tryCatch.HasCaught()) return;
+
+    uint32_t outputIndex = 0;
+    for (uint32_t i = 0; i < allProperties->Length(); i += 2) {
+      v8::Local<v8::Value> key;
+      if (!allProperties->Get(context, i).ToLocal(&key)) continue;
+      if (tryCatch.HasCaught()) {
+        tryCatch.Reset();
+        continue;
+      }
+      String16 keyString = toProtocolStringWithTypeCheck(key);
+      if (keyString.isEmpty() ||
+          allowedProperties.find(keyString) == allowedProperties.end())
+        continue;
+      v8::Local<v8::Value> value;
+      if (!allProperties->Get(context, i + 1).ToLocal(&value)) continue;
+      if (tryCatch.HasCaught()) {
+        tryCatch.Reset();
+        continue;
+      }
+      createDataProperty(context, properties, outputIndex++, key);
+      createDataProperty(context, properties, outputIndex++, value);
+    }
     info.GetReturnValue().Set(properties);
+  }
 }
 
 void V8InjectedScriptHost::objectHasOwnPropertyCallback(
@@ -188,16 +309,15 @@ void V8InjectedScriptHost::objectHasOwnPropertyCallback(
 void V8InjectedScriptHost::bindCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() < 2 || !info[1]->IsString()) return;
-  InjectedScriptNative* injectedScriptNative =
-      InjectedScriptNative::fromInjectedScriptHost(info.GetIsolate(),
-                                                   info.Holder());
-  if (!injectedScriptNative) return;
+  InjectedScript* injectedScript =
+      InjectedScript::fromInjectedScriptHost(info.GetIsolate(), info.Holder());
+  if (!injectedScript) return;
 
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   v8::Local<v8::String> v8groupName =
       info[1]->ToString(context).ToLocalChecked();
   String16 groupName = toProtocolStringWithTypeCheck(v8groupName);
-  int id = injectedScriptNative->bind(info[0], groupName);
+  int id = injectedScript->bindObject(info[0], groupName);
   info.GetReturnValue().Set(id);
 }
 

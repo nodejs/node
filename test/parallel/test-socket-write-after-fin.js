@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const expected = 'hello1hello2hello3\nTHUNDERMUSCLE!';
+const expected = 'hello1hello2hello3\nbye';
 
 const server = net.createServer({
   allowHalfOpen: true
@@ -35,5 +35,6 @@ server.listen(0, common.mustCall(function() {
   sock.write('hello1');
   sock.write('hello2');
   sock.write('hello3\n');
-  sock.end('THUNDERMUSCLE!');
+  assert.strictEqual(sock.end('bye'), sock);
+
 }));

@@ -77,14 +77,6 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
-    // Load padding words on stack.
-    __ LoadSmiLiteral(ip, Smi::FromInt(LiveEdit::kFramePaddingValue));
-    for (int i = 0; i < LiveEdit::kFramePaddingInitialSize; i++) {
-      __ push(ip);
-    }
-    __ LoadSmiLiteral(ip, Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
-    __ push(ip);
-
     // Push arguments for DebugBreak call.
     if (mode == SAVE_RESULT_REGISTER) {
       // Break on return.
@@ -111,49 +103,46 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
         }
       }
     }
-
-    // Don't bother removing padding bytes pushed on the stack
-    // as the frame is going to be restored right away.
-
     // Leave the internal frame.
   }
 
-  // Now that the break point has been handled, resume normal execution by
-  // jumping to the target address intended by the caller and that was
-  // overwritten by the address of DebugBreakXXX.
-  ExternalReference after_break_target =
-      ExternalReference::debug_after_break_target_address(masm->isolate());
-  __ mov(ip, Operand(after_break_target));
-  __ LoadP(ip, MemOperand(ip));
-  __ JumpToJSEntry(ip);
+  __ MaybeDropFrames();
+
+  // Return to caller.
+  __ Ret();
 }
 
+void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kHandleDebuggerStatement, 0);
+  }
+  __ MaybeDropFrames();
 
-void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  // Load the function pointer off of our current stack frame.
-  __ LoadP(r4, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
+  // Return to caller.
+  __ Ret();
+}
 
-  // Pop return address and frame
+void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Drop to the target frame specified by r4.
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+
+  __ mr(fp, r4);
+  __ LoadP(r4, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ LoadP(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(
+      r3, FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ mr(r5, r3);
 
-  ParameterCount dummy(0);
-  __ FloodFunctionIfStepping(r4, no_reg, dummy, dummy);
-
-  // Load context from the function.
-  __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
-
-  // Clear new.target as a safety measure.
-  __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
-
-  // Get function code.
-  __ LoadP(ip, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(ip, FieldMemOperand(ip, SharedFunctionInfo::kCodeOffset));
-  __ addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  // Re-run JSFunction, r4 is function, cp is context.
-  __ Jump(ip);
+  ParameterCount dummy1(r5);
+  ParameterCount dummy2(r3);
+  __ InvokeFunction(r4, dummy1, dummy2, JUMP_FUNCTION,
+                    CheckDebugStepCallWrapper());
 }
-
 
 const bool LiveEdit::kFrameDropperSupported = true;
 

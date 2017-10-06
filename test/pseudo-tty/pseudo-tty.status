@@ -1,8 +1,5 @@
 prefix pseudo-tty
 
 [$system==aix]
-# test issue only, covered under https://github.com/nodejs/node/issues/7973
-no_dropped_stdio           : SKIP
-no_interleaved_stdio       : SKIP
 # being investigated under https://github.com/nodejs/node/issues/9728
 test-tty-wrap              : FAIL, PASS

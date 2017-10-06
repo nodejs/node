@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 const chalk = require("chalk"),
-    table = require("table").default,
+    table = require("table").table,
     pluralize = require("pluralize");
 
 //------------------------------------------------------------------------------

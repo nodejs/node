@@ -48,7 +48,7 @@
   var i32a = new Int32Array(sab);
 
   // Valid indexes are 0-3.
-  [-1, 4, 100].forEach(function(invalidIndex) {
+  [-1, 4, 100, 0xffffffff].forEach(function(invalidIndex) {
     assertThrows(function() {
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);
@@ -59,7 +59,7 @@
   });
 
   i32a = new Int32Array(sab, 8);
-  [-1, 2, 100].forEach(function(invalidIndex) {
+  [-1, 2, 100, 0xffffffff].forEach(function(invalidIndex) {
     assertThrows(function() {
       Atomics.wait(i32a, invalidIndex, 0);
     }, RangeError);
@@ -95,6 +95,28 @@
   assertEquals("timed-out", Atomics.wait(i32a, 0, 0, -Infinity));
 })();
 
+(function TestWaitNotAllowed() {
+  %SetAllowAtomicsWait(false);
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  assertThrows(function() {
+    Atomics.wait(i32a, 0, 0, -1);
+  });
+  %SetAllowAtomicsWait(true);
+})();
+
+(function TestWakePositiveInfinity() {
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
+})();
+
+// In a previous version, this test caused a check failure
+(function TestObjectWaitValue() {
+  var sab = new SharedArrayBuffer(16);
+  var i32a = new Int32Array(sab);
+  assertEquals("timed-out", Atomics.wait(i32a, 0, Math, 0));
+})();
+
+
 //// WORKER ONLY TESTS
 
 if (this.Worker) {
@@ -111,7 +133,7 @@ if (this.Worker) {
        };`;
 
     var worker = new Worker(workerScript);
-    worker.postMessage({sab: sab, offset: offset}, [sab]);
+    worker.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a, 0) != 1) {}
@@ -123,7 +145,7 @@ if (this.Worker) {
     var worker2 = new Worker(workerScript);
     var offset = 8;
     var i32a2 = new Int32Array(sab, offset);
-    worker2.postMessage({sab: sab, offset: offset}, [sab]);
+    worker2.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 0) != 1) {}
@@ -135,7 +157,7 @@ if (this.Worker) {
     // the real address is the same.
     var worker3 = new Worker(workerScript);
     i32a2 = new Int32Array(sab, 4);
-    worker3.postMessage({sab: sab, offset: 8}, [sab]);
+    worker3.postMessage({sab: sab, offset: 8});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 1) != 1) {}
@@ -181,7 +203,7 @@ if (this.Worker) {
     var workers = [];
     for (id = 0; id < 4; id++) {
       workers[id] = new Worker(workerScript);
-      workers[id].postMessage({sab: sab, id: id}, [sab]);
+      workers[id].postMessage({sab: sab, id: id});
     }
 
     // Spin until all workers are waiting on the futex.

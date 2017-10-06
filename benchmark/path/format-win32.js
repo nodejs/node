@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
-var v8 = require('v8');
+const common = require('../common.js');
+const path = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   props: [
     ['C:\\', 'C:\\path\\dir', 'index.html', '.html', 'index'].join('|')
   ],
@@ -11,22 +10,16 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var p = path.win32;
-  var props = ('' + conf.props).split('|');
-  var obj = {
+  const n = +conf.n;
+  const p = path.win32;
+  const props = String(conf.props).split('|');
+  const obj = {
     root: props[0] || '',
     dir: props[1] || '',
     base: props[2] || '',
     ext: props[3] || '',
     name: props[4] || '',
   };
-
-  // Force optimization before starting the benchmark
-  p.format(obj);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.format)');
-  p.format(obj);
 
   bench.start();
   for (var i = 0; i < n; i++) {

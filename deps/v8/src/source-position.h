@@ -9,76 +9,112 @@
 
 #include "src/flags.h"
 #include "src/globals.h"
+#include "src/handles.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
-// This class encapsulates encoding and decoding of sources positions from
-// which hydrogen values originated.
-// When FLAG_track_hydrogen_positions is set this object encodes the
-// identifier of the inlining and absolute offset from the start of the
-// inlined function.
-// When the flag is not set we simply track absolute offset from the
-// script start.
-class SourcePosition {
+class Code;
+class CompilationInfo;
+class Script;
+class SharedFunctionInfo;
+struct SourcePositionInfo;
+
+// SourcePosition stores
+// - script_offset (31 bit non-negative int or kNoSourcePosition)
+// - inlining_id (16 bit non-negative int or kNotInlined).
+//
+// A defined inlining_id refers to positions in
+// CompilationInfo::inlined_functions or
+// DeoptimizationInputData::InliningPositions, depending on the compilation
+// stage.
+class SourcePosition final {
  public:
-  static SourcePosition Unknown() {
-    return SourcePosition::FromRaw(kNoPosition);
+  explicit SourcePosition(int script_offset, int inlining_id = kNotInlined)
+      : value_(0) {
+    SetScriptOffset(script_offset);
+    SetInliningId(inlining_id);
   }
 
-  bool IsUnknown() const { return value_ == kNoPosition; }
+  static SourcePosition Unknown() { return SourcePosition(kNoSourcePosition); }
+  bool IsKnown() const {
+    return ScriptOffset() != kNoSourcePosition || InliningId() != kNotInlined;
+  }
+  bool isInlined() const { return InliningId() != kNotInlined; }
 
-  uint32_t position() const { return PositionField::decode(value_); }
-  void set_position(uint32_t position) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<uint32_t>(PositionField::update(value_, position));
-    } else {
-      value_ = position;
-    }
+  // Assumes that the code object is optimized
+  std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
+  std::vector<SourcePositionInfo> InliningStack(CompilationInfo* cinfo) const;
+
+  void Print(std::ostream& out, Code* code) const;
+
+  int ScriptOffset() const { return ScriptOffsetField::decode(value_) - 1; }
+  int InliningId() const { return InliningIdField::decode(value_) - 1; }
+
+  void SetScriptOffset(int script_offset) {
+    DCHECK(script_offset <= ScriptOffsetField::kMax - 2);
+    DCHECK(script_offset >= kNoSourcePosition);
+    value_ = ScriptOffsetField::update(value_, script_offset + 1);
+  }
+  void SetInliningId(int inlining_id) {
+    DCHECK(inlining_id <= InliningIdField::kMax - 2);
+    DCHECK(inlining_id >= kNotInlined);
+    value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
-  uint32_t inlining_id() const { return InliningIdField::decode(value_); }
-  void set_inlining_id(uint32_t inlining_id) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ =
-          static_cast<uint32_t>(InliningIdField::update(value_, inlining_id));
-    }
-  }
+  static const int kNotInlined = -1;
+  STATIC_ASSERT(kNoSourcePosition == -1);
 
-  uint32_t raw() const { return value_; }
-
- private:
-  static const uint32_t kNoPosition = static_cast<uint32_t>(kNoSourcePosition);
-  typedef BitField<uint32_t, 0, 9> InliningIdField;
-
-  // Offset from the start of the inlined function.
-  typedef BitField<uint32_t, 9, 23> PositionField;
-
-  friend class HPositionInfo;
-  friend class Deoptimizer;
-
-  static SourcePosition FromRaw(uint32_t raw_position) {
-    SourcePosition position;
-    position.value_ = raw_position;
+  int64_t raw() const { return static_cast<int64_t>(value_); }
+  static SourcePosition FromRaw(int64_t raw) {
+    SourcePosition position = Unknown();
+    DCHECK_GE(raw, 0);
+    position.value_ = static_cast<uint64_t>(raw);
     return position;
   }
 
-  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
-  // and PositionField.
-  // Otherwise contains absolute offset from the script start.
-  uint32_t value_;
+ private:
+  void Print(std::ostream& out, SharedFunctionInfo* function) const;
+
+  // InliningId is in the high bits for better compression in
+  // SourcePositionTable.
+  typedef BitField64<int, 0, 31> ScriptOffsetField;
+  typedef BitField64<int, 31, 16> InliningIdField;
+  // Leaving the highest bit untouched to allow for signed conversion.
+  uint64_t value_;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const SourcePosition& p) {
-  if (p.IsUnknown()) {
-    return os << "<?>";
-  } else if (FLAG_hydrogen_track_positions) {
-    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
-  } else {
-    return os << "<0:" << p.raw() << ">";
-  }
+inline bool operator==(const SourcePosition& lhs, const SourcePosition& rhs) {
+  return lhs.raw() == rhs.raw();
 }
+
+inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
+  return !(lhs == rhs);
+}
+
+struct InliningPosition {
+  // position of the inlined call
+  SourcePosition position = SourcePosition::Unknown();
+
+  // references position in DeoptimizationInputData::literals()
+  int inlined_function_id;
+};
+
+struct SourcePositionInfo {
+  SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
+
+  SourcePosition position;
+  Handle<SharedFunctionInfo> function;
+  int line = -1;
+  int column = -1;
+};
+
+std::ostream& operator<<(std::ostream& out, const SourcePosition& pos);
+
+std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos);
+std::ostream& operator<<(std::ostream& out,
+                         const std::vector<SourcePositionInfo>& stack);
 
 }  // namespace internal
 }  // namespace v8

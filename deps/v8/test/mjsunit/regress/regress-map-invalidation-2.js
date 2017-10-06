@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt
 
 var c = { x: 2, y: 1 };
 
@@ -40,7 +40,7 @@ function g() {
     else return c;
   }
   // Clear type feedback from previous stress runs.
-  %ClearFunctionTypeFeedback(f);
+  %ClearFunctionFeedback(f);
   return f;
 }
 

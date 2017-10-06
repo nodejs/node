@@ -1,10 +1,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;
@@ -17,12 +15,12 @@ function doCheck(arg, check) {
     'require("crypto").constants.defaultCipherList'
   ]);
   spawn(process.execPath, arg, {})
-    .on('error', common.fail)
+    .on('error', common.mustNotCall())
     .stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
       assert.strictEqual(out.trim(), check);
-    }).on('error', common.fail);
+    }).on('error', common.mustNotCall());
 }
 
 // test the default unmodified version

@@ -90,6 +90,18 @@ function $DONE(arg){
     quit(0);
 };
 
-var $ = {
-  evalScript(script) { return Realm.eval(Realm.current(), script); }
-};
+function RealmOperators(realm) {
+  let $262 = {
+    evalScript(script) {
+      return Realm.eval(realm, script);
+    },
+    createRealm() {
+      return RealmOperators(Realm.createAllowCrossRealmAccess());
+    },
+    global: Realm.eval(realm, 'this')
+  };
+  $262.global.$262 = $262;
+  return $262;
+}
+
+var $262 = RealmOperators(Realm.current());

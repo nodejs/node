@@ -342,7 +342,7 @@ static int print_bin(BIO *fp, const char *name, const unsigned char *buf,
                      size_t len, int off)
 {
     size_t i;
-    char str[128];
+    char str[128 + 1 + 4];
 
     if (buf == NULL)
         return 1;

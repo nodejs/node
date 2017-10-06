@@ -30,6 +30,7 @@
 
 #include "src/inspector/v8-function-call.h"
 
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
@@ -74,6 +75,8 @@ v8::Local<v8::Value> V8FunctionCall::call(bool& hadException,
 }
 
 v8::Local<v8::Value> V8FunctionCall::callWithoutExceptionHandling() {
+  v8::Context::Scope contextScope(m_context);
+
   v8::Local<v8::Object> thisObject = v8::Local<v8::Object>::Cast(m_value);
   v8::Local<v8::Value> value;
   if (!thisObject->Get(m_context, m_name).ToLocal(&value))
@@ -89,13 +92,14 @@ v8::Local<v8::Value> V8FunctionCall::callWithoutExceptionHandling() {
     DCHECK(!info[i].IsEmpty());
   }
 
-  int contextGroupId = V8Debugger::getGroupId(m_context);
+  int contextGroupId = m_inspector->contextGroupId(m_context);
   if (contextGroupId) {
     m_inspector->client()->muteMetrics(contextGroupId);
     m_inspector->muteExceptions(contextGroupId);
   }
   v8::MicrotasksScope microtasksScope(m_context->GetIsolate(),
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
+  v8::Isolate::AllowJavascriptExecutionScope(m_context->GetIsolate());
   v8::MaybeLocal<v8::Value> maybeResult = function->Call(
       m_context, thisObject, static_cast<int>(m_arguments.size()), info.get());
   if (contextGroupId) {

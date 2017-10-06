@@ -59,5 +59,3 @@ exports.default = (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLi
 
   return output;
 };
-
-module.exports = exports['default'];

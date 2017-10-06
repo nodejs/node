@@ -3,7 +3,7 @@ npm-run-script(1) -- Run arbitrary package scripts
 
 ## SYNOPSIS
 
-    npm run-script <command> [-- <args>...]
+    npm run-script <command> [--silent] [-- <args>...]
 
     alias: npm run
 
@@ -49,6 +49,8 @@ not found in the `PATH`.
 
 If you try to run a script without having a `node_modules` directory and it fails,
 you will be given a warning to run `npm install`, just in case you've forgotten.
+
+You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
 
 ## SEE ALSO
 

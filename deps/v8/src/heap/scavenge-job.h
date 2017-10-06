@@ -6,6 +6,7 @@
 #define V8_HEAP_SCAVENGE_JOB_H_
 
 #include "src/cancelable-task.h"
+#include "src/globals.h"
 #include "src/heap/gc-tracer.h"
 
 namespace v8 {
@@ -16,16 +17,19 @@ class Isolate;
 
 
 // This class posts idle tasks and performs scavenges in the idle tasks.
-class ScavengeJob {
+class V8_EXPORT_PRIVATE ScavengeJob {
  public:
   class IdleTask : public CancelableIdleTask {
    public:
     explicit IdleTask(Isolate* isolate, ScavengeJob* job)
-        : CancelableIdleTask(isolate), job_(job) {}
+        : CancelableIdleTask(isolate), isolate_(isolate), job_(job) {}
     // CancelableIdleTask overrides.
     void RunInternal(double deadline_in_seconds) override;
 
+    Isolate* isolate() { return isolate_; }
+
    private:
+    Isolate* isolate_;
     ScavengeJob* job_;
   };
 

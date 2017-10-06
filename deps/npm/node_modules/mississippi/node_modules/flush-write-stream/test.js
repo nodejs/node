@@ -70,3 +70,16 @@ tape('can pass options', function (t) {
     process.nextTick(cb)
   }
 })
+
+tape('emits error on destroy', function (t) {
+  var expected = new Error()
+
+  var ws = writer({objectMode: true}, function () {})
+
+  ws.on('error', function (err) {
+    t.equal(err, expected)
+  })
+  ws.on('close', t.end)
+
+  ws.destroy(expected)
+})

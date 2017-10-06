@@ -103,7 +103,7 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->pipe.conn.non_overlapped_writes_tail = NULL;
   handle->pipe.conn.readfile_thread = NULL;
 
-  uv_req_init(loop, (uv_req_t*) &handle->pipe.conn.ipc_header_write_req);
+  UV_REQ_INIT(&handle->pipe.conn.ipc_header_write_req, UV_UNKNOWN_REQ);
 
   return 0;
 }
@@ -505,8 +505,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   for (i = 0; i < handle->pipe.serv.pending_instances; i++) {
     req = &handle->pipe.serv.accept_reqs[i];
-    uv_req_init(loop, (uv_req_t*) req);
-    req->type = UV_ACCEPT;
+    UV_REQ_INIT(req, UV_ACCEPT);
     req->data = handle;
     req->pipeHandle = INVALID_HANDLE_VALUE;
     req->next_pending = NULL;
@@ -626,8 +625,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
   DWORD duplex_flags;
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_CONNECT;
+  UV_REQ_INIT(req, UV_CONNECT);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
 
@@ -962,7 +960,7 @@ static DWORD WINAPI uv_pipe_zero_readfile_thread_proc(void* parameter) {
     uv_mutex_lock(m); /* mutex controls *setting* of readfile_thread */
     if (DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
                         GetCurrentProcess(), &hThread,
-                        0, TRUE, DUPLICATE_SAME_ACCESS)) {
+                        0, FALSE, DUPLICATE_SAME_ACCESS)) {
       handle->pipe.conn.readfile_thread = hThread;
     } else {
       hThread = NULL;
@@ -970,27 +968,31 @@ static DWORD WINAPI uv_pipe_zero_readfile_thread_proc(void* parameter) {
     uv_mutex_unlock(m);
   }
 restart_readfile:
-  result = ReadFile(handle->handle,
-                    &uv_zero_,
-                    0,
-                    &bytes,
-                    NULL);
-  if (!result) {
-    err = GetLastError();
-    if (err == ERROR_OPERATION_ABORTED &&
-        handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
-      if (handle->flags & UV_HANDLE_READING) {
-        /* just a brief break to do something else */
-        handle->pipe.conn.readfile_thread = NULL;
-        /* resume after it is finished */
-        uv_mutex_lock(m);
-        handle->pipe.conn.readfile_thread = hThread;
-        uv_mutex_unlock(m);
-        goto restart_readfile;
-      } else {
-        result = 1; /* successfully stopped reading */
+  if (handle->flags & UV_HANDLE_READING) {
+    result = ReadFile(handle->handle,
+                      &uv_zero_,
+                      0,
+                      &bytes,
+                      NULL);
+    if (!result) {
+      err = GetLastError();
+      if (err == ERROR_OPERATION_ABORTED &&
+          handle->flags & UV_HANDLE_PIPE_READ_CANCELABLE) {
+        if (handle->flags & UV_HANDLE_READING) {
+          /* just a brief break to do something else */
+          handle->pipe.conn.readfile_thread = NULL;
+          /* resume after it is finished */
+          uv_mutex_lock(m);
+          handle->pipe.conn.readfile_thread = hThread;
+          uv_mutex_unlock(m);
+          goto restart_readfile;
+        } else {
+          result = 1; /* successfully stopped reading */
+        }
       }
     }
+  } else {
+    result = 1; /* successfully aborted read before it even started */
   }
   if (hThread) {
     assert(hThread == handle->pipe.conn.readfile_thread);
@@ -1239,8 +1241,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
 
   assert(handle->handle != INVALID_HANDLE_VALUE);
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_WRITE;
+  UV_REQ_INIT(req, UV_WRITE);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
   req->ipc_header = 0;
@@ -1301,8 +1302,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
         }
       }
 
-      uv_req_init(loop, (uv_req_t*) ipc_header_req);
-      ipc_header_req->type = UV_WRITE;
+      UV_REQ_INIT(ipc_header_req, UV_WRITE);
       ipc_header_req->handle = (uv_stream_t*) handle;
       ipc_header_req->cb = NULL;
       ipc_header_req->ipc_header = 1;
@@ -1519,7 +1519,10 @@ static void uv_pipe_read_error(uv_loop_t* loop, uv_pipe_t* handle, int error,
 
 static void uv_pipe_read_error_or_eof(uv_loop_t* loop, uv_pipe_t* handle,
     int error, uv_buf_t buf) {
-  if (error == ERROR_BROKEN_PIPE) {
+  if (error == ERROR_OPERATION_ABORTED) {
+    /* do nothing (equivalent to EINTR) */
+  }
+  else if (error == ERROR_BROKEN_PIPE) {
     uv_pipe_read_eof(loop, handle, buf);
   } else {
     uv_pipe_read_error(loop, handle, error, buf);
@@ -1910,6 +1913,7 @@ int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   if (os_handle == INVALID_HANDLE_VALUE)
     return UV_EBADF;
 
+  uv__once_init();
   /* In order to avoid closing a stdio file descriptor 0-2, duplicate the
    * underlying OS handle and forget about the original fd.
    * We could also opt to use the original OS handle and just never close it,
@@ -1983,6 +1987,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
   unsigned int name_len;
   int err;
 
+  uv__once_init();
   name_info = NULL;
 
   if (handle->handle == INVALID_HANDLE_VALUE) {
@@ -2076,7 +2081,6 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
   buffer[addrlen] = '\0';
 
   err = 0;
-  goto cleanup;
 
 error:
   uv__free(name_info);

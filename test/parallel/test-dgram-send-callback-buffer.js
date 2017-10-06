@@ -14,4 +14,7 @@ const onMessage = common.mustCall(function(err, bytes) {
   client.close();
 });
 
-client.send(buf, common.PORT, common.localhostIPv4, onMessage);
+client.bind(0, () => client.send(buf,
+                                 client.address().port,
+                                 common.localhostIPv4,
+                                 onMessage));

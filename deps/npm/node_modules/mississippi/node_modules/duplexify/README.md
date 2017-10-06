@@ -3,7 +3,7 @@
 Turn a writeable and readable stream into a single streams2 duplex stream.
 
 Similar to [duplexer2](https://github.com/deoxxa/duplexer2) except it supports both streams2 and streams1 as input
-and it allows you to set the readable and writable part asynchroniously using `setReadable(stream)` and `setWritable(stream)`
+and it allows you to set the readable and writable part asynchronously using `setReadable(stream)` and `setWritable(stream)`
 
 ```
 npm install duplexify
@@ -27,7 +27,7 @@ dup.on('data', function(data) {
 })
 ```
 
-You can also set the readable and writable parts asynchroniously
+You can also set the readable and writable parts asynchronously
 
 ``` js
 var dup = duplexify()

@@ -1,11 +1,9 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const crypto = require('crypto');
 
 //
@@ -57,33 +55,40 @@ function ondone(err, key) {
 }
 
 // Error path should not leak memory (check with valgrind).
-assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, 20, null);
-}, /^Error: No callback provided to pbkdf2$/);
+common.expectsError(
+  () => crypto.pbkdf2('password', 'salt', 1, 20, null),
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  }
+);
 
 // Should not work with Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with NaN key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with negative key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with key length that does not fit into 32 signed bits
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not get FATAL ERROR with empty password and salt
@@ -93,3 +98,19 @@ assert.doesNotThrow(() => {
     assert.ifError(e);
   }));
 });
+
+common.expectsError(
+  () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "digest" argument must be one of type string or null'
+  });
+
+common.expectsError(
+  () => crypto.pbkdf2Sync('password', 'salt', 8, 8),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "digest" argument must be one of type string or null'
+  });

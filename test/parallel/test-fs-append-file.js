@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -88,7 +109,7 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
   fs.readFile(filename4, function(e, buffer) {
     assert.ifError(e);
     ncallbacks++;
-    assert.strictEqual(Buffer.byteLength('' + n) + currentFileData.length,
+    assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
                        buffer.length);
   });
 });
@@ -122,6 +143,13 @@ fs.open(filename5, 'a+', function(e, fd) {
     });
   });
 });
+
+// test that a missing callback emits a warning, even if the last argument is a
+// function.
+const filename6 = join(common.tmpDir, 'append6.txt');
+const warn = 'Calling an asynchronous function without callback is deprecated.';
+common.expectWarning('DeprecationWarning', warn);
+fs.appendFile(filename6, console.log);
 
 process.on('exit', function() {
   assert.strictEqual(12, ncallbacks);

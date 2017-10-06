@@ -1,11 +1,10 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
-const path = require('path');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-const file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg'));
+const file = fixtures.readSync('person.jpg');
 const chunkSize = 12 * 1024;
 const opts = { level: 9, strategy: zlib.constants.Z_DEFAULT_STRATEGY };
 const deflater = zlib.createDeflate(opts);

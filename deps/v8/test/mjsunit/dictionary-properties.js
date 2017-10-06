@@ -11,6 +11,7 @@ function SlowObject() {
   this.foo = 1;
   this.bar = 2;
   this.qux = 3;
+  this.z = 4;
   delete this.qux;
   assertFalse(%HasFastProperties(this));
 }
@@ -38,6 +39,7 @@ function SlowPrototype() {
 }
 SlowPrototype.prototype.bar = 2;
 SlowPrototype.prototype.baz = 3;
+SlowPrototype.prototype.z = 4;
 delete SlowPrototype.prototype.baz;
 assertFalse(%HasFastProperties(SlowPrototype.prototype));
 var slow_proto = new SlowPrototype;

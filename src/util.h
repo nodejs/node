@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_UTIL_H_
 #define SRC_UTIL_H_
 
@@ -10,6 +31,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <type_traits>  // std::remove_reference
 
@@ -55,7 +77,7 @@ void LowMemoryNotification();
 #endif
 
 // The slightly odd function signature for Assert() is to ease
-// instruction cache pressure in calls from ASSERT and CHECK.
+// instruction cache pressure in calls from CHECK.
 NO_RETURN void Abort();
 NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
@@ -73,7 +95,7 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT_NO_BACKTRACE() raise(SIGABRT)
+#define ABORT_NO_BACKTRACE() _exit(134)
 #else
 #define ABORT_NO_BACKTRACE() abort()
 #endif
@@ -101,27 +123,6 @@ template <typename T> using remove_reference = std::remove_reference<T>;
       node::Assert(&args);                                                    \
     }                                                                         \
   } while (0)
-
-// FIXME(bnoordhuis) cctests don't link in node::Abort() and node::Assert().
-#ifdef GTEST_DONT_DEFINE_ASSERT_EQ
-#undef ABORT
-#undef CHECK
-#define ABORT ABORT_NO_BACKTRACE
-#define CHECK assert
-#endif
-
-#ifdef NDEBUG
-#define ASSERT(expr)
-#else
-#define ASSERT(expr) CHECK(expr)
-#endif
-
-#define ASSERT_EQ(a, b) ASSERT((a) == (b))
-#define ASSERT_GE(a, b) ASSERT((a) >= (b))
-#define ASSERT_GT(a, b) ASSERT((a) > (b))
-#define ASSERT_LE(a, b) ASSERT((a) <= (b))
-#define ASSERT_LT(a, b) ASSERT((a) < (b))
-#define ASSERT_NE(a, b) ASSERT((a) != (b))
 
 #define CHECK_EQ(a, b) CHECK((a) == (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
@@ -304,29 +305,40 @@ class MaybeStackBuffer {
     return length_;
   }
 
-  // Call to make sure enough space for `storage` entries is available.
-  // There can only be 1 call to AllocateSufficientStorage or Invalidate
-  // per instance.
+  // Current maximum capacity of the buffer with which SetLength() can be used
+  // without first calling AllocateSufficientStorage().
+  size_t capacity() const {
+    return IsAllocated() ? capacity_ :
+                           IsInvalidated() ? 0 : kStackStorageSize;
+  }
+
+  // Make sure enough space for `storage` entries is available.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called Invalidate() cannot be used.
+  // Content of the buffer in the range [0, length()) is preserved.
   void AllocateSufficientStorage(size_t storage) {
-    if (storage <= kStackStorageSize) {
-      buf_ = buf_st_;
-    } else {
-      buf_ = Malloc<T>(storage);
+    CHECK(!IsInvalidated());
+    if (storage > capacity()) {
+      bool was_allocated = IsAllocated();
+      T* allocated_ptr = was_allocated ? buf_ : nullptr;
+      buf_ = Realloc(allocated_ptr, storage);
+      capacity_ = storage;
+      if (!was_allocated && length_ > 0)
+        memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
     }
 
-    // Remember how much was allocated to check against that in SetLength().
     length_ = storage;
   }
 
   void SetLength(size_t length) {
-    // length_ stores how much memory was allocated.
-    CHECK_LE(length, length_);
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length, capacity());
     length_ = length;
   }
 
   void SetLengthAndZeroTerminate(size_t length) {
-    // length_ stores how much memory was allocated.
-    CHECK_LE(length + 1, length_);
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length + 1, capacity());
     SetLength(length);
 
     // T() is 0 for integer types, nullptr for pointers, etc.
@@ -334,24 +346,35 @@ class MaybeStackBuffer {
   }
 
   // Make derefencing this object return nullptr.
-  // Calling this is mutually exclusive with calling
-  // AllocateSufficientStorage.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called AllocateSufficientStorage() cannot
+  // be used.
   void Invalidate() {
-    CHECK_EQ(buf_, buf_st_);
+    CHECK(!IsAllocated());
     length_ = 0;
     buf_ = nullptr;
   }
 
-  bool IsAllocated() {
-    return buf_ != buf_st_;
+  // If the buffer is stored in the heap rather than on the stack.
+  bool IsAllocated() const {
+    return !IsInvalidated() && buf_ != buf_st_;
   }
 
+  // If Invalidate() has been called.
+  bool IsInvalidated() const {
+    return buf_ == nullptr;
+  }
+
+  // Release ownership of the malloc'd buffer.
+  // Note: This does not free the buffer.
   void Release() {
+    CHECK(IsAllocated());
     buf_ = buf_st_;
     length_ = 0;
+    capacity_ = 0;
   }
 
-  MaybeStackBuffer() : length_(0), buf_(buf_st_) {
+  MaybeStackBuffer() : length_(0), capacity_(0), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
   }
@@ -361,12 +384,14 @@ class MaybeStackBuffer {
   }
 
   ~MaybeStackBuffer() {
-    if (buf_ != buf_st_)
+    if (IsAllocated())
       free(buf_);
   }
 
  private:
   size_t length_;
+  // capacity of the malloc'ed buf_
+  size_t capacity_;
   T* buf_;
   T buf_st_[kStackStorageSize];
 };
@@ -393,8 +418,8 @@ class BufferValue : public MaybeStackBuffer<char> {
   } while (0)
 
 #define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsUint8Array());                                               \
-  Local<v8::Uint8Array> name = (val).As<v8::Uint8Array>();                    \
+  CHECK((val)->IsArrayBufferView());                                          \
+  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
   v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
   const size_t name##_offset = name->ByteOffset();                            \
   const size_t name##_length = name->ByteLength();                            \

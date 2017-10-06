@@ -6,42 +6,29 @@
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 
-enum class DebugAgentType {
-  kNone,
-  kDebugger,
-#if HAVE_INSPECTOR
-  kInspector
-#endif  // HAVE_INSPECTOR
-};
-
 class DebugOptions {
  public:
   DebugOptions();
-  bool ParseOption(const std::string& option);
-  bool debugger_enabled() const {
-    return debugger_enabled_ && !inspector_enabled();
+  bool ParseOption(const char* argv0, const std::string& option);
+  bool inspector_enabled() const { return inspector_enabled_; }
+  bool deprecated_invocation() const {
+    return deprecated_debug_ &&
+      inspector_enabled_ &&
+      break_first_line_;
   }
-  bool inspector_enabled() const {
-#if HAVE_INSPECTOR
-    return inspector_enabled_;
-#else
-    return false;
-#endif  // HAVE_INSPECTOR
+  bool invalid_invocation() const {
+    return deprecated_debug_ && !inspector_enabled_;
   }
-  void EnableDebugAgent(DebugAgentType type);
-  bool ToolsServerEnabled();
-  bool wait_for_connect() const { return wait_connect_; }
+  bool wait_for_connect() const { return break_first_line_; }
   std::string host_name() const { return host_name_; }
+  void set_host_name(std::string host_name) { host_name_ = host_name; }
   int port() const;
   void set_port(int port) { port_ = port; }
 
  private:
-  bool debugger_enabled_;
-#if HAVE_INSPECTOR
   bool inspector_enabled_;
-#endif  // HAVE_INSPECTOR
-  bool wait_connect_;
-  bool http_enabled_;
+  bool deprecated_debug_;
+  bool break_first_line_;
   std::string host_name_;
   int port_;
 };

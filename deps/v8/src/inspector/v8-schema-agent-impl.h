@@ -13,7 +13,7 @@ namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8SchemaAgentImpl : public protocol::Schema::Backend {
  public:
@@ -21,8 +21,7 @@ class V8SchemaAgentImpl : public protocol::Schema::Backend {
                     protocol::DictionaryValue* state);
   ~V8SchemaAgentImpl() override;
 
-  void getDomains(
-      ErrorString*,
+  Response getDomains(
       std::unique_ptr<protocol::Array<protocol::Schema::Domain>>*) override;
 
  private:

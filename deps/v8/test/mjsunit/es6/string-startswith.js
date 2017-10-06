@@ -24,6 +24,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+assertFalse("abc".startsWith("a", Infinity));
 
 assertEquals(1, String.prototype.startsWith.length);
 
@@ -34,6 +35,7 @@ assertFalse(testString.startsWith("hello"));
 assertFalse(testString.startsWith("Hello World!"));
 assertFalse(testString.startsWith(null));
 assertFalse(testString.startsWith(undefined));
+assertFalse(testString.startsWith());
 
 assertTrue("null".startsWith(null));
 assertTrue("undefined".startsWith(undefined));

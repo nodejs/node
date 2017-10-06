@@ -1298,7 +1298,7 @@ bsaes_cbc_encrypt:
 	vmov	q4,q15		@ just in case ensure that IV
 	vmov	q5,q0			@ and input are preserved
 	bl	AES_decrypt
-	vld1.8	{q0}, [r9,:64]		@ load result
+	vld1.8	{q0}, [r9]		@ load result
 	veor	q0, q0, q4	@ ^= IV
 	vmov	q15, q5		@ q5 holds input
 	vst1.8	{q0}, [r10]		@ write output

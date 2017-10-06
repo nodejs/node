@@ -69,6 +69,12 @@
 #include <openssl/buffer.h>
 #include <openssl/err.h>
 
+/*
+ * The maximum length we can grow a value to after variable expansion. 64k
+ * should be more than enough for all reasonable uses.
+ */
+#define MAX_CONF_VALUE_LENGTH       65536
+
 static char *eat_ws(CONF *conf, char *p);
 static char *eat_alpha_numeric(CONF *conf, char *p);
 static void clear_comments(CONF *conf, char *p);
@@ -530,6 +536,8 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
         } else if (IS_EOF(conf, *from))
             break;
         else if (*from == '$') {
+            size_t newsize;
+
             /* try to expand it */
             rrp = NULL;
             s = &(from[1]);
@@ -584,8 +592,12 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
                 CONFerr(CONF_F_STR_COPY, CONF_R_VARIABLE_HAS_NO_VALUE);
                 goto err;
             }
-            if (!BUF_MEM_grow_clean(buf,
-                        (strlen(p) + buf->length - (e - from)))) {
+            newsize = strlen(p) + buf->length - (e - from);
+            if (newsize > MAX_CONF_VALUE_LENGTH) {
+                CONFerr(CONF_F_STR_COPY, CONF_R_VARIABLE_EXPANSION_TOO_LONG);
+                goto err;
+            }
+            if (!BUF_MEM_grow_clean(buf, newsize)) {
                 CONFerr(CONF_F_STR_COPY, ERR_R_MALLOC_FAILURE);
                 goto err;
             }

@@ -9,7 +9,7 @@ const BenchmarkProgress = require('./_benchmark_progress.js');
 // Parse arguments
 //
 const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
-  Run each benchmark in the <category> directory many times using two diffrent
+  Run each benchmark in the <category> directory many times using two different
   node versions. More than one <category> directory can be specified.
   The output is formatted as csv, which can be processed using for
   example 'compare.R'.
@@ -20,10 +20,7 @@ const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
   --filter   pattern            string to filter benchmark scripts
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
-`, {
-  arrayArgs: ['set'],
-  boolArgs: ['no-progress']
-});
+`, { arrayArgs: ['set'], boolArgs: ['no-progress'] });
 
 if (!cli.optional.new || !cli.optional.old) {
   cli.abort(cli.usage);
@@ -35,7 +32,7 @@ const runs = cli.optional.runs ? parseInt(cli.optional.runs, 10) : 30;
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
-  console.error('no benchmarks found');
+  console.error('No benchmarks found');
   process.exitCode = 1;
   return;
 }
@@ -79,7 +76,7 @@ if (showProgress) {
       // Construct configuration string, " A=a, B=b, ..."
       let conf = '';
       for (const key of Object.keys(data.conf)) {
-        conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+        conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
       }
       conf = conf.slice(1);
       // Escape quotes (") for correct csv formatting

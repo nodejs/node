@@ -4,6 +4,7 @@
 
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/code-generator-impl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -143,7 +144,7 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
                                     InstructionSequence* code) {
   if (!FLAG_turbo_jt) return;
 
-  Zone local_zone(code->isolate()->allocator());
+  Zone local_zone(code->isolate()->allocator(), ZONE_NAME);
   ZoneVector<bool> skip(static_cast<int>(result.size()), false, &local_zone);
 
   // Skip empty blocks when the previous block doesn't fall through.

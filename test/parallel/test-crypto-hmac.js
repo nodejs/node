@@ -1,26 +1,16 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const crypto = require('crypto');
 
-// Test for binding layer robustness
-{
-  const binding = process.binding('crypto');
-  const h = new binding.Hmac();
-  // Fail to init the Hmac with an algorithm.
-  assert.throws(() => h.update('hello'), /^TypeError: HmacUpdate fail$/);
-}
+const assert = require('assert');
+const crypto = require('crypto');
 
 // Test HMAC
 const h1 = crypto.createHmac('sha1', 'Node')
-               .update('some data')
-               .update('to hmac')
-               .digest('hex');
+                 .update('some data')
+                 .update('to hmac')
+                 .digest('hex');
 assert.strictEqual(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC (Wikipedia Test Cases)
@@ -376,4 +366,46 @@ for (let i = 0, l = rfc2202_sha1.length; i < l; i++) {
       .digest('hex'),
     `Test HMAC-SHA1 : Test case ${i + 1} rfc 2202`
   );
+}
+
+common.expectsError(
+  () => crypto.createHmac('sha256', 'w00t').digest('ucs2'),
+  {
+    code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
+    type: Error
+  });
+
+// Check initialized -> uninitialized state transition after calling digest().
+{
+  const expected =
+      '\u0010\u0041\u0052\u00c5\u00bf\u00dc\u00a0\u007b\u00c6\u0033' +
+      '\u00ee\u00bd\u0046\u0019\u009f\u0002\u0055\u00c9\u00f4\u009d';
+  {
+    const h = crypto.createHmac('sha1', 'key').update('data');
+    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(expected, 'latin1'));
+    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(''));
+  }
+  {
+    const h = crypto.createHmac('sha1', 'key').update('data');
+    assert.deepStrictEqual(h.digest('latin1'), expected);
+    assert.deepStrictEqual(h.digest('latin1'), '');
+  }
+}
+
+// Check initialized -> uninitialized state transition after calling digest().
+// Calls to update() omitted intentionally.
+{
+  const expected =
+      '\u00f4\u002b\u00b0\u00ee\u00b0\u0018\u00eb\u00bd\u0045\u0097' +
+      '\u00ae\u0072\u0013\u0071\u001e\u00c6\u0007\u0060\u0084\u003f';
+  {
+    const h = crypto.createHmac('sha1', 'key');
+    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(expected, 'latin1'));
+    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(''));
+  }
+  {
+    const h = crypto.createHmac('sha1', 'key');
+    assert.deepStrictEqual(h.digest('latin1'), expected);
+    assert.deepStrictEqual(h.digest('latin1'), '');
+  }
 }

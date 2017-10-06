@@ -27,7 +27,7 @@ ChildProcess.prototype.spawn = function() {
 };
 
 function createChild(options, callback) {
-  const cmd = `${process.execPath} ${__filename} child`;
+  const cmd = `"${process.execPath}" "${__filename}" child`;
 
   return cp.exec(cmd, options, common.mustCall(callback));
 }

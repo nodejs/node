@@ -27,12 +27,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 #ifdef USE_SIMULATOR
@@ -125,7 +126,7 @@ void check(uint32_t key) {
   generate(&masm, key);
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code = factory->NewCode(desc,
                                        Code::ComputeFlags(Code::STUB),

@@ -180,18 +180,18 @@ module.exports = {
             let elements = [];
 
             switch (type.type) {
-                case "TypeApplication":  // {Array.<String>}
+                case "TypeApplication": // {Array.<String>}
                     elements = type.applications[0].type === "UnionType" ? type.applications[0].elements : type.applications;
                     typesToCheck.push(getCurrentExpectedTypes(type));
                     break;
-                case "RecordType":  // {{20:String}}
+                case "RecordType": // {{20:String}}
                     elements = type.fields;
                     break;
-                case "UnionType":  // {String|number|Test}
-                case "ArrayType":  // {[String, number, Test]}
+                case "UnionType": // {String|number|Test}
+                case "ArrayType": // {[String, number, Test]}
                     elements = type.elements;
                     break;
-                case "FieldType":  // Array.<{count: number, votes: number}>
+                case "FieldType": // Array.<{count: number, votes: number}>
                     if (type.value) {
                         typesToCheck.push(getCurrentExpectedTypes(type.value));
                     }

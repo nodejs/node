@@ -62,17 +62,22 @@
 #include <openssl/asn1t.h>
 #include <openssl/objects.h>
 
+#define OSSL_NELEM(x)    (sizeof(x)/sizeof(x[0]))
+
 int EC_GROUP_get_basis_type(const EC_GROUP *group)
 {
-    int i = 0;
+    int i;
 
     if (EC_METHOD_get_field_type(EC_GROUP_method_of(group)) !=
         NID_X9_62_characteristic_two_field)
         /* everything else is currently not supported */
         return 0;
 
-    while (group->poly[i] != 0)
-        i++;
+    /* Find the last non-zero element of group->poly[] */
+    for (i = 0;
+         i < (int)OSSL_NELEM(group->poly) && group->poly[i] != 0;
+         i++)
+        continue;
 
     if (i == 4)
         return NID_X9_62_ppBasis;

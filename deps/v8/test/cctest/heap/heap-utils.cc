@@ -38,8 +38,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
   const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
   CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
   Handle<FixedArray> array;
-  for (size_t allocated = 0;
-       allocated != (Page::kAllocatableMemory - remainder);
+  for (int allocated = 0; allocated != (Page::kAllocatableMemory - remainder);
        allocated += array->Size()) {
     if (allocated == (Page::kAllocatableMemory - kArraySize)) {
       array = isolate->factory()->NewFixedArray(
@@ -143,6 +142,7 @@ void SimulateFullSpace(v8::internal::NewSpace* space,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
+  CHECK(FLAG_incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -170,6 +170,10 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
+  i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
   space->EmptyAllocationInfo();
   space->ResetFreeList();
   space->ClearStats();
@@ -186,6 +190,21 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     heap->mark_compact_collector()->EnsureSweepingCompleted();
+  }
+}
+
+void ForceEvacuationCandidate(Page* page) {
+  CHECK(FLAG_manual_evacuation_candidates_selection);
+  page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  PagedSpace* space = static_cast<PagedSpace*>(page->owner());
+  Address top = space->top();
+  Address limit = space->limit();
+  if (top < limit && Page::FromAllocationAreaAddress(top) == page) {
+    // Create filler object to keep page iterable if it was iterable.
+    int remaining = static_cast<int>(limit - top);
+    space->heap()->CreateFillerObjectAt(top, remaining,
+                                        ClearRecordedSlots::kNo);
+    space->SetTopAndLimit(nullptr, nullptr);
   }
 }
 

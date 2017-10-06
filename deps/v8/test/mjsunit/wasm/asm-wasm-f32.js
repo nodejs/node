@@ -41,13 +41,13 @@ function RunAsmJsTest(asmfunc, expect) {
   expect(asm_module);
 }
 
-const fround = Math.fround;
-const Math_ceil = Math.ceil;
-const Math_floor = Math.floor;
-const Math_sqrt = Math.sqrt;
-const Math_abs = Math.abs;
-const Math_min = Math.min;
-const Math_max = Math.max;
+var fround = Math.fround;
+var Math_ceil = Math.ceil;
+var Math_floor = Math.floor;
+var Math_sqrt = Math.sqrt;
+var Math_abs = Math.abs;
+var Math_min = Math.min;
+var Math_max = Math.max;
 
 function f32_add(a, b) {
   a = fround(a);

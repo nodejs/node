@@ -10,7 +10,8 @@ function check(addressType) {
 
   const address = addressType === 4 ? '127.0.0.1' : '::1';
   server.listen(0, address, function() {
-    net.connect(this.address().port, address).on('lookup', common.fail);
+    net.connect(this.address().port, address)
+      .on('lookup', common.mustNotCall());
   });
 }
 

@@ -8,14 +8,11 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <iomanip>
 #include <limits>
-#include <locale>
-#include <sstream>
 #include <string>
 
 #include "src/base/platform/platform.h"
-#include "src/inspector/protocol-platform.h"
+#include "src/conversions.h"
 
 namespace v8_inspector {
 
@@ -365,37 +362,72 @@ static inline void putUTF8Triple(char*& buffer, UChar ch) {
 
 }  // namespace
 
+String16::String16() {}
+
+String16::String16(const String16& other)
+    : m_impl(other.m_impl), hash_code(other.hash_code) {}
+
+String16::String16(String16&& other)
+    : m_impl(std::move(other.m_impl)), hash_code(other.hash_code) {}
+
+String16::String16(const UChar* characters, size_t size)
+    : m_impl(characters, size) {}
+
+String16::String16(const UChar* characters) : m_impl(characters) {}
+
+String16::String16(const char* characters)
+    : String16(characters, std::strlen(characters)) {}
+
+String16::String16(const char* characters, size_t size) {
+  m_impl.resize(size);
+  for (size_t i = 0; i < size; ++i) m_impl[i] = characters[i];
+}
+
+String16::String16(const std::basic_string<UChar>& impl) : m_impl(impl) {}
+
+String16& String16::operator=(const String16& other) {
+  m_impl = other.m_impl;
+  hash_code = other.hash_code;
+  return *this;
+}
+
+String16& String16::operator=(String16&& other) {
+  m_impl = std::move(other.m_impl);
+  hash_code = other.hash_code;
+  return *this;
+}
+
 // static
 String16 String16::fromInteger(int number) {
-  const size_t kBufferSize = 50;
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
-  return String16(buffer);
+  char arr[50];
+  v8::internal::Vector<char> buffer(arr, arraysize(arr));
+  return String16(IntToCString(number, buffer));
 }
 
 // static
 String16 String16::fromInteger(size_t number) {
   const size_t kBufferSize = 50;
   char buffer[kBufferSize];
+#if !defined(_WIN32) && !defined(_WIN64)
   v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
+#else
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
+#endif
   return String16(buffer);
 }
 
 // static
 String16 String16::fromDouble(double number) {
-  std::ostringstream s;
-  s.imbue(std::locale("C"));
-  s << std::fixed << std::setprecision(std::numeric_limits<double>::digits10)
-    << number;
-  return String16(s.str().c_str());
+  char arr[50];
+  v8::internal::Vector<char> buffer(arr, arraysize(arr));
+  return String16(DoubleToCString(number, buffer));
 }
 
 // static
 String16 String16::fromDouble(double number, int precision) {
-  std::ostringstream s;
-  s.imbue(std::locale("C"));
-  s << std::fixed << std::setprecision(precision) << number;
-  return String16(s.str().c_str());
+  std::unique_ptr<char[]> str(
+      v8::internal::DoubleToPrecisionCString(number, precision));
+  return String16(str.get());
 }
 
 int String16::toInteger(bool* ok) const {
@@ -441,6 +473,26 @@ void String16Builder::append(const UChar* characters, size_t length) {
 
 void String16Builder::append(const char* characters, size_t length) {
   m_buffer.insert(m_buffer.end(), characters, characters + length);
+}
+
+void String16Builder::appendNumber(int number) {
+  const int kBufferSize = 11;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
+  DCHECK_GT(kBufferSize, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendNumber(size_t number) {
+  const int kBufferSize = 20;
+  char buffer[kBufferSize];
+#if !defined(_WIN32) && !defined(_WIN64)
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
+#else
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
+#endif
+  DCHECK_GT(kBufferSize, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
 String16 String16Builder::toString() {

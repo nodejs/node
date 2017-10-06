@@ -15,5 +15,5 @@ assert.strictEqual(emitter.getMaxListeners(), 3);
 
 // https://github.com/nodejs/node/issues/523 - second call should not throw.
 const recv = {};
-EventEmitter.prototype.on.call(recv, 'event', function() {});
-EventEmitter.prototype.on.call(recv, 'event', function() {});
+EventEmitter.prototype.on.call(recv, 'event', () => {});
+EventEmitter.prototype.on.call(recv, 'event', () => {});

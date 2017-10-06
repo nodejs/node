@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -23,9 +44,9 @@ assert.strictEqual(b[1], 0);
 assert.strictEqual(ucs2_control, c);
 
 // now create big strings
-const size = 1 + (1 << 20);
-write_str = Array(size).join(write_str);
-ucs2_control = Array(size).join(ucs2_control);
+const size = 1 << 20;
+write_str = write_str.repeat(size);
+ucs2_control = ucs2_control.repeat(size);
 
 // check resultant buffer and output string
 b = Buffer.from(write_str, 'ucs2');
@@ -110,7 +131,7 @@ const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
 // https://github.com/nodejs/node/issues/1024
 {
-  const a = Array(1 << 20).join('x');
+  const a = 'x'.repeat(1 << 20 - 1);
   const b = Buffer.from(a, 'ucs2').toString('ucs2');
   const c = Buffer.from(b, 'utf8').toString('utf8');
 

@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_TYPES_H_
 #define V8_COMPILER_TYPES_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/conversions.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
@@ -103,65 +105,104 @@ namespace compiler {
   V(OtherNumber,     1u << 4)  \
 
 #define PROPER_BITSET_TYPE_LIST(V) \
-  V(None,                0u)        \
-  V(Negative31,          1u << 5)   \
-  V(Null,                1u << 6)   \
-  V(Undefined,           1u << 7)   \
-  V(Boolean,             1u << 8)   \
-  V(Unsigned30,          1u << 9)   \
-  V(MinusZero,           1u << 10)  \
-  V(NaN,                 1u << 11)  \
-  V(Symbol,              1u << 12)  \
-  V(InternalizedString,  1u << 13)  \
-  V(OtherString,         1u << 14)  \
-  V(Simd,                1u << 15)  \
-  V(OtherObject,         1u << 17)  \
-  V(OtherUndetectable,   1u << 16)  \
-  V(Proxy,               1u << 18)  \
-  V(Function,            1u << 19)  \
-  V(Hole,                1u << 20)  \
-  V(OtherInternal,       1u << 21)  \
+  V(None,                          0u)        \
+  V(Negative31,                    1u << 5)   \
+  V(Null,                          1u << 6)   \
+  V(Undefined,                     1u << 7)   \
+  V(Boolean,                       1u << 8)   \
+  V(Unsigned30,                    1u << 9)   \
+  V(MinusZero,                     1u << 10)  \
+  V(NaN,                           1u << 11)  \
+  V(Symbol,                        1u << 12)  \
+  V(EmptyString,                   1u << 13)  \
+  V(InternalizedNonEmptySeqString, 1u << 14)  \
+  V(InternalizedNonSeqString,      1u << 15)  \
+  V(OtherNonSeqString,             1u << 16)  \
+  V(OtherSeqString,                1u << 17)  \
+  V(OtherCallable,                 1u << 18)  \
+  V(OtherObject,                   1u << 19)  \
+  V(OtherUndetectable,             1u << 20)  \
+  V(CallableProxy,                 1u << 21)  \
+  V(OtherProxy,                    1u << 22)  \
+  V(Function,                      1u << 23)  \
+  V(BoundFunction,                 1u << 24)  \
+  V(Hole,                          1u << 25)  \
+  V(OtherInternal,                 1u << 26)  \
+  V(ExternalPointer,               1u << 27)  \
+  V(Array,                         1u << 28)  \
   \
-  V(Signed31,                   kUnsigned30 | kNegative31) \
-  V(Signed32,                   kSigned31 | kOtherUnsigned31 | kOtherSigned32) \
-  V(Signed32OrMinusZero,        kSigned32 | kMinusZero) \
-  V(Signed32OrMinusZeroOrNaN,   kSigned32 | kMinusZero | kNaN) \
-  V(Negative32,                 kNegative31 | kOtherSigned32) \
-  V(Unsigned31,                 kUnsigned30 | kOtherUnsigned31) \
-  V(Unsigned32,                 kUnsigned30 | kOtherUnsigned31 | \
-                                kOtherUnsigned32) \
-  V(Unsigned32OrMinusZero,      kUnsigned32 | kMinusZero) \
-  V(Unsigned32OrMinusZeroOrNaN, kUnsigned32 | kMinusZero | kNaN) \
-  V(Integral32,                 kSigned32 | kUnsigned32) \
-  V(PlainNumber,                kIntegral32 | kOtherNumber) \
-  V(OrderedNumber,              kPlainNumber | kMinusZero) \
-  V(MinusZeroOrNaN,             kMinusZero | kNaN) \
-  V(Number,                     kOrderedNumber | kNaN) \
-  V(String,                     kInternalizedString | kOtherString) \
-  V(UniqueName,                 kSymbol | kInternalizedString) \
-  V(Name,                       kSymbol | kString) \
-  V(BooleanOrNumber,            kBoolean | kNumber) \
-  V(BooleanOrNullOrNumber,      kBooleanOrNumber | kNull) \
-  V(BooleanOrNullOrUndefined,   kBoolean | kNull | kUndefined) \
-  V(NullOrNumber,               kNull | kNumber) \
-  V(NullOrUndefined,            kNull | kUndefined) \
-  V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
-  V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean | kHole) \
-  V(NumberOrSimdOrString,       kNumber | kSimd | kString) \
-  V(NumberOrString,             kNumber | kString) \
-  V(NumberOrUndefined,          kNumber | kUndefined) \
-  V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
-  V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
-  V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
-  V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
-  V(Receiver,                   kObject | kProxy) \
-  V(StringOrReceiver,           kString | kReceiver) \
-  V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
-                                kReceiver) \
-  V(Internal,                   kHole | kOtherInternal) \
-  V(NonInternal,                kPrimitive | kReceiver) \
-  V(NonNumber,                  kUnique | kString | kInternal) \
-  V(Any,                        0xfffffffeu)
+  V(Signed31,                     kUnsigned30 | kNegative31) \
+  V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
+                                  kOtherSigned32) \
+  V(Signed32OrMinusZero,          kSigned32 | kMinusZero) \
+  V(Signed32OrMinusZeroOrNaN,     kSigned32 | kMinusZero | kNaN) \
+  V(Negative32,                   kNegative31 | kOtherSigned32) \
+  V(Unsigned31,                   kUnsigned30 | kOtherUnsigned31) \
+  V(Unsigned32,                   kUnsigned30 | kOtherUnsigned31 | \
+                                  kOtherUnsigned32) \
+  V(Unsigned32OrMinusZero,        kUnsigned32 | kMinusZero) \
+  V(Unsigned32OrMinusZeroOrNaN,   kUnsigned32 | kMinusZero | kNaN) \
+  V(Integral32,                   kSigned32 | kUnsigned32) \
+  V(Integral32OrMinusZero,        kIntegral32 | kMinusZero) \
+  V(Integral32OrMinusZeroOrNaN,   kIntegral32OrMinusZero | kNaN) \
+  V(PlainNumber,                  kIntegral32 | kOtherNumber) \
+  V(OrderedNumber,                kPlainNumber | kMinusZero) \
+  V(MinusZeroOrNaN,               kMinusZero | kNaN) \
+  V(Number,                       kOrderedNumber | kNaN) \
+  V(InternalizedSeqString,        kEmptyString | \
+                                  kInternalizedNonEmptySeqString) \
+  V(InternalizedString,           kInternalizedSeqString | \
+                                  kInternalizedNonSeqString) \
+  V(OtherString,                  kOtherNonSeqString | kOtherSeqString) \
+  V(SeqString,                    kInternalizedSeqString | kOtherSeqString) \
+  V(NonSeqString,                 kInternalizedNonSeqString | \
+                                  kOtherNonSeqString) \
+  V(NonEmptyString,               kInternalizedNonEmptySeqString | \
+                                  kInternalizedNonSeqString| kOtherString) \
+  V(String,                       kNonEmptyString | kEmptyString) \
+  V(UniqueName,                   kSymbol | kInternalizedString) \
+  V(Name,                         kSymbol | kString) \
+  V(InternalizedStringOrNull,     kInternalizedString | kNull) \
+  V(BooleanOrNumber,              kBoolean | kNumber) \
+  V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
+  V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
+  V(Oddball,                      kBooleanOrNullOrUndefined | kHole) \
+  V(NullOrNumber,                 kNull | kNumber) \
+  V(NullOrUndefined,              kNull | kUndefined) \
+  V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
+  V(NumberOrHole,                 kNumber | kHole) \
+  V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
+                                  kHole) \
+  V(NumberOrString,               kNumber | kString) \
+  V(NumberOrUndefined,            kNumber | kUndefined) \
+  V(PlainPrimitive,               kNumberOrString | kBoolean | \
+                                  kNullOrUndefined) \
+  V(Primitive,                    kSymbol | kPlainPrimitive) \
+  V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
+  V(Proxy,                        kCallableProxy | kOtherProxy) \
+  V(ArrayOrOtherObject,           kArray | kOtherObject) \
+  V(ArrayOrProxy,                 kArray | kProxy) \
+  V(DetectableCallable,           kFunction | kBoundFunction | \
+                                  kOtherCallable | kCallableProxy) \
+  V(Callable,                     kDetectableCallable | kOtherUndetectable) \
+  V(NonCallable,                  kArray | kOtherObject | kOtherProxy) \
+  V(NonCallableOrNull,            kNonCallable | kNull) \
+  V(DetectableObject,             kArray | kFunction | kBoundFunction | \
+                                  kOtherCallable | kOtherObject) \
+  V(DetectableReceiver,           kDetectableObject | kProxy) \
+  V(DetectableReceiverOrNull,     kDetectableReceiver | kNull) \
+  V(Object,                       kDetectableObject | kOtherUndetectable) \
+  V(Receiver,                     kObject | kProxy) \
+  V(ReceiverOrUndefined,          kReceiver | kUndefined) \
+  V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
+  V(SymbolOrReceiver,             kSymbol | kReceiver) \
+  V(StringOrReceiver,             kString | kReceiver) \
+  V(Unique,                       kBoolean | kUniqueName | kNull | \
+                                  kUndefined | kReceiver) \
+  V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
+  V(NonInternal,                  kPrimitive | kReceiver) \
+  V(NonNumber,                    kUnique | kString | kInternal) \
+  V(Any,                          0xfffffffeu)
 
 // clang-format on
 
@@ -190,7 +231,7 @@ class Type;
 // -----------------------------------------------------------------------------
 // Bitset types (internal).
 
-class BitsetType {
+class V8_EXPORT_PRIVATE BitsetType {
  public:
   typedef uint32_t bitset;  // Internal
 
@@ -263,7 +304,7 @@ class TypeBase {
  protected:
   friend class Type;
 
-  enum Kind { kConstant, kTuple, kUnion, kRange };
+  enum Kind { kHeapConstant, kOtherNumberConstant, kTuple, kUnion, kRange };
 
   Kind kind() const { return kind_; }
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -287,34 +328,63 @@ class TypeBase {
 // -----------------------------------------------------------------------------
 // Constant types.
 
-class ConstantType : public TypeBase {
+class OtherNumberConstantType : public TypeBase {
  public:
-  i::Handle<i::Object> Value() { return object_; }
+  double Value() { return value_; }
+
+  static bool IsOtherNumberConstant(double value);
+  static bool IsOtherNumberConstant(Object* value);
 
  private:
   friend class Type;
   friend class BitsetType;
 
-  static Type* New(i::Handle<i::Object> value, Zone* zone) {
+  static Type* New(double value, Zone* zone) {
+    return AsType(new (zone->New(sizeof(OtherNumberConstantType)))
+                      OtherNumberConstantType(value));  // NOLINT
+  }
+
+  static OtherNumberConstantType* cast(Type* type) {
+    DCHECK(IsKind(type, kOtherNumberConstant));
+    return static_cast<OtherNumberConstantType*>(FromType(type));
+  }
+
+  explicit OtherNumberConstantType(double value)
+      : TypeBase(kOtherNumberConstant), value_(value) {
+    CHECK(IsOtherNumberConstant(value));
+  }
+
+  BitsetType::bitset Lub() { return BitsetType::kOtherNumber; }
+
+  double value_;
+};
+
+class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
+ public:
+  i::Handle<i::HeapObject> Value() { return object_; }
+
+ private:
+  friend class Type;
+  friend class BitsetType;
+
+  static Type* New(i::Handle<i::HeapObject> value, Zone* zone) {
     BitsetType::bitset bitset = BitsetType::Lub(*value);
-    return AsType(new (zone->New(sizeof(ConstantType)))
-                      ConstantType(bitset, value));
+    return AsType(new (zone->New(sizeof(HeapConstantType)))
+                      HeapConstantType(bitset, value));
   }
 
-  static ConstantType* cast(Type* type) {
-    DCHECK(IsKind(type, kConstant));
-    return static_cast<ConstantType*>(FromType(type));
+  static HeapConstantType* cast(Type* type) {
+    DCHECK(IsKind(type, kHeapConstant));
+    return static_cast<HeapConstantType*>(FromType(type));
   }
 
-  ConstantType(BitsetType::bitset bitset, i::Handle<i::Object> object)
-      : TypeBase(kConstant), bitset_(bitset), object_(object) {}
+  HeapConstantType(BitsetType::bitset bitset, i::Handle<i::HeapObject> object);
 
   BitsetType::bitset Lub() { return bitset_; }
 
   BitsetType::bitset bitset_;
-  Handle<i::Object> object_;
+  Handle<i::HeapObject> object_;
 };
-// TODO(neis): Also cache value if numerical.
 
 // -----------------------------------------------------------------------------
 // Range types.
@@ -457,7 +527,7 @@ class UnionType : public StructuralType {
   bool Wellformed();
 };
 
-class Type {
+class V8_EXPORT_PRIVATE Type {
  public:
   typedef BitsetType::bitset bitset;  // Internal
 
@@ -474,8 +544,11 @@ class Type {
     return BitsetType::New(BitsetType::UnsignedSmall());
   }
 
-  static Type* Constant(i::Handle<i::Object> value, Zone* zone) {
-    return ConstantType::New(value, zone);
+  static Type* OtherNumberConstant(double value, Zone* zone) {
+    return OtherNumberConstantType::New(value, zone);
+  }
+  static Type* HeapConstant(i::Handle<i::HeapObject> value, Zone* zone) {
+    return HeapConstantType::New(value, zone);
   }
   static Type* Range(double min, double max, Zone* zone) {
     return RangeType::New(min, max, zone);
@@ -487,6 +560,10 @@ class Type {
     tuple->AsTuple()->InitElement(2, third);
     return tuple;
   }
+
+  // NewConstant is a factory that returns Constant, Range or Number.
+  static Type* NewConstant(i::Handle<i::Object> value, Zone* zone);
+  static Type* NewConstant(double value, Zone* zone);
 
   static Type* Union(Type* type1, Type* type2, Zone* zone);
   static Type* Intersect(Type* type1, Type* type2, Zone* zone);
@@ -515,10 +592,16 @@ class Type {
 
   // Inspection.
   bool IsRange() { return IsKind(TypeBase::kRange); }
-  bool IsConstant() { return IsKind(TypeBase::kConstant); }
+  bool IsHeapConstant() { return IsKind(TypeBase::kHeapConstant); }
+  bool IsOtherNumberConstant() {
+    return IsKind(TypeBase::kOtherNumberConstant);
+  }
   bool IsTuple() { return IsKind(TypeBase::kTuple); }
 
-  ConstantType* AsConstant() { return ConstantType::cast(this); }
+  HeapConstantType* AsHeapConstant() { return HeapConstantType::cast(this); }
+  OtherNumberConstantType* AsOtherNumberConstant() {
+    return OtherNumberConstantType::cast(this);
+  }
   RangeType* AsRange() { return RangeType::cast(this); }
   TupleType* AsTuple() { return TupleType::cast(this); }
 
@@ -582,7 +665,6 @@ class Type {
 
   static bool Overlap(RangeType* lhs, RangeType* rhs);
   static bool Contains(RangeType* lhs, RangeType* rhs);
-  static bool Contains(RangeType* range, ConstantType* constant);
   static bool Contains(RangeType* range, i::Object* val);
 
   static int UpdateRange(Type* type, UnionType* result, int size, Zone* zone);

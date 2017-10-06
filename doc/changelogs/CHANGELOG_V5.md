@@ -1,4 +1,4 @@
-# Node.js v5 ChangeLog
+# Node.js 5 ChangeLog
 
 <table>
 <tr>
@@ -30,6 +30,7 @@
 </table>
 
 * Other Versions
+  * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [4.x](CHANGELOG_V4.md)
@@ -38,7 +39,7 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Official support for the v5 release line is scheduled to expire
+*Note*: Official support for the v5 release line is scheduled to expire
 around June 2016. Users of v5 should upgrade to [Node.js v6](CHANGELOG_V6.md).
 
 <a id="5.12.0"></a>
@@ -215,7 +216,7 @@ This is a security release. All Node.js users should consult the security releas
 ### Notable changes
 
 **http**:
-  * Enclose IPv6 Host header in square brackets. This will enable proper separation of the host adress from any port reference (Mihai Potra) [#5314](https://github.com/nodejs/node/pull/5314)
+  * Enclose IPv6 Host header in square brackets. This will enable proper separation of the host address from any port reference (Mihai Potra) [#5314](https://github.com/nodejs/node/pull/5314)
 
 **path**:
   * Make win32.isAbsolute more consistent (Brian White) [#6028](https://github.com/nodejs/node/pull/6028)

@@ -1,0 +1,47 @@
+{
+  "_from": "p-limit@^1.1.0",
+  "_id": "p-limit@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha1-sH/y2aXYi+yAYDWJWiurZqJ5iLw=",
+  "_location": "/libnpx/yargs/read-pkg-up/find-up/locate-path/p-locate/p-limit",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "p-limit@^1.1.0",
+    "name": "p-limit",
+    "escapedName": "p-limit",
+    "rawSpec": "^1.1.0",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up/find-up/locate-path/p-locate"
+  ],
+  "_resolved": "https://registry.npmjs.org/p-limit/-/p-limit-1.1.0.tgz",
+  "_shasum": "b07ff2d9a5d88bec806035895a2bab66a27988bc",
+  "_shrinkwrap": null,
+  "_spec": "p-limit@^1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up/node_modules/find-up/node_modules/locate-path/node_modules/p-locate",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "> Run multiple promise-returning & async functions with limited concurrency",
+  "devDependencies": {
+    "ava": "*",
+    "delay": "^1.3.1",
+    "in-range": "^1.0.0",
+    "random-int": "^1.0.0",
+    "time-span": "^1.0.0",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "p-limit",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.1.0"
+}

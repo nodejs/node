@@ -12,7 +12,7 @@ let nogc = () => {};
 function newModule() {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, true);
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0])
     .exportFunc();
 

@@ -19,6 +19,12 @@ namespace internal {
 //
 //   T: Non-keyword tokens
 //   K: Keyword tokens
+//   C: Contextual keyword token
+//
+// Contextual keyword tokens are tokens that are scanned as Token::IDENTIFIER,
+// but that in some contexts are treated as keywords. This mostly happens
+// when ECMAScript introduces new keywords, but for backwards compatibility
+// allows them to still be used as indentifiers in most contexts.
 
 // IGNORE_TOKEN is a convenience macro that can be supplied as
 // an argument (at any position) for a TOKEN_LIST call. It does
@@ -26,7 +32,7 @@ namespace internal {
 
 #define IGNORE_TOKEN(name, string, precedence)
 
-#define TOKEN_LIST(T, K)                                             \
+#define TOKEN_LIST(T, K, C)                                          \
   /* End of source indicator. */                                     \
   T(EOS, "EOS", 0)                                                   \
                                                                      \
@@ -77,7 +83,6 @@ namespace internal {
   T(SHL, "<<", 11)                                                   \
   T(SAR, ">>", 11)                                                   \
   T(SHR, ">>>", 11)                                                  \
-  T(ROR, "rotate right", 11) /* only used by Crankshaft */           \
   T(ADD, "+", 12)                                                    \
   T(SUB, "-", 12)                                                    \
   T(MUL, "*", 13)                                                    \
@@ -175,16 +180,30 @@ namespace internal {
                                                                      \
   /* ES6 Template Literals */                                        \
   T(TEMPLATE_SPAN, NULL, 0)                                          \
-  T(TEMPLATE_TAIL, NULL, 0)
+  T(TEMPLATE_TAIL, NULL, 0)                                          \
+                                                                     \
+  /* Contextual keyword tokens */                                    \
+  C(GET, "get", 0)                                                   \
+  C(SET, "set", 0)                                                   \
+  C(OF, "of", 0)                                                     \
+  C(TARGET, "target", 0)                                             \
+  C(SENT, "sent", 0)                                                 \
+  C(AS, "as", 0)                                                     \
+  C(FROM, "from", 0)                                                 \
+  C(NAME, "name", 0)                                                 \
+  C(PROTO_UNDERSCORED, "__proto__", 0)                               \
+  C(CONSTRUCTOR, "constructor", 0)                                   \
+  C(PROTOTYPE, "prototype", 0)                                       \
+  C(EVAL, "eval", 0)                                                 \
+  C(ARGUMENTS, "arguments", 0)                                       \
+  C(UNDEFINED, "undefined", 0)                                       \
+  C(ANONYMOUS, "anonymous", 0)
 
 class Token {
  public:
   // All token values.
 #define T(name, string, precedence) name,
-  enum Value {
-    TOKEN_LIST(T, T)
-    NUM_TOKENS
-  };
+  enum Value { TOKEN_LIST(T, T, T) NUM_TOKENS };
 #undef T
 
   // Returns a string corresponding to the C++ token name
@@ -198,6 +217,7 @@ class Token {
   static bool IsKeyword(Value tok) {
     return token_type[tok] == 'K';
   }
+  static bool IsContextualKeyword(Value tok) { return token_type[tok] == 'C'; }
 
   static bool IsIdentifier(Value tok, LanguageMode language_mode,
                            bool is_generator, bool disallow_await) {
@@ -218,7 +238,6 @@ class Token {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
 
   static bool IsAssignmentOp(Value tok) {
@@ -228,7 +247,7 @@ class Token {
   static bool IsBinaryOp(Value op) { return COMMA <= op && op <= EXP; }
 
   static bool IsTruncatingBinaryOp(Value op) {
-    return BIT_OR <= op && op <= ROR;
+    return BIT_OR <= op && op <= SHR;
   }
 
   static bool IsCompareOp(Value op) {
@@ -265,7 +284,6 @@ class Token {
       case GTE: return LT;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -282,7 +300,6 @@ class Token {
       case GTE: return LTE;
       default:
         UNREACHABLE();
-        return op;
     }
   }
 
@@ -298,7 +315,6 @@ class Token {
       case Token::GTE: return (op1 >= op2);
       default:
         UNREACHABLE();
-        return false;
     }
   }
 

@@ -97,6 +97,10 @@ const double kNaNs[] = {-std::numeric_limits<double>::quiet_NaN(),
                         bit_cast<double>(V8_UINT64_C(0x7FFFFFFFFFFFFFFF)),
                         bit_cast<double>(V8_UINT64_C(0xFFFFFFFFFFFFFFFF))};
 
+const CheckForMinusZeroMode kCheckForMinusZeroModes[] = {
+    CheckForMinusZeroMode::kDontCheckForMinusZero,
+    CheckForMinusZeroMode::kCheckForMinusZero};
+
 }  // namespace
 
 
@@ -187,11 +191,13 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToBitWithChangeBitToTagged) {
 // ChangeFloat64ToTagged
 
 TEST_F(SimplifiedOperatorReducerTest, ChangeFloat64ToTaggedWithConstant) {
-  TRACED_FOREACH(double, n, kFloat64Values) {
-    Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->ChangeFloat64ToTagged(), Float64Constant(n)));
-    ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(n)));
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    TRACED_FOREACH(double, n, kFloat64Values) {
+      Reduction reduction = Reduce(graph()->NewNode(
+          simplified()->ChangeFloat64ToTagged(mode), Float64Constant(n)));
+      ASSERT_TRUE(reduction.Changed());
+      EXPECT_THAT(reduction.replacement(), IsNumberConstant(BitEq(n)));
+    }
   }
 }
 
@@ -216,11 +222,13 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeInt32ToTaggedWithConstant) {
 TEST_F(SimplifiedOperatorReducerTest,
        ChangeTaggedToFloat64WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->ChangeTaggedToFloat64(),
-      graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_EQ(param0, reduction.replacement());
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->ChangeTaggedToFloat64(),
+        graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_EQ(param0, reduction.replacement());
+  }
 }
 
 TEST_F(SimplifiedOperatorReducerTest,
@@ -271,11 +279,13 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeTaggedToFloat64WithNaNConstant) {
 TEST_F(SimplifiedOperatorReducerTest,
        ChangeTaggedToInt32WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->ChangeTaggedToInt32(),
-      graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToInt32(param0));
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->ChangeTaggedToInt32(),
+        graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToInt32(param0));
+  }
 }
 
 TEST_F(SimplifiedOperatorReducerTest,
@@ -295,11 +305,13 @@ TEST_F(SimplifiedOperatorReducerTest,
 TEST_F(SimplifiedOperatorReducerTest,
        ChangeTaggedToUint32WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->ChangeTaggedToUint32(),
-      graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToUint32(param0));
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->ChangeTaggedToUint32(),
+        graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToUint32(param0));
+  }
 }
 
 TEST_F(SimplifiedOperatorReducerTest,
@@ -319,11 +331,13 @@ TEST_F(SimplifiedOperatorReducerTest,
 TEST_F(SimplifiedOperatorReducerTest,
        TruncateTaggedToWord3WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
-  Reduction reduction = Reduce(graph()->NewNode(
-      simplified()->TruncateTaggedToWord32(),
-      graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
-  ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToWord32(param0));
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->TruncateTaggedToWord32(),
+        graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToWord32(param0));
+  }
 }
 
 TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
@@ -332,6 +346,22 @@ TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
         simplified()->TruncateTaggedToWord32(), NumberConstant(n)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(n)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CheckedFloat64ToInt32
+
+TEST_F(SimplifiedOperatorReducerTest, CheckedFloat64ToInt32WithConstant) {
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  TRACED_FOREACH(int32_t, n, kInt32Values) {
+    Reduction r = Reduce(
+        graph()->NewNode(simplified()->CheckedFloat64ToInt32(
+                             CheckForMinusZeroMode::kDontCheckForMinusZero),
+                         Float64Constant(n), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Constant(n));
   }
 }
 

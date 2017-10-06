@@ -5,6 +5,8 @@
 #ifndef V8_AST_SCOPES_H_
 #define V8_AST_SCOPES_H_
 
+#include "src/ast/ast.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/objects.h"
@@ -18,7 +20,10 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
+class PreParsedScopeData;
+class ProducedPreParsedScopeData;
 class SloppyBlockFunctionStatement;
+class Statement;
 class StringSet;
 class VariableProxy;
 
@@ -27,11 +32,17 @@ class VariableMap: public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                    bool* added = nullptr);
+  Variable* Declare(
+      Zone* zone, Scope* scope, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+      bool* added = nullptr);
+
+  // Records that "name" exists (if not recorded yet) but doesn't create a
+  // Variable. Useful for preparsing.
+  Variable* DeclareName(Zone* zone, const AstRawString* name,
+                        VariableMode mode);
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -42,9 +53,29 @@ class VariableMap: public ZoneHashMap {
 // Sloppy block-scoped function declarations to var-bind
 class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
+  class Delegate : public ZoneObject {
+   public:
+    Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
+        : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
+    void set_statement(Statement* statement);
+    void set_next(Delegate* next) { next_ = next; }
+    Delegate* next() const { return next_; }
+    Scope* scope() const { return scope_; }
+    int index() const { return index_; }
+
+   private:
+    Scope* scope_;
+    SloppyBlockFunctionStatement* statement_;
+    Delegate* next_;
+    int index_;
+  };
+
   explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(Zone* zone, const AstRawString* name,
+  void Declare(Zone* zone, const AstRawString* name, Scope* scope,
                SloppyBlockFunctionStatement* statement);
+
+ private:
+  int count_;
 };
 
 enum class AnalyzeMode { kRegular, kDebugger };
@@ -62,7 +93,7 @@ enum class AnalyzeMode { kRegular, kDebugger };
 // and ModuleScope. DeclarationScope is used for any scope that hosts 'var'
 // declarations. This includes script, module, eval, varblock, and function
 // scope. ModuleScope further specializes DeclarationScope.
-class Scope: public ZoneObject {
+class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // ---------------------------------------------------------------------------
   // Construction
@@ -88,6 +119,7 @@ class Scope: public ZoneObject {
   class Snapshot final BASE_EMBEDDED {
    public:
     explicit Snapshot(Scope* scope);
+    ~Snapshot();
 
     void Reparent(DeclarationScope* new_parent) const;
 
@@ -95,14 +127,14 @@ class Scope: public ZoneObject {
     Scope* outer_scope_;
     Scope* top_inner_scope_;
     VariableProxy* top_unresolved_;
-    int top_local_;
-    int top_decl_;
+    ThreadedList<Variable>::Iterator top_local_;
+    ThreadedList<Declaration>::Iterator top_decl_;
+    const bool outer_scope_calls_eval_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
 
-  static Scope* DeserializeScopeChain(Isolate* isolate, Zone* zone,
-                                      ScopeInfo* scope_info,
+  static Scope* DeserializeScopeChain(Zone* zone, ScopeInfo* scope_info,
                                       DeclarationScope* script_scope,
                                       AstValueFactory* ast_value_factory,
                                       DeserializationMode deserialization_mode);
@@ -122,11 +154,21 @@ class Scope: public ZoneObject {
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
 
-  // Propagates any eagerly-gathered scope usage flags (such as calls_eval())
-  // to the passed-in scope.
-  void PropagateUsageFlagsToScope(Scope* other);
-
   Zone* zone() const { return zone_; }
+
+  void SetMustUsePreParsedScopeData() {
+    if (must_use_preparsed_scope_data_) {
+      return;
+    }
+    must_use_preparsed_scope_data_ = true;
+    if (outer_scope_) {
+      outer_scope_->SetMustUsePreParsedScopeData();
+    }
+  }
+
+  bool must_use_preparsed_scope_data() const {
+    return must_use_preparsed_scope_data_;
+  }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -147,7 +189,8 @@ class Scope: public ZoneObject {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag, VariableKind kind,
+                         InitializationFlag init_flag = kCreatedInitialized,
+                         VariableKind kind = NORMAL_VARIABLE,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
@@ -156,17 +199,29 @@ class Scope: public ZoneObject {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
-  // Declarations list.
-  ZoneList<Declaration*>* declarations() { return &decls_; }
+  // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
 
-  ZoneList<Variable*>* locals() { return &locals_; }
+  // Declarations list.
+  ThreadedList<Declaration>* declarations() { return &decls_; }
+
+  ThreadedList<Variable>* locals() { return &locals_; }
 
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
                                const AstRawString* name,
-                               int start_position = kNoSourcePosition,
-                               int end_position = kNoSourcePosition,
-                               VariableKind kind = NORMAL_VARIABLE);
+                               int start_pos = kNoSourcePosition,
+                               VariableKind kind = NORMAL_VARIABLE) {
+    // Note that we must not share the unresolved variables with
+    // the same name because they may be removed selectively via
+    // RemoveUnresolved().
+    DCHECK(!already_resolved_);
+    DCHECK_EQ(factory->zone(), zone());
+    VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
+    proxy->set_next_unresolved(unresolved_);
+    unresolved_ = proxy;
+    return proxy;
+  }
 
   void AddUnresolved(VariableProxy* proxy);
 
@@ -177,7 +232,6 @@ class Scope: public ZoneObject {
   // allocated globally as a "ghost" variable. RemoveUnresolved removes
   // such a variable again if it was added; otherwise this is a no-op.
   bool RemoveUnresolved(VariableProxy* var);
-  bool RemoveUnresolved(const AstRawString* name);
 
   // Creates a new temporary variable in this scope's TemporaryScope.  The
   // name is only used for printing and cannot be used to find the variable.
@@ -207,15 +261,19 @@ class Scope: public ZoneObject {
   // Scope-specific info.
 
   // Inform the scope and outer scopes that the corresponding code contains an
-  // eval call. We don't record eval calls from innner scopes in the outer most
-  // script scope, as we only see those when parsing eagerly. If we recorded the
-  // calls then, the outer most script scope would look different depending on
-  // whether we parsed eagerly or not which is undesirable.
+  // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
+    RecordInnerScopeEvalCall();
+  }
+
+  void RecordInnerScopeEvalCall() {
     inner_scope_calls_eval_ = true;
-    for (Scope* scope = outer_scope(); scope && !scope->is_script_scope();
+    for (Scope* scope = outer_scope(); scope != nullptr;
          scope = scope->outer_scope()) {
+      if (scope->inner_scope_calls_eval_) {
+        return;
+      }
       scope->inner_scope_calls_eval_ = true;
     }
   }
@@ -284,6 +342,13 @@ class Scope: public ZoneObject {
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
   }
+  void ForceContextAllocationForParameters() {
+    DCHECK(!already_resolved_);
+    force_context_allocation_for_parameters_ = true;
+  }
+  bool has_forced_context_allocation_for_parameters() const {
+    return force_context_allocation_for_parameters_;
+  }
 
   // ---------------------------------------------------------------------------
   // Predicates.
@@ -303,6 +368,7 @@ class Scope: public ZoneObject {
   bool calls_sloppy_eval() const {
     return scope_calls_eval_ && is_sloppy(language_mode());
   }
+  bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
   bool IsAsmFunction() const;
   // Does this scope have the potential to execute declarations non-linearly?
@@ -333,10 +399,10 @@ class Scope: public ZoneObject {
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
 
-  const AstRawString* catch_variable_name() const {
+  Variable* catch_variable() const {
     DCHECK(is_catch_scope());
     DCHECK_EQ(1, num_var());
-    return static_cast<AstRawString*>(variables_.Start()->key);
+    return static_cast<Variable*>(variables_.Start()->value);
   }
 
   // ---------------------------------------------------------------------------
@@ -351,7 +417,7 @@ class Scope: public ZoneObject {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
-  bool AllowsLazyParsingWithoutUnresolvedVariables() const;
+  bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope) const;
@@ -359,10 +425,6 @@ class Scope: public ZoneObject {
   // The number of contexts between this and the outermost context that has a
   // sloppy eval call. One if this->calls_sloppy_eval().
   int ContextChainLengthUntilOutermostSloppyEval() const;
-
-  // The maximum number of nested contexts required for this scope and any inner
-  // scopes.
-  int MaxNestedContextChainLength();
 
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.
@@ -374,6 +436,7 @@ class Scope: public ZoneObject {
   // the scope for which a function prologue allocates a context) or declaring
   // temporaries.
   DeclarationScope* GetClosureScope();
+  const DeclarationScope* GetClosureScope() const;
 
   // Find the first (non-arrow) function or script scope.  This is where
   // 'this' is bound, and what determines the function kind.
@@ -386,20 +449,9 @@ class Scope: public ZoneObject {
   Scope* GetOuterScopeWithContext();
 
   // Analyze() must have been called once to create the ScopeInfo.
-  Handle<ScopeInfo> scope_info() {
+  Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Strict mode support.
-  bool IsDeclared(const AstRawString* name) {
-    // During formal parameter list parsing the scope only contains
-    // two variables inserted at initialization: "this" and "arguments".
-    // "this" is an invalid parameter name and "arguments" is invalid parameter
-    // name in strict mode. Therefore looking up with the map which includes
-    // "this" and "arguments" in addition to all formal parameters is safe.
-    return variables_.Lookup(name) != NULL;
   }
 
   int num_var() const { return variables_.occupancy(); }
@@ -415,6 +467,11 @@ class Scope: public ZoneObject {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
+
+  bool replaced_from_parse_task() const { return replaced_from_parse_task_; }
+  void set_replaced_from_parse_task(bool replaced_from_parse_task) {
+    replaced_from_parse_task_ = replaced_from_parse_task;
+  }
 #endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
@@ -422,7 +479,21 @@ class Scope: public ZoneObject {
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
 
-  bool is_lazily_parsed() const { return is_lazily_parsed_; }
+  bool RemoveInnerScope(Scope* inner_scope) {
+    DCHECK_NOT_NULL(inner_scope);
+    if (inner_scope == inner_scope_) {
+      inner_scope_ = inner_scope_->sibling_;
+      return true;
+    }
+    for (Scope* scope = inner_scope_; scope != nullptr;
+         scope = scope->sibling_) {
+      if (scope->sibling_ == inner_scope) {
+        scope->sibling_ = scope->sibling_->sibling_;
+        return true;
+      }
+    }
+    return false;
+  }
 
  protected:
   explicit Scope(Zone* zone);
@@ -432,32 +503,24 @@ class Scope: public ZoneObject {
   }
 
  private:
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
-    bool added;
-    Variable* var =
-        variables_.Declare(zone, scope, name, mode, kind, initialization_flag,
-                           maybe_assigned_flag, &added);
-    if (added) locals_.Add(var, zone);
-    return var;
-  }
+  Variable* Declare(
+      Zone* zone, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
   // returning a valid result after variables are resolved, NeedsScopeInfo()
   // should also be invoked after resolution.
-  bool NeedsScopeInfo() const {
-    DCHECK(!already_resolved_);
-    // A lazily parsed scope doesn't contain enough information to create a
-    // ScopeInfo from it.
-    if (is_lazily_parsed_) return false;
-    // The debugger expects all functions to have scope infos.
-    // TODO(jochen|yangguo): Remove this requirement.
-    if (is_function_scope()) return true;
-    return NeedsContext();
-  }
+  bool NeedsScopeInfo() const;
+
+  Variable* NewTemporary(const AstRawString* name,
+                         MaybeAssignedFlag maybe_assigned);
+
+  // Walk the scope chain to find DeclarationScopes; call
+  // SavePreParsedScopeDataForDeclarationScope for each.
+  void SavePreParsedScopeData();
 
   Zone* zone_;
 
@@ -474,13 +537,12 @@ class Scope: public ZoneObject {
   VariableMap variables_;
   // In case of non-scopeinfo-backed scopes, this contains the variables of the
   // map above in order of addition.
-  // TODO(verwaest): Thread through Variable.
-  ZoneList<Variable*> locals_;
+  ThreadedList<Variable> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
   VariableProxy* unresolved_;
   // Declarations.
-  ZoneList<Declaration*> decls_;
+  ThreadedList<Declaration> decls_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;
@@ -494,6 +556,10 @@ class Scope: public ZoneObject {
   // True if this scope may contain objects from a temp zone that needs to be
   // fixed up.
   bool needs_migration_;
+
+  // True if scope comes from other zone - as a result of being created in a
+  // parse tasks.
+  bool replaced_from_parse_task_ = false;
 #endif
 
   // Source positions.
@@ -521,13 +587,15 @@ class Scope: public ZoneObject {
   // Temporary workaround that allows masking of 'this' in debug-evalute scopes.
   bool is_debug_evaluate_scope_ : 1;
 
+  // True if one of the inner scopes or the scope itself calls eval.
   bool inner_scope_calls_eval_ : 1;
   bool force_context_allocation_ : 1;
+  bool force_context_allocation_for_parameters_ : 1;
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
 
-  bool is_lazily_parsed_ : 1;
+  bool must_use_preparsed_scope_data_ : 1;
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -547,7 +615,6 @@ class Scope: public ZoneObject {
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
   VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
-                                    bool try_to_resolve = true,
                                     ParseInfo* info = nullptr,
                                     VariableProxy* stack = nullptr);
 
@@ -563,44 +630,31 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate, AnalyzeMode mode,
+  void AllocateScopeInfosRecursively(Isolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
+  void AllocateDebuggerScopeInfos(Isolate* isolate,
+                                  MaybeHandle<ScopeInfo> outer_scope);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Zone* zone, const AstRawString* catch_variable_name,
-        Handle<ScopeInfo> scope_info);
+        MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
-    DCHECK_EQ(!needs_migration_, inner_scope->zone() == zone());
     inner_scope->sibling_ = inner_scope_;
     inner_scope_ = inner_scope;
     inner_scope->outer_scope_ = this;
   }
 
-  void RemoveInnerScope(Scope* inner_scope) {
-    DCHECK_NOT_NULL(inner_scope);
-    if (inner_scope == inner_scope_) {
-      inner_scope_ = inner_scope_->sibling_;
-      return;
-    }
-    for (Scope* scope = inner_scope_; scope != nullptr;
-         scope = scope->sibling_) {
-      if (scope->sibling_ == inner_scope) {
-        scope->sibling_ = scope->sibling_->sibling_;
-        return;
-      }
-    }
-  }
-
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ScopeTestHelper;
 };
 
-class DeclarationScope : public Scope {
+class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
@@ -623,7 +677,12 @@ class DeclarationScope : public Scope {
   }
 
   // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() { scope_uses_super_property_ = true; }
+  void RecordSuperPropertyUsage() {
+    DCHECK((IsConciseMethod(function_kind()) ||
+            IsAccessorFunction(function_kind()) ||
+            IsClassConstructor(function_kind())));
+    scope_uses_super_property_ = true;
+  }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
 
@@ -634,6 +693,18 @@ class DeclarationScope : public Scope {
                                         IsClassConstructor(function_kind())));
   }
 
+  bool was_lazily_parsed() const { return was_lazily_parsed_; }
+
+#ifdef DEBUG
+  void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {
+    is_being_lazily_parsed_ = is_being_lazily_parsed;
+  }
+  bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
+#endif
+
+  bool ShouldEagerCompile() const;
+  void set_should_eager_compile();
+
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
     DCHECK(is_script_scope());
     DCHECK(scope_info_.is_null());
@@ -643,7 +714,7 @@ class DeclarationScope : public Scope {
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
   bool asm_function() const { return asm_function_; }
-  void set_asm_function() { asm_module_ = true; }
+  void set_asm_function() { asm_function_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);
@@ -659,12 +730,23 @@ class DeclarationScope : public Scope {
   // calls sloppy eval.
   Variable* DeclareFunctionVar(const AstRawString* name);
 
+  // Declare some special internal variables which must be accessible to
+  // Ignition without ScopeInfo.
+  Variable* DeclareGeneratorObjectVar(const AstRawString* name);
+  Variable* DeclarePromiseVar(const AstRawString* name);
+
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
                              bool is_optional, bool is_rest, bool* is_duplicate,
-                             AstValueFactory* ast_value_factory);
+                             AstValueFactory* ast_value_factory, int position);
+
+  // Declares that a parameter with the name exists. Creates a Variable and
+  // returns it if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
+                                 AstValueFactory* ast_value_factory,
+                                 bool declare_local, bool add_parameter);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -697,22 +779,24 @@ class DeclarationScope : public Scope {
     return function_;
   }
 
+  Variable* generator_object_var() const {
+    DCHECK(is_function_scope() || is_module_scope());
+    return GetRareVariable(RareVariable::kGeneratorObject);
+  }
+
+  Variable* promise_var() const {
+    DCHECK(is_function_scope());
+    DCHECK(IsAsyncFunction(function_kind_));
+    if (IsAsyncGeneratorFunction(function_kind_)) return nullptr;
+    return GetRareVariable(RareVariable::kPromise);
+  }
+
   // Parameters. The left-most parameter has index 0.
   // Only valid for function and module scopes.
   Variable* parameter(int index) const {
     DCHECK(is_function_scope() || is_module_scope());
     return params_[index];
   }
-
-  // Returns the default function arity excluding default or rest parameters.
-  // This will be used to set the length of the function, by default.
-  // Class field initializers use this property to indicate the number of
-  // fields being initialized.
-  int arity() const { return arity_; }
-
-  // Normal code should not need to call this. Class field initializers use this
-  // property to indicate the number of fields being initialized.
-  void set_arity(int arity) { arity_ = arity; }
 
   // Returns the number of formal parameters, excluding a possible rest
   // parameter.  Examples:
@@ -747,47 +831,43 @@ class DeclarationScope : public Scope {
   }
 
   Variable* this_function_var() const {
+    Variable* this_function = GetRareVariable(RareVariable::kThisFunction);
+
     // This is only used in derived constructors atm.
-    DCHECK(this_function_ == nullptr ||
+    DCHECK(this_function == nullptr ||
            (is_function_scope() && (IsClassConstructor(function_kind()) ||
                                     IsConciseMethod(function_kind()) ||
                                     IsAccessorFunction(function_kind()))));
-    return this_function_;
+    return this_function;
   }
 
   // Adds a local variable in this scope's locals list. This is for adjusting
   // the scope of temporaries and do-expression vars when desugaring parameter
   // initializers.
-  void AddLocal(Variable* var) {
-    DCHECK(!already_resolved_);
-    // Temporaries are only placed in ClosureScopes.
-    DCHECK_EQ(GetClosureScope(), this);
-    locals_.Add(var, zone());
-  }
+  void AddLocal(Variable* var);
 
-  void DeclareSloppyBlockFunction(const AstRawString* name,
-                                  SloppyBlockFunctionStatement* statement) {
-    sloppy_block_function_map_.Declare(zone(), name, statement);
-  }
+  void DeclareSloppyBlockFunction(
+      const AstRawString* name, Scope* scope,
+      SloppyBlockFunctionStatement* statement = nullptr);
 
   // Go through sloppy_block_function_map_ and hoist those (into this scope)
   // which should be hoisted.
   void HoistSloppyBlockFunctions(AstNodeFactory* factory);
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
-    return &sloppy_block_function_map_;
+    return sloppy_block_function_map_;
   }
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info, AnalyzeMode mode);
+  static void Analyze(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
 
   // To be called during parsing. Do just enough scope analysis that we can
-  // discard the Scope for lazily compiled functions. In particular, this
-  // records variables which cannot be resolved inside the Scope (we don't yet
-  // know what they will resolve to since the outer Scopes are incomplete) and
-  // migrates them into migrate_to.
+  // discard the Scope contents for lazily compiled functions. In particular,
+  // this records variables which cannot be resolved inside the Scope (we don't
+  // yet know what they will resolve to since the outer Scopes are incomplete)
+  // and recreates them with the correct Zone with ast_node_factory.
   void AnalyzePartially(AstNodeFactory* ast_node_factory);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
@@ -796,16 +876,15 @@ class DeclarationScope : public Scope {
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;
 
-  // Determine if we can use lazy compilation for this scope without a context.
-  bool AllowsLazyCompilationWithoutContext() const;
-
   // Make sure this closure and all outer closures are eagerly compiled.
   void ForceEagerCompilation() {
     DCHECK_EQ(this, GetClosureScope());
-    for (DeclarationScope* s = this; !s->is_script_scope();
+    DeclarationScope* s;
+    for (s = this; !s->is_script_scope();
          s = s->outer_scope()->GetClosureScope()) {
       s->force_eager_compilation_ = true;
     }
+    s->force_eager_compilation_ = true;
   }
 
 #ifdef DEBUG
@@ -818,6 +897,25 @@ class DeclarationScope : public Scope {
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
+  bool is_skipped_function() const { return is_skipped_function_; }
+  void set_is_skipped_function(bool is_skipped_function) {
+    is_skipped_function_ = is_skipped_function;
+  }
+
+  // Save data describing the context allocation of the variables in this scope
+  // and its subscopes (except scopes at the laziness boundary). The data is
+  // saved in produced_preparsed_scope_data_.
+  void SavePreParsedScopeDataForDeclarationScope();
+
+  void set_produced_preparsed_scope_data(
+      ProducedPreParsedScopeData* produced_preparsed_scope_data) {
+    produced_preparsed_scope_data_ = produced_preparsed_scope_data;
+  }
+
+  ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
+    return produced_preparsed_scope_data_;
+  }
+
  private:
   void AllocateParameter(Variable* var, int index);
 
@@ -829,7 +927,7 @@ class DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, AnalyzeMode mode);
+  void AllocateVariables(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
 
   void SetDefaults();
 
@@ -848,13 +946,18 @@ class DeclarationScope : public Scope {
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').
   bool scope_uses_super_property_ : 1;
+  bool should_eager_compile_ : 1;
+  // Set to true after we have finished lazy parsing the scope.
+  bool was_lazily_parsed_ : 1;
+#if DEBUG
+  bool is_being_lazily_parsed_ : 1;
+#endif
+  bool is_skipped_function_ : 1;
 
-  // Info about the parameter list of a function.
-  int arity_;
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks
-  SloppyBlockFunctionMap sloppy_block_function_map_;
+  SloppyBlockFunctionMap* sloppy_block_function_map_;
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
@@ -863,8 +966,51 @@ class DeclarationScope : public Scope {
   Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Convenience variable; Subclass constructor only
-  Variable* this_function_;
+
+  // For producing the scope allocation data during preparsing.
+  ProducedPreParsedScopeData* produced_preparsed_scope_data_;
+
+  struct RareData : public ZoneObject {
+    // Convenience variable; Subclass constructor only
+    Variable* this_function = nullptr;
+
+    // Generator object, if any; generator function scopes and module scopes
+    // only.
+    Variable* generator_object = nullptr;
+    // Promise, if any; async function scopes only.
+    Variable* promise = nullptr;
+  };
+
+  enum class RareVariable {
+    kThisFunction = offsetof(RareData, this_function),
+    kGeneratorObject = offsetof(RareData, generator_object),
+    kPromise = offsetof(RareData, promise)
+  };
+
+  V8_INLINE RareData* EnsureRareData() {
+    if (rare_data_ == nullptr) {
+      rare_data_ = new (zone_) RareData;
+    }
+    return rare_data_;
+  }
+
+  V8_INLINE Variable* GetRareVariable(RareVariable id) const {
+    if (rare_data_ == nullptr) return nullptr;
+    return *reinterpret_cast<Variable**>(
+        reinterpret_cast<uint8_t*>(rare_data_) + static_cast<ptrdiff_t>(id));
+  }
+
+  // Set `var` to null if it's non-null and Predicate (Variable*) -> bool
+  // returns true.
+  template <typename Predicate>
+  V8_INLINE void NullifyRareVariableIf(RareVariable id, Predicate predicate) {
+    if (V8_LIKELY(rare_data_ == nullptr)) return;
+    Variable** var = reinterpret_cast<Variable**>(
+        reinterpret_cast<uint8_t*>(rare_data_) + static_cast<ptrdiff_t>(id));
+    if (*var && predicate(*var)) *var = nullptr;
+  }
+
+  RareData* rare_data_ = nullptr;
 };
 
 class ModuleScope final : public DeclarationScope {
@@ -876,15 +1022,14 @@ class ModuleScope final : public DeclarationScope {
   // The generated ModuleDescriptor does not preserve all information.  In
   // particular, its module_requests map will be empty because we no longer need
   // the map after parsing.
-  ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* ast_value_factory);
+  ModuleScope(Handle<ScopeInfo> scope_info, AstValueFactory* ast_value_factory);
 
   ModuleDescriptor* module() const {
     DCHECK_NOT_NULL(module_descriptor_);
     return module_descriptor_;
   }
 
-  // Set MODULE as VariableLocation for all variables that will live in some
+  // Set MODULE as VariableLocation for all variables that will live in a
   // module's export table.
   void AllocateModuleVariables();
 

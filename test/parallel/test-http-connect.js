@@ -1,9 +1,30 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 
 server.on('connect', common.mustCall((req, socket, firstBodyChunk) => {
   assert.strictEqual(req.method, 'CONNECT');
@@ -26,13 +47,13 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     method: 'CONNECT',
     path: 'google.com:443'
-  }, common.fail);
+  }, common.mustNotCall());
 
-  req.on('close', common.mustCall(() => {}));
+  req.on('close', common.mustCall());
 
   req.on('connect', common.mustCall((res, socket, firstBodyChunk) => {
     // Make sure this request got removed from the pool.
-    const name = 'localhost:' + server.address().port;
+    const name = `localhost:${server.address().port}`;
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
     assert(!http.globalAgent.requests.hasOwnProperty(name));
 

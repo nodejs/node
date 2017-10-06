@@ -5,106 +5,94 @@
 #include "src/debug/debug-frames.h"
 
 #include "src/frames-inl.h"
+#include "src/wasm/wasm-interpreter.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
 
-FrameInspector::FrameInspector(StandardFrame* frame, int inlined_jsframe_index,
+FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
                                Isolate* isolate)
-    : frame_(frame), deoptimized_frame_(NULL), isolate_(isolate) {
+    : frame_(frame),
+      frame_summary_(FrameSummary::Get(frame, inlined_frame_index)),
+      isolate_(isolate) {
   JavaScriptFrame* js_frame =
       frame->is_java_script() ? javascript_frame() : nullptr;
   DCHECK(js_frame || frame->is_wasm());
   has_adapted_arguments_ = js_frame && js_frame->has_adapted_arguments();
-  is_bottommost_ = inlined_jsframe_index == 0;
+  is_bottommost_ = inlined_frame_index == 0;
   is_optimized_ = frame_->is_optimized();
   is_interpreted_ = frame_->is_interpreted();
+
   // Calculate the deoptimized frame.
-  if (frame->is_optimized()) {
+  if (is_optimized_) {
     DCHECK(js_frame != nullptr);
-    // TODO(turbofan): Revisit once we support deoptimization.
+    // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
     if (js_frame->LookupCode()->is_turbofanned() &&
-        js_frame->function()->shared()->asm_function() &&
-        !FLAG_turbo_asm_deoptimization) {
+        !js_frame->function()->shared()->HasBytecodeArray()) {
       is_optimized_ = false;
       return;
     }
 
-    deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
-        js_frame, inlined_jsframe_index, isolate);
+    deoptimized_frame_.reset(Deoptimizer::DebuggerInspectableFrame(
+        js_frame, inlined_frame_index, isolate));
+  } else if (frame_->is_wasm_interpreter_entry()) {
+    wasm_interpreted_frame_ =
+        frame_summary_.AsWasm()
+            .wasm_instance()
+            ->debug_info()
+            ->GetInterpretedFrame(frame_->fp(), inlined_frame_index);
+    DCHECK(wasm_interpreted_frame_);
   }
 }
 
 FrameInspector::~FrameInspector() {
-  // Get rid of the calculated deoptimized frame if any.
-  if (deoptimized_frame_ != nullptr) {
-    delete deoptimized_frame_;
-  }
+  // Destructor needs to be defined in the .cc file, because it instantiates
+  // std::unique_ptr destructors but the types are not known in the header.
 }
 
 int FrameInspector::GetParametersCount() {
-  return is_optimized_ ? deoptimized_frame_->parameters_count()
-                       : frame_->ComputeParametersCount();
+  if (is_optimized_) return deoptimized_frame_->parameters_count();
+  if (wasm_interpreted_frame_)
+    return wasm_interpreted_frame_->GetParameterCount();
+  return frame_->ComputeParametersCount();
 }
 
 Handle<Script> FrameInspector::GetScript() {
-  Object* script = is_optimized_
-                       ? deoptimized_frame_->GetFunction()->shared()->script()
-                       : frame_->script();
-  return handle(Script::cast(script), isolate_);
+  return Handle<Script>::cast(frame_summary_.script());
 }
 
 Handle<JSFunction> FrameInspector::GetFunction() {
-  DCHECK(!frame_->is_wasm());
-  return is_optimized_ ? deoptimized_frame_->GetFunction()
-                       : handle(javascript_frame()->function(), isolate_);
+  return frame_summary_.AsJavaScript().function();
 }
 
 Handle<Object> FrameInspector::GetParameter(int index) {
-  return is_optimized_ ? deoptimized_frame_->GetParameter(index)
-                       : handle(frame_->GetParameter(index), isolate_);
+  if (is_optimized_) return deoptimized_frame_->GetParameter(index);
+  // TODO(clemensh): Handle wasm_interpreted_frame_.
+  return handle(frame_->GetParameter(index), isolate_);
 }
 
 Handle<Object> FrameInspector::GetExpression(int index) {
-  // TODO(turbofan): Revisit once we support deoptimization.
+  // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
   if (frame_->is_java_script() &&
       javascript_frame()->LookupCode()->is_turbofanned() &&
-      javascript_frame()->function()->shared()->asm_function() &&
-      !FLAG_turbo_asm_deoptimization) {
+      !javascript_frame()->function()->shared()->HasBytecodeArray()) {
     return isolate_->factory()->undefined_value();
   }
   return is_optimized_ ? deoptimized_frame_->GetExpression(index)
                        : handle(frame_->GetExpression(index), isolate_);
 }
 
-
 int FrameInspector::GetSourcePosition() {
-  if (is_optimized_) return deoptimized_frame_->GetSourcePosition();
-  AbstractCode* code;
-  int code_offset;
-  if (is_interpreted_) {
-    InterpretedFrame* frame = reinterpret_cast<InterpretedFrame*>(frame_);
-    code = AbstractCode::cast(frame->GetBytecodeArray());
-    code_offset = frame->GetBytecodeOffset();
-  } else {
-    code = AbstractCode::cast(frame_->LookupCode());
-    code_offset = static_cast<int>(frame_->pc() - code->instruction_start());
-  }
-  return code->SourcePosition(code_offset);
+  return frame_summary_.SourcePosition();
 }
 
-
-bool FrameInspector::IsConstructor() {
-  return is_optimized_ && !is_bottommost_
-             ? deoptimized_frame_->HasConstructStub()
-             : frame_->IsConstructor();
-}
+bool FrameInspector::IsConstructor() { return frame_summary_.is_constructor(); }
 
 Handle<Object> FrameInspector::GetContext() {
   return is_optimized_ ? deoptimized_frame_->GetContext()
                        : handle(frame_->context(), isolate_);
 }
-
 
 // To inspect all the provided arguments the frame might need to be
 // replaced with the arguments frame.
@@ -223,15 +211,11 @@ int DebugFrameHelper::FindIndexedNonNativeFrame(StackTraceFrameIterator* it,
                                                 int index) {
   int count = -1;
   for (; !it->done(); it->Advance()) {
-    if (it->is_wasm()) {
-      if (++count == index) return 0;
-      continue;
-    }
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    it->javascript_frame()->Summarize(&frames);
+    it->frame()->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0; i--) {
       // Omit functions from native and extension scripts.
-      if (!frames[i].function()->shared()->IsSubjectToDebugging()) continue;
+      if (!frames[i].is_subject_to_debugging()) continue;
       if (++count == index) return i;
     }
   }

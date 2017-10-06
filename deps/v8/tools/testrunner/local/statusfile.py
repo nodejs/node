@@ -49,7 +49,7 @@ FAIL_SLOPPY = "FAIL_SLOPPY"
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, TIMEOUT, CRASH, SLOW, FAIL_OK,
+for key in [SKIP, FAIL, PASS, OKAY, CRASH, SLOW, FAIL_OK,
             FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY, ALWAYS]:
   KEYWORDS[key] = key
 
@@ -59,10 +59,10 @@ DEFS = {FAIL_OK: [FAIL, OKAY],
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
 for var in ["debug", "release", "big", "little",
-            "android_arm", "android_arm64", "android_ia32", "android_x87",
-            "android_x64", "arm", "arm64", "ia32", "mips", "mipsel", "mips64",
-            "mips64el", "x64", "x87", "ppc", "ppc64", "s390", "s390x", "macos",
-            "windows", "linux", "aix"]:
+            "android_arm", "android_arm64", "android_ia32", "android_x64",
+            "arm", "arm64", "ia32", "mips", "mipsel", "mips64", "mips64el",
+            "x64", "ppc", "ppc64", "s390", "s390x", "macos", "windows",
+            "linux", "aix"]:
   VARIABLES[var] = var
 
 # Allow using variants as keywords.
@@ -232,11 +232,22 @@ def _ReadSection(section, rules, wildcards, variables):
     else:
       _ParseOutcomeList(rule, section[rule], rules, variables)
 
+JS_TEST_PATHS = {
+  'debugger': [[]],
+  'inspector': [[]],
+  'intl': [[]],
+  'message': [[]],
+  'mjsunit': [[]],
+  'mozilla': [['data']],
+  'test262': [['data', 'test'], ['local-tests', 'test']],
+  'webkit': [[]],
+}
 
 def PresubmitCheck(path):
   with open(path) as f:
     contents = ReadContent(f.read())
-  root_prefix = os.path.basename(os.path.dirname(path)) + "/"
+  basename = os.path.basename(os.path.dirname(path))
+  root_prefix = basename + "/"
   status = {"success": True}
   def _assert(check, message):  # Like "assert", but doesn't throw.
     if not check:
@@ -255,6 +266,11 @@ def PresubmitCheck(path):
                 "Suite name prefix must not be used in rule keys")
         _assert(not rule.endswith('.js'),
                 ".js extension must not be used in rule keys.")
+        if basename in JS_TEST_PATHS  and '*' not in rule:
+          _assert(any(os.path.exists(os.path.join(os.path.dirname(path),
+                                                  *(paths + [rule + ".js"])))
+                      for paths in JS_TEST_PATHS[basename]),
+                  "missing file for %s test %s" % (basename, rule))
     return status["success"]
   except Exception as e:
     print e

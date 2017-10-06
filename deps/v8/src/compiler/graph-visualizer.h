@@ -9,6 +9,8 @@
 #include <iosfwd>
 #include <memory>
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
 
@@ -32,15 +34,14 @@ struct AsJSON {
   const SourcePositionTable* positions;
 };
 
-std::ostream& operator<<(std::ostream& os, const AsJSON& ad);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const AsJSON& ad);
 
 struct AsRPO {
   explicit AsRPO(const Graph& g) : graph(g) {}
   const Graph& graph;
 };
 
-std::ostream& operator<<(std::ostream& os, const AsRPO& ad);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const AsRPO& ad);
 
 struct AsC1VCompilation {
   explicit AsC1VCompilation(const CompilationInfo* info) : info_(info) {}

@@ -13,6 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/factory.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +35,7 @@ class Schedule;
 // Also note that the generated graph is only valid together with the generated
 // schedule, using one without the other is invalid as the graph is inherently
 // non-schedulable due to missing control and effect dependencies.
-class RawMachineAssembler {
+class V8_EXPORT_PRIVATE RawMachineAssembler {
  public:
   RawMachineAssembler(
       Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
@@ -83,8 +84,8 @@ class RawMachineAssembler {
   Node* Int32Constant(int32_t value) {
     return AddNode(common()->Int32Constant(value));
   }
-  Node* StackSlot(MachineRepresentation rep) {
-    return AddNode(machine()->StackSlot(rep));
+  Node* StackSlot(MachineRepresentation rep, int alignment = 0) {
+    return AddNode(machine()->StackSlot(rep, alignment));
   }
   Node* Int64Constant(int64_t value) {
     return AddNode(common()->Int64Constant(value));
@@ -172,6 +173,23 @@ class RawMachineAssembler {
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
     return AddNode(machine()->AtomicStore(rep), base, index, value);
+  }
+#define ATOMIC_FUNCTION(name)                                                 \
+  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value) { \
+    return AddNode(machine()->Atomic##name(rep), base, index, value);         \
+  }
+  ATOMIC_FUNCTION(Exchange);
+  ATOMIC_FUNCTION(Add);
+  ATOMIC_FUNCTION(Sub);
+  ATOMIC_FUNCTION(And);
+  ATOMIC_FUNCTION(Or);
+  ATOMIC_FUNCTION(Xor);
+#undef ATOMIC_FUNCTION
+
+  Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
+                              Node* old_value, Node* new_value) {
+    return AddNode(machine()->AtomicCompareExchange(rep), base, index,
+                   old_value, new_value);
   }
 
   // Arithmetic Operations.
@@ -428,6 +446,19 @@ class RawMachineAssembler {
 
 #undef UINTPTR_BINOP
 
+  Node* Int32AbsWithOverflow(Node* a) {
+    return AddNode(machine()->Int32AbsWithOverflow().op(), a);
+  }
+
+  Node* Int64AbsWithOverflow(Node* a) {
+    return AddNode(machine()->Int64AbsWithOverflow().op(), a);
+  }
+
+  Node* IntPtrAbsWithOverflow(Node* a) {
+    return kPointerSize == 8 ? Int64AbsWithOverflow(a)
+                             : Int32AbsWithOverflow(a);
+  }
+
   Node* Float32Add(Node* a, Node* b) {
     return AddNode(machine()->Float32Add(), a, b);
   }
@@ -533,13 +564,21 @@ class RawMachineAssembler {
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
     return AddNode(machine()->BitcastTaggedToWord(), a);
+#else
+    return a;
+#endif
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
   Node* BitcastWordToTaggedSigned(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
     return AddNode(machine()->BitcastWordToTaggedSigned(), a);
+#else
+    return a;
+#endif
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);
@@ -558,6 +597,9 @@ class RawMachineAssembler {
   }
   Node* ChangeFloat64ToUint32(Node* a) {
     return AddNode(machine()->ChangeFloat64ToUint32(), a);
+  }
+  Node* ChangeFloat64ToUint64(Node* a) {
+    return AddNode(machine()->ChangeFloat64ToUint64(), a);
   }
   Node* TruncateFloat64ToUint32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToUint32(), a);
@@ -652,6 +694,12 @@ class RawMachineAssembler {
   Node* Float64RoundTiesEven(Node* a) {
     return AddNode(machine()->Float64RoundTiesEven().op(), a);
   }
+  Node* Word32ReverseBytes(Node* a) {
+    return AddNode(machine()->Word32ReverseBytes().op(), a);
+  }
+  Node* Word64ReverseBytes(Node* a) {
+    return AddNode(machine()->Word64ReverseBytes().op(), a);
+  }
 
   // Float64 bit operations.
   Node* Float64ExtractLowWord32(Node* a) {
@@ -700,23 +748,18 @@ class RawMachineAssembler {
   }
 
   // Call a given call descriptor and the given arguments.
-  Node* CallN(CallDescriptor* desc, Node* function, Node** args);
+  // The call target is passed as part of the {inputs} array.
+  Node* CallN(CallDescriptor* desc, int input_count, Node* const* inputs);
+
   // Call a given call descriptor and the given arguments and frame-state.
-  Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
-                            Node* frame_state);
-  // Call to a runtime function with zero arguments.
-  Node* CallRuntime0(Runtime::FunctionId function, Node* context);
-  // Call to a runtime function with one arguments.
-  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
-  // Call to a runtime function with two arguments.
-  Node* CallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* context);
-  // Call to a runtime function with three arguments.
-  Node* CallRuntime3(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* arg3, Node* context);
-  // Call to a runtime function with four arguments.
-  Node* CallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                     Node* arg3, Node* arg4, Node* context);
+  // The call target and frame state are passed as part of the {inputs} array.
+  Node* CallNWithFrameState(CallDescriptor* desc, int input_count,
+                            Node* const* inputs);
+
+  // Tail call a given call descriptor and the given arguments.
+  // The call target is passed as part of the {inputs} array.
+  Node* TailCallN(CallDescriptor* desc, int input_count, Node* const* inputs);
+
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.
@@ -726,6 +769,17 @@ class RawMachineAssembler {
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
+  // Call to a C function with three arguments.
+  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2);
+  // Call to a C function with six arguments.
+  Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                       Node* arg5);
   // Call to a C function with eight arguments.
   Node* CallCFunction8(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
@@ -734,30 +788,15 @@ class RawMachineAssembler {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
-
-  // Tail call the given call descriptor and the given arguments.
-  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
-  // Tail call to a runtime function with zero arguments.
-  Node* TailCallRuntime0(Runtime::FunctionId function, Node* context);
-  // Tail call to a runtime function with one argument.
-  Node* TailCallRuntime1(Runtime::FunctionId function, Node* arg0,
-                         Node* context);
-  // Tail call to a runtime function with two arguments.
-  Node* TailCallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* context);
-  // Tail call to a runtime function with three arguments.
-  Node* TailCallRuntime3(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* context);
-  // Tail call to a runtime function with four arguments.
-  Node* TailCallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* context);
-  // Tail call to a runtime function with five arguments.
-  Node* TailCallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* arg5, Node* context);
-  // Tail call to a runtime function with six arguments.
-  Node* TailCallRuntime6(Runtime::FunctionId function, Node* arg1, Node* arg2,
-                         Node* arg3, Node* arg4, Node* arg5, Node* arg6,
-                         Node* context);
+  // Call to a C function with nine arguments.
+  Node* CallCFunction9(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       MachineType arg5_type, MachineType arg6_type,
+                       MachineType arg7_type, MachineType arg8_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2,
+                       Node* arg3, Node* arg4, Node* arg5, Node* arg6,
+                       Node* arg7, Node* arg8);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
@@ -773,10 +812,20 @@ class RawMachineAssembler {
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
+  void PopAndReturn(Node* pop, Node* value);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* msg);
+
+#if DEBUG
+  void Bind(RawMachineLabel* label, AssemblerDebugInfo info);
+  void SetInitialDebugInformation(AssemblerDebugInfo info);
+  void PrintCurrentBlock(std::ostream& os);
+#endif  // DEBUG
 
   // Add success / exception successor blocks and ends the current block ending
   // in a potentially throwing call node.
@@ -834,14 +883,15 @@ class RawMachineAssembler {
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };
 
-
-class RawMachineLabel final {
+class V8_EXPORT_PRIVATE RawMachineLabel final {
  public:
   enum Type { kDeferred, kNonDeferred };
 
   explicit RawMachineLabel(Type type = kNonDeferred)
       : deferred_(type == kDeferred) {}
   ~RawMachineLabel();
+
+  BasicBlock* block() const { return block_; }
 
  private:
   BasicBlock* block_ = nullptr;

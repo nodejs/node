@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PREPARSE_DATA_H_
 #define V8_PARSING_PREPARSE_DATA_H_
 
+#include <unordered_map>
+
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
@@ -46,158 +48,43 @@ class ScriptData {
   DISALLOW_COPY_AND_ASSIGN(ScriptData);
 };
 
-// Abstract interface for preparse data recorder.
-class ParserRecorder {
+class PreParserLogger final {
  public:
-  ParserRecorder() { }
-  virtual ~ParserRecorder() { }
+  PreParserLogger()
+      : end_(-1),
+        num_parameters_(-1),
+        num_inner_functions_(-1) {}
 
-  // Logs the scope and some details of a function literal in the source.
-  virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode, bool uses_super_property,
-                           bool calls_eval) = 0;
-
-  // Logs an error message and marks the log as containing an error.
-  // Further logging will be ignored, and ExtractData will return a vector
-  // representing the error only.
-  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
-                          const char* argument_opt,
-                          ParseErrorType error_type) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
-};
-
-
-class SingletonLogger : public ParserRecorder {
- public:
-  SingletonLogger()
-      : has_error_(false), start_(-1), end_(-1), error_type_(kSyntaxError) {}
-  virtual ~SingletonLogger() {}
-
-  void Reset() { has_error_ = false; }
-
-  virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode, bool uses_super_property,
-                           bool calls_eval) {
-    DCHECK(!has_error_);
-    start_ = start;
+  void LogFunction(int end, int num_parameters, int num_inner_functions) {
     end_ = end;
-    literals_ = literals;
-    properties_ = properties;
-    language_mode_ = language_mode;
-    uses_super_property_ = uses_super_property;
-    calls_eval_ = calls_eval;
+    num_parameters_ = num_parameters;
+    num_inner_functions_ = num_inner_functions;
   }
 
-  // Logs an error message and marks the log as containing an error.
-  // Further logging will be ignored, and ExtractData will return a vector
-  // representing the error only.
-  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
-                          const char* argument_opt, ParseErrorType error_type) {
-    if (has_error_) return;
-    has_error_ = true;
-    start_ = start;
-    end_ = end;
-    message_ = message;
-    argument_opt_ = argument_opt;
-    error_type_ = error_type;
-  }
-
-  bool has_error() const { return has_error_; }
-
-  int start() const { return start_; }
   int end() const { return end_; }
-  int literals() const {
-    DCHECK(!has_error_);
-    return literals_;
+  int num_parameters() const {
+    return num_parameters_;
   }
-  int properties() const {
-    DCHECK(!has_error_);
-    return properties_;
-  }
-  LanguageMode language_mode() const {
-    DCHECK(!has_error_);
-    return language_mode_;
-  }
-  bool uses_super_property() const {
-    DCHECK(!has_error_);
-    return uses_super_property_;
-  }
-  bool calls_eval() const {
-    DCHECK(!has_error_);
-    return calls_eval_;
-  }
-  ParseErrorType error_type() const {
-    DCHECK(has_error_);
-    return error_type_;
-  }
-  MessageTemplate::Template message() {
-    DCHECK(has_error_);
-    return message_;
-  }
-  const char* argument_opt() const {
-    DCHECK(has_error_);
-    return argument_opt_;
-  }
+  int num_inner_functions() const { return num_inner_functions_; }
 
  private:
-  bool has_error_;
-  int start_;
   int end_;
   // For function entries.
-  int literals_;
-  int properties_;
-  LanguageMode language_mode_;
-  bool uses_super_property_;
-  bool calls_eval_;
-  // For error messages.
-  MessageTemplate::Template message_;
-  const char* argument_opt_;
-  ParseErrorType error_type_;
+  int num_parameters_;
+  int num_inner_functions_;
 };
 
-
-class CompleteParserRecorder : public ParserRecorder {
+class ParserLogger final {
  public:
-  struct Key {
-    bool is_one_byte;
-    Vector<const byte> literal_bytes;
-  };
+  ParserLogger();
 
-  CompleteParserRecorder();
-  virtual ~CompleteParserRecorder() {}
+  void LogFunction(int start, int end, int num_parameters,
+                   LanguageMode language_mode, bool uses_super_property,
+                   int num_inner_functions);
 
-  virtual void LogFunction(int start, int end, int literals, int properties,
-                           LanguageMode language_mode, bool uses_super_property,
-                           bool calls_eval) {
-    function_store_.Add(start);
-    function_store_.Add(end);
-    function_store_.Add(literals);
-    function_store_.Add(properties);
-    function_store_.Add(language_mode);
-    function_store_.Add(uses_super_property);
-    function_store_.Add(calls_eval);
-  }
-
-  // Logs an error message and marks the log as containing an error.
-  // Further logging will be ignored, and ExtractData will return a vector
-  // representing the error only.
-  virtual void LogMessage(int start, int end, MessageTemplate::Template message,
-                          const char* argument_opt, ParseErrorType error_type);
   ScriptData* GetScriptData();
 
-  bool HasError() {
-    return static_cast<bool>(preamble_[PreparseDataConstants::kHasErrorOffset]);
-  }
-  Vector<unsigned> ErrorMessageData() {
-    DCHECK(HasError());
-    return function_store_.ToVector();
-  }
-
  private:
-  void WriteString(Vector<const char> str);
-
   Collector<unsigned> function_store_;
   unsigned preamble_[PreparseDataConstants::kHeaderSize];
 
@@ -206,6 +93,43 @@ class CompleteParserRecorder : public ParserRecorder {
 #endif
 };
 
+class PreParseData final {
+ public:
+  struct FunctionData {
+    int end;
+    int num_parameters;
+    int num_inner_functions;
+    LanguageMode language_mode;
+    bool uses_super_property : 1;
+
+    FunctionData() : end(kNoSourcePosition) {}
+
+    FunctionData(int end, int num_parameters, int num_inner_functions,
+                 LanguageMode language_mode, bool uses_super_property)
+        : end(end),
+          num_parameters(num_parameters),
+          num_inner_functions(num_inner_functions),
+          language_mode(language_mode),
+          uses_super_property(uses_super_property) {}
+
+    bool is_valid() const {
+      DCHECK_IMPLIES(end < 0, end == kNoSourcePosition);
+      return end != kNoSourcePosition;
+    }
+  };
+
+  FunctionData GetFunctionData(int start) const;
+  void AddFunctionData(int start, FunctionData&& data);
+  void AddFunctionData(int start, const FunctionData& data);
+  size_t size() const;
+
+  typedef std::unordered_map<int, FunctionData>::const_iterator const_iterator;
+  const_iterator begin() const;
+  const_iterator end() const;
+
+ private:
+  std::unordered_map<int, FunctionData> functions_;
+};
 
 }  // namespace internal
 }  // namespace v8.

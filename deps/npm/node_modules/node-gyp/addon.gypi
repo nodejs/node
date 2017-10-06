@@ -1,14 +1,25 @@
 {
+  'variables' : {
+    'node_engine_include_dir%': 'deps/v8/include',
+  },
   'target_defaults': {
     'type': 'loadable_module',
     'win_delay_load_hook': 'true',
     'product_prefix': '',
 
+    'conditions': [
+      [ 'node_engine=="chakracore"', {
+        'variables': {
+          'node_engine_include_dir%': 'deps/chakrashim/include'
+        },
+      }]
+    ],
+
     'include_dirs': [
       '<(node_root_dir)/include/node',
       '<(node_root_dir)/src',
       '<(node_root_dir)/deps/uv/include',
-      '<(node_root_dir)/deps/v8/include'
+      '<(node_root_dir)/<(node_engine_include_dir)'
     ],
     'defines!': [
       'BUILDING_UV_SHARED=1',  # Inherited from common.gypi.
@@ -79,6 +90,12 @@
         ],
       }],
       [ 'OS=="win"', {
+        'conditions': [
+          ['node_engine=="chakracore"', {
+            'library_dirs': [ '<(node_root_dir)/$(ConfigurationName)' ],
+            'libraries': [ '<@(node_engine_libs)' ],
+          }],
+        ],
         'libraries': [
           '-lkernel32.lib',
           '-luser32.lib',
@@ -92,7 +109,7 @@
           '-luuid.lib',
           '-lodbc32.lib',
           '-lDelayImp.lib',
-          '-l"<(node_root_dir)/$(ConfigurationName)/<(node_lib_file)"'
+          '-l"<(node_lib_file)"'
         ],
         'msvs_disabled_warnings': [
           # warning C4251: 'node::ObjectWrap::handle_' : class 'v8::Persistent<T>'

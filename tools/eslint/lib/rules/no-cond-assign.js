@@ -67,19 +67,6 @@ module.exports = {
         }
 
         /**
-         * Check whether the code represented by an AST node is enclosed in parentheses.
-         * @param {!Object} node The node to test.
-         * @returns {boolean} `true` if the code is enclosed in parentheses; otherwise, `false`.
-         */
-        function isParenthesised(node) {
-            const previousToken = sourceCode.getTokenBefore(node),
-                nextToken = sourceCode.getTokenAfter(node);
-
-            return previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
-        }
-
-        /**
          * Check whether the code represented by an AST node is enclosed in two sets of parentheses.
          * @param {!Object} node The node to test.
          * @returns {boolean} `true` if the code is enclosed in two sets of parentheses; otherwise, `false`.
@@ -88,9 +75,9 @@ module.exports = {
             const previousToken = sourceCode.getTokenBefore(node, 1),
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
-            return isParenthesised(node) &&
-                previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+            return astUtils.isParenthesised(sourceCode, node) &&
+                astUtils.isOpeningParenToken(previousToken) && previousToken.range[1] <= node.range[0] &&
+                astUtils.isClosingParenToken(nextToken) && nextToken.range[0] >= node.range[1];
         }
 
         /**
@@ -101,9 +88,9 @@ module.exports = {
         function testForAssign(node) {
             if (node.test &&
                 (node.test.type === "AssignmentExpression") &&
-                (node.type === "ForStatement" ?
-                    !isParenthesised(node.test) :
-                    !isParenthesisedTwice(node.test)
+                (node.type === "ForStatement"
+                    ? !astUtils.isParenthesised(sourceCode, node.test)
+                    : !isParenthesisedTwice(node.test)
                 )
             ) {
 

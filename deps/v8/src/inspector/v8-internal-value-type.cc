@@ -4,7 +4,6 @@
 
 #include "src/inspector/v8-internal-value-type.h"
 
-#include "src/inspector/protocol-platform.h"
 #include "src/inspector/string-util.h"
 
 namespace v8_inspector {
@@ -30,7 +29,6 @@ v8::Local<v8::String> subtypeForInternalType(v8::Isolate* isolate,
       return toV8StringInternalized(isolate, "internal#scopeList");
   }
   UNREACHABLE();
-  return v8::Local<v8::String>();
 }
 
 }  // namespace

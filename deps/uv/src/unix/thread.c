@@ -41,36 +41,159 @@
 #define NANOSEC ((uint64_t) 1e9)
 
 
-int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
-  int err;
-  pthread_attr_t* attr;
-#if defined(__APPLE__)
-  pthread_attr_t attr_storage;
-  struct rlimit lim;
+#if defined(UV__PTHREAD_BARRIER_FALLBACK)
+/* TODO: support barrier_attr */
+int pthread_barrier_init(pthread_barrier_t* barrier,
+                         const void* barrier_attr,
+                         unsigned count) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || count == 0)
+    return EINVAL;
+
+  if (barrier_attr != NULL)
+    return ENOTSUP;
+
+  b = uv__malloc(sizeof(*b));
+  if (b == NULL)
+    return ENOMEM;
+
+  b->in = 0;
+  b->out = 0;
+  b->threshold = count;
+
+  if ((rc = pthread_mutex_init(&b->mutex, NULL)) != 0)
+    goto error2;
+  if ((rc = pthread_cond_init(&b->cond, NULL)) != 0)
+    goto error;
+
+  barrier->b = b;
+  return 0;
+
+error:
+  pthread_mutex_destroy(&b->mutex);
+error2:
+  uv__free(b);
+  return rc;
+}
+
+int pthread_barrier_wait(pthread_barrier_t* barrier) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || barrier->b == NULL)
+    return EINVAL;
+
+  b = barrier->b;
+  /* Lock the mutex*/
+  if ((rc = pthread_mutex_lock(&b->mutex)) != 0)
+    return rc;
+
+  /* Increment the count. If this is the first thread to reach the threshold,
+     wake up waiters, unlock the mutex, then return
+     PTHREAD_BARRIER_SERIAL_THREAD. */
+  if (++b->in == b->threshold) {
+    b->in = 0;
+    b->out = b->threshold - 1;
+    rc = pthread_cond_signal(&b->cond);
+    assert(rc == 0);
+
+    pthread_mutex_unlock(&b->mutex);
+    return PTHREAD_BARRIER_SERIAL_THREAD;
+  }
+  /* Otherwise, wait for other threads until in is set to 0,
+     then return 0 to indicate this is not the first thread. */
+  do {
+    if ((rc = pthread_cond_wait(&b->cond, &b->mutex)) != 0)
+      break;
+  } while (b->in != 0);
+
+  /* mark thread exit */
+  b->out--;
+  pthread_cond_signal(&b->cond);
+  pthread_mutex_unlock(&b->mutex);
+  return rc;
+}
+
+int pthread_barrier_destroy(pthread_barrier_t* barrier) {
+  int rc;
+  _uv_barrier* b;
+
+  if (barrier == NULL || barrier->b == NULL)
+    return EINVAL;
+
+  b = barrier->b;
+
+  if ((rc = pthread_mutex_lock(&b->mutex)) != 0)
+    return rc;
+
+  if (b->in > 0 || b->out > 0)
+    rc = EBUSY;
+
+  pthread_mutex_unlock(&b->mutex);
+
+  if (rc)
+    return rc;
+
+  pthread_cond_destroy(&b->cond);
+  pthread_mutex_destroy(&b->mutex);
+  uv__free(barrier->b);
+  barrier->b = NULL;
+  return 0;
+}
 #endif
 
-  /* On OSX threads other than the main thread are created with a reduced stack
-   * size by default, adjust it to RLIMIT_STACK.
-   */
-#if defined(__APPLE__)
-  if (getrlimit(RLIMIT_STACK, &lim))
-    abort();
 
-  attr = &attr_storage;
-  if (pthread_attr_init(attr))
+/* On MacOS, threads other than the main thread are created with a reduced
+ * stack size by default.  Adjust to RLIMIT_STACK aligned to the page size.
+ *
+ * On Linux, threads created by musl have a much smaller stack than threads
+ * created by glibc (80 vs. 2048 or 4096 kB.)  Follow glibc for consistency.
+ */
+static size_t thread_stack_size(void) {
+#if defined(__APPLE__) || defined(__linux__)
+  struct rlimit lim;
+
+  if (getrlimit(RLIMIT_STACK, &lim))
     abort();
 
   if (lim.rlim_cur != RLIM_INFINITY) {
     /* pthread_attr_setstacksize() expects page-aligned values. */
     lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
-
     if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-      if (pthread_attr_setstacksize(attr, lim.rlim_cur))
-        abort();
+      return lim.rlim_cur;
   }
-#else
-  attr = NULL;
 #endif
+
+#if !defined(__linux__)
+  return 0;
+#elif defined(__PPC__) || defined(__ppc__) || defined(__powerpc__)
+  return 4 << 20;  /* glibc default. */
+#else
+  return 2 << 20;  /* glibc default. */
+#endif
+}
+
+
+int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  int err;
+  size_t stack_size;
+  pthread_attr_t* attr;
+  pthread_attr_t attr_storage;
+
+  attr = NULL;
+  stack_size = thread_stack_size();
+
+  if (stack_size > 0) {
+    attr = &attr_storage;
+
+    if (pthread_attr_init(attr))
+      abort();
+
+    if (pthread_attr_setstacksize(attr, stack_size))
+      abort();
+  }
 
   err = pthread_create(tid, attr, (void*(*)(void*)) entry, arg);
 
@@ -115,6 +238,25 @@ int uv_mutex_init(uv_mutex_t* mutex) {
 
   return -err;
 #endif
+}
+
+
+int uv_mutex_init_recursive(uv_mutex_t* mutex) {
+  pthread_mutexattr_t attr;
+  int err;
+
+  if (pthread_mutexattr_init(&attr))
+    abort();
+
+  if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE))
+    abort();
+
+  err = pthread_mutex_init(mutex, &attr);
+
+  if (pthread_mutexattr_destroy(&attr))
+    abort();
+
+  return -err;
 }
 
 
@@ -281,18 +423,20 @@ int uv_sem_trywait(uv_sem_t* sem) {
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
   uv_sem_t semid;
-  struct sembuf buf;
   int err;
+  union {
+    int val;
+    struct semid_ds* buf;
+    unsigned short* array;
+  } arg;
 
-  buf.sem_num = 0;
-  buf.sem_op = value;
-  buf.sem_flg = 0;
 
   semid = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR);
   if (semid == -1)
     return -errno;
 
-  if (-1 == semop(semid, &buf, 1)) {
+  arg.val = value;
+  if (-1 == semctl(semid, 0, SETVAL, arg)) {
     err = errno;
     if (-1 == semctl(*sem, 0, IPC_RMID))
       abort();
@@ -424,7 +568,7 @@ int uv_cond_init(uv_cond_t* cond) {
   if (err)
     return -err;
 
-#if !(defined(__ANDROID__) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC))
+#if !(defined(__ANDROID_API__) && __ANDROID_API__ < 21)
   err = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
   if (err)
     goto error2;
@@ -511,7 +655,8 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   timeout += uv__hrtime(UV_CLOCK_PRECISE);
   ts.tv_sec = timeout / NANOSEC;
   ts.tv_nsec = timeout % NANOSEC;
-#if defined(__ANDROID__) && defined(HAVE_PTHREAD_COND_TIMEDWAIT_MONOTONIC)
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
+
   /*
    * The bionic pthread implementation doesn't support CLOCK_MONOTONIC,
    * but has this alternative function instead.
@@ -519,7 +664,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   r = pthread_cond_timedwait_monotonic_np(cond, mutex, &ts);
 #else
   r = pthread_cond_timedwait(cond, mutex, &ts);
-#endif /* __ANDROID__ */
+#endif /* __ANDROID_API__ */
 #endif
 
 

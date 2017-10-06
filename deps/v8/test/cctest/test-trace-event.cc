@@ -40,38 +40,16 @@ struct MockTraceObject {
 
 typedef v8::internal::List<MockTraceObject*> MockTraceObjectList;
 
-class MockTracingPlatform : public v8::Platform {
+class MockTracingController : public v8::TracingController {
  public:
-  explicit MockTracingPlatform(v8::Platform* platform) {}
-  virtual ~MockTracingPlatform() {
+  MockTracingController() = default;
+  ~MockTracingController() {
     for (int i = 0; i < trace_object_list_.length(); ++i) {
       delete trace_object_list_[i];
     }
     trace_object_list_.Clear();
   }
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {}
 
-  void CallOnForegroundThread(Isolate* isolate, Task* task) override {}
-
-  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {}
-
-  double MonotonicallyIncreasingTime() override { return 0.0; }
-
-  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {}
-
-  bool IdleTasksEnabled(Isolate* isolate) override { return false; }
-
-  bool PendingIdleTask() { return false; }
-
-  void PerformIdleTask(double idle_time_in_seconds) {}
-
-  bool PendingDelayedTask() { return false; }
-
-  void PerformDelayedTask() {}
-
-  using Platform::AddTraceEvent;
   uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
       const char* scope, uint64_t id, uint64_t bind_id, int num_args,
@@ -98,16 +76,52 @@ class MockTracingPlatform : public v8::Platform {
     }
   }
 
-  const char* GetCategoryGroupName(
-      const uint8_t* category_enabled_flag) override {
-    static const char dummy[] = "dummy";
-    return dummy;
-  }
-
   MockTraceObjectList* GetMockTraceObjects() { return &trace_object_list_; }
 
  private:
   MockTraceObjectList trace_object_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTracingController);
+};
+
+class MockTracingPlatform : public v8::Platform {
+ public:
+  explicit MockTracingPlatform(v8::Platform* platform) {}
+  virtual ~MockTracingPlatform() {}
+  void CallOnBackgroundThread(Task* task,
+                              ExpectedRuntime expected_runtime) override {}
+
+  void CallOnForegroundThread(Isolate* isolate, Task* task) override {}
+
+  void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
+                                     double delay_in_seconds) override {}
+
+  double MonotonicallyIncreasingTime() override { return 0.0; }
+
+  void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {}
+
+  bool IdleTasksEnabled(Isolate* isolate) override { return false; }
+
+  v8::TracingController* GetTracingController() override {
+    return &tracing_controller_;
+  }
+
+  bool PendingIdleTask() { return false; }
+
+  void PerformIdleTask(double idle_time_in_seconds) {}
+
+  bool PendingDelayedTask() { return false; }
+
+  void PerformDelayedTask() {}
+
+  MockTraceObjectList* GetMockTraceObjects() {
+    return tracing_controller_.GetMockTraceObjects();
+  }
+
+ private:
+  MockTracingController tracing_controller_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTracingPlatform);
 };
 
 

@@ -4,9 +4,8 @@ var ping = require('../ping.js')
 function checkPing (cb) {
   var tracker = log.newItem('checkPing', 1)
   tracker.info('checkPing', 'Pinging registry')
-  ping({}, true, function (err, pong) {
-    tracker.finish()
-    cb(err, pong)
+  ping({}, true, (_err, pong, data, res) => {
+    cb(null, [res.statusCode, res.statusMessage])
   })
 }
 

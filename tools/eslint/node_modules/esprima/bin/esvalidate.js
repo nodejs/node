@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
-  Copyright (c) jQuery Foundation, Inc. and Contributors, All Rights Reserved.
+  Copyright JS Foundation and other contributors, https://js.foundation/
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -26,7 +26,7 @@
 /*jslint sloppy:true plusplus:true node:true rhino:true */
 /*global phantom:true */
 
-var fs, system, esprima, options, fnames, count;
+var fs, system, esprima, options, fnames, forceFile, count;
 
 if (typeof esprima === 'undefined') {
     // PhantomJS can only require() relative files
@@ -36,7 +36,11 @@ if (typeof esprima === 'undefined') {
         esprima = require('./esprima');
     } else if (typeof require === 'function') {
         fs = require('fs');
-        esprima = require('esprima');
+        try {
+            esprima = require('esprima');
+        } catch (e) {
+            esprima = require('../');
+        }
     } else if (typeof load === 'function') {
         try {
             load('esprima.js');
@@ -51,7 +55,10 @@ if (typeof phantom === 'object') {
     fs.readFileSync = fs.read;
     process = {
         argv: [].slice.call(system.args),
-        exit: phantom.exit
+        exit: phantom.exit,
+        on: function (evt, callback) {
+            callback();
+        }
     };
     process.argv.unshift('phantomjs');
 }
@@ -60,14 +67,20 @@ if (typeof phantom === 'object') {
 if (typeof console === 'undefined' && typeof process === 'undefined') {
     console = { log: print };
     fs = { readFileSync: readFile };
-    process = { argv: arguments, exit: quit };
+    process = {
+        argv: arguments,
+        exit: quit,
+        on: function (evt, callback) {
+            callback();
+        }
+    };
     process.argv.unshift('esvalidate.js');
     process.argv.unshift('rhino');
 }
 
 function showUsage() {
     console.log('Usage:');
-    console.log('   esvalidate [options] file.js');
+    console.log('   esvalidate [options] [file.js...]');
     console.log();
     console.log('Available options:');
     console.log();
@@ -75,10 +88,6 @@ function showUsage() {
     console.log('  -v, --version  Print program version');
     console.log();
     process.exit(1);
-}
-
-if (process.argv.length <= 2) {
-    showUsage();
 }
 
 options = {
@@ -89,7 +98,9 @@ fnames = [];
 
 process.argv.splice(2).forEach(function (entry) {
 
-    if (entry === '-h' || entry === '--help') {
+    if (forceFile || entry === '-' || entry.slice(0, 1) !== '-') {
+        fnames.push(entry);
+    } else if (entry === '-h' || entry === '--help') {
         showUsage();
     } else if (entry === '-v' || entry === '--version') {
         console.log('ECMAScript Validator (using Esprima version', esprima.version, ')');
@@ -101,17 +112,16 @@ process.argv.splice(2).forEach(function (entry) {
             console.log('Error: unknown report format ' + options.format + '.');
             process.exit(1);
         }
-    } else if (entry.slice(0, 2) === '--') {
+    } else if (entry === '--') {
+        forceFile = true;
+    } else {
         console.log('Error: unknown option ' + entry + '.');
         process.exit(1);
-    } else {
-        fnames.push(entry);
     }
 });
 
 if (fnames.length === 0) {
-    console.log('Error: no input file.');
-    process.exit(1);
+    fnames.push('');
 }
 
 if (options.format === 'junit') {
@@ -120,10 +130,13 @@ if (options.format === 'junit') {
 }
 
 count = 0;
-fnames.forEach(function (fname) {
-    var content, timestamp, syntax, name;
+
+function run(fname, content) {
+    var timestamp, syntax, name;
     try {
-        content = fs.readFileSync(fname, 'utf-8');
+        if (typeof content !== 'string') {
+            throw content;
+        }
 
         if (content[0] === '#' && content[1] === '!') {
             content = '//' + content.substr(2, content.length);
@@ -181,19 +194,43 @@ fnames.forEach(function (fname) {
             console.log(' </testcase>');
             console.log('</testsuite>');
         } else {
-            console.log('Error: ' + e.message);
+            console.log(fname + ':' + e.lineNumber + ': ' + e.message.replace(/^Line\ [0-9]*\:\ /, ''));
         }
     }
+}
+
+fnames.forEach(function (fname) {
+    var content = '';
+    try {
+        if (fname && (fname !== '-' || forceFile)) {
+            content = fs.readFileSync(fname, 'utf-8');
+        } else {
+            fname = '';
+            process.stdin.resume();
+            process.stdin.on('data', function(chunk) {
+                content += chunk;
+            });
+            process.stdin.on('end', function() {
+                run(fname, content);
+            });
+            return;
+        }
+    } catch (e) {
+        content = e;
+    }
+    run(fname, content);
 });
 
-if (options.format === 'junit') {
-    console.log('</testsuites>');
-}
+process.on('exit', function () {
+    if (options.format === 'junit') {
+        console.log('</testsuites>');
+    }
 
-if (count > 0) {
-    process.exit(1);
-}
+    if (count > 0) {
+        process.exit(1);
+    }
 
-if (count === 0 && typeof phantom === 'object') {
-    process.exit(0);
-}
+    if (count === 0 && typeof phantom === 'object') {
+        process.exit(0);
+    }
+});

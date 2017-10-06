@@ -1,5 +1,5 @@
 rules:
   # Custom rules in tools/eslint-rules
-  require-buffer: 2
-  buffer-constructor: 2
-  no-let-in-for-declaration: 2
+  require-buffer: error
+  buffer-constructor: error
+  no-let-in-for-declaration: error

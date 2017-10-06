@@ -4,13 +4,10 @@
 
 // Flags: --expose-wasm
 
-assertFalse(undefined === Wasm);
-assertFalse(undefined == Wasm);
-assertEquals("function", typeof Wasm.verifyModule);
-assertEquals("function", typeof Wasm.verifyFunction);
-assertEquals("function", typeof Wasm.instantiateModule);
-assertFalse(undefined == Wasm.experimentalVersion);
+// Old API should be gone.
+assertEquals("undefined", typeof Wasm);
 
+// New API should rule.
 assertEquals('object', typeof WebAssembly);
 assertEquals('function', typeof WebAssembly.Module);
 assertEquals('function', typeof WebAssembly.Instance);

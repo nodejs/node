@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -19,8 +40,8 @@ const echo_server = net.createServer(function(socket) {
   });
 
   socket.on('error', function(e) {
-    throw new Error('Server side socket should not get error. ' +
-                      'We disconnect willingly.');
+    throw new Error(
+      'Server side socket should not get error. We disconnect willingly.');
   });
 
   socket.on('data', function(d) {
@@ -34,7 +55,7 @@ const echo_server = net.createServer(function(socket) {
 });
 
 echo_server.listen(common.PORT, function() {
-  console.log('server listening at ' + common.PORT);
+  console.log(`server listening at ${common.PORT}`);
 
   const client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
@@ -53,7 +74,7 @@ echo_server.listen(common.PORT, function() {
       }, 500);
 
       if (exchanges === 5) {
-        console.log('wait for timeout - should come in ' + timeout + ' ms');
+        console.log(`wait for timeout - should come in ${timeout} ms`);
         starttime = new Date();
         console.dir(starttime);
       }
@@ -80,7 +101,7 @@ process.on('exit', function() {
   assert.ok(timeouttime != null);
 
   const diff = timeouttime - starttime;
-  console.log('diff = ' + diff);
+  console.log(`diff = ${diff}`);
 
   assert.ok(timeout < diff);
 

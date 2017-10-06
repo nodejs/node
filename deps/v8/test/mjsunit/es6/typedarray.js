@@ -259,6 +259,8 @@ function TestTypedArray(constr, elementSize, typicalElement) {
 
   assertThrows(function() { new constr(Symbol()); }, TypeError);
 
+  assertThrows(function() { new constr(-1); }, RangeError);
+
   var jsArray = [];
   for (i = 0; i < 30; i++) {
     jsArray.push(typicalElement);
@@ -334,6 +336,31 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals(0, genArr[0]);
   assertEquals(9, genArr[9]);
   assertEquals(1, iteratorReadCount);
+
+  // Modified %ArrayIteratorPrototype%.next() method is honoured (v8:5699)
+  const ArrayIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+  const ArrayIteratorPrototypeNext = ArrayIteratorPrototype.next;
+  ArrayIteratorPrototype.next = function() {
+    return { done: true };
+  };
+  genArr = new constr([1, 2, 3]);
+  assertEquals(0, genArr.length);
+  ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
+
+  // Modified %ArrayIteratorPrototype%.next() during iteration is honoured as
+  // well.
+  genArr = new constr(Object.defineProperty([1, , 3], 1, {
+    get() {
+      ArrayIteratorPrototype.next = function() {
+        return { done: true };
+      }
+      return 2;
+    }
+  }));
+  assertEquals(2, genArr.length);
+  assertEquals(1, genArr[0]);
+  assertEquals(2, genArr[1]);
+  ArrayIteratorPrototype.next = ArrayIteratorPrototypeNext;
 }
 
 TestTypedArray(Uint8Array, 1, 0xFF);
@@ -469,6 +496,16 @@ function TestTypedArraySet() {
     }
   }
 
+  a = new Uint32Array();
+  a.set('');
+  assertEquals(0, a.length);
+
+  assertThrows(() => a.set('abc'), RangeError);
+
+  a = new Uint8Array(3);
+  a.set('123');
+  assertArrayEquals([1, 2, 3], a);
+
   var a11 = new Int16Array([1, 2, 3, 4, 0, -1])
   var a12 = new Uint16Array(15)
   a12.set(a11, 3)
@@ -552,6 +589,21 @@ function TestTypedArraySet() {
   assertThrows(function() { a.set(0, 1); }, TypeError);
 
   assertEquals(1, a.set.length);
+
+  // Shared buffer that does not overlap.
+  var buf = new ArrayBuffer(32);
+  var a101 = new Int8Array(buf, 0, 16);
+  var b101 = new Uint8Array(buf, 16);
+  b101[0] = 42;
+  a101.set(b101);
+  assertArrayPrefix([42], a101);
+
+  buf = new ArrayBuffer(32);
+  var a101 = new Int8Array(buf, 0, 16);
+  var b101 = new Uint8Array(buf, 16);
+  a101[0] = 42;
+  b101.set(a101);
+  assertArrayPrefix([42], b101);
 }
 
 TestTypedArraySet();
@@ -797,3 +849,34 @@ function TestNonConfigurableProperties(constructor) {
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestNonConfigurableProperties(typedArrayConstructors[i]);
 }
+
+(function TestInitialization() {
+  for (var i = 0; i <= 128; i++) {
+    var arr = new Uint8Array(i);
+    for (var j = 0; j < i; j++) {
+      assertEquals(0, arr[j]);
+    }
+  }
+})();
+
+(function TestBufferLengthTooLong() {
+  try {
+    var buf = new ArrayBuffer(2147483648);
+  } catch (e) {
+    // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
+    // construct the typed array.
+    return;
+  }
+  assertThrows(function() {
+    new Int8Array(buf);
+  }, RangeError);
+})();
+
+(function TestByteLengthErrorMessage() {
+  try {
+    new Uint32Array(new ArrayBuffer(17));
+  } catch (e) {
+    assertEquals("byte length of Uint32Array should be a multiple of 4",
+                 e.message);
+  }
+})();

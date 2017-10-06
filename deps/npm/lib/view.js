@@ -68,7 +68,12 @@ function view (args, silent, cb) {
   if (!args.length) args = ['.']
 
   var pkg = args.shift()
-  var nv = npa(pkg)
+  var nv
+  if (/^[.]@/.test(pkg)) {
+    nv = npa.resolve(null, pkg.slice(2))
+  } else {
+    nv = npa(pkg)
+  }
   var name = nv.name
   var local = (name === '.' || !name)
 
@@ -295,9 +300,7 @@ function printData (data, name, cb) {
   log.disableProgress()
 
   // print directly to stdout to not unnecessarily add blank lines
-  process.stdout.write(msg)
-
-  cb(null, data)
+  process.stdout.write(msg, () => cb(null, data))
 }
 function cleanup (data) {
   if (Array.isArray(data)) {

@@ -55,5 +55,3 @@ exports.default = rows => {
     });
   });
 };
-
-module.exports = exports['default'];

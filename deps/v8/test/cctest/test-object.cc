@@ -6,6 +6,7 @@
 #include "src/handles-inl.h"
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -56,9 +57,6 @@ TEST(NoSideEffectsToString) {
   CheckBoolean(isolate, false, "false");
   CheckObject(isolate, factory->undefined_value(), "undefined");
   CheckObject(isolate, factory->null_value(), "null");
-
-  int lanes[] = {0, 1, 2, 3};
-  CheckObject(isolate, factory->NewInt32x4(lanes), "SIMD.Int32x4(0, 1, 2, 3)");
 
   CheckObject(isolate, factory->error_to_string(), "[object Error]");
   CheckObject(isolate, factory->stack_trace_symbol(),

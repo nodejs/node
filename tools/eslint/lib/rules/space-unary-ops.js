@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -244,7 +250,10 @@ module.exports = {
                             operator: firstToken.value
                         },
                         fix(fixer) {
-                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            if (astUtils.canTokensBeAdjacent(firstToken, secondToken)) {
+                                return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            }
+                            return null;
                         }
                     });
                 }
@@ -270,9 +279,11 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpaces(node) {
-            const tokens = sourceCode.getFirstTokens(node, 2),
-                firstToken = tokens[0],
-                secondToken = tokens[1];
+            const tokens = node.type === "UpdateExpression" && !node.prefix
+                ? sourceCode.getLastTokens(node, 2)
+                : sourceCode.getFirstTokens(node, 2);
+            const firstToken = tokens[0];
+            const secondToken = tokens[1];
 
             if ((node.type === "NewExpression" || node.prefix) && firstToken.type === "Keyword") {
                 checkUnaryWordOperatorForSpaces(node, firstToken, secondToken);

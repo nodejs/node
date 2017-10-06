@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
 const bytes = new Uint8Array(1024);

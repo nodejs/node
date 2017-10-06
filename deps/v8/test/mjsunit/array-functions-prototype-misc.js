@@ -31,7 +31,7 @@
  * should work on other objects too, so we test that too.
  */
 
-var LARGE = 4000000;
+var LARGE = 400000;
 var VERYLARGE = 4000000000;
 
 // Nicer for firefox 1.5.  Unless you uncomment the following two lines,

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/api.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -104,4 +105,31 @@ TEST(KeysGlobalObject_Regress2764) {
   result =
       Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));
   CHECK_EQ(0u, result->Length());
+}
+
+TEST(KeysGlobalObject_SetPrototype) {
+  LocalContext env1;
+  v8::HandleScope scope(env1->GetIsolate());
+
+  // Create second environment.
+  v8::Local<Context> env2 = Context::New(env1->GetIsolate());
+
+  Local<Value> token = v8_str("foo");
+
+  // Set same security token for env1 and env2.
+  env1->SetSecurityToken(token);
+  env2->SetSecurityToken(token);
+
+  // Create a reference to env2 global from env1 global.
+  env1->Global()
+      ->GetPrototype()
+      .As<v8::Object>()
+      ->SetPrototype(env1.local(), env2->Global()->GetPrototype())
+      .FromJust();
+  // Set some global variables in global2
+  env2->Global()->Set(env2, v8_str("a"), v8_str("a")).FromJust();
+  env2->Global()->Set(env2, v8_str("42"), v8_str("42")).FromJust();
+
+  // List all entries from global2.
+  ExpectTrue("a == 'a'");
 }

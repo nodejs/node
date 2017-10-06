@@ -12,7 +12,7 @@ const vm = require('vm');
 
 function main(conf) {
   const n = +conf.n;
-  const options = conf.breakOnSigint ? {breakOnSigint: true} : {};
+  const options = conf.breakOnSigint ? { breakOnSigint: true } : {};
   const withSigintListener = !!conf.withSigintListener;
 
   process.removeAllListeners('SIGINT');
@@ -21,7 +21,6 @@ function main(conf) {
 
   var i = 0;
 
-  common.v8ForceOptimization(vm.runInThisContext, '0', options);
   bench.start();
   for (; i < n; i++)
     vm.runInThisContext('0', options);

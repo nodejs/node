@@ -5,6 +5,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const DEFAULT_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'.",
+    CUSTOM_MESSAGE_TEMPLATE = "Unexpected use of '{{name}}'. {{customMessage}}";
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -19,19 +26,42 @@ module.exports = {
         schema: {
             type: "array",
             items: {
-                type: "string"
+                oneOf: [
+                    {
+                        type: "string"
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            name: { type: "string" },
+                            message: { type: "string" }
+                        },
+                        required: ["name"],
+                        additionalProperties: false
+                    }
+                ]
             },
-            uniqueItems: true
+            uniqueItems: true,
+            minItems: 0
         }
     },
 
     create(context) {
-        const restrictedGlobals = context.options;
 
-        // if no globals are restricted we don't need to check
-        if (restrictedGlobals.length === 0) {
+        // If no globals are restricted, we don't need to do anything
+        if (context.options.length === 0) {
             return {};
         }
+
+        const restrictedGlobalMessages = context.options.reduce((memo, option) => {
+            if (typeof option === "string") {
+                memo[option] = null;
+            } else {
+                memo[option.name] = option.message;
+            }
+
+            return memo;
+        }, {});
 
         /**
          * Report a variable to be used as a restricted global.
@@ -40,9 +70,20 @@ module.exports = {
          * @private
          */
         function reportReference(reference) {
-            context.report({ node: reference.identifier, message: "Unexpected use of '{{name}}'.", data: {
-                name: reference.identifier.name
-            } });
+            const name = reference.identifier.name,
+                customMessage = restrictedGlobalMessages[name],
+                message = customMessage
+                    ? CUSTOM_MESSAGE_TEMPLATE
+                    : DEFAULT_MESSAGE_TEMPLATE;
+
+            context.report({
+                node: reference.identifier,
+                message,
+                data: {
+                    name,
+                    customMessage
+                }
+            });
         }
 
         /**
@@ -52,7 +93,7 @@ module.exports = {
          * @private
          */
         function isRestricted(name) {
-            return restrictedGlobals.indexOf(name) >= 0;
+            return restrictedGlobalMessages.hasOwnProperty(name);
         }
 
         return {

@@ -29,6 +29,7 @@
 
 #include "src/v8.h"
 
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
@@ -128,7 +129,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Ret();
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));

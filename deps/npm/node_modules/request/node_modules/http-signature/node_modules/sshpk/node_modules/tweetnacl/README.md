@@ -9,9 +9,9 @@ to JavaScript for modern browsers and Node.js. Public domain.
 
 Demo: <https://tweetnacl.js.org>
 
-**:warning: Beta version. The library is stable and API is frozen, however
-it has not been independently reviewed. If you can help reviewing it, please
-[contact me](mailto:dmitry@codingrobots.com).**
+**:warning: The library is stable and API is frozen, however it has not been
+independently reviewed. If you can help reviewing it, please [contact
+me](mailto:dmitry@codingrobots.com).**
 
 Documentation
 =============
@@ -28,6 +28,7 @@ Documentation
   * [Constant-time comparison](#constant-time-comparison)
 * [System requirements](#system-requirements)
 * [Development and testing](#development-and-testing)
+* [Benchmarks](#benchmarks)
 * [Contributors](#contributors)
 * [Who uses it](#who-uses-it)
 
@@ -404,28 +405,40 @@ To run benchmarks in a browser, open `test/benchmark/bench.html` (or
 `test/benchmark/bench-fast.html`).
 
 
+Benchmarks
+----------
+
+For reference, here are benchmarks from MacBook Pro (Retina, 13-inch, Mid 2014)
+laptop with 2.6 GHz Intel Core i5 CPU (Intel) in Chrome 53/OS X and Xiaomi Redmi
+Note 3 smartphone with 1.8 GHz Qualcomm Snapdragon 650 64-bit CPU (ARM) in
+Chrome 52/Android:
+
+|               | nacl.js Intel | nacl-fast.js Intel  |   nacl.js ARM | nacl-fast.js ARM  |
+| ------------- |:-------------:|:-------------------:|:-------------:|:-----------------:|
+| salsa20       | 1.3 MB/s      | 128 MB/s            |  0.4 MB/s     |  43 MB/s          |
+| poly1305      | 13 MB/s       | 171 MB/s            |  4 MB/s       |  52 MB/s          |
+| hash          | 4 MB/s        | 34 MB/s             |  0.9 MB/s     |  12 MB/s          |
+| secretbox 1K  | 1113 op/s     | 57583 op/s          |  334 op/s     |  14227 op/s       |
+| box 1K        | 145 op/s      | 718 op/s            |  37 op/s      |  368 op/s         |
+| scalarMult    | 171 op/s      | 733 op/s            |  56 op/s      |  380 op/s         |
+| sign          | 77  op/s      | 200 op/s            |  20 op/s      |  61 op/s          |
+| sign.open     | 39  op/s      | 102  op/s           |  11 op/s      |  31 op/s          |
+
+(You can run benchmarks on your devices by clicking on the links at the bottom
+of the [home page](https://tweetnacl.js.org)).
+
+In short, with *nacl-fast.js* and 1024-byte messages you can expect to encrypt and
+authenticate more than 57000 messages per second on a typical laptop or more than
+14000 messages per second on a $170 smartphone, sign about 200 and verify 100
+messages per second on a laptop or 60 and 30 messages per second on a smartphone,
+per CPU core (with Web Workers you can do these operations in parallel),
+which is good enough for most applications.
+
+
 Contributors
 ------------
 
-JavaScript port:
-
- * [Dmitry Chestnykh](http://github.com/dchest) (ported xsalsa20, poly1305, curve25519)
- * [Devi Mandiri](https://github.com/devi) (ported curve25519, ed25519, sha512)
-
-Original authors of [NaCl](http://nacl.cr.yp.to), [TweetNaCl](http://tweetnacl.cr.yp.to)
-and [Poly1305-donna](https://github.com/floodyberry/poly1305-donna)
-(who are *not* responsible for any errors in this implementation):
-
-  * [Daniel J. Bernstein](http://cr.yp.to/djb.html)
-  * Wesley Janssen
-  * [Tanja Lange](http://hyperelliptic.org/tanja)
-  * [Peter Schwabe](http://www.cryptojedi.org/users/peter/)
-  * [Matthew Dempsky](https://github.com/mdempsky)
-  * [Andrew Moon](https://github.com/floodyberry)
-
-Contributors have dedicated their work to the public domain.
-
-This software is distributed without any warranty.
+See AUTHORS.md file.
 
 
 Third-party libraries based on TweetNaCl.js
@@ -434,6 +447,7 @@ Third-party libraries based on TweetNaCl.js
 * [forward-secrecy](https://github.com/alax/forward-secrecy) — Axolotl ratchet implementation
 * [nacl-stream](https://github.com/dchest/nacl-stream-js) - streaming encryption
 * [tweetnacl-auth-js](https://github.com/dchest/tweetnacl-auth-js) — implementation of [`crypto_auth`](http://nacl.cr.yp.to/auth.html)
+* [chloride](https://github.com/dominictarr/chloride) - unified API for various NaCl modules
 
 
 Who uses it

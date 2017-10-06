@@ -18,7 +18,9 @@ BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
       jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
-      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {}
+      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 BranchElimination::~BranchElimination() {}
 
@@ -83,7 +85,7 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
          node->opcode() == IrOpcode::kDeoptimizeUnless);
   bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
-  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   Node* condition = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -103,17 +105,15 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
       // with the {control} node that already contains the right information.
       ReplaceWithValue(node, dead(), effect, control);
     } else {
-      control =
-          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
-                           frame_state, effect, control);
+      control = graph()->NewNode(common()->Deoptimize(p.kind(), p.reason()),
+                                 frame_state, effect, control);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), control);
       Revisit(graph()->end());
     }
     return Replace(dead());
   }
-  return UpdateConditions(
-      node, conditions->AddCondition(zone_, condition, condition_is_true));
+  return UpdateConditions(node, conditions, condition, condition_is_true);
 }
 
 Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
@@ -127,8 +127,7 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
     return UpdateConditions(node, nullptr);
   }
   Node* condition = branch->InputAt(0);
-  return UpdateConditions(
-      node, from_branch->AddCondition(zone_, condition, is_true_branch));
+  return UpdateConditions(node, from_branch, condition, is_true_branch);
 }
 
 
@@ -143,20 +142,27 @@ Reduction BranchElimination::ReduceLoop(Node* node) {
 Reduction BranchElimination::ReduceMerge(Node* node) {
   // Shortcut for the case when we do not know anything about some
   // input.
-  for (int i = 0; i < node->InputCount(); i++) {
-    if (node_conditions_.Get(node->InputAt(i)) == nullptr) {
+  Node::Inputs inputs = node->inputs();
+  for (Node* input : inputs) {
+    if (node_conditions_.Get(input) == nullptr) {
       return UpdateConditions(node, nullptr);
     }
   }
 
-  const ControlPathConditions* first = node_conditions_.Get(node->InputAt(0));
+  auto input_it = inputs.begin();
+
+  DCHECK_GT(inputs.count(), 0);
+
+  const ControlPathConditions* first = node_conditions_.Get(*input_it);
+  ++input_it;
   // Make a copy of the first input's conditions and merge with the conditions
   // from other inputs.
   ControlPathConditions* conditions =
       new (zone_->New(sizeof(ControlPathConditions)))
           ControlPathConditions(*first);
-  for (int i = 1; i < node->InputCount(); i++) {
-    conditions->Merge(*(node_conditions_.Get(node->InputAt(i))));
+  auto input_end = inputs.end();
+  for (; input_it != input_end; ++input_it) {
+    conditions->Merge(*(node_conditions_.Get(*input_it)));
   }
 
   return UpdateConditions(node, conditions);
@@ -167,9 +173,8 @@ Reduction BranchElimination::ReduceStart(Node* node) {
   return UpdateConditions(node, ControlPathConditions::Empty(zone_));
 }
 
-
 const BranchElimination::ControlPathConditions*
-BranchElimination::PathConditionsForControlNodes::Get(Node* node) {
+BranchElimination::PathConditionsForControlNodes::Get(Node* node) const {
   if (static_cast<size_t>(node->id()) < info_for_node_.size()) {
     return info_for_node_[node->id()];
   }
@@ -217,6 +222,25 @@ Reduction BranchElimination::UpdateConditions(
   return NoChange();
 }
 
+Reduction BranchElimination::UpdateConditions(
+    Node* node, const ControlPathConditions* prev_conditions,
+    Node* current_condition, bool is_true_branch) {
+  const ControlPathConditions* original = node_conditions_.Get(node);
+  DCHECK(prev_conditions != nullptr && current_condition != nullptr);
+  // The control path for the node is the path obtained by appending the
+  // current_condition to the prev_conditions. Check if this new control path
+  // would be the same as the already recorded path (original).
+  if (original == nullptr || !prev_conditions->EqualsAfterAddingCondition(
+                                 original, current_condition, is_true_branch)) {
+    // If this is the first visit or if the control path is different from the
+    // recorded path create the new control path and record it.
+    const ControlPathConditions* new_condition =
+        prev_conditions->AddCondition(zone_, current_condition, is_true_branch);
+    node_conditions_.Set(node, new_condition);
+    return Changed(node);
+  }
+  return NoChange();
+}
 
 // static
 const BranchElimination::ControlPathConditions*
@@ -283,12 +307,8 @@ Maybe<bool> BranchElimination::ControlPathConditions::LookupCondition(
   return Nothing<bool>();
 }
 
-
-bool BranchElimination::ControlPathConditions::operator==(
-    const ControlPathConditions& other) const {
-  if (condition_count_ != other.condition_count_) return false;
-  BranchCondition* this_condition = head_;
-  BranchCondition* other_condition = other.head_;
+bool BranchElimination::ControlPathConditions::IsSamePath(
+    BranchCondition* this_condition, BranchCondition* other_condition) const {
   while (true) {
     if (this_condition == other_condition) return true;
     if (this_condition->condition != other_condition->condition ||
@@ -299,7 +319,31 @@ bool BranchElimination::ControlPathConditions::operator==(
     other_condition = other_condition->next;
   }
   UNREACHABLE();
-  return false;
+}
+
+bool BranchElimination::ControlPathConditions::operator==(
+    const ControlPathConditions& other) const {
+  if (condition_count_ != other.condition_count_) return false;
+  return IsSamePath(head_, other.head_);
+}
+
+bool BranchElimination::ControlPathConditions::EqualsAfterAddingCondition(
+    const ControlPathConditions* other, const Node* new_condition,
+    bool new_branch_direction) const {
+  // When an extra condition is added to the current chain, the count of
+  // the resulting chain would increase by 1. Quick check to see if counts
+  // match.
+  if (other->condition_count_ != condition_count_ + 1) return false;
+
+  // Check if the head of the other chain is same as the new condition that
+  // would be added.
+  if (other->head_->condition != new_condition ||
+      other->head_->is_true != new_branch_direction) {
+    return false;
+  }
+
+  // Check if the rest of the path is the same as the prev_condition.
+  return IsSamePath(other->head_->next, head_);
 }
 
 Graph* BranchElimination::graph() const { return jsgraph()->graph(); }

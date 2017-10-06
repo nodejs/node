@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -23,14 +44,14 @@ testCases.findByPath = function(path) {
     return testCase.path === path;
   });
   if (matching.length === 0) {
-    throw 'failed to find test case with path ' + path;
+    assert.fail(`failed to find test case with path ${path}`);
   }
   return matching[0];
 };
 
 const server = net.createServer(function(connection) {
   connection.on('data', function(data) {
-    const path = data.toString().match(/GET (.*) HTTP.1.1/)[1];
+    const path = data.toString().match(/GET (.*) HTTP\/1\.1/)[1];
     const testCase = testCases.findByPath(path);
 
     connection.write(testCase.response);
@@ -38,15 +59,15 @@ const server = net.createServer(function(connection) {
   });
 });
 
-const runTest = function(testCaseIndex) {
+function runTest(testCaseIndex) {
   const testCase = testCases[testCaseIndex];
 
   http.get({
     port: server.address().port,
     path: testCase.path
   }, function(response) {
-    console.log('client: expected status message: ' + testCase.statusMessage);
-    console.log('client: actual status message: ' + response.statusMessage);
+    console.log(`client: expected status message: ${testCase.statusMessage}`);
+    console.log(`client: actual status message: ${response.statusMessage}`);
     assert.strictEqual(testCase.statusMessage, response.statusMessage);
 
     response.on('end', function() {
@@ -61,7 +82,7 @@ const runTest = function(testCaseIndex) {
 
     response.resume();
   });
-};
+}
 
 server.listen(0, function() { runTest(0); });
 

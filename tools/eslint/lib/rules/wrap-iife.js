@@ -5,6 +5,10 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -51,11 +55,7 @@ module.exports = {
          * @private
          */
         function wrapped(node) {
-            const previousToken = sourceCode.getTokenBefore(node),
-                nextToken = sourceCode.getTokenAfter(node);
-
-            return previousToken && previousToken.value === "(" &&
-                nextToken && nextToken.value === ")";
+            return astUtils.isParenthesised(sourceCode, node);
         }
 
         /**

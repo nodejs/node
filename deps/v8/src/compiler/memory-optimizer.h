@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_MEMORY_OPTIMIZER_H_
 #define V8_COMPILER_MEMORY_OPTIMIZER_H_
 
+#include "src/compiler/graph-assembler.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -131,6 +132,7 @@ class MemoryOptimizer final {
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
   Zone* zone() const { return zone_; }
+  GraphAssembler* gasm() { return &graph_assembler_; }
 
   SetOncePointer<const Operator> allocate_operator_;
   JSGraph* const jsgraph_;
@@ -138,6 +140,7 @@ class MemoryOptimizer final {
   ZoneMap<NodeId, AllocationStates> pending_;
   ZoneQueue<Token> tokens_;
   Zone* const zone_;
+  GraphAssembler graph_assembler_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);
 };

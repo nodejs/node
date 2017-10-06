@@ -47,13 +47,14 @@ OsrHelper::OsrHelper(CompilationInfo* info)
     if (TRACE_COND) PrintF(__VA_ARGS__); \
   } while (false)
 
+namespace {
 
 // Peel outer loops and rewire the graph so that control reduction can
 // produce a properly formed graph.
-static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
-                                 Zone* tmp_zone, Node* dead,
-                                 LoopTree* loop_tree, LoopTree::Loop* osr_loop,
-                                 Node* osr_normal_entry, Node* osr_loop_entry) {
+void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
+                          Zone* tmp_zone, Node* dead, LoopTree* loop_tree,
+                          LoopTree::Loop* osr_loop, Node* osr_normal_entry,
+                          Node* osr_loop_entry) {
   const size_t original_count = graph->NodeCount();
   AllNodes all(tmp_zone, graph);
   NodeVector tmp_inputs(tmp_zone);
@@ -105,9 +106,6 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
         tmp_inputs.push_back(mapping->at(input->id()));
       }
       copy = graph->NewNode(orig->op(), orig->InputCount(), &tmp_inputs[0]);
-      if (NodeProperties::IsTyped(orig)) {
-        NodeProperties::SetType(copy, NodeProperties::GetType(orig));
-      }
       mapping->at(orig->id()) = copy;
       TRACE(" copy #%d:%s -> #%d\n", orig->id(), orig->op()->mnemonic(),
             copy->id());
@@ -255,6 +253,7 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
   }
 }
 
+}  // namespace
 
 void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
                             Zone* tmp_zone) {

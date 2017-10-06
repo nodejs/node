@@ -12,6 +12,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -47,10 +48,11 @@ TEST(RunStringLengthStub) {
   Node* vectorParam = graph.NewNode(common.Parameter(4), start);
   Node* theCode = graph.NewNode(common.HeapConstant(code));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
+  Node* zero = graph.NewNode(common.Int32Constant(0));
   Node* call =
       graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
                     slotParam, vectorParam, dummyContext, start, start);
-  Node* ret = graph.NewNode(common.Return(), call, call, start);
+  Node* ret = graph.NewNode(common.Return(), zero, call, call, start);
   Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
@@ -65,7 +67,7 @@ TEST(RunStringLengthStub) {
   Handle<Object> vector = ft.Val(0.0);
   Handle<Object> result =
       ft.Call(receiverArg, nameArg, slot, vector).ToHandleChecked();
-  CHECK_EQ(static_cast<int>(strlen(testString)), Smi::cast(*result)->value());
+  CHECK_EQ(static_cast<int>(strlen(testString)), Smi::ToInt(*result));
 }
 
 

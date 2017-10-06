@@ -1,20 +1,36 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+if (!common.opensslCli)
+  common.skip('node compiled without OpenSSL CLI.');
+
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 const tls = require('tls');
-
-const fs = require('fs');
-
-if (!common.opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
+const fixtures = require('../common/fixtures');
 
 // renegotiation limits to test
 const LIMITS = [0, 1, 2, 3, 5, 10, 16];
@@ -31,15 +47,15 @@ const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
 function test(next) {
   const options = {
-    cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-    key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+    cert: fixtures.readSync('test_cert.pem'),
+    key: fixtures.readSync('test_key.pem')
   };
 
   let seenError = false;
 
   const server = tls.createServer(options, function(conn) {
     conn.on('error', function(err) {
-      console.error('Caught exception: ' + err);
+      console.error(`Caught exception: ${err}`);
       assert(/TLS session renegotiation attack/.test(err));
       conn.destroy();
       seenError = true;
@@ -48,7 +64,7 @@ function test(next) {
   });
 
   server.listen(common.PORT, function() {
-    const args = ('s_client -connect 127.0.0.1:' + common.PORT).split(' ');
+    const args = (`s_client -connect 127.0.0.1:${common.PORT}`).split(' ');
     const child = spawn(common.opensslCli, args);
 
     //child.stdout.pipe(process.stdout);
@@ -63,9 +79,9 @@ function test(next) {
 
     child.stderr.on('data', function(data) {
       if (seenError) return;
-      handshakes += (('' + data).match(/verify return:1/g) || []).length;
+      handshakes += ((String(data)).match(/verify return:1/g) || []).length;
       if (handshakes === 2) spam();
-      renegs += (('' + data).match(/RENEGOTIATING/g) || []).length;
+      renegs += ((String(data)).match(/RENEGOTIATING/g) || []).length;
     });
 
     child.on('exit', function() {

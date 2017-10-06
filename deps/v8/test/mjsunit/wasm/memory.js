@@ -91,3 +91,13 @@ function assertMemoryIsValid(memory) {
   assertThrows(() => {'use strict'; memory.buffer = memory.buffer}, TypeError)
   assertThrows(() => ({__proto__: memory}).buffer, TypeError)
 })();
+
+(function TestMemoryGrow() {
+  var kPageSize = 65536;
+  let memory = new WebAssembly.Memory({initial: 1, maximum:30});
+  assertEquals(1, memory.grow(9));
+  assertTrue(memory.buffer instanceof ArrayBuffer);
+  assertTrue(10*kPageSize == memory.buffer.byteLength);
+  assertMemoryIsValid(memory);
+  assertThrows(() => memory.grow(21));
+})();

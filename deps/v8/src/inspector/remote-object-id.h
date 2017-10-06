@@ -9,7 +9,7 @@
 
 namespace v8_inspector {
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class RemoteObjectIdBase {
  public:
@@ -27,7 +27,7 @@ class RemoteObjectIdBase {
 
 class RemoteObjectId final : public RemoteObjectIdBase {
  public:
-  static std::unique_ptr<RemoteObjectId> parse(ErrorString*, const String16&);
+  static Response parse(const String16&, std::unique_ptr<RemoteObjectId>*);
   ~RemoteObjectId() {}
   int id() const { return m_id; }
 
@@ -39,8 +39,7 @@ class RemoteObjectId final : public RemoteObjectIdBase {
 
 class RemoteCallFrameId final : public RemoteObjectIdBase {
  public:
-  static std::unique_ptr<RemoteCallFrameId> parse(ErrorString*,
-                                                  const String16&);
+  static Response parse(const String16&, std::unique_ptr<RemoteCallFrameId>*);
   ~RemoteCallFrameId() {}
 
   int frameOrdinal() const { return m_frameOrdinal; }

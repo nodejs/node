@@ -21,7 +21,7 @@ var conf = {
     npm_config_tmp: tmpdir,
     npm_config_prefix: globaldir,
     npm_config_registry: common.registry,
-    npm_config_loglevel: 'warn'
+    npm_config_loglevel: 'error'
   })
 }
 
@@ -61,11 +61,6 @@ var shrinkwrapWithDev = {
     }
   }
 }
-var shrinkwrapWithoutDev = {
-  name: 'shrinkwrap-default-dev',
-  version: '1.0.0',
-  dependencies: {}
-}
 
 function setup () {
   cleanup()
@@ -88,33 +83,7 @@ test('shrinkwrap-default-dev', function (t) {
     t.comment(stdout.trim())
     t.comment(stderr.trim())
     var swrap = JSON.parse(fs.readFileSync(shrinkwrapPath))
-    t.isDeeply(swrap, shrinkwrapWithDev, 'Shrinkwrap included dev deps by default')
-    t.done()
-  })
-})
-
-test('shrinkwrap-only-prod', function (t) {
-  fs.unlinkSync(shrinkwrapPath)
-  common.npm(['shrinkwrap', '--only=prod'], conf, function (err, code, stdout, stderr) {
-    if (err) throw err
-    t.is(code, 0, 'command ran ok')
-    t.comment(stdout.trim())
-    t.comment(stderr.trim())
-    var swrap = JSON.parse(fs.readFileSync(shrinkwrapPath))
-    t.isDeeply(swrap, shrinkwrapWithoutDev, 'Shrinkwrap did not include dev deps with --only=prod')
-    t.done()
-  })
-})
-
-test('shrinkwrap-production', function (t) {
-  fs.unlinkSync(shrinkwrapPath)
-  common.npm(['shrinkwrap', '--production'], conf, function (err, code, stdout, stderr) {
-    if (err) throw err
-    t.is(code, 0, 'command ran ok')
-    t.comment(stdout.trim())
-    t.comment(stderr.trim())
-    var swrap = JSON.parse(fs.readFileSync(shrinkwrapPath))
-    t.isDeeply(swrap, shrinkwrapWithoutDev, 'Shrinkwrap did not include dev deps with --production')
+    t.isDeeply(swrap.dependencies, shrinkwrapWithDev.dependencies, 'Shrinkwrap included dev deps by default')
     t.done()
   })
 })

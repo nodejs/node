@@ -10,7 +10,7 @@ const base = {
 };
 
 const sandbox = Object.create(base, {
-  propSandbox: {value: 3}
+  propSandbox: { value: 3 }
 });
 
 const context = vm.createContext(sandbox);

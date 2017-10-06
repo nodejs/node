@@ -17,7 +17,7 @@ namespace internal {
 typedef TestWithContext GCTracerTest;
 
 TEST(GCTracer, AverageSpeed) {
-  RingBuffer<BytesAndDuration> buffer;
+  base::RingBuffer<BytesAndDuration> buffer;
   EXPECT_EQ(100 / 2,
             GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(100, 2), 0));
   buffer.Push(MakeBytesAndDuration(100, 8));
@@ -263,7 +263,7 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(300, tracer->incremental_marking_duration_);
-  EXPECT_EQ(3000000, tracer->incremental_marking_bytes_);
+  EXPECT_EQ(3000000u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
   tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
@@ -273,12 +273,12 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
   EXPECT_EQ(400, tracer->incremental_marking_duration_);
-  EXPECT_EQ(4000000, tracer->incremental_marking_bytes_);
+  EXPECT_EQ(4000000u, tracer->incremental_marking_bytes_);
   tracer->Stop(MARK_COMPACTOR);
   EXPECT_EQ(400, tracer->current_.incremental_marking_duration);
-  EXPECT_EQ(4000000, tracer->current_.incremental_marking_bytes);
+  EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);
   EXPECT_EQ(0, tracer->incremental_marking_duration_);
-  EXPECT_EQ(0, tracer->incremental_marking_bytes_);
+  EXPECT_EQ(0u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
 

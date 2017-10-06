@@ -98,7 +98,7 @@ function display(data) {
         return ALIGN[index](":", w + 1, "-");
     }).join("|"));
 
-    console.log(table.join("\n"));      // eslint-disable-line no-console
+    console.log(table.join("\n")); // eslint-disable-line no-console
 }
 
 /* istanbul ignore next */

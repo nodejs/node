@@ -142,8 +142,7 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   handle->func_wsarecvfrom = WSARecvFrom;
   handle->send_queue_size = 0;
   handle->send_queue_count = 0;
-  uv_req_init(loop, (uv_req_t*) &(handle->recv_req));
-  handle->recv_req.type = UV_UDP_RECV;
+  UV_REQ_INIT(&handle->recv_req, UV_UDP_RECV);
   handle->recv_req.data = handle;
 
   /* If anything fails beyond this point we need to remove the handle from
@@ -417,8 +416,7 @@ static int uv__send(uv_udp_send_t* req,
   uv_loop_t* loop = handle->loop;
   DWORD result, bytes;
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_UDP_SEND;
+  UV_REQ_INIT(req, UV_UDP_SEND);
   req->handle = handle;
   req->cb = cb;
   memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
@@ -899,13 +897,12 @@ int uv__udp_send(uv_udp_send_t* req,
   int err;
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
-    if (addrlen == sizeof(uv_addr_ip4_any_)) {
+    if (addrlen == sizeof(uv_addr_ip4_any_))
       bind_addr = (const struct sockaddr*) &uv_addr_ip4_any_;
-    } else if (addrlen == sizeof(uv_addr_ip6_any_)) {
+    else if (addrlen == sizeof(uv_addr_ip6_any_))
       bind_addr = (const struct sockaddr*) &uv_addr_ip6_any_;
-    } else {
-      abort();
-    }
+    else
+      return UV_EINVAL;
     err = uv_udp_maybe_bind(handle, bind_addr, addrlen, 0);
     if (err)
       return uv_translate_sys_error(err);
@@ -924,5 +921,40 @@ int uv__udp_try_send(uv_udp_t* handle,
                      unsigned int nbufs,
                      const struct sockaddr* addr,
                      unsigned int addrlen) {
-  return UV_ENOSYS;
+  DWORD bytes;
+  const struct sockaddr* bind_addr;
+  int err;
+
+  assert(nbufs > 0);
+
+  /* Already sending a message.*/
+  if (handle->send_queue_count != 0)
+    return UV_EAGAIN;
+
+  if (!(handle->flags & UV_HANDLE_BOUND)) {
+    if (addrlen == sizeof(uv_addr_ip4_any_))
+      bind_addr = (const struct sockaddr*) &uv_addr_ip4_any_;
+    else if (addrlen == sizeof(uv_addr_ip6_any_))
+      bind_addr = (const struct sockaddr*) &uv_addr_ip6_any_;
+    else
+      return UV_EINVAL;
+    err = uv_udp_maybe_bind(handle, bind_addr, addrlen, 0);
+    if (err)
+      return uv_translate_sys_error(err);
+  }
+
+  err = WSASendTo(handle->socket,
+                  (WSABUF*)bufs,
+                  nbufs,
+                  &bytes,
+                  0,
+                  addr,
+                  addrlen,
+                  NULL,
+                  NULL);
+
+  if (err)
+    return uv_translate_sys_error(WSAGetLastError());
+
+  return bytes;
 }

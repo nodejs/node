@@ -1,41 +1,53 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 
-if (!process.features.tls_ocsp) {
-  common.skip('node compiled without OpenSSL or ' +
-              'with old OpenSSL version.');
-  return;
-}
-if (!common.opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
+if (!process.features.tls_ocsp)
+  common.skip('node compiled without OpenSSL or with old OpenSSL version.');
 
-if (!common.hasCrypto) {
+if (!common.opensslCli)
+  common.skip('node compiled without OpenSSL CLI.');
+
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
-const fs = require('fs');
-const join = require('path').join;
 
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
-const pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
+const pfx = fixtures.readKey('agent1-pfx.pem');
 
 function test(testOptions, cb) {
 
-  const keyFile = join(common.fixturesDir, 'keys', 'agent1-key.pem');
-  const certFile = join(common.fixturesDir, 'keys', 'agent1-cert.pem');
-  const caFile = join(common.fixturesDir, 'keys', 'ca1-cert.pem');
-  const key = fs.readFileSync(keyFile);
-  const cert = fs.readFileSync(certFile);
-  const ca = fs.readFileSync(caFile);
+  const key = fixtures.readKey('agent1-key.pem');
+  const cert = fixtures.readKey('agent1-cert.pem');
+  const ca = fixtures.readKey('ca1-cert.pem');
   const options = {
-    key: key,
-    cert: cert,
+    key,
+    cert,
     ca: [ca]
   };
   let requestCount = 0;
@@ -77,7 +89,7 @@ function test(testOptions, cb) {
       port: this.address().port,
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
-          SSL_OP_NO_TICKET : 0,
+        SSL_OP_NO_TICKET : 0,
       rejectUnauthorized: false
     }, function() {
       clientSecure++;

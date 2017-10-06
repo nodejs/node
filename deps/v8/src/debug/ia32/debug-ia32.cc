@@ -64,12 +64,6 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Load padding words on stack.
-    for (int i = 0; i < LiveEdit::kFramePaddingInitialSize; i++) {
-      __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingValue)));
-    }
-    __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
-
     // Push arguments for DebugBreak call.
     if (mode == SAVE_RESULT_REGISTER) {
       // Break on return.
@@ -96,54 +90,43 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
         }
       }
     }
-
-    __ pop(ebx);
-    // We divide stored value by 2 (untagging) and multiply it by word's size.
-    STATIC_ASSERT(kSmiTagSize == 1 && kSmiShiftSize == 0);
-    __ lea(esp, Operand(esp, ebx, times_half_pointer_size, 0));
-
     // Get rid of the internal frame.
   }
 
-  // This call did not replace a call , so there will be an unwanted
-  // return address left on the stack. Here we get rid of that.
-  __ add(esp, Immediate(kPointerSize));
+  __ MaybeDropFrames();
 
-  // Now that the break point has been handled, resume normal execution by
-  // jumping to the target address intended by the caller and that was
-  // overwritten by the address of DebugBreakXXX.
-  ExternalReference after_break_target =
-      ExternalReference::debug_after_break_target_address(masm->isolate());
-  __ jmp(Operand::StaticVariable(after_break_target));
+  // Return to caller.
+  __ ret(0);
 }
 
+void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kHandleDebuggerStatement, 0);
+  }
+  __ MaybeDropFrames();
 
-void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, FrameDropperFrameConstants::kFunctionOffset));
-  __ pop(edi);  // Function.
-  __ add(esp, Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
-                                                                     // frame
-                                                                     // marker
-                                                                     // and code
-  __ pop(ebp);
+  // Return to caller.
+  __ ret(0);
+}
 
-  ParameterCount dummy(0);
-  __ FloodFunctionIfStepping(edi, no_reg, dummy, dummy);
+void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Drop to the target frame specified by ebx.
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+  __ mov(ebp, ebx);
+  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ leave();
 
-  // Load context from the function.
-  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-  // Clear new.target register as a safety measure.
-  __ mov(edx, masm->isolate()->factory()->undefined_value());
-
-  // Get function code.
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
-  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
+  __ mov(ebx,
+         FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  // Re-run JSFunction, edi is function, esi is context.
-  __ jmp(ebx);
+  ParameterCount dummy(ebx);
+  __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION,
+                    CheckDebugStepCallWrapper());
 }
 
 

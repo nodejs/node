@@ -132,7 +132,8 @@ std::unique_ptr<V8Regex> createSearchRegex(V8InspectorImpl* inspector,
                                            const String16& query,
                                            bool caseSensitive, bool isRegex) {
   String16 regexSource = isRegex ? query : createSearchRegexSource(query);
-  return wrapUnique(new V8Regex(inspector, regexSource, caseSensitive));
+  return std::unique_ptr<V8Regex>(
+      new V8Regex(inspector, regexSource, caseSensitive));
 }
 
 }  // namespace

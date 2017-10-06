@@ -10,11 +10,12 @@ const bench = common.createBenchmark(main, {
     'buffer',
     'uint8array',
     'string',
+    'string-utf8',
     'string-base64',
     'object'
   ],
   len: [10, 2048],
-  n: [1024]
+  n: [2048]
 });
 
 function main(conf) {
@@ -72,6 +73,13 @@ function main(conf) {
       bench.start();
       for (i = 0; i < n * 1024; i++) {
         Buffer.from(str);
+      }
+      bench.end(n);
+      break;
+    case 'string-utf8':
+      bench.start();
+      for (i = 0; i < n * 1024; i++) {
+        Buffer.from(str, 'utf8');
       }
       bench.end(n);
       break;

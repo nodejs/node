@@ -6,6 +6,7 @@
 #define V8_UTIL_H_
 
 #include "v8.h"  // NOLINT(build/include)
+#include <assert.h>
 #include <map>
 #include <vector>
 
@@ -206,19 +207,14 @@ class PersistentValueMapBase {
   }
 
   /**
-   * Deprecated. Call V8::RegisterExternallyReferencedObject with the map value
-   * for given key.
-   * TODO(hlopko) Remove once migration to reporter is finished.
+   * Call V8::RegisterExternallyReferencedObject with the map value for given
+   * key.
    */
-  void RegisterExternallyReferencedObject(K& key) {}
-
-  /**
-   * Use EmbedderReachableReferenceReporter with the map value for given key.
-   */
-  void RegisterExternallyReferencedObject(
-      EmbedderReachableReferenceReporter* reporter, K& key) {
-    DCHECK(Contains(key));
-    reporter->ReportExternalReference(FromVal(Traits::Get(&impl_, key)));
+  void RegisterExternallyReferencedObject(K& key) {
+    assert(Contains(key));
+    V8::RegisterExternallyReferencedObject(
+        reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
+        reinterpret_cast<internal::Isolate*>(GetIsolate()));
   }
 
   /**

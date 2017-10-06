@@ -3,19 +3,7 @@ const common = require('../common.js');
 const url = require('url');
 const URL = url.URL;
 const assert = require('assert');
-
-const inputs = {
-  long: 'http://nodejs.org:89/docs/latest/api/url.html#test?' +
-        'payload1=true&payload2=false&test=1&benchmark=3&' +
-        'foo=38.38.011.293&bar=1234834910480&test=19299&3992&' +
-        'key=f5c65e1e98fe07e648249ad41e1cfdb0',
-  short: 'https://nodejs.org/en/blog/',
-  idn: 'http://你好你好',
-  auth: 'https://user:pass@example.com/path?search=1',
-  special: 'file:///foo/bar/test/node.js',
-  percent: 'https://%E4%BD%A0/foo',
-  dot: 'https://example.org/./a/../b/./c'
-};
+const inputs = require('../fixtures/url-inputs.js').urls;
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(inputs),
@@ -28,8 +16,8 @@ const bench = common.createBenchmark(main, {
 // remains a constant in the function, so here we must use the literal
 // instead to get a LoadNamedField.
 function useLegacy(n, input) {
-  var obj = url.parse(input);
-  var noDead = {
+  const obj = url.parse(input);
+  const noDead = {
     protocol: obj.protocol,
     auth: obj.auth,
     host: obj.host,
@@ -57,10 +45,10 @@ function useLegacy(n, input) {
 }
 
 function useWHATWG(n, input) {
-  var obj = new URL(input);
-  var noDead = {
+  const obj = new URL(input);
+  const noDead = {
     protocol: obj.protocol,
-    auth: obj.username + ':' + obj.password,
+    auth: `${obj.username}:${obj.password}`,
     host: obj.host,
     hostname: obj.hostname,
     port: obj.port,
@@ -71,7 +59,7 @@ function useWHATWG(n, input) {
   bench.start();
   for (var i = 0; i < n; i += 1) {
     noDead.protocol = obj.protocol;
-    noDead.auth = obj.username + ':' + obj.password;
+    noDead.auth = `${obj.username}:${obj.password}`;
     noDead.host = obj.host;
     noDead.hostname = obj.hostname;
     noDead.port = obj.port;

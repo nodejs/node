@@ -1,16 +1,14 @@
 'use strict';
 const common = require('../common');
+if (common.isWindows)
+  common.skip('symlinks are weird on windows');
+
 const assert = require('assert');
 const child_process = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
 assert.strictEqual(process.execPath, fs.realpathSync(process.execPath));
-
-if (common.isWindows) {
-  common.skip('symlinks are weird on windows');
-  return;
-}
 
 if (process.argv[2] === 'child') {
   // The console.log() output is part of the test here.

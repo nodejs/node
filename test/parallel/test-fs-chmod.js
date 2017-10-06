@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -50,13 +71,16 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-const file1 = path.join(common.fixturesDir, 'a.js');
-const file2 = path.join(common.fixturesDir, 'a1.js');
+common.refreshTmpDir();
+
+const file1 = path.join(common.tmpDir, 'a.js');
+const file2 = path.join(common.tmpDir, 'a1.js');
+
+// Create file1.
+fs.closeSync(fs.openSync(file1, 'w'));
 
 fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   assert.ifError(err);
-
-  console.log(fs.statSync(file1).mode);
 
   if (common.isWindows) {
     assert.ok((fs.statSync(file1).mode & 0o777) & mode_async);
@@ -72,13 +96,11 @@ fs.chmod(file1, mode_async.toString(8), common.mustCall((err) => {
   }
 }));
 
-fs.open(file2, 'a', common.mustCall((err, fd) => {
+fs.open(file2, 'w', common.mustCall((err, fd) => {
   assert.ifError(err);
 
   fs.fchmod(fd, mode_async.toString(8), common.mustCall((err) => {
     assert.ifError(err);
-
-    console.log(fs.fstatSync(fd).mode);
 
     if (common.isWindows) {
       assert.ok((fs.fstatSync(fd).mode & 0o777) & mode_async);
@@ -93,7 +115,7 @@ fs.open(file2, 'a', common.mustCall((err, fd) => {
       assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);
     }
 
-    fs.close(fd);
+    fs.close(fd, assert.ifError);
   }));
 }));
 
@@ -101,13 +123,11 @@ fs.open(file2, 'a', common.mustCall((err, fd) => {
 if (fs.lchmod) {
   const link = path.join(common.tmpDir, 'symbolic-link');
 
-  common.refreshTmpDir();
   fs.symlinkSync(file2, link);
 
   fs.lchmod(link, mode_async, common.mustCall((err) => {
     assert.ifError(err);
 
-    console.log(fs.lstatSync(link).mode);
     assert.strictEqual(mode_async, fs.lstatSync(link).mode & 0o777);
 
     fs.lchmodSync(link, mode_sync);

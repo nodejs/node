@@ -11,6 +11,14 @@
 // On SmartOS, the watch events fire but the filename is null.
 
 const common = require('../common');
+
+// fs-watch on folders have limited capability in AIX.
+// The testcase makes use of folder watching, and causes
+// hang. This behavior is documented. Skip this for AIX.
+
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 const fs = require('fs');
 const path = require('path');
 
@@ -35,7 +43,7 @@ function unregisterWatcher(watcher) {
 
 const watcher1 = fs.watch(
   common.tmpDir,
-  {encoding: 'hex'},
+  { encoding: 'hex' },
   (event, filename) => {
     if (['e696b0e5bbbae69687e5a4b9e4bbb62e747874', null].includes(filename))
       done(watcher1);
@@ -54,7 +62,7 @@ registerWatcher(watcher2);
 
 const watcher3 = fs.watch(
   common.tmpDir,
-  {encoding: 'buffer'},
+  { encoding: 'buffer' },
   (event, filename) => {
     if (filename instanceof Buffer && filename.toString('utf8') === fn)
       done(watcher3);

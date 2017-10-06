@@ -22,10 +22,7 @@ static char register_names_[10 * (RegisterConfiguration::kMaxGeneralRegisters +
 namespace {
 static int allocatable_codes[InstructionSequenceTest::kDefaultNRegs] = {
     0, 1, 2, 3, 4, 5, 6, 7};
-static int allocatable_double_codes[InstructionSequenceTest::kDefaultNRegs] = {
-    0, 1, 2, 3, 4, 5, 6, 7};
 }
-
 
 static void InitializeRegisterNames() {
   char* loc = register_names_;
@@ -40,7 +37,6 @@ static void InitializeRegisterNames() {
     *loc++ = 0;
   }
 }
-
 
 InstructionSequenceTest::InstructionSequenceTest()
     : sequence_(nullptr),
@@ -62,13 +58,38 @@ void InstructionSequenceTest::SetNumRegs(int num_general_registers,
   num_double_registers_ = num_double_registers;
 }
 
+int InstructionSequenceTest::GetNumRegs(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      return config()->num_float_registers();
+    case MachineRepresentation::kFloat64:
+      return config()->num_double_registers();
+    case MachineRepresentation::kSimd128:
+      return config()->num_simd128_registers();
+    default:
+      return config()->num_general_registers();
+  }
+}
 
-RegisterConfiguration* InstructionSequenceTest::config() {
+int InstructionSequenceTest::GetAllocatableCode(int index,
+                                                MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      return config()->GetAllocatableFloatCode(index);
+    case MachineRepresentation::kFloat64:
+      return config()->GetAllocatableDoubleCode(index);
+    case MachineRepresentation::kSimd128:
+      return config()->GetAllocatableSimd128Code(index);
+    default:
+      return config()->GetAllocatableGeneralCode(index);
+  }
+}
+
+const RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
         num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, num_double_registers_, allocatable_codes,
-        allocatable_double_codes,
+        num_double_registers_, allocatable_codes, allocatable_codes,
         kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
                           : RegisterConfiguration::COMBINE,
         general_register_names_,
@@ -84,6 +105,8 @@ InstructionSequence* InstructionSequenceTest::sequence() {
   if (sequence_ == nullptr) {
     sequence_ = new (zone())
         InstructionSequence(isolate(), zone(), &instruction_blocks_);
+    sequence_->SetRegisterConfigurationForTesting(
+        InstructionSequenceTest::config());
   }
   return sequence_;
 }
@@ -149,12 +172,11 @@ InstructionSequenceTest::TestOperand InstructionSequenceTest::Imm(int32_t imm) {
 
 InstructionSequenceTest::VReg InstructionSequenceTest::Define(
     TestOperand output_op) {
-  VReg vreg = NewReg();
+  VReg vreg = NewReg(output_op);
   InstructionOperand outputs[1]{ConvertOutputOp(vreg, output_op)};
   Emit(kArchNop, 1, outputs);
   return vreg;
 }
-
 
 Instruction* InstructionSequenceTest::Return(TestOperand input_op_0) {
   block_returns_ = true;
@@ -240,7 +262,7 @@ Instruction* InstructionSequenceTest::EmitI(TestOperand input_op_0,
 
 InstructionSequenceTest::VReg InstructionSequenceTest::EmitOI(
     TestOperand output_op, size_t input_size, TestOperand* inputs) {
-  VReg output_vreg = NewReg();
+  VReg output_vreg = NewReg(output_op);
   InstructionOperand outputs[1]{ConvertOutputOp(output_vreg, output_op)};
   InstructionOperand* mapped_inputs = ConvertInputs(input_size, inputs);
   Emit(kArchNop, 1, outputs, input_size, mapped_inputs);
@@ -259,7 +281,8 @@ InstructionSequenceTest::VReg InstructionSequenceTest::EmitOI(
 InstructionSequenceTest::VRegPair InstructionSequenceTest::EmitOOI(
     TestOperand output_op_0, TestOperand output_op_1, size_t input_size,
     TestOperand* inputs) {
-  VRegPair output_vregs = std::make_pair(NewReg(), NewReg());
+  VRegPair output_vregs =
+      std::make_pair(NewReg(output_op_0), NewReg(output_op_1));
   InstructionOperand outputs[2]{
       ConvertOutputOp(output_vregs.first, output_op_0),
       ConvertOutputOp(output_vregs.second, output_op_1)};
@@ -280,7 +303,7 @@ InstructionSequenceTest::VRegPair InstructionSequenceTest::EmitOOI(
 
 InstructionSequenceTest::VReg InstructionSequenceTest::EmitCall(
     TestOperand output_op, size_t input_size, TestOperand* inputs) {
-  VReg output_vreg = NewReg();
+  VReg output_vreg = NewReg(output_op);
   InstructionOperand outputs[1]{ConvertOutputOp(output_vreg, output_op)};
   CHECK(UnallocatedOperand::cast(outputs[0]).HasFixedPolicy());
   InstructionOperand* mapped_inputs = ConvertInputs(input_size, inputs);
@@ -387,11 +410,25 @@ InstructionOperand InstructionSequenceTest::ConvertInputOp(TestOperand op) {
     case kSlot:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_SLOT,
                          UnallocatedOperand::USED_AT_START);
-    case kFixedRegister:
-      CHECK(0 <= op.value_ && op.value_ < num_general_registers_);
-      return Unallocated(op, UnallocatedOperand::FIXED_REGISTER, op.value_);
+    case kFixedRegister: {
+      MachineRepresentation rep = GetCanonicalRep(op);
+      CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
+      if (DoesRegisterAllocation()) {
+        auto extended_policy = IsFloatingPoint(rep)
+                                   ? UnallocatedOperand::FIXED_FP_REGISTER
+                                   : UnallocatedOperand::FIXED_REGISTER;
+        return Unallocated(op, extended_policy, op.value_);
+      } else {
+        return AllocatedOperand(LocationOperand::REGISTER, rep, op.value_);
+      }
+    }
     case kFixedSlot:
-      return Unallocated(op, UnallocatedOperand::FIXED_SLOT, op.value_);
+      if (DoesRegisterAllocation()) {
+        return Unallocated(op, UnallocatedOperand::FIXED_SLOT, op.value_);
+      } else {
+        return AllocatedOperand(LocationOperand::STACK_SLOT,
+                                GetCanonicalRep(op), op.value_);
+      }
     default:
       break;
   }
@@ -410,10 +447,24 @@ InstructionOperand InstructionSequenceTest::ConvertOutputOp(VReg vreg,
     case kRegister:
       return Unallocated(op, UnallocatedOperand::MUST_HAVE_REGISTER);
     case kFixedSlot:
-      return Unallocated(op, UnallocatedOperand::FIXED_SLOT, op.value_);
-    case kFixedRegister:
-      CHECK(0 <= op.value_ && op.value_ < num_general_registers_);
-      return Unallocated(op, UnallocatedOperand::FIXED_REGISTER, op.value_);
+      if (DoesRegisterAllocation()) {
+        return Unallocated(op, UnallocatedOperand::FIXED_SLOT, op.value_);
+      } else {
+        return AllocatedOperand(LocationOperand::STACK_SLOT,
+                                GetCanonicalRep(op), op.value_);
+      }
+    case kFixedRegister: {
+      MachineRepresentation rep = GetCanonicalRep(op);
+      CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
+      if (DoesRegisterAllocation()) {
+        auto extended_policy = IsFloatingPoint(rep)
+                                   ? UnallocatedOperand::FIXED_FP_REGISTER
+                                   : UnallocatedOperand::FIXED_REGISTER;
+        return Unallocated(op, extended_policy, op.value_);
+      } else {
+        return AllocatedOperand(LocationOperand::REGISTER, rep, op.value_);
+      }
+    }
     default:
       break;
   }

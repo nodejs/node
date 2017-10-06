@@ -11,16 +11,12 @@ const p = child_process.spawn(process.execPath, [
       'catch (e) { console.log(e.message); }'
 ]);
 
-p.stderr.on('data', function(data) {
-  common.fail(`Unexpected stderr data: ${data}`);
-});
+p.stderr.on('data', common.mustNotCall());
 
 let output = '';
 
-p.stdout.on('data', function(data) {
-  output += data;
-});
+p.stdout.on('data', (data) => output += data);
 
-process.on('exit', function() {
+p.stdout.on('end', common.mustCall(() => {
   assert.strictEqual(output.replace(/[\r\n]+/g, ''), 'boo');
-});
+}));

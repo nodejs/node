@@ -5,23 +5,16 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/;
-
-/**
- * Checks whether or not a node is enclosed in parentheses.
- * @param {Node|null} node - A node to check.
- * @param {sourceCode} sourceCode - The ESLint SourceCode object.
- * @returns {boolean} Whether or not the node is enclosed in parentheses.
- */
-function isEnclosedInParens(node, sourceCode) {
-    const prevToken = sourceCode.getTokenBefore(node);
-    const nextToken = sourceCode.getTokenAfter(node);
-
-    return prevToken && prevToken.value === "(" && nextToken && nextToken.value === ")";
-}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -48,7 +41,7 @@ module.exports = {
 
         return {
             AssignmentExpression(node) {
-                if (!always && isEnclosedInParens(node, sourceCode)) {
+                if (!always && astUtils.isParenthesised(sourceCode, node)) {
                     return;
                 }
 

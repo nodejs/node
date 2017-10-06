@@ -264,6 +264,12 @@ void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
   return NULL;
 }
 
+void* RegExpUnparser::VisitGroup(RegExpGroup* that, void* data) {
+  os_ << "(?: ";
+  that->body()->Accept(this, data);
+  os_ << ")";
+  return NULL;
+}
 
 void* RegExpUnparser::VisitLookaround(RegExpLookaround* that, void* data) {
   os_ << "(";

@@ -1,27 +1,14 @@
 'use strict';
-require('../common');
-const assert = require('assert');
+const common = require('../common');
 
-let called = 0;
-let closed = 0;
-
-const timeout = setTimeout(function() {
-  called++;
-}, 10);
+const timeout = setTimeout(common.mustCall(), 10);
 timeout.unref();
 
 // Wrap `close` method to check if the handle was closed
 const close = timeout._handle.close;
-timeout._handle.close = function() {
-  closed++;
+timeout._handle.close = common.mustCall(function() {
   return close.apply(this, arguments);
-};
+});
 
 // Just to keep process alive and let previous timer's handle die
-setTimeout(function() {
-}, 50);
-
-process.on('exit', function() {
-  assert.strictEqual(called, 1);
-  assert.strictEqual(closed, 1);
-});
+setTimeout(() => {}, 50);

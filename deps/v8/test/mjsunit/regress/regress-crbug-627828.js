@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-(function TestDeoptFromCopmputedNameInObjectLiteral() {
+(function TestDeoptFromComputedNameInObjectLiteral() {
   function f() {
     var o = {
       toString: function() {
@@ -20,7 +20,38 @@
   assertEquals(23, f().x());
 })();
 
-(function TestDeoptFromCopmputedNameInClassLiteral() {
+(function TestDeoptFromComputedNameInObjectLiteralWithModifiedPrototype() {
+  // The prototype chain should not be used if the definition
+  // happens in the object literal.
+
+  Object.defineProperty(Object.prototype, 'x_proto', {
+    get: function () {
+      return 21;
+    },
+    set: function () {
+    }
+  });
+
+
+  function f() {
+    var o = {
+      toString: function() {
+        %DeoptimizeFunction(f);
+        return "x_proto";
+      }
+    };
+    return { [o]() { return 23 } };
+  }
+  assertEquals(23, f().x_proto());
+  assertEquals(23, f().x_proto());
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(23, f().x_proto());
+
+  delete Object.prototype.c;
+
+})();
+
+(function TestDeoptFromComputedNameInClassLiteral() {
   function g() {
     var o = {
       toString: function() {

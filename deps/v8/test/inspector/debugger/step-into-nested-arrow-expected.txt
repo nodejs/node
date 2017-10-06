@@ -1,0 +1,17 @@
+Checks that stepInto nested arrow function doesn't produce crash.
+paused
+(anonymous) (test.js:2:0)
+(anonymous) (:0:6)
+paused
+rec (test.js:1:19)
+(anonymous) (test.js:2:0)
+(anonymous) (:0:6)
+paused
+rec (test.js:2:5)
+(anonymous) (test.js:2:0)
+(anonymous) (:0:6)
+paused
+(anonymous) (test.js:2:5)
+(anonymous) (:0:6)
+paused
+(anonymous) (:0:8)

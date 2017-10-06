@@ -5,10 +5,18 @@
 #ifndef V8_COMPILER_LOAD_ELIMINATION_H_
 #define V8_COMPILER_LOAD_ELIMINATION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
+#include "src/machine-type.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Factory;
+
 namespace compiler {
 
 // Foward declarations.
@@ -17,11 +25,14 @@ struct FieldAccess;
 class Graph;
 class JSGraph;
 
-class LoadElimination final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE LoadElimination final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
   ~LoadElimination() final {}
+
+  const char* reducer_name() const override { return "LoadElimination"; }
 
   Reduction Reduce(Node* node) final;
 
@@ -70,19 +81,23 @@ class LoadElimination final : public AdvancedReducer {
         elements_[i] = Element();
       }
     }
-    AbstractElements(Node* object, Node* index, Node* value, Zone* zone)
+    AbstractElements(Node* object, Node* index, Node* value,
+                     MachineRepresentation representation, Zone* zone)
         : AbstractElements(zone) {
-      elements_[next_index_++] = Element(object, index, value);
+      elements_[next_index_++] = Element(object, index, value, representation);
     }
 
     AbstractElements const* Extend(Node* object, Node* index, Node* value,
+                                   MachineRepresentation representation,
                                    Zone* zone) const {
       AbstractElements* that = new (zone) AbstractElements(*this);
-      that->elements_[that->next_index_] = Element(object, index, value);
+      that->elements_[that->next_index_] =
+          Element(object, index, value, representation);
       that->next_index_ = (that->next_index_ + 1) % arraysize(elements_);
       return that;
     }
-    Node* Lookup(Node* object, Node* index) const;
+    Node* Lookup(Node* object, Node* index,
+                 MachineRepresentation representation) const;
     AbstractElements const* Kill(Node* object, Node* index, Zone* zone) const;
     bool Equals(AbstractElements const* that) const;
     AbstractElements const* Merge(AbstractElements const* that,
@@ -93,16 +108,61 @@ class LoadElimination final : public AdvancedReducer {
    private:
     struct Element {
       Element() {}
-      Element(Node* object, Node* index, Node* value)
-          : object(object), index(index), value(value) {}
+      Element(Node* object, Node* index, Node* value,
+              MachineRepresentation representation)
+          : object(object),
+            index(index),
+            value(value),
+            representation(representation) {}
 
       Node* object = nullptr;
       Node* index = nullptr;
       Node* value = nullptr;
+      MachineRepresentation representation = MachineRepresentation::kNone;
     };
 
     Element elements_[kMaxTrackedElements];
     size_t next_index_ = 0;
+  };
+
+  // Abstract state to approximate the current state of a hash map along the
+  // effect paths through the graph.
+  class AbstractHashIndexes final : public ZoneObject {
+   public:
+    AbstractHashIndexes() {}
+
+    AbstractHashIndexes(Node* table, Node* key, Node* index)
+        : AbstractHashIndexes() {
+      entry_ = Entry(table, key, index);
+    }
+
+    AbstractHashIndexes const* Extend(Node* table, Node* key, Node* index,
+                                      Zone* zone) const {
+      // Currently, we do only hold one entry, so we just create a new
+      // state with the one entry.
+      AbstractHashIndexes* that =
+          new (zone) AbstractHashIndexes(table, key, index);
+      return that;
+    }
+    Node* Lookup(Node* table, Node* key) const;
+    bool Equals(AbstractHashIndexes const* that) const;
+    AbstractHashIndexes const* Merge(AbstractHashIndexes const* that,
+                                     Zone* zone) const;
+
+    void Print() const;
+
+   private:
+    struct Entry {
+      Entry() {}
+      Entry(Node* table, Node* key, Node* index)
+          : table(table), key(key), index(index) {}
+
+      Node* table = nullptr;
+      Node* key = nullptr;
+      Node* index = nullptr;
+    };
+
+    Entry entry_;
   };
 
   // Abstract state to approximate the current state of a certain field along
@@ -149,6 +209,49 @@ class LoadElimination final : public AdvancedReducer {
 
   static size_t const kMaxTrackedFields = 32;
 
+  // Abstract state to approximate the current map of an object along the
+  // effect paths through the graph.
+  class AbstractMaps final : public ZoneObject {
+   public:
+    explicit AbstractMaps(Zone* zone) : info_for_node_(zone) {}
+    AbstractMaps(Node* object, ZoneHandleSet<Map> maps, Zone* zone)
+        : info_for_node_(zone) {
+      info_for_node_.insert(std::make_pair(object, maps));
+    }
+
+    AbstractMaps const* Extend(Node* object, ZoneHandleSet<Map> maps,
+                               Zone* zone) const {
+      AbstractMaps* that = new (zone) AbstractMaps(zone);
+      that->info_for_node_ = this->info_for_node_;
+      that->info_for_node_.insert(std::make_pair(object, maps));
+      return that;
+    }
+    bool Lookup(Node* object, ZoneHandleSet<Map>* object_maps) const;
+    AbstractMaps const* Kill(Node* object, Zone* zone) const;
+    bool Equals(AbstractMaps const* that) const {
+      return this == that || this->info_for_node_ == that->info_for_node_;
+    }
+    AbstractMaps const* Merge(AbstractMaps const* that, Zone* zone) const {
+      if (this->Equals(that)) return this;
+      AbstractMaps* copy = new (zone) AbstractMaps(zone);
+      for (auto this_it : this->info_for_node_) {
+        Node* this_object = this_it.first;
+        ZoneHandleSet<Map> this_maps = this_it.second;
+        auto that_it = that->info_for_node_.find(this_object);
+        if (that_it != that->info_for_node_.end() &&
+            that_it->second == this_maps) {
+          copy->info_for_node_.insert(this_it);
+        }
+      }
+      return copy;
+    }
+
+    void Print() const;
+
+   private:
+    ZoneMap<Node*, ZoneHandleSet<Map>> info_for_node_;
+  };
+
   class AbstractState final : public ZoneObject {
    public:
     AbstractState() {
@@ -160,17 +263,28 @@ class LoadElimination final : public AdvancedReducer {
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
+    AbstractState const* AddMaps(Node* object, ZoneHandleSet<Map> maps,
+                                 Zone* zone) const;
+    AbstractState const* KillMaps(Node* object, Zone* zone) const;
+    bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
+
     AbstractState const* AddField(Node* object, size_t index, Node* value,
                                   Zone* zone) const;
     AbstractState const* KillField(Node* object, size_t index,
                                    Zone* zone) const;
+    AbstractState const* KillFields(Node* object, Zone* zone) const;
     Node* LookupField(Node* object, size_t index) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,
+                                    MachineRepresentation representation,
                                     Zone* zone) const;
     AbstractState const* KillElement(Node* object, Node* index,
                                      Zone* zone) const;
-    Node* LookupElement(Node* object, Node* index) const;
+    Node* LookupElement(Node* object, Node* index,
+                        MachineRepresentation representation) const;
+    AbstractState const* AddHashIndex(Node* table, Node* key, Node* index,
+                                      Zone* zone) const;
+    Node* LookupHashIndex(Node* table, Node* key) const;
 
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
@@ -181,6 +295,8 @@ class LoadElimination final : public AdvancedReducer {
     AbstractChecks const* checks_ = nullptr;
     AbstractElements const* elements_ = nullptr;
     AbstractField const* fields_[kMaxTrackedFields];
+    AbstractMaps const* maps_ = nullptr;
+    AbstractHashIndexes const* hash_indexes_ = nullptr;
   };
 
   class AbstractStateForEffectNodes final : public ZoneObject {
@@ -204,7 +320,9 @@ class LoadElimination final : public AdvancedReducer {
   Reduction ReduceStoreField(Node* node);
   Reduction ReduceLoadElement(Node* node);
   Reduction ReduceStoreElement(Node* node);
+  Reduction ReduceTransitionAndStoreElement(Node* node);
   Reduction ReduceStoreTypedElement(Node* node);
+  Reduction ReduceLookupHashStorageIndex(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
@@ -219,6 +337,7 @@ class LoadElimination final : public AdvancedReducer {
 
   CommonOperatorBuilder* common() const;
   AbstractState const* empty_state() const { return &empty_state_; }
+  Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }

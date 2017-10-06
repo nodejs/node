@@ -13,10 +13,10 @@ const assert = require('assert');
 
 common.refreshTmpDir();
 
-const warnmod = require.resolve(common.fixturesDir + '/warnings.js');
+const warnmod = require.resolve(`${common.fixturesDir}/warnings.js`);
 const warnpath = path.join(common.tmpDir, 'warnings.txt');
 
-fork(warnmod, {execArgv: [`--redirect-warnings=${warnpath}`]})
+fork(warnmod, { execArgv: [`--redirect-warnings=${warnpath}`] })
   .on('exit', common.mustCall(() => {
     fs.readFile(warnpath, 'utf8', common.mustCall((err, data) => {
       assert.ifError(err);

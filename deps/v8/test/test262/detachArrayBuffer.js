@@ -6,4 +6,4 @@ function $DETACHBUFFER(buffer) {
   %ArrayBufferNeuter(buffer);
 }
 
-$.detachArrayBuffer = $DETACHBUFFER;
+$262.detachArrayBuffer = $DETACHBUFFER;

@@ -48,6 +48,42 @@ static int uv__tty_is_slave(const int fd) {
   char dummy[256];
 
   result = ioctl(fd, TIOCPTYGNAME, &dummy) != 0;
+#elif defined(__NetBSD__)
+  /*
+   * NetBSD as an extension returns with ptsname(3) and ptsname_r(3) the slave
+   * device name for both descriptors, the master one and slave one.
+   *
+   * Implement function to compare major device number with pts devices.
+   *
+   * The major numbers are machine-dependent, on NetBSD/amd64 they are
+   * respectively:
+   *  - master tty: ptc - major 6
+   *  - slave tty:  pts - major 5
+   */
+
+  struct stat sb;
+  /* Lookup device's major for the pts driver and cache it. */
+  static devmajor_t pts = NODEVMAJOR;
+
+  if (pts == NODEVMAJOR) {
+    pts = getdevmajor("pts", S_IFCHR);
+    if (pts == NODEVMAJOR)
+      abort();
+  }
+
+  /* Lookup stat structure behind the file descriptor. */
+  if (fstat(fd, &sb) != 0)
+    abort();
+
+  /* Assert character device. */
+  if (!S_ISCHR(sb.st_mode))
+    abort();
+
+  /* Assert valid major. */
+  if (major(sb.st_rdev) == NODEVMAJOR)
+    abort();
+
+  result = (pts == major(sb.st_rdev));
 #else
   /* Fallback to ptsname
    */

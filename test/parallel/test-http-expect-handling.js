@@ -35,8 +35,8 @@ function nextTest() {
   }
 
   http.get(options, function(response) {
-    console.log('client: expected status: ' + test);
-    console.log('client: statusCode: ' + response.statusCode);
+    console.log(`client: expected status: ${test}`);
+    console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
     assert.strictEqual(response.statusMessage, 'Expectation Failed');
 

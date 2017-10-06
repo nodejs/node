@@ -6,7 +6,7 @@ const common = require('../common');
 const join = require('path').join;
 const {
   assert, connect, keys, tls
-} = require(join(common.fixturesDir, 'tls-connect'))();
+} = require(join(common.fixturesDir, 'tls-connect'));
 
 connect({
   client: {

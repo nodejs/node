@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -44,10 +44,11 @@
 #include "uarrsort.h"
 #include "uenumimp.h"
 #include "uassert.h"
+#include "charstr.h"
 
 #include <stdio.h> /* for sprintf */
 
-using namespace icu;
+U_NAMESPACE_USE
 
 /* ### Declarations **************************************************/
 
@@ -101,7 +102,7 @@ static const char * const LANGUAGES[] = {
     "aa",  "ab",  "ace", "ach", "ada", "ady", "ae",  "aeb",
     "af",  "afh", "agq", "ain", "ak",  "akk", "akz", "ale",
     "aln", "alt", "am",  "an",  "ang", "anp", "ar",  "arc",
-    "arn", "aro", "arp", "arq", "arw", "ary", "arz", "as",
+    "arn", "aro", "arp", "arq", "ars", "arw", "ary", "arz", "as",
     "asa", "ase", "ast", "av",  "avk", "awa", "ay",  "az",
     "ba",  "bal", "ban", "bar", "bas", "bax", "bbc", "bbj",
     "be",  "bej", "bem", "bew", "bez", "bfd", "bfq", "bg",
@@ -216,7 +217,7 @@ static const char * const LANGUAGES_3[] = {
     "aar", "abk", "ace", "ach", "ada", "ady", "ave", "aeb",
     "afr", "afh", "agq", "ain", "aka", "akk", "akz", "ale",
     "aln", "alt", "amh", "arg", "ang", "anp", "ara", "arc",
-    "arn", "aro", "arp", "arq", "arw", "ary", "arz", "asm",
+    "arn", "aro", "arp", "arq", "ars", "arw", "ary", "arz", "asm",
     "asa", "ase", "ast", "ava", "avk", "awa", "aym", "aze",
     "bak", "bal", "ban", "bar", "bas", "bax", "bbc", "bbj",
     "bel", "bej", "bem", "bew", "bez", "bfd", "bfq", "bul",
@@ -560,6 +561,10 @@ static int32_t getShortestSubtagLength(const char *localeID) {
 }
 
 /* ### Keywords **************************************************/
+#define UPRV_ISDIGIT(c) (((c) >= '0') && ((c) <= '9'))
+#define UPRV_ISALPHANUM(c) (uprv_isASCIILetter(c) || UPRV_ISDIGIT(c) )
+/* Punctuation/symbols allowed in legacy key values */
+#define UPRV_OK_VALUE_PUNCTUATION(c) ((c) == '_' || (c) == '-' || (c) == '+' || (c) == '/')
 
 #define ULOC_KEYWORD_BUFFER_LEN 25
 #define ULOC_MAX_NO_KEYWORDS 25
@@ -596,20 +601,26 @@ locale_getKeywordsStart(const char *localeID) {
  */
 static int32_t locale_canonKeywordName(char *buf, const char *keywordName, UErrorCode *status)
 {
-  int32_t i;
-  int32_t keywordNameLen = (int32_t)uprv_strlen(keywordName);
+  int32_t keywordNameLen = 0;
 
-  if(keywordNameLen >= ULOC_KEYWORD_BUFFER_LEN) {
-    /* keyword name too long for internal buffer */
-    *status = U_INTERNAL_PROGRAM_ERROR;
-          return 0;
+  for (; *keywordName != 0; keywordName++) {
+    if (!UPRV_ISALPHANUM(*keywordName)) {
+      *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed keyword name */
+      return 0;
+    }
+    if (keywordNameLen < ULOC_KEYWORD_BUFFER_LEN - 1) {
+      buf[keywordNameLen++] = uprv_tolower(*keywordName);
+    } else {
+      /* keyword name too long for internal buffer */
+      *status = U_INTERNAL_PROGRAM_ERROR;
+      return 0;
+    }
   }
-
-  /* normalize the keyword name */
-  for(i = 0; i < keywordNameLen; i++) {
-    buf[i] = uprv_tolower(keywordName[i]);
+  if (keywordNameLen == 0) {
+    *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty keyword name */
+    return 0;
   }
-  buf[i] = 0;
+  buf[keywordNameLen] = 0; /* terminate */
 
   return keywordNameLen;
 }
@@ -837,23 +848,15 @@ uloc_getKeywordValue(const char* localeID,
     const char* nextSeparator = NULL;
     char keywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
     char localeKeywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
-    int32_t i = 0;
     int32_t result = 0;
 
     if(status && U_SUCCESS(*status) && localeID) {
       char tempBuffer[ULOC_FULLNAME_CAPACITY];
       const char* tmpLocaleID;
 
-      if (_hasBCP47Extension(localeID)) {
-          _ConvertBCP47(tmpLocaleID, localeID, tempBuffer, sizeof(tempBuffer), status);
-      } else {
-          tmpLocaleID=localeID;
-      }
-
-      startSearchHere = uprv_strchr(tmpLocaleID, '@'); /* TODO: REVISIT: shouldn't this be locale_getKeywordsStart ? */
-      if(startSearchHere == NULL) {
-          /* no keywords, return at once */
-          return 0;
+      if (keywordName == NULL || keywordName[0] == 0) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
       }
 
       locale_canonKeywordName(keywordNameBuffer, keywordName, status);
@@ -861,63 +864,92 @@ uloc_getKeywordValue(const char* localeID,
         return 0;
       }
 
+      if (_hasBCP47Extension(localeID)) {
+          _ConvertBCP47(tmpLocaleID, localeID, tempBuffer, sizeof(tempBuffer), status);
+      } else {
+          tmpLocaleID=localeID;
+      }
+
+      startSearchHere = locale_getKeywordsStart(tmpLocaleID);
+      if(startSearchHere == NULL) {
+          /* no keywords, return at once */
+          return 0;
+      }
+
       /* find the first keyword */
       while(startSearchHere) {
-          startSearchHere++;
-          /* skip leading spaces (allowed?) */
+          const char* keyValueTail;
+          int32_t keyValueLen;
+
+          startSearchHere++; /* skip @ or ; */
+          nextSeparator = uprv_strchr(startSearchHere, '=');
+          if(!nextSeparator) {
+              *status = U_ILLEGAL_ARGUMENT_ERROR; /* key must have =value */
+              return 0;
+          }
+          /* strip leading & trailing spaces (TC decided to tolerate these) */
           while(*startSearchHere == ' ') {
               startSearchHere++;
           }
-          nextSeparator = uprv_strchr(startSearchHere, '=');
-          /* need to normalize both keyword and keyword name */
-          if(!nextSeparator) {
-              break;
+          keyValueTail = nextSeparator;
+          while (keyValueTail > startSearchHere && *(keyValueTail-1) == ' ') {
+              keyValueTail--;
           }
-          if(nextSeparator - startSearchHere >= ULOC_KEYWORD_BUFFER_LEN) {
+          /* now keyValueTail points to first char after the keyName */
+          /* copy & normalize keyName from locale */
+          if (startSearchHere == keyValueTail) {
+              *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty keyword name in passed-in locale */
+              return 0;
+          }
+          keyValueLen = 0;
+          while (startSearchHere < keyValueTail) {
+            if (!UPRV_ISALPHANUM(*startSearchHere)) {
+              *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed keyword name */
+              return 0;
+            }
+            if (keyValueLen < ULOC_KEYWORD_BUFFER_LEN - 1) {
+              localeKeywordNameBuffer[keyValueLen++] = uprv_tolower(*startSearchHere++);
+            } else {
               /* keyword name too long for internal buffer */
               *status = U_INTERNAL_PROGRAM_ERROR;
               return 0;
+            }
           }
-          for(i = 0; i < nextSeparator - startSearchHere; i++) {
-              localeKeywordNameBuffer[i] = uprv_tolower(startSearchHere[i]);
-          }
-          /* trim trailing spaces */
-          while(startSearchHere[i-1] == ' ') {
-              i--;
-              U_ASSERT(i>=0);
-          }
-          localeKeywordNameBuffer[i] = 0;
+          localeKeywordNameBuffer[keyValueLen] = 0; /* terminate */
 
           startSearchHere = uprv_strchr(nextSeparator, ';');
 
           if(uprv_strcmp(keywordNameBuffer, localeKeywordNameBuffer) == 0) {
-              nextSeparator++;
+               /* current entry matches the keyword. */
+             nextSeparator++; /* skip '=' */
+              /* First strip leading & trailing spaces (TC decided to tolerate these) */
               while(*nextSeparator == ' ') {
+                nextSeparator++;
+              }
+              keyValueTail = (startSearchHere)? startSearchHere: nextSeparator + uprv_strlen(nextSeparator);
+              while(keyValueTail > nextSeparator && *(keyValueTail-1) == ' ') {
+                keyValueTail--;
+              }
+              /* Now copy the value, but check well-formedness */
+              if (nextSeparator == keyValueTail) {
+                *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty key value name in passed-in locale */
+                return 0;
+              }
+              keyValueLen = 0;
+              while (nextSeparator < keyValueTail) {
+                if (!UPRV_ISALPHANUM(*nextSeparator) && !UPRV_OK_VALUE_PUNCTUATION(*nextSeparator)) {
+                  *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed key value */
+                  return 0;
+                }
+                if (keyValueLen < bufferCapacity) {
+                  /* Should we lowercase value to return here? Tests expect as-is. */
+                  buffer[keyValueLen++] = *nextSeparator++;
+                } else { /* keep advancing so we return correct length in case of overflow */
+                  keyValueLen++;
                   nextSeparator++;
+                }
               }
-              /* we actually found the keyword. Copy the value */
-              if(startSearchHere && startSearchHere - nextSeparator < bufferCapacity) {
-                  while(*(startSearchHere-1) == ' ') {
-                      startSearchHere--;
-                  }
-                  uprv_strncpy(buffer, nextSeparator, startSearchHere - nextSeparator);
-                  result = u_terminateChars(buffer, bufferCapacity, (int32_t)(startSearchHere - nextSeparator), status);
-              } else if(!startSearchHere && (int32_t)uprv_strlen(nextSeparator) < bufferCapacity) { /* last item in string */
-                  i = (int32_t)uprv_strlen(nextSeparator);
-                  while(nextSeparator[i - 1] == ' ') {
-                      i--;
-                  }
-                  uprv_strncpy(buffer, nextSeparator, i);
-                  result = u_terminateChars(buffer, bufferCapacity, i, status);
-              } else {
-                  /* give a bigger buffer, please */
-                  *status = U_BUFFER_OVERFLOW_ERROR;
-                  if(startSearchHere) {
-                      result = (int32_t)(startSearchHere - nextSeparator);
-                  } else {
-                      result = (int32_t)uprv_strlen(nextSeparator);
-                  }
-              }
+              result = u_terminateChars(buffer, bufferCapacity, keyValueLen, status);
               return result;
           }
       }
@@ -936,46 +968,59 @@ uloc_setKeywordValue(const char* keywordName,
     int32_t keywordValueLen;
     int32_t bufLen;
     int32_t needLen = 0;
-    int32_t foundValueLen;
-    int32_t keywordAtEnd = 0; /* is the keyword at the end of the string? */
     char keywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
+    char keywordValueBuffer[ULOC_KEYWORDS_CAPACITY+1];
     char localeKeywordNameBuffer[ULOC_KEYWORD_BUFFER_LEN];
-    int32_t i = 0;
     int32_t rc;
     char* nextSeparator = NULL;
     char* nextEqualsign = NULL;
     char* startSearchHere = NULL;
     char* keywordStart = NULL;
-    char *insertHere = NULL;
+    CharString updatedKeysAndValues;
+    int32_t updatedKeysAndValuesLen;
+    UBool handledInputKeyAndValue = FALSE;
+    char keyValuePrefix = '@';
+
     if(U_FAILURE(*status)) {
         return -1;
     }
-    if(bufferCapacity>1) {
-        bufLen = (int32_t)uprv_strlen(buffer);
-    } else {
+    if (keywordName == NULL || keywordName[0] == 0 || bufferCapacity <= 1) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
+    bufLen = (int32_t)uprv_strlen(buffer);
     if(bufferCapacity<bufLen) {
         /* The capacity is less than the length?! Is this NULL terminated? */
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
-    if(keywordValue && !*keywordValue) {
-        keywordValue = NULL;
-    }
-    if(keywordValue) {
-        keywordValueLen = (int32_t)uprv_strlen(keywordValue);
-    } else {
-        keywordValueLen = 0;
-    }
     keywordNameLen = locale_canonKeywordName(keywordNameBuffer, keywordName, status);
     if(U_FAILURE(*status)) {
         return 0;
     }
+
+    keywordValueLen = 0;
+    if(keywordValue) {
+        while (*keywordValue != 0) {
+            if (!UPRV_ISALPHANUM(*keywordValue) && !UPRV_OK_VALUE_PUNCTUATION(*keywordValue)) {
+                *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed key value */
+                return 0;
+            }
+            if (keywordValueLen < ULOC_KEYWORDS_CAPACITY) {
+                /* Should we force lowercase in value to set? */
+                keywordValueBuffer[keywordValueLen++] = *keywordValue++;
+            } else {
+                /* keywordValue too long for internal buffer */
+                *status = U_INTERNAL_PROGRAM_ERROR;
+                return 0;
+            }
+        }
+    }
+    keywordValueBuffer[keywordValueLen] = 0; /* terminate */
+
     startSearchHere = (char*)locale_getKeywordsStart(buffer);
     if(startSearchHere == NULL || (startSearchHere[1]==0)) {
-        if(!keywordValue) { /* no keywords = nothing to remove */
+        if(keywordValueLen == 0) { /* no keywords = nothing to remove */
             return bufLen;
         }
 
@@ -990,133 +1035,137 @@ uloc_setKeywordValue(const char* keywordName,
             *status = U_BUFFER_OVERFLOW_ERROR;
             return needLen; /* no change */
         }
-        *startSearchHere = '@';
-        startSearchHere++;
+        *startSearchHere++ = '@';
         uprv_strcpy(startSearchHere, keywordNameBuffer);
         startSearchHere += keywordNameLen;
-        *startSearchHere = '=';
-        startSearchHere++;
-        uprv_strcpy(startSearchHere, keywordValue);
-        startSearchHere+=keywordValueLen;
+        *startSearchHere++ = '=';
+        uprv_strcpy(startSearchHere, keywordValueBuffer);
         return needLen;
     } /* end shortcut - no @ */
 
     keywordStart = startSearchHere;
     /* search for keyword */
     while(keywordStart) {
-        keywordStart++;
-        /* skip leading spaces (allowed?) */
+        const char* keyValueTail;
+        int32_t keyValueLen;
+
+        keywordStart++; /* skip @ or ; */
+        nextEqualsign = uprv_strchr(keywordStart, '=');
+        if (!nextEqualsign) {
+            *status = U_ILLEGAL_ARGUMENT_ERROR; /* key must have =value */
+            return 0;
+        }
+        /* strip leading & trailing spaces (TC decided to tolerate these) */
         while(*keywordStart == ' ') {
             keywordStart++;
         }
-        nextEqualsign = uprv_strchr(keywordStart, '=');
-        /* need to normalize both keyword and keyword name */
-        if(!nextEqualsign) {
-            break;
+        keyValueTail = nextEqualsign;
+        while (keyValueTail > keywordStart && *(keyValueTail-1) == ' ') {
+            keyValueTail--;
         }
-        if(nextEqualsign - keywordStart >= ULOC_KEYWORD_BUFFER_LEN) {
-            /* keyword name too long for internal buffer */
-            *status = U_INTERNAL_PROGRAM_ERROR;
+        /* now keyValueTail points to first char after the keyName */
+        /* copy & normalize keyName from locale */
+        if (keywordStart == keyValueTail) {
+            *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty keyword name in passed-in locale */
             return 0;
         }
-        for(i = 0; i < nextEqualsign - keywordStart; i++) {
-            localeKeywordNameBuffer[i] = uprv_tolower(keywordStart[i]);
+        keyValueLen = 0;
+        while (keywordStart < keyValueTail) {
+            if (!UPRV_ISALPHANUM(*keywordStart)) {
+                *status = U_ILLEGAL_ARGUMENT_ERROR; /* malformed keyword name */
+                return 0;
+            }
+            if (keyValueLen < ULOC_KEYWORD_BUFFER_LEN - 1) {
+                localeKeywordNameBuffer[keyValueLen++] = uprv_tolower(*keywordStart++);
+            } else {
+                /* keyword name too long for internal buffer */
+                *status = U_INTERNAL_PROGRAM_ERROR;
+                return 0;
+            }
         }
-        /* trim trailing spaces */
-        while(keywordStart[i-1] == ' ') {
-            i--;
-        }
-        U_ASSERT(i>=0 && i<ULOC_KEYWORD_BUFFER_LEN);
-        localeKeywordNameBuffer[i] = 0;
+        localeKeywordNameBuffer[keyValueLen] = 0; /* terminate */
 
         nextSeparator = uprv_strchr(nextEqualsign, ';');
+
+        /* start processing the value part */
+        nextEqualsign++; /* skip '=' */
+        /* First strip leading & trailing spaces (TC decided to tolerate these) */
+        while(*nextEqualsign == ' ') {
+            nextEqualsign++;
+        }
+        keyValueTail = (nextSeparator)? nextSeparator: nextEqualsign + uprv_strlen(nextEqualsign);
+        while(keyValueTail > nextEqualsign && *(keyValueTail-1) == ' ') {
+            keyValueTail--;
+        }
+        if (nextEqualsign == keyValueTail) {
+            *status = U_ILLEGAL_ARGUMENT_ERROR; /* empty key value in passed-in locale */
+            return 0;
+        }
+
         rc = uprv_strcmp(keywordNameBuffer, localeKeywordNameBuffer);
         if(rc == 0) {
-            nextEqualsign++;
-            while(*nextEqualsign == ' ') {
-                nextEqualsign++;
+            /* Current entry matches the input keyword. Update the entry */
+            if(keywordValueLen > 0) { /* updating a value */
+                updatedKeysAndValues.append(keyValuePrefix, *status);
+                keyValuePrefix = ';'; /* for any subsequent key-value pair */
+                updatedKeysAndValues.append(keywordNameBuffer, keywordNameLen, *status);
+                updatedKeysAndValues.append('=', *status);
+                updatedKeysAndValues.append(keywordValueBuffer, keywordValueLen, *status);
+            } /* else removing this entry, don't emit anything */
+            handledInputKeyAndValue = TRUE;
+        } else {
+           /* input keyword sorts earlier than current entry, add before current entry */
+            if (rc < 0 && keywordValueLen > 0 && !handledInputKeyAndValue) {
+                /* insert new entry at this location */
+                updatedKeysAndValues.append(keyValuePrefix, *status);
+                keyValuePrefix = ';'; /* for any subsequent key-value pair */
+                updatedKeysAndValues.append(keywordNameBuffer, keywordNameLen, *status);
+                updatedKeysAndValues.append('=', *status);
+                updatedKeysAndValues.append(keywordValueBuffer, keywordValueLen, *status);
+                handledInputKeyAndValue = TRUE;
             }
-            /* we actually found the keyword. Change the value */
-            if (nextSeparator) {
-                keywordAtEnd = 0;
-                foundValueLen = (int32_t)(nextSeparator - nextEqualsign);
-            } else {
-                keywordAtEnd = 1;
-                foundValueLen = (int32_t)uprv_strlen(nextEqualsign);
-            }
-            if(keywordValue) { /* adding a value - not removing */
-              if(foundValueLen == keywordValueLen) {
-                uprv_strncpy(nextEqualsign, keywordValue, keywordValueLen);
-                return bufLen; /* no change in size */
-              } else if(foundValueLen > keywordValueLen) {
-                int32_t delta = foundValueLen - keywordValueLen;
-                if(nextSeparator) { /* RH side */
-                  uprv_memmove(nextSeparator - delta, nextSeparator, bufLen-(nextSeparator-buffer));
-                }
-                uprv_strncpy(nextEqualsign, keywordValue, keywordValueLen);
-                bufLen -= delta;
-                buffer[bufLen]=0;
-                return bufLen;
-              } else { /* FVL < KVL */
-                int32_t delta = keywordValueLen - foundValueLen;
-                if((bufLen+delta) >= bufferCapacity) {
-                  *status = U_BUFFER_OVERFLOW_ERROR;
-                  return bufLen+delta;
-                }
-                if(nextSeparator) { /* RH side */
-                  uprv_memmove(nextSeparator+delta,nextSeparator, bufLen-(nextSeparator-buffer));
-                }
-                uprv_strncpy(nextEqualsign, keywordValue, keywordValueLen);
-                bufLen += delta;
-                buffer[bufLen]=0;
-                return bufLen;
-              }
-            } else { /* removing a keyword */
-              if(keywordAtEnd) {
-                /* zero out the ';' or '@' just before startSearchhere */
-                keywordStart[-1] = 0;
-                return (int32_t)((keywordStart-buffer)-1); /* (string length without keyword) minus separator */
-              } else {
-                uprv_memmove(keywordStart, nextSeparator+1, bufLen-((nextSeparator+1)-buffer));
-                keywordStart[bufLen-((nextSeparator+1)-buffer)]=0;
-                return (int32_t)(bufLen-((nextSeparator+1)-keywordStart));
-              }
-            }
-        } else if(rc<0){ /* end match keyword */
-          /* could insert at this location. */
-          insertHere = keywordStart;
+            /* copy the current entry */
+            updatedKeysAndValues.append(keyValuePrefix, *status);
+            keyValuePrefix = ';'; /* for any subsequent key-value pair */
+            updatedKeysAndValues.append(localeKeywordNameBuffer, keyValueLen, *status);
+            updatedKeysAndValues.append('=', *status);
+            updatedKeysAndValues.append(nextEqualsign, keyValueTail-nextEqualsign, *status);
+        }
+        if (!nextSeparator && keywordValueLen > 0 && !handledInputKeyAndValue) {
+            /* append new entry at the end, it sorts later than existing entries */
+            updatedKeysAndValues.append(keyValuePrefix, *status);
+            /* skip keyValuePrefix update, no subsequent key-value pair */
+            updatedKeysAndValues.append(keywordNameBuffer, keywordNameLen, *status);
+            updatedKeysAndValues.append('=', *status);
+            updatedKeysAndValues.append(keywordValueBuffer, keywordValueLen, *status);
+            handledInputKeyAndValue = TRUE;
         }
         keywordStart = nextSeparator;
     } /* end loop searching */
 
-    if(!keywordValue) {
-      return bufLen; /* removal of non-extant keyword - no change */
+    /* Any error from updatedKeysAndValues.append above would be internal and not due to
+     * problems with the passed-in locale. So if we did encounter problems with the
+     * passed-in locale above, those errors took precedence and overrode any error
+     * status from updatedKeysAndValues.append, and also caused a return of 0. If there
+     * are errors here they are from updatedKeysAndValues.append; they do cause an
+     * error return but the passed-in locale is unmodified and the original bufLen is
+     * returned.
+     */
+    if (!handledInputKeyAndValue || U_FAILURE(*status)) {
+        /* if input key/value specified removal of a keyword not present in locale, or
+         * there was an error in CharString.append, leave original locale alone. */
+        return bufLen;
     }
 
-    /* we know there is at least one keyword. */
-    needLen = bufLen+1+keywordNameLen+1+keywordValueLen;
+    updatedKeysAndValuesLen = updatedKeysAndValues.length();
+    /* needLen = length of the part before '@' + length of updated key-value part including '@' */
+    needLen = (int32_t)(startSearchHere - buffer) + updatedKeysAndValuesLen;
     if(needLen >= bufferCapacity) {
         *status = U_BUFFER_OVERFLOW_ERROR;
         return needLen; /* no change */
     }
-
-    if(insertHere) {
-      uprv_memmove(insertHere+(1+keywordNameLen+1+keywordValueLen), insertHere, bufLen-(insertHere-buffer));
-      keywordStart = insertHere;
-    } else {
-      keywordStart = buffer+bufLen;
-      *keywordStart = ';';
-      keywordStart++;
-    }
-    uprv_strncpy(keywordStart, keywordNameBuffer, keywordNameLen);
-    keywordStart += keywordNameLen;
-    *keywordStart = '=';
-    keywordStart++;
-    uprv_strncpy(keywordStart, keywordValue, keywordValueLen); /* terminates. */
-    keywordStart+=keywordValueLen;
-    if(insertHere) {
-      *keywordStart = ';';
-      keywordStart++;
+    if (updatedKeysAndValuesLen > 0) {
+        uprv_strncpy(startSearchHere, updatedKeysAndValues.data(), updatedKeysAndValuesLen);
     }
     buffer[needLen]=0;
     return needLen;
@@ -2119,6 +2168,20 @@ uloc_getLCID(const char* localeID)
 {
     UErrorCode status = U_ZERO_ERROR;
     char       langID[ULOC_FULLNAME_CAPACITY];
+    uint32_t   lcid = 0;
+
+    /* Check for incomplete id. */
+    if (!localeID || uprv_strlen(localeID) < 2) {
+        return 0;
+    }
+
+    // Attempt platform lookup if available
+    lcid = uprv_convertToLCIDPlatform(localeID);
+    if (lcid > 0)
+    {
+        // Windows found an LCID, return that
+        return lcid;
+    }
 
     uloc_getLanguage(localeID, langID, sizeof(langID), &status);
     if (U_FAILURE(status)) {
@@ -2529,9 +2592,6 @@ uloc_toUnicodeLocaleType(const char* keyword, const char* value)
     return bcpType;
 }
 
-#define UPRV_ISDIGIT(c) (((c) >= '0') && ((c) <= '9'))
-#define UPRV_ISALPHANUM(c) (uprv_isASCIILetter(c) || UPRV_ISDIGIT(c) )
-
 static UBool
 isWellFormedLegacyKey(const char* legacyKey)
 {
@@ -2574,11 +2634,10 @@ uloc_toLegacyKey(const char* keyword)
         // Checks if the specified locale key is well-formed with the legacy locale syntax.
         //
         // Note:
-        //  Neither ICU nor LDML/CLDR provides the definition of keyword syntax.
-        //  However, a key should not contain '=' obviously. For now, all existing
-        //  keys are using ASCII alphabetic letters only. We won't add any new key
-        //  that is not compatible with the BCP 47 syntax. Therefore, we assume
-        //  a valid key consist from [0-9a-zA-Z], no symbols.
+        //  LDML/CLDR provides some definition of keyword syntax in
+        //  * http://www.unicode.org/reports/tr35/#Unicode_locale_identifier and
+        //  * http://www.unicode.org/reports/tr35/#Old_Locale_Extension_Syntax
+        //  Keys can only consist of [0-9a-zA-Z].
         if (isWellFormedLegacyKey(keyword)) {
             return keyword;
         }
@@ -2594,12 +2653,11 @@ uloc_toLegacyType(const char* keyword, const char* value)
         // Checks if the specified locale type is well-formed with the legacy locale syntax.
         //
         // Note:
-        //  Neither ICU nor LDML/CLDR provides the definition of keyword syntax.
-        //  However, a type should not contain '=' obviously. For now, all existing
-        //  types are using ASCII alphabetic letters with a few symbol letters. We won't
-        //  add any new type that is not compatible with the BCP 47 syntax except timezone
-        //  IDs. For now, we assume a valid type start with [0-9a-zA-Z], but may contain
-        //  '-' '_' '/' in the middle.
+        //  LDML/CLDR provides some definition of keyword syntax in
+        //  * http://www.unicode.org/reports/tr35/#Unicode_locale_identifier and
+        //  * http://www.unicode.org/reports/tr35/#Old_Locale_Extension_Syntax
+        //  Values (types) can only consist of [0-9a-zA-Z], plus for legacy values
+        //  we allow [/_-+] in the middle (e.g. "Etc/GMT+1", "Asia/Tel_Aviv")
         if (isWellFormedLegacyType(value)) {
             return value;
         }

@@ -25,7 +25,7 @@ static int32_t DummyStaticFunction(Object* result) { return 1; }
 
 TEST(WasmRelocationIa32MemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -39,7 +39,7 @@ TEST(WasmRelocationIa32MemoryReference) {
 
   CSignature0<int32_t> csig;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
@@ -56,20 +56,15 @@ TEST(WasmRelocationIa32MemoryReference) {
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
 
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemoryReference(mode)) {
-      // Dummy values of size used here as the objective of the test is to
-      // verify that the immediate is patched correctly
-      it.rinfo()->update_wasm_memory_reference(
-          it.rinfo()->wasm_memory_reference(),
-          it.rinfo()->wasm_memory_reference() + offset, 1, 2,
-          SKIP_ICACHE_FLUSH);
-    }
+    DCHECK(RelocInfo::IsWasmMemoryReference(it.rinfo()->rmode()));
+    it.rinfo()->update_wasm_memory_reference(
+        isolate, it.rinfo()->wasm_memory_reference(),
+        it.rinfo()->wasm_memory_reference() + offset, SKIP_ICACHE_FLUSH);
   }
 
   // Check if immediate is updated correctly
@@ -87,7 +82,7 @@ TEST(WasmRelocationIa32MemoryReference) {
 TEST(WasmRelocationIa32MemorySizeReference) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -107,14 +102,14 @@ TEST(WasmRelocationIa32MemorySizeReference) {
 
   CSignature0<int32_t> csig;
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 
   CodeRunner<int32_t> runnable(isolate, code, &csig);
   int32_t ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
@@ -128,17 +123,14 @@ TEST(WasmRelocationIa32MemorySizeReference) {
 
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemorySizeReference(mode)) {
-      it.rinfo()->update_wasm_memory_reference(
-          reinterpret_cast<Address>(1234), reinterpret_cast<Address>(1234),
-          it.rinfo()->wasm_memory_size_reference(),
-          it.rinfo()->wasm_memory_size_reference() + offset, SKIP_ICACHE_FLUSH);
-    }
+    DCHECK(RelocInfo::IsWasmMemorySizeReference(it.rinfo()->rmode()));
+    it.rinfo()->update_wasm_memory_size(
+        isolate, it.rinfo()->wasm_memory_size_reference(),
+        it.rinfo()->wasm_memory_size_reference() + offset, SKIP_ICACHE_FLUSH);
   }
 
   ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   code->Print(os);

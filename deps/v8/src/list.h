@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include "src/checks.h"
-#include "src/utils.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -64,8 +64,8 @@ class List {
   // not safe to use after operations that can change the list's
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
-    DCHECK(0 <= i);
-    SLOW_DCHECK(static_cast<unsigned>(i) < static_cast<unsigned>(length_));
+    DCHECK_LE(0, i);
+    DCHECK_GT(static_cast<unsigned>(length_), static_cast<unsigned>(i));
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }
@@ -129,7 +129,8 @@ class List {
   INLINE(void Allocate(int length,
                        AllocationPolicy allocator = AllocationPolicy()));
 
-  // Clears the list by setting the length to zero. Even if T is a
+  // Clears the list by freeing the storage memory. If you want to keep the
+  // memory, use Rewind(0) instead. Be aware, that even if T is a
   // pointer type, clearing the list doesn't delete the entries.
   INLINE(void Clear());
 
@@ -215,17 +216,6 @@ typedef List<Code*> CodeList;
 typedef List<Handle<Map> > MapHandleList;
 typedef List<Handle<FieldType> > TypeHandleList;
 typedef List<Handle<Code> > CodeHandleList;
-
-// Perform binary search for an element in an already sorted
-// list. Returns the index of the element of -1 if it was not found.
-// |cmp| is a predicate that takes a pointer to an element of the List
-// and returns +1 if it is greater, -1 if it is less than the element
-// being searched.
-template <typename T, class P>
-int SortedListBSearch(const List<T>& list, P cmp);
-template <typename T>
-int SortedListBSearch(const List<T>& list, T elem);
-
 
 }  // namespace internal
 }  // namespace v8

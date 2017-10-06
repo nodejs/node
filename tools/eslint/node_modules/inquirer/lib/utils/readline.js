@@ -7,7 +7,7 @@ var ansiEscapes = require('ansi-escapes');
  * @param  {Number}   x  - How far to go left (default to 1)
  */
 
-exports.left = function(rl, x) {
+exports.left = function (rl, x) {
   rl.output.write(ansiEscapes.cursorBackward(x));
 };
 
@@ -17,7 +17,7 @@ exports.left = function(rl, x) {
  * @param  {Number}   x  - How far to go left (default to 1)
  */
 
-exports.right = function(rl, x) {
+exports.right = function (rl, x) {
   rl.output.write(ansiEscapes.cursorForward(x));
 };
 

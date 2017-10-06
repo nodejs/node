@@ -7,14 +7,20 @@ npm supports the "scripts" property of the package.json script, for the
 following scripts:
 
 * prepublish:
-  Run BEFORE the package is published.  (Also run on local `npm
-  install` without any arguments. See below.)
+  Run BEFORE the package is packed and published, as well as on local `npm
+  install` without any arguments. (See below)
 * prepare:
-  Run both BEFORE the package is published, and on local `npm
-  install` without any arguments. (See below.) This is run
+  Run both BEFORE the package is packed and published, and on local `npm
+  install` without any arguments (See below). This is run
   AFTER `prepublish`, but BEFORE `prepublishOnly`.
 * prepublishOnly:
-  Run BEFORE the package is published. (See below.)
+  Run BEFORE the package is prepared and packed, ONLY on `npm publish`. (See
+  below.)
+* prepack:
+  run BEFORE a tarball is packed (on `npm pack`, `npm publish`, and when
+  installing git dependencies)
+* postpack:
+  Run AFTER the tarball has been generated and moved to its final destination.
 * publish, postpublish:
   Run AFTER the package is published.
 * preinstall:
@@ -63,11 +69,6 @@ _new_ event, `prepublishOnly` has been added as a transitional strategy to
 allow users to avoid the confusing behavior of existing npm versions and only
 run on `npm publish` (for instance, running the tests one last time to ensure
 they're in good shape).
-
-**IMPORTANT:** As of `npm@5`, `prepublish` will _only_ be run for `npm
-publish`.  This will make its behavior identical to `prepublishOnly`, so
-`npm@6` or later may drop support for the use of `prepublishOnly`, and then
-maybe we can all forget this embarrassing thing ever happened.
 
 See <https://github.com/npm/npm/issues/10074> for a much lengthier
 justification, with further reading, for this change.

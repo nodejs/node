@@ -1,14 +1,13 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
+const assert = require('assert');
 const crypto = require('crypto');
+const fs = require('fs');
+
+const fixtures = require('../common/fixtures');
 
 // Test hashing
 const a1 = crypto.createHash('sha1').update('Test123').digest('hex');
@@ -76,17 +75,17 @@ const h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
 assert.strictEqual(h1, h2, 'multipled updates');
 
 // Test hashing for binary files
-const fn = path.join(common.fixturesDir, 'sample.png');
+const fn = fixtures.path('sample.png');
 const sha1Hash = crypto.createHash('sha1');
 const fileStream = fs.createReadStream(fn);
 fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
-fileStream.on('close', function() {
+fileStream.on('close', common.mustCall(function() {
   assert.strictEqual(sha1Hash.digest('hex'),
                      '22723e553129a336ad96e10f6aecdf0f45e4149e',
                      'Test SHA1 of sample.png');
-});
+}));
 
 // Issue #2227: unknown digest method should throw an error.
 assert.throws(function() {
@@ -96,22 +95,44 @@ assert.throws(function() {
 // Default UTF-8 encoding
 const hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
 assert.strictEqual(
-    hutf8,
-    '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
+  hutf8,
+  '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
         '43a821af66afa9a45b6a78c712fecf0e56dc7f43aef4bcfc8eb5b4d8dca6ea5b');
 
 assert.notStrictEqual(
-    hutf8,
-    crypto.createHash('sha512').update('УТФ-8 text', 'latin1').digest('hex'));
+  hutf8,
+  crypto.createHash('sha512').update('УТФ-8 text', 'latin1').digest('hex'));
 
 const h3 = crypto.createHash('sha256');
 h3.digest();
-assert.throws(function() {
-  h3.digest();
-},
-              /Digest already called/);
 
-assert.throws(function() {
-  h3.update('foo');
-},
-              /Digest already called/);
+common.expectsError(
+  () => h3.digest(),
+  {
+    code: 'ERR_CRYPTO_HASH_FINALIZED',
+    type: Error
+  });
+
+common.expectsError(
+  () => h3.update('foo'),
+  {
+    code: 'ERR_CRYPTO_HASH_FINALIZED',
+    type: Error
+  });
+
+common.expectsError(
+  () => crypto.createHash('sha256').digest('ucs2'),
+  {
+    code: 'ERR_CRYPTO_HASH_DIGEST_NO_UTF16',
+    type: Error
+  }
+);
+
+common.expectsError(
+  () => crypto.createHash(),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "algorithm" argument must be of type string'
+  }
+);

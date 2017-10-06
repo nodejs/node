@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -9,23 +30,35 @@ const err = new Stream();
 
 // ensure the Console instance doesn't write to the
 // process' "stdout" or "stderr" streams
-process.stdout.write = process.stderr.write = common.fail;
+process.stdout.write = process.stderr.write = common.mustNotCall();
 
 // make sure that the "Console" function exists
 assert.strictEqual('function', typeof Console);
 
 // make sure that the Console constructor throws
 // when not given a writable stream instance
-assert.throws(() => {
-  new Console();
-}, /^TypeError: Console expects a writable stream instance$/);
+assert.throws(
+  () => { new Console(); },
+  common.expectsError({
+    code: 'ERR_CONSOLE_WRITABLE_STREAM',
+    type: TypeError,
+    message: /stdout/
+  })
+);
 
 // Console constructor should throw if stderr exists but is not writable
-assert.throws(() => {
-  out.write = () => {};
-  err.write = undefined;
-  new Console(out, err);
-}, /^TypeError: Console expects writable stream instances$/);
+assert.throws(
+  () => {
+    out.write = () => {};
+    err.write = undefined;
+    new Console(out, err);
+  },
+  common.expectsError({
+    code: 'ERR_CONSOLE_WRITABLE_STREAM',
+    type: TypeError,
+    message: /stderr/
+  })
+);
 
 out.write = err.write = (d) => {};
 
@@ -57,3 +90,13 @@ out.write = common.mustCall((d) => {
 assert.doesNotThrow(() => {
   Console(out, err);
 });
+
+// Instance that does not ignore the stream errors.
+const c2 = new Console(out, err, false);
+
+out.write = () => { throw new Error('out'); };
+err.write = () => { throw new Error('err'); };
+
+assert.throws(() => c2.log('foo'), /^Error: out$/);
+assert.throws(() => c2.warn('foo'), /^Error: err$/);
+assert.throws(() => c2.dir('foo'), /^Error: out$/);

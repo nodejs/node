@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that Runtime.callFunctionOn works with awaitPromise flag.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.callFunctionOn works with awaitPromise flag.");
 
 InspectorTest.runTestSuite([
   function testArguments(next)
@@ -102,7 +102,7 @@ function callFunctionOn(objectExpression, functionDeclaration, argumentExpressio
   var objectId;
   var callArguments = [];
   var promise = Protocol.Runtime.evaluate({ expression: objectExpression })
-    .then((result) => objectId = result.result.result.objectId)
+    .then((result) => objectId = result.result.result.objectId);
   for (let argumentExpression of argumentExpressions) {
     promise = promise
       .then(() => Protocol.Runtime.evaluate({ expression: argumentExpression }))

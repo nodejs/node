@@ -123,7 +123,7 @@ module.exports = {
                         node: info.node,
                         loc: node.key.loc,
                         message: "Duplicate key '{{name}}'.",
-                        data: { name },
+                        data: { name }
                     });
                 }
 

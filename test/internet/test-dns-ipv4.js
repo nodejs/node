@@ -3,7 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
+const util = require('util');
 const isIPv4 = net.isIPv4;
+
+common.crashOnUnhandledRejection();
 
 let running = false;
 const queue = [];
@@ -152,7 +155,7 @@ TEST(function test_lookup_localhost_ipv4(done) {
 TEST(function test_lookup_all_ipv4(done) {
   const req = dns.lookup(
     'www.google.com',
-    {all: true, family: 4},
+    { all: true, family: 4 },
     common.mustCall((err, ips) => {
       assert.ifError(err);
       assert.ok(Array.isArray(ips));
@@ -183,4 +186,14 @@ TEST(function test_lookupservice_ip_ipv4(done) {
   );
 
   checkWrap(req);
+});
+
+TEST(function test_lookupservice_ip_ipv4_promise(done) {
+  util.promisify(dns.lookupService)('127.0.0.1', 80)
+    .then(common.mustCall(({ hostname, service }) => {
+      assert.strictEqual(typeof hostname, 'string');
+      assert(hostname.length > 0);
+      assert(['http', 'www', '80'].includes(service));
+      done();
+    }));
 });

@@ -42,6 +42,8 @@ B<openssl> B<s_client>
 [B<-no_tls1_2>]
 [B<-fallback_scsv>]
 [B<-bugs>]
+[B<-sigalgs sigalglist>]
+[B<-curves curvelist>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
 [B<-starttls protocol>]
@@ -216,6 +218,19 @@ Send TLS_FALLBACK_SCSV in the ClientHello.
 
 there are several known bug in SSL and TLS implementations. Adding this
 option enables various workarounds.
+
+=item B<-sigalgs sigalglist>
+
+Specifies the list of signature algorithms that are sent by the client.
+The server selects one entry in the list based on its preferences.
+For example strings, see L<SSL_CTX_set1_sigalgs(3)>
+
+=item B<-curves curvelist>
+
+Specifies the list of supported curves to be sent by the client. The curve is
+is ultimately selected by the server. For a list of all curves, use:
+
+    $ openssl ecparam -list_curves
 
 =item B<-cipher cipherlist>
 

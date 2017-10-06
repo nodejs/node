@@ -148,8 +148,7 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   handle->child_stdio_buffer = NULL;
   handle->exit_cb_pending = 0;
 
-  uv_req_init(loop, (uv_req_t*)&handle->exit_req);
-  handle->exit_req.type = UV_PROCESS_EXIT;
+  UV_REQ_INIT(&handle->exit_req, UV_PROCESS_EXIT);
   handle->exit_req.data = handle;
 }
 
@@ -406,8 +405,15 @@ static WCHAR* search_path(const WCHAR *file,
       /* Next slice starts just after where the previous one ended */
       dir_start = dir_end;
 
+      /* If path is quoted, find quote end */
+      if (*dir_start == L'"' || *dir_start == L'\'') {
+        dir_end = wcschr(dir_start + 1, *dir_start);
+        if (dir_end == NULL) {
+          dir_end = wcschr(dir_start, L'\0');
+        }
+      }
       /* Slice until the next ; or \0 is found */
-      dir_end = wcschr(dir_start, L';');
+      dir_end = wcschr(dir_end, L';');
       if (dir_end == NULL) {
         dir_end = wcschr(dir_start, L'\0');
       }
@@ -1052,14 +1058,17 @@ int uv_spawn(uv_loop_t* loop,
   startup.hStdOutput = uv__stdio_handle(process->child_stdio_buffer, 1);
   startup.hStdError = uv__stdio_handle(process->child_stdio_buffer, 2);
 
+  process_flags = CREATE_UNICODE_ENVIRONMENT;
+
   if (options->flags & UV_PROCESS_WINDOWS_HIDE) {
     /* Use SW_HIDE to avoid any potential process window. */
     startup.wShowWindow = SW_HIDE;
+
+    /* Hide console windows. */
+    process_flags |= CREATE_NO_WINDOW;
   } else {
     startup.wShowWindow = SW_SHOWDEFAULT;
   }
-
-  process_flags = CREATE_UNICODE_ENVIRONMENT;
 
   if (options->flags & UV_PROCESS_DETACHED) {
     /* Note that we're not setting the CREATE_BREAKAWAY_FROM_JOB flag. That

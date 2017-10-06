@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-InspectorTest.addScript(`
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that accessing no longer valid call frames returns an error');
+
+contextGroup.addScript(`
 function testFunction()
 {
   debugger;

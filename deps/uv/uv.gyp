@@ -17,6 +17,7 @@
             'defines': [
               '_UNIX03_THREADS',
               '_UNIX03_SOURCE',
+              '_UNIX03_WITHDRAWN',
               '_OPEN_SYS_IF_EXT',
               '_OPEN_SYS_SOCK_IPV6',
               '_OPEN_MSGQ_EXT',
@@ -28,13 +29,14 @@
               'PATH_MAX=255'
             ],
             'cflags': [ '-qxplink' ],
+            'ldflags': [ '-qxplink' ],
           }]
         ],
       }],
     ],
     'xcode_settings': {
       'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
-      'WARNING_CFLAGS': [ '-Wall', '-Wextra', '-Wno-unused-parameter' ],
+      'WARNING_CFLAGS': [ '-Wall', '-Wextra', '-Wno-unused-parameter', '-Wstrict-prototypes' ],
       'OTHER_CFLAGS': [ '-g', '--std=gnu89', '-pedantic' ],
     }
   },
@@ -196,7 +198,7 @@
             }],
           ],
         }],
-        [ 'OS in "linux mac ios android"', {
+        [ 'OS in "linux mac ios android zos"', {
           'sources': [ 'src/unix/proctitle.c' ],
         }],
         [ 'OS != "zos"', {
@@ -208,24 +210,19 @@
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter',
+            '-Wstrict-prototypes',
           ],
         }],
         [ 'OS in "mac ios"', {
           'sources': [
             'src/unix/darwin.c',
             'src/unix/fsevents.c',
-            'src/unix/darwin-proctitle.c',
-            'src/unix/pthread-barrier.c'
+            'src/unix/darwin-proctitle.c'
           ],
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
             '_DARWIN_UNLIMITED_SELECT=1',
           ]
-        }],
-        [ 'OS!="mac" and OS!="zos"', {
-          # Enable on all platforms except OS X. The antique gcc/clang that
-          # ships with Xcode emits waaaay too many false positives.
-          'cflags': [ '-Wstrict-aliasing' ],
         }],
         [ 'OS=="linux"', {
           'defines': [ '_GNU_SOURCE' ],
@@ -234,6 +231,9 @@
             'src/unix/linux-inotify.c',
             'src/unix/linux-syscalls.c',
             'src/unix/linux-syscalls.h',
+            'src/unix/procfs-exepath.c',
+            'src/unix/sysinfo-loadavg.c',
+            'src/unix/sysinfo-memory.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl', '-lrt' ],
@@ -247,14 +247,19 @@
             'src/unix/linux-syscalls.h',
             'src/unix/pthread-fixes.c',
             'src/unix/android-ifaddrs.c',
-            'src/unix/pthread-barrier.c'
+            'src/unix/procfs-exepath.c',
+            'src/unix/sysinfo-loadavg.c',
+            'src/unix/sysinfo-memory.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],
           },
         }],
         [ 'OS=="solaris"', {
-          'sources': [ 'src/unix/sunos.c' ],
+          'sources': [
+            'src/unix/no-proctitle.c',
+            'src/unix/sunos.c',
+          ],
           'defines': [
             '__EXTENSIONS__',
             '_XOPEN_SOURCE=500',
@@ -275,6 +280,7 @@
             '_XOPEN_SOURCE=500',
             '_LINUX_SOURCE_COMPAT',
             '_THREAD_SAFE',
+            'HAVE_SYS_AHAFS_EVPRODS_H',
           ],
           'link_settings': {
             'libraries': [
@@ -289,15 +295,19 @@
           'sources': [ 'src/unix/openbsd.c' ],
         }],
         [ 'OS=="netbsd"', {
-          'sources': [ 'src/unix/netbsd.c' ],
-        }],
-        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
           'link_settings': {
             'libraries': [ '-lkvm' ],
           },
+          'sources': [ 'src/unix/netbsd.c' ],
+        }],
+        [ 'OS in "freebsd dragonflybsd openbsd netbsd".split()', {
+          'sources': [ 'src/unix/posix-hrtime.c' ],
         }],
         [ 'OS in "ios mac freebsd dragonflybsd openbsd netbsd".split()', {
-          'sources': [ 'src/unix/kqueue.c' ],
+          'sources': [
+            'src/unix/bsd-ifaddrs.c',
+            'src/unix/kqueue.c',
+          ],
         }],
         ['uv_library=="shared_library"', {
           'defines': [ 'BUILDING_UV_SHARED=1' ]
@@ -305,8 +315,9 @@
         ['OS=="zos"', {
           'sources': [
             'src/unix/pthread-fixes.c',
-            'src/unix/pthread-barrier.c'
-            'src/unix/os390.c'
+            'src/unix/no-fsevents.c',
+            'src/unix/os390.c',
+            'src/unix/os390-syscalls.c'
           ]
         }],
       ]
@@ -339,13 +350,17 @@
         'test/test-error.c',
         'test/test-embed.c',
         'test/test-emfile.c',
+        'test/test-env-vars.c',
         'test/test-fail-always.c',
+        'test/test-fork.c',
         'test/test-fs.c',
+        'test/test-fs-copyfile.c',
         'test/test-fs-event.c',
         'test/test-get-currentexe.c',
         'test/test-get-memory.c',
         'test/test-get-passwd.c',
         'test/test-getaddrinfo.c',
+        'test/test-gethostname.c',
         'test/test-getnameinfo.c',
         'test/test-getsockname.c',
         'test/test-handle-fileno.c',
@@ -383,6 +398,7 @@
         'test/test-poll-close.c',
         'test/test-poll-close-doesnt-corrupt-stack.c',
         'test/test-poll-closesocket.c',
+        'test/test-poll-oob.c',
         'test/test-process-title.c',
         'test/test-queue-foreach-delete.c',
         'test/test-ref.c',
@@ -441,6 +457,7 @@
         'test/test-udp-open.c',
         'test/test-udp-options.c',
         'test/test-udp-send-and-recv.c',
+        'test/test-udp-send-hang-loop.c',
         'test/test-udp-send-immediate.c',
         'test/test-udp-send-unreachable.c',
         'test/test-udp-multicast-join.c',

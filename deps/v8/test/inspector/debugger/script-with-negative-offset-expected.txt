@@ -1,0 +1,19 @@
+Locations in script with negative offset.
+[
+    [0] : {
+        columnNumber : 16
+        lineNumber : 0
+        scriptId : <scriptId>
+        type : debuggerStatement
+    }
+    [1] : {
+        columnNumber : 26
+        lineNumber : 0
+        scriptId : <scriptId>
+        type : return
+    }
+]
+foo (:-1:16)
+(anonymous) (:0:0)
+boo (:0:16)
+(anonymous) (:0:0)

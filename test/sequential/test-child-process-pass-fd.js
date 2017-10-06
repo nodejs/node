@@ -1,14 +1,12 @@
 'use strict';
 const common = require('../common');
+if ((process.config.variables.arm_version === '6') ||
+    (process.config.variables.arm_version === '7'))
+  common.skip('Too slow for armv6 and armv7 bots');
+
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
-
-if ((process.config.variables.arm_version === '6') ||
-    (process.config.variables.arm_version === '7')) {
-  common.skip('Too slow for armv6 and armv7 bots');
-  return;
-}
 
 const N = 80;
 
@@ -45,7 +43,7 @@ if (process.argv[2] !== 'child') {
   // the only thing keeping this worker alive will be IPC. This is important,
   // because it means a worker with no parent will have no referenced handles,
   // thus no work to do, and will exit immediately, preventing process leaks.
-  process.on('message', function() {});
+  process.on('message', common.mustCall());
 
   const server = net.createServer((c) => {
     process.once('message', function(msg) {

@@ -1,36 +1,35 @@
 'use strict';
-var stripAnsi = require('strip-ansi');
-var codePointAt = require('code-point-at');
-var isFullwidthCodePoint = require('is-fullwidth-code-point');
+const stripAnsi = require('strip-ansi');
+const isFullwidthCodePoint = require('is-fullwidth-code-point');
 
-// https://github.com/nodejs/io.js/blob/cff7300a578be1b10001f2d967aaedc88aee6402/lib/readline.js#L1345
-module.exports = function (str) {
+module.exports = str => {
 	if (typeof str !== 'string' || str.length === 0) {
 		return 0;
 	}
 
-	var width = 0;
-
 	str = stripAnsi(str);
 
-	for (var i = 0; i < str.length; i++) {
-		var code = codePointAt(str, i);
+	let width = 0;
 
-		// ignore control characters
-		if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) {
+	for (let i = 0; i < str.length; i++) {
+		const code = str.codePointAt(i);
+
+		// Ignore control characters
+		if (code <= 0x1F || (code >= 0x7F && code <= 0x9F)) {
 			continue;
 		}
 
-		// surrogates
-		if (code >= 0x10000) {
+		// Ignore combining characters
+		if (code >= 0x300 && code <= 0x36F) {
+			continue;
+		}
+
+		// Surrogates
+		if (code > 0xFFFF) {
 			i++;
 		}
 
-		if (isFullwidthCodePoint(code)) {
-			width += 2;
-		} else {
-			width++;
-		}
+		width += isFullwidthCodePoint(code) ? 2 : 1;
 	}
 
 	return width;

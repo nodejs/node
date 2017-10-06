@@ -71,7 +71,7 @@ class TestSuite(object):
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
-      module = imp.load_module("testcfg", f, pathname, description)
+      module = imp.load_module(name + "_testcfg", f, pathname, description)
       return module.GetSuite(name, root)
     except ImportError:
       # Use default if no testcfg is present.

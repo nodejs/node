@@ -209,9 +209,9 @@ module.exports = {
 
                 if (!calledInEveryPaths) {
                     context.report({
-                        message: calledInSomePaths ?
-                            "Lacked a call of 'super()' in some code paths." :
-                            "Expected to call 'super()'.",
+                        message: calledInSomePaths
+                            ? "Lacked a call of 'super()' in some code paths."
+                            : "Expected to call 'super()'.",
                         node: node.parent
                     });
                 }

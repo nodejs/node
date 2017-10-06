@@ -22,6 +22,8 @@ class SelectLowering final : public Reducer {
   SelectLowering(Graph* graph, CommonOperatorBuilder* common);
   ~SelectLowering();
 
+  const char* reducer_name() const override { return "SelectLowering"; }
+
   Reduction Reduce(Node* node) override;
 
  private:

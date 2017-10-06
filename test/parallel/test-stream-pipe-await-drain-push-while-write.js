@@ -17,7 +17,7 @@ const writable = new stream.Writable({
   write: common.mustCall(function(chunk, encoding, cb) {
     if (chunk.length === 32 * 1024) { // first chunk
       const beforePush = readable._readableState.awaitDrain;
-      readable.push(new Buffer(34 * 1024)); // above hwm
+      readable.push(Buffer.alloc(34 * 1024)); // above hwm
       // We should check if awaitDrain counter is increased.
       const afterPush = readable._readableState.awaitDrain;
       assert.strictEqual(afterPush - beforePush, 1,
@@ -34,7 +34,7 @@ const writable = new stream.Writable({
 });
 
 // A readable stream which produces two buffers.
-const bufs = [new Buffer(32 * 1024), new Buffer(33 * 1024)]; // above hwm
+const bufs = [Buffer.alloc(32 * 1024), Buffer.alloc(33 * 1024)]; // above hwm
 const readable = new stream.Readable({
   read: function() {
     while (bufs.length > 0) {

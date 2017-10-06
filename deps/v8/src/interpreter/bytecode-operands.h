@@ -14,33 +14,43 @@ namespace interpreter {
 #define INVALID_OPERAND_TYPE_LIST(V) V(None, OperandTypeInfo::kNone)
 
 #define REGISTER_INPUT_OPERAND_TYPE_LIST(V)        \
-  V(RegList, OperandTypeInfo::kScalableSignedByte) \
   V(Reg, OperandTypeInfo::kScalableSignedByte)     \
+  V(RegList, OperandTypeInfo::kScalableSignedByte) \
   V(RegPair, OperandTypeInfo::kScalableSignedByte)
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \
   V(RegOut, OperandTypeInfo::kScalableSignedByte)     \
+  V(RegOutList, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutPair, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutTriple, OperandTypeInfo::kScalableSignedByte)
 
-#define SCALAR_OPERAND_TYPE_LIST(V)                   \
-  V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
-  V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
+#define SIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(V) \
+  V(Imm, OperandTypeInfo::kScalableSignedByte)
+
+#define UNSIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(V) \
   V(Idx, OperandTypeInfo::kScalableUnsignedByte)      \
   V(UImm, OperandTypeInfo::kScalableUnsignedByte)     \
-  V(Imm, OperandTypeInfo::kScalableSignedByte)        \
-  V(RegCount, OperandTypeInfo::kScalableUnsignedByte) \
+  V(RegCount, OperandTypeInfo::kScalableUnsignedByte)
+
+#define UNSIGNED_FIXED_SCALAR_OPERAND_TYPE_LIST(V)    \
+  V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
+  V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
   V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)
 
+// Carefully ordered for operand type range checks below.
+#define NON_REGISTER_OPERAND_TYPE_LIST(V)       \
+  INVALID_OPERAND_TYPE_LIST(V)                  \
+  UNSIGNED_FIXED_SCALAR_OPERAND_TYPE_LIST(V)    \
+  UNSIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(V) \
+  SIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(V)
+
+// Carefully ordered for operand type range checks below.
 #define REGISTER_OPERAND_TYPE_LIST(V) \
   REGISTER_INPUT_OPERAND_TYPE_LIST(V) \
   REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)
 
-#define NON_REGISTER_OPERAND_TYPE_LIST(V) \
-  INVALID_OPERAND_TYPE_LIST(V)            \
-  SCALAR_OPERAND_TYPE_LIST(V)
-
 // The list of operand types used by bytecodes.
+// Carefully ordered for operand type range checks below.
 #define OPERAND_TYPE_LIST(V)        \
   NON_REGISTER_OPERAND_TYPE_LIST(V) \
   REGISTER_OPERAND_TYPE_LIST(V)
@@ -114,10 +124,41 @@ inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
   return static_cast<AccumulatorUse>(result);
 }
 
-std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
-std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
-std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
-std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const AccumulatorUse& use);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandScale& operand_scale);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandSize& operand_size);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandType& operand_type);
+
+class BytecodeOperands {
+ public:
+  // Returns true if |accumulator_use| reads the accumulator.
+  static constexpr bool ReadsAccumulator(AccumulatorUse accumulator_use) {
+    return accumulator_use == AccumulatorUse::kRead ||
+           accumulator_use == AccumulatorUse::kReadWrite;
+  }
+
+  // Returns true if |accumulator_use| writes the accumulator.
+  static constexpr bool WritesAccumulator(AccumulatorUse accumulator_use) {
+    return accumulator_use == AccumulatorUse::kWrite ||
+           accumulator_use == AccumulatorUse::kReadWrite;
+  }
+
+  // Returns true if |operand_type| is a scalable signed byte.
+  static constexpr bool IsScalableSignedByte(OperandType operand_type) {
+    return operand_type >= OperandType::kImm &&
+           operand_type <= OperandType::kRegOutTriple;
+  }
+
+  // Returns true if |operand_type| is a scalable unsigned byte.
+  static constexpr bool IsScalableUnsignedByte(OperandType operand_type) {
+    return operand_type >= OperandType::kIdx &&
+           operand_type <= OperandType::kRegCount;
+  }
+};
 
 }  // namespace interpreter
 }  // namespace internal

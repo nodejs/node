@@ -52,13 +52,50 @@ class BytecodeRegisterAllocator final {
     return reg_list;
   }
 
+  // Returns a growable register list.
+  RegisterList NewGrowableRegisterList() {
+    RegisterList reg_list(next_register_index_, 0);
+    return reg_list;
+  }
+
+  // Appends a new register to |reg_list| increasing it's count by one and
+  // returning the register added.
+  //
+  // Note: no other new registers must be currently allocated since the register
+  // list was originally allocated.
+  Register GrowRegisterList(RegisterList* reg_list) {
+    Register reg(NewRegister());
+    reg_list->IncrementRegisterCount();
+    // If the following CHECK fails then a register was allocated (and not
+    // freed) between the creation of the RegisterList and this call to add a
+    // Register.
+    CHECK_EQ(reg.index(), reg_list->last_register().index());
+    return reg;
+  }
+
+  // Releases the last register in |reg_list|, decreasing it's count by one and
+  // returning the register released.
+  //
+  // Note: no other new registers must be currently allocated since the register
+  // list was originally allocated or grown.
+  Register ShrinkRegisterList(RegisterList* reg_list) {
+    // If the following CHECK fails then a register was allocated (and not
+    // freed) between the creation of the RegisterList and this call to release
+    // the Register.
+    Register last_reg = reg_list->last_register();
+    CHECK_EQ(last_reg.index(), next_register_index_ - 1);
+    reg_list->DecrementRegisterCount();
+    ReleaseRegisters(next_register_index_ - 1);
+    return last_reg;
+  }
+
   // Release all registers above |register_index|.
   void ReleaseRegisters(int register_index) {
-    if (observer_) {
-      observer_->RegisterListFreeEvent(
-          RegisterList(register_index, next_register_index_ - register_index));
-    }
+    int count = next_register_index_ - register_index;
     next_register_index_ = register_index;
+    if (observer_) {
+      observer_->RegisterListFreeEvent(RegisterList(register_index, count));
+    }
   }
 
   // Returns true if the register |reg| is a live register.

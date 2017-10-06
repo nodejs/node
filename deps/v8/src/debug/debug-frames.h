@@ -13,12 +13,19 @@
 namespace v8 {
 namespace internal {
 
+// Forward declaration:
+namespace wasm {
+class InterpretedFrame;
+}
+
 class FrameInspector {
  public:
-  FrameInspector(StandardFrame* frame, int inlined_jsframe_index,
+  FrameInspector(StandardFrame* frame, int inlined_frame_index,
                  Isolate* isolate);
 
   ~FrameInspector();
+
+  FrameSummary& summary() { return frame_summary_; }
 
   int GetParametersCount();
   Handle<JSFunction> GetFunction();
@@ -33,7 +40,6 @@ class FrameInspector {
     return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
                                           : JavaScriptFrame::cast(frame_);
   }
-  inline WasmFrame* wasm_frame() { return WasmFrame::cast(frame_); }
 
   JavaScriptFrame* GetArgumentsFrame() { return javascript_frame(); }
   void SetArgumentsFrame(StandardFrame* frame);
@@ -52,7 +58,9 @@ class FrameInspector {
                                          Handle<String> parameter_name);
 
   StandardFrame* frame_;
-  DeoptimizedFrameInfo* deoptimized_frame_;
+  FrameSummary frame_summary_;
+  std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
+  std::unique_ptr<wasm::InterpretedFrame> wasm_interpreted_frame_;
   Isolate* isolate_;
   bool is_optimized_;
   bool is_interpreted_;

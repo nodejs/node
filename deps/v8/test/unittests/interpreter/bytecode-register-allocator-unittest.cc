@@ -6,6 +6,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -89,6 +90,23 @@ TEST_F(BytecodeRegisterAllocatorTest, RegisterListAllocations) {
   CHECK_EQ(empty_reg_list.register_count(), 0);
   CHECK_EQ(allocator()->maximum_register_count(), 6);
   CHECK_EQ(allocator()->next_register_index(), 3);
+}
+
+TEST_F(BytecodeRegisterAllocatorTest, GrowableRegisterListAllocations) {
+  CHECK_EQ(allocator()->maximum_register_count(), 0);
+  Register reg = allocator()->NewRegister();
+  CHECK_EQ(reg.index(), 0);
+  RegisterList reg_list = allocator()->NewGrowableRegisterList();
+  CHECK_EQ(reg_list.register_count(), 0);
+  allocator()->GrowRegisterList(&reg_list);
+  allocator()->GrowRegisterList(&reg_list);
+  allocator()->GrowRegisterList(&reg_list);
+  CHECK_EQ(reg_list.register_count(), 3);
+  CHECK_EQ(reg_list[0].index(), 1);
+  CHECK_EQ(reg_list[1].index(), 2);
+  CHECK_EQ(reg_list[2].index(), 3);
+  CHECK_EQ(allocator()->maximum_register_count(), 4);
+  CHECK_EQ(allocator()->next_register_index(), 4);
 }
 
 }  // namespace interpreter

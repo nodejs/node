@@ -10,6 +10,7 @@ namespace internal {
 namespace compiler {
 
 TEST(Throw) {
+  FLAG_stress_fullcodegen = false;
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
 
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));
@@ -18,6 +19,7 @@ TEST(Throw) {
 
 
 TEST(ThrowMessagePosition) {
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {        \n"
       "  if (a == 1) throw 1;   \n"
@@ -44,6 +46,7 @@ TEST(ThrowMessagePosition) {
 
 
 TEST(ThrowMessageDirectly) {
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {"
       "  if (a) { throw b; } else { throw new Error(b); }"
@@ -62,6 +65,7 @@ TEST(ThrowMessageDirectly) {
 
 
 TEST(ThrowMessageIndirectly) {
+  FLAG_stress_fullcodegen = false;
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -84,6 +88,7 @@ TEST(ThrowMessageIndirectly) {
 
 
 TEST(Catch) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -102,6 +107,7 @@ TEST(Catch) {
 
 
 TEST(CatchNested) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -125,6 +131,7 @@ TEST(CatchNested) {
 
 
 TEST(CatchBreak) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -149,6 +156,7 @@ TEST(CatchBreak) {
 
 
 TEST(CatchCall) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(fun) {"
       "  var r = '-';"
@@ -170,6 +178,7 @@ TEST(CatchCall) {
 
 
 TEST(Finally) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -187,6 +196,7 @@ TEST(Finally) {
 
 
 TEST(FinallyBreak) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -210,6 +220,7 @@ TEST(FinallyBreak) {
 
 
 TEST(DeoptTry) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -226,6 +237,7 @@ TEST(DeoptTry) {
 
 
 TEST(DeoptCatch) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -242,6 +254,7 @@ TEST(DeoptCatch) {
 
 
 TEST(DeoptFinallyReturn) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -258,6 +271,7 @@ TEST(DeoptFinallyReturn) {
 
 
 TEST(DeoptFinallyReThrow) {
+  FLAG_stress_fullcodegen = false;
   const char* src =
       "(function f(a) {"
       "  try {"

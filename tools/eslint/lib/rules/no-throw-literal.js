@@ -5,44 +5,7 @@
 
 "use strict";
 
-//------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-/**
- * Determine if a node has a possiblity to be an Error object
- * @param  {ASTNode}  node  ASTNode to check
- * @returns {boolean}       True if there is a chance it contains an Error obj
- */
-function couldBeError(node) {
-    switch (node.type) {
-        case "Identifier":
-        case "CallExpression":
-        case "NewExpression":
-        case "MemberExpression":
-        case "TaggedTemplateExpression":
-        case "YieldExpression":
-            return true; // possibly an error object.
-
-        case "AssignmentExpression":
-            return couldBeError(node.right);
-
-        case "SequenceExpression": {
-            const exprs = node.expressions;
-
-            return exprs.length !== 0 && couldBeError(exprs[exprs.length - 1]);
-        }
-
-        case "LogicalExpression":
-            return couldBeError(node.left) || couldBeError(node.right);
-
-        case "ConditionalExpression":
-            return couldBeError(node.consequent) || couldBeError(node.alternate);
-
-        default:
-            return false;
-    }
-}
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -64,7 +27,7 @@ module.exports = {
         return {
 
             ThrowStatement(node) {
-                if (!couldBeError(node.argument)) {
+                if (!astUtils.couldBeError(node.argument)) {
                     context.report({ node, message: "Expected an object to be thrown." });
                 } else if (node.argument.type === "Identifier") {
                     if (node.argument.name === "undefined") {

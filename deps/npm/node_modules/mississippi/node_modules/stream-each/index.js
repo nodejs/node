@@ -1,4 +1,5 @@
 var eos = require('end-of-stream')
+var shift = require('stream-shift')
 
 module.exports = each
 
@@ -41,7 +42,7 @@ function each (stream, fn, cb) {
     if (ended || running) return
     want = false
 
-    var data = stream.read()
+    var data = shift(stream)
     if (!data) {
       want = true
       return

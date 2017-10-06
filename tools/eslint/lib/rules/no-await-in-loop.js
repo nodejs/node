@@ -10,7 +10,7 @@ const loopTypes = new Set([
     "ForOfStatement",
     "ForInStatement",
     "WhileStatement",
-    "DoWhileStatement",
+    "DoWhileStatement"
 ]);
 
 // Node types at which we should stop looking for loops. For example, it is fine to declare an async
@@ -18,7 +18,7 @@ const loopTypes = new Set([
 const boundaryTypes = new Set([
     "FunctionDeclaration",
     "FunctionExpression",
-    "ArrowFunctionExpression",
+    "ArrowFunctionExpression"
 ]);
 
 module.exports = {
@@ -26,9 +26,9 @@ module.exports = {
         docs: {
             description: "disallow `await` inside of loops",
             category: "Possible Errors",
-            recommended: false,
+            recommended: false
         },
-        schema: [],
+        schema: []
     },
     create(context) {
         return {
@@ -69,7 +69,7 @@ module.exports = {
                         }
                     }
                 }
-            },
+            }
         };
     }
 };

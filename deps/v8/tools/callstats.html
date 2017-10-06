@@ -10,106 +10,106 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     body {
       font-family: arial;
     }
-    
+
     table {
       display: table;
       border-spacing: 0px;
     }
-    
+
     tr {
       border-spacing: 0px;
       padding: 10px;
     }
-    
+
     td,
     th {
       padding: 3px 10px 3px 5px;
     }
-    
+
     .inline {
       display: inline-block;
       vertical-align: top;
     }
-    
+
     h2,
     h3 {
       margin-bottom: 0px;
     }
-    
+
     .hidden {
       display: none;
     }
-    
+
     .view {
       display: table;
     }
-    
+
     .column {
       display: table-cell;
       border-right: 1px black dotted;
       min-width: 200px;
     }
-    
+
     .column .header {
       padding: 0 10px 0 10px
     }
-    
+
     #column {
       display: none;
     }
-   
+
     .list {
       width: 100%;
     }
-    
+
     select {
       width: 100%
     }
-    
+
     .list tbody {
       cursor: pointer;
     }
-    
+
     .list tr:nth-child(even) {
       background-color: #EFEFEF;
     }
-    
+
     .list tr:nth-child(even).selected {
       background-color: #DDD;
     }
-    
+
     .list tr.child {
       display: none;
     }
-    
+
     .list tr.child.visible {
       display: table-row;
     }
-    
+
     .list .child .name {
       padding-left: 20px;
     }
-    
+
     .list .parent td {
       border-top: 1px solid #AAA;
     }
-    
+
     .list .total {
       font-weight: bold
     }
-    
+
     .list tr.parent {
       background-color: #FFF;
     }
-    
+
     .list tr.parent.selected {
       background-color: #DDD;
     }
-    
+
     tr.selected {
       background-color: #DDD;
     }
-    
+
     .codeSearch {
       display: block-inline;
       float: right;
@@ -118,53 +118,53 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       width: 1em;
       text-align: center;
     }
-    
+
     .list .position {
       text-align: right;
       display: none;
     }
-    
+
     .list div.toggle {
       cursor: pointer;
     }
-    
+
     #column_0 .position {
       display: table-cell;
     }
-    
+
     #column_0 .name {
       display: table-cell;
     }
-    
+
     .list .name {
       display: none;
       white-space: nowrap;
     }
-    
+
     .value {
       text-align: right;
     }
-    
+
     .selectedVersion {
       font-weight: bold;
     }
-    
+
     #baseline {
       width: auto;
     }
-    
+
     .compareSelector {
       padding-bottom: 20px;
     }
-    
+
     .pageDetailTable tbody {
       cursor: pointer
     }
-    
+
     .pageDetailTable tfoot td {
       border-top: 1px grey solid;
     }
-    
+
     #popover {
       position: absolute;
       transform: translateY(-50%) translateX(40px);
@@ -175,7 +175,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       display: none;
       white-space: nowrap;
     }
-    
+
     #popover table {
       position: relative;
       z-index: 1;
@@ -186,7 +186,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       padding: 3px 0px 3px 5px;
       white-space: nowrap;
     }
-    
+
     .popoverArrow {
       background-color: #FFF;
       position: absolute;
@@ -197,17 +197,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       left: -10px;
       z-index: 0;
     }
-    
+
     #popover .name {
       padding: 5px;
       font-weight: bold;
       text-align: center;
     }
-    
+
     #popover table .compare {
       display: none
     }
-    
+
     #popover table.compare .compare {
       display: table-cell;
     }
@@ -247,7 +247,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     var selectedPage;
     var baselineVersion;
     var selectedEntry;
-    
+
     // Marker to programatically replace the defaultData.
     var defaultData = /*default-data-start*/undefined/*default-data-end*/;
 
@@ -295,7 +295,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
       var oldView = $('view');
       oldView.parentNode.replaceChild(view, oldView);
-      
+
       var select = $('baseline');
       removeAllChildren(select);
       select.appendChild(document.createElement('option'));
@@ -348,8 +348,53 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    window.addEventListener('popstate', (event) => {
+      popHistoryState(event.state);
+    });
+
+    function popHistoryState(state) {
+      if (!state.version) return false;
+      if (!versions) return false;
+      var version = versions.getByName(state.version);
+      if (!version) return false;
+      var page = version.get(state.page);
+      if (!page) return false;
+      if (!state.entry) {
+        showEntry(page.total);
+      } else {
+        var entry = page.get(state.entry);
+        if (!entry) {
+          showEntry(page.total);
+        } else {
+          showEntry(entry);
+        }
+      }
+      return true;
+    }
+
+    function pushHistoryState() {
+      var selection = selectedEntry ? selectedEntry : selectedPage;
+      if (!selection) return;
+      var state = selection.urlParams();
+      // Don't push a history state if it didn't change.
+      if (JSON.stringify(window.history.state) === JSON.stringify(state)) return;
+      var params = "?";
+      for (var pairs of Object.entries(state)) {
+        params += encodeURIComponent(pairs[0]) + "="
+            + encodeURIComponent(pairs[1]) + "&";
+      }
+      window.history.pushState(state, selection.toString(), params);
+    }
+
+    function showSelectedEntryInPage(page) {
+      if (!selectedEntry) return showPage(page);
+      var entry = page.get(selectedEntry.name);
+      if (!entry) return showPage(page);
+      selectEntry(entry);
+    }
+
     function showPage(firstPage) {
-      var changeSelectedEntry = selectedEntry !== undefined 
+      var changeSelectedEntry = selectedEntry !== undefined
           && selectedEntry.page === selectedPage;
       selectedPage = firstPage;
       selectedPage.sort();
@@ -367,6 +412,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         showEntryDetail(selectedPage.getEntry(selectedEntry));
       }
       showImpactList(selectedPage);
+      pushHistoryState();
     }
 
     function showPageInColumn(page, columnIndex) {
@@ -408,12 +454,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var tbody = document.createElement('tbody');
       var referencePage = selectedPage;
       page.forEachSorted(selectedPage, (parentEntry, entry, referenceEntry) => {
-        // Filter out entries that do not exist in the first column for the default
-        // view.
-        if (baselineVersion === undefined && referenceEntry &&
-          referenceEntry.time == 0) {
-          return;
-        }
         var tr = document.createElement('tr');
         tbody.appendChild(tr);
         tr.entry = entry;
@@ -435,7 +475,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           }
           addCodeSearchButton(entry,
               td(tr, entry.name, 'name ' + entry.cssClass()));
-          
+
           diffStatus(
             td(tr, ms(entry.time), 'value time'),
             entry.time, referenceEntry.time);
@@ -445,7 +485,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           diffStatus(
             td(tr, count(entry.count), 'value count'),
             entry.count, referenceEntry.count);
-        } else if (baselineVersion !== undefined && referenceEntry 
+        } else if (baselineVersion !== undefined && referenceEntry
             && page.version !== baselineVersion) {
           // Show comparison of entry that does not exist on the current page.
           tr.entry = new Entry(0, referenceEntry.name);
@@ -453,14 +493,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           td(tr, '-', 'position');
           td(tr, referenceEntry.name, 'name');
           diffStatus(
-            td(tr, ms(-referenceEntry.time), 'value time'),
-            -referenceEntry.time, 0);
+            td(tr, ms(referenceEntry.time), 'value time'),
+            referenceEntry.time, 0);
           diffStatus(
-            td(tr, percent(-referenceEntry.timePercent), 'value time'),
-            -referenceEntry.timePercent, 0);
+            td(tr, percent(referenceEntry.timePercent), 'value time'),
+            referenceEntry.timePercent, 0);
           diffStatus(
-            td(tr, count(-referenceEntry.count), 'value count'),
-            -referenceEntry.count, 0);
+            td(tr, count(referenceEntry.count), 'value count'),
+            referenceEntry.count, 0);
         } else {
           // Display empty entry / baseline entry
           var showBaselineEntry = entry !== undefined;
@@ -477,7 +517,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             td(tr, count(entry.count, false), 'value count');
           } else {
             td(tr, '-', 'position');
-            td(tr, '-', 'name');
+            td(tr, referenceEntry.name, 'name');
             td(tr, '-', 'value time');
             td(tr, '-', 'value time');
             td(tr, '-', 'value count');
@@ -491,17 +531,23 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
     }
 
+    function showEntry(entry) {
+      selectEntry(entry, true);
+    }
+
     function selectEntry(entry, updateSelectedPage) {
-      if (updateSelectedPage) {
+      var needsPageSwitch = true;
+      if (updateSelectedPage && selectedPage) {
         entry = selectedPage.version.getEntry(entry);
+        needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
       }
       var rowIndex = 0;
-      var needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
       // If clicked in the detail row change the first column to that page.
       if (needsPageSwitch) showPage(entry.page);
       var childNodes = $('column_0').querySelector('.list tbody').childNodes;
       for (var i = 0; i < childNodes.length; i++) {
-        if (childNodes[i].entry.name == entry.name) {
+        if (childNodes[i].entry !== undefined &&
+            childNodes[i].entry.name == entry.name) {
           rowIndex = i;
           break;
         }
@@ -521,11 +567,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         toggleCssClass(row, 'selected', row.entry && row.entry.name ==
           firstEntry.name);
       });
-      if (updateSelectedPage) {
+      if (updateSelectedPage && selectedEntry) {
         entry = selectedEntry.page.version.getEntry(entry);
       }
-      selectedEntry = entry;
-      showEntryDetail(entry);
+      if (entry !== selectedEntry) {
+        selectedEntry = entry;
+        showEntryDetail(entry);
+      }
     }
 
     function showEntryDetail(entry) {
@@ -533,8 +581,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       showPageDetails(entry);
       showImpactList(entry.page);
       showGraphs(entry.page);
+      pushHistoryState();
     }
-    
+
     function showVersionDetails(entry) {
       var table, tbody, entries;
       table = $('detailView').querySelector('.versionDetailTable');
@@ -630,10 +679,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           var impact = entry.getTimeImpact();
           return impact < -1 || 1 < impact
         }
-        return entry.getTimePercentImpact() > 0.1;
+        return entry.getTimePercentImpact() > 0.01;
       });
+      entries = entries.slice(0, 50);
       entries.sort((a, b) => {
-        var cmp = b.getTimePercentImpact() - a.getTimePercentImpact(); 
+        var cmp = b.getTimePercentImpact() - a.getTimePercentImpact();
         if (isCompareView || cmp.toFixed(1) == 0) {
           return b.getTimeImpact() - a.getTimeImpact();
         }
@@ -656,9 +706,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       });
       table.replaceChild(tbody, table.querySelector('tbody'));
     }
-    
+
     function showGraphs(page) {
-      var groups = page.groups.slice(); 
+      var groups = page.groups.filter(each => each.enabled);
       // Sort groups by the biggest impact
       groups.sort((a, b) => {
         return b.getTimeImpact() - a.getTimeImpact();
@@ -666,14 +716,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       if (selectedGroup == undefined) {
         selectedGroup = groups[0];
       } else {
-        groups = groups.filter(each => each.enabled && each.name != selectedGroup.name);
+        groups = groups.filter(each => each.name != selectedGroup.name);
         groups.unshift(selectedGroup);
       }
       showPageGraph(groups, page);
       showVersionGraph(groups, page);
       showPageVersionGraph(groups, page);
     }
-    
+
     function getGraphDataTable(groups) {
       var dataTable = new google.visualization.DataTable();
       dataTable.addColumn('string', 'Name');
@@ -712,20 +762,20 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       if (isDiffView) {
         pages.sort((a, b) => {
           return b.getEntry(selectedGroup).time-
-            a.getEntry(selectedGroup).time; 
+            a.getEntry(selectedGroup).time;
         });
       } else {
         pages.sort((a, b) => {
           return b.getEntry(selectedGroup).timePercent -
-            a.getEntry(selectedGroup).timePercent; 
+            a.getEntry(selectedGroup).timePercent;
         });
       }
       // Sort by sum of squared distance to the average.
       // pages.sort((a, b) => {
-      //   return a.distanceFromTotalPercent() - b.distanceFromTotalPercent(); 
+      //   return a.distanceFromTotalPercent() - b.distanceFromTotalPercent();
       // });
       // Calculate the entries for the pages
-      pages.forEach((page) => { 
+      pages.forEach((page) => {
         row = [page.name];
         groups.forEach((group) => {
           row.push(group.isTotal ? 0 : page.getEntry(group).time);
@@ -743,10 +793,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var vs = versions.versions.filter(version => version.enabled);
       vs.sort((a, b) => {
         return b.getEntry(selectedGroup).getTimeImpact() -
-          a.getEntry(selectedGroup).getTimeImpact(); 
+          a.getEntry(selectedGroup).getTimeImpact();
       });
-      // Calculate the entries for the versions 
-      vs.forEach((version) => { 
+      // Calculate the entries for the versions
+      vs.forEach((version) => {
         row = [version.name];
         groups.forEach((group) => {
           row.push(group.isTotal ? 0 : version.getEntry(group).getTimeImpact());
@@ -763,10 +813,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var row;
       var vs = versions.getPageVersions(page);
       vs.sort((a, b) => {
-        return b.getEntry(selectedGroup).time - a.getEntry(selectedGroup).time; 
+        return b.getEntry(selectedGroup).time - a.getEntry(selectedGroup).time;
       });
-      // Calculate the entries for the versions 
-      vs.forEach((page) => { 
+      // Calculate the entries for the versions
+      vs.forEach((page) => {
         row = [page.version.name];
         groups.forEach((group) => {
           row.push(group.isTotal ? 0 : page.getEntry(group).time);
@@ -781,8 +831,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function renderGraph(title, groups, dataTable, id, isStacked) {
       var isDiffView = baselineVersion !== undefined;
       var formatter = new google.visualization.NumberFormat({
-        suffix: (isDiffView ? 'msΔ' : 'ms'), 
-        negativeColor: 'red', 
+        suffix: (isDiffView ? 'msΔ' : 'ms'),
+        negativeColor: 'red',
         groupingSymbol: "'"
       });
       for (var i = 1; i < dataTable.getNumberOfColumns(); i++) {
@@ -794,18 +844,21 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         height: height,
         hAxis: {
           minValue: 0,
+          textStyle: { fontSize: 14 }
         },
         animation:{
-          duration: 500,
+          duration: dataTable.getNumberOfRows() > 50 ? 0 : 500 ,
           easing: 'out',
         },
         vAxis: {
+          textStyle: { fontSize: 14 }
         },
+        tooltip: { textStyle: { fontSize: 14 }},
         explorer: {
           actions: ['dragToZoom', 'rightClickToReset'],
           maxZoomIn: 0.01
         },
-        legend: {position:'top', textStyle:{fontSize: '16px'}},
+        legend: {position:'top', maxLines: 1, textStyle: { fontSize: 14 }},
         chartArea: {left:200, top:50, width:'98%', height:'80%'},
         colors: groups.map(each => each.color)
       };
@@ -892,7 +945,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         node('.percent').textContent = percent(entry.timePercent, false);
         node('.percentPerEntry').textContent
             = percent(entry.timePercentPerEntry, false);
-        node('.percentVariance').textContent 
+        node('.percentVariance').textContent
             = percent(entry.timePercentVariancePercent, false);
         node('.count').textContent = count(entry._count, false);
         node('.countVariance').textContent
@@ -1031,27 +1084,115 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
      xhr.send();
     }
 
+    function handleAppendFile() {
+      var files = document.getElementById("appendInput").files;
+      loadFiles(files, true);
+    }
+
     function handleLoadFile() {
       var files = document.getElementById("uploadInput").files;
+      loadFiles(files, false)
+    }
+
+    function loadFiles(files, append) {
       var file = files[0];
       var reader = new FileReader();
 
       reader.onload = function(evt) {
-        handleLoadText(this.result);
+        handleLoadText(this.result, append);
       }
       reader.readAsText(file);
     }
 
-    function handleLoadText(text) {
-      handleLoadJSON(JSON.parse(text));
+    function handleLoadText(text, append) {
+      handleLoadJSON(JSON.parse(text), append);
     }
 
-    function handleLoadJSON(json) {
-      pages = new Pages();
-      versions = Versions.fromJSON(json);
+    function getStateFromParams() {
+      var query = window.location.search.substr(1);
+      var result = {};
+      query.split("&").forEach((part) => {
+        var item = part.split("=");
+        var key = decodeURIComponent(item[0])
+        result[key] = decodeURIComponent(item[1]);
+      });
+      return result;
+    }
+
+    function handleLoadJSON(json, append) {
+      let isFirstLoad = pages === undefined;
+      json = fixClusterTelemetryResults(json);
+      json = fixSinglePageJSON(json);
+      if (append && !isFirstLoad) {
+        json = createUniqueVersions(json)
+      }
+      var state = getStateFromParams();
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = Versions.fromJSON(json);
+      } else {
+        Versions.fromJSON(json).forEach(e => versions.add(e))
+      }
       initialize()
-      showPage(versions.versions[0].pages[0]);
-      selectEntry(selectedPage.total);
+      if (isFirstLoad && !popHistoryState(state)) {
+        showEntry(selectedPage.total);
+      }
+    }
+
+    function fixClusterTelemetryResults(json) {
+      // Convert CT results to callstats compatible JSON
+      // Input:
+      // { PATH: { "pairs": { METRIC: { "count": XX, "time": XX }.. }}.. }
+      let firstEntry;
+      for (let key in json) {
+        firstEntry = json[key];
+        break;
+      }
+      // Return the original JSON if it is not a CT result.
+      if (firstEntry.pairs === undefined) return json;
+      // The results include already the group totals, remove them by filtering.
+      let groupNames = new Set(Array.from(Group.groups.values()).map(e => e.name));
+      let result = Object.create(null);
+      for (let file_name in json) {
+        let entries = [];
+        let file_data = json[file_name].pairs;
+        for (let name in file_data) {
+          if(name != "Total" && groupNames.has(name)) continue;
+          let entry = file_data[name];
+          let count = entry.count;
+          let time = entry.time;
+          entries.push([name, time, 0, 0, count, 0, 0]);
+        }
+        let domain = file_name.split("/").slice(-1)[0];
+        result[domain] = entries;
+      }
+      return {__proto__:null, ClusterTelemetry: result};
+    }
+
+    function fixSinglePageJSON(json) {
+      // Try to detect the single-version case, where we're missing the toplevel
+      // version object. The incoming JSON is of the form:
+      //    {"Page 1": [... data points ... ], "Page 2": [...], ...}
+      // Instead of the default multi-page JSON:
+      //    {"Version 1": { "Page 1": ..., ...}, "Version 2": {...}, ...}
+      // In this case insert a single "Default" version as top-level entry.
+      var firstProperty = (object) => {
+        for (var key in object) return key;
+      };
+      var maybePage = json[firstProperty(json)];
+      if (!Array.isArray(maybePage)) return json;
+      return {"Default": json}
+    }
+
+    var appendIndex = 0;
+    function createUniqueVersions(json) {
+      // Make sure all toplevel entries are unique namaes and added properly
+      appendIndex++;
+      let result = {__proto__:null}
+      for (let key in json) {
+        result[key+"_"+appendIndex] = json[key];
+      }
+      return result
     }
 
     function handleToggleGroup(event) {
@@ -1062,7 +1203,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function handleSelectPage(select, event) {
       var option = select.options[select.selectedIndex];
       if (select.id == "select_0") {
-        showPage(option.page);
+        showSelectedEntryInPage(option.page);
       } else {
         var columnIndex = select.id.split('_')[1];
         showPageInColumn(option.page, columnIndex);
@@ -1074,7 +1215,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var version = option.version;
       if (select.id == "selectVersion_0") {
         var page = version.get(selectedPage.name);
-        showPage(page);
+        showSelectedEntryInPage(page);
       } else {
         var columnIndex = select.id.split('_')[1];
         var pageSelect = $('select_' + columnIndex);
@@ -1188,7 +1329,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
       get(index) {
         return this.versions[index]
-      };
+      }
+      getByName(name) {
+        return this.versions.find((each) => each.name == name);
+      }
       forEach(f) {
         this.versions.forEach(f);
       }
@@ -1298,7 +1442,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return Math.sqrt(sum);
       }
       getTotalTimeVariancePercent(name, showDiff) {
-        return this.getTotalTimeVariance(name, showDiff) / 
+        return this.getTotalTimeVariance(name, showDiff) /
           this.getTotalTime(name, showDiff) * 100;
       }
       getTotalCount(name, showDiff) {
@@ -1329,7 +1473,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       version.sort();
       return version;
     }
-    
+
     class Pages extends Map {
       get(name) {
         if (name.indexOf('www.') == 0) {
@@ -1364,7 +1508,9 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           this.total,
           Group.groups.get('ic').entry(),
           Group.groups.get('optimize').entry(),
+          Group.groups.get('compile-background').entry(),
           Group.groups.get('compile').entry(),
+          Group.groups.get('parse-background').entry(),
           Group.groups.get('parse').entry(),
           Group.groups.get('callback').entry(),
           Group.groups.get('api').entry(),
@@ -1380,7 +1526,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         });
         this.version = version;
       }
+      toString() {
+        return this.version.name + ": " + this.name;
+      }
+      urlParams() {
+        return { version: this.version.name, page: this.name};
+      }
       add(entry) {
+        // Ignore accidentally added Group entries.
+        if (entry.name.startsWith(GroupedEntry.prefix)) return;
         entry.page = this;
         this.entryDict.set(entry.name, entry);
         var added = false;
@@ -1435,7 +1589,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         var sum = 0;
         this.groups.forEach(group => {
           if (group == this.total) return;
-          var value = group.getTimePercentImpact() - 
+          var value = group.getTimePercentImpact() -
               this.getEntry(group).timePercent;
           sum += value * value;
         });
@@ -1470,6 +1624,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.page = undefined;
         this.parent = undefined;
         this.isTotal = false;
+      }
+      urlParams() {
+        var params = this.page.urlParams();
+        params.entry = this.name;
+        return params;
       }
       getCompareWithBaseline(value, property) {
         if (baselineVersion == undefined) return value;
@@ -1540,7 +1699,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return new Entry(position, ...data);
     }
 
-    class Group { 
+    class Group {
       constructor(name, regexp, color) {
         this.name = name;
         this.regexp = regexp;
@@ -1552,25 +1711,34 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.groups = new Map();
     Group.add = function(name, group) {
       this.groups.set(name, group);
+      return group;
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB'));
-    Group.add('ic', new Group('IC', /.*IC.*/, "#3366CC"));
+    Group.add('ic', new Group('IC', /.*IC_.*/, "#3366CC"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
-    Group.add('compile', new Group('Compile', /.*Compile.*/, "#FFAA00"));
+    Group.add('compile-background', new Group('Compile-Background',
+        /(.*CompileBackground.*)/, "#b9a720"));
+    Group.add('compile', new Group('Compile',
+        /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
+    Group.add('parse-background',
+        new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
-    Group.add('callback', new Group('Callback', /.*Callback$/, "#109618"));
+    Group.add('callback', new Group('Blink C++', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc', new Group('GC', /GC|AllocateInTargetSpace/, "#0099C6"));
     Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
-    Group.add('runtime', new Group('Runtime', /.*/, "#88BB00"));
-    Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
+    var group =
+      Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
+    group.enabled = false;
 
     class GroupedEntry extends Entry {
       constructor(group) {
-        super(0, 'Group-' + group.name, 0, 0, 0, 0, 0, 0);
+        super(0, GroupedEntry.prefix + group.name, 0, 0, 0, 0, 0, 0);
         this.group = group;
         this.entries = [];
+        this.missingEntries = null;
       }
       get regexp() { return this.group.regexp }
       get color() { return this.group.color }
@@ -1584,27 +1752,37 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         entry.parent = this;
         return true;
       }
+      _initializeMissingEntries() {
+        var dummyEntryNames = new Set();
+        versions.forEach((version) => {
+          var groupEntry = version.getEntry(this);
+          if (groupEntry != this) {
+            for (var entry of groupEntry.entries) {
+              if (this.page.get(entry.name) == undefined) {
+                dummyEntryNames.add(entry.name);
+              }
+            }
+          }
+        });
+        this.missingEntries  = [];
+        for (var name of dummyEntryNames) {
+          var tmpEntry = new Entry(0, name, 0, 0, 0, 0, 0, 0);
+          tmpEntry.page = this.page;
+          this.missingEntries.push(tmpEntry);
+        };
+      }
+
       forEach(fun) {
-        if (baselineVersion === undefined) {
-          this.entries.forEach(fun);
-          return;
+        // Show also all entries which are in at least one version.
+        // Concatenate our real entries.
+        if (this.missingEntries == null) {
+          this._initializeMissingEntries();
         }
-        // If we have a baslineVersion to compare against show also all entries
-        // from the other group.
-        var tmpEntries = baselineVersion.getEntry(this)
-          .entries.filter((entry) => {
-            return this.page.get(entry.name) == undefined
-          });
+        var tmpEntries = this.missingEntries.concat(this.entries);
 
         // The compared entries are sorted by absolute impact.
-        tmpEntries = tmpEntries.map((entry) => {
-          var tmpEntry = new Entry(0, entry.name, 0, 0, 0, 0, 0, 0);
-          tmpEntry.page = this.page;
-          return tmpEntry;
-        });
-        tmpEntries = tmpEntries.concat(this.entries);
         tmpEntries.sort((a, b) => {
-          return a.time - b.time
+          return b.time - a.time
         });
         tmpEntries.forEach(fun);
       }
@@ -1636,6 +1814,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.getVarianceForProperty('time')
       }
     }
+    GroupedEntry.prefix = 'Group-';
 
     class UnclassifiedEntry extends GroupedEntry {
       constructor(page) {
@@ -1686,7 +1865,12 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       <h2>Data</h2>
       <form name="fileForm">
         <p>
+          <label for="uploadInput">Load File:</label>
           <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json">
+        </p>
+        <p>
+          <label for="appendInput">Append File:</label>
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFile();" accept=".json">
         </p>
       </form>
     </div>
@@ -1699,14 +1883,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         better on this measurement.
       </div>
     </div>
-    
+
     <div id="versionSelector" class="inline toggleContentVisibility">
       <h2>Versions</h2>
       <div class="content hidden">
         <ul></ul>
       </div>
     </div>
-    
+
     <div id="pageSelector" class="inline toggleContentVisibility">
       <h2>Pages</h2>
       <div class="content hidden">

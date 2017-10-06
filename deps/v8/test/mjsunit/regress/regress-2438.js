@@ -27,20 +27,16 @@
 
 function testSideEffects(subject, re) {
   var counter = 0;
-  var expected_counter = 0;
-  const accesses_lastindex = (re.global || re.sticky);
   var side_effect_object = { valueOf: function() { return counter++; } };
   re.lastIndex = side_effect_object;
   re.exec(subject);
 
-  if (accesses_lastindex) expected_counter++;
-  assertEquals(expected_counter, counter);
+  assertEquals(1, counter);
 
   re.lastIndex = side_effect_object;
   re.test(subject);
 
-  if (accesses_lastindex) expected_counter++;
-  assertEquals(expected_counter, counter);
+  assertEquals(2, counter);
 }
 
 testSideEffects("zzzz", /a/);

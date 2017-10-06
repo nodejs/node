@@ -11,6 +11,7 @@
 #include <ostream>
 
 #include "src/base/build_config.h"
+#include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -109,6 +110,8 @@ namespace internal {
 #define V8_DEFAULT_STACK_SIZE_KB 984
 #endif
 
+// Minimum stack size in KB required by compilers.
+const int kStackSpaceRequiredForCompilation = 40;
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
@@ -117,6 +120,10 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
+// Some types of tracing require the SFI to store a unique ID.
+#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
+#define V8_SFI_HAS_UNIQUE_ID 1
+#endif
 
 typedef uint8_t byte;
 typedef byte* Address;
@@ -141,24 +148,26 @@ const int kMinUInt16 = 0;
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kMinUInt32 = 0;
 
-const int kCharSize      = sizeof(char);      // NOLINT
-const int kShortSize     = sizeof(short);     // NOLINT
-const int kIntSize       = sizeof(int);       // NOLINT
-const int kInt32Size     = sizeof(int32_t);   // NOLINT
-const int kInt64Size     = sizeof(int64_t);   // NOLINT
-const int kFloatSize     = sizeof(float);     // NOLINT
-const int kDoubleSize    = sizeof(double);    // NOLINT
-const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
-const int kPointerSize   = sizeof(void*);     // NOLINT
+const int kCharSize = sizeof(char);
+const int kShortSize = sizeof(short);  // NOLINT
+const int kIntSize = sizeof(int);
+const int kInt32Size = sizeof(int32_t);
+const int kInt64Size = sizeof(int64_t);
+const int kUInt32Size = sizeof(uint32_t);
+const int kSizetSize = sizeof(size_t);
+const int kFloatSize = sizeof(float);
+const int kDoubleSize = sizeof(double);
+const int kIntptrSize = sizeof(intptr_t);
+const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-const int kRegisterSize  = kPointerSize + kPointerSize;
+const int kRegisterSize = kPointerSize + kPointerSize;
 #else
-const int kRegisterSize  = kPointerSize;
+const int kRegisterSize = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
 #else
 const int kElidedFrameSlots = 0;
@@ -308,36 +317,65 @@ inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
     case SLOPPY: return os << "sloppy";
     case STRICT: return os << "strict";
-    default: UNREACHABLE();
+    case LANGUAGE_END:
+      UNREACHABLE();
   }
-  return os;
+  UNREACHABLE();
 }
-
 
 inline bool is_sloppy(LanguageMode language_mode) {
   return language_mode == SLOPPY;
 }
 
-
 inline bool is_strict(LanguageMode language_mode) {
   return language_mode != SLOPPY;
 }
-
 
 inline bool is_valid_language_mode(int language_mode) {
   return language_mode == SLOPPY || language_mode == STRICT;
 }
 
-
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
 }
+
+enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;
 
 // This constant is used to indicate missing deoptimization information.
 const int kNoDeoptimizationId = -1;
+
+// Deoptimize bailout kind.
+enum class DeoptimizeKind : uint8_t { kEager, kSoft };
+inline size_t hash_value(DeoptimizeKind kind) {
+  return static_cast<size_t>(kind);
+}
+inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return os << "Eager";
+    case DeoptimizeKind::kSoft:
+      return os << "Soft";
+  }
+  UNREACHABLE();
+}
+
+// Indicates whether the lookup is related to sloppy-mode block-scoped
+// function hoisting, and is a synthetic assignment for that.
+enum class LookupHoistingMode { kNormal, kLegacySloppy };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const LookupHoistingMode& mode) {
+  switch (mode) {
+    case LookupHoistingMode::kNormal:
+      return os << "normal hoisting";
+    case LookupHoistingMode::kLegacySloppy:
+      return os << "legacy sloppy hoisting";
+  }
+  UNREACHABLE();
+}
 
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
@@ -353,10 +391,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 // Desired alignment for double values.
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
-
-// Desired alignment for 128 bit SIMD values.
-const intptr_t kSimd128Alignment = 16;
-const intptr_t kSimd128AlignmentMask = kSimd128Alignment - 1;
 
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
@@ -469,7 +503,7 @@ class String;
 class Symbol;
 class Name;
 class Struct;
-class TypeFeedbackVector;
+class FeedbackVector;
 class Variable;
 class RelocInfo;
 class Deserializer;
@@ -500,12 +534,9 @@ enum AllocationSpace {
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
-enum AllocationAlignment {
-  kWordAligned,
-  kDoubleAligned,
-  kDoubleUnaligned,
-  kSimd128Unaligned
-};
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
+
+enum class AccessMode { ATOMIC, NON_ATOMIC };
 
 // Possible outcomes for decisions.
 enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
@@ -524,7 +555,6 @@ inline std::ostream& operator<<(std::ostream& os, Decision decision) {
       return os << "False";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Supported write barrier modes.
@@ -551,7 +581,6 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
       return os << "FullWriteBarrier";
   }
   UNREACHABLE();
-  return os;
 }
 
 // A flag that indicates whether objects should be pretenured when
@@ -568,7 +597,6 @@ inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
       return os << "Tenured";
   }
   UNREACHABLE();
-  return os;
 }
 
 enum MinimumCapacity {
@@ -576,12 +604,14 @@ enum MinimumCapacity {
   USE_CUSTOM_MINIMUM_CAPACITY
 };
 
-enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
+enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 enum VisitMode {
   VISIT_ALL,
+  VISIT_ALL_IN_MINOR_MC_MARK,
+  VISIT_ALL_IN_MINOR_MC_UPDATE,
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
   VISIT_ONLY_STRONG,
@@ -590,7 +620,12 @@ enum VisitMode {
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
-enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, NATIVES_CODE };
+enum NativesFlag {
+  NOT_NATIVES_CODE,
+  EXTENSION_CODE,
+  NATIVES_CODE,
+  INSPECTOR_CODE
+};
 
 // JavaScript defines two kinds of 'nil'.
 enum NilValue { kNullValue, kUndefinedValue };
@@ -659,14 +694,9 @@ enum InlineCacheState {
   GENERIC,
 };
 
-enum CacheHolderFlag {
-  kCacheOnPrototype,
-  kCacheOnPrototypeReceiverIsDictionary,
-  kCacheOnPrototypeReceiverIsPrimitive,
-  kCacheOnReceiver
-};
-
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
+
+enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
 // The Store Buffer (GC).
 typedef enum {
@@ -729,7 +759,11 @@ struct AccessorDescriptor {
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
+  ((reinterpret_cast<intptr_t>(value) & ::i::kSmiTagMask) == ::i::kSmiTag)
+
+#define HAS_HEAP_OBJECT_TAG(value)                                   \
+  (((reinterpret_cast<intptr_t>(value) & ::i::kHeapObjectTagMask) == \
+    ::i::kHeapObjectTag))
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value)                             \
@@ -773,16 +807,21 @@ enum CpuFeature {
   MIPSr1,
   MIPSr2,
   MIPSr6,
+  MIPS_SIMD,  // MSA instructions
   // ARM64
   ALWAYS_ALIGN_CSP,
   // PPC
   FPR_GPR_MOV,
   LWSYNC,
   ISELECT,
+  VSX,
+  MODULO,
   // S390
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
+  VECTOR_FACILITY,
+  MISC_INSTR_EXT2,
 
   NUMBER_OF_CPU_FEATURES,
 
@@ -814,23 +853,6 @@ inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
       return os << "ANY";
   }
   UNREACHABLE();
-  return os;
-}
-
-// Defines whether tail call optimization is allowed.
-enum class TailCallMode : unsigned { kAllow, kDisallow };
-
-inline size_t hash_value(TailCallMode mode) { return bit_cast<unsigned>(mode); }
-
-inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
-  switch (mode) {
-    case TailCallMode::kAllow:
-      return os << "ALLOW_TAIL_CALLS";
-    case TailCallMode::kDisallow:
-      return os << "DISALLOW_TAIL_CALLS";
-  }
-  UNREACHABLE();
-  return os;
 }
 
 // Valid hints for the abstract operation OrdinaryToPrimitive,
@@ -862,7 +884,6 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
       return os << "REST_PARAMETER";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Used to specify if a macro instruction must perform a smi check on tagged
@@ -882,17 +903,19 @@ enum ScopeType : uint8_t {
   WITH_SCOPE       // The scope introduced by with.
 };
 
+// AllocationSiteMode controls whether allocations are tracked by an allocation
+// site.
+enum AllocationSiteMode {
+  DONT_TRACK_ALLOCATION_SITE,
+  TRACK_ALLOCATION_SITE,
+  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
+};
+
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
-// The x87 FPU convert the sNaN to qNaN automatically when loading sNaN from
-// memmory.
-// Use mips sNaN which is a not used qNaN in x87 port as sNaN to workaround this
-// issue
-// for some test cases.
 #if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6) &&           \
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
     (V8_TARGET_ARCH_MIPS64 && !defined(_MIPS_ARCH_MIPS64R6) &&         \
-     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \
-    (V8_TARGET_ARCH_X87)
+     (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR)))
 const uint32_t kHoleNanUpper32 = 0xFFFF7FFF;
 const uint32_t kHoleNanLower32 = 0xFFFF7FFF;
 #else
@@ -911,11 +934,11 @@ const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 // The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode : uint8_t {
   // User declared variables:
-  VAR,  // declared via 'var', and 'function' declarations
-
   LET,  // declared via 'let' declarations (first lexical)
 
   CONST,  // declared via 'const' declarations (last lexical)
+
+  VAR,  // declared via 'var', and 'function' declarations
 
   // Variables introduced by the compiler:
   TEMPORARY,  // temporary variables (not user-visible), stack-allocated
@@ -928,12 +951,10 @@ enum VariableMode : uint8_t {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,  // requires dynamic lookup, but we know that the
-                  // variable is local and where it is unless it
-                  // has been shadowed by an eval-introduced
-                  // variable
-
-  kLastVariableMode = DYNAMIC_LOCAL
+  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
+                 // variable is local and where it is unless it
+                 // has been shadowed by an eval-introduced
+                 // variable
 };
 
 // Printing support
@@ -956,7 +977,6 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "TEMPORARY";
   }
   UNREACHABLE();
-  return NULL;
 }
 #endif
 
@@ -964,8 +984,7 @@ enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
   FUNCTION_VARIABLE,
   THIS_VARIABLE,
-  SLOPPY_FUNCTION_NAME_VARIABLE,
-  kLastKind = SLOPPY_FUNCTION_NAME_VARIABLE
+  SLOPPY_FUNCTION_NAME_VARIABLE
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
@@ -974,13 +993,14 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  STATIC_ASSERT(VAR == 0);  // Implies that mode >= VAR.
-  return mode <= CONST;
+  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
+  return mode <= VAR;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= CONST;
+  STATIC_ASSERT(LET == 0);  // Implies that mode >= LET.
+  return mode <= CONST;
 }
 
 enum VariableLocation : uint8_t {
@@ -1015,12 +1035,12 @@ enum VariableLocation : uint8_t {
   kLastVariableLocation = MODULE
 };
 
-// ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
-// and immutable bindings that can be in two states: initialized and
-// uninitialized. In ES5 only immutable bindings have these two states. When
-// accessing a binding, it needs to be checked for initialization. However in
-// the following cases the binding is initialized immediately after creation
-// so the initialization check can always be skipped:
+// ES6 specifies declarative environment records with mutable and immutable
+// bindings that can be in two states: initialized and uninitialized.
+// When accessing a binding, it needs to be checked for initialization.
+// However in the following cases the binding is initialized immediately
+// after creation so the initialization check can always be skipped:
+//
 // 1. Var declared local variables.
 //      var foo;
 // 2. A local variable introduced by a function declaration.
@@ -1029,24 +1049,17 @@ enum VariableLocation : uint8_t {
 //      function x(foo) {}
 // 4. Catch bound variables.
 //      try {} catch (foo) {}
-// 6. Function variables of named function expressions.
+// 6. Function name variables of named function expressions.
 //      var x = function foo() {}
 // 7. Implicit binding of 'this'.
 // 8. Implicit binding of 'arguments' in functions.
-//
-// ES5 specified object environment records which are introduced by ES elements
-// such as Program and WithStatement that associate identifier bindings with the
-// properties of some object. In the specification only mutable bindings exist
-// (which may be non-writable) and have no distinct initialization step. However
-// V8 allows const declarations in global code with distinct creation and
-// initialization steps which are represented by non-writable properties in the
-// global object. As a result also these bindings need to be checked for
-// initialization.
 //
 // The following enum specifies a flag that indicates if the binding needs a
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
+
+enum class HoleCheckMode { kRequired, kElided };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
@@ -1069,7 +1082,7 @@ enum FunctionKind : uint16_t {
   kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
-  kSubclassConstructor = 1 << 4,
+  kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
@@ -1077,11 +1090,15 @@ enum FunctionKind : uint16_t {
   kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
-  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
+  kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
   kClassConstructor =
-      kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
+      kBaseConstructor | kDerivedConstructor | kDefaultConstructor,
   kAsyncArrowFunction = kArrowFunction | kAsyncFunction,
-  kAsyncConciseMethod = kAsyncFunction | kConciseMethod
+  kAsyncConciseMethod = kAsyncFunction | kConciseMethod,
+
+  // https://tc39.github.io/proposal-async-iteration/
+  kAsyncConciseGeneratorMethod = kAsyncFunction | kConciseGeneratorMethod,
+  kAsyncGeneratorFunction = kAsyncFunction | kGeneratorFunction
 };
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
@@ -1095,34 +1112,42 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kSetterFunction ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultBaseConstructor ||
-         kind == FunctionKind::kDefaultSubclassConstructor ||
+         kind == FunctionKind::kDefaultDerivedConstructor ||
          kind == FunctionKind::kBaseConstructor ||
-         kind == FunctionKind::kSubclassConstructor ||
+         kind == FunctionKind::kDerivedConstructor ||
          kind == FunctionKind::kAsyncFunction ||
          kind == FunctionKind::kAsyncArrowFunction ||
-         kind == FunctionKind::kAsyncConciseMethod;
+         kind == FunctionKind::kAsyncConciseMethod ||
+         kind == FunctionKind::kAsyncConciseGeneratorMethod ||
+         kind == FunctionKind::kAsyncGeneratorFunction;
 }
 
 
 inline bool IsArrowFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kArrowFunction;
+  return (kind & FunctionKind::kArrowFunction) != 0;
 }
 
 
 inline bool IsGeneratorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGeneratorFunction;
+  return (kind & FunctionKind::kGeneratorFunction) != 0;
 }
 
 inline bool IsModule(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kModule;
+  return (kind & FunctionKind::kModule) != 0;
 }
 
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAsyncFunction;
+  return (kind & FunctionKind::kAsyncFunction) != 0;
+}
+
+inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  const FunctionKind kMask = FunctionKind::kAsyncGeneratorFunction;
+  return (kind & kMask) == kMask;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
@@ -1131,50 +1156,48 @@ inline bool IsResumableFunction(FunctionKind kind) {
 
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kConciseMethod;
+  return (kind & FunctionKind::kConciseMethod) != 0;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGetterFunction;
+  return (kind & FunctionKind::kGetterFunction) != 0;
 }
 
 inline bool IsSetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSetterFunction;
+  return (kind & FunctionKind::kSetterFunction) != 0;
 }
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAccessorFunction;
+  return (kind & FunctionKind::kAccessorFunction) != 0;
 }
 
 
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDefaultConstructor;
+  return (kind & FunctionKind::kDefaultConstructor) != 0;
 }
 
 
 inline bool IsBaseConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kBaseConstructor;
+  return (kind & FunctionKind::kBaseConstructor) != 0;
 }
 
-
-inline bool IsSubclassConstructor(FunctionKind kind) {
+inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSubclassConstructor;
+  return (kind & FunctionKind::kDerivedConstructor) != 0;
 }
 
 
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kClassConstructor;
+  return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
-
-inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
@@ -1183,19 +1206,27 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   return true;
 }
 
-enum class CallableType : unsigned { kJSFunction, kAny };
+enum class InterpreterPushArgsMode : unsigned {
+  kJSFunction,
+  kWithFinalSpread,
+  kOther
+};
 
-inline size_t hash_value(CallableType type) { return bit_cast<unsigned>(type); }
+inline size_t hash_value(InterpreterPushArgsMode mode) {
+  return bit_cast<unsigned>(mode);
+}
 
-inline std::ostream& operator<<(std::ostream& os, CallableType function_type) {
-  switch (function_type) {
-    case CallableType::kJSFunction:
+inline std::ostream& operator<<(std::ostream& os,
+                                InterpreterPushArgsMode mode) {
+  switch (mode) {
+    case InterpreterPushArgsMode::kJSFunction:
       return os << "JSFunction";
-    case CallableType::kAny:
-      return os << "Any";
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return os << "WithFinalSpread";
+    case InterpreterPushArgsMode::kOther:
+      return os << "Other";
   }
   UNREACHABLE();
-  return os;
 }
 
 inline uint32_t ObjectHash(Address address) {
@@ -1208,37 +1239,47 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kNumber  -> kAny
-//                 kString  -> kAny
+// kSignedSmall -> kNumber  -> kNumberOrOddball -> kAny
+//          kNonEmptyString -> kString          -> kAny
+// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
+// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
+// information about Number might reduce few instructions but causes more
+// deopts. We collect Number only because crankshaft does not handle all
+// cases of oddballs.
 class BinaryOperationFeedback {
  public:
   enum {
     kNone = 0x0,
     kSignedSmall = 0x1,
     kNumber = 0x3,
-    kString = 0x4,
-    kAny = 0xF
+    kNumberOrOddball = 0x7,
+    kNonEmptyString = 0x8,
+    kString = 0x18,
+    kAny = 0x3F
   };
 };
 
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kSignedSmall        -> kNumber   -> kAny
+// kInternalizedString -> kString   -> kAny
+//                        kSymbol   -> kAny
+//                        kReceiver -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
-  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
-};
-
-// Describes how exactly a frame has been dropped from stack.
-enum LiveEditFrameDropMode {
-  // No frame has been dropped.
-  LIVE_EDIT_FRAMES_UNTOUCHED,
-  // The top JS frame had been calling debug break slot stub. Patch the
-  // address this stub jumps to in the end.
-  LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
-  // The top JS frame had been calling some C++ function. The return address
-  // gets patched automatically.
-  LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL,
-  LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
-  LIVE_EDIT_CURRENTLY_SET_MODE
+  enum {
+    kNone = 0x00,
+    kSignedSmall = 0x01,
+    kNumber = 0x3,
+    kNumberOrOddball = 0x7,
+    kInternalizedString = 0x8,
+    kString = 0x18,
+    kSymbol = 0x20,
+    kReceiver = 0x40,
+    kAny = 0xff
+  };
 };
 
 enum class UnicodeEncoding : uint8_t {
@@ -1259,11 +1300,111 @@ inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
       return os << "UTF32";
   }
   UNREACHABLE();
+}
+
+enum class IterationKind { kKeys, kValues, kEntries };
+
+inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
+  switch (kind) {
+    case IterationKind::kKeys:
+      return os << "IterationKind::kKeys";
+    case IterationKind::kValues:
+      return os << "IterationKind::kValues";
+    case IterationKind::kEntries:
+      return os << "IterationKind::kEntries";
+  }
+  UNREACHABLE();
+}
+
+// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
+// be enumerable or not, and, in case of functions, the function name
+// can be set or not.
+enum class DataPropertyInLiteralFlag {
+  kNoFlags = 0,
+  kDontEnum = 1 << 0,
+  kSetFunctionName = 1 << 1
+};
+typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
+DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
+
+enum ExternalArrayType {
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+};
+
+struct AssemblerDebugInfo {
+  AssemblerDebugInfo(const char* name, const char* file, int line)
+      : name(name), file(file), line(line) {}
+  const char* name;
+  const char* file;
+  int line;
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const AssemblerDebugInfo& info) {
+  os << "(" << info.name << ":" << info.file << ":" << info.line << ")";
   return os;
 }
 
+enum class OptimizationMarker {
+  kNone,
+  kCompileOptimized,
+  kCompileOptimizedConcurrent,
+  kInOptimizationQueue
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const OptimizationMarker& marker) {
+  switch (marker) {
+    case OptimizationMarker::kNone:
+      return os << "OptimizationMarker::kNone";
+    case OptimizationMarker::kCompileOptimized:
+      return os << "OptimizationMarker::kCompileOptimized";
+    case OptimizationMarker::kCompileOptimizedConcurrent:
+      return os << "OptimizationMarker::kCompileOptimizedConcurrent";
+    case OptimizationMarker::kInOptimizationQueue:
+      return os << "OptimizationMarker::kInOptimizationQueue";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
+
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
+  C(Handler, handler)                                   \
+  C(CEntryFP, c_entry_fp)                               \
+  C(CFunction, c_function)                              \
+  C(Context, context)                                   \
+  C(PendingException, pending_exception)                \
+  C(PendingHandlerContext, pending_handler_context)     \
+  C(PendingHandlerCode, pending_handler_code)           \
+  C(PendingHandlerOffset, pending_handler_offset)       \
+  C(PendingHandlerFP, pending_handler_fp)               \
+  C(PendingHandlerSP, pending_handler_sp)               \
+  C(ExternalCaughtException, external_caught_exception) \
+  C(JSEntrySP, js_entry_sp)
+
+enum IsolateAddressId {
+#define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
+  FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
+#undef DECLARE_ENUM
+      kIsolateAddressCount
+};
+
 }  // namespace internal
 }  // namespace v8
+
+// Used by js-builtin-reducer to identify whether ReduceArrayIterator() is
+// reducing a JSArray method, or a JSTypedArray method.
+enum class ArrayIteratorKind { kArray, kTypedArray };
 
 namespace i = v8::internal;
 

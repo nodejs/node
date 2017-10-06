@@ -6,4 +6,3 @@ Tests that DevTools doesn't crash on Runtime.evaluate with contextId equals 0.
     }
     id : <messageId>
 }
-

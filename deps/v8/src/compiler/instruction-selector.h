@@ -12,6 +12,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -25,6 +26,7 @@ class FlagsContinuation;
 class Linkage;
 class OperandGenerator;
 struct SwitchInfo;
+class StateObjectDeduplicator;
 
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
@@ -41,8 +43,10 @@ class PushParameter {
   MachineType type_;
 };
 
+enum class FrameStateInputKind { kAny, kStackSlot };
+
 // Instruction selection generates an InstructionSequence for a given Schedule.
-class InstructionSelector final {
+class V8_EXPORT_PRIVATE InstructionSelector final {
  public:
   // Forward declarations.
   class Features;
@@ -110,11 +114,15 @@ class InstructionSelector final {
   // ===========================================================================
 
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
-                              InstructionOperand a, InstructionOperand b,
+                              InstructionOperand a, DeoptimizeKind kind,
                               DeoptimizeReason reason, Node* frame_state);
+  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
+                              InstructionOperand a, InstructionOperand b,
+                              DeoptimizeKind kind, DeoptimizeReason reason,
+                              Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
                               InstructionOperand* outputs, size_t input_count,
-                              InstructionOperand* inputs,
+                              InstructionOperand* inputs, DeoptimizeKind kind,
                               DeoptimizeReason reason, Node* frame_state);
 
   // ===========================================================================
@@ -204,6 +212,8 @@ class InstructionSelector final {
   // to the roots register, i.e. if both a root register is available for this
   // compilation unit and the serializer is disabled.
   bool CanAddressRelativeToRootsRegister() const;
+  // Check if we can use the roots register to access GC roots.
+  bool CanUseRootsRegister() const;
 
   Isolate* isolate() const { return sequence()->isolate(); }
 
@@ -280,6 +290,17 @@ class InstructionSelector final {
   int GetTempsCountForTailCallFromJSFunction();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
+                                         Node* state, OperandGenerator* g,
+                                         StateObjectDeduplicator* deduplicator,
+                                         InstructionOperandVector* inputs,
+                                         FrameStateInputKind kind, Zone* zone);
+  size_t AddOperandToStateValueDescriptor(StateValueList* values,
+                                          InstructionOperandVector* inputs,
+                                          OperandGenerator* g,
+                                          StateObjectDeduplicator* deduplicator,
+                                          Node* input, MachineType type,
+                                          FrameStateInputKind kind, Zone* zone);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
@@ -301,8 +322,7 @@ class InstructionSelector final {
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   MACHINE_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD_RETURN_NUM_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD_RETURN_SIMD_OP_LIST(DECLARE_GENERATOR)
+  MACHINE_SIMD_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
   void VisitFinishRegion(Node* node);
@@ -315,6 +335,8 @@ class InstructionSelector final {
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
+  void VisitTrapIf(Node* node, Runtime::FunctionId func_id);
+  void VisitTrapUnless(Node* node, Runtime::FunctionId func_id);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
@@ -322,7 +344,7 @@ class InstructionSelector final {
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                        Node* value);
   void VisitReturn(Node* ret);
-  void VisitThrow(Node* value);
+  void VisitThrow(Node* node);
   void VisitRetain(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
@@ -343,6 +365,12 @@ class InstructionSelector final {
     instruction_selection_failed_ = true;
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
+
+  void MarkPairProjectionsAsWord32(Node* node);
+  bool IsSourcePositionUsed(Node* node);
+  void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+                                  ArchOpcode uint8_op, ArchOpcode int16_op,
+                                  ArchOpcode uint16_op, ArchOpcode word32_op);
 
   // ===========================================================================
 

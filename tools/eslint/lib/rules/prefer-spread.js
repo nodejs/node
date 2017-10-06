@@ -108,7 +108,7 @@ module.exports = {
                                 return null;
                             }
 
-                            const propertyDot = sourceCode.getTokensBetween(applied, node.callee.property).find(token => token.value === ".");
+                            const propertyDot = sourceCode.getFirstTokenBetween(applied, node.callee.property, token => token.value === ".");
 
                             return fixer.replaceTextRange([propertyDot.range[0], node.range[1]], `(...${sourceCode.getText(node.arguments[1])})`);
                         }

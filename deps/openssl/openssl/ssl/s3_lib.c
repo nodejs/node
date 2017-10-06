@@ -4237,7 +4237,7 @@ int ssl3_get_req_cert_type(SSL *s, unsigned char *p)
         return (int)s->cert->ctype_num;
     }
     /* get configured sigalgs */
-    siglen = tls12_get_psigalgs(s, &sig);
+    siglen = tls12_get_psigalgs(s, 1, &sig);
     if (s->cert->cert_flags & SSL_CERT_FLAGS_CHECK_TLS_STRICT)
         nostrict = 0;
     for (i = 0; i < siglen; i += 2, sig += 2) {

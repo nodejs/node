@@ -59,7 +59,7 @@ TEST(0) {
   __ blr();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -98,7 +98,7 @@ TEST(1) {
   __ blr();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -149,7 +149,7 @@ TEST(2) {
   __ mov(r0, Operand(0xFFF0FFFF));
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -222,7 +222,7 @@ TEST(3) {
   __ blr();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -335,7 +335,7 @@ TEST(4) {
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -396,7 +396,7 @@ TEST(5) {
     __ mov(pc, Operand(lr));
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -432,7 +432,7 @@ TEST(6) {
     __ mov(pc, Operand(lr));
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -508,7 +508,7 @@ static void TestRoundingMode(VCVTTypes types,
     __ mov(pc, Operand(lr));
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -696,7 +696,7 @@ TEST(8) {
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -812,7 +812,7 @@ TEST(9) {
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -924,7 +924,7 @@ TEST(10) {
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
-    assm.GetCode(&desc);
+    assm.GetCode(isolate, &desc);
     Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
@@ -1022,7 +1022,7 @@ TEST(11) {
   __ mov(pc, Operand(lr));
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),

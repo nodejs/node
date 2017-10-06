@@ -67,6 +67,14 @@ class InstructionOperandConverter {
     return static_cast<int16_t>(InputInt32(index));
   }
 
+  uint8_t InputInt3(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0x7);
+  }
+
+  uint8_t InputInt4(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0xF);
+  }
+
   uint8_t InputInt5(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x1F);
   }
@@ -79,8 +87,8 @@ class InstructionOperandConverter {
     return ToExternalReference(instr_->InputAt(index));
   }
 
-  Handle<HeapObject> InputHeapObject(size_t index) {
-    return ToHeapObject(instr_->InputAt(index));
+  Handle<Code> InputCode(size_t index) {
+    return ToCode(instr_->InputAt(index));
   }
 
   Label* InputLabel(size_t index) { return ToLabel(instr_->InputAt(index)); }
@@ -143,7 +151,9 @@ class InstructionOperandConverter {
         ConstantOperand::cast(op)->virtual_register());
   }
 
-  double ToDouble(InstructionOperand* op) { return ToConstant(op).ToFloat64(); }
+  double ToDouble(InstructionOperand* op) {
+    return ToConstant(op).ToFloat64().value();
+  }
 
   float ToFloat32(InstructionOperand* op) { return ToConstant(op).ToFloat32(); }
 
@@ -151,8 +161,8 @@ class InstructionOperandConverter {
     return ToConstant(op).ToExternalReference();
   }
 
-  Handle<HeapObject> ToHeapObject(InstructionOperand* op) {
-    return ToConstant(op).ToHeapObject();
+  Handle<Code> ToCode(InstructionOperand* op) {
+    return ToConstant(op).ToCode();
   }
 
   const Frame* frame() const { return gen_->frame(); }
@@ -194,26 +204,16 @@ class OutOfLineCode : public ZoneObject {
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
   const Frame* frame() const { return frame_; }
-  Isolate* isolate() const { return masm()->isolate(); }
-  MacroAssembler* masm() const { return masm_; }
+  TurboAssembler* tasm() { return tasm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
   const Frame* const frame_;
-  MacroAssembler* const masm_;
+  TurboAssembler* const tasm_;
   OutOfLineCode* const next_;
 };
-
-
-// TODO(dcarney): generify this on bleeding_edge and replace this call
-// when merged.
-static inline void FinishCode(MacroAssembler* masm) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-  masm->CheckConstPool(true, false);
-#endif
-}
 
 }  // namespace compiler
 }  // namespace internal

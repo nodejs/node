@@ -37,11 +37,11 @@ module.exports = {
          * @private
          */
         function checkRegex(node, value, valueStart) {
-            const multipleSpacesRegex = /( {2,})+?/,
+            const multipleSpacesRegex = /( {2,})( [+*{?]|[^+*{?]|$)/,
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {
-                const count = regexResults[0].length;
+                const count = regexResults[1].length;
 
                 context.report({
                     node,

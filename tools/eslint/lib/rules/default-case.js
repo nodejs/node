@@ -31,9 +31,9 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        const commentPattern = options.commentPattern ?
-            new RegExp(options.commentPattern) :
-            DEFAULT_COMMENT_PATTERN;
+        const commentPattern = options.commentPattern
+            ? new RegExp(options.commentPattern)
+            : DEFAULT_COMMENT_PATTERN;
 
         const sourceCode = context.getSourceCode();
 
@@ -74,7 +74,7 @@ module.exports = {
                     let comment;
 
                     const lastCase = last(node.cases);
-                    const comments = sourceCode.getComments(lastCase).trailing;
+                    const comments = sourceCode.getCommentsAfter(lastCase);
 
                     if (comments.length) {
                         comment = last(comments);

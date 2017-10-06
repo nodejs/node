@@ -39,7 +39,7 @@ test('it should not throw', function (t) {
 
   var output = []
   var expOut = [
-    path.resolve(pkg, 'node_modules', 'underscore'),
+    'add\tunderscore\t1.3.1\tnode_modules/underscore\t\t',
     path.resolve(pkg, 'node_modules', 'underscore') +
       ':underscore@1.3.1' +
       ':underscore@1.3.1' +
@@ -79,7 +79,6 @@ test('it should not throw', function (t) {
             t.is(process.exitCode, 1, 'exit code set to 1')
             process.exitCode = 0
             console.log = originalLog
-
             t.same(output, expOut)
             t.same(d, expData)
 

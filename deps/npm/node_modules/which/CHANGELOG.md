@@ -1,6 +1,18 @@
 # Changes
 
 
+## v1.2.14
+
+* appveyor: drop node 5 and 0.x
+* travis-ci: add node 6, drop 0.x
+
+## v1.2.13
+
+* test: Pass missing option to pass on windows
+* update tap
+* update isexe to 2.0.0
+* neveragain.tech pledge request
+
 ## v1.2.12
 
 * Removed unused require

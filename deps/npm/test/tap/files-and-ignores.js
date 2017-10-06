@@ -405,7 +405,8 @@ test('certain files ignored unconditionally', function (t) {
           '.foo.swp',
           '.DS_Store',
           '._ohno',
-          'foo.orig'
+          'foo.orig',
+          'package-lock.json'
         ]
       }),
       '.git': Dir({foo: File('')}),
@@ -423,7 +424,8 @@ test('certain files ignored unconditionally', function (t) {
       '.DS_Store': Dir({foo: File('')}),
       '._ohno': File(''),
       '._ohnoes': Dir({noes: File('')}),
-      'foo.orig': File('')
+      'foo.orig': File(''),
+      'package-lock.json': File('')
     })
   )
   withFixture(t, fixture, function (done) {
@@ -443,6 +445,7 @@ test('certain files ignored unconditionally', function (t) {
     t.notOk(fileExists('._ohno'), '._ohno not included')
     t.notOk(fileExists('._ohnoes'), '._ohnoes not included')
     t.notOk(fileExists('foo.orig'), 'foo.orig not included')
+    t.notOk(fileExists('package-lock.json'), 'package-lock.json not included')
     done()
   })
 })

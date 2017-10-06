@@ -30,6 +30,10 @@ def QuoteForRspFile(arg):
   # works more or less because most programs (including the compiler, etc.)
   # use that function to handle command line arguments.
 
+  # Use a heuristic to try to find args that are paths, and normalize them
+  if arg.find('/') > 0 or arg.count('/') > 1:
+    arg = os.path.normpath(arg)
+
   # For a literal quote, CommandLineToArgvW requires 2n+1 backslashes
   # preceding it, and results in n backslashes + the quote. So we substitute
   # in 2* what we match, +1 more, plus the quote.
@@ -269,7 +273,8 @@ class MsvsSettings(object):
   def AdjustLibraries(self, libraries):
     """Strip -l from library if it's specified with that."""
     libs = [lib[2:] if lib.startswith('-l') else lib for lib in libraries]
-    return [lib + '.lib' if not lib.endswith('.lib') else lib for lib in libs]
+    return [lib + '.lib' if not lib.lower().endswith('.lib') \
+            and not lib.lower().endswith('.obj') else lib for lib in libs]
 
   def _GetAndMunge(self, field, path, default, prefix, append, map):
     """Retrieve a value from |field| at |path| or return |default|. If
@@ -306,7 +311,10 @@ class MsvsSettings(object):
     # There's two levels of architecture/platform specification in VS. The
     # first level is globally for the configuration (this is what we consider
     # "the" config at the gyp level, which will be something like 'Debug' or
-    # 'Release_x64'), and a second target-specific configuration, which is an
+    # 'Release'), VS2015 and later only use this level
+    if self.vs_version.short_name >= 2015:
+      return config
+    # and a second target-specific configuration, which is an
     # override for the global one. |config| is remapped here to take into
     # account the local target-specific overrides to the global configuration.
     arch = self.GetArch(config)
@@ -468,8 +476,10 @@ class MsvsSettings(object):
         prefix='/arch:')
     cflags.extend(['/FI' + f for f in self._Setting(
         ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
-    if self.vs_version.short_name in ('2013', '2013e', '2015'):
-      # New flag required in 2013 to maintain previous PDB behavior.
+    if self.vs_version.project_version >= 12.0:
+      # New flag introduced in VS2013 (project version 12.0) Forces writes to
+      # the program database (PDB) to be serialized through MSPDBSRV.EXE.
+      # https://msdn.microsoft.com/en-us/library/dn502518.aspx
       cflags.append('/FS')
     # ninja handles parallelism by itself, don't have the compiler do it too.
     cflags = filter(lambda x: not x.startswith('/MP'), cflags)
@@ -485,8 +495,9 @@ class MsvsSettings(object):
     if self.msvs_precompiled_header[config]:
       source_ext = os.path.splitext(self.msvs_precompiled_source[config])[1]
       if _LanguageMatchesForPch(source_ext, extension):
-        pch = os.path.split(self.msvs_precompiled_header[config])[1]
-        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pch + '.pch']
+        pch = self.msvs_precompiled_header[config]
+        pchbase = os.path.split(pch)[1]
+        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pchbase + '.pch']
     return  []
 
   def GetCflagsC(self, config):
@@ -528,7 +539,8 @@ class MsvsSettings(object):
     """Returns the .def file from sources, if any.  Otherwise returns None."""
     spec = self.spec
     if spec['type'] in ('shared_library', 'loadable_module', 'executable'):
-      def_files = [s for s in spec.get('sources', []) if s.endswith('.def')]
+      def_files = [s for s in spec.get('sources', [])
+                   if s.lower().endswith('.def')]
       if len(def_files) == 1:
         return gyp_to_build_path(def_files[0])
       elif len(def_files) > 1:
@@ -888,7 +900,7 @@ class PrecompiledHeader(object):
   def _PchHeader(self):
     """Get the header that will appear in an #include line for all source
     files."""
-    return os.path.split(self.settings.msvs_precompiled_header[self.config])[1]
+    return self.settings.msvs_precompiled_header[self.config]
 
   def GetObjDependencies(self, sources, objs, arch):
     """Given a list of sources files and the corresponding object files,
@@ -961,6 +973,10 @@ def _ExtractImportantEnvironment(output_of_set):
       'tmp',
       )
   env = {}
+  # This occasionally happens and leads to misleading SYSTEMROOT error messages
+  # if not caught here.
+  if output_of_set.count('=') == 0:
+    raise Exception('Invalid output_of_set. Value is:\n%s' % output_of_set)
   for line in output_of_set.splitlines():
     for envvar in envvars_to_save:
       if re.match(envvar + '=', line.lower()):
@@ -1029,6 +1045,8 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
     popen = subprocess.Popen(
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     variables, _ = popen.communicate()
+    if popen.returncode != 0:
+      raise Exception('"%s" failed with error %d' % (args, popen.returncode))
     env = _ExtractImportantEnvironment(variables)
 
     # Inject system includes from gyp files into INCLUDE.

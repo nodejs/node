@@ -15,5 +15,5 @@
     return {__f_21:__f_21};
   }
   __f_41();
-  assertTrue(%IsNotAsmWasmCode(__f_41));
+  assertFalse(%IsAsmWasmCode(__f_41));
 })();

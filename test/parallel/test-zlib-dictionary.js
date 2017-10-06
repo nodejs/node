@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // test compression/decompression with dictionary
 
@@ -28,7 +49,7 @@ const input = [
   ''
 ].join('\r\n');
 
-function basicDictionaryTest() {
+function basicDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
   const inflate = zlib.createInflate({ dictionary: spdyDict });
@@ -54,7 +75,7 @@ function basicDictionaryTest() {
   deflate.end();
 }
 
-function deflateResetDictionaryTest() {
+function deflateResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
@@ -87,7 +108,7 @@ function deflateResetDictionaryTest() {
   });
 }
 
-function rawDictionaryTest() {
+function rawDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
   const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
@@ -113,7 +134,7 @@ function rawDictionaryTest() {
   deflate.end();
 }
 
-function deflateRawResetDictionaryTest() {
+function deflateRawResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
@@ -146,7 +167,9 @@ function deflateRawResetDictionaryTest() {
   });
 }
 
-basicDictionaryTest();
-deflateResetDictionaryTest();
-rawDictionaryTest();
-deflateRawResetDictionaryTest();
+for (const dict of [spdyDict, ...common.getArrayBufferViews(spdyDict)]) {
+  basicDictionaryTest(dict);
+  deflateResetDictionaryTest(dict);
+  rawDictionaryTest(dict);
+  deflateRawResetDictionaryTest(dict);
+}

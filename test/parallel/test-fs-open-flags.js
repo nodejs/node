@@ -1,6 +1,28 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 // Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 const fs = require('fs');
@@ -11,6 +33,7 @@ const O_EXCL = fs.constants.O_EXCL || 0;
 const O_RDONLY = fs.constants.O_RDONLY || 0;
 const O_RDWR = fs.constants.O_RDWR || 0;
 const O_SYNC = fs.constants.O_SYNC || 0;
+const O_DSYNC = fs.constants.O_DSYNC || 0;
 const O_TRUNC = fs.constants.O_TRUNC || 0;
 const O_WRONLY = fs.constants.O_WRONLY || 0;
 
@@ -37,27 +60,29 @@ assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')
   .forEach(function(flags) {
-    assert.throws(
+    common.expectsError(
       () => stringToFlags(flags),
-      new RegExp(`^Error: Unknown file open flag: ${escapeRegExp(flags)}`)
+      { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
     );
   });
 
-assert.throws(
+common.expectsError(
   () => stringToFlags({}),
-  /^Error: Unknown file open flag: \[object Object\]$/
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
 );
 
-assert.throws(
+common.expectsError(
   () => stringToFlags(true),
-  /^Error: Unknown file open flag: true$/
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
 );
 
-assert.throws(
+common.expectsError(
   () => stringToFlags(null),
-  /^Error: Unknown file open flag: null$/
+  { code: 'ERR_INVALID_OPT_VALUE', type: TypeError }
 );
 
-function escapeRegExp(string) {
-  return string.replace(/[\\^$*+?.()|[\]{}]/g, '\\$&');
+if (common.isLinux) {
+  const file = fixtures.path('a.js');
+
+  fs.open(file, O_DSYNC, common.mustCall(assert.ifError));
 }

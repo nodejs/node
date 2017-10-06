@@ -1,22 +1,25 @@
 # Debugger
 
+<!--introduced_in=v0.9.12-->
+
 > Stability: 2 - Stable
 
 <!-- type=misc -->
 
 Node.js includes an out-of-process debugging utility accessible via a
-[TCP-based protocol][] and built-in debugging client. To use it, start Node.js
-with the `debug` argument followed by the path to the script to debug; a prompt
+[V8 Inspector][] and built-in debugging client. To use it, start Node.js
+with the `inspect` argument followed by the path to the script to debug; a prompt
 will be displayed indicating successful launch of the debugger:
 
 ```txt
-$ node debug myscript.js
-< debugger listening on port 5858
-connecting... ok
-break in /home/indutny/Code/git/indutny/myscript.js:1
-  1 x = 5;
+$ node inspect myscript.js
+< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< For help see https://nodejs.org/en/docs/inspector
+< Debugger attached.
+Break on start in myscript.js:1
+> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
-  3   debugger;
+  3   console.log('world');
 debug>
 ```
 
@@ -26,9 +29,10 @@ inspection are possible.
 Inserting the statement `debugger;` into the source code of a script will
 enable a breakpoint at that position in the code:
 
+<!-- eslint-disable no-debugger -->
 ```js
 // myscript.js
-x = 5;
+global.x = 5;
 setTimeout(() => {
   debugger;
   console.log('world');
@@ -36,29 +40,30 @@ setTimeout(() => {
 console.log('hello');
 ```
 
-Once the debugger is run, a breakpoint will occur at line 4:
+Once the debugger is run, a breakpoint will occur at line 3:
 
 ```txt
-$ node debug myscript.js
-< debugger listening on port 5858
-connecting... ok
-break in /home/indutny/Code/git/indutny/myscript.js:1
-  1 x = 5;
+$ node inspect myscript.js
+< Debugger listening on ws://127.0.0.1:9229/80e7a814-7cd3-49fb-921a-2e02228cd5ba
+< For help see https://nodejs.org/en/docs/inspector
+< Debugger attached.
+Break on start in myscript.js:1
+> 1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
   3   debugger;
 debug> cont
 < hello
-break in /home/indutny/Code/git/indutny/myscript.js:3
-  1 x = 5;
+break in myscript.js:3
+  1 (function (exports, require, module, __filename, __dirname) { global.x = 5;
   2 setTimeout(() => {
-  3   debugger;
+> 3   debugger;
   4   console.log('world');
   5 }, 1000);
 debug> next
-break in /home/indutny/Code/git/indutny/myscript.js:4
+break in myscript.js:4
   2 setTimeout(() => {
   3   debugger;
-  4   console.log('world');
+> 4   console.log('world');
   5 }, 1000);
   6 console.log('hello');
 debug> repl
@@ -69,13 +74,13 @@ Press Ctrl + C to leave debug repl
 4
 debug> next
 < world
-break in /home/indutny/Code/git/indutny/myscript.js:5
+break in myscript.js:5
   3   debugger;
   4   console.log('world');
-  5 }, 1000);
+> 5 }, 1000);
   6 console.log('hello');
   7
-debug> quit
+debug> .exit
 ```
 
 The `repl` command allows code to be evaluated remotely. The `next` command
@@ -120,25 +125,23 @@ It is also possible to set a breakpoint in a file (module) that
 is not loaded yet:
 
 ```txt
-$ node debug test/fixtures/break-in-module/main.js
-< debugger listening on port 5858
-connecting to port 5858... ok
-break in test/fixtures/break-in-module/main.js:1
-  1 var mod = require('./mod.js');
+$ node inspect main.js
+< Debugger listening on ws://127.0.0.1:9229/4e3db158-9791-4274-8909-914f7facf3bd
+< For help see https://nodejs.org/en/docs/inspector
+< Debugger attached.
+Break on start in main.js:1
+> 1 (function (exports, require, module, __filename, __dirname) { const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
-debug> setBreakpoint('mod.js', 23)
+debug> setBreakpoint('mod.js', 22)
 Warning: script 'mod.js' was not loaded yet.
-  1 var mod = require('./mod.js');
-  2 mod.hello();
-  3 mod.hello();
 debug> c
-break in test/fixtures/break-in-module/mod.js:23
+break in mod.js:22
+ 20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
  21
- 22 exports.hello = () => {
+>22 exports.hello = function() {
  23   return 'hello from module';
  24 };
- 25
 debug>
 ```
 
@@ -167,45 +170,28 @@ breakpoint)
 
 ## Advanced Usage
 
-### TCP-based protocol
-
-> Stability: 0 - Deprecated: Use [V8 Inspector Integration][] instead. The debug protocol used by the `--debug` flag was removed from V8.
-
-An alternative way of enabling and accessing the debugger is to start
-Node.js with the `--debug` command-line flag or by signaling an existing
-Node.js process with `SIGUSR1`.
-
-Once a process has been set in debug mode this way, it can be inspected
-using the Node.js debugger by either connecting to the `pid` of the running
-process or via URI reference to the listening debugger:
-
-* `node debug -p <pid>` - Connects to the process via the `pid`
-* `node debug <URI>` - Connects to the process via the URI such as
-localhost:5858
-
 ### V8 Inspector Integration for Node.js
 
-**NOTE: This is an experimental feature.**
-
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
-instances for debugging and profiling.
-It uses the [Chrome Debugging Protocol][].
+instances for debugging and profiling. It uses the [Chrome Debugging Protocol][].
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,
 e.g. `--inspect=9222` will accept DevTools connections on port 9222.
 
-To break on the first line of the application code, provide the `--debug-brk`
-flag in addition to `--inspect`.
+To break on the first line of the application code, pass the `--inspect-brk`
+flag instead of `--inspect`.
 
 ```txt
 $ node --inspect index.js
-Debugger listening on port 9229.
-Warning: This is an experimental feature and could change at any time.
+Debugger listening on 127.0.0.1:9229.
 To start debugging, open the following URL in Chrome:
-    chrome-devtools://devtools/remote/serve_file/@60cd6e859b9f557d2312f5bf532f6aec5f284980/inspector.html?experiments=true&v8only=true&ws=localhost:9229/node
+    chrome-devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=127.0.0.1:9229/dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
 ```
 
+(In the example above, the UUID dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
+at the end of the URL is generated on the fly, it varies in different
+debugging sessions.)
+
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
-[TCP-based protocol]: #debugger_tcp_based_protocol
-[V8 Inspector Integration]: #debugger_v8_inspector_integration_for_node_js
+[V8 Inspector]: #debugger_v8_inspector_integration_for_node_js

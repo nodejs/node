@@ -21,7 +21,7 @@ var expect_no_elison = 1;
     var second_module = new WasmModuleBuilder();
     var sig_index = second_module.addType(kSig_i_i);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index);
+        .addImport("import_module_2", "import_name_2", sig_index);
     second_module
         .addFunction("second_export", sig_index)
         .addBody([
@@ -34,7 +34,7 @@ var expect_no_elison = 1;
     var first_module = new WasmModuleBuilder();
     var sig_index = first_module.addType(kSig_i_i);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index);
+        .addImport("import_module_1", "import_name_1", sig_index);
     first_module
         .addFunction("first_export", sig_index)
         .addBody([
@@ -66,11 +66,71 @@ var expect_no_elison = 1;
     assertEquals(%CheckWasmWrapperElision(the_export, expect_elison), true);
 })();
 
+// Function calls stack: first_export -> first_func -> first_import ->
+// second_export -> second_import
+// In this test, first_import and second_export have the same signature, and
+// therefore the wrappers will be removed. If the wrappers are not removed, then
+// the test crashes because of the int64 parameter, which is not allowed in the
+// wrappers.
+(function TestWasmWrapperElisionInt64() {
+ var imported = function (a) {
+     return a;
+ };
+
+ var second_module = new WasmModuleBuilder();
+ var sig_index1 = second_module.addType(kSig_i_i);
+ var sig_index_ll = second_module.addType(kSig_l_l);
+ second_module
+     .addImport("import_module_2", "import_name_2", sig_index1);
+ second_module
+     .addFunction("second_export", sig_index_ll)
+     .addBody([
+         kExprGetLocal, 0,
+         kExprI32ConvertI64,
+         kExprCallFunction, 0,
+         kExprI64SConvertI32,
+         kExprReturn
+     ])
+     .exportFunc();
+
+ var first_module = new WasmModuleBuilder();
+ var sig_index = first_module.addType(kSig_i_v);
+ var sig_index_ll = first_module.addType(kSig_l_l);
+ first_module
+     .addImport("import_module_1", "import_name_1", sig_index_ll);
+ first_module
+     .addFunction("first_export", sig_index)
+     .addBody([
+         kExprI64Const, 2,
+         kExprCallFunction, 2,
+         kExprI32ConvertI64,
+         kExprReturn
+     ])
+     .exportFunc();
+ first_module
+     .addFunction("first_func", sig_index_ll)
+     .addBody([
+         kExprI64Const, 1,
+         kExprGetLocal, 0,
+         kExprI64Add,
+         kExprCallFunction, 0,
+         kExprReturn
+     ]);
+
+ var f = second_module
+     .instantiate({import_module_2: {import_name_2: imported}})
+     .exports.second_export;
+ var the_export = first_module
+     .instantiate({import_module_1: {import_name_1: f}})
+     .exports.first_export;
+   assertEquals(the_export(), 3);
+})();
+
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
-// In this case, second_export has less params than first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionLessParams() {
+// In this case, second_export has fewer params than first_import,
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionLessParams() {
     var imported = function (a) {
         return a;
     };
@@ -78,7 +138,7 @@ var expect_no_elison = 1;
     var second_module = new WasmModuleBuilder();
     var sig_index_1 = second_module.addType(kSig_i_i);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_1);
+        .addImport("import_module_2", "import_name_2", sig_index_1);
     second_module
         .addFunction("second_export", sig_index_1)
         .addBody([
@@ -91,7 +151,7 @@ var expect_no_elison = 1;
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([
@@ -121,13 +181,13 @@ var expect_no_elison = 1;
     assertEquals(the_export(0, 2), 0);
     assertEquals(the_export(9.9, 4.3), 9);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});
 
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
 // In this case, second_export has more params than first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionMoreParams() {
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionMoreParams() {
     var imported = function (a, b, c) {
         return a+b+c;
     };
@@ -135,7 +195,7 @@ var expect_no_elison = 1;
     var second_module = new WasmModuleBuilder();
     var sig_index_3 = second_module.addType(kSig_i_iii);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_3);
+        .addImport("import_module_2", "import_name_2", sig_index_3);
     second_module
         .addFunction("second_export", sig_index_3)
         .addBody([
@@ -150,7 +210,7 @@ var expect_no_elison = 1;
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([
@@ -180,13 +240,13 @@ var expect_no_elison = 1;
     assertEquals(the_export(0, 0), 0);
     assertEquals(the_export(1.1, 2.7), 3);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});
 
 // function calls stack: first_export -> first_func -> first_import ->
 // second_export -> second_import
 // In this case, second_export has different params type with first_import,
-// So that wrappers will not be removed
-(function TestWasmWrapperNoElisionTypeMismatch() {
+// so instantiation should fail.
+assertThrows(function TestWasmWrapperNoElisionTypeMismatch() {
     var imported = function (a, b) {
         return a+b;
     };
@@ -194,7 +254,7 @@ var expect_no_elison = 1;
     var second_module = new WasmModuleBuilder();
     var sig_index_2 = second_module.addType(kSig_d_dd);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_2);
+        .addImport("import_module_2", "import_name_2", sig_index_2);
     second_module
         .addFunction("second_export", sig_index_2)
         .addBody([
@@ -208,7 +268,7 @@ var expect_no_elison = 1;
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([
@@ -238,4 +298,4 @@ var expect_no_elison = 1;
     assertEquals(the_export(0.0, 0.0), 0);
     assertEquals(the_export(2, -2), 0);
     assertEquals(%CheckWasmWrapperElision(the_export, expect_no_elison), true);
-})();
+});

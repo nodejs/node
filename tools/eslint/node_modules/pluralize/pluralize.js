@@ -56,6 +56,11 @@
    * @return {Function}
    */
   function restoreCase (word, token) {
+    // Tokens are an exact match.
+    if (word === token) {
+      return token;
+    }
+
     // Upper cased words. E.g. "HELLO".
     if (word === word.toUpperCase()) {
       return token.toUpperCase();
@@ -86,10 +91,10 @@
   /**
    * Sanitize a word by passing in the word and sanitization rules.
    *
-   * @param  {String}   token
-   * @param  {String}   word
+   * @param  {string}   token
+   * @param  {string}   word
    * @param  {Array}    collection
-   * @return {String}
+   * @return {string}
    */
   function sanitizeWord (token, word, collection) {
     // Empty string or doesn't need fixing.
@@ -151,10 +156,10 @@
   /**
    * Pluralize or singularize a word based on the passed in count.
    *
-   * @param  {String}  word
-   * @param  {Number}  count
-   * @param  {Boolean} inclusive
-   * @return {String}
+   * @param  {string}  word
+   * @param  {number}  count
+   * @param  {boolean} inclusive
+   * @return {string}
    */
   function pluralize (word, count, inclusive) {
     var pluralized = count === 1
@@ -220,8 +225,8 @@
   /**
    * Add an irregular word definition.
    *
-   * @param {String} single
-   * @param {String} plural
+   * @param {string} single
+   * @param {string} plural
    */
   pluralize.addIrregularRule = function (single, plural) {
     plural = plural.toLowerCase();
@@ -248,6 +253,8 @@
     ['himself', 'themselves'],
     ['themself', 'themselves'],
     ['is', 'are'],
+    ['was', 'were'],
+    ['has', 'have'],
     ['this', 'these'],
     ['that', 'those'],
     // Words ending in with a consonant and `o`.
@@ -280,8 +287,8 @@
     ['proof', 'proofs'],
     ['carve', 'carves'],
     ['valve', 'valves'],
+    ['looey', 'looies'],
     ['thief', 'thieves'],
-    ['genie', 'genies'],
     ['groove', 'grooves'],
     ['pickaxe', 'pickaxes'],
     ['whiskey', 'whiskies']
@@ -294,6 +301,7 @@
    */
   [
     [/s?$/i, 's'],
+    [/[^\u0000-\u007F]$/i, '$0'],
     [/([^aeiou]ese)$/i, '$1'],
     [/(ax|test)is$/i, '$1es'],
     [/(alias|[^aou]us|tlas|gas|ris)$/i, '$1es'],
@@ -331,9 +339,9 @@
     [/(^analy)(?:sis|ses)$/i, '$1sis'],
     [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
     [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
-    [/([^aeiouy]|qu)ies$/i, '$1y'],
-    [/(^[pl]|zomb|^(?:neck)?t|[aeo][lt]|cut)ies$/i, '$1ie'],
-    [/(\b(?:mon|smil))ies$/i, '$1ey'],
+    [/ies$/i, 'y'],
+    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
+    [/\b(mon|smil)ies$/i, '$1ey'],
     [/(m|l)ice$/i, '$1ouse'],
     [/(seraph|cherub)im$/i, '$1'],
     [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|tlas|gas|(?:her|at|gr)o|ris)(?:es)?$/i, '$1'],
@@ -360,12 +368,23 @@
   [
     // Singular words with no plurals.
     'advice',
+    'adulthood',
     'agenda',
+    'aid',
+    'alcohol',
+    'ammo',
+    'athletics',
     'bison',
+    'blood',
     'bream',
     'buffalo',
+    'butter',
     'carp',
+    'cash',
     'chassis',
+    'chess',
+    'clothing',
+    'commerce',
     'cod',
     'cooperation',
     'corps',
@@ -378,6 +397,7 @@
     'excretion',
     'expertise',
     'flounder',
+    'fun',
     'gallows',
     'garbage',
     'graffiti',
@@ -386,16 +406,20 @@
     'herpes',
     'highjinks',
     'homework',
+    'housework',
     'information',
     'jeans',
     'justice',
     'kudos',
     'labour',
+    'literature',
     'machinery',
     'mackerel',
+    'mail',
     'media',
     'mews',
     'moose',
+    'music',
     'news',
     'pike',
     'plankton',
@@ -403,6 +427,7 @@
     'pollution',
     'premises',
     'rain',
+    'research',
     'rice',
     'salmon',
     'scissors',
@@ -414,7 +439,11 @@
     'staff',
     'swine',
     'trout',
+    'traffic',
+    'transporation',
     'tuna',
+    'wealth',
+    'welfare',
     'whiting',
     'wildebeest',
     'wildlife',

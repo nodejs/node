@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Signature<LocalType> FunctionSig;
+typedef Signature<ValueType> FunctionSig;
 
 // A helper class with many useful signatures in order to simplify tests.
 class TestSignatures {
@@ -40,18 +40,18 @@ class TestSignatures {
         sig_v_iii(0, 3, kIntTypes4),
         sig_s_i(1, 1, kSimd128IntTypes4) {
     // I used C++ and you won't believe what happened next....
-    for (int i = 0; i < 4; i++) kIntTypes4[i] = kAstI32;
-    for (int i = 0; i < 4; i++) kLongTypes4[i] = kAstI64;
-    for (int i = 0; i < 4; i++) kFloatTypes4[i] = kAstF32;
-    for (int i = 0; i < 4; i++) kDoubleTypes4[i] = kAstF64;
-    for (int i = 0; i < 4; i++) kIntLongTypes4[i] = kAstI64;
-    for (int i = 0; i < 4; i++) kIntFloatTypes4[i] = kAstF32;
-    for (int i = 0; i < 4; i++) kIntDoubleTypes4[i] = kAstF64;
-    for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kAstS128;
-    kIntLongTypes4[0] = kAstI32;
-    kIntFloatTypes4[0] = kAstI32;
-    kIntDoubleTypes4[0] = kAstI32;
-    kSimd128IntTypes4[1] = kAstI32;
+    for (int i = 0; i < 4; i++) kIntTypes4[i] = kWasmI32;
+    for (int i = 0; i < 4; i++) kLongTypes4[i] = kWasmI64;
+    for (int i = 0; i < 4; i++) kFloatTypes4[i] = kWasmF32;
+    for (int i = 0; i < 4; i++) kDoubleTypes4[i] = kWasmF64;
+    for (int i = 0; i < 4; i++) kIntLongTypes4[i] = kWasmI64;
+    for (int i = 0; i < 4; i++) kIntFloatTypes4[i] = kWasmF32;
+    for (int i = 0; i < 4; i++) kIntDoubleTypes4[i] = kWasmF64;
+    for (int i = 0; i < 4; i++) kSimd128IntTypes4[i] = kWasmS128;
+    kIntLongTypes4[0] = kWasmI32;
+    kIntFloatTypes4[0] = kWasmI32;
+    kIntDoubleTypes4[0] = kWasmI32;
+    kSimd128IntTypes4[1] = kWasmI32;
   }
 
   FunctionSig* i_v() { return &sig_i_v; }
@@ -80,9 +80,9 @@ class TestSignatures {
   FunctionSig* v_iii() { return &sig_v_iii; }
   FunctionSig* s_i() { return &sig_s_i; }
 
-  FunctionSig* many(Zone* zone, LocalType ret, LocalType param, int count) {
-    FunctionSig::Builder builder(zone, ret == kAstStmt ? 0 : 1, count);
-    if (ret != kAstStmt) builder.AddReturn(ret);
+  FunctionSig* many(Zone* zone, ValueType ret, ValueType param, int count) {
+    FunctionSig::Builder builder(zone, ret == kWasmStmt ? 0 : 1, count);
+    if (ret != kWasmStmt) builder.AddReturn(ret);
     for (int i = 0; i < count; i++) {
       builder.AddParam(param);
     }
@@ -90,14 +90,14 @@ class TestSignatures {
   }
 
  private:
-  LocalType kIntTypes4[4];
-  LocalType kLongTypes4[4];
-  LocalType kFloatTypes4[4];
-  LocalType kDoubleTypes4[4];
-  LocalType kIntLongTypes4[4];
-  LocalType kIntFloatTypes4[4];
-  LocalType kIntDoubleTypes4[4];
-  LocalType kSimd128IntTypes4[4];
+  ValueType kIntTypes4[4];
+  ValueType kLongTypes4[4];
+  ValueType kFloatTypes4[4];
+  ValueType kDoubleTypes4[4];
+  ValueType kIntLongTypes4[4];
+  ValueType kIntFloatTypes4[4];
+  ValueType kIntDoubleTypes4[4];
+  ValueType kSimd128IntTypes4[4];
 
   FunctionSig sig_i_v;
   FunctionSig sig_i_i;

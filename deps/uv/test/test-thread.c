@@ -211,22 +211,28 @@ TEST_IMPL(thread_local_storage) {
 }
 
 
-#if defined(__APPLE__)
 static void thread_check_stack(void* arg) {
-  /* 512KB is the default stack size of threads other than the main thread
-   * on OSX. */
+#if defined(__APPLE__)
+  /* 512 kB is the default stack size of threads other than the main thread
+   * on MacOS. */
   ASSERT(pthread_get_stacksize_np(pthread_self()) > 512*1024);
-}
+#elif defined(__linux__) && defined(__GLIBC__)
+  struct rlimit lim;
+  size_t stack_size;
+  pthread_attr_t attr;
+  ASSERT(0 == getrlimit(RLIMIT_STACK, &lim));
+  if (lim.rlim_cur == RLIM_INFINITY)
+    lim.rlim_cur = 2 << 20;  /* glibc default. */
+  ASSERT(0 == pthread_getattr_np(pthread_self(), &attr));
+  ASSERT(0 == pthread_attr_getstacksize(&attr, &stack_size));
+  ASSERT(stack_size >= lim.rlim_cur);
 #endif
+}
 
 
 TEST_IMPL(thread_stack_size) {
-#if defined(__APPLE__)
   uv_thread_t thread;
   ASSERT(0 == uv_thread_create(&thread, thread_check_stack, NULL));
   ASSERT(0 == uv_thread_join(&thread));
   return 0;
-#else
-  RETURN_SKIP("OSX only test");
-#endif
 }

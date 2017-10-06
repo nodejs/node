@@ -8,12 +8,16 @@
     ],
     'files': [
       '../tools/run_perf.py',
+      # TODO(machenbach): These files are referenced by the perf runner.
+      # They should be transformed into a proper python module.
+      '../tools/testrunner/local/commands.py',
+      '../tools/testrunner/local/utils.py',
+      '../tools/testrunner/objects/output.py',
       # This is often used to trigger performance bots. We include it in the
       # isolate to not get these builds deduped.
       '../tools/whitespace.txt',
       'js-perf-test/',
       'memory/',
-      'simdjs/',
     ],
   },
   'includes': [

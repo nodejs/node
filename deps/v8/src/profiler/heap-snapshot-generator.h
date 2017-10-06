@@ -5,12 +5,15 @@
 #ifndef V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_H_
 
+#include <deque>
 #include <unordered_map>
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/profiler/strings-storage.h"
+#include "src/string-hasher.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -91,8 +94,7 @@ class HeapEntry BASE_EMBEDDED {
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
-    kSymbol = v8::HeapGraphNode::kSymbol,
-    kSimdValue = v8::HeapGraphNode::kSimdValue
+    kSymbol = v8::HeapGraphNode::kSymbol
   };
   static const int kNoEntry;
 
@@ -115,10 +117,9 @@ class HeapEntry BASE_EMBEDDED {
   int children_count() const { return children_count_; }
   INLINE(int set_children_index(int index));
   void add_child(HeapGraphEdge* edge) {
-    children_arr()[children_count_++] = edge;
+    *(children_begin() + children_count_++) = edge;
   }
-  Vector<HeapGraphEdge*> children() {
-    return Vector<HeapGraphEdge*>(children_arr(), children_count_); }
+  HeapGraphEdge* child(int i) { return *(children_begin() + i); }
   INLINE(Isolate* isolate() const);
 
   void SetIndexedReference(
@@ -130,7 +131,8 @@ class HeapEntry BASE_EMBEDDED {
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
  private:
-  INLINE(HeapGraphEdge** children_arr());
+  INLINE(std::deque<HeapGraphEdge*>::iterator children_begin());
+  INLINE(std::deque<HeapGraphEdge*>::iterator children_end());
   const char* TypeAsString();
 
   unsigned type_: 4;
@@ -163,8 +165,8 @@ class HeapSnapshot {
     return &entries_[gc_subroot_indexes_[index]];
   }
   List<HeapEntry>& entries() { return entries_; }
-  List<HeapGraphEdge>& edges() { return edges_; }
-  List<HeapGraphEdge*>& children() { return children_; }
+  std::deque<HeapGraphEdge>& edges() { return edges_; }
+  std::deque<HeapGraphEdge*>& children() { return children_; }
   void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
@@ -192,8 +194,8 @@ class HeapSnapshot {
   int gc_roots_index_;
   int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
   List<HeapEntry> entries_;
-  List<HeapGraphEdge> edges_;
-  List<HeapGraphEdge*> children_;
+  std::deque<HeapGraphEdge> edges_;
+  std::deque<HeapGraphEdge*> children_;
   List<HeapEntry*> sorted_entries_;
   SnapshotObjectId max_snapshot_js_object_id_;
 
@@ -295,8 +297,7 @@ class HeapEntriesMap {
  private:
   static uint32_t Hash(HeapThing thing) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)),
-        v8::internal::kZeroHashSeed);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
   }
 
   base::HashMap entries_;
@@ -385,7 +386,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeReferences(int entry, Code* code);
-  void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
@@ -495,7 +495,7 @@ class NativeObjectsExplorer {
 
  private:
   void FillRetainedObjects();
-  void FillImplicitReferences();
+  void FillEdges();
   List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
@@ -504,8 +504,7 @@ class NativeObjectsExplorer {
   void VisitSubtreeWrapper(Object** p, uint16_t class_id);
 
   static uint32_t InfoHash(v8::RetainedObjectInfo* info) {
-    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()),
-                              v8::internal::kZeroHashSeed);
+    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
   }
   static bool RetainedInfosMatch(void* key1, void* key2) {
     return key1 == key2 ||
@@ -531,6 +530,7 @@ class NativeObjectsExplorer {
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
   SnapshotFiller* filler_;
+  v8::HeapProfiler::RetainerEdges edges_;
 
   static HeapThing const kNativesRootObject;
 

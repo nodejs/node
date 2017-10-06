@@ -2,11 +2,8 @@
 
 const common = require('../common');
 
-if (!common.enoughTestMem) {
-  const skipMessage = 'intensive toString tests due to memory confinements';
-  common.skip(skipMessage);
-  return;
-}
+if (!common.enoughTestMem)
+  common.skip('intensive toString tests due to memory confinements');
 
 const assert = require('assert');
 const fs = require('fs');

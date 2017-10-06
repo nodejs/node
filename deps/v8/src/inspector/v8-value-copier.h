@@ -5,6 +5,8 @@
 #ifndef V8_INSPECTOR_V8VALUECOPIER_H_
 #define V8_INSPECTOR_V8VALUECOPIER_H_
 
+#include "src/inspector/protocol/Protocol.h"
+
 #include "include/v8.h"
 
 namespace v8_inspector {
@@ -18,6 +20,9 @@ v8::Maybe<bool> createDataProperty(v8::Local<v8::Context>,
                                    v8::Local<v8::Value>);
 v8::Maybe<bool> createDataProperty(v8::Local<v8::Context>, v8::Local<v8::Array>,
                                    int index, v8::Local<v8::Value>);
+
+protocol::Response toProtocolValue(v8::Local<v8::Context>, v8::Local<v8::Value>,
+                                   std::unique_ptr<protocol::Value>* result);
 
 }  // namespace v8_inspector
 

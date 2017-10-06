@@ -1,8 +1,9 @@
 'use strict';
 
 /*
- * This is a regression test for https://github.com/joyent/node/issues/15447
- * and https://github.com/joyent/node/issues/9333.
+ * This is a regression test for
+ * https://github.com/nodejs/node-v0.x-archive/issues/15447 and
+ * and https://github.com/nodejs/node-v0.x-archive/issues/9333.
  *
  * When a timer is added in another timer's callback, its underlying timer
  * handle was started with a timeout that was actually incorrect.
@@ -28,9 +29,15 @@ const Timer = process.binding('timer_wrap').Timer;
 
 const TIMEOUT = 100;
 
-let nbBlockingCallbackCalls = 0;
-let latestDelay = 0;
-let timeCallbackScheduled = 0;
+let nbBlockingCallbackCalls;
+let latestDelay;
+let timeCallbackScheduled;
+
+// These tests are timing dependent so they may fail even when the bug is
+// not present (if the host is sufficiently busy that the timers are delayed
+// significantly). However, they fail 100% of the time when the bug *is*
+// present, so to increase reliability, allow for a small number of retries.
+let retries = 2;
 
 function initTest() {
   nbBlockingCallbackCalls = 0;
@@ -38,7 +45,7 @@ function initTest() {
   timeCallbackScheduled = 0;
 }
 
-function blockingCallback(callback) {
+function blockingCallback(retry, callback) {
   ++nbBlockingCallbackCalls;
 
   if (nbBlockingCallbackCalls > 1) {
@@ -47,8 +54,14 @@ function blockingCallback(callback) {
     // to fire, they shouldn't generally be more than 100% late in this case.
     // But they are guaranteed to be at least 100ms late given the bug in
     // https://github.com/nodejs/node-v0.x-archive/issues/15447 and
-    // https://github.com/nodejs/node-v0.x-archive/issues/9333..
-    assert(latestDelay < TIMEOUT * 2);
+    // https://github.com/nodejs/node-v0.x-archive/issues/9333.
+    if (latestDelay >= TIMEOUT * 2) {
+      if (retries > 0) {
+        retries--;
+        return retry(callback);
+      }
+      assert.fail(`timeout delayed by more than 100% (${latestDelay}ms)`);
+    }
     if (callback)
       return callback();
   } else {
@@ -56,25 +69,45 @@ function blockingCallback(callback) {
     common.busyLoop(TIMEOUT);
 
     timeCallbackScheduled = Timer.now();
-    setTimeout(blockingCallback.bind(null, callback), TIMEOUT);
+    setTimeout(blockingCallback.bind(null, retry, callback), TIMEOUT);
   }
 }
 
-const testAddingTimerToEmptyTimersList = common.mustCall(function(callback) {
+function testAddingTimerToEmptyTimersList(callback) {
   initTest();
   // Call setTimeout just once to make sure the timers list is
   // empty when blockingCallback is called.
-  setTimeout(blockingCallback.bind(null, callback), TIMEOUT);
-});
+  setTimeout(
+    blockingCallback.bind(null, testAddingTimerToEmptyTimersList, callback),
+    TIMEOUT
+  );
+}
 
-const testAddingTimerToNonEmptyTimersList = common.mustCall(function() {
+function testAddingTimerToNonEmptyTimersList() {
+  // If both timers fail and attempt a retry, only actually do anything for one
+  // of them.
+  let retryOK = true;
+  const retry = () => {
+    if (retryOK)
+      testAddingTimerToNonEmptyTimersList();
+    retryOK = false;
+  };
+
   initTest();
   // Call setTimeout twice with the same timeout to make
   // sure the timers list is not empty when blockingCallback is called.
-  setTimeout(blockingCallback, TIMEOUT);
-  setTimeout(blockingCallback, TIMEOUT);
-});
+  setTimeout(
+    blockingCallback.bind(null, retry),
+    TIMEOUT
+  );
+  setTimeout(
+    blockingCallback.bind(null, retry),
+    TIMEOUT
+  );
+}
 
 // Run the test for the empty timers list case, and then for the non-empty
-// timers list one
-testAddingTimerToEmptyTimersList(testAddingTimerToNonEmptyTimersList);
+// timers list one.
+testAddingTimerToEmptyTimersList(
+  common.mustCall(testAddingTimerToNonEmptyTimersList)
+);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests line and column numbers in console messages');
+
 Protocol.Runtime.enable();
 
 addConsoleMessagePromise("console.log(239)")

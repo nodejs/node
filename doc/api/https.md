@@ -1,5 +1,7 @@
 # HTTPS
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
@@ -21,10 +23,12 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
-### server.setTimeout(msecs, callback)
+### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
 -->
+- `msecs` {number} Defaults to 120000 (2 minutes).
+- `callback` {Function}
 
 See [`http.Server#setTimeout()`][].
 
@@ -32,17 +36,24 @@ See [`http.Server#setTimeout()`][].
 <!-- YAML
 added: v0.11.2
 -->
+- {number} Defaults to 120000 (2 minutes).
 
 See [`http.Server#timeout`][].
 
-## https.createServer(options[, requestListener])
+### server.keepAliveTimeout
+<!-- YAML
+added: v8.0.0
+-->
+- {number} Defaults to 5000 (5 seconds).
+
+See [`http.Server#keepAliveTimeout`][].
+
+## https.createServer([options][, requestListener])
 <!-- YAML
 added: v0.3.4
 -->
-
-Returns a new HTTPS web server object. The `options` is similar to
-[`tls.createServer()`][].  The `requestListener` is a function which is
-automatically added to the `'request'` event.
+- `options` {Object} Accepts `options` from [`tls.createServer()`][] and [`tls.createSecureContext()`][].
+- `requestListener` {Function} A listener to be added to the `request` event.
 
 Example:
 
@@ -69,7 +80,8 @@ const https = require('https');
 const fs = require('fs');
 
 const options = {
-  pfx: fs.readFileSync('server.pfx')
+  pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
+  passphrase: 'sample'
 };
 
 https.createServer(options, (req, res) => {
@@ -82,24 +94,43 @@ https.createServer(options, (req, res) => {
 <!-- YAML
 added: v0.1.90
 -->
+- `callback` {Function}
 
 See [`http.close()`][] for details.
 
 ### server.listen(handle[, callback])
+- `handle` {Object}
+- `callback` {Function}
+
 ### server.listen(path[, callback])
-### server.listen(port[, host][, backlog][, callback])
+- `path` {string}
+- `callback` {Function}
+
+### server.listen([port][, host][, backlog][, callback])
+- `port` {number}
+- `hostname` {string}
+- `backlog` {number}
+- `callback` {Function}
 
 See [`http.listen()`][] for details.
 
-## https.get(options, callback)
+## https.get(options[, callback])
 <!-- YAML
 added: v0.3.6
+changes:
+  - version: v7.5.0
+    pr-url: https://github.com/nodejs/node/pull/10638
+    description: The `options` parameter can be a WHATWG `URL` object.
 -->
+- `options` {Object | string | URL} Accepts the same `options` as
+  [`https.request()`][], with the `method` always set to `GET`.
+- `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
 
-`options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [`url.parse()`][].
+`options` can be an object, a string, or a [`URL`][] object. If `options` is a
+string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+object, it will be automatically converted to an ordinary `options` object.
 
 Example:
 
@@ -126,31 +157,45 @@ added: v0.5.9
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options, callback)
+## https.request(options[, callback])
 <!-- YAML
 added: v0.3.6
+changes:
+  - version: v7.5.0
+    pr-url: https://github.com/nodejs/node/pull/10638
+    description: The `options` parameter can be a WHATWG `URL` object.
 -->
+- `options` {Object | string | URL} Accepts all `options` from [`http.request()`][],
+  with some differences in default values:
+  - `protocol` Defaults to `https:`
+  - `port` Defaults to `443`.
+  - `agent` Defaults to `https.globalAgent`.
+- `callback` {Function}
+
 
 Makes a request to a secure web server.
 
-`options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [`url.parse()`][].
+The following additional `options` from [`tls.connect()`][] are also accepted when using a
+  custom [`Agent`][]:
+  `pfx`, `key`, `passphrase`, `cert`, `ca`, `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
 
-All options from [`http.request()`][] are valid.
+`options` can be an object, a string, or a [`URL`][] object. If `options` is a
+string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
+object, it will be automatically converted to an ordinary `options` object.
 
 Example:
 
 ```js
 const https = require('https');
 
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
   method: 'GET'
 };
 
-var req = https.request(options, (res) => {
+const req = https.request(options, (res) => {
   console.log('statusCode:', res.statusCode);
   console.log('headers:', res.headers);
 
@@ -164,61 +209,10 @@ req.on('error', (e) => {
 });
 req.end();
 ```
-
-The options argument has the following options
-
-- `host`: A domain name or IP address of the server to issue the request to.
-  Defaults to `'localhost'`.
-- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
-  preferred over `host`.
-- `family`: IP address family to use when resolving `host` and `hostname`.
-  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
-  used.
-- `port`: Port of remote server. Defaults to 443.
-- `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
-- `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
-- `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
-  contains illegal characters. Currently, only spaces are rejected but that
-  may change in the future.
-- `headers`: An object containing request headers.
-- `auth`: Basic authentication i.e. `'user:password'` to compute an
-  Authorization header.
-- `agent`: Controls [`Agent`][] behavior. When an Agent is used request will
-  default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [`globalAgent`][] for this host and port.
- - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: opts out of connection pooling with an Agent, defaults request to
-   `Connection: close`.
-
-The following options from [`tls.connect()`][] can also be specified:
-
-- `pfx`: Certificate, Private key and CA certificates to use for SSL. Default `null`.
-- `key`: Private key to use for SSL. Default `null`.
-- `passphrase`: A string of passphrase for the private key or pfx. Default `null`.
-- `cert`: Public x509 certificate to use. Default `null`.
-- `ca`: A string, [`Buffer`][] or array of strings or [`Buffer`][]s of trusted
-  certificates in PEM format. If this is omitted several well known "root"
-  CAs will be used, like VeriSign. These are used to authorize connections.
-- `ciphers`: A string describing the ciphers to use or exclude. Consult
-  <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT> for
-  details on the format.
-- `rejectUnauthorized`: If `true`, the server certificate is verified against
-  the list of supplied CAs. An `'error'` event is emitted if verification
-  fails. Verification happens at the connection level, *before* the HTTP
-  request is sent. Default `true`.
-- `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
-  SSL version 3. The possible values depend on your installation of
-  OpenSSL and are defined in the constant [`SSL_METHODS`][].
-- `servername`: Servername for SNI (Server Name Indication) TLS extension.
-
-In order to specify these options, use a custom [`Agent`][].
-
-Example:
+Example using options from [`tls.connect()`][]:
 
 ```js
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
@@ -228,8 +222,8 @@ var options = {
 };
 options.agent = new https.Agent(options);
 
-var req = https.request(options, (res) => {
-  ...
+const req = https.request(options, (res) => {
+  // ...
 });
 ```
 
@@ -238,7 +232,7 @@ Alternatively, opt out of connection pooling by not using an `Agent`.
 Example:
 
 ```js
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
@@ -248,25 +242,37 @@ var options = {
   agent: false
 };
 
-var req = https.request(options, (res) => {
-  ...
+const req = https.request(options, (res) => {
+  // ...
+});
+```
+
+Example using a [`URL`][] as `options`:
+
+```js
+const { URL } = require('url');
+
+const options = new URL('https://abc:xyz@example.com');
+
+const req = https.request(options, (res) => {
+  // ...
 });
 ```
 
 [`Agent`]: #https_class_https_agent
-[`Buffer`]: buffer.html#buffer_buffer
-[`globalAgent`]: #https_https_globalagent
+[`URL`]: url.html#url_the_whatwg_url_api
 [`http.Agent`]: http.html#http_class_http_agent
+[`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
+[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
+[`http.Server#timeout`]: http.html#http_server_timeout
+[`http.Server`]: http.html#http_class_http_server
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
 [`http.request()`]: http.html#http_http_request_options_callback
-[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
-[`http.Server#timeout`]: http.html#http_server_timeout
-[`http.Server`]: http.html#http_class_http_server
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
-[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost

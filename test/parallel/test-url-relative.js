@@ -4,6 +4,9 @@ const assert = require('assert');
 const inspect = require('util').inspect;
 const url = require('url');
 
+// when source is false
+assert.strictEqual(url.resolveObject('', 'foo'), 'foo');
+
 /*
  [from, path, expected]
 */
@@ -368,6 +371,9 @@ const relativeTests2 = [
   ['https://example.com/foo',
    'https://user:password@example.com',
    'https://user:password@example.com/foo'],
+
+  // No path at all
+  ['#hash1', '#hash2', '#hash1']
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);

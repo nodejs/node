@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -128,18 +149,54 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        runTest(NaN, Infinity, function() {
-          runTest('123456', -1, common.mustCall(function() {
-            // done
-          }));
+        runTest('123456', -1, function() {
+          runTest(
+            new Date('2017-04-08T17:59:38.008Z'),
+            new Date('2017-04-08T17:59:38.008Z'),
+            common.mustCall(function() {
+              // done
+            })
+          );
         });
       });
     });
   });
 });
 
-
 process.on('exit', function() {
-  console.log('Tests run / ok:', tests_run, '/', tests_ok);
   assert.strictEqual(tests_ok, tests_run);
 });
+
+
+// Ref: https://github.com/nodejs/node/issues/13255
+common.refreshTmpDir();
+const path = `${common.tmpDir}/test-utimes-precision`;
+fs.writeFileSync(path, '');
+
+// test Y2K38 for all platforms [except 'arm', and 'SunOS']
+if (!process.arch.includes('arm') && !common.isSunOS) {
+  // because 2 ** 31 doesn't look right
+  // eslint-disable-next-line space-infix-ops
+  const Y2K38_mtime = 2**31;
+  fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
+  const Y2K38_stats = fs.statSync(path);
+  assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
+}
+
+if (common.isWindows) {
+  // this value would get converted to (double)1713037251359.9998
+  const truncate_mtime = 1713037251360;
+  fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
+  const truncate_stats = fs.statSync(path);
+  assert.strictEqual(truncate_mtime, truncate_stats.mtime.getTime());
+
+  // test Y2K38 for windows
+  // This value if treaded as a `signed long` gets converted to -2135622133469.
+  // POSIX systems stores timestamps in {long t_sec, long t_usec}.
+  // NTFS stores times in nanoseconds in a single `uint64_t`, so when libuv
+  // calculates (long)`uv_timespec_t.tv_sec` we get 2's complement.
+  const overflow_mtime = 2159345162531;
+  fs.utimesSync(path, overflow_mtime / 1000, overflow_mtime / 1000);
+  const overflow_stats = fs.statSync(path);
+  assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
+}

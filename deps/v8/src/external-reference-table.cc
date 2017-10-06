@@ -10,6 +10,13 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
+
+#if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
+#define SYMBOLIZE_FUNCTION
+#include <execinfo.h>
+#include <vector>
+#endif  // DEBUG && V8_OS_LINUX && !V8_OS_ANDROID
 
 namespace v8 {
 namespace internal {
@@ -31,15 +38,48 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+  // nullptr is preserved through serialization/deserialization.
+  Add(nullptr, "nullptr");
   AddReferences(isolate);
   AddBuiltins(isolate);
   AddRuntimeFunctions(isolate);
-  AddStatCounters(isolate);
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
-  AddDeoptEntries(isolate);
+  // API references must be added last.
   AddApiReferences(isolate);
+}
+
+ExternalReferenceTable::~ExternalReferenceTable() {
+#ifdef SYMBOLIZE_FUNCTION
+  for (char** table : symbol_tables_) {
+    free(table);
+  }
+#endif
+}
+
+#ifdef DEBUG
+void ExternalReferenceTable::ResetCount() {
+  for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
+}
+
+void ExternalReferenceTable::PrintCount() {
+  for (int i = 0; i < refs_.length(); i++) {
+    v8::base::OS::Print("index=%5d count=%5d  %-60s\n", i, refs_[i].count,
+                        refs_[i].name);
+  }
+}
+#endif  // DEBUG
+
+const char* ExternalReferenceTable::ResolveSymbol(void* address,
+                                                  std::vector<char**>* tables) {
+#ifdef SYMBOLIZE_FUNCTION
+  char** table = backtrace_symbols(&address, 1);
+  if (tables) tables->push_back(table);
+  return table[0];
+#else
+  return "<unresolved>";
+#endif  // SYMBOLIZE_FUNCTION
 }
 
 void ExternalReferenceTable::AddReferences(Isolate* isolate) {
@@ -56,11 +96,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Heap::NewSpaceAllocationTopAddress()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       "mod_two_doubles");
-  // Keyed lookup cache.
-  Add(ExternalReference::keyed_lookup_cache_keys(isolate).address(),
-      "KeyedLookupCache::keys()");
-  Add(ExternalReference::keyed_lookup_cache_field_offsets(isolate).address(),
-      "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::handle_scope_next_address(isolate).address(),
       "HandleScope::next");
   Add(ExternalReference::handle_scope_limit_address(isolate).address(),
@@ -78,8 +113,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
-  Add(ExternalReference::interpreter_dispatch_counters(isolate).address(),
-      "Interpreter::interpreter_dispatch_counters");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
@@ -207,6 +240,45 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "f64_asin_wrapper");
   Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),
       "f64_mod_wrapper");
+  Add(ExternalReference::wasm_call_trap_callback_for_testing(isolate).address(),
+      "wasm::call_trap_callback_for_testing");
+  Add(ExternalReference::libc_memchr_function(isolate).address(),
+      "libc_memchr");
+  Add(ExternalReference::libc_memcpy_function(isolate).address(),
+      "libc_memcpy");
+  Add(ExternalReference::libc_memmove_function(isolate).address(),
+      "libc_memmove");
+  Add(ExternalReference::libc_memset_function(isolate).address(),
+      "libc_memset");
+  Add(ExternalReference::try_internalize_string_function(isolate).address(),
+      "try_internalize_string_function");
+#ifdef V8_INTL_SUPPORT
+  Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
+      "intl_convert_one_byte_to_lower");
+  Add(ExternalReference::intl_to_latin1_lower_table(isolate).address(),
+      "intl_to_latin1_lower_table");
+#endif  // V8_INTL_SUPPORT
+  Add(ExternalReference::search_string_raw<const uint8_t, const uint8_t>(
+          isolate)
+          .address(),
+      "search_string_raw<1-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uint8_t, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uint8_t>(isolate)
+          .address(),
+      "search_string_raw<2-byte, 1-byte>");
+  Add(ExternalReference::search_string_raw<const uc16, const uc16>(isolate)
+          .address(),
+      "search_string_raw<1-byte, 2-byte>");
+  Add(ExternalReference::orderedhashmap_gethash_raw(isolate).address(),
+      "orderedhashmap_gethash_raw");
+  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashMap, 2>(isolate)
+          .address(),
+      "orderedhashtable_has_raw<OrderedHashMap, 2>");
+  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashSet, 1>(isolate)
+          .address(),
+      "orderedhashtable_has_raw<OrderedHashSet, 1>");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -217,9 +289,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Isolate::stress_deopt_count_address()");
   Add(ExternalReference::runtime_function_table_address(isolate).address(),
       "Runtime::runtime_function_table_address()");
-  Add(ExternalReference::is_tail_call_elimination_enabled_address(isolate)
-          .address(),
-      "Isolate::is_tail_call_elimination_enabled_address()");
   Add(ExternalReference::address_of_float_abs_constant().address(),
       "float_absolute_constant");
   Add(ExternalReference::address_of_float_neg_constant().address(),
@@ -228,16 +297,24 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_absolute_constant");
   Add(ExternalReference::address_of_double_neg_constant().address(),
       "double_negate_constant");
+  Add(ExternalReference::promise_hook_or_debug_is_active_address(isolate)
+          .address(),
+      "Isolate::promise_hook_or_debug_is_active_address()");
 
   // Debug addresses
-  Add(ExternalReference::debug_after_break_target_address(isolate).address(),
-      "Debug::after_break_target_address()");
   Add(ExternalReference::debug_is_active_address(isolate).address(),
       "Debug::is_active_address()");
+  Add(ExternalReference::debug_hook_on_function_call_address(isolate).address(),
+      "Debug::hook_on_function_call_address()");
   Add(ExternalReference::debug_last_step_action_address(isolate).address(),
       "Debug::step_in_enabled_address()");
   Add(ExternalReference::debug_suspended_generator_address(isolate).address(),
       "Debug::step_suspended_generator_address()");
+  Add(ExternalReference::debug_restart_fp_address(isolate).address(),
+      "Debug::restart_fp_address()");
+
+  Add(ExternalReference::address_of_regexp_dotall_flag(isolate).address(),
+      "FLAG_harmony_regexp_dotall");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
@@ -293,9 +370,14 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
     const char* name;
   };
   static const BuiltinEntry builtins[] = {
+#define BUILTIN_LIST_EXTERNAL_REFS(DEF) \
+  BUILTIN_LIST_C(DEF)                   \
+  BUILTIN_LIST_A(DEF)                   \
+  DEF(CallProxy)
 #define DEF_ENTRY(Name, ...) {Builtins::k##Name, "Builtin_" #Name},
-      BUILTIN_LIST_C(DEF_ENTRY) BUILTIN_LIST_A(DEF_ENTRY)
+      BUILTIN_LIST_EXTERNAL_REFS(DEF_ENTRY)
 #undef DEF_ENTRY
+#undef BUILTIN_LIST_EXTERNAL_REFS
   };
   for (unsigned i = 0; i < arraysize(builtins); ++i) {
     Add(isolate->builtins()->builtin_address(builtins[i].id), builtins[i].name);
@@ -320,32 +402,6 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
   }
 }
 
-void ExternalReferenceTable::AddStatCounters(Isolate* isolate) {
-  // Stat counters
-  struct StatsRefTableEntry {
-    StatsCounter* (Counters::*counter)();
-    const char* name;
-  };
-
-  static const StatsRefTableEntry stats_ref_table[] = {
-#define COUNTER_ENTRY(name, caption) {&Counters::name, "Counters::" #name},
-      STATS_COUNTER_LIST_1(COUNTER_ENTRY) STATS_COUNTER_LIST_2(COUNTER_ENTRY)
-#undef COUNTER_ENTRY
-  };
-
-  Counters* counters = isolate->counters();
-  for (unsigned i = 0; i < arraysize(stats_ref_table); ++i) {
-    // To make sure the indices are not dependent on whether counters are
-    // enabled, use a dummy address as filler.
-    Address address = NotAvailable();
-    StatsCounter* counter = (counters->*(stats_ref_table[i].counter))();
-    if (counter->Enabled()) {
-      address = reinterpret_cast<Address>(counter->GetInternalPointer());
-    }
-    Add(address, stats_ref_table[i].name);
-  }
-}
-
 void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
   // Top addresses
   static const char* address_names[] = {
@@ -354,8 +410,8 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
 #undef BUILD_NAME_LITERAL
   };
 
-  for (int i = 0; i < Isolate::kIsolateAddressCount; ++i) {
-    Add(isolate->get_address_from_id(static_cast<Isolate::AddressId>(i)),
+  for (int i = 0; i < IsolateAddressId::kIsolateAddressCount; ++i) {
+    Add(isolate->get_address_from_id(static_cast<IsolateAddressId>(i)),
         address_names[i]);
   }
 }
@@ -375,15 +431,13 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
   static const AccessorRefTable setters[] = {
 #define ACCESSOR_SETTER_DECLARATION(name) \
-  {FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
+  { FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
       ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
     Add(getters[i].address, getters[i].name);
-    Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
-        "");
   }
 
   for (unsigned i = 0; i < arraysize(setters); ++i) {
@@ -425,26 +479,19 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
       "Store StubCache::secondary_->map");
 }
 
-void ExternalReferenceTable::AddDeoptEntries(Isolate* isolate) {
-  // Add a small set of deopt entry addresses to encoder without generating
-  // the
-  // deopt table code, which isn't possible at deserialization time.
-  HandleScope scope(isolate);
-  for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
-    Address address = Deoptimizer::GetDeoptimizationEntry(
-        isolate, entry, Deoptimizer::LAZY,
-        Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, "lazy_deopt");
-  }
-}
-
 void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   // Add external references provided by the embedder (a null-terminated
   // array).
+  api_refs_start_ = size();
   intptr_t* api_external_references = isolate->api_external_references();
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
-      Add(reinterpret_cast<Address>(*api_external_references), "<embedder>");
+      Address address = reinterpret_cast<Address>(*api_external_references);
+#ifdef SYMBOLIZE_FUNCTION
+      Add(address, ResolveSymbol(address, &symbol_tables_));
+#else
+      Add(address, ResolveSymbol(address));
+#endif
       api_external_references++;
     }
   }

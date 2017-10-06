@@ -11,7 +11,6 @@
 const fs = require("fs"),
     path = require("path"),
     GlobSync = require("./glob"),
-    shell = require("shelljs"),
 
     pathUtil = require("./path-util"),
     IgnoredPaths = require("../ignored-paths");
@@ -64,7 +63,7 @@ function processPath(options) {
         let newPath = pathname;
         const resolvedPath = path.resolve(cwd, pathname);
 
-        if (shell.test("-d", resolvedPath)) {
+        if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
             newPath = pathname.replace(/[/\\]$/, "") + suffix;
         }
 
@@ -86,7 +85,7 @@ function resolveFileGlobPatterns(patterns, options) {
 
     const processPathExtensions = processPath(options);
 
-    return patterns.map(processPathExtensions);
+    return patterns.filter(p => p.length).map(processPathExtensions);
 }
 
 /**
@@ -151,10 +150,10 @@ function listFilesToProcess(globPatterns, options) {
     globPatterns.forEach(pattern => {
         const file = path.resolve(cwd, pattern);
 
-        if (shell.test("-f", file)) {
+        if (fs.existsSync(file) && fs.statSync(file).isFile()) {
             const ignoredPaths = new IgnoredPaths(options);
 
-            addFile(fs.realpathSync(file), !shell.test("-d", file), ignoredPaths);
+            addFile(fs.realpathSync(file), true, ignoredPaths);
         } else {
 
             // regex to find .hidden or /.hidden patterns, but not ./relative or ../relative
@@ -165,7 +164,7 @@ function listFilesToProcess(globPatterns, options) {
             const globOptions = {
                 nodir: true,
                 dot: true,
-                cwd,
+                cwd
             };
 
             new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(globMatch => {

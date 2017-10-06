@@ -1,18 +1,17 @@
 'use strict';
-var common = require('../common.js');
-var querystring = require('querystring');
-var v8 = require('v8');
+const common = require('../common.js');
+const querystring = require('querystring');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: ['noencode', 'encodemany', 'encodelast'],
   n: [1e7],
 });
 
 function main(conf) {
-  var type = conf.type;
-  var n = conf.n | 0;
+  const type = conf.type;
+  const n = conf.n | 0;
 
-  var inputs = {
+  const inputs = {
     noencode: {
       foo: 'bar',
       baz: 'quux',
@@ -29,16 +28,12 @@ function main(conf) {
       xyzzy: 'thu\u00AC'
     }
   };
-  var input = inputs[type];
+  const input = inputs[type];
 
   // Force-optimize querystring.stringify() so that the benchmark doesn't get
   // disrupted by the optimizer kicking in halfway through.
-  for (var name in inputs)
+  for (const name in inputs)
     querystring.stringify(inputs[name]);
-
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(querystring.stringify)');
-  querystring.stringify(input);
 
   bench.start();
   for (var i = 0; i < n; i += 1)

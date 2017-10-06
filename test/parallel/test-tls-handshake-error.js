@@ -1,26 +1,23 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-const tls = require('tls');
 
+const assert = require('assert');
+const tls = require('tls');
 const fs = require('fs');
 
 const server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
   rejectUnauthorized: true
 }, function(c) {
 }).listen(0, common.mustCall(function() {
   const c = tls.connect({
     port: this.address().port,
     ciphers: 'RC4'
-  }, common.fail);
+  }, common.mustNotCall());
 
   c.on('error', common.mustCall(function(err) {
     assert.notStrictEqual(err.code, 'ECONNRESET');

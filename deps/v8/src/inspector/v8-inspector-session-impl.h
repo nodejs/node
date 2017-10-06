@@ -26,14 +26,14 @@ class V8ProfilerAgentImpl;
 class V8RuntimeAgentImpl;
 class V8SchemaAgentImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
   static std::unique_ptr<V8InspectorSessionImpl> create(
-      V8InspectorImpl*, int contextGroupId, V8Inspector::Channel*,
-      const StringView& state);
+      V8InspectorImpl*, int contextGroupId, int sessionId,
+      V8Inspector::Channel*, const StringView& state);
   ~V8InspectorSessionImpl();
 
   V8InspectorImpl* inspector() const { return m_inspector; }
@@ -43,9 +43,10 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8ProfilerAgentImpl* profilerAgent() { return m_profilerAgent.get(); }
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
   int contextGroupId() const { return m_contextGroupId; }
+  int sessionId() const { return m_sessionId; }
 
-  InjectedScript* findInjectedScript(ErrorString*, int contextId);
-  InjectedScript* findInjectedScript(ErrorString*, RemoteObjectIdBase*);
+  Response findInjectedScript(int contextId, InjectedScript*&);
+  Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
   void reset();
   void discardInjectedScripts();
   void reportAllContexts(V8RuntimeAgentImpl*);
@@ -57,9 +58,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       v8::Local<v8::Context>, v8::Local<v8::Value> table,
       v8::Local<v8::Value> columns);
   std::vector<std::unique_ptr<protocol::Schema::Domain>> supportedDomainsImpl();
-  bool unwrapObject(ErrorString*, const String16& objectId,
-                    v8::Local<v8::Value>*, v8::Local<v8::Context>*,
-                    String16* objectGroup);
+  Response unwrapObject(const String16& objectId, v8::Local<v8::Value>*,
+                        v8::Local<v8::Context>*, String16* objectGroup);
   void releaseObjectGroup(const String16& objectGroup);
 
   // V8InspectorSession implementation.
@@ -92,16 +92,19 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   static const unsigned kInspectedObjectBufferSize = 5;
 
  private:
-  V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId,
+  V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
                          V8Inspector::Channel*, const StringView& state);
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.
-  void sendProtocolResponse(int callId, const String16& message) override;
-  void sendProtocolNotification(const String16& message) override;
+  void sendProtocolResponse(
+      int callId, std::unique_ptr<protocol::Serializable> message) override;
+  void sendProtocolNotification(
+      std::unique_ptr<protocol::Serializable> message) override;
   void flushProtocolNotifications() override;
 
   int m_contextGroupId;
+  int m_sessionId;
   V8InspectorImpl* m_inspector;
   V8Inspector::Channel* m_channel;
   bool m_customObjectFormatterEnabled;

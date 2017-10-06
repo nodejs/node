@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
   assert.strictEqual(req.method, 'CONNECT');
   assert.strictEqual(req.url, 'example.com:443');
@@ -31,15 +31,15 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     method: 'CONNECT',
     path: 'example.com:443'
-  }, common.fail);
+  }, common.mustNotCall());
 
-  req.on('close', common.mustCall(function() { }));
+  req.on('close', common.mustCall());
 
   req.on('connect', common.mustCall(function(res, socket, firstBodyChunk) {
     console.error('Client got CONNECT request');
 
     // Make sure this request got removed from the pool.
-    const name = 'localhost:' + server.address().port;
+    const name = `localhost:${server.address().port}`;
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
     assert(!http.globalAgent.requests.hasOwnProperty(name));
 

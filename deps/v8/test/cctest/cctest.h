@@ -31,7 +31,8 @@
 #include <memory>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8-debug.h"
+#include "src/debug/debug-interface.h"
+#include "src/flags.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
@@ -110,7 +111,7 @@ class CcTest {
 
   static v8::Isolate* isolate() {
     CHECK(isolate_ != NULL);
-    v8::base::NoBarrier_Store(&isolate_used_, 1);
+    v8::base::Relaxed_Store(&isolate_used_, 1);
     return isolate_;
   }
 
@@ -126,6 +127,7 @@ class CcTest {
   static i::Heap* heap();
 
   static void CollectGarbage(i::AllocationSpace space);
+  static void CollectAllGarbage();
   static void CollectAllGarbage(int flags);
   static void CollectAllAvailableGarbage();
 
@@ -189,11 +191,17 @@ class ApiTestFuzzer: public v8::base::Thread {
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
 
-  enum PartOfTest { FIRST_PART,
-                    SECOND_PART,
-                    THIRD_PART,
-                    FOURTH_PART,
-                    LAST_PART = FOURTH_PART };
+  enum PartOfTest {
+    FIRST_PART,
+    SECOND_PART,
+    THIRD_PART,
+    FOURTH_PART,
+    FIFTH_PART,
+    SIXTH_PART,
+    SEVENTH_PART,
+    EIGHTH_PART,
+    LAST_PART = EIGHTH_PART
+  };
 
   static void SetUp(PartOfTest part);
   static void RunAllTests();
@@ -312,6 +320,9 @@ static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
+static inline v8::Local<v8::Integer> v8_int(int32_t x) {
+  return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
@@ -541,18 +552,15 @@ static inline void CheckDoubleEquals(double expected, double actual) {
   CHECK_GE(expected, actual - kEpsilon);
 }
 
-
-static void DummyDebugEventListener(
-    const v8::Debug::EventDetails& event_details) {}
-
+static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {
-  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
+  v8::debug::SetDebugDelegate(isolate, &dummy_delegate);
 }
 
 
 static inline void DisableDebugger(v8::Isolate* isolate) {
-  v8::Debug::SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 
@@ -577,7 +585,6 @@ class InitializedHandleScope {
   std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
-
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
   HandleAndZoneScope();
@@ -589,6 +596,42 @@ class HandleAndZoneScope : public InitializedHandleScope {
  private:
   v8::internal::AccountingAllocator allocator_;
   std::unique_ptr<i::Zone> main_zone_;
+};
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() {}
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return strlen(data_); }
+
+ private:
+  const char* data_;
+};
+
+class ManualGCScope {
+ public:
+  ManualGCScope()
+      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
+        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking) {
+    i::FLAG_concurrent_marking = false;
+    i::FLAG_concurrent_sweeping = false;
+    i::FLAG_stress_incremental_marking = false;
+  }
+  ~ManualGCScope() {
+    i::FLAG_concurrent_marking = flag_concurrent_marking_;
+    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+  }
+
+ private:
+  bool flag_concurrent_marking_;
+  bool flag_concurrent_sweeping_;
+  bool flag_stress_incremental_marking_;
 };
 
 #endif  // ifndef CCTEST_H_

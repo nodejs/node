@@ -15,15 +15,18 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
       return os << "SignedSmall";
     case BinaryOperationHint::kSigned32:
       return os << "Signed32";
+    case BinaryOperationHint::kNumber:
+      return os << "Number";
     case BinaryOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case BinaryOperationHint::kNonEmptyString:
+      return os << "NonEmptyString";
     case BinaryOperationHint::kString:
       return os << "String";
     case BinaryOperationHint::kAny:
       return os << "Any";
   }
   UNREACHABLE();
-  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
@@ -36,11 +39,18 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "Number";
     case CompareOperationHint::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case CompareOperationHint::kInternalizedString:
+      return os << "InternalizedString";
+    case CompareOperationHint::kString:
+      return os << "String";
+    case CompareOperationHint::kSymbol:
+      return os << "Symbol";
+    case CompareOperationHint::kReceiver:
+      return os << "Receiver";
     case CompareOperationHint::kAny:
       return os << "Any";
   }
   UNREACHABLE();
-  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
@@ -63,13 +73,40 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
       return os << "Symbol";
     case ToBooleanHint::kHeapNumber:
       return os << "HeapNumber";
-    case ToBooleanHint::kSimdValue:
-      return os << "SimdValue";
     case ToBooleanHint::kAny:
       return os << "Any";
+    case ToBooleanHint::kNeedsMap:
+      return os << "NeedsMap";
   }
   UNREACHABLE();
-  return os;
+}
+
+std::string ToString(ToBooleanHint hint) {
+  switch (hint) {
+    case ToBooleanHint::kNone:
+      return "None";
+    case ToBooleanHint::kUndefined:
+      return "Undefined";
+    case ToBooleanHint::kBoolean:
+      return "Boolean";
+    case ToBooleanHint::kNull:
+      return "Null";
+    case ToBooleanHint::kSmallInteger:
+      return "SmallInteger";
+    case ToBooleanHint::kReceiver:
+      return "Receiver";
+    case ToBooleanHint::kString:
+      return "String";
+    case ToBooleanHint::kSymbol:
+      return "Symbol";
+    case ToBooleanHint::kHeapNumber:
+      return "HeapNumber";
+    case ToBooleanHint::kAny:
+      return "Any";
+    case ToBooleanHint::kNeedsMap:
+      return "NeedsMap";
+  }
+  UNREACHABLE();
 }
 
 std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
@@ -85,6 +122,42 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
     }
   }
   return os;
+}
+
+std::string ToString(ToBooleanHints hints) {
+  if (hints == ToBooleanHint::kAny) return "Any";
+  if (hints == ToBooleanHint::kNone) return "None";
+  std::string ret;
+  bool first = true;
+  for (ToBooleanHints::mask_type i = 0; i < sizeof(i) * 8; ++i) {
+    ToBooleanHint const hint = static_cast<ToBooleanHint>(1u << i);
+    if (hints & hint) {
+      if (!first) ret += "|";
+      first = false;
+      ret += ToString(hint);
+    }
+  }
+  return ret;
+}
+
+std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
+  switch (flags) {
+    case STRING_ADD_CHECK_NONE:
+      return os << "CheckNone";
+    case STRING_ADD_CHECK_LEFT:
+      return os << "CheckLeft";
+    case STRING_ADD_CHECK_RIGHT:
+      return os << "CheckRight";
+    case STRING_ADD_CHECK_BOTH:
+      return os << "CheckBoth";
+    case STRING_ADD_CONVERT_LEFT:
+      return os << "ConvertLeft";
+    case STRING_ADD_CONVERT_RIGHT:
+      return os << "ConvertRight";
+    case STRING_ADD_CONVERT:
+      break;
+  }
+  UNREACHABLE();
 }
 
 }  // namespace internal

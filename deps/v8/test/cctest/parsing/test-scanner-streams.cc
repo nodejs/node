@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/factory.h"  // for i::Factory::NewExternalStringFrom*Byte
+#include "src/feedback-vector-inl.h"  // for include "src/factory.h"
 #include "src/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
-#include "src/type-feedback-vector-inl.h"  // for include "src/factory.h"
 #include "test/cctest/cctest.h"
 
 namespace {
@@ -22,12 +22,19 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
       chunks++;
     } while (chunks_.back().len > 0);
   }
+  explicit ChunkSource(const char* chunks) : current_(0) {
+    do {
+      chunks_.push_back(
+          {reinterpret_cast<const uint8_t*>(chunks), strlen(chunks)});
+      chunks += strlen(chunks) + 1;
+    } while (chunks_.back().len > 0);
+  }
   ChunkSource(const uint8_t* data, size_t len, bool extra_chunky)
       : current_(0) {
     // If extra_chunky, we'll use increasingly large chunk sizes.
     // If not, we'll have a single chunk of full length.
     size_t chunk_size = extra_chunky ? 1 : len;
-    for (size_t i = 0; i < len; i += chunk_size, chunk_size *= 2) {
+    for (size_t i = 0; i < len; i += chunk_size, chunk_size++) {
       chunks_.push_back({data + i, i::Min(chunk_size, len - i)});
     }
     chunks_.push_back({nullptr, 0});
@@ -100,7 +107,7 @@ TEST(Utf8StreamAsciiOnly) {
   ChunkSource chunk_source(chunks);
   std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
       v8::internal::ScannerStream::For(
-          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
   // Read the data without dying.
   v8::internal::uc32 c;
@@ -118,7 +125,7 @@ TEST(Utf8StreamBOM) {
   ChunkSource chunk_source(chunks);
   std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
       v8::internal::ScannerStream::For(
-          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
   // Read the data without tripping over the BOM.
   for (size_t i = 0; unicode_ucs2[i]; i++) {
@@ -130,6 +137,13 @@ TEST(Utf8StreamBOM) {
   stream->Seek(0);
   CHECK_EQ(unicode_ucs2[0], stream->Advance());
 
+  stream->Seek(5);
+  CHECK_EQ(unicode_ucs2[5], stream->Advance());
+
+  // Try again, but make sure we have to seek 'backwards'.
+  while (v8::internal::Utf16CharacterStream::kEndOfInput != stream->Advance()) {
+    // Do nothing. We merely advance the stream to the end of its input.
+  }
   stream->Seek(5);
   CHECK_EQ(unicode_ucs2[5], stream->Advance());
 }
@@ -145,7 +159,7 @@ TEST(Utf8SplitBOM) {
     ChunkSource chunk_source(chunks);
     std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
         v8::internal::ScannerStream::For(
-            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
     // Read the data without tripping over the BOM.
     for (size_t i = 0; unicode_ucs2[i]; i++) {
@@ -161,7 +175,7 @@ TEST(Utf8SplitBOM) {
     ChunkSource chunk_source(chunks);
     std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
         v8::internal::ScannerStream::For(
-            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
     // Read the data without tripping over the BOM.
     for (size_t i = 0; unicode_ucs2[i]; i++) {
@@ -190,7 +204,7 @@ TEST(Utf8ChunkBoundaries) {
     ChunkSource chunk_source(chunks);
     std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
         v8::internal::ScannerStream::For(
-            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
     for (size_t i = 0; unicode_ucs2[i]; i++) {
       CHECK_EQ(unicode_ucs2[i], stream->Advance());
@@ -219,7 +233,7 @@ TEST(Utf8SingleByteChunks) {
     ChunkSource chunk_source(chunks);
     std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
         v8::internal::ScannerStream::For(
-            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+            &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
 
     for (size_t j = 0; unicode_ucs2[j]; j++) {
       CHECK_EQ(unicode_ucs2[j], stream->Advance());
@@ -240,6 +254,9 @@ void TestCharacterStream(const char* reference, i::Utf16CharacterStream* stream,
     CHECK_EQU(reference[i], stream->Advance());
   }
   CHECK_EQU(end, stream->pos());
+  CHECK_EQU(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+  CHECK_EQU(end + 1, stream->pos());
+  stream->Back();
 
   // Pushback, re-read, pushback again.
   while (i > end / 4) {
@@ -304,10 +321,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
   }
 
   // 1-byte external string
-  i::Vector<const char> one_byte_vector(one_byte_source,
-                                        static_cast<int>(length));
+  i::Vector<const uint8_t> one_byte_vector =
+      i::OneByteVector(one_byte_source, static_cast<int>(length));
   i::Handle<i::String> one_byte_string =
-      factory->NewStringFromAscii(one_byte_vector).ToHandleChecked();
+      factory->NewStringFromOneByte(one_byte_vector).ToHandleChecked();
   {
     TestExternalOneByteResource one_byte_resource(one_byte_source, length);
     i::Handle<i::String> ext_one_byte_string(
@@ -343,41 +360,38 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
 
   // 1-byte streaming stream, single + many chunks.
   {
-    const uint8_t* data =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.begin());
-    const uint8_t* data_end =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.end());
+    const uint8_t* data = one_byte_vector.begin();
+    const uint8_t* data_end = one_byte_vector.end();
 
     ChunkSource single_chunk(data, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> one_byte_streaming_stream(
         i::ScannerStream::For(&single_chunk,
-                              v8::ScriptCompiler::StreamedSource::ONE_BYTE));
+                              v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                              nullptr));
     TestCharacterStream(one_byte_source, one_byte_streaming_stream.get(),
                         length, start, end);
 
     ChunkSource many_chunks(data, data_end - data, true);
     one_byte_streaming_stream.reset(i::ScannerStream::For(
-        &many_chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE));
+        &many_chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE, nullptr));
     TestCharacterStream(one_byte_source, one_byte_streaming_stream.get(),
                         length, start, end);
   }
 
   // UTF-8 streaming stream, single + many chunks.
   {
-    const uint8_t* data =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.begin());
-    const uint8_t* data_end =
-        reinterpret_cast<const uint8_t*>(one_byte_vector.end());
+    const uint8_t* data = one_byte_vector.begin();
+    const uint8_t* data_end = one_byte_vector.end();
     ChunkSource chunks(data, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> utf8_streaming_stream(
-        i::ScannerStream::For(&chunks,
-                              v8::ScriptCompiler::StreamedSource::UTF8));
+        i::ScannerStream::For(&chunks, v8::ScriptCompiler::StreamedSource::UTF8,
+                              nullptr));
     TestCharacterStream(one_byte_source, utf8_streaming_stream.get(), length,
                         start, end);
 
     ChunkSource many_chunks(data, data_end - data, true);
     utf8_streaming_stream.reset(i::ScannerStream::For(
-        &many_chunks, v8::ScriptCompiler::StreamedSource::UTF8));
+        &many_chunks, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
     TestCharacterStream(one_byte_source, utf8_streaming_stream.get(), length,
                         start, end);
   }
@@ -390,14 +404,14 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
         reinterpret_cast<const uint8_t*>(two_byte_vector.end());
     ChunkSource chunks(data, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> two_byte_streaming_stream(
-        i::ScannerStream::For(&chunks,
-                              v8::ScriptCompiler::StreamedSource::TWO_BYTE));
+        i::ScannerStream::For(
+            &chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE, nullptr));
     TestCharacterStream(one_byte_source, two_byte_streaming_stream.get(),
                         length, start, end);
 
     ChunkSource many_chunks(data, data_end - data, true);
     two_byte_streaming_stream.reset(i::ScannerStream::For(
-        &many_chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE));
+        &many_chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE, nullptr));
     TestCharacterStream(one_byte_source, two_byte_streaming_stream.get(),
                         length, start, end);
   }
@@ -439,9 +453,48 @@ TEST(Regress651333) {
     // 65533) instead of the incorrectly coded Latin1 char.
     ChunkSource chunks(bytes, len, false);
     std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
-        &chunks, v8::ScriptCompiler::StreamedSource::UTF8));
+        &chunks, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
     for (size_t i = 0; i < len; i++) {
       CHECK_EQ(unicode[i], stream->Advance());
+    }
+    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+  }
+}
+
+TEST(Regress6377) {
+  const char* cases[] = {
+      "\xf0\x90\0"  // first chunk - start of 4-byte seq
+      "\x80\x80"    // second chunk - end of 4-byte seq
+      "a\0",        // and an 'a'
+
+      "\xe0\xbf\0"  // first chunk - start of 3-byte seq
+      "\xbf"        // second chunk - one-byte end of 3-byte seq
+      "a\0",        // and an 'a'
+
+      "\xc3\0"  // first chunk - start of 2-byte seq
+      "\xbf"    // second chunk - end of 2-byte seq
+      "a\0",    // and an 'a'
+
+      "\xf0\x90\x80\0"  // first chunk - start of 4-byte seq
+      "\x80"            // second chunk - one-byte end of 4-byte seq
+      "a\xc3\0"         // and an 'a' + start of 2-byte seq
+      "\xbf\0",         // third chunk - end of 2-byte seq
+  };
+  const std::vector<std::vector<uint16_t>> unicode = {
+      {0xd800, 0xdc00, 97}, {0xfff, 97}, {0xff, 97}, {0xd800, 0xdc00, 97, 0xff},
+  };
+  CHECK_EQ(unicode.size(), sizeof(cases) / sizeof(cases[0]));
+  for (size_t c = 0; c < unicode.size(); ++c) {
+    ChunkSource chunk_source(cases[c]);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
+    for (size_t i = 0; i < unicode[c].size(); i++) {
+      CHECK_EQ(unicode[c][i], stream->Advance());
+    }
+    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+    stream->Seek(0);
+    for (size_t i = 0; i < unicode[c].size(); i++) {
+      CHECK_EQ(unicode[c][i], stream->Advance());
     }
     CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
   }

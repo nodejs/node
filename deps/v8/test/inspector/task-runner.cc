@@ -10,26 +10,35 @@
 
 namespace {
 
-const int kTaskRunnerIndex = 2;
-
 void ReportUncaughtException(v8::Isolate* isolate,
                              const v8::TryCatch& try_catch) {
   CHECK(try_catch.HasCaught());
   v8::HandleScope handle_scope(isolate);
   std::string message = *v8::String::Utf8Value(try_catch.Message()->Get());
-  fprintf(stderr, "Unhandle exception: %s\n", message.data());
+  int line = try_catch.Message()
+                 ->GetLineNumber(isolate->GetCurrentContext())
+                 .FromJust();
+  std::string source_line =
+      *v8::String::Utf8Value(try_catch.Message()
+                                 ->GetSourceLine(isolate->GetCurrentContext())
+                                 .ToLocalChecked());
+  fprintf(stderr, "Unhandle exception: %s @%s[%d]\n", message.data(),
+          source_line.data(), line);
 }
 
 }  //  namespace
 
-TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
+TaskRunner::TaskRunner(IsolateData::SetupGlobalTasks setup_global_tasks,
                        bool catch_exceptions,
-                       v8::base::Semaphore* ready_semaphore)
+                       v8::base::Semaphore* ready_semaphore,
+                       v8::StartupData* startup_data, bool with_inspector)
     : Thread(Options("Task Runner")),
-      extensions_(extensions),
+      setup_global_tasks_(std::move(setup_global_tasks)),
+      startup_data_(startup_data),
+      with_inspector_(with_inspector),
       catch_exceptions_(catch_exceptions),
       ready_semaphore_(ready_semaphore),
-      isolate_(nullptr),
+      data_(nullptr),
       process_queue_semaphore_(0),
       nested_loop_count_(0) {
   Start();
@@ -37,47 +46,31 @@ TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
 
 TaskRunner::~TaskRunner() { Join(); }
 
-void TaskRunner::InitializeContext() {
-  v8::Isolate::CreateParams params;
-  params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  isolate_ = v8::Isolate::New(params);
-  isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
-  v8::Isolate::Scope isolate_scope(isolate_);
-  v8::HandleScope handle_scope(isolate_);
-
-  v8::Local<v8::ObjectTemplate> global_template =
-      v8::ObjectTemplate::New(isolate_);
-  v8::Local<v8::Context> context =
-      v8::Context::New(isolate_, extensions_, global_template);
-  context->SetAlignedPointerInEmbedderData(kTaskRunnerIndex, this);
-  context_.Reset(isolate_, context);
-
-  if (ready_semaphore_) ready_semaphore_->Signal();
-}
-
 void TaskRunner::Run() {
-  InitializeContext();
+  data_.reset(new IsolateData(this, std::move(setup_global_tasks_),
+                              startup_data_, with_inspector_));
+  if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
 }
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number) {
+  while (nested_loop_count_ == loop_number && !is_terminated_.Value()) {
     TaskRunner::Task* task = GetNext(only_protocol);
-    v8::Isolate::Scope isolate_scope(isolate_);
+    if (!task) return;
+    v8::Isolate::Scope isolate_scope(isolate());
     if (catch_exceptions_) {
-      v8::TryCatch try_catch(isolate_);
-      task->Run(isolate_, context_);
+      v8::TryCatch try_catch(isolate());
+      task->Run(data_.get());
       delete task;
       if (try_catch.HasCaught()) {
-        ReportUncaughtException(isolate_, try_catch);
+        ReportUncaughtException(isolate(), try_catch);
         fflush(stdout);
         fflush(stderr);
         _exit(0);
       }
     } else {
-      task->Run(isolate_, context_);
+      task->Run(data_.get());
       delete task;
     }
   }
@@ -93,12 +86,18 @@ void TaskRunner::Append(Task* task) {
   process_queue_semaphore_.Signal();
 }
 
+void TaskRunner::Terminate() {
+  is_terminated_.Increment(1);
+  process_queue_semaphore_.Signal();
+}
+
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
+    if (is_terminated_.Value()) return nullptr;
     if (only_protocol) {
       Task* task = nullptr;
       if (queue_.Dequeue(&task)) {
-        if (task->is_inspector_task()) return task;
+        if (task->is_priority_task()) return task;
         deffered_queue_.Enqueue(task);
       }
     } else {
@@ -108,38 +107,5 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  UNREACHABLE();
   return nullptr;
-}
-
-TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
-  return static_cast<TaskRunner*>(
-      context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
-}
-
-ExecuteStringTask::ExecuteStringTask(const v8_inspector::String16& expression)
-    : expression_(expression) {}
-
-void ExecuteStringTask::Run(v8::Isolate* isolate,
-                            const v8::Global<v8::Context>& context) {
-  v8::MicrotasksScope microtasks_scope(isolate,
-                                       v8::MicrotasksScope::kRunMicrotasks);
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> local_context = context.Get(isolate);
-  v8::Context::Scope context_scope(local_context);
-
-  v8::ScriptOrigin origin(v8::String::Empty(isolate));
-  v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, expression_.characters16(),
-                                 v8::NewStringType::kNormal,
-                                 static_cast<int>(expression_.length()))
-          .ToLocalChecked();
-
-  v8::ScriptCompiler::Source scriptSource(source, origin);
-  v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(local_context, &scriptSource)
-           .ToLocal(&script))
-    return;
-  v8::MaybeLocal<v8::Value> result;
-  result = script->Run(local_context);
 }

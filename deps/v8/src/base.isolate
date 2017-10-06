@@ -4,6 +4,9 @@
 {
   'includes': [
     '../third_party/icu/icu.isolate',
+
+    # MSVS runtime libraries.
+    '../gypfiles/win/msvs_dependencies.isolate',
   ],
   'conditions': [
     ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {

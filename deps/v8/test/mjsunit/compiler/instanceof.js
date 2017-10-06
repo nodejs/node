@@ -131,3 +131,15 @@ F.__proto__ = null;
   assertFalse(foo(new A()));
   assertTrue(foo(new F()));
 })();
+
+(function() {
+  function foo() {
+    var a = new A();
+    return a instanceof A;
+  }
+
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();

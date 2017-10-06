@@ -12,11 +12,13 @@
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
             'fuzzer/fuzzer.gyp:fuzzer_run',
+            'inspector/inspector.gyp:inspector-test_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
             'preparser/preparser.gyp:preparser_run',
             'unittests/unittests.gyp:unittests_run',
+            'wasm-spec-tests/wasm-spec-tests.gyp:wasm_spec_tests_run',
             'webkit/webkit.gyp:webkit_run',
           ],
           'includes': [

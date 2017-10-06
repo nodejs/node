@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 
 const common = require('../common');
@@ -186,7 +207,7 @@ putIn.run(['.clear']);
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   repl._builtinLibs.forEach(function(lib) {
-    assert.notStrictEqual(data[0].indexOf(lib), -1, lib + ' not found');
+    assert(data[0].includes(lib), `${lib} not found`);
   });
 }));
 
@@ -194,7 +215,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
-  assert.notStrictEqual(data[0].indexOf('net'), -1);
+  assert(data[0].includes('net'));
   // It's possible to pick up non-core modules too
   data[0].forEach(function(completion) {
     if (completion)
@@ -209,6 +230,66 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
     assert.strictEqual(err, null);
     assert.deepStrictEqual(data, [expected, '@nodejs']);
   }));
+}
+
+// Test tab completion for require() relative to the current directory
+{
+  putIn.run(['.clear']);
+
+  const cwd = process.cwd();
+  process.chdir(__dirname);
+
+  ['require(\'.', 'require(".'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], '.');
+      assert.strictEqual(data[0].length, 2);
+      assert.ok(data[0].includes('./'));
+      assert.ok(data[0].includes('../'));
+    }));
+  });
+
+  ['require(\'..', 'require("..'].forEach((input) => {
+    testMe.complete(input, common.mustCall((err, data) => {
+      assert.strictEqual(err, null);
+      assert.deepStrictEqual(data, [['../'], '..']);
+    }));
+  });
+
+  ['./', './test-'].forEach((path) => {
+    [`require('${path}`, `require("${path}`].forEach((input) => {
+      testMe.complete(input, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], path);
+        assert.ok(data[0].includes('./test-repl-tab-complete'));
+      }));
+    });
+  });
+
+  ['../parallel/', '../parallel/test-'].forEach((path) => {
+    [`require('${path}`, `require("${path}`].forEach((input) => {
+      testMe.complete(input, common.mustCall((err, data) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], path);
+        assert.ok(data[0].includes('../parallel/test-repl-tab-complete'));
+      }));
+    });
+  });
+
+  {
+    const path = '../fixtures/repl-folder-extensions/f';
+    testMe.complete(`require('${path}`, common.mustCall((err, data) => {
+      assert.ifError(err);
+      assert.strictEqual(data.length, 2);
+      assert.strictEqual(data[1], path);
+      assert.ok(data[0].includes('../fixtures/repl-folder-extensions/foo.js'));
+    }));
+  }
+
+  process.chdir(cwd);
 }
 
 // Make sure tab completion works on context properties
@@ -239,9 +320,9 @@ putIn.run(['.clear']);
 
 putIn.run(['var ary = [1,2,3];']);
 testMe.complete('ary.', common.mustCall(function(error, data) {
-  assert.strictEqual(data[0].indexOf('ary.0'), -1);
-  assert.strictEqual(data[0].indexOf('ary.1'), -1);
-  assert.strictEqual(data[0].indexOf('ary.2'), -1);
+  assert.strictEqual(data[0].includes('ary.0'), false);
+  assert.strictEqual(data[0].includes('ary.1'), false);
+  assert.strictEqual(data[0].includes('ary.2'), false);
 }));
 
 // Make sure tab completion does not include integer keys in an object
@@ -249,9 +330,9 @@ putIn.run(['.clear']);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
 testMe.complete('obj.', common.mustCall(function(error, data) {
-  assert.strictEqual(data[0].indexOf('obj.1'), -1);
-  assert.strictEqual(data[0].indexOf('obj.1a'), -1);
-  assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
+  assert.strictEqual(data[0].includes('obj.1'), false);
+  assert.strictEqual(data[0].includes('obj.1a'), false);
+  assert(data[0].includes('obj.a'));
 }));
 
 // Don't try to complete results of non-simple expressions
@@ -265,9 +346,9 @@ putIn.run(['.clear']);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
 testMe.complete(' obj.', common.mustCall((error, data) => {
-  assert.strictEqual(data[0].indexOf('obj.1'), -1);
-  assert.strictEqual(data[0].indexOf('obj.1a'), -1);
-  assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
+  assert.strictEqual(data[0].includes('obj.1'), false);
+  assert.strictEqual(data[0].includes('obj.1a'), false);
+  assert(data[0].includes('obj.a'));
 }));
 
 // Works inside assignments
@@ -283,6 +364,71 @@ putIn.run(['.clear']);
 testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
+
+// tab completion for large buffer
+const warningRegEx = new RegExp(
+  '\\(node:\\d+\\) REPLWarning: The current array, Buffer or TypedArray has ' +
+  'too many entries\\. Certain properties may be missing from completion ' +
+  'output\\.');
+
+[
+  Array,
+  Buffer,
+
+  Uint8Array,
+  Uint16Array,
+  Uint32Array,
+
+  Uint8ClampedArray,
+  Int8Array,
+  Int16Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+].forEach((type) => {
+  putIn.run(['.clear']);
+
+  if (type === Array) {
+    putIn.run([
+      'var ele = [];',
+      'for (let i = 0; i < 1e6 + 1; i++) ele[i] = 0;',
+      'ele.biu = 1;'
+    ]);
+  } else if (type === Buffer) {
+    putIn.run(['var ele = Buffer.alloc(1e6 + 1); ele.biu = 1;']);
+  } else {
+    putIn.run([`var ele = new ${type.name}(1e6 + 1); ele.biu = 1;`]);
+  }
+
+  common.hijackStderr(common.mustCall((err) => {
+    process.nextTick(() => {
+      assert.ok(warningRegEx.test(err));
+    });
+  }));
+  testMe.complete('ele.', common.mustCall((err, data) => {
+    common.restoreStderr();
+    assert.ifError(err);
+
+    const ele = (type === Array) ?
+      [] :
+      (type === Buffer ?
+        Buffer.alloc(0) :
+        new type(0));
+
+    data[0].forEach((key) => {
+      if (!key) return;
+      assert.notStrictEqual(ele[key.substr(4)], undefined);
+    });
+
+    // no `biu`
+    assert.strictEqual(data.includes('ele.biu'), false);
+  }));
+});
+
+// check Buffer.prototype.length not crashing.
+// Refs: https://github.com/nodejs/node/pull/11961
+putIn.run['.clear'];
+testMe.complete('Buffer.prototype.', common.mustCall());
 
 const testNonGlobal = repl.start({
   input: putIn,

@@ -1,5 +1,26 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -83,6 +104,9 @@ assert.strictEqual(decoder.write(Buffer.from('F1', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('41F2', 'hex')), '\ufffdA');
 assert.strictEqual(decoder.end(), '\ufffd');
 
+// Additional utf8Text test
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.text(Buffer.from([0x41]), 2), '');
 
 // Additional UTF-16LE surrogate pair tests
 decoder = new StringDecoder('utf16le');
@@ -100,13 +124,23 @@ assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
 
-assert.throws(() => {
-  new StringDecoder(1);
-}, /^Error: Unknown encoding: 1$/);
+common.expectsError(
+  () => new StringDecoder(1),
+  {
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: 'Unknown encoding: 1'
+  }
+);
 
-assert.throws(() => {
-  new StringDecoder('test');
-}, /^Error: Unknown encoding: test$/);
+common.expectsError(
+  () => new StringDecoder('test'),
+  {
+    code: 'ERR_UNKNOWN_ENCODING',
+    type: TypeError,
+    message: 'Unknown encoding: test'
+  }
+);
 
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
@@ -120,6 +154,7 @@ function test(encoding, input, expected, singleSequence) {
   } else {
     sequences = [singleSequence];
   }
+  const hexNumberRE = /.{2}/g;
   sequences.forEach((sequence) => {
     const decoder = new StringDecoder(encoding);
     let output = '';
@@ -131,7 +166,7 @@ function test(encoding, input, expected, singleSequence) {
       const message =
         'Expected "' + unicodeEscape(expected) + '", ' +
         'but got "' + unicodeEscape(output) + '"\n' +
-        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
+        'input: ' + input.toString('hex').match(hexNumberRE) + '\n' +
         'Write sequence: ' + JSON.stringify(sequence) + '\n' +
         'Full Decoder State: ' + inspect(decoder);
       assert.fail(output, expected, message);
@@ -143,7 +178,7 @@ function test(encoding, input, expected, singleSequence) {
 function unicodeEscape(str) {
   let r = '';
   for (let i = 0; i < str.length; i++) {
-    r += '\\u' + str.charCodeAt(i).toString(16);
+    r += `\\u${str.charCodeAt(i).toString(16)}`;
   }
   return r;
 }

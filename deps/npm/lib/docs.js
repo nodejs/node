@@ -33,7 +33,7 @@ function docs (args, cb) {
 
 function getDoc (project, cb) {
   log.silly('getDoc', project)
-  fetchPackageMetadata(project, '.', function (er, d) {
+  fetchPackageMetadata(project, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
     var url = d.homepage
     if (!url) url = 'https://www.npmjs.org/package/' + d.name

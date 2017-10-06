@@ -18,10 +18,12 @@ var fixture = new Tacks(
       name: 'bundled-transitive-deps',
       version: '1.0.0',
       dependencies: {
-        'a': '1.0.0'
+        'a': '1.0.0',
+        '@c/d': '1.0.0'
       },
       bundleDependencies: [
-        'a'
+        'a',
+        '@c/d'
       ]
     }),
     node_modules: Dir({
@@ -38,6 +40,20 @@ var fixture = new Tacks(
         'package.json': File({
           name: 'b',
           version: '1.0.0'
+        })
+      }),
+      '@c/d': Dir({
+        'package.json': File({
+          name: '@c/d',
+          version: '1.0.0'
+        }),
+        'node_modules': Dir({
+          'e': Dir({
+            'package.json': File({
+              name: 'e',
+              version: '1.0.0'
+            })
+          })
         })
       })
     })
@@ -58,6 +74,12 @@ test('setup', function (t) {
   npm.load({}, t.end)
 })
 
+function exists (t, filename) {
+  t.doesNotThrow(filename + ' exists', function () {
+    fs.statSync(filename)
+  })
+}
+
 test('bundled-transitive-deps', function (t) {
   common.npm(['pack'], {cwd: testdir}, thenCheckPack)
   function thenCheckPack (err, code, stdout, stderr) {
@@ -70,9 +92,9 @@ test('bundled-transitive-deps', function (t) {
   function thenCheckContents (err) {
     t.ifError(err, 'unpack successful')
     var transitivePackedDep = path.join(packed, 'node_modules', 'b')
-    t.doesNotThrow(transitivePackedDep + ' exists', function () {
-      fs.statSync(transitivePackedDep)
-    })
+    exists(t, transitivePackedDep)
+    var nestedScopedDep = path.join(packed, 'node_modules', '@c', 'd', 'node_modules', 'e')
+    exists(t, nestedScopedDep)
     t.end()
   }
 })

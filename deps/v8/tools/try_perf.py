@@ -14,6 +14,7 @@ BOTS = {
   '--linux64': 'v8_linux64_perf_try',
   '--linux64_atom': 'v8_linux64_atom_perf_try',
   '--linux64_haswell': 'v8_linux64_haswell_perf_try',
+  '--linux64_haswell_cm': 'v8_linux64_haswell_cm_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
   '--nexus9': 'v8_nexus9_perf_try',
@@ -33,22 +34,17 @@ PUBLIC_BENCHMARKS = [
   'emscripten',
   'compile',
   'jetstream',
-  'jetstream-ignition',
   'jsbench',
   'jstests',
   'kraken_orig',
-  'kraken_orig-ignition',
   'massive',
   'memory',
   'octane',
   'octane-noopt',
-  'octane-ignition',
   'octane-pr',
   'octane-tf',
   'octane-tf-pr',
-  'simdjs',
   'sunspider',
-  'sunspider-ignition',
   'unity',
   'wasm',
 ]
@@ -92,7 +88,7 @@ def main():
 
   # Ensure depot_tools are updated.
   subprocess.check_output(
-      'gclient', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
+      'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
   cmd = ['git cl try -m internal.client.v8']
   cmd += ['-b %s' % bot for bot in options.bots]

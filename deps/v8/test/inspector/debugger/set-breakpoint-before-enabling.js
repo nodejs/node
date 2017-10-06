@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+let {session, contextGroup, Protocol} = InspectorTest.start('Tests that setting breakpoint before enabling debugger produces an error');
+
 Protocol.Debugger.setBreakpointByUrl({ url: "http://example.com", lineNumber: 10  }).then(didSetBreakpointByUrlBeforeEnable);
 
 function didSetBreakpointByUrlBeforeEnable(message)

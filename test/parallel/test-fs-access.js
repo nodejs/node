@@ -7,10 +7,10 @@ const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-const createFileWithPerms = function(file, mode) {
+function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
-};
+}
 
 common.refreshTmpDir();
 createFileWithPerms(readOnlyFile, 0o444);
@@ -32,11 +32,11 @@ createFileWithPerms(readWriteFile, 0o666);
  *
  * There's not really any point in resetting the process' user id to 0 after
  * changing it to 'nobody', since in the case that the test runs without
- * superuser priviledge, it is not possible to change its process user id to
+ * superuser privilege, it is not possible to change its process user id to
  * superuser.
  *
  * It can prevent the test from removing files created before the change of user
- * id, but that's fine. In this case, it is the responsability of the
+ * id, but that's fine. In this case, it is the responsibility of the
  * continuous integration platform to take care of that.
  */
 let hasWriteAccessForReadonlyFile = false;
@@ -82,16 +82,26 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
 }));
 
 assert.throws(() => {
-  fs.access(100, fs.F_OK, () => { common.fail('callback should not run'); });
+  fs.access(100, fs.F_OK, common.mustNotCall());
 }, /^TypeError: path must be a string or Buffer$/);
 
-assert.throws(() => {
-  fs.access(__filename, fs.F_OK);
-}, /^TypeError: "callback" argument must be a function$/);
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK);
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
-assert.throws(() => {
-  fs.access(__filename, fs.F_OK, {});
-}, /^TypeError: "callback" argument must be a function$/);
+common.expectsError(
+  () => {
+    fs.access(__filename, fs.F_OK, {});
+  },
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
 
 assert.doesNotThrow(() => {
   fs.accessSync(__filename);

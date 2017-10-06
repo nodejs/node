@@ -1,16 +1,14 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  process.exit();
-}
-const tls = require('tls');
 
+const assert = require('assert');
+const tls = require('tls');
 const fs = require('fs');
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
 
 let ntests = 0;
 let nsuccess = 0;
@@ -18,7 +16,7 @@ let nsuccess = 0;
 function loadDHParam(n) {
   let path = common.fixturesDir;
   if (n !== 'error') path += '/keys';
-  return fs.readFileSync(path + '/dh' + n + '.pem');
+  return fs.readFileSync(`${path}/dh${n}.pem`);
 }
 
 const cipherlist = {

@@ -3,6 +3,8 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+
+process.chdir(__dirname);
 const resolved_path = path.resolve(__dirname, '../../lib/');
 const relative_path = path.relative(__dirname, '../../lib/');
 
@@ -22,7 +24,7 @@ function main(conf) {
   else if (type === 'resolved')
     resolvedPath(n);
   else
-    throw new Error('unknown "type": ' + type);
+    throw new Error(`unknown "type": ${type}`);
   bench.end(n);
 }
 

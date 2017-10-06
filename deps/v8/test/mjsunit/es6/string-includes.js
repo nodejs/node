@@ -27,6 +27,11 @@
 
 assertEquals(1, String.prototype.includes.length);
 
+var s = 'a';
+assertFalse(s.includes(null));
+assertFalse(s.includes(undefined));
+assertFalse(s.includes());
+
 var reString = "asdf[a-z]+(asdf)?";
 assertTrue(reString.includes("[a-z]+"));
 assertTrue(reString.includes("(asdf)?"));

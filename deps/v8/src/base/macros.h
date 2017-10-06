@@ -124,6 +124,17 @@ V8_INLINE Dest bit_cast(Source const& source) {
   TypeName() = delete;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
+// A macro to disallow the dynamic allocation.
+// This should be used in the private: declarations for a class
+// Declaring operator new and delete as deleted is not spec compliant.
+// Extract from 3.2.2 of C++11 spec:
+//  [...] A non-placement deallocation function for a class is
+//  odr-used by the definition of the destructor of that class, [...]
+#define DISALLOW_NEW_AND_DELETE()                            \
+  void* operator new(size_t) { base::OS::Abort(); }          \
+  void* operator new[](size_t) { base::OS::Abort(); };       \
+  void operator delete(void*, size_t) { base::OS::Abort(); } \
+  void operator delete[](void*, size_t) { base::OS::Abort(); }
 
 // Newly written code should use V8_INLINE and V8_NOINLINE directly.
 #define INLINE(declarator)    V8_INLINE declarator
@@ -170,15 +181,25 @@ V8_INLINE Dest bit_cast(Source const& source) {
 // TODO(all) Replace all uses of this macro with static_assert, remove macro.
 #define STATIC_ASSERT(test) static_assert(test, #test)
 
+// TODO(rongjie) Remove this workaround once we require gcc >= 5.0
+#if __GNUG__ && __GNUC__ < 5
+#define IS_TRIVIALLY_COPYABLE(T) __has_trivial_copy(T)
+#else
+#define IS_TRIVIALLY_COPYABLE(T) std::is_trivially_copyable<T>::value
+#endif
 
-// The USE(x) template is used to silence C++ compiler warnings
+// The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
-template <typename T>
-inline void USE(T) { }
-
-
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
-
+// The arguments are guaranteed to be evaluated from left to right.
+struct Use {
+  template <typename T>
+  Use(T&&) {}  // NOLINT(runtime/explicit)
+};
+#define USE(...)                                         \
+  do {                                                   \
+    ::Use unused_tmp_array_for_use_macro[]{__VA_ARGS__}; \
+    (void)unused_tmp_array_for_use_macro;                \
+  } while (false)
 
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
@@ -271,7 +292,8 @@ inline T AddressFrom(intptr_t x) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  DCHECK(IS_POWER_OF_TWO(m));
+  // m must be a power of two.
+  DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
 
@@ -281,24 +303,5 @@ template <typename T>
 inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
-
-
-namespace v8 {
-namespace base {
-
-// TODO(yangguo): This is a poor man's replacement for std::is_fundamental,
-// which requires C++11. Switch to std::is_fundamental once possible.
-template <typename T>
-inline bool is_fundamental() {
-  return false;
-}
-
-template <>
-inline bool is_fundamental<uint8_t>() {
-  return true;
-}
-
-}  // namespace base
-}  // namespace v8
 
 #endif   // V8_BASE_MACROS_H_

@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Simple tests of most basic domain functionality.
 
@@ -60,7 +81,7 @@ d.on('error', function(er) {
       break;
 
     case
-    "ENOENT: no such file or directory, open 'stream for nonexistent file'":
+      "ENOENT: no such file or directory, open 'stream for nonexistent file'":
       assert.strictEqual(typeof er.errno, 'number');
       assert.strictEqual(er.code, 'ENOENT');
       assert.strictEqual(er_path, 'stream for nonexistent file');
@@ -230,9 +251,7 @@ assert.strictEqual(result, 'return value');
 
 
 // check if the executed function take in count the applied parameters
-result = d.run(function(a, b) {
-  return a + ' ' + b;
-}, 'return', 'value');
+result = d.run((a, b) => `${a} ${b}`, 'return', 'value');
 assert.strictEqual(result, 'return value');
 
 
@@ -240,7 +259,7 @@ const fst = fs.createReadStream('stream for nonexistent file');
 d.add(fst);
 expectCaught++;
 
-[42, null, , false, function() {}, 'string'].forEach(function(something) {
+[42, null, undefined, false, () => {}, 'string'].forEach(function(something) {
   const d = new domain.Domain();
   d.run(function() {
     process.nextTick(function() {

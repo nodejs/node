@@ -16,7 +16,7 @@ function LineSplitter() {
   this.writable = true;
 
   this.write = function(data) {
-    var lines = (buffer + data).split(/\r\n|\n\r|\n|\r/);
+    const lines = (buffer + data).split(/\r\n|\n\r|\n|\r/);
     for (var i = 0; i < lines.length - 1; i++) {
       self.emit('data', lines[i]);
     }
@@ -128,18 +128,18 @@ function ParagraphParser() {
     }
 
     // Find out indentation level and the start of a lied or numbered list;
-    var result = /^(\s*)(\d+\.|\*|-)?\s*/.exec(line);
+    const result = /^(\s*)(\d+\.|\*|-)?\s*/.exec(line);
     assert.ok(result);
     // The number of characters that will be stripped from the beginning of
     // the line.
-    var line_strip_length = result[0].length;
+    const line_strip_length = result[0].length;
     // The indentation size that will be used to detect indentation jumps.
     // Fudge by 1 space.
-    var line_indent = Math.floor(result[0].length / 2) * 2;
+    const line_indent = Math.floor(line_strip_length / 2) * 2;
     // The indentation level that will be exported
-    var level = Math.floor(result[1].length / 2);
+    const level = Math.floor(result[1].length / 2);
     // The list indicator that precedes the actual content, if any.
-    var line_li = result[2];
+    const line_li = result[2];
 
     // Flush the paragraph when there is a li or an indentation jump
     if (line_li || (line_indent !== paragraph_line_indent &&
@@ -175,14 +175,14 @@ inherits(ParagraphParser, Stream);
  * replaces multiple consecutive whitespace characters by a single one.
  */
 function Unwrapper() {
-  var self = this;
+  const self = this;
 
   Stream.call(this);
   this.writable = true;
 
   this.write = function(paragraph) {
-    var lines = paragraph.lines;
-    var break_after = [];
+    const lines = paragraph.lines;
+    const break_after = [];
     var i;
 
     for (i = 0; i < lines.length - 1; i++) {
@@ -236,15 +236,14 @@ function RtfGenerator() {
   Stream.call(this);
   this.writable = true;
 
-  this.write = function(paragraph) {
+  this.write = function({ li, level, lines, in_license_block: lic }) {
     if (!did_write_anything) {
       emitHeader();
       did_write_anything = true;
     }
 
-    var li = paragraph.li;
-    var level = paragraph.level + (li ? 1 : 0);
-    var lic = paragraph.in_license_block;
+    if (li)
+      level++;
 
     var rtf = '\\pard';
     rtf += '\\sa150\\sl300\\slmult1';
@@ -261,7 +260,7 @@ function RtfGenerator() {
     if (li)
       rtf += ' ' + li + '\\tab';
     rtf += ' ';
-    rtf += paragraph.lines.map(rtfEscape).join('\\line ');
+    rtf += lines.map(rtfEscape).join('\\line ');
     if (!lic)
       rtf += '\\b0';
     rtf += '\\par\n';

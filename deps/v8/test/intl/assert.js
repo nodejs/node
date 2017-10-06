@@ -180,12 +180,12 @@ function assertDoesNotThrow(code, user_message = '') {
 function assertInstanceof(obj, type) {
   if (!(obj instanceof type)) {
     var actualTypeName = null;
-    var actualConstructor = Object.prototypeOf(obj).constructor;
+    var actualConstructor = Object.getPrototypeOf(obj).constructor;
     if (typeof actualConstructor == "function") {
       actualTypeName = actualConstructor.name || String(actualConstructor);
     }
     throw new Error('Object <' + obj + '> is not an instance of <' +
-         (type.name || type) + '>' +
-         (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
+                    (type.name || type) + '>' +
+                    (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
   }
 }

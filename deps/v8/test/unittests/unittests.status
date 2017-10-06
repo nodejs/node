@@ -3,16 +3,8 @@
 # found in the LICENSE file.
 
 [
-['arch == x87', {
-  'Ieee754.Expm1': [SKIP],
-  'Ieee754.Cos': [SKIP],
-  'Ieee754.Tan': [SKIP],
-  'Ieee754.Acosh': [SKIP],
-  'Ieee754.Asinh': [SKIP],
-}],  # 'arch == x87'
-
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
+[ALWAYS, {
+    # BUG(5677): Real timers are flaky
+    'RuntimeCallStatsTest.*': [SKIP],
+}], # ALWAYS
 ]

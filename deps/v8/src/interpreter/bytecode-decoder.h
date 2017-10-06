@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 
+#include "src/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 
@@ -14,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeDecoder final {
+class V8_EXPORT_PRIVATE BytecodeDecoder final {
  public:
   // Decodes a register operand in a byte array.
   static Register DecodeRegisterOperand(const uint8_t* operand_start,

@@ -37,7 +37,7 @@ assertTrue(isNaN(doubles[0]));
 var prototype = [2.5, 2.5];
 var array = [3.5, 3.5];
 array.__proto__ = prototype;
-assertTrue(%HasFastDoubleElements(array));
+assertTrue(%HasDoubleElements(array));
 
 function boom(index) {
   array[index] = doubles[0];

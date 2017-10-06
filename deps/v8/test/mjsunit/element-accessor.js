@@ -29,9 +29,15 @@
 })();
 
 (function () {
-  var o = new Int32Array();
-  Object.defineProperty(o, "0", {get: function(){}});
-  assertEquals(undefined, Object.getOwnPropertyDescriptor(o, "0"));
+  var o = new Int32Array(1);
+  assertThrows(
+      () => Object.defineProperty(o, '0', {get: function() {}}), TypeError);
+  assertEquals({
+    value: 0,
+    writable: true,
+    enumerable: true,
+    configurable: false
+  }, Object.getOwnPropertyDescriptor(o, "0"));
 })();
 
 (function() {

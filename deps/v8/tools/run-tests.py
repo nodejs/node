@@ -65,9 +65,13 @@ ARCH_GUESS = utils.DefaultArch()
 TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
+    "debugger",
     "mjsunit",
     "cctest",
+    "wasm-spec-tests",
+    "inspector",
     "webkit",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -76,8 +80,12 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/default.isolate.
   "default": [
+    "debugger",
     "mjsunit",
     "cctest",
+    "wasm-spec-tests",
+    "inspector",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -86,8 +94,10 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
+    "debugger",
     "mjsunit",
     "cctest",
+    "inspector",
     "webkit",
     "intl",
   ],
@@ -98,31 +108,31 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "turbofan", "ignition_staging"]
+# Variants ordered by expected runtime (slowest first).
+VARIANTS = ["default"]
 
 MORE_VARIANTS = [
-  "ignition",
   "stress",
-  "turbofan_opt",
+  "nooptimization",
+  "fullcode",
   "asm_wasm",
+  "wasm_traps",
 ]
 
-EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
+EXHAUSTIVE_VARIANTS = MORE_VARIANTS + VARIANTS
 
 VARIANT_ALIASES = {
   # The default for developer workstations.
   "dev": VARIANTS,
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
+  # TODO(machenbach): Deprecate this after the step is removed on infra side.
   # Additional variants, run on a subset of bots.
-  "extra": ["nocrankshaft"],
+  "extra": [],
 }
 
-DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-               "--nofold-constants", "--enable-slow-asserts",
-               "--debug-code", "--verify-heap"]
-RELEASE_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort"]
 
 MODES = {
   "debug": {
@@ -177,7 +187,6 @@ SUPPORTED_ARCHS = ["android_arm",
                    "android_x64",
                    "arm",
                    "ia32",
-                   "x87",
                    "mips",
                    "mipsel",
                    "mips64",
@@ -201,7 +210,6 @@ SLOW_ARCHS = ["android_arm",
               "mips64el",
               "s390",
               "s390x",
-              "x87",
               "arm64"]
 
 
@@ -211,11 +219,9 @@ def BuildOptions():
   result.description = """TESTS: %s""" % (TEST_MAP["default"])
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
-                    default="ia32,x64,arm")
+                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS))
   result.add_option("--arch-and-mode",
-                    help="Architecture and mode in the format 'arch.mode'",
-                    default=None)
+                    help="Architecture and mode in the format 'arch.mode'")
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
@@ -257,15 +263,14 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
-                    default="")
+                    action="append", default=[])
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
                     default=0, type="int")
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated,"
-                    " uppercase for ninja and buildbot builds): %s" % MODES.keys(),
-                    default="release,debug")
+                    " uppercase for ninja and buildbot builds): %s" % MODES.keys())
   result.add_option("--no-harness", "--noharness",
                     help="Run without test harness of a given suite",
                     default=False, action="store_true")
@@ -312,6 +317,8 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
+  result.add_option("--flakiness-results",
+                    help="Path to a file for storing flakiness json.")
   result.add_option("--rerun-failures-count",
                     help=("Number of times to rerun each failing test case. "
                           "Very slow tests will be rerun only once."),
@@ -393,7 +400,11 @@ def SetupEnvironment(options):
   )
 
   if options.asan:
-    os.environ['ASAN_OPTIONS'] = symbolizer
+    asan_options = [symbolizer, "allow_user_segv_handler=1"]
+    if not utils.GuessOS() == 'macos':
+      # LSAN is not available on mac.
+      asan_options.append('detect_leaks=1')
+    os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
   if options.sancov_dir:
     assert os.path.exists(options.sancov_dir)
@@ -401,6 +412,7 @@ def SetupEnvironment(options):
       'coverage=1',
       'coverage_dir=%s' % options.sancov_dir,
       symbolizer,
+      "allow_user_segv_handler=1",
     ])
 
   if options.cfi_vptr:
@@ -447,8 +459,14 @@ def ProcessOptions(options):
       print(">>> Latest GN build found is %s" % latest_config)
       options.outdir = os.path.join(DEFAULT_OUT_GN, latest_config)
 
-  build_config_path = os.path.join(
-      BASE_DIR, options.outdir, "v8_build_config.json")
+  if options.buildbot:
+    build_config_path = os.path.join(
+        BASE_DIR, options.outdir, options.mode, "v8_build_config.json")
+  else:
+    build_config_path = os.path.join(
+        BASE_DIR, options.outdir, "v8_build_config.json")
+
+  # Auto-detect test configurations based on the build (GN only).
   if os.path.exists(build_config_path):
     try:
       with open(build_config_path) as f:
@@ -459,18 +477,55 @@ def ProcessOptions(options):
       return False
     options.auto_detect = True
 
+    # In auto-detect mode the outdir is always where we found the build config.
+    # This ensures that we'll also take the build products from there.
+    options.outdir = os.path.dirname(build_config_path)
     options.arch_and_mode = None
-    options.arch = build_config["v8_target_cpu"]
-    if options.arch == 'x86':
-      # TODO(machenbach): Transform all to x86 eventually.
-      options.arch = 'ia32'
-    options.asan = build_config["is_asan"]
-    options.dcheck_always_on = build_config["dcheck_always_on"]
-    options.mode = 'debug' if build_config["is_debug"] else 'release'
-    options.msan = build_config["is_msan"]
-    options.no_i18n = not build_config["v8_enable_i18n_support"]
-    options.no_snap = not build_config["v8_use_snapshot"]
-    options.tsan = build_config["is_tsan"]
+    if options.mode:
+      # In auto-detect mode we don't use the mode for more path-magic.
+      # Therefore transform the buildbot mode here to fit to the GN build
+      # config.
+      options.mode = BuildbotToV8Mode(options.mode)
+
+    # In V8 land, GN's x86 is called ia32.
+    if build_config["v8_target_cpu"] == "x86":
+      build_config["v8_target_cpu"] = "ia32"
+
+    # Update options based on the build config. Sanity check that we're not
+    # trying to use inconsistent options.
+    for param, value in (
+        ('arch', build_config["v8_target_cpu"]),
+        ('asan', build_config["is_asan"]),
+        ('dcheck_always_on', build_config["dcheck_always_on"]),
+        ('gcov_coverage', build_config["is_gcov_coverage"]),
+        ('mode', 'debug' if build_config["is_debug"] else 'release'),
+        ('msan', build_config["is_msan"]),
+        ('no_i18n', not build_config["v8_enable_i18n_support"]),
+        ('no_snap', not build_config["v8_use_snapshot"]),
+        ('tsan', build_config["is_tsan"])):
+      cmd_line_value = getattr(options, param)
+      if cmd_line_value not in [None, True, False] and cmd_line_value != value:
+        # TODO(machenbach): This is for string options only. Requires options
+        # to not have default values. We should make this more modular and
+        # implement it in our own version of the option parser.
+        print "Attempted to set %s to %s, while build is %s." % (
+            param, cmd_line_value, value)
+        return False
+      if cmd_line_value == True and value == False:
+        print "Attempted to turn on %s, but it's not available." % (
+            param)
+        return False
+      if cmd_line_value != value:
+        print ">>> Auto-detected %s=%s" % (param, value)
+      setattr(options, param, value)
+
+  else:
+    # Non-GN build without auto-detect. Set default values for missing
+    # parameters.
+    if not options.mode:
+      options.mode = "release,debug"
+    if not options.arch:
+      options.arch = "ia32,x64,arm"
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
@@ -505,7 +560,7 @@ def ProcessOptions(options):
           "running tests locally.")
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
-  options.extra_flags = shlex.split(options.extra_flags)
+  options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
   if options.gc_stress:
     options.extra_flags += GC_STRESS_FLAGS
@@ -702,15 +757,15 @@ def Execute(arch, mode, args, options, suites):
 
   shell_dir = options.shell_dir
   if not shell_dir:
-    if options.buildbot:
+    if options.auto_detect:
+      # If an output dir with a build was passed, test directly in that
+      # directory.
+      shell_dir = os.path.join(BASE_DIR, options.outdir)
+    elif options.buildbot:
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
       shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
       mode = BuildbotToV8Mode(mode)
-    elif options.auto_detect:
-      # If an output dir with a build was passed, test directly in that
-      # directory.
-      shell_dir = os.path.join(BASE_DIR, options.outdir)
     else:
       shell_dir = os.path.join(
           BASE_DIR,
@@ -733,14 +788,8 @@ def Execute(arch, mode, args, options, suites):
     # Predictable mode is slower.
     options.timeout *= 2
 
-  # TODO(machenbach): Remove temporary verbose output on windows after
-  # debugging driver-hung-up on XP.
-  verbose_output = (
-      options.verbose or
-      utils.IsWindows() and options.progress == "verbose"
-  )
   ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
-                        mode_flags, verbose_output,
+                        mode_flags, options.verbose,
                         options.timeout,
                         options.isolates,
                         options.command_prefix,
@@ -760,8 +809,8 @@ def Execute(arch, mode, args, options, suites):
   # target_arch != v8_target_arch in the dumped build config.
   simulator_run = not options.dont_skip_simulator_slow_tests and \
       arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
-               'ppc', 'ppc64'] and \
-      ARCH_GUESS and arch != ARCH_GUESS
+               'ppc', 'ppc64', 's390', 's390x'] and \
+      bool(ARCH_GUESS) and arch != ARCH_GUESS
   # Find available test suites and read test cases from them.
   variables = {
     "arch": arch,
@@ -782,6 +831,7 @@ def Execute(arch, mode, args, options, suites):
     "novfp3": options.novfp3,
     "predictable": options.predictable,
     "byteorder": sys.byteorder,
+    "no_harness": options.no_harness
   }
   all_tests = []
   num_tests = 0
@@ -848,10 +898,13 @@ def Execute(arch, mode, args, options, suites):
     progress_indicator.Register(progress.JsonTestProgressIndicator(
         options.json_test_results, arch, MODES[mode]["execution_mode"],
         ctx.random_seed))
+  if options.flakiness_results:
+    progress_indicator.Register(progress.FlakinessTestProgressIndicator(
+        options.flakiness_results))
 
   run_networked = not options.no_network
   if not run_networked:
-    if verbose_output:
+    if options.verbose:
       print("Network distribution disabled, running tests locally.")
   elif utils.GuessOS() != "linux":
     print("Network distribution is only supported on Linux, sorry!")

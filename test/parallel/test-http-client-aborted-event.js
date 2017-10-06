@@ -2,9 +2,10 @@
 const common = require('../common');
 const http = require('http');
 
+let serverRes;
 const server = http.Server(function(req, res) {
   res.write('Part of my res.');
-  res.destroy();
+  serverRes = res;
 });
 
 server.listen(0, common.mustCall(function() {
@@ -13,6 +14,7 @@ server.listen(0, common.mustCall(function() {
     headers: { connection: 'keep-alive' }
   }, common.mustCall(function(res) {
     server.close();
-    res.on('aborted', common.mustCall(function() {}));
+    serverRes.destroy();
+    res.on('aborted', common.mustCall());
   }));
 }));

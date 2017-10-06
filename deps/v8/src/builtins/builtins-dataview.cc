@@ -2,8 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +28,7 @@ BUILTIN(DataViewConstructor) {
 // ES6 section 24.2.2 The DataView Constructor for the [[Construct]] case.
 BUILTIN(DataViewConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   Handle<Object> buffer = args.atOrUndefined(isolate, 1);
   Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
@@ -42,8 +47,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   Handle<Object> offset;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, offset,
-      Object::ToIndex(isolate, byte_offset,
-                      MessageTemplate::kInvalidDataViewOffset));
+      Object::ToIndex(isolate, byte_offset, MessageTemplate::kInvalidOffset));
 
   // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   // We currently violate the specification at this point.
@@ -55,8 +59,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   // 7. If offset > bufferByteLength, throw a RangeError exception
   if (offset->Number() > buffer_byte_length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidDataViewOffset, offset));
+        isolate, NewRangeError(MessageTemplate::kInvalidOffset, offset));
   }
 
   Handle<Object> view_byte_length;
@@ -87,8 +90,8 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
-  for (int i = 0; i < ArrayBufferView::kInternalFieldCount; ++i) {
-    Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::FromInt(0));
+  for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
+    Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
   }
 
   // 12. Set O's [[ViewedArrayBuffer]] internal slot to buffer.

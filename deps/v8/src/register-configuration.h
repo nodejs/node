@@ -6,6 +6,7 @@
 #define V8_COMPILER_REGISTER_CONFIGURATION_H_
 
 #include "src/base/macros.h"
+#include "src/globals.h"
 #include "src/machine-type.h"
 
 namespace v8 {
@@ -13,7 +14,7 @@ namespace internal {
 
 // An architecture independent representation of the sets of registers available
 // for instruction creation.
-class RegisterConfiguration {
+class V8_EXPORT_PRIVATE RegisterConfiguration {
  public:
   enum AliasingKind {
     // Registers alias a single register of every other size (e.g. Intel).
@@ -27,15 +28,13 @@ class RegisterConfiguration {
   static const int kMaxFPRegisters = 32;
 
   // Default RegisterConfigurations for the target architecture.
-  // TODO(X87): This distinction in RegisterConfigurations is temporary
-  // until x87 TF supports all of the registers that Crankshaft does.
+  // TODO(mstarzinger): Crankshaft is gone.
   static const RegisterConfiguration* Crankshaft();
   static const RegisterConfiguration* Turbofan();
 
   RegisterConfiguration(int num_general_registers, int num_double_registers,
                         int num_allocatable_general_registers,
                         int num_allocatable_double_registers,
-                        int num_allocatable_aliased_double_registers,
                         const int* allocatable_general_codes,
                         const int* allocatable_double_codes,
                         AliasingKind fp_aliasing_kind,
@@ -57,12 +56,6 @@ class RegisterConfiguration {
   int num_allocatable_double_registers() const {
     return num_allocatable_double_registers_;
   }
-  // TODO(bbudge): This is a temporary work-around required because our
-  // register allocator does not yet support the aliasing of single/double
-  // registers on ARM.
-  int num_allocatable_aliased_double_registers() const {
-    return num_allocatable_aliased_double_registers_;
-  }
   int num_allocatable_simd128_registers() const {
     return num_allocatable_simd128_registers_;
   }
@@ -72,6 +65,9 @@ class RegisterConfiguration {
   }
   int32_t allocatable_double_codes_mask() const {
     return allocatable_double_codes_mask_;
+  }
+  int32_t allocatable_float_codes_mask() const {
+    return allocatable_float_codes_mask_;
   }
   int GetAllocatableGeneralCode(int index) const {
     return allocatable_general_codes_[index];
@@ -142,7 +138,6 @@ class RegisterConfiguration {
   int num_allocatable_general_registers_;
   int num_allocatable_float_registers_;
   int num_allocatable_double_registers_;
-  int num_allocatable_aliased_double_registers_;
   int num_allocatable_simd128_registers_;
   int32_t allocatable_general_codes_mask_;
   int32_t allocatable_float_codes_mask_;

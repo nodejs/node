@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 
 common.refreshTmpDir();
 
@@ -21,7 +20,7 @@ assert(common.fileExists(utf8));
 function handler(err, folder) {
   assert.ifError(err);
   assert(common.fileExists(folder));
-  assert.strictEqual(this, null);
+  assert.strictEqual(this, undefined);
 }
 
 fs.mkdtemp(path.join(common.tmpDir, 'bar.'), common.mustCall(handler));

@@ -24,11 +24,13 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
   return NoChange();
 }
 
-
 Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
+  // JSFrameSpecialization should never run on interpreted frames, since the
+  // code below assumes standard stack frame layouts.
+  DCHECK(!frame()->is_interpreted());
   DCHECK_EQ(IrOpcode::kOsrValue, node->opcode());
   Handle<Object> value;
-  int const index = OpParameter<int>(node);
+  int index = OsrValueIndexOf(node->op());
   int const parameters_count = frame()->ComputeParametersCount() + 1;
   if (index == Linkage::kOsrContextSpillSlotIndex) {
     value = handle(frame()->context(), isolate());
@@ -42,7 +44,6 @@ Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
   }
   return Replace(jsgraph()->Constant(value));
 }
-
 
 Reduction JSFrameSpecialization::ReduceParameter(Node* node) {
   DCHECK_EQ(IrOpcode::kParameter, node->opcode());

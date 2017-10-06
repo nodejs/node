@@ -1,3 +1,4 @@
+Tests that accessing no longer valid call frames returns an error
 Paused on 'debugger;'
 resume
 restartFrame

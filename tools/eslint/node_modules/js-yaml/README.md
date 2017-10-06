@@ -7,7 +7,7 @@ JS-YAML - YAML 1.2 parser / writer for JavaScript
 __[Online Demo](http://nodeca.github.com/js-yaml/)__
 
 
-This is an implementation of [YAML](http://yaml.org/), a human friendly data
+This is an implementation of [YAML](http://yaml.org/), a human-friendly data
 serialization language. Started as [PyYAML](http://pyyaml.org/) port, it was
 completely rewritten from scratch. Now it's very fast, and supports 1.2 spec.
 
@@ -57,7 +57,7 @@ var doc = jsyaml.load('greeting: hello\nname: world');
 </script>
 ```
 
-Browser support was done mostly for online demo. If you find any errors - feel
+Browser support was done mostly for the online demo. If you find any errors - feel
 free to send pull requests with fixes. Also note, that IE and other old browsers
 needs [es5-shims](https://github.com/kriskowal/es5-shim) to operate.
 
@@ -122,17 +122,17 @@ NOTE: This function **does not** understand multi-document sources, it throws
 exception on those.
 
 NOTE: JS-YAML **does not** support schema-specific tag resolution restrictions.
-So, JSON schema is not as strict as defined in the YAML specification.
+So, the JSON schema is not as strictly defined in the YAML specification.
 It allows numbers in any notation, use `Null` and `NULL` as `null`, etc.
-Core schema also has no such restrictions. It allows binary notation for integers.
+The core schema also has no such restrictions. It allows binary notation for integers.
 
 
 ### load (string [ , options ])
 
 **Use with care with untrusted sources**. The same as `safeLoad()` but uses
 `DEFAULT_FULL_SCHEMA` by default - adds some JavaScript-specific types:
-`!!js/function`, `!!js/regexp` and `!!js/undefined`. For untrusted sources you
-must additionally validate object structure, to avoid injections:
+`!!js/function`, `!!js/regexp` and `!!js/undefined`. For untrusted sources, you
+must additionally validate object structure to avoid injections:
 
 ``` javascript
 var untrusted_code = '"toString": !<tag:yaml.org,2002:js/function> "function (){very_evil_thing();}"';
@@ -142,10 +142,10 @@ require('js-yaml').load(untrusted_code) + ''
 ```
 
 
-### safeLoadAll (string, iterator [ , options ])
+### safeLoadAll (string [, iterator] [, options ])
 
-Same as `safeLoad()`, but understands multi-document sources and apply
-`iterator` to each document.
+Same as `safeLoad()`, but understands multi-document sources. Applies
+`iterator` to each document if specified, or returns aray of documents.
 
 ``` javascript
 var yaml = require('js-yaml');
@@ -156,16 +156,16 @@ yaml.safeLoadAll(data, function (doc) {
 ```
 
 
-### loadAll (string, iterator [ , options ])
+### loadAll (string [, iterator] [ , options ])
 
 Same as `safeLoadAll()` but uses `DEFAULT_FULL_SCHEMA` by default.
 
 
 ### safeDump (object [ , options ])
 
-Serializes `object` as YAML document. Uses `DEFAULT_SAFE_SCHEMA`, so it will
-throw exception if you try to dump regexps or functions. However, you can
-disable exceptions by `skipInvalid` option.
+Serializes `object` as a YAML document. Uses `DEFAULT_SAFE_SCHEMA`, so it will
+throw an exception if you try to dump regexps or functions. However, you can
+disable exceptions by setting the `skipInvalid` option to `true`.
 
 options:
 
@@ -182,28 +182,46 @@ options:
 - `noRefs` _(default: `false`)_ - if `true`, don't convert duplicate objects into references
 - `noCompatMode` _(default: `false`)_ - if `true` don't try to be compatible with older
   yaml versions. Currently: don't quote "yes", "no" and so on, as required for YAML 1.1
+- `condenseFlow` _(default: `false`)_ - if `true` flow sequences will be condensed, omitting the space between `key: value` or `a, b`. Eg. `'[a,b]'` or `{a:{b:c}}`. Can be useful when using yaml for pretty URL query params as spaces are %-encoded.
 
-styles:
+The following table show availlable styles (e.g. "canonical",
+"binary"...) available for each tag (.e.g. !!null, !!int ...). Yaml
+ouput is shown on the right side after `=>` (default setting) or `->`:
 
 ``` none
 !!null
-  "canonical"   => "~"
+  "canonical"   -> "~"
+  "lowercase"   => "null"
+  "uppercase"   -> "NULL"
+  "camelcase"   -> "Null"
 
 !!int
-  "binary"      => "0b1", "0b101010", "0b1110001111010"
-  "octal"       => "01", "052", "016172"
+  "binary"      -> "0b1", "0b101010", "0b1110001111010"
+  "octal"       -> "01", "052", "016172"
   "decimal"     => "1", "42", "7290"
-  "hexadecimal" => "0x1", "0x2A", "0x1C7A"
+  "hexadecimal" -> "0x1", "0x2A", "0x1C7A"
 
-!!null, !!bool, !!float
-  "lowercase"   => "null", "true", "false", ".nan", '.inf'
-  "uppercase"   => "NULL", "TRUE", "FALSE", ".NAN", '.INF'
-  "camelcase"   => "Null", "True", "False", ".NaN", '.Inf'
+!!bool
+  "lowercase"   => "true", "false"
+  "uppercase"   -> "TRUE", "FALSE"
+  "camelcase"   -> "True", "False"
+
+!!float
+  "lowercase"   => ".nan", '.inf'
+  "uppercase"   -> ".NAN", '.INF'
+  "camelcase"   -> ".NaN", '.Inf'
 ```
 
-By default, !!int uses `decimal`, and !!null, !!bool, !!float use `lowercase`.
+Example:
 
-
+``` javascript
+safeDump (object, {
+  'styles': {
+    '!!null': 'canonical' // dump null as ~
+  },
+  'sortKeys': true        // sort object keys
+});
+```
 
 ### dump (object [ , options ])
 
@@ -244,7 +262,7 @@ Caveats
 -------
 
 Note, that you use arrays or objects as key in JS-YAML. JS does not allow objects
-or array as keys, and stringifies (by calling .toString method) them at the
+or arrays as keys, and stringifies (by calling .toString method) them at the
 moment of adding them.
 
 ``` yaml
@@ -276,14 +294,14 @@ Breaking changes in 2.x.x -> 3.x.x
 ----------------------------------
 
 If you have not used __custom__ tags or loader classes and not loaded yaml
-files via `require()` - no changes needed. Just upgrade library.
+files via `require()`, no changes are needed. Just upgrade the library.
 
 Otherwise, you should:
 
 1. Replace all occurences of `require('xxxx.yml')` by `fs.readFileSync()` +
   `yaml.safeLoad()`.
 2. rewrite your custom tags constructors and custom loader
-  classes, to conform new API. See
+  classes, to conform the new API. See
   [examples](https://github.com/nodeca/js-yaml/tree/master/examples) and
   [wiki](https://github.com/nodeca/js-yaml/wiki) for details.
 

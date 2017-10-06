@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const assert = require('assert');
-const URLSearchParams = new (require('url').URL)('a:').searchParams.constructor;
+const { URLSearchParams } = require('url');
 
 const bench = common.createBenchmark(main, {
   method: ['forEach', 'iterator'],
@@ -32,11 +32,12 @@ function iterator(n) {
   const noDead = [];
 
   bench.start();
-  for (var i = 0; i < n; i += 1)
-    for (var pair of params) {
+  for (var i = 0; i < n; i += 1) {
+    for (const pair of params) {
       noDead[0] = pair[0];
       noDead[1] = pair[1];
     }
+  }
   bench.end(n);
 
   assert.strictEqual(noDead[0], 'three');
