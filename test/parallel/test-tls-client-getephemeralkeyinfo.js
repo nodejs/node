@@ -8,9 +8,8 @@ const assert = require('assert');
 const tls = require('tls');
 const fs = require('fs');
 
-const key = fs.readFileSync(`${fixtures.fixturesDir}/keys/agent2-key.pem`);
-const cert = fs.readFileSync(`${fixtures.fixturesDir}/keys/agent2-cert.pem`);
-
+const key = fixtures.readKey('agent2-key.pem');
+const cert = fixtures.readKey('agent2-cert.pem');
 
 let ntests = 0;
 let nsuccess = 0;
