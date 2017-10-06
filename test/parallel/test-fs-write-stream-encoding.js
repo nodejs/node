@@ -1,13 +1,14 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const path = require('path');
 const stream = require('stream');
 const firstEncoding = 'base64';
 const secondEncoding = 'latin1';
 
-const examplePath = path.join(common.fixturesDir, 'x.txt');
+const examplePath = fixtures.path('x.txt');
 const dummyPath = path.join(common.tmpDir, 'x.txt');
 
 common.refreshTmpDir();
