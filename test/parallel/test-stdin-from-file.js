@@ -1,11 +1,12 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const join = require('path').join;
+const { join } = require('path');
 const childProcess = require('child_process');
 const fs = require('fs');
 
-const stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
+const stdoutScript = fixtures.path('echo-close-check.js');
 const tmpFile = join(common.tmpDir, 'stdin.txt');
 
 const cmd = `"${process.argv[0]}" "${stdoutScript}" < "${tmpFile}"`;
