@@ -11,8 +11,8 @@ const https = require('https');
 const agent = new https.Agent();
 
 const options = {
-  key: fixtures.readSync('keys/agent1-key.pem'),
-  cert: fixtures.readSync('keys/agent1-cert.pem'),
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const expectedHeader = /^HTTP\/1\.1 200 OK/;
