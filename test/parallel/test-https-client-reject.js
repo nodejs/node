@@ -24,14 +24,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const fixtures = require('../common/fixtures');
+
 const assert = require('assert');
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
 
 const options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const server = https.createServer(options, common.mustCall(function(req, res) {
@@ -72,7 +72,7 @@ function rejectUnauthorized() {
 function authorized() {
   const options = {
     port: server.address().port,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
+    ca: [fixtures.readSync('test_cert.pem')]
   };
   options.agent = new https.Agent(options);
   const req = https.request(options, function(res) {
