@@ -23,7 +23,7 @@ const modSize = 1024;
   let s1stream = crypto.createSign('SHA1');
   s1stream.end('Test123');
   s1stream = s1stream.sign(keyPem, 'base64');
-  assert.strictEqual(s1, s1stream, 'Stream produces same output');
+  assert.strictEqual(s1, s1stream, `${s1} should equal ${s1stream}`);
 
   const verified = crypto.createVerify('SHA1')
                          .update('Test')
@@ -39,7 +39,7 @@ const modSize = 1024;
   let s2stream = crypto.createSign('SHA256');
   s2stream.end('Test123');
   s2stream = s2stream.sign(keyPem, 'latin1');
-  assert.strictEqual(s2, s2stream, 'Stream produces same output');
+  assert.strictEqual(s2, s2stream, `${s2} should equal ${s2stream}`);
 
   let verified = crypto.createVerify('SHA256')
                        .update('Test')
