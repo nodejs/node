@@ -109,7 +109,7 @@ function next() {
 }
 
 process.on('exit', function() {
-  assert.strictEqual(serverCaught, 2);
-  assert.strictEqual(clientCaught, 2);
+  assert.strictEqual(serverCaught, 2, `Expected value was 2, but actual value was ${serverCaught}`);
+  assert.strictEqual(clientCaught, 2, `Expected value was 2, but actual value was ${clientCaught}`);
   console.log('ok');
 });
