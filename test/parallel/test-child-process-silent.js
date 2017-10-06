@@ -62,7 +62,7 @@ if (process.argv[2] === 'pipe') {
     stdoutData = true;
   });
   let stderrData = false;
-  parent.stdout.on('data', function() {
+  parent.stderr.on('data', function() {
     stderrData = true;
   });
 
