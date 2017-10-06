@@ -28,14 +28,13 @@ if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
 
 const assert = require('assert');
-const join = require('path').join;
-const fs = require('fs');
-const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
 const https = require('https');
+const spawn = require('child_process').spawn;
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/agent.key`),
-  cert: fs.readFileSync(`${common.fixturesDir}/agent.crt`),
+  key: fixtures.readSync('agent.key'),
+  cert: fixtures.readSync('agent.crt'),
   requestCert: true,
   rejectUnauthorized: false
 };
@@ -70,8 +69,8 @@ server.listen(0, function() {
   const args = ['s_client',
                 '-quiet',
                 '-connect', `127.0.0.1:${this.address().port}`,
-                '-cert', join(common.fixturesDir, 'foafssl.crt'),
-                '-key', join(common.fixturesDir, 'foafssl.key')];
+                '-cert', fixtures.path('foafssl.crt'),
+                '-key', fixtures.path('foafssl.key')];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
