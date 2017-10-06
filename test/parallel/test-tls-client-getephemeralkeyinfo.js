@@ -85,7 +85,7 @@ function testECDHE256() {
 }
 
 function testECDHE512() {
-  test(521, 'ECDH', 'secp521r1', null);
+  test(512, 'ECDH', 'secp521r1', null);
   ntests++;
 }
 
