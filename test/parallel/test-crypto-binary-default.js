@@ -372,15 +372,13 @@ if (!common.hasFipsCrypto) {
   const a0 = crypto.createHash('md5').update('Test123').digest('latin1');
   assert.strictEqual(
     a0,
-    'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
-    'Test MD5 as latin1'
+    'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c'
   );
 }
 
-assert.strictEqual(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
+assert.strictEqual(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2');
 
-assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
-                   'Test SHA256 as base64');
+assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=');
 
 assert.strictEqual(
   a3,
@@ -394,14 +392,13 @@ assert.strictEqual(
 
 assert.deepStrictEqual(
   a4,
-  Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
-  'Test SHA1'
+  Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex')
 );
 
 // Test multiple updates to same hash
 const h1 = crypto.createHash('sha1').update('Test123').digest('hex');
 const h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
-assert.strictEqual(h1, h2, 'multipled updates');
+assert.strictEqual(h1, h2);
 
 // Test hashing for binary files
 const fn = fixtures.path('sample.png');
@@ -413,8 +410,7 @@ fileStream.on('data', function(data) {
 fileStream.on('close', common.mustCall(function() {
   assert.strictEqual(
     sha1Hash.digest('hex'),
-    '22723e553129a336ad96e10f6aecdf0f45e4149e',
-    'Test SHA1 of sample.png'
+    '22723e553129a336ad96e10f6aecdf0f45e4149e'
   );
 }));
 
@@ -431,7 +427,7 @@ const s1Verified = crypto.createVerify('SHA1')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s1, 'base64');
-assert.strictEqual(s1Verified, true, 'sign and verify (base 64)');
+assert.strictEqual(s1Verified, true);
 
 const s2 = crypto.createSign('SHA256')
                .update('Test123')
@@ -440,7 +436,7 @@ const s2Verified = crypto.createVerify('SHA256')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s2); // binary
-assert.strictEqual(s2Verified, true, 'sign and verify (binary)');
+assert.strictEqual(s2Verified, true);
 
 const s3 = crypto.createSign('SHA1')
                .update('Test123')
@@ -449,7 +445,7 @@ const s3Verified = crypto.createVerify('SHA1')
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
-assert.strictEqual(s3Verified, true, 'sign and verify (buffer)');
+assert.strictEqual(s3Verified, true);
 
 
 function testCipher1(key) {
@@ -467,7 +463,7 @@ function testCipher1(key) {
   let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption and decryption');
+  assert.strictEqual(txt, plaintext);
 }
 
 
@@ -489,7 +485,7 @@ function testCipher2(key) {
   let txt = decipher.update(ciph, 'base64', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption and decryption with Base64');
+  assert.strictEqual(txt, plaintext);
 }
 
 
@@ -507,8 +503,7 @@ function testCipher3(key, iv) {
   let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext,
-                     'encryption and decryption with key and iv');
+  assert.strictEqual(txt, plaintext);
 }
 
 
@@ -526,8 +521,7 @@ function testCipher4(key, iv) {
   let txt = decipher.update(ciph, 'buffer', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext,
-                     'encryption and decryption with key and iv');
+  assert.strictEqual(txt, plaintext);
 }
 
 
@@ -545,8 +539,7 @@ function testCipher5(key, iv) {
   let txt = decipher.update(ciph, 'buffer', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext,
-                     'encryption and decryption with key');
+  assert.strictEqual(txt, plaintext);
 }
 
 if (!common.hasFipsCrypto) {
