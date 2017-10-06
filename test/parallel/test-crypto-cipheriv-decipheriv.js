@@ -20,7 +20,8 @@ function testCipher1(key, iv) {
   let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption/decryption with key and iv');
+  assert.strictEqual(txt, plaintext,
+                     `encryption/decryption with key ${key} and iv ${iv}`);
 
   // streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
@@ -34,7 +35,8 @@ function testCipher1(key, iv) {
   dStream.end(ciph);
   txt = dStream.read().toString('utf8');
 
-  assert.strictEqual(txt, plaintext, 'streaming cipher iv');
+  assert.strictEqual(txt, plaintext,
+                     `streaming cipher with key ${key} and iv ${iv}`);
 }
 
 
@@ -52,7 +54,8 @@ function testCipher2(key, iv) {
   let txt = decipher.update(ciph, 'buffer', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption/decryption with key and iv');
+  assert.strictEqual(txt, plaintext,
+                     `encryption/decryption with key ${key} and iv ${iv}`);
 }
 
 
@@ -71,7 +74,8 @@ function testCipher3(key, iv) {
   let deciph = decipher.update(ciph, 'buffer');
   deciph = Buffer.concat([deciph, decipher.final()]);
 
-  assert(deciph.equals(plaintext), 'encryption/decryption with key and iv');
+  assert(deciph.equals(plaintext),
+         `encryption/decryption with key ${key} and iv ${iv}`);
 }
 
 testCipher1('0123456789abcd0123456789', '12345678');
