@@ -284,7 +284,7 @@ void Open(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() > 2 && args[2]->IsBoolean()) {
-    wait_for_connect =  args[2]->BooleanValue();
+    wait_for_connect = args[2]->BooleanValue(env->context()).FromJust();
   }
 
   agent->StartIoThread(wait_for_connect);
