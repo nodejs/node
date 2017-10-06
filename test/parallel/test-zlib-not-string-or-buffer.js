@@ -13,7 +13,7 @@ const zlib = require('zlib');
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "buffer" argument must be one of type string, Buffer, ' +
-               'TypedArray, or DataView'
+               'TypedArray, DataView, or ArrayBuffer'
     }
   );
 });

@@ -133,6 +133,13 @@ a reason otherwise.
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
+### getBufferSources(buf)
+* `buf` [&lt;Buffer>]
+* return [&lt;BufferSource&#91;&#93;>]
+
+Returns an instance of all possible `BufferSource`s of the provided Buffer,
+consisting of all `ArrayBufferView` and an `ArrayBuffer`.
+
 ### getCallSite(func)
 * `func` [&lt;Function>]
 * return [&lt;String>]

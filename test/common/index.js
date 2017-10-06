@@ -814,6 +814,10 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
   return out;
 };
 
+exports.getBufferSources = function getBufferSources(buf) {
+  return [...exports.getArrayBufferViews(buf), new Uint8Array(buf).buffer];
+};
+
 // Crash the process on unhandled rejections.
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
