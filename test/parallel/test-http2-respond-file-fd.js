@@ -14,7 +14,7 @@ const {
   HTTP2_HEADER_CONTENT_LENGTH
 } = http2.constants;
 
-const fname = path.resolve(fixtures.path(), 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 
 const data = fs.readFileSync(fname);
 const stat = fs.statSync(fname);
