@@ -20,8 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
-const fixturesDir = common.fixturesDir;
+require('../common');
+const { fixturesDir } = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 
