@@ -9,6 +9,10 @@ const filename = path.resolve(tmp, 'truncate-file.txt');
 
 fs.writeFileSync(filename, 'hello world', 'utf8');
 const fd = fs.openSync(filename, 'r+');
+const msg = 'Using fs.truncate with file descriptor deprecated.' +
+            ' In the future, ' +
+            'use fs.ftruncate with file descriptor';
+common.expectWarning('DeprecationWarning', msg);
 fs.truncate(fd, 5, common.mustCall(function(err) {
   assert.ok(!err);
   assert.strictEqual(fs.readFileSync(filename, 'utf8'), 'hello');
