@@ -21,9 +21,8 @@
 
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures')
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const { join } = require('path');
 const { execFile } = require('child_process');
 
 // test for leaked global detection
