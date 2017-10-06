@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures')
 const assert = require('assert');
 const path = require('path');
 const repl = require('repl');
@@ -17,7 +18,7 @@ common.ArrayStream.prototype.write = function(output) {
 
 const putIn = new common.ArrayStream();
 repl.start('', putIn);
-let file = path.join(common.fixturesDir, 'syntax', 'bad_syntax');
+let file = fixtures.path('syntax', 'bad_syntax');
 
 if (common.isWindows)
   file = file.replace(/\\/g, '\\\\');
