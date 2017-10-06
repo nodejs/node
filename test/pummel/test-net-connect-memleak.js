@@ -28,8 +28,7 @@ const net = require('net');
 
 assert.strictEqual(
   typeof global.gc,
-  'function',
-  'Run this test with --expose-gc'
+  'function'
 );
 net.createServer(function() {}).listen(common.PORT);
 
