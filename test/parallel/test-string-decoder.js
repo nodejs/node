@@ -154,11 +154,11 @@ function test(encoding, input, expected, singleSequence) {
     output += decoder.end();
     if (output !== expected) {
       const message =
-        'Expected "' + unicodeEscape(expected) + '", ' +
-        'but got "' + unicodeEscape(output) + '"\n' +
-        'input: ' + input.toString('hex').match(hexNumberRE) + '\n' +
-        'Write sequence: ' + JSON.stringify(sequence) + '\n' +
-        'Full Decoder State: ' + inspect(decoder);
+        `Expected "${unicodeEscape(expected)}", ` +
+        `but got "${unicodeEscape(output)}"\n` +
+        `input: ${input.toString('hex').match(hexNumberRE)}\n` +
+        `Write sequence: ${JSON.stringify(sequence)}\n` +
+        `Full Decoder State: ${inspect(decoder)}`;
       assert.fail(output, expected, message);
     }
   });
