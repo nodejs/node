@@ -167,7 +167,7 @@ function deflateRawResetDictionaryTest(spdyDict) {
   });
 }
 
-for (const dict of [spdyDict, ...common.getArrayBufferViews(spdyDict)]) {
+for (const dict of [spdyDict, ...common.getBufferSources(spdyDict)]) {
   basicDictionaryTest(dict);
   deflateResetDictionaryTest(dict);
   rawDictionaryTest(dict);
