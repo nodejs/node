@@ -25,7 +25,7 @@ function testCipher1(key) {
   let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption and decryption');
+  assert.strictEqual(txt, plaintext);
 
   // streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
@@ -39,7 +39,7 @@ function testCipher1(key) {
   dStream.end(ciph);
   txt = dStream.read().toString('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption and decryption with streams');
+  assert.strictEqual(txt, plaintext);
 }
 
 
@@ -61,7 +61,7 @@ function testCipher2(key) {
   let txt = decipher.update(ciph, 'base64', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.strictEqual(txt, plaintext, 'encryption and decryption with Base64');
+  assert.strictEqual(txt, plaintext);
 }
 
 testCipher1('MySecretKey123');
@@ -125,17 +125,17 @@ testCipher2(Buffer.from('0123456789abcdef'));
   let txt;
   assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs2'));
   assert.doesNotThrow(() => txt += decipher.final('ucs2'));
-  assert.strictEqual(txt, plaintext, 'decrypted result in ucs2');
+  assert.strictEqual(txt, plaintext);
 
   decipher = crypto.createDecipher('aes192', key);
   assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs-2'));
   assert.doesNotThrow(() => txt += decipher.final('ucs-2'));
-  assert.strictEqual(txt, plaintext, 'decrypted result in ucs-2');
+  assert.strictEqual(txt, plaintext);
 
   decipher = crypto.createDecipher('aes192', key);
   assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'utf-16le'));
   assert.doesNotThrow(() => txt += decipher.final('utf-16le'));
-  assert.strictEqual(txt, plaintext, 'decrypted result in utf-16le');
+  assert.strictEqual(txt, plaintext);
 }
 
 // setAutoPadding/setAuthTag/setAAD should return `this`
