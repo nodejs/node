@@ -15,18 +15,23 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     assert.strictEqual(response.headersSent, false);
+    assert.strictEqual(response._header, false); // alias for headersSent
     response.flushHeaders();
     assert.strictEqual(response.headersSent, true);
+    assert.strictEqual(response._header, true);
     response.flushHeaders(); // Idempotent
 
     common.expectsError(() => {
       response.writeHead(400, { 'foo-bar': 'abc123' });
     }, {
-      code: 'ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND'
+      code: 'ERR_HTTP2_HEADERS_SENT'
     });
 
     response.on('finish', common.mustCall(function() {
       server.close();
+      process.nextTick(() => {
+        response.flushHeaders(); // Idempotent
+      });
     }));
     serverResponse = response;
   }));
