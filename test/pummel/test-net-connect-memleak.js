@@ -26,6 +26,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
+console.log('Run this test with --expose-gc');
 assert.strictEqual(
   typeof global.gc,
   'function'
