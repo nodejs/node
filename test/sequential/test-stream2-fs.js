@@ -20,14 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 const fs = require('fs');
 const FSReadable = fs.ReadStream;
 
 const path = require('path');
-const file = path.resolve(common.fixturesDir, 'x1024.txt');
+const file = path.resolve(fixtures.path('x1024.txt'));
 
 const size = fs.statSync(file).size;
 
