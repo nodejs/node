@@ -126,6 +126,9 @@ To run the tests:
 $ make test
 ```
 
+At this point you are ready to make code changes and re-run the tests!
+Optionally, continue below.
+
 To run the tests and generate code coverage reports:
 
 ```console
@@ -142,7 +145,7 @@ and overwrites the `lib/` directory. To clean up after generating the coverage
 reports:
 
 ```console
-make coverage-clean
+$ make coverage-clean
 ```
 
 To build the documentation:
