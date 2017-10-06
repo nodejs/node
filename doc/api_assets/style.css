@@ -194,6 +194,7 @@ ol.version-picker li:last-child a {
 }
 
 .api_metadata {
+  font-size: .75rem;
   margin-bottom: 1rem;
 }
 
