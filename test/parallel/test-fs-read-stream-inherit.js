@@ -1,11 +1,13 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 
-const path = require('path');
 const fs = require('fs');
-const fn = path.join(common.fixturesDir, 'elipses.txt');
-const rangeFile = path.join(common.fixturesDir, 'x.txt');
+const fixtures = require('../common/fixtures');
+
+const fn = fixtures.path('elipses.txt');
+const rangeFile = fixtures.path('x.txt');
 
 let paused = false;
 
