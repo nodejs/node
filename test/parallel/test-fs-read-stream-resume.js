@@ -20,13 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 const fs = require('fs');
-const path = require('path');
 
-const file = path.join(common.fixturesDir, 'x.txt');
+const file = fixtures.path('x.txt');
 let data = '';
 let first = true;
 
