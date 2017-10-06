@@ -11,8 +11,7 @@ let caughtError;
 
 // Test that the native side successfully captures the exception
 let returnedError = test_exception.returnException(throwTheError);
-assert.strictEqual(theError, returnedError,
-                   'Returned error is strictly equal to the thrown error');
+assert.strictEqual(theError, returnedError);
 
 // Test that the native side passes the exception through
 assert.throws(
