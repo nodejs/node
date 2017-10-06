@@ -12,7 +12,6 @@ const bindingPath = require.resolve(`./build/${common.buildType}/binding`);
 process.dlopen(module, bindingPath,
                os.constants.dlopen.RTLD_NOW | os.constants.dlopen.RTLD_GLOBAL);
 module.exports.load(`${path.dirname(bindingPath)}/ping.so`);
-
 assert.strictEqual(module.exports.ping(), 'pong');
 
 // Check that after the addon is loaded with
