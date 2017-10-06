@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const src = path.join(common.fixturesDir, 'a.js');
+const src = fixtures.path('a.js');
 const dest = path.join(common.tmpDir, 'copyfile.out');
 const { COPYFILE_EXCL, UV_FS_COPYFILE_EXCL } = fs.constants;
 
