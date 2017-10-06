@@ -16,7 +16,7 @@ const glob = require('./eslint/node_modules/glob');
 const cwd = process.cwd();
 const cliOptions = {
   rulePaths: rulesDirs,
-  extensions: extensions
+  extensions: extensions,
 };
 
 // Check if we should fix errors that are fixable
@@ -46,12 +46,14 @@ if (cluster.isMaster) {
   var i;
 
   // Check if spreading work among all cores/cpus
-  if (process.argv.indexOf('-J') !== -1) numCPUs = totalCPUs;
+  if (process.argv.indexOf('-J') !== -1)
+    numCPUs = totalCPUs;
 
   // Check if spreading work among an explicit number of cores/cpus
   i = process.argv.indexOf('-j');
   if (i !== -1) {
-    if (!process.argv[i + 1]) throw new Error('Missing parallel job count');
+    if (!process.argv[i + 1])
+      throw new Error('Missing parallel job count');
     numCPUs = parseInt(process.argv[i + 1], 10);
     if (!isFinite(numCPUs) || numCPUs <= 0)
       throw new Error('Bad parallel job count');
@@ -60,10 +62,12 @@ if (cluster.isMaster) {
   // Check for custom ESLint report formatter
   i = process.argv.indexOf('-f');
   if (i !== -1) {
-    if (!process.argv[i + 1]) throw new Error('Missing format name');
+    if (!process.argv[i + 1])
+      throw new Error('Missing format name');
     const format = process.argv[i + 1];
     formatter = cli.getFormatter(format);
-    if (!formatter) throw new Error('Invalid format name');
+    if (!formatter)
+      throw new Error('Invalid format name');
     // Automatically disable progress display
     showProgress = false;
     // Tell worker to send all results, not just linter errors
@@ -76,9 +80,11 @@ if (cluster.isMaster) {
   // Check if outputting ESLint report to a file instead of stdout
   i = process.argv.indexOf('-o');
   if (i !== -1) {
-    if (!process.argv[i + 1]) throw new Error('Missing output filename');
+    if (!process.argv[i + 1])
+      throw new Error('Missing output filename');
     var outPath = process.argv[i + 1];
-    if (!path.isAbsolute(outPath)) outPath = path.join(cwd, outPath);
+    if (!path.isAbsolute(outPath))
+      outPath = path.join(cwd, outPath);
     fd = fs.openSync(outPath, 'w');
     outFn = function(str) {
       fs.writeSync(fd, str, 'utf8');
@@ -108,7 +114,8 @@ if (cluster.isMaster) {
     paths.push(process.argv[i]);
   }
 
-  if (paths.length === 0) return;
+  if (paths.length === 0)
+    return;
   totalPaths = paths.length;
 
   if (showProgress) {
@@ -136,10 +143,7 @@ if (cluster.isMaster) {
   });
 
   for (i = 0; i < numCPUs; ++i)
-    cluster
-      .fork()
-      .on('message', onWorkerMessage)
-      .on('exit', onWorkerExit);
+    cluster.fork().on('message', onWorkerMessage).on('exit', onWorkerExit);
 
   function onWorkerMessage(results) {
     if (typeof results !== 'number') {
@@ -160,7 +164,8 @@ if (cluster.isMaster) {
   }
 
   function onWorkerExit(code, signal) {
-    if (code !== 0 || signal) process.exit(2);
+    if (code !== 0 || signal)
+      process.exit(2);
   }
 
   function sendWork(worker) {
@@ -170,11 +175,13 @@ if (cluster.isMaster) {
       while (paths.length) {
         var dir = paths.shift();
         curPath = dir;
-        if (dir.indexOf('/') > 0) dir = path.join(cwd, dir);
+        if (dir.indexOf('/') > 0)
+          dir = path.join(cwd, dir);
         const patterns = cli.resolveFileGlobPatterns([dir]);
         dir = path.resolve(patterns[0]);
         files = glob.sync(dir, globOptions);
-        if (files.length) break;
+        if (files.length)
+          break;
       }
       if ((!files || !files.length) && !paths.length) {
         // We exhausted all input paths and thus have nothing left to do, so end
@@ -199,7 +206,8 @@ if (cluster.isMaster) {
   }
 
   function printProgress() {
-    if (!showProgress) return;
+    if (!showProgress)
+      return;
 
     // Clear line
     outFn(`\r ${' '.repeat(lastLineLen)}\r`);
@@ -216,7 +224,8 @@ if (cluster.isMaster) {
     var line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
 
     // Truncate line like cpplint does in case it gets too long
-    if (line.length > 75) line = `${line.slice(0, 75)}...`;
+    if (line.length > 75)
+      line = `${line.slice(0, 75)}...`;
 
     // Store the line length so we know how much to erase the next time around
     lastLineLen = line.length;
@@ -226,7 +235,8 @@ if (cluster.isMaster) {
 
   function padString(str, len, chr) {
     str = `${str}`;
-    if (str.length >= len) return str;
+    if (str.length >= len)
+      return str;
     return chr.repeat(len - str.length) + str;
   }
 } else {
@@ -239,7 +249,8 @@ if (cluster.isMaster) {
       const report = cli.executeOnFiles(files);
 
       // If we were asked to fix the fixable issues, do so.
-      if (cliOptions.fix) CLIEngine.outputFixes(report);
+      if (cliOptions.fix)
+        CLIEngine.outputFixes(report);
 
       if (config.sendAll) {
         // Return both success and error results
