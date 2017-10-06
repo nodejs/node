@@ -7,7 +7,13 @@ const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea, 0xcf, 0xff, 0xd9, 0x01, 0xde]);
 
 function read(buff, funx, args, expected) {
 
-  assert.strictEqual(buff[funx](...args), expected);
+  assert.strictEqual(
+    buff[funx](...args),
+    expected,
+    `Buffer read ${funx} did not return expected value ${expected}
+     with args ${args}. Instead returned: ${buff[funx](...args)}`
+  );
+
   assert.throws(
     () => buff[funx](-1),
     common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' })
