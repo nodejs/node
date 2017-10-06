@@ -30,15 +30,9 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const assert = require('assert');
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
-
-function file(fname) {
-  return path.resolve(fixtures.fixturesDir, 'keys', fname);
-}
 
 function read(fname) {
-  return fs.readFileSync(file(fname));
+  return fixtures.readKey(fname);
 }
 
 // key1 is signed by ca1.
