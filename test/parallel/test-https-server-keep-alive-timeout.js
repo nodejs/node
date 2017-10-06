@@ -13,8 +13,8 @@ const fs = require('fs');
 const tests = [];
 
 const serverOptions = {
-  key: fs.readFileSync(fixtures.path('/keys/agent1-key.pem')),
-  cert: fs.readFileSync(fixtures.path('/keys/agent1-cert.pem'))
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 function test(fn) {
