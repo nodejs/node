@@ -33,18 +33,23 @@ assert.strictEqual(ret.status, 0, 'exit status should be zero');
 // Error test when command does not exist
 const ret_err = spawnSync('command_does_not_exist', ['bar']).error;
 
-assert.strictEqual(ret_err.code, 'ENOENT');
-assert.strictEqual(ret_err.errno, 'ENOENT');
-assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist');
-assert.strictEqual(ret_err.path, 'command_does_not_exist');
-assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
+assert.strictEqual(ret_err.code, 'ENOENT', 'Err code should be ENOENT');
+assert.strictEqual(ret_err.errno, 'ENOENT', 'Errno should be ENOENT');
+assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist',
+                   'System call should contain: "spawnSync' +
+                   'command_does_not_exist"');
+assert.strictEqual(ret_err.path, 'command_does_not_exist',
+                   'Path should contain: "command_does_not_exist"');
+assert.deepStrictEqual(ret_err.spawnargs, ['bar'],
+                       'Spawn args should only contain bar');
 
 {
   // Test the cwd option
   const cwd = common.rootDir;
   const response = common.spawnSyncPwd({ cwd });
 
-  assert.strictEqual(response.stdout.toString().trim(), cwd);
+  assert.strictEqual(response.stdout.toString().trim(), cwd,
+                     'cwd option should be: ' + cwd);
 }
 
 {
@@ -53,10 +58,14 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
   const bufferEncoding = common.spawnSyncPwd({ encoding: 'buffer' });
   const utf8Encoding = common.spawnSyncPwd({ encoding: 'utf8' });
 
-  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
+  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output,
+                         'No encoding output should be the same as ' +
+                         'buffer encoding output');
   assert.deepStrictEqual([
     null,
     noEncoding.stdout.toString(),
     noEncoding.stderr.toString()
-  ], utf8Encoding.output);
+  ], utf8Encoding.output,
+                         'No encoding stdout/stderr should be' +
+                         'the same as utf8Encoding output');
 }
