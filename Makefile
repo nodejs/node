@@ -168,7 +168,10 @@ test/addons/.buildstamp: config.gypi \
 	test/addons/.docbuildstamp
 #	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
+#	Ignore folders without binding.gyp (#14843)
 	@for dirname in test/addons/*/; do \
+		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
+			continue; fi ; \
 		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
 		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
 		        --loglevel=$(LOGLEVEL) rebuild \
