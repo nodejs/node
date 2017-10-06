@@ -23,6 +23,18 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
+### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
+- `callback` {Function}
+
+See [`http.close()`][] for details.
+
+### server.listen()
+
+Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
@@ -89,18 +101,6 @@ https.createServer(options, (req, res) => {
   res.end('hello world\n');
 }).listen(8000);
 ```
-
-### server.close([callback])
-<!-- YAML
-added: v0.1.90
--->
-- `callback` {Function}
-
-See [`http.close()`][] for details.
-
-### server.listen()
-
-Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ## https.get(options[, callback])
 <!-- YAML
