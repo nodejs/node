@@ -66,8 +66,11 @@ FakeStream.prototype.close = function() {
 
 // expect all streams to close properly.
 process.on('exit', function() {
-  assert.strictEqual(cnt, wclosed, 'writable streams closed');
-  assert.strictEqual(cnt, rclosed, 'readable streams closed');
+  wclosed = rclosed = 0;
+  assert.strictEqual(cnt, wclosed, `Expected ${cnt} writable streams closed ` +
+                                   `but only saw ${wclosed}`);
+  assert.strictEqual(cnt, rclosed, `Expected ${cnt} readable streams closed ` +
+                                   `but only saw ${rclosed}`);
 });
 
 for (let i = 0; i < chunkSize; i++) {
