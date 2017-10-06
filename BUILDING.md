@@ -88,7 +88,7 @@ On macOS you will need to install the `Xcode Command Line Tools` by running
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
-* You may want to setup [firewall rules](tools/macosx-firewall.sh)
+* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
 
 If the path to your build directory contains a space, the build will likely fail.
