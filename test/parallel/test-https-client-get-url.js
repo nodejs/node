@@ -30,7 +30,6 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const assert = require('assert');
 const https = require('https');
-const fs = require('fs');
 const url = require('url');
 
 const URL = url.URL;
