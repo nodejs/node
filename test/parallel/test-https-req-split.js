@@ -31,11 +31,10 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const https = require('https');
 
 const tls = require('tls');
-const fs = require('fs');
 
 const options = {
-  key: fixtures.readKey(`agent1-key.pem`),
-  cert: fixtures.readKey(`agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 // Force splitting incoming data
