@@ -461,6 +461,7 @@ added: v8.0.0
 -->
 
 * `original` {Function}
+* Returns: {Function}
 
 Takes a function following the common Node.js callback style, i.e. taking a
 `(err, value) => ...` callback as the last argument, and returns a version
