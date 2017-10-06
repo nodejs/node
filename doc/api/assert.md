@@ -134,7 +134,7 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Similar to `assert.deepEqual()` with the following exceptions:
+Identical to [`assert.deepEqual()`][] with the following exceptions:
 
 1. Primitive values besides `NaN` are compared using the [Strict Equality
    Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
