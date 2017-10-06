@@ -12,8 +12,8 @@ if (!common.hasCrypto)
 const tls = require('tls');
 
 const options = {
-  key: fs.readFileSync(`${fixtures.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${fixtures.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 const server = tls.Server(options, common.mustCall((socket) => {
