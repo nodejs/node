@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -30,12 +31,12 @@ const fs = require('fs');
 
 const options = {
   key: [
-    fs.readFileSync(`${common.fixtures}/keys/ec-key.pem`),
-    fs.readFileSync(`${common.fixtures}/keys/agent1-key.pem`),
+    fs.readFileSync(fixtures.path('/keys/ec-key.pem')),
+    fs.readFileSync(fixtures.path('/keys/agent1-key.pem')),
   ],
   cert: [
-    fs.readFileSync(`${common.fixtures}/keys/agent1-cert.pem`),
-    fs.readFileSync(`${common.fixtures}/keys/ec-cert.pem`)
+    fs.readFileSync(fixtures.path('/keys/agent1-cert.pem')),
+    fs.readFileSync(fixtures.path('/keys/ec-cert.pem')),
   ]
 };
 
