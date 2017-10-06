@@ -56,10 +56,10 @@ try {
 } catch (e) {
   gh1140Exception = e;
   assert.ok(/expected-filename/.test(e.stack),
-            'expected appearance of filename in Error stack');
+            `expected appearance of filename in Error stack: ${e.stack}` );
 }
 assert.ok(gh1140Exception,
-          'expected exception from runInContext signature test');
+          `expected exception from runInContext signature test: ${gh1140Exception}`);
 
 // GH-558, non-context argument segfaults / raises assertion
 const nonContextualSandboxErrorMsg =
@@ -100,7 +100,7 @@ assert.throws(() => {
   });
 }, (err) => {
   return /expected-filename\.js:33:130/.test(err.stack);
-}, 'Expected appearance of proper offset in Error stack');
+}, `Expected appearance of proper offset in Error stack: ${err.stack}`);
 
 // https://github.com/nodejs/node/issues/6158
 ctx = new Proxy({}, {});
