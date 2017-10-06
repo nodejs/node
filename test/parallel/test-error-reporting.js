@@ -21,9 +21,9 @@
 
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const exec = require('child_process').exec;
+const fixtures = require('../common/fixtures');
 
 function errExec(script, callback) {
   const cmd = `"${process.argv[0]}" "${fixtures.path(script)}"`;
