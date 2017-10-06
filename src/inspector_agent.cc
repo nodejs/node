@@ -496,11 +496,11 @@ bool Agent::StartIoThread(bool wait_for_connect) {
 
   v8::Isolate* isolate = parent_env_->isolate();
   HandleScope handle_scope(isolate);
+  auto context = parent_env_->context();
 
   // Enable tracking of async stack traces
   if (!enable_async_hook_function_.IsEmpty()) {
     Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
-    auto context = parent_env_->context();
     auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
     if (result.IsEmpty()) {
       FatalError(
@@ -512,14 +512,15 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   // Send message to enable debug in workers
   Local<Object> process_object = parent_env_->process_object();
   Local<Value> emit_fn =
-      process_object->Get(FIXED_ONE_BYTE_STRING(isolate, "emit"));
+      process_object->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emit"))
+          .ToLocalChecked();
   // In case the thread started early during the startup
   if (!emit_fn->IsFunction())
     return true;
 
   Local<Object> message = Object::New(isolate);
-  message->Set(FIXED_ONE_BYTE_STRING(isolate, "cmd"),
-               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED"));
+  message->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cmd"),
+               FIXED_ONE_BYTE_STRING(isolate, "NODE_DEBUG_ENABLED")).FromJust();
   Local<Value> argv[] = {
     FIXED_ONE_BYTE_STRING(isolate, "internalMessage"),
     message
