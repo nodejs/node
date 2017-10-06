@@ -155,7 +155,7 @@ if (cluster.isMaster) {
       } else {
         failures += results.length;
       }
-      outFn(formatter(results) + '\r\n');
+      outFn(`${formatter(results)}\r\n`);
       printProgress();
     } else {
       successes += results;
@@ -211,7 +211,7 @@ if (cluster.isMaster) {
       return;
 
     // Clear line
-    outFn('\r' + ' '.repeat(lastLineLen) + '\r');
+    outFn(`\r ${' '.repeat(lastLineLen)}\r`);
 
     // Calculate and format the data for displaying
     const elapsed = process.hrtime(startTime)[0];
@@ -226,7 +226,7 @@ if (cluster.isMaster) {
 
     // Truncate line like cpplint does in case it gets too long
     if (line.length > 75)
-      line = line.slice(0, 75) + '...';
+      line = `${line.slice(0, 75)}...`;
 
     // Store the line length so we know how much to erase the next time around
     lastLineLen = line.length;
@@ -235,7 +235,7 @@ if (cluster.isMaster) {
   }
 
   function padString(str, len, chr) {
-    str = '' + str;
+    str = `${str}`;
     if (str.length >= len)
       return str;
     return chr.repeat(len - str.length) + str;
