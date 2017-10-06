@@ -42,7 +42,7 @@ assert.throws(() => {
 
 // Throws if the source does not exist.
 assert.throws(() => {
-  fs.copyFileSync(src + '__does_not_exist', dest, COPYFILE_EXCL);
+  fs.copyFileSync(`${src}__does_not_exist`, dest, COPYFILE_EXCL);
 }, /^Error: ENOENT: no such file or directory, copyfile/);
 
 // Copies asynchronously.
@@ -79,8 +79,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: Error,
-  message: 'The "path" argument must be of type string without null bytes.' +
-           ' Received type string'
+  message: `The "path" argument must be of type string without null bytes.
+   Received type string`
 });
 
 // Throws if the destination path is not a string.
@@ -94,8 +94,8 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: Error,
-  message: 'The "path" argument must be of type string without null bytes.' +
-           ' Received type string'
+  message: `The "path" argument must be of type string without null bytes.
+   Received type string`
 });
 
 // Errors if invalid flags are provided.
