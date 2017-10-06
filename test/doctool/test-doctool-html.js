@@ -115,6 +115,7 @@ testData.forEach((item) => {
           assert.ifError(err);
 
           const actual = output.replace(spaces, '');
+          const scriptDomain = 'google-analytics.com';
           // Assert that the input stripped of all whitespace contains the
           // expected list
           assert(actual.includes(expected));
@@ -122,11 +123,12 @@ testData.forEach((item) => {
           // Testing the insertion of Google Analytics script when
           // an analytics id is provided. Should not be present by default
           if (includeAnalytics) {
-            assert(actual.includes('google-analytics.com'),
-                   'Google Analytics script was not present');
+            assert(actual.includes(scriptDomain),
+                   `Google Analytics script was not present in "${actual}"`);
           } else {
-            assert.strictEqual(actual.includes('google-analytics.com'), false,
-                               'Google Analytics script was present');
+            assert.strictEqual(actual.includes(scriptDomain), false,
+                               'Google Analytics script was present in ' +
+                               `"${actual}"`);
           }
         }));
     }));
