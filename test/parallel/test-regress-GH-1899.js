@@ -1,11 +1,11 @@
 'use strict';
-const common = require('../common');
-const path = require('path');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 const child = spawn(process.argv[0], [
-  path.join(common.fixturesDir, 'GH-1899-output.js')
+  fixtures.path('GH-1899-output.js')
 ]);
 let output = '';
 
