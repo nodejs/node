@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -11,11 +12,10 @@ const assert = require('assert');
 const tls = require('tls');
 
 const exec = require('child_process').exec;
-const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem'),
   ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
   ecdhCurve: 'prime256v1'
 };
