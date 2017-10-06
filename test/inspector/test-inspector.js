@@ -9,11 +9,13 @@ const { mainScriptPath,
         NodeInstance } = require('./inspector-helper.js');
 
 function checkListResponse(response) {
-  assert.strictEqual(1, response.length);
+  assert.strictEqual(1, response.length,
+                  `response.length must be 1 but received ${response.length}`);
   assert.ok(response[0]['devtoolsFrontendUrl']);
   assert.ok(
     /ws:\/\/127\.0\.0\.1:\d+\/[0-9A-Fa-f]{8}-/
-      .test(response[0]['webSocketDebuggerUrl']));
+      .test(response[0]['webSocketDebuggerUrl']),
+      `Invalid webSocketDebuggerUrl: ${response[0]['webSocketDebuggerUrl']}`);
 }
 
 function checkVersion(response) {
@@ -34,13 +36,15 @@ function checkBadPath(err) {
 
 function checkException(message) {
   assert.strictEqual(message['exceptionDetails'], undefined,
-                     'An exception occurred during execution');
+    `An exception occurred during execution: ${message['exceptionDetails']}`);
 }
 
 function assertNoUrlsWhileConnected(response) {
   assert.strictEqual(1, response.length);
-  assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'));
-  assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'));
+  assert.ok(!response[0].hasOwnProperty('devtoolsFrontendUrl'),
+          'response[0] should not have own property "devtoolsFrontendUrl"');
+  assert.ok(!response[0].hasOwnProperty('webSocketDebuggerUrl'),
+          'response[0] should not have own property "webSocketDebuggerUrl"');
 }
 
 function assertScopeValues({ result }, expected) {
