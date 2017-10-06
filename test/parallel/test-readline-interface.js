@@ -371,6 +371,37 @@ function isWarned(emitter) {
     }));
   }
 
+  // constructor throws if historySize is not a positive number
+  {
+    const fi = new FakeInput();
+    assert.throws(function() {
+      readline.createInterface({
+        input: fi, historySize: 'not a number'
+      });
+    }, common.expectsError({
+      type: RangeError,
+      code: 'ERR_INVALID_OPT_VALUE'
+    }));
+
+    assert.throws(function() {
+      readline.createInterface({
+        input: fi, historySize: -1
+      });
+    }, common.expectsError({
+      type: RangeError,
+      code: 'ERR_INVALID_OPT_VALUE'
+    }));
+
+    assert.throws(function() {
+      readline.createInterface({
+        input: fi, historySize: NaN
+      });
+    }, common.expectsError({
+      type: RangeError,
+      code: 'ERR_INVALID_OPT_VALUE'
+    }));
+  }
+
   // duplicate lines are removed from history when
   // `options.removeHistoryDuplicates` is `true`
   {
@@ -400,6 +431,14 @@ function isWarned(emitter) {
     assert.notStrictEqual(rli.line, expectedLines[--callCount]);
     assert.strictEqual(rli.line, expectedLines[--callCount]);
     assert.strictEqual(callCount, 0);
+    fi.emit('keypress', '.', { name: 'down' }); // 'baz'
+    assert.strictEqual(rli.line, 'baz');
+    fi.emit('keypress', '.', { name: 'n', ctrl: true }); // 'bar'
+    assert.strictEqual(rli.line, 'bar');
+    fi.emit('keypress', '.', { name: 'down' }); // 'bat'
+    assert.strictEqual(rli.line, 'bat');
+    fi.emit('keypress', '.', { name: 'down' }); // ''
+    assert.strictEqual(rli.line, '');
     rli.close();
   }
 
@@ -495,7 +534,35 @@ function isWarned(emitter) {
     rli.close();
   }
 
+  // calling the question callback
+  {
+    let called = false;
+    const fi = new FakeInput();
+    const rli = new readline.Interface(
+      { input: fi, output: fi, terminal: terminal }
+    );
+    rli.question('foo?', function(answer) {
+      called = true;
+      assert.strictEqual(answer, 'bar');
+    });
+    rli.write('bar\n');
+    assert.ok(called);
+    rli.close();
+  }
+
   if (terminal) {
+    // history is bound
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface(
+        { input: fi, output: fi, terminal, historySize: 2 }
+      );
+      const lines = ['line 1', 'line 2', 'line 3'];
+      fi.emit('data', lines.join('\n') + '\n');
+      assert.strictEqual(rli.history.length, 2);
+      assert.strictEqual(rli.history[0], 'line 3');
+      assert.strictEqual(rli.history[1], 'line 2');
+    }
     // question
     {
       const fi = new FakeInput();
@@ -662,6 +729,22 @@ function isWarned(emitter) {
           fi.emit('data', '\n');
           rli.close();
         });
+    }
+
+    // multi-line cursor position
+    {
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.columns = 10;
+      fi.emit('data', 'multi-line text');
+      const cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 1);
+      assert.strictEqual(cursorPos.cols, 5);
     }
   }
 
