@@ -25,16 +25,16 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const fixtures = require('../common/fixtures');
+
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
 const tls = require('tls');
 
 // https://github.com/joyent/node/issues/1218
 // uncatchable exception on TLS connection error
 {
-  const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-  const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+  const cert = fixtures.readSync('test_cert.pem');
+  const key = fixtures.readSync('test_key.pem');
 
   const options = { cert: cert, key: key, port: common.PORT };
   const conn = tls.connect(options, common.mustNotCall());
@@ -47,8 +47,8 @@ const tls = require('tls');
 
 // SSL_accept/SSL_connect error handling
 {
-  const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-  const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+  const cert = fixtures.readSync('test_cert.pem');
+  const key = fixtures.readSync('test_key.pem');
 
   const conn = tls.connect({
     cert: cert,
