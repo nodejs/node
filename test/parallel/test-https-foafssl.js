@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -34,8 +35,8 @@ const spawn = require('child_process').spawn;
 const https = require('https');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/agent.key`),
-  cert: fs.readFileSync(`${common.fixturesDir}/agent.crt`),
+  key: fs.readFileSync(`${fixtures.fixturesDir}/agent.key`),
+  cert: fs.readFileSync(`${fixtures.fixturesDir}/agent.crt`),
   requestCert: true,
   rejectUnauthorized: false
 };
@@ -70,8 +71,8 @@ server.listen(0, function() {
   const args = ['s_client',
                 '-quiet',
                 '-connect', `127.0.0.1:${this.address().port}`,
-                '-cert', join(common.fixturesDir, 'foafssl.crt'),
-                '-key', join(common.fixturesDir, 'foafssl.key')];
+                '-cert', join(fixtures.fixturesDir, 'foafssl.crt'),
+                '-key', join(fixtures.fixturesDir, 'foafssl.key')];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
