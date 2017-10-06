@@ -32,7 +32,7 @@ const http = require('http');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('git stagent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 const body = 'hello world\n';
