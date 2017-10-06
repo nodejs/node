@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -17,7 +18,7 @@ const { connect: tls } = require('tls');
 const countdown = (count, done) => () => --count === 0 && done();
 
 function loadKey(keyname) {
-  return readFileSync(join(common.fixturesDir, 'keys', keyname));
+  return readFileSync(join(fixtures.fixturesDir, 'keys', keyname));
 }
 
 const key = loadKey('agent8-key.pem');
