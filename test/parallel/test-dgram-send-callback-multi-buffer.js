@@ -20,7 +20,7 @@ client.on('listening', function() {
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.concat([buf1, buf2]);
-  assert.ok(buf.equals(expected), 'message was received correctly');
+  assert.ok(buf.equals(expected), `Message not received correctly. ${buf} is not equal to ${expected}`);
   client.close();
 }));
 
