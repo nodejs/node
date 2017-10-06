@@ -12,10 +12,10 @@ exec python "$0" "$@"
 del _
 
 import sys
+from distutils.spawn import find_executable as which
 if sys.version_info[0] != 2 or sys.version_info[1] not in (6, 7):
   sys.stderr.write('Please use either Python 2.6 or 2.7')
 
-  from distutils.spawn import find_executable as which
   python2 = which('python2') or which('python2.6') or which('python2.7')
 
   if python2:
@@ -1350,6 +1350,36 @@ def configure_inspector(o):
                        options.without_ssl)
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
+
+def get_bin_override():
+  # If the system python is not the python we are running (which should be
+  # python 2), then create a directory with a symlink called `python` to our
+  # sys.executable. This directory will be prefixed to the PATH, so that
+  # other tools that shell out to `python` will use the appropriate python
+
+  if os.path.realpath(which('python')) == os.path.realpath(sys.executable):
+    return
+
+  bin_override = os.path.abspath('out/tools/bin')
+  try:
+    os.makedirs(bin_override)
+  except OSError as e:
+    if e.errno != errno.EEXIST: raise e
+
+  python_link = os.path.join(bin_override, 'python')
+  try:
+    os.unlink(python_link)
+  except OSError as e:
+    if e.errno != errno.ENOENT: raise e
+  os.symlink(sys.executable, python_link)
+
+  # We need to set the environment right now so that when gyp (in run_gyp)
+  # shells out, it finds the right python (specifically at
+  # https://github.com/nodejs/node/blob/d82e107/deps/v8/gypfiles/toolchain.gypi#L43)
+  os.environ['PATH'] = bin_override + ':' + os.environ['PATH']
+
+  return bin_override
+
 output = {
   'variables': {},
   'include_dirs': [],
@@ -1427,6 +1457,10 @@ if options.prefix:
   config['PREFIX'] = options.prefix
 
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
+
+bin_override = get_bin_override()
+if bin_override:
+  config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
 
 write('config.mk', do_not_edit + config)
 
