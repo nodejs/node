@@ -6,11 +6,12 @@ if (!common.hasCrypto)
 if (!common.enoughTestMem)
   common.skip('memory-intensive test');
 
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const crypto = require('crypto');
 
 const BENCHMARK_FUNC_PATH =
-  `${common.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
+  `${fixtures.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
 function runOneBenchmark(...args) {
   const benchmarkFunc = require(BENCHMARK_FUNC_PATH);
   const result = benchmarkFunc(...args);
