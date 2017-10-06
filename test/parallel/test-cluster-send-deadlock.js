@@ -31,8 +31,8 @@ const net = require('net');
 if (cluster.isMaster) {
   const worker = cluster.fork();
   worker.on('exit', function(code, signal) {
-    assert.strictEqual(code, 0, 'Worker exited with an error code');
-    assert(!signal, 'Worker exited by a signal');
+    assert.strictEqual(code, 0, `Worker exited with an error code: ${code}`);
+    assert(!signal, `Worker exited by a signal: ${signal}`);
     server.close();
   });
 
