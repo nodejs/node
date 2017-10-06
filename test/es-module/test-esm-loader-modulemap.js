@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --expose-internals
 
-// This tests ensures that the type checking of ModuleMap throws errors appropriately
+// This test ensures that the type checking of ModuleMap throws errors appropriately
 
 const assert = require('assert');
 const { URL } = require('url');
