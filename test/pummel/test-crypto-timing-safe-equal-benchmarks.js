@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -10,7 +11,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 
 const BENCHMARK_FUNC_PATH =
-  `${common.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
+  `${fixtures.fixturesDir}/crypto-timing-safe-equal-benchmark-func`;
 function runOneBenchmark(...args) {
   const benchmarkFunc = require(BENCHMARK_FUNC_PATH);
   const result = benchmarkFunc(...args);
