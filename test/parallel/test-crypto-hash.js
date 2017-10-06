@@ -9,6 +9,9 @@ const fs = require('fs');
 
 const fixtures = require('../common/fixtures');
 
+let cryptoType;
+let digest;
+
 // Test hashing
 const a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 const a2 = crypto.createHash('sha256').update('Test123').digest('base64');
@@ -37,16 +40,29 @@ a8.end();
 a8 = a8.read();
 
 if (!common.hasFipsCrypto) {
-  const a0 = crypto.createHash('md5').update('Test123').digest('latin1');
+  cryptoType = 'md5';
+  digest = 'latin1';
+  const a0 = crypto.createHash(cryptoType).update('Test123').digest(digest);
   assert.strictEqual(
     a0,
     'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
-    'Test MD5 as latin1'
+    `${cryptoType} with ${digest} digest failed to evaluate to expected hash`
   );
 }
-assert.strictEqual(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
-assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
-                   'Test SHA256 as base64');
+cryptoType = 'md5';
+digest = 'hex';
+assert.strictEqual(
+  a1,
+  '8308651804facb7b9af8ffc53a33a22d6a1c8ac2',
+  `${cryptoType} with ${digest} digest failed to evaluate to expected hash`);
+cryptoType = 'sha256';
+digest = 'base64';
+assert.strictEqual(
+  a2,
+  '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
+  `${cryptoType} with ${digest} digest failed to evaluate to expected hash`);
+cryptoType = 'sha512';
+digest = 'latin1';
 assert.deepStrictEqual(
   a3,
   Buffer.from(
@@ -56,11 +72,13 @@ assert.deepStrictEqual(
     '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
     '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
     'latin1'),
-  'Test SHA512 as assumed buffer');
+  `${cryptoType} with ${digest} digest failed to evaluate to expected hash`);
+cryptoType = 'sha1';
+digest = 'hex';
 assert.deepStrictEqual(
   a4,
   Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
-  'Test SHA1'
+  `${cryptoType} with ${digest} digest failed to evaluate to expected hash`
 );
 
 // stream interface should produce the same result.
