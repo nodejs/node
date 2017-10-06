@@ -19,8 +19,7 @@ const server = tls.createServer({
 }, common.mustCall(function(c) {
   assert.strictEqual(
     c.authorizationError,
-    null,
-    'authorizationError must be null'
+    null
   );
   c.end();
 })).listen(0, function() {
