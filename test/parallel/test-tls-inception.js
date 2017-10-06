@@ -30,7 +30,6 @@ const assert = require('assert');
 const tls = require('tls');
 
 const fs = require('fs');
-const path = require('path');
 const net = require('net');
 
 const options = {
