@@ -1,15 +1,16 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 
 // A module with an error in it should throw
 assert.throws(function() {
-  require(`${common.fixturesDir}/throws_error`);
+  require(fixtures.path('/throws_error'));
 }, /^Error: blah$/);
 
 // Requiring the same module again should throw as well
 assert.throws(function() {
-  require(`${common.fixturesDir}/throws_error`);
+  require(fixtures.path('/throws_error'));
 }, /^Error: blah$/);
 
 // Requiring a module that does not exist should throw an
@@ -22,7 +23,7 @@ assertModuleNotFound('/module-require/not-found/trailingSlash');
 
 function assertModuleNotFound(path) {
   assert.throws(function() {
-    require(common.fixturesDir + path);
+    require(fixtures.path(path));
   }, function(e) {
     assert.strictEqual(e.code, 'MODULE_NOT_FOUND');
     return true;
@@ -30,5 +31,5 @@ function assertModuleNotFound(path) {
 }
 
 function assertExists(fixture) {
-  assert(common.fileExists(common.fixturesDir + fixture));
+  assert(common.fileExists(fixtures.path(fixture)));
 }
