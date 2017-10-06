@@ -5,8 +5,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const fn = path.join(common.fixturesDir, 'elipses.txt');
-const rangeFile = path.join(common.fixturesDir, 'x.txt');
+const fn = path.join(common.fixtures, 'elipses.txt');
+const rangeFile = path.join(common.fixtures, 'x.txt');
 
 {
   let paused = false;
