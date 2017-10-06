@@ -408,27 +408,10 @@ added: v3.0.0
 Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
-### server.listen(port[, hostname][, callback])
-<!-- YAML
-added: v0.3.2
--->
+### server.listen()
 
-* `port` {number} The TCP/IP port on which to begin listening for connections.
-  A value of `0` (zero) will assign a random port.
-* `hostname` {string} The hostname, IPv4, or IPv6 address on which to begin
-  listening for connections. If `undefined`, the server will accept connections
-  on any IPv6 address (`::`) when IPv6 is available, or any IPv4 address
-  (`0.0.0.0`) otherwise.
-* `callback` {Function} A callback function to be invoked when the server has
-  begun listening on the `port` and `hostname`.
-
-The `server.listen()` methods instructs the server to begin accepting
-connections on the specified `port` and `hostname`.
-
-This function operates asynchronously. If the `callback` is given, it will be
-called when the server has started listening.
-
-See [`net.Server`][] for more information.
+Starts the server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.setTicketKeys(keys)
 <!-- YAML
@@ -1292,6 +1275,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
+[`server.listen()`]: net.html#net_server_listen
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
