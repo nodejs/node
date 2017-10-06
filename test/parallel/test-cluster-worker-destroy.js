@@ -28,7 +28,7 @@ if (cluster.isMaster) {
     });
 
     const w = cluster.worker.disconnect();
-    assert.strictEqual(w, cluster.worker, 'did not return a reference');
+    assert.strictEqual(w, cluster.worker);
   } else {
     // Call destroy when worker is not disconnected yet
     cluster.worker.destroy();
