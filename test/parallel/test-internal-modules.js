@@ -1,7 +1,6 @@
 'use strict';
 require('../common');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const assert = require('assert');
 
 assert.throws(function() {
