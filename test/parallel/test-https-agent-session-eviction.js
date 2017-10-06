@@ -1,18 +1,18 @@
 'use strict';
 
 const common = require('../common');
+const { readKey } = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
 const https = require('https');
-const fs = require('fs');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem'),
   secureOptions: SSL_OP_NO_TICKET
 };
 
