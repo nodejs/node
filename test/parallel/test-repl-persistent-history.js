@@ -51,28 +51,7 @@ ActionStream.prototype.readable = true;
 const UP = { name: 'up' };
 const ENTER = { name: 'enter' };
 const CLEAR = { ctrl: true, name: 'u' };
-// Common message bits
-const prompt = '> ';
-const replDisabled = '\nPersistent history support disabled. Set the ' +
-                     'NODE_REPL_HISTORY environment\nvariable to a valid, ' +
-                     'user-writable path to enable.\n';
-const convertMsg = '\nConverted old JSON repl history to line-separated ' +
-                   'history.\nThe new repl history file can be found at ' +
-                   `${path.join(common.tmpDir, '.node_repl_history')}.\n`;
-const homedirErr = '\nError: Could not get the home directory.\n' +
-                   'REPL session history will not be persisted.\n';
-const replFailedRead = '\nError: Could not open history file.\n' +
-                       'REPL session history will not be persisted.\n';
-const oldHistoryFailedOpen = '\nError: Could not open old history file.\n' +
-                             'REPL session history will not be persisted.\n';
-const oldHistoryFailedParse = '\nError: Could not parse old history file.\n' +
-                              'REPL session history will not be persisted.\n';
-const oldHistoryObj = '\nError: The old history file data has to be an Array' +
-                      '.\nREPL session history will not be persisted.\n';
-const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
-                             'and location as the new one i.e., ' +
-                             path.join(common.tmpDir, '.node_repl_history') +
-                             ' and is empty.\nUsing it as is.\n';
+
 // File paths
 const fixtures = common.fixturesDir;
 const historyFixturePath = path.join(fixtures, '.node_repl_history');
@@ -90,6 +69,28 @@ const emptyHiddenHistoryPath = path.join(fixtures,
                                          '.empty-hidden-repl-history-file');
 const devNullHistoryPath = path.join(common.tmpDir,
                                      '.dev-null-repl-history-file');
+// Common message bits
+const prompt = '> ';
+const replDisabled = '\nPersistent history support disabled. Set the ' +
+                     'NODE_REPL_HISTORY environment\nvariable to a valid, ' +
+                     'user-writable path to enable.\n';
+const convertMsg = '\nConverted old JSON repl history to line-separated ' +
+                   'history.\nThe new repl history file can be found at ' +
+                   `${defaultHistoryPath}.\n`;
+const homedirErr = '\nError: Could not get the home directory.\n' +
+                   'REPL session history will not be persisted.\n';
+const replFailedRead = '\nError: Could not open history file.\n' +
+                       'REPL session history will not be persisted.\n';
+const oldHistoryFailedOpen = '\nError: Could not open old history file.\n' +
+                             'REPL session history will not be persisted.\n';
+const oldHistoryFailedParse = '\nError: Could not parse old history file.\n' +
+                              'REPL session history will not be persisted.\n';
+const oldHistoryObj = '\nError: The old history file data has to be an Array' +
+                      '.\nREPL session history will not be persisted.\n';
+const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
+                             'and location as the new one i.e., ' +
+                             `${defaultHistoryPath}` +
+                             ' and is empty.\nUsing it as is.\n';
 
 const tests = [
   {
