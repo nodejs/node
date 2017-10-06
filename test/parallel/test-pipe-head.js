@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 const exec = require('child_process').exec;
-const join = require('path').join;
 
 const nodePath = process.argv[0];
-const script = join(common.fixturesDir, 'print-10-lines.js');
+const script = fixtures.path('print-10-lines.js');
 
 const cmd = `"${nodePath}" "${script}" | head -2`;
 
