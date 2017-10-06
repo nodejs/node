@@ -1,10 +1,10 @@
 // Flags: --expose_internals
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 const spawnSync = require('child_process').spawnSync;
-const path = require('path');
 
 assert.doesNotThrow(function() {
   internalUtil.decorateErrorStack();
@@ -26,8 +26,7 @@ function checkStack(stack) {
 }
 let err;
 const badSyntaxPath =
-    path.join(common.fixturesDir, 'syntax', 'bad_syntax')
-        .replace(/\\/g, '\\\\');
+  fixtures.path('syntax', 'bad_syntax').replace(/\\/g, '\\\\');
 
 try {
   require(badSyntaxPath);
