@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+const common = require('../common/fixtures');
 const assert = require('assert');
 const { spawn } = require('child_process');
 
