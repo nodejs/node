@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
-const fs = require('fs');
 
 // Tests that calling disableRenegotiation on a TLSSocket stops renegotiation.
 
