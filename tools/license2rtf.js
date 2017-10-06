@@ -245,22 +245,19 @@ function RtfGenerator() {
     if (li)
       level++;
 
-    var rtf = '\\pard';
-    rtf += '\\sa150\\sl300\\slmult1';
+    var rtf = '\\pard\\sa150\\sl300\\slmult1';
     if (level > 0)
-      rtf += '\\li' + (level * 240);
+      rtf += `\\li${level * 240}`;
     if (li) {
-      rtf += '\\tx' + (level) * 240;
-      rtf += '\\fi-240';
+      rtf += `\\tx${level * 240}\\fi-240`;
     }
     if (lic)
       rtf += '\\ri240';
     if (!lic)
       rtf += '\\b';
     if (li)
-      rtf += ' ' + li + '\\tab';
-    rtf += ' ';
-    rtf += lines.map(rtfEscape).join('\\line ');
+      rtf += ` ${li}\\tab`;
+    rtf += ` ${lines.map(rtfEscape).join('\\line ')}`;
     if (!lic)
       rtf += '\\b0';
     rtf += '\\par\n';
@@ -279,25 +276,25 @@ function RtfGenerator() {
   function toHex(number, length) {
     var hex = (~~number).toString(16);
     while (hex.length < length)
-      hex = '0' + hex;
+      hex = `0${hex}`;
     return hex;
   }
 
   function rtfEscape(string) {
     return string
       .replace(/[\\{}]/g, function(m) {
-        return '\\' + m;
+        return `\\${m}`;
       })
       .replace(/\t/g, function() {
         return '\\tab ';
       })
       // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
-        return '\\\'' + toHex(m.charCodeAt(0), 2);
+        return `\\'${toHex(m.charCodeAt(0), 2)}`;
       })
       .replace(/\ufeff/g, '')
       .replace(/[\u0100-\uffff]/g, function(m) {
-        return '\\u' + toHex(m.charCodeAt(0), 4) + '?';
+        return `\\u${toHex(m.charCodeAt(0), 4)}?`;
       });
   }
 
