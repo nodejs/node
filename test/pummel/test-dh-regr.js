@@ -36,9 +36,14 @@ for (let i = 0; i < 2000; i++) {
   a.generateKeys();
   b.generateKeys();
 
+  const aSecret = a.computeSecret(b.getPublicKey());
+  const bSecret = b.computeSecret(a.getPublicKey());
+
   assert.deepStrictEqual(
-    a.computeSecret(b.getPublicKey()),
-    b.computeSecret(a.getPublicKey()),
-    'secrets should be equal!'
+    aSecret,
+    bSecret,
+    'Secrets should be equal.\n' +
+    `aSecret: ${aSecret.toString('base64')}\n` +
+    `bSecret: ${bSecret.toString('base64')}`
   );
 }
