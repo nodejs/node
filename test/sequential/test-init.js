@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
@@ -28,7 +29,7 @@ function test(file, expected) {
 
 {
   // test-init-index is in fixtures dir as requested by ry, so go there
-  process.chdir(common.fixturesDir);
+  process.chdir(fixtures.path());
   test('test-init-index', 'Loaded successfully!');
 }
 
