@@ -11,8 +11,6 @@ if (process.argv[2] === 'child') {
                   'change at any time.';
 
   const result = run(process.execPath, [__filename, 'child']);
-  assert.deepStrictEqual(result.stdout.toString().match(/\S+/g), ['42', '1337'],
-                         'Modules loaded correctly');
-  assert.deepStrictEqual(result.stderr.toString().split(warning).length, 2,
-                         'Warning was displayed only once');
+  assert.deepStrictEqual(result.stdout.toString().match(/\S+/g), ['42', '1337']);
+  assert.deepStrictEqual(result.stderr.toString().split(warning).length, 2);
 }
