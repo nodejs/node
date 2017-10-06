@@ -58,7 +58,8 @@ if (cluster.isWorker) {
   }));
 
   process.once('exit', () => {
-    assert.strictEqual(typeof pid, 'number', 'did not get worker pid info');
+    assert.strictEqual(typeof pid, 'number',
+                       `got ${pid} instead of a worker pid`);
     assert.strictEqual(alive, false, 'worker was alive after master died');
   });
 
