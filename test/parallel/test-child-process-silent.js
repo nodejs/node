@@ -97,11 +97,11 @@ if (process.argv[2] === 'pipe') {
     parent.kill();
 
     // Check std(out|err) pipes
-    assert.ok(!stdoutData, 'The stdout socket was piped to parent');
-    assert.ok(!stderrData, 'The stderr socket was piped to parent');
+    assert.ok(!stdoutData);
+    assert.ok(!stderrData);
 
     // Check message system
-    assert.ok(childSending, 'The child was able to send a message');
-    assert.ok(childReceiving, 'The child was able to receive a message');
+    assert.ok(childSending);
+    assert.ok(childReceiving);
   });
 }
