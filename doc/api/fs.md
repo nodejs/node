@@ -2268,6 +2268,9 @@ Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
+*Note*: Passing a file descriptor is deprecated and may result in an error
+being thrown in the future.
+
 ## fs.truncateSync(path[, len])
 <!-- YAML
 added: v0.8.6
@@ -2278,6 +2281,9 @@ added: v0.8.6
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
+
+*Note*: Passing a file descriptor is deprecated and may result in an error
+being thrown in the future.
 
 ## fs.unlink(path, callback)
 <!-- YAML

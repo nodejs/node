@@ -32,9 +32,8 @@ common.refreshTmpDir();
 
 let stat;
 
-const msg = 'Using fs.truncate with file descriptor deprecated.' +
-            ' In the future, ' +
-            'use fs.ftruncate with file descriptor';
+const msg = 'Using fs.truncate with a file descriptor is deprecated.' +
+            ' Please use fs.ftruncate with a file descriptor instead.';
 
 // truncateSync
 fs.writeFileSync(filename, data);
