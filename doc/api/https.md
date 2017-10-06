@@ -98,21 +98,9 @@ added: v0.1.90
 
 See [`http.close()`][] for details.
 
-### server.listen(handle[, callback])
-- `handle` {Object}
-- `callback` {Function}
+### server.listen()
 
-### server.listen(path[, callback])
-- `path` {string}
-- `callback` {Function}
-
-### server.listen([port][, host][, backlog][, callback])
-- `port` {number}
-- `hostname` {string}
-- `backlog` {number}
-- `callback` {Function}
-
-See [`http.listen()`][] for details.
+Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ## https.get(options[, callback])
 <!-- YAML
@@ -261,6 +249,8 @@ const req = https.request(options, (res) => {
 
 [`Agent`]: #https_class_https_agent
 [`URL`]: url.html#url_the_whatwg_url_api
+[`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback

@@ -841,85 +841,9 @@ added: v0.1.90
 
 Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
-### server.listen(handle[, callback])
-<!-- YAML
-added: v0.5.10
--->
+### server.listen()
 
-* `handle` {Object}
-* `callback` {Function}
-
-The `handle` object can be set to either a server or socket (anything
-with an underlying `_handle` member), or a `{fd: <n>}` object.
-
-This will cause the server to accept connections on the specified
-handle, but it is presumed that the file descriptor or handle has
-already been bound to a port or domain socket.
-
-Listening on a file descriptor is not supported on Windows.
-
-This function is asynchronous. `callback` will be added as a listener for the
-[`'listening'`][] event. See also [`net.Server.listen()`][].
-
-Returns `server`.
-
-*Note*: The `server.listen()` method can be called again if and only if there was an error
-during the first `server.listen()` call or `server.close()` has been called.
-Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
-
-### server.listen(path[, callback])
-<!-- YAML
-added: v0.1.90
--->
-
-* `path` {string}
-* `callback` {Function}
-
-Start a UNIX socket server listening for connections on the given `path`.
-
-This function is asynchronous. `callback` will be added as a listener for the
-[`'listening'`][] event.  See also [`net.Server.listen(path)`][].
-
-*Note*: The `server.listen()` method can be called again if and only if there was an error
-during the first `server.listen()` call or `server.close()` has been called.
-Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
-
-### server.listen([port][, hostname][, backlog][, callback])
-<!-- YAML
-added: v0.1.90
--->
-
-* `port` {number}
-* `hostname` {string}
-* `backlog` {number}
-* `callback` {Function}
-
-Begin accepting connections on the specified `port` and `hostname`. If the
-`hostname` is omitted, the server will accept connections on the
-[unspecified IPv6 address][] (`::`) when IPv6 is available, or the
-[unspecified IPv4 address][] (`0.0.0.0`) otherwise.
-
-*Note*: In most operating systems, listening to the
-[unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
-the [unspecified IPv4 address][] (`0.0.0.0`).
-
-Omit the port argument, or use a port value of `0`, to have the operating system
-assign a random port, which can be retrieved by using `server.address().port`
-after the `'listening'` event has been emitted.
-
-To listen to a unix socket, supply a filename instead of port and hostname.
-
-`backlog` is the maximum length of the queue of pending connections.
-The actual length will be determined by the OS through sysctl settings such as
-`tcp_max_syn_backlog` and `somaxconn` on linux. The default value of this
-parameter is 511 (not 512).
-
-This function is asynchronous. `callback` will be added as a listener for the
-[`'listening'`][] event.  See also [`net.Server.listen(port)`][].
-
-*Note*: The `server.listen()` method can be called again if and only if there was an error
-during the first `server.listen()` call or `server.close()` has been called.
-Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
+Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.listening
 <!-- YAML
@@ -1963,6 +1887,7 @@ const req = http.request(options, (res) => {
 [`net.Server.listen(path)`]: net.html#net_server_listen_path_backlog_callback
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_host_backlog_callback
 [`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`removeHeader(name)`]: #http_request_removeheader_name
