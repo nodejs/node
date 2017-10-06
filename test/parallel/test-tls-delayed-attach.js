@@ -24,17 +24,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 const net = require('net');
 
 const sent = 'hello world';
 let received = '';
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readSync('/keys/agent1-key.pem'),
+  cert: fixtures.readSync('/keys/agent1-cert.pem')
 };
 
 const server = net.createServer(function(c) {
