@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
@@ -10,7 +11,7 @@ const path = require('path');
 
 // piping should work as expected with createWriteStream
 
-const loc = path.join(common.fixturesDir, 'person.jpg');
+const loc = path.join(fixtures.fixturesDir, 'person.jpg');
 const fn = path.join(common.tmpDir, 'http2pipe.jpg');
 common.refreshTmpDir();
 
