@@ -139,7 +139,8 @@ if (cluster.isMaster) {
       printProgress();
       outFn('\r\n');
     }
-    if (code === 0) process.exit(failures ? 1 : 0);
+    if (code === 0)
+      process.exit(failures ? 1 : 0);
   });
 
   for (i = 0; i < numCPUs; ++i)
