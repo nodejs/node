@@ -28,8 +28,8 @@ const assert = require('assert');
 const tls = require('tls');
 const fs = require('fs');
 
-const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
-const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
+const key = fs.readFileSync(`${common.fixtures}/keys/agent1-key.pem`);
+const cert = fs.readFileSync(`${common.fixtures}/keys/agent1-cert.pem`);
 
 tls.createServer({ key: key, cert: cert }, common.mustCall(function(conn) {
   conn.end();
