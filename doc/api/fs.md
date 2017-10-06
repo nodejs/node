@@ -279,8 +279,7 @@ added: v0.1.93
 added: v0.1.93
 -->
 
-Emitted when the `ReadStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
+Emitted when the `ReadStream`'s underlying file descriptor has been closed.
 
 ### Event: 'open'
 <!-- YAML
@@ -398,8 +397,7 @@ added: v0.1.93
 added: v0.1.93
 -->
 
-Emitted when the `WriteStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
+Emitted when the `WriteStream`'s underlying file descriptor has been closed.
 
 ### Event: 'open'
 <!-- YAML
