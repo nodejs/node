@@ -42,7 +42,7 @@ assert.throws(() => {
 
 // Throws if the source does not exist.
 assert.throws(() => {
-  fs.copyFileSync(src + '__does_not_exist', dest, COPYFILE_EXCL);
+  fs.copyFileSync(`${src}__does_not_exist`, dest, COPYFILE_EXCL);
 }, /^Error: ENOENT: no such file or directory, copyfile/);
 
 // Copies asynchronously.
