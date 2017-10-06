@@ -23,9 +23,10 @@
 // We've experienced a regression where the module loader stats a bunch of
 // directories on require() even if it's been called before. The require()
 // should caching the request.
-const common = require('../common');
+require('../common');
 const fs = require('fs');
 const assert = require('assert');
+const { fixturesDir } = require('../common/fixtures');
 
 let counter = 0;
 
@@ -46,7 +47,7 @@ fs.stat = function() {
 };
 
 // Load the module 'a' and 'http' once. It should become cached.
-require(`${common.fixturesDir}/a`);
+require(`${fixturesDir}/a`);
 require('../fixtures/a.js');
 require('./../fixtures/a.js');
 require('http');
@@ -57,7 +58,7 @@ const counterBefore = counter;
 // Now load the module a bunch of times with equivalent paths.
 // stat should not be called.
 for (let i = 0; i < 100; i++) {
-  require(`${common.fixturesDir}/a`);
+  require(`${fixturesDir}/a`);
   require('../fixtures/a.js');
   require('./../fixtures/a.js');
 }
