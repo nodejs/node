@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 common.skipIfInspectorDisabled();
 
@@ -7,7 +8,7 @@ const assert = require('assert');
 const { NodeInstance } = require('./inspector-helper.js');
 const path = require('path');
 
-const script = path.join(common.fixturesDir, 'throws_error.js');
+const script = fixtures.path('throws_error.js');
 
 async function testBreakpointOnStart(session) {
   console.log('[test]',
