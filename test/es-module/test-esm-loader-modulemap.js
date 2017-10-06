@@ -11,4 +11,18 @@ const moduleMap = new ModuleMap();
 
 assert.throws(() => {
   moduleMap.get(1);
+}, 'TypeError [ERR_INVALID_ARG_TYPE]: The "url" argument must be of type string');
+
+assert.doesNotThrow(() => {
+  moduleMap.get('somestring');
 });
+
+assert.throws(() => {
+  moduleMap.has(1);
+}, 'TypeError [ERR_INVALID_ARG_TYPE]: The "url" argument must be of type string');
+
+assert.doesNotThrow(() => {
+  moduleMap.has('somestring');
+});
+
+
