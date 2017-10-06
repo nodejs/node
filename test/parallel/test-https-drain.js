@@ -21,6 +21,8 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -30,8 +32,8 @@ const fs = require('fs');
 const path = require('path');
 
 const options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+  key: fs.readFileSync(path.join(fixtures.fixturesDir, 'test_key.pem')),
+  cert: fs.readFileSync(path.join(fixtures.fixturesDir, 'test_cert.pem'))
 };
 
 const bufSize = 1024 * 1024;
