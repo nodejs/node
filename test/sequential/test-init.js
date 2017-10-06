@@ -49,7 +49,7 @@ function test(file, expected) {
 
 {
   // test-init-index is in fixtures dir as requested by ry, so go there
-  process.chdir(common.fixturesDir);
+  process.chdir(fixtures.path());
   test('test-init-index', 'Loaded successfully!');
 }
 
