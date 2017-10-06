@@ -5,8 +5,9 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 const path = require('path');
+const fixtures = require('../common/fixtures')
 
-const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 
 const server = http2.createServer(common.mustCall((request, response) => {
   response.stream.respondWithFile(fname);
