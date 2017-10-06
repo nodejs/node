@@ -1,6 +1,7 @@
 // Flags: --expose_internals
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 const binding = process.binding('util');
@@ -32,7 +33,7 @@ function checkStack(stack) {
 }
 let err;
 const badSyntaxPath =
-    path.join(common.fixturesDir, 'syntax', 'bad_syntax')
+    path.join(fixtures.fixturesDir, 'syntax', 'bad_syntax')
         .replace(/\\/g, '\\\\');
 
 try {
