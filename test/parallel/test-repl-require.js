@@ -1,10 +1,11 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const net = require('net');
 
-process.chdir(common.fixturesDir);
+process.chdir(fixtures.fixturesDir);
 const repl = require('repl');
 
 const server = net.createServer((conn) => {
