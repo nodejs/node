@@ -10,5 +10,4 @@ const buffer = new ArrayBuffer(128);
 const template = Reflect.construct(DataView, [buffer]);
 
 const theDataview = test_dataview.CreateDataView(template);
-assert.ok(theDataview instanceof DataView,
-          'The new variable should be of type Dataview');
+assert.ok(theDataview instanceof DataView);
