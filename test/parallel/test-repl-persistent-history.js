@@ -71,7 +71,7 @@ const oldHistoryObj = '\nError: The old history file data has to be an Array' +
                       '.\nREPL session history will not be persisted.\n';
 const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
                              'and location as the new one i.e., ' +
-                             path.join(common.tmpDir, '.node_repl_history') +
+                             `${path.join(common.tmpDir, '.node_repl_history')}` +
                              ' and is empty.\nUsing it as is.\n';
 // File paths
 const fixtures = common.fixturesDir;
