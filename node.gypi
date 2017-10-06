@@ -82,6 +82,7 @@
       'sources': [
         'src/inspector_agent.cc',
         'src/inspector_io.cc',
+        'src/inspector_js_api.cc',
         'src/inspector_socket.cc',
         'src/inspector_socket_server.cc',
         'src/inspector_agent.h',
