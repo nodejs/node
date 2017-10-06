@@ -1597,7 +1597,7 @@ void URL::Parse(const char* input,
                    ch == '#' ||
                    special_back_slash) {
           if (buffer.size() > 0) {
-            int port = 0;
+            unsigned port = 0;
             for (size_t i = 0; i < buffer.size(); i++) {
               port = port * 10 + buffer[i] - '0';
               // prevent integer overflow
@@ -1614,7 +1614,8 @@ void URL::Parse(const char* input,
                 url->flags |= URL_FLAGS_FAILED;
               return;
             }
-            url->port = NormalizePort(url->scheme, port);
+            // the port is valid
+            url->port = NormalizePort(url->scheme, static_cast<int>(port));
             buffer.clear();
           } else if (has_state_override) {
             // TODO(TimothyGu): Similar case as above.
