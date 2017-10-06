@@ -5,9 +5,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const h2 = require('http2');
-const path = require('path');
 const url = require('url');
 const URL = url.URL;
 
@@ -51,8 +50,8 @@ const URL = url.URL;
 {
 
   const options = {
-    key: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-key.pem')),
-    cert: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-cert.pem'))
+    key: fixtures.readKey('agent3-key.pem'),
+    cert: fixtures.readKey('agent3-cert.pem')
   };
 
   const server = h2.createSecureServer(options);
