@@ -1,9 +1,10 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const warnmod = require.resolve(`${common.fixturesDir}/warnings.js`);
+const warnmod = require.resolve(fixtures.path('warnings.js'));
 const node = process.execPath;
 
 const normal = [warnmod];
