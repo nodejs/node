@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -33,7 +34,7 @@ const fs = require('fs');
 const path = require('path');
 
 function file(fname) {
-  return path.resolve(common.fixturesDir, 'keys', fname);
+  return path.resolve(fixtures.fixturesDir, 'keys', fname);
 }
 
 function read(fname) {
