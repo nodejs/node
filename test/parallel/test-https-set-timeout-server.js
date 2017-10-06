@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -34,8 +35,8 @@ const tls = require('tls');
 const tests = [];
 
 const serverOptions = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fs.readFileSync(`${fixtures.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${fixtures.fixturesDir}/keys/agent1-cert.pem`)
 };
 
 function test(fn) {
