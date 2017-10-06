@@ -123,6 +123,7 @@
       'lib/internal/tls.js',
       'lib/internal/url.js',
       'lib/internal/util.js',
+      'lib/internal/util/comparisons.js',
       'lib/internal/util/types.js',
       'lib/internal/http2/core.js',
       'lib/internal/http2/compat.js',
