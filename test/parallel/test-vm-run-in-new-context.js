@@ -33,7 +33,7 @@ common.globalCheck = false;
 
 // Run a string
 const result = vm.runInNewContext('\'passed\';');
-assert.strictEqual('passed', result);
+assert.strictEqual(result, 'passed');
 
 // Thrown error
 assert.throws(() => {
@@ -42,7 +42,7 @@ assert.throws(() => {
 
 global.hello = 5;
 vm.runInNewContext('hello = 2');
-assert.strictEqual(5, global.hello);
+assert.strictEqual(global.hello, 5);
 
 
 // Pass values in and out
@@ -54,9 +54,9 @@ global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
 const baz = vm.runInNewContext(global.code, global.obj);
 /* eslint-enable no-unused-vars */
-assert.strictEqual(1, global.obj.foo);
-assert.strictEqual(2, global.obj.bar);
-assert.strictEqual(2, global.foo);
+assert.strictEqual(global.obj.foo, 1);
+assert.strictEqual(global.obj.bar, 2);
+assert.strictEqual(global.foo, 2);
 
 // Call a function by reference
 function changeFoo() { global.foo = 100; }
