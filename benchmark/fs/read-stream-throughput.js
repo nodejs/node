@@ -5,19 +5,20 @@ const path = require('path');
 const common = require('../common.js');
 const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
 const fs = require('fs');
-const filesize = 1000 * 1024 * 1024;
 const assert = require('assert');
 
-var type, encoding, size;
+let type, encoding, size, filesize;
 
 const bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
+  filesize: [1000 * 1024 * 1024],
   size: [1024, 4096, 65535, 1024 * 1024]
 });
 
 function main(conf) {
   type = conf.type;
   size = +conf.size;
+  filesize = conf.filesize;
 
   switch (type) {
     case 'buf':
