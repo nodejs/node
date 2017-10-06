@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
 #include <sys/sysctl.h>
 #endif
 
@@ -47,8 +47,8 @@ static int send_cb_called;
 static int recv_cb_called;
 static int close_cb_called;
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-static int can_ipv6_ipv4_dual() {
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+static int can_ipv6_ipv4_dual(void) {
   int v6only;
   size_t size = sizeof(int);
 
@@ -171,7 +171,7 @@ TEST_IMPL(udp_dual_stack) {
   if (!can_ipv6())
     RETURN_SKIP("IPv6 not supported");
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
   if (!can_ipv6_ipv4_dual())
     RETURN_SKIP("IPv6-IPv4 dual stack not supported");
 #endif

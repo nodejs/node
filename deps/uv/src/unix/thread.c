@@ -145,36 +145,55 @@ int pthread_barrier_destroy(pthread_barrier_t* barrier) {
 #endif
 
 
-int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
-  int err;
-  pthread_attr_t* attr;
-#if defined(__APPLE__)
-  pthread_attr_t attr_storage;
+/* On MacOS, threads other than the main thread are created with a reduced
+ * stack size by default.  Adjust to RLIMIT_STACK aligned to the page size.
+ *
+ * On Linux, threads created by musl have a much smaller stack than threads
+ * created by glibc (80 vs. 2048 or 4096 kB.)  Follow glibc for consistency.
+ */
+static size_t thread_stack_size(void) {
+#if defined(__APPLE__) || defined(__linux__)
   struct rlimit lim;
-#endif
 
-  /* On OSX threads other than the main thread are created with a reduced stack
-   * size by default, adjust it to RLIMIT_STACK.
-   */
-#if defined(__APPLE__)
   if (getrlimit(RLIMIT_STACK, &lim))
-    abort();
-
-  attr = &attr_storage;
-  if (pthread_attr_init(attr))
     abort();
 
   if (lim.rlim_cur != RLIM_INFINITY) {
     /* pthread_attr_setstacksize() expects page-aligned values. */
     lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
-
     if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-      if (pthread_attr_setstacksize(attr, lim.rlim_cur))
-        abort();
+      return lim.rlim_cur;
   }
-#else
-  attr = NULL;
 #endif
+
+#if !defined(__linux__)
+  return 0;
+#elif defined(__PPC__) || defined(__ppc__) || defined(__powerpc__)
+  return 4 << 20;  /* glibc default. */
+#else
+  return 2 << 20;  /* glibc default. */
+#endif
+}
+
+
+int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
+  int err;
+  size_t stack_size;
+  pthread_attr_t* attr;
+  pthread_attr_t attr_storage;
+
+  attr = NULL;
+  stack_size = thread_stack_size();
+
+  if (stack_size > 0) {
+    attr = &attr_storage;
+
+    if (pthread_attr_init(attr))
+      abort();
+
+    if (pthread_attr_setstacksize(attr, stack_size))
+      abort();
+  }
 
   err = pthread_create(tid, attr, (void*(*)(void*)) entry, arg);
 
@@ -219,6 +238,25 @@ int uv_mutex_init(uv_mutex_t* mutex) {
 
   return -err;
 #endif
+}
+
+
+int uv_mutex_init_recursive(uv_mutex_t* mutex) {
+  pthread_mutexattr_t attr;
+  int err;
+
+  if (pthread_mutexattr_init(&attr))
+    abort();
+
+  if (pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE))
+    abort();
+
+  err = pthread_mutex_init(mutex, &attr);
+
+  if (pthread_mutexattr_destroy(&attr))
+    abort();
+
+  return -err;
 }
 
 
@@ -385,7 +423,6 @@ int uv_sem_trywait(uv_sem_t* sem) {
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
   uv_sem_t semid;
-  struct sembuf buf;
   int err;
   union {
     int val;

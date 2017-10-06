@@ -65,5 +65,6 @@ int scandir(const char* maindir, struct dirent*** namelist,
             int (*compar)(const struct dirent **,
             const struct dirent **));
 char *mkdtemp(char* path);
+ssize_t os390_readlink(const char* path, char* buf, size_t len);
 
 #endif /* UV_OS390_SYSCALL_H_ */

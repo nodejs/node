@@ -757,7 +757,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   uv_interface_address_t* address;
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
-  int i;
 
   if (getifaddrs(&addrs))
     return -errno;
