@@ -7,8 +7,9 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const tls = require('tls');
+const fixtures = require('../common/fixtures');
 const fork = require('child_process').fork;
+const tls = require('tls');
 
 if (process.env.CHILD) {
   // This will try to load the extra CA certs, and emit a warning when it fails.
@@ -17,7 +18,7 @@ if (process.env.CHILD) {
 
 const env = Object.assign({}, process.env, {
   CHILD: 'yes',
-  NODE_EXTRA_CA_CERTS: `${common.fixturesDir}/no-such-file-exists`,
+  NODE_EXTRA_CA_CERTS: `${fixtures.fixturesDir}/no-such-file-exists`,
 });
 
 const opts = {
