@@ -282,6 +282,20 @@ assert.strictEqual(
   'Request path contains unescaped characters'
 );
 
+// Test ERR_DNS_SET_SERVERS_FAILED
+assert.strictEqual(
+  errors.message('ERR_DNS_SET_SERVERS_FAILED', ['err', 'servers']),
+  'c-ares failed to set servers: "err" [servers]');
+
+// Test ERR_ENCODING_NOT_SUPPORTED
+assert.strictEqual(
+  errors.message('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
+  'The "enc" encoding is not supported');
+
+// Test ERR_HTTP2_HEADER_REQUIRED
+assert.strictEqual(
+  errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
+  'The test header is required');
 
 // Test error messages for async_hooks
 assert.strictEqual(
