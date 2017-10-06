@@ -23,6 +23,19 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
+### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
+- `callback` {Function}
+
+See [`server.close()`][`http.close()`] from the HTTP module for details.
+
+### server.listen()
+
+Starts the HTTPS server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
@@ -89,30 +102,6 @@ https.createServer(options, (req, res) => {
   res.end('hello world\n');
 }).listen(8000);
 ```
-
-### server.close([callback])
-<!-- YAML
-added: v0.1.90
--->
-- `callback` {Function}
-
-See [`http.close()`][] for details.
-
-### server.listen(handle[, callback])
-- `handle` {Object}
-- `callback` {Function}
-
-### server.listen(path[, callback])
-- `path` {string}
-- `callback` {Function}
-
-### server.listen([port][, host][, backlog][, callback])
-- `port` {number}
-- `hostname` {string}
-- `backlog` {number}
-- `callback` {Function}
-
-See [`http.listen()`][] for details.
 
 ## https.get(options[, callback])
 <!-- YAML
@@ -272,6 +261,8 @@ const req = https.request(options, (res) => {
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
+[`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
