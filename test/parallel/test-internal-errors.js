@@ -236,6 +236,15 @@ assert.throws(
     message: /^At least one arg needs to be specified$/
   }));
 
+// Test ERR_ENCODING_NOT_SUPPORTED
+assert.strictEqual(
+  errors.message('ERR_ENCODING_NOT_SUPPORTED', ['enc']),
+  'The "enc" encoding is not supported');
+
+// Test ERR_HTTP2_HEADER_REQUIRED
+assert.strictEqual(
+  errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
+  'The test header is required');
 
 // Test that `code` property is mutable and that changing it does not change the
 // name.
