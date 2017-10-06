@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
@@ -38,7 +38,7 @@ if (cluster.isWorker) {
   };
 
   const totalWorkers = 2;
-  let settings;
+  let onlineWorkers = 0;
 
   // Setup master
   cluster.setupMaster({
@@ -49,7 +49,7 @@ if (cluster.isWorker) {
   cluster.once('setup', function() {
     checks.setupEvent = true;
 
-    settings = cluster.settings;
+    const settings = cluster.settings;
     if (settings &&
         settings.args && settings.args[0] === 'custom argument' &&
         settings.silent === true &&
@@ -58,19 +58,25 @@ if (cluster.isWorker) {
     }
   });
 
-  let correctInput = 0;
+  let correctIn = 0;
 
-  cluster.on('online', common.mustCall(function listener(worker) {
+  cluster.on('online', function lisenter(worker) {
+
+    onlineWorkers++;
 
     worker.once('message', function(data) {
-      correctInput += (data === 'custom argument' ? 1 : 0);
-      if (correctInput === totalWorkers) {
+      correctIn += (data === 'custom argument' ? 1 : 0);
+      if (correctIn === totalWorkers) {
         checks.args = true;
       }
       worker.kill();
     });
 
-  }, totalWorkers));
+    // All workers are online
+    if (onlineWorkers === totalWorkers) {
+      checks.workers = true;
+    }
+  });
 
   // Start all workers
   cluster.fork();
@@ -78,14 +84,11 @@ if (cluster.isWorker) {
 
   // Check all values
   process.once('exit', function() {
-    const argsMsg = `The arguments was not send for one or more worker.
-                       There was  ${correctInput} worker that receive argument,
-                       ${totalWorkers} were expected`;
-    assert.ok(checks.args, argsMsg);
+    assert.ok(checks.workers, 'Not all workers went online');
+    assert.ok(checks.args, 'The arguments was noy send to the worker');
     assert.ok(checks.setupEvent, 'The setup event was never emitted');
-    const settingObjectMsg = `The settingsObject do not have correct properties :
-                              ${JSON.stringify(settings)}`;
-    assert.ok(checks.settingsObject, settingObjectMsg);
+    const m = 'The settingsObject do not have correct properties';
+    assert.ok(checks.settingsObject, m);
   });
 
 }
