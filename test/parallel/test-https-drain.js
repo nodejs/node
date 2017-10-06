@@ -29,11 +29,10 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
-const path = require('path');
 
 const options = {
-  key: fs.readFileSync(path.join(fixtures.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(fixtures.fixturesDir, 'test_cert.pem'))
+  key: fs.readFileSync(fixtures.path('test_key.pem')),
+  cert: fs.readFileSync(fixtures.path('test_cert.pem'))
 };
 
 const bufSize = 1024 * 1024;
