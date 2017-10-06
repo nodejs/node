@@ -3,6 +3,7 @@
 // Flags: --expose-internals
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
@@ -91,6 +92,23 @@ const sameHistoryFilePaths = '\nThe old repl history file has the same name ' +
                              'and location as the new one i.e., ' +
                              `${defaultHistoryPath}` +
                              ' and is empty.\nUsing it as is.\n';
+// File paths
+const fixturesDir = fixtures.fixturesDir;
+const historyFixturePath = path.join(fixturesDir, '.node_repl_history');
+const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
+const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
+const oldHistoryPathObj = path.join(fixturesDir,
+                                    'old-repl-history-file-obj.json');
+const oldHistoryPathFaulty = path.join(fixturesDir,
+                                       'old-repl-history-file-faulty.json');
+const oldHistoryPath = path.join(fixturesDir, 'old-repl-history-file.json');
+const enoentHistoryPath = path.join(fixturesDir, 'enoent-repl-history-file.json');
+const emptyHistoryPath = path.join(fixturesDir, '.empty-repl-history-file');
+const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
+const emptyHiddenHistoryPath = path.join(fixturesDir,
+                                         '.empty-hidden-repl-history-file');
+const devNullHistoryPath = path.join(common.tmpDir,
+                                     '.dev-null-repl-history-file');
 
 const tests = [
   {
