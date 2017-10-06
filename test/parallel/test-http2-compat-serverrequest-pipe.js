@@ -11,7 +11,7 @@ const path = require('path');
 
 // piping should work as expected with createWriteStream
 
-const loc = path.join(fixtures.fixturesDir, 'person.jpg');
+const loc = fixtures.path('person.jpg');
 const fn = path.join(common.tmpDir, 'http2pipe.jpg');
 common.refreshTmpDir();
 
