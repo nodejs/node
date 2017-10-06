@@ -59,13 +59,13 @@ def read_config():
         jinja_dir = arg_options.jinja_dir
         if not jinja_dir:
             raise Exception("jinja directory must be specified")
-        output_base = arg_options.output_base
+        output_base = arg_options.output_base.decode('utf-8')
         if not output_base:
             raise Exception("Base output directory must be specified")
         config_file = arg_options.config
         if not config_file:
             raise Exception("Config file name must be specified")
-        config_base = os.path.dirname(config_file)
+        config_base = os.path.dirname(config_file).decode('utf-8')
         config_values = arg_options.config_value
         if not config_values:
             config_values = []
