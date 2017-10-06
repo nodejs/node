@@ -6,14 +6,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
-const tls = require('tls');
+const fixtures = require('../common/fixtures');
 const h2 = require('http2');
+const tls = require('tls');
 
 function loadKey(keyname) {
-  return fs.readFileSync(
-    path.join(common.fixturesDir, 'keys', keyname), 'binary');
+  return fixtures.readKey(keyname, 'binary');
 }
 
 function onStream(stream, headers) {
