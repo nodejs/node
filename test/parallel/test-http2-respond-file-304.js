@@ -3,16 +3,16 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const fixtures = require('../common/fixtures');
 const http2 = require('http2');
 const assert = require('assert');
-const path = require('path');
 
 const {
   HTTP2_HEADER_CONTENT_TYPE,
   HTTP2_HEADER_STATUS
 } = http2.constants;
 
-const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
