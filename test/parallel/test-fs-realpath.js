@@ -21,6 +21,8 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -133,7 +135,7 @@ function test_simple_absolute_symlink(callback) {
   console.log('using type=%s', type);
 
   const entry = `${tmpAbsDir}/symlink`;
-  const expected = `${common.fixturesDir}/nested-index/one`;
+  const expected = fixtures.path('nested-index', 'one');
   [
     [entry, expected]
   ].forEach(function(t) {
@@ -156,7 +158,7 @@ function test_deep_relative_file_symlink(callback) {
     return runNextTest();
   }
 
-  const expected = path.join(common.fixturesDir, 'cycles', 'root.js');
+  const expected = fixtures.path('cycles', 'root.js');
   const linkData1 = path
                       .relative(path.join(targetsAbsDir, 'nested-index', 'one'),
                                 expected);
@@ -185,7 +187,7 @@ function test_deep_relative_dir_symlink(callback) {
     common.printSkipMessage('symlink test (no privs)');
     return runNextTest();
   }
-  const expected = path.join(common.fixturesDir, 'cycles', 'folder');
+  const expected = fixtures.path('cycles', 'folder');
   const path1b = path.join(targetsAbsDir, 'nested-index', 'one');
   const linkPath1b = path.join(path1b, 'symlink1-dir');
   const linkData1b = path.relative(path1b, expected);
