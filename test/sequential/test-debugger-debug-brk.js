@@ -1,8 +1,12 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-const fixtures = require('../common/fixtures');
+
+// This test ensures that the debug-brk flag will spin up a new process and
+// wait, rather than exit.
+
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const spawn = require('child_process').spawn;
 
 // file name here doesn't actually matter since
