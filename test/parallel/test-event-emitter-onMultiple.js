@@ -9,16 +9,24 @@ const myEE = new EventEmitter();
 
 async function main() {
 
-    // Input
-    const inputArray = ["a", "b", Symbol('symbol')];
-    const emptyFunction = function() {};
+    let ok = 0;
 
-    // Test
-    await myEE.onMultiple(inputArray, emptyFunction);
-    const outputArray = await myEE.eventNames();
-    
-    // Assert
-    await assert.deepStrictEqual(inputArray, outputArray, "The listener did not get binded to multiple events");
+    const input = {
+        "event1" : [function() { ok++; }],
+        "event2" : [
+            function() { ok++; },
+            function() { ok++; }
+        ]
+    }
+
+    await myEE.onMultiple(input);
+
+    await myEE.emit("event1");
+    await myEE.emit("event2");
+    await myEE.emit("event3");
+
+    assert.deepStrictEqual(ok, 3, "Some handlers were not executed");
+
 }
 
 main()
