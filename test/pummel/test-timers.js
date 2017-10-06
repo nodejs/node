@@ -66,35 +66,39 @@ setInterval(function() {
 
 
 // Single param:
+let stpOne = 'test param';
 setTimeout(function(param) {
-  assert.strictEqual('test param', param);
-}, 1000, 'test param');
+  assert.strictEqual(stpOne, param, `setTimeout: passing single argument param differs, passed "${stpOne}" , got "${param}"`);
+}, 1000, stpOne);
 
 let interval_count2 = 0;
+let sipOne = 'test param';
 setInterval(function(param) {
   ++interval_count2;
-  assert.strictEqual('test param', param);
+  assert.strictEqual(sipOne, param, `setInterval: passing single argument param differs, passed "${sipOne}" , got "${param}" at iteration ${interval_count2 - 1}`);
 
   if (interval_count2 === 3)
     clearInterval(this);
-}, 1000, 'test param');
+}, 1000, sipOne);
 
 
 // Multiple param
+let stpmOne = 'param1', stpmTwo = 'param2';
 setTimeout(function(param1, param2) {
-  assert.strictEqual('param1', param1);
-  assert.strictEqual('param2', param2);
-}, 1000, 'param1', 'param2');
+  assert.strictEqual(stpmOne, param1, `setInterval: passing two argument first parameter differs, passed "${stpmOne}", got "${param1}"`);
+  assert.strictEqual(stpmTwo, param2, `setInterval: passing two argument second parameter differs, passed "${stpmTwo}", got "${param2}"`);
+}, 1000, stpmOne, stpmTwo);
 
 let interval_count3 = 0;
+let sipmOne = 'param1', sipmTwo = 'param2';
 setInterval(function(param1, param2) {
   ++interval_count3;
-  assert.strictEqual('param1', param1);
-  assert.strictEqual('param2', param2);
+  assert.strictEqual(sipmOne, param1, `setInterval: passing two argument first parameter differs, passed "${sipmOne}", got "${param1}" at iteration ${interval_count3 - 1}`);
+  assert.strictEqual(sipmTwo, param2, `setInterval: passing two argument second parameter differs, passed "${sipmTwo}", got "${param2}" at iteration ${interval_count3 - 1}`);
 
   if (interval_count3 === 3)
     clearInterval(this);
-}, 1000, 'param1', 'param2');
+}, 1000, sipmOne, sipmTwo);
 
 // setInterval(cb, 0) should be called multiple times.
 let count4 = 0;
