@@ -19,21 +19,32 @@ const moduleJob = new ModuleJob(loader, stubModule.module);
 
 assert.throws(() => {
   moduleMap.get(1);
-}, 'TypeError [ERR_INVALID_ARG_TYPE]: The "url" argument must be of type string');
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "url" argument must be of type string/);
 
 assert.doesNotThrow(() => {
   moduleMap.get('somestring');
 });
 
 assert.throws(() => {
+  moduleMap.set(1, moduleJob);
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "url" argument must be of type string/);
+
+assert.doesNotThrow(() => {
+  moduleMap.set('somestring', moduleJob);
+});
+
+assert.throws(() => {
+  moduleMap.set('somestring', 'notamodulejob');
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "job" argument must be of type ModuleJob/);
+
+assert.doesNotThrow(() => {
+  moduleMap.set('somestring', moduleJob);
+});
+
+assert.throws(() => {
   moduleMap.has(1);
-}, 'TypeError [ERR_INVALID_ARG_TYPE]: The "url" argument must be of type string');
+}, /TypeError \[ERR_INVALID_ARG_TYPE\]: The "url" argument must be of type string/);
 
 assert.doesNotThrow(() => {
   moduleMap.has('somestring');
 });
-
-assert.throws(() => {
-  moduleMap.set(1, moduleJob);
-}, 'TypeError [ERR_INVALID_ARG_TYPE]: The "url" argument must be of type string');
-
