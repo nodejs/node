@@ -24,11 +24,9 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const exec = require('child_process').exec;
-const path = require('path');
 
 function errExec(script, callback) {
-  const cmd = `"${process.argv[0]}" ` +
-    `"${path.join(fixtures.fixturesDir, script)}"`;
+  const cmd = `"${process.argv[0]}" "${fixtures.path(script)}"`;
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);
