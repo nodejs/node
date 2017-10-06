@@ -53,17 +53,17 @@ if (process.argv[2] === 'pipe') {
   child.stdout.pipe(process.stdout, {end: false});
 
   let childSending = false;
-  let childReciveing = false;
+  let childReceiving = false;
   child.on('message', function(message) {
     if (childSending === false) {
       childSending = (message === 'message from child');
     }
 
-    if (childReciveing === false) {
-      childReciveing = (message === 'got message from master');
+    if (childReceiving === false) {
+      childReceiving = (message === 'got message from master');
     }
 
-    if (childReciveing === true) {
+    if (childReceiving === true) {
       child.kill();
     }
   });
@@ -81,6 +81,6 @@ if (process.argv[2] === 'pipe') {
 
     // Check message system
     assert.ok(childSending);
-    assert.ok(childReciveing);
+    assert.ok(childReceiving);
   });
 }
