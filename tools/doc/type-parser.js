@@ -22,8 +22,10 @@ const jsGlobalTypes = [
   'AsyncFunction', 'SharedArrayBuffer'
 ];
 const typeMap = {
-  'Iterable': `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
-  'Iterator': `${jsDocPrefix}Reference/Iteration_protocols#The_iterator_protocol`,
+  'Iterable':
+    `${jsDocPrefix}Reference/Iteration_protocols#The_iterable_protocol`,
+  'Iterator':
+    `${jsDocPrefix}Reference/Iteration_protocols#The_iterator_protocol`,
 
   'Buffer': 'buffer.html#buffer_class_buffer',
 
@@ -85,7 +87,8 @@ module.exports = {
         }
 
         if (typeUrl) {
-          typeLinks.push(`<a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
+          typeLinks.push(`
+            <a href="${typeUrl}" class="type">&lt;${typeTextFull}&gt;</a>`);
         } else {
           typeLinks.push(`<span class="type">&lt;${typeTextFull}&gt;</span>`);
         }
