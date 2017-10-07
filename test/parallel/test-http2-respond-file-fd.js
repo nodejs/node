@@ -6,7 +6,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const {
