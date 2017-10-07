@@ -83,7 +83,7 @@ the [HTML structured clone algorithm][]. In particular, it may contain circular
 references and objects like typed arrays that the `JSON` API is not able
 to stringify.
 
-`transferList` may be a list of `ArrayBuffer` objects.
+`transferList` may be a list of `ArrayBuffer` and `MessagePort` objects.
 After transferring, they will not be usable on the sending side of the channel
 anymore (even if they are not contained in `value`).
 
