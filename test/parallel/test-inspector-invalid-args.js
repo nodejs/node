@@ -6,9 +6,8 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const path = require('path');
 
-const mainScript = path.join(fixtures.fixturesDir, 'loop.js');
+const mainScript = fixtures.path('loop.js');
 const expected =
   '`node --debug` and `node --debug-brk` are invalid. ' +
   'Please use `node --inspect` or `node --inspect-brk` instead.';
