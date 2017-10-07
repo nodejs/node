@@ -14,7 +14,6 @@ const {
 } = http2.constants;
 
 const fname = fixtures.path('elipses.txt');
-
 const data = fs.readFileSync(fname);
 const stat = fs.statSync(fname);
 const fd = fs.openSync(fname, 'r');
