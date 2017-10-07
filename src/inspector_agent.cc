@@ -596,18 +596,22 @@ class NodeInspectorClient : public V8InspectorClient {
   // Async stack traces instrumentation.
   void AsyncTaskScheduled(const StringView& task_name, void* task,
                           bool recurring) {
+    if (!task) return;
     client_->asyncTaskScheduled(task_name, task, recurring);
   }
 
   void AsyncTaskCanceled(void* task) {
+    if (!task) return;
     client_->asyncTaskCanceled(task);
   }
 
   void AsyncTaskStarted(void* task) {
+    if (!task) return;
     client_->asyncTaskStarted(task);
   }
 
   void AsyncTaskFinished(void* task) {
+    if (!task) return;
     client_->asyncTaskFinished(task);
   }
 
