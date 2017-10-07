@@ -124,14 +124,44 @@ server.listen(0, common.mustCall(function() {
     response.sendDate = false;
     assert.strictEqual(response.sendDate, false);
 
-    assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
-
     response.on('finish', common.mustCall(function() {
-      assert.strictEqual(response.code, h2.constants.NGHTTP2_NO_ERROR);
       assert.strictEqual(response.headersSent, true);
+
+      common.expectsError(
+        () => response.setHeader(real, expectedValue),
+        {
+          code: 'ERR_HTTP2_HEADERS_SENT',
+          type: Error,
+          message: 'Response has already been initiated.'
+        }
+      );
+      common.expectsError(
+        () => response.removeHeader(real, expectedValue),
+        {
+          code: 'ERR_HTTP2_HEADERS_SENT',
+          type: Error,
+          message: 'Response has already been initiated.'
+        }
+      );
+
       process.nextTick(() => {
-        // can access headersSent after stream is undefined
-        assert.strictEqual(response.stream, undefined);
+        common.expectsError(
+          () => response.setHeader(real, expectedValue),
+          {
+            code: 'ERR_HTTP2_HEADERS_SENT',
+            type: Error,
+            message: 'Response has already been initiated.'
+          }
+        );
+        common.expectsError(
+          () => response.removeHeader(real, expectedValue),
+          {
+            code: 'ERR_HTTP2_HEADERS_SENT',
+            type: Error,
+            message: 'Response has already been initiated.'
+          }
+        );
+
         assert.strictEqual(response.headersSent, true);
         server.close();
       });
