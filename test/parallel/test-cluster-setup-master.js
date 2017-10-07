@@ -79,12 +79,12 @@ if (cluster.isWorker) {
   // Check all values
   process.once('exit', function() {
     const argsMsg = `The arguments was not send for one or more worker.
-                       There was  ${correctInput} worker that receive argument,
-                       ${totalWorkers} were expected`;
+                       There was  ${correctInput} worker that receive
+                       argument, ${totalWorkers} were expected`;
     assert.ok(checks.args, argsMsg);
     assert.ok(checks.setupEvent, 'The setup event was never emitted');
-    const settingObjectMsg = `The settingsObject do not have correct properties :
-                              ${JSON.stringify(settings)}`;
+    const settingObjectMsg = `The settingsObject do not have correct
+                              properties : ${JSON.stringify(settings)}`;
     assert.ok(checks.settingsObject, settingObjectMsg);
   });
 
