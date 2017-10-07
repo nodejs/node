@@ -19,6 +19,7 @@ namespace node {
 #define ERRORS_WITH_CODE(V)                                                  \
   V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
   V(ERR_BUFFER_TOO_LARGE, Error)                                             \
+  V(ERR_CANNOT_TRANSFER_OBJECT, TypeError)                                   \
   V(ERR_CLOSED_MESSAGE_PORT, Error)                                          \
   V(ERR_CONSTRUCT_CALL_REQUIRED, Error)                                      \
   V(ERR_INDEX_OUT_OF_RANGE, RangeError)                                      \
@@ -27,6 +28,7 @@ namespace node {
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                  \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
   V(ERR_MISSING_ARGS, TypeError)                                             \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
   V(ERR_MISSING_MODULE, Error)                                               \
   V(ERR_STRING_TOO_LONG, Error)                                              \
 
@@ -51,11 +53,14 @@ namespace node {
 // Errors with predefined static messages
 
 #define PREDEFINED_ERROR_MESSAGES(V)                                         \
+  V(ERR_CANNOT_TRANSFER_OBJECT, "Cannot transfer object of unsupported type")\
   V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")       \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
   V(ERR_INDEX_OUT_OF_RANGE, "Index out of range")                            \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
-  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")
+  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
+    "MessagePort was found in message but not listed in transferList")
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \

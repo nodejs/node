@@ -629,6 +629,12 @@ An operation outside the bounds of a `Buffer` was attempted.
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
 
+<a id="ERR_CANNOT_TRANSFER_OBJECT"></a>
+### ERR_CANNOT_TRANSFER_OBJECT
+
+The value passed to `postMessage()` contained an object that is not supported
+for transferring.
+
 <a id="ERR_CANNOT_WATCH_SIGINT"></a>
 ### ERR_CANNOT_WATCH_SIGINT
 
@@ -1303,6 +1309,12 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` but not `func()`). In most native Node.js APIs,
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
+### ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
+
+A `MessagePort` was found in the object passed to a `postMessage()` call,
+but not provided in the `transferList` for that call.
 
 <a id="ERR_MISSING_MODULE"></a>
 ### ERR_MISSING_MODULE
