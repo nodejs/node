@@ -17,7 +17,7 @@ const {
   NGHTTP2_INTERNAL_ERROR
 } = http2.constants;
 
-const errCheck = common.expectsError({ code: 'ERR_HTTP2_STREAM_ERROR' }, 8);
+const errCheck = common.expectsError({ code: 'ERR_HTTP2_STREAM_ERROR' }, 6);
 
 function checkRstCode(rstMethod, expectRstCode) {
   const server = http2.createServer();
@@ -32,8 +32,11 @@ function checkRstCode(rstMethod, expectRstCode) {
     else
       stream[rstMethod]();
 
-    if (expectRstCode > NGHTTP2_NO_ERROR) {
+    if (expectRstCode !== NGHTTP2_NO_ERROR &&
+        expectRstCode !== NGHTTP2_CANCEL) {
       stream.on('error', common.mustCall(errCheck));
+    } else {
+      stream.on('error', common.mustNotCall());
     }
   });
 
@@ -58,8 +61,11 @@ function checkRstCode(rstMethod, expectRstCode) {
     req.on('aborted', common.mustCall());
     req.on('end', common.mustCall());
 
-    if (expectRstCode > NGHTTP2_NO_ERROR) {
+    if (expectRstCode !== NGHTTP2_NO_ERROR &&
+        expectRstCode !== NGHTTP2_CANCEL) {
       req.on('error', common.mustCall(errCheck));
+    } else {
+      req.on('error', common.mustNotCall());
     }
 
   }));
