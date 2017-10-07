@@ -27,7 +27,7 @@ const path = require('path');
 const fs = require('fs');
 
 // test creating and reading symbolic link
-const linkData = path.join(fixtures.fixturesDir, 'cycles/');
+const linkData = fixtures.path('cycles/');
 const linkPath = path.join(common.tmpDir, 'cycles_link');
 
 common.refreshTmpDir();
