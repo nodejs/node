@@ -3,9 +3,8 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { fixturesDir } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 const http2 = require('http2');
-const path = require('path');
 const fs = require('fs');
 
 const {
@@ -30,7 +29,7 @@ const types = {
   symbol: Symbol('test')
 };
 
-const fname = path.resolve(fixturesDir, 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 const fd = fs.openSync(fname, 'r');
 
 const server = http2.createServer();
