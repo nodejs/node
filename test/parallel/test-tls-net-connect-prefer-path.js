@@ -29,8 +29,9 @@ function mkServer(lib, tcp, cb) {
   const args = [handler];
   if (lib === tls) {
     args.unshift({
-      cert: fs.readFileSync(fixtures.path('test_cert.pem')),
-      key: fs.readFileSync(fixtures.path('test_key.pem'))
+      cert: fixtures.readSync('test_cert.pem'),
+      key: fixtures.readSync('test_key.pem')
+
     });
   }
   const server = lib.createServer(...args);
