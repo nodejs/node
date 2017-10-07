@@ -6,7 +6,6 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const { NodeInstance } = require('./inspector-helper.js');
-const path = require('path');
 
 const script = fixtures.path('throws_error.js');
 
