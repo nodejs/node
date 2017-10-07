@@ -37,9 +37,14 @@ class Message {
                             v8::Local<v8::Value> input,
                             v8::Local<v8::Value> transfer_list);
 
+  // Internal method of Message that is called once serialization finishes
+  // and that transfers ownership of `data` to this message.
+  void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
+
  private:
   MallocedBuffer<char> main_message_buf_;
   std::vector<MallocedBuffer<char>> array_buffer_contents_;
+  std::vector<std::unique_ptr<MessagePortData>> message_ports_;
 
   friend class MessagePort;
 };
