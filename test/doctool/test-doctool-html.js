@@ -124,10 +124,10 @@ testData.forEach((item) => {
           // an analytics id is provided. Should not be present by default
           if (includeAnalytics) {
             assert(actual.includes(scriptDomain),
-                   'Google Analytics script was not present, but it should be');
+                   `Google Analytics script was not present in "${actual}"`);
           } else {
             assert.strictEqual(actual.includes(scriptDomain), false,
-                               'Google Analytics script was present, but it should not be');
+                               `Google Analytics script was present in "${actual}"`);
           }
         }));
     }));
