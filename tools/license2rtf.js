@@ -256,7 +256,8 @@ function RtfGenerator() {
     if (!lic)
       rtf += '\\b';
     if (li)
-      rtf += ` ${li}\\tab ${lines.map(rtfEscape).join('\\line ')}`;
+      rtf += ` ${li}\\tab`;
+    rtf +=  ` ${lines.map(rtfEscape).join('\\line ')}`;
     if (!lic)
       rtf += '\\b0';
     rtf += '\\par\n';
