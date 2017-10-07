@@ -4,12 +4,10 @@ const common = require('../../common');
 const test_promise = require(`./build/${common.buildType}/test_promise`);
 const assert = require('assert');
 
-let promise;
-
 // A resolution
 {
-  let expected_result = 42;
-  promise = test_promise.createPromise();
+  const expected_result = 42;
+  const promise = test_promise.createPromise();
   promise.then(
     common.mustCall(function(result) {
       assert.strictEqual(result, expected_result,
@@ -21,8 +19,8 @@ let promise;
 
 // A rejection
 {
-  let expected_result = 'It\'s not you, it\'s me.';
-  promise = test_promise.createPromise();
+  const expected_result = 'It\'s not you, it\'s me.';
+  const promise = test_promise.createPromise();
   promise.then(
     common.mustNotCall(),
     common.mustCall(function(result) {
@@ -33,7 +31,7 @@ let promise;
 }
 
 // Chaining
-promise = test_promise.createPromise();
+const promise = test_promise.createPromise();
 promise.then(
   common.mustCall(function(result) {
     assert.strictEqual(result, 'chained answer',
