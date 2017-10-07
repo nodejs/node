@@ -43,15 +43,9 @@ promise.then(
 test_promise.concludeCurrentPromise(Promise.resolve('chained answer'), true);
 
 assert.strictEqual(test_promise.isPromise(promise), true);
-
 assert.strictEqual(test_promise.isPromise(Promise.reject(-1)), true);
-
 assert.strictEqual(test_promise.isPromise(2.4), false);
-
 assert.strictEqual(test_promise.isPromise('I promise!'), false);
-
 assert.strictEqual(test_promise.isPromise(undefined), false);
-
 assert.strictEqual(test_promise.isPromise(null), false);
-
 assert.strictEqual(test_promise.isPromise({}), false);
