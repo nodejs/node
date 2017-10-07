@@ -50,16 +50,16 @@ assert.throws(() => {
 
 // Issue GH-1140:
 // Test runInContext signature
-let gh1140Exception;
+let gh1140Exp;
 try {
   vm.runInContext('throw new Error()', context, 'expected-filename.js');
 } catch (e) {
-  gh1140Exception = e;
+  gh1140Exp = e;
   assert.ok(/expected-filename/.test(e.stack),
-            'expected appearance of filename in Error stack');
+            `expected appearance of filename in Error stack: ${e.stack}`);
 }
-assert.ok(gh1140Exception,
-          'expected exception from runInContext signature test');
+assert.ok(gh1140Exp,
+          `expected exception from runInContext signature test: ${gh1140Exp}`);
 
 // GH-558, non-context argument segfaults / raises assertion
 const nonContextualSandboxErrorMsg =
@@ -92,6 +92,7 @@ assert.strictEqual(script.runInContext(ctx), false);
 
 // Error on the first line of a module should
 // have the correct line and column number
+let assertErrStack = null;
 assert.throws(() => {
   vm.runInContext('throw new Error()', context, {
     filename: 'expected-filename.js',
@@ -99,8 +100,9 @@ assert.throws(() => {
     columnOffset: 123
   });
 }, (err) => {
+  assertErrStack = err.stack;
   return /expected-filename\.js:33:130/.test(err.stack);
-}, 'Expected appearance of proper offset in Error stack');
+}, `expected appearance of proper offset in Error stack: ${assertErrStack}`);
 
 // https://github.com/nodejs/node/issues/6158
 ctx = new Proxy({}, {});
