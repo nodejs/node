@@ -1,0 +1,111 @@
+# C++ style guide
+
+Unfortunately, the C++ linter (which can be run explicitly
+via `make cpplint`) does not currently catch a lot of rules that are specific
+to the Node.js C++ code base. This document explains the most common of these
+rules:
+
+## Left-leaning (C++ style) asterisks for pointer declarations
+
+`char* buffer;` instead of `char *buffer;`
+
+## 2 spaces of indentation for blocks or bodies of conditionals
+
+```c++
+if (foo)
+  bar();
+```
+
+or
+
+```c++
+if (foo) {
+  bar();
+  baz();
+}
+```
+
+(Braces are optional if the statement body only has one line.)
+
+## 4 spaces of indentation for statement continuations
+
+```c++
+VeryLongTypeName very_long_result = SomeValueWithAVeryLongName +
+    SomeOtherValueWithAVeryLongName;
+```
+
+## Align function arguments vertically
+
+```c++
+void FunctionWithAVeryLongName(int parameter_with_a_very_long_name,
+                               double other_parameter_with_a_very_long_name,
+                               ...);
+```
+
+If that doesn’t work, break after the `(` and use 4 spaces of indentation:
+
+```c++
+void FunctionWithAReallyReallyReallyLongNameSeriouslyStopIt(
+    int okay_there_is_no_space_left_in_the_previous_line,
+    ...);
+```
+
+## CamelCase for methods, functions and classes
+
+```c++
+class FooBar {
+ public:
+  void DoSomething();
+  static void DoSomethingButItsStaticInstead();
+};
+```
+
+## snake_case for local variables and parameters
+
+```c++
+int FunctionThatDoesSomething(const char* important_string) {
+  const char* pointer_into_string = important_string;
+}
+```
+
+## snake_case_ for private class fields
+
+```c++
+class Foo {
+ private:
+  int counter_ = 0;
+};
+```
+
+## Space after `template`
+
+```c++
+template <typename T>
+class FancyContainer {
+ ...
+}
+```
+
+## Type casting
+
+- Always avoid C-style casts (`(type)value`)
+- `dynamic_cast` does not work because RTTI is not enabled
+- Use `static_cast` for casting whenever it works
+- `reinterpret_cast` is okay if `static_cast` is not appropriate
+
+## Memory allocation
+
+- `Malloc()`, `Calloc()`, etc. from `util.h` abort in Out-of-Memory situations
+- `UncheckedMalloc()`, etc. return `nullptr` in OOM situations
+
+## `nullptr` instead of `NULL` or `0`
+
+What it says in the title.
+
+## Avoid throwing errors in nested C++ methods
+
+If you need to throw errors from a C++ binding method, try to do it at the
+top level and not inside of nested calls.
+
+A lot of code inside Node.js is written so that typechecking etc. is performed
+in JavaScript.
