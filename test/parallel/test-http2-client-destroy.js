@@ -71,19 +71,40 @@ const h2 = require('http2');
   );
 }
 
-// test destroy before connect
+// test destroy before client operations
 {
   const server = h2.createServer();
   server.listen(
     0,
     common.mustCall(() => {
       const client = h2.connect(`http://localhost:${server.address().port}`);
-
-      const req = client.request({ ':path': '/' });
+      const req = client.request();
       client.destroy();
 
       req.on('response', common.mustNotCall());
       req.resume();
+
+      const sessionError = {
+        type: Error,
+        code: 'ERR_HTTP2_INVALID_SESSION',
+        message: 'The session has been destroyed'
+      };
+
+      common.expectsError(() => client.request(), sessionError);
+      common.expectsError(() => client.settings({}), sessionError);
+      common.expectsError(() => client.priority(req, {}), sessionError);
+      common.expectsError(() => client.shutdown(), sessionError);
+
+      // Wait for setImmediate call from destroy() to complete
+      // so that state.destroyed is set to true
+      setImmediate(() => {
+        common.expectsError(() => client.request(), sessionError);
+        common.expectsError(() => client.settings({}), sessionError);
+        common.expectsError(() => client.priority(req, {}), sessionError);
+        common.expectsError(() => client.shutdown(), sessionError);
+        common.expectsError(() => client.rstStream(req), sessionError);
+      });
+
       req.on(
         'end',
         common.mustCall(() => {
@@ -91,28 +112,6 @@ const h2 = require('http2');
         })
       );
       req.end();
-    })
-  );
-}
-
-// test destroy before request
-{
-  const server = h2.createServer();
-  server.listen(
-    0,
-    common.mustCall(() => {
-      const client = h2.connect(`http://localhost:${server.address().port}`);
-      client.destroy();
-
-      assert.throws(
-        () => client.request({ ':path': '/' }),
-        common.expectsError({
-          code: 'ERR_HTTP2_INVALID_SESSION',
-          message: 'The session has been destroyed'
-        })
-      );
-
-      server.close();
     })
   );
 }
