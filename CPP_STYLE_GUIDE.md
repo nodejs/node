@@ -67,7 +67,7 @@ class FooBar {
 };
 ```
 
-## snake_case for local variables and parameters
+## snake\_case for local variables and parameters
 
 ```c++
 int FunctionThatDoesSomething(const char* important_string) {
@@ -75,7 +75,7 @@ int FunctionThatDoesSomething(const char* important_string) {
 }
 ```
 
-## snake_case_ for private class fields
+## snake\_case\_ for private class fields
 
 ```c++
 class Foo {
@@ -114,7 +114,7 @@ What it says in the title.
 If you need to throw JavaScript errors from a C++ binding method, try to do it
 at the top level and not inside of nested calls.
 
-(Using C++ `throw` is not allowed.)
-
 A lot of code inside Node.js is written so that typechecking etc. is performed
 in JavaScript.
+
+(Using C++ `throw` is not allowed.)
