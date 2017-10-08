@@ -112,8 +112,8 @@ function launchChildProcess() {
                         worker.pid, count);
 
           assert.strictEqual(count, messages.length,
-                             `A worker received an invalid multicast message:
-                             Recieved ${messages.length}, should be ${count}`);
+                             'A worker received an invalid multicast message' +
+                             `Recieved ${messages.length}, should be ${count}`);
         });
 
         clearTimeout(timer);
