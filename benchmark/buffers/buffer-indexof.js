@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common.js');
-var fs = require('fs');
+const common = require('../common.js');
+const fs = require('fs');
 const path = require('path');
 
 const searchStrings = [
@@ -21,7 +21,7 @@ const searchStrings = [
   '</i> to the Caterpillar'
 ];
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   search: searchStrings,
   encoding: ['undefined', 'utf8', 'ucs2', 'binary'],
   type: ['buffer', 'string'],
@@ -29,7 +29,7 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var iter = (conf.iter) * 100000;
+  const iter = (conf.iter) * 100000;
   var aliceBuffer = fs.readFileSync(
     path.resolve(__dirname, '../fixtures/alice.html')
   );

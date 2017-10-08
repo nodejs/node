@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_buffer.h"
 #include "ares.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
@@ -34,6 +35,7 @@
 #include "uv.h"
 #include "v8.h"
 #include "node.h"
+#include "node_http2_state.h"
 
 #include <list>
 #include <map>
@@ -46,8 +48,12 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
-namespace http2 {
-struct http2_state;
+namespace performance {
+struct performance_state;
+}
+
+namespace loader {
+class ModuleWrap;
 }
 
 // Pick an index that's hopefully out of the way when we're embedded inside
@@ -83,11 +89,11 @@ struct http2_state;
   V(arrow_message_private_symbol, "node:arrowMessage")                        \
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
-  V(inspector_delegate_private_symbol, "node:inspector:delegate")             \
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
   V(processed_private_symbol, "node:processed")                               \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
+  V(domain_private_symbol, "node:domain")                                     \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
@@ -114,7 +120,6 @@ struct http2_state;
   V(dest_string, "dest")                                                      \
   V(destroy_string, "destroy")                                                \
   V(detached_string, "detached")                                              \
-  V(disposed_string, "_disposed")                                             \
   V(dns_a_string, "A")                                                        \
   V(dns_aaaa_string, "AAAA")                                                  \
   V(dns_cname_string, "CNAME")                                                \
@@ -219,6 +224,7 @@ struct http2_state;
   V(onstreamclose_string, "onstreamclose")                                    \
   V(ontrailers_string, "ontrailers")                                          \
   V(onwrite_string, "onwrite")                                                \
+  V(openssl_error_stack, "opensslErrorStack")                                 \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
@@ -294,6 +300,7 @@ struct http2_state;
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                \
   V(async_hooks_after_function, v8::Function)                                 \
+  V(async_hooks_promise_resolve_function, v8::Function)                       \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
@@ -326,7 +333,7 @@ class Environment;
 
 struct node_async_ids {
   double async_id;
-  double trigger_id;
+  double trigger_async_id;
 };
 
 class IsolateData {
@@ -376,64 +383,48 @@ class Environment {
       kBefore,
       kAfter,
       kDestroy,
+      kPromiseResolve,
       kTotals,
       kFieldsCount,
     };
 
     enum UidFields {
-      kCurrentAsyncId,
-      kCurrentTriggerId,
-      kAsyncUidCntr,
-      kInitTriggerId,
+      kExecutionAsyncId,
+      kTriggerAsyncId,
+      kAsyncIdCounter,
+      kInitTriggerAsyncId,
       kUidFieldsCount,
     };
 
     AsyncHooks() = delete;
 
-    inline uint32_t* fields();
+    inline AliasedBuffer<uint32_t, v8::Uint32Array>& fields();
     inline int fields_count() const;
-    inline double* uid_fields();
-    inline int uid_fields_count() const;
+
+    inline AliasedBuffer<double, v8::Float64Array>& async_id_fields();
+    inline int async_id_fields_count() const;
+
     inline v8::Local<v8::String> provider_string(int idx);
 
-    inline void push_ids(double async_id, double trigger_id);
-    inline bool pop_ids(double async_id);
+    inline void push_async_ids(double async_id, double trigger_async_id);
+    inline bool pop_async_id(double async_id);
     inline size_t stack_size();
-    inline void clear_id_stack();  // Used in fatal exceptions.
+    inline void clear_async_id_stack();  // Used in fatal exceptions.
 
-    // Used to propagate the trigger_id to the constructor of any newly created
-    // resources using RAII. Instead of needing to pass the trigger_id along
-    // with other constructor arguments.
+    // Used to propagate the trigger_async_id to the constructor of any newly
+    // created resources using RAII. Instead of needing to pass the
+    // trigger_async_id along with other constructor arguments.
     class InitScope {
      public:
       InitScope() = delete;
-      explicit InitScope(Environment* env, double init_trigger_id);
+      explicit InitScope(Environment* env, double init_trigger_async_id);
       ~InitScope();
 
      private:
       Environment* env_;
-      double* uid_fields_ref_;
+      AliasedBuffer<double, v8::Float64Array> async_id_fields_ref_;
 
       DISALLOW_COPY_AND_ASSIGN(InitScope);
-    };
-
-    // Used to manage the stack of async and trigger ids as calls are made into
-    // JS. Mainly used in MakeCallback().
-    class ExecScope {
-     public:
-      ExecScope() = delete;
-      explicit ExecScope(Environment* env, double async_id, double trigger_id);
-      ~ExecScope();
-      void Dispose();
-
-     private:
-      Environment* env_;
-      double async_id_;
-      // Manually track if the destructor has run so it isn't accidentally run
-      // twice on RAII cleanup.
-      bool disposed_;
-
-      DISALLOW_COPY_AND_ASSIGN(ExecScope);
     };
 
    private:
@@ -444,12 +435,12 @@ class Environment {
     // Used by provider_string().
     v8::Isolate* isolate_;
     // Stores the ids of the current execution context stack.
-    std::stack<struct node_async_ids> ids_stack_;
+    std::stack<struct node_async_ids> async_ids_stack_;
     // Attached to a Uint32Array that tracks the number of active hooks for
     // each type.
-    uint32_t fields_[kFieldsCount];
+    AliasedBuffer<uint32_t, v8::Uint32Array> fields_;
     // Attached to a Float64Array that tracks the state of async resources.
-    double uid_fields_[kUidFieldsCount];
+    AliasedBuffer<double, v8::Float64Array> async_id_fields_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -459,7 +450,7 @@ class Environment {
     AsyncCallbackScope() = delete;
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
-    inline bool in_makecallback();
+    inline bool in_makecallback() const;
 
    private:
     Environment* env_;
@@ -559,10 +550,11 @@ class Environment {
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
-  static inline Environment* from_destroy_ids_timer_handle(uv_timer_t* handle);
+  static inline Environment* from_destroy_async_ids_timer_handle(
+    uv_timer_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-  inline uv_timer_t* destroy_ids_timer_handle();
+  inline uv_timer_t* destroy_async_ids_timer_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -591,13 +583,15 @@ class Environment {
 
   // The necessary API for async_hooks.
   inline double new_async_id();
-  inline double current_async_id();
-  inline double trigger_id();
-  inline double get_init_trigger_id();
-  inline void set_init_trigger_id(const double id);
+  inline double execution_async_id();
+  inline double trigger_async_id();
+  inline double get_init_trigger_async_id();
+  inline void set_init_trigger_async_id(const double id);
 
   // List of id's that have been destroyed and need the destroy() cb called.
-  inline std::vector<double>* destroy_ids_list();
+  inline std::vector<double>* destroy_async_id_list();
+
+  std::unordered_multimap<int, loader::ModuleWrap*> module_map;
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
@@ -608,22 +602,14 @@ class Environment {
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
 
-  inline http2::http2_state* http2_state_buffer() const;
-  inline void set_http2_state_buffer(http2::http2_state* buffer);
+  inline http2::http2_state* http2_state() const;
+  inline void set_http2_state(http2::http2_state * state);
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
 
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
-
-  static inline Environment* from_performance_check_handle(uv_check_t* handle);
-  static inline Environment* from_performance_idle_handle(uv_idle_t* handle);
-  static inline Environment* from_performance_prepare_handle(
-      uv_prepare_t* handle);
-  inline uv_check_t* performance_check_handle();
-  inline uv_idle_t* performance_idle_handle();
-  inline uv_prepare_t* performance_prepare_handle();
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -692,6 +678,7 @@ class Environment {
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
+  bool EmitNapiWarning();
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
@@ -701,12 +688,9 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_timer_t destroy_ids_timer_handle_;
+  uv_timer_t destroy_async_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
-  uv_prepare_t performance_prepare_handle_;
-  uv_check_t performance_check_handle_;
-  uv_idle_t performance_idle_handle_;
 
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
@@ -716,8 +700,9 @@ class Environment {
   bool printed_error_;
   bool trace_sync_io_;
   bool abort_on_uncaught_exception_;
+  bool emit_napi_warning_;
   size_t makecallback_cntr_;
-  std::vector<double> destroy_ids_list_;
+  std::vector<double> destroy_async_id_list_;
 
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;
@@ -736,7 +721,7 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
-  http2::http2_state* http2_state_buffer_ = nullptr;
+  http2::http2_state* http2_state_ = nullptr;
 
   double* fs_stats_field_array_;
 

@@ -17,6 +17,7 @@
 namespace v8 {
 
 namespace internal {
+struct CoverageBlock;
 struct CoverageFunction;
 struct CoverageScript;
 class Coverage;
@@ -215,6 +216,9 @@ V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
 
 int GetStackFrameId(v8::Local<v8::StackFrame> frame);
 
+v8::Local<v8::StackTrace> GetDetailedStackTrace(Isolate* isolate,
+                                                v8::Local<v8::Object> error);
+
 /**
  * Native wrapper around v8::internal::JSGeneratorObject object.
  */
@@ -245,10 +249,29 @@ class V8_EXPORT_PRIVATE Coverage {
     // We are only interested in a yes/no result for the function. Optimization
     // and GC can be allowed once a function has been invoked. Collecting
     // precise binary coverage resets counters for incremental updates.
-    kPreciseBinary
+    kPreciseBinary,
+    // Similar to the precise coverage modes but provides coverage at a
+    // lower granularity. Design doc: goo.gl/lA2swZ.
+    kBlockCount,
+    kBlockBinary,
   };
 
-  class ScriptData;  // Forward declaration.
+  // Forward declarations.
+  class ScriptData;
+  class FunctionData;
+
+  class V8_EXPORT_PRIVATE BlockData {
+   public:
+    int StartOffset() const;
+    int EndOffset() const;
+    uint32_t Count() const;
+
+   private:
+    explicit BlockData(i::CoverageBlock* block) : block_(block) {}
+    i::CoverageBlock* block_;
+
+    friend class v8::debug::Coverage::FunctionData;
+  };
 
   class V8_EXPORT_PRIVATE FunctionData {
    public:
@@ -256,6 +279,9 @@ class V8_EXPORT_PRIVATE Coverage {
     int EndOffset() const;
     uint32_t Count() const;
     MaybeLocal<String> Name() const;
+    size_t BlockCount() const;
+    bool HasBlockCoverage() const;
+    BlockData GetBlockData(size_t i) const;
 
    private:
     explicit FunctionData(i::CoverageFunction* function)

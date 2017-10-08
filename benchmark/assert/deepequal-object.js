@@ -37,6 +37,8 @@ function main(conf) {
   const expectedWrong = createObj(source, '4');
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'deepEqual':
       bench.start();
       for (i = 0; i < n; ++i) {

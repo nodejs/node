@@ -53,6 +53,7 @@ static TestOperator kOpC1(kOpcodeC1, Operator::kNoWrite, "opc1", 1, 0);
 static TestOperator kOpC2(kOpcodeC2, Operator::kNoWrite, "opc2", 2, 0);
 
 struct MockReducer : public Reducer {
+  MOCK_CONST_METHOD0(reducer_name, const char*());
   MOCK_METHOD1(Reduce, Reduction(Node*));
 };
 
@@ -60,6 +61,7 @@ struct MockReducer : public Reducer {
 // Replaces all "A" operators with "B" operators without creating new nodes.
 class InPlaceABReducer final : public Reducer {
  public:
+  const char* reducer_name() const override { return "InPlaceABReducer"; }
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
@@ -84,6 +86,8 @@ class InPlaceABReducer final : public Reducer {
 class NewABReducer final : public Reducer {
  public:
   explicit NewABReducer(Graph* graph) : graph_(graph) {}
+
+  const char* reducer_name() const override { return "NewABReducer"; }
 
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
@@ -111,6 +115,8 @@ class A0Wrapper final : public Reducer {
  public:
   explicit A0Wrapper(Graph* graph) : graph_(graph) {}
 
+  const char* reducer_name() const override { return "A0Wrapper"; }
+
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA0:
@@ -130,6 +136,8 @@ class B0Wrapper final : public Reducer {
  public:
   explicit B0Wrapper(Graph* graph) : graph_(graph) {}
 
+  const char* reducer_name() const override { return "B0Wrapper"; }
+
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
@@ -147,6 +155,7 @@ class B0Wrapper final : public Reducer {
 // Replaces all "kOpA1" nodes with the first input.
 class A1Forwarder final : public Reducer {
  public:
+  const char* reducer_name() const override { return "A1Forwarder"; }
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA1:
@@ -161,6 +170,7 @@ class A1Forwarder final : public Reducer {
 // Replaces all "kOpB1" nodes with the first input.
 class B1Forwarder final : public Reducer {
  public:
+  const char* reducer_name() const override { return "B1Forwarder"; }
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB1:
@@ -175,6 +185,7 @@ class B1Forwarder final : public Reducer {
 // Replaces all "B" operators with "C" operators without creating new nodes.
 class InPlaceBCReducer final : public Reducer {
  public:
+  const char* reducer_name() const override { return "InPlaceBCReducer"; }
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeB0:
@@ -198,6 +209,7 @@ class InPlaceBCReducer final : public Reducer {
 // Swaps the inputs to "kOp2A" and "kOp2B" nodes based on ids.
 class AB2Sorter final : public Reducer {
  public:
+  const char* reducer_name() const override { return "AB2Sorter"; }
   Reduction Reduce(Node* node) final {
     switch (node->op()->opcode()) {
       case kOpcodeA2:
@@ -233,6 +245,7 @@ class AdvancedReducerTest : public TestWithZone {
 TEST_F(AdvancedReducerTest, Replace) {
   struct DummyReducer final : public AdvancedReducer {
     explicit DummyReducer(Editor* editor) : AdvancedReducer(editor) {}
+    const char* reducer_name() const override { return "DummyReducer"; }
     Reduction Reduce(Node* node) final {
       Replace(node, node);
       return NoChange();
@@ -252,6 +265,7 @@ TEST_F(AdvancedReducerTest, Replace) {
 TEST_F(AdvancedReducerTest, Revisit) {
   struct DummyReducer final : public AdvancedReducer {
     explicit DummyReducer(Editor* editor) : AdvancedReducer(editor) {}
+    const char* reducer_name() const override { return "DummyReducer"; }
     Reduction Reduce(Node* node) final {
       Revisit(node);
       return NoChange();
@@ -272,6 +286,9 @@ namespace {
 
 struct ReplaceWithValueReducer final : public AdvancedReducer {
   explicit ReplaceWithValueReducer(Editor* editor) : AdvancedReducer(editor) {}
+  const char* reducer_name() const override {
+    return "ReplaceWithValueReducer";
+  }
   Reduction Reduce(Node* node) final { return NoChange(); }
   using AdvancedReducer::ReplaceWithValue;
 };

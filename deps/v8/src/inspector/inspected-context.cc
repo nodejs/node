@@ -56,8 +56,7 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_contextGroupId(info.contextGroupId),
       m_origin(toString16(info.origin)),
       m_humanReadableName(toString16(info.humanReadableName)),
-      m_auxData(toString16(info.auxData)),
-      m_reported(false) {
+      m_auxData(toString16(info.auxData)) {
   v8::debug::SetContextId(info.context, contextId);
   m_weakCallbackData =
       new WeakCallbackData(this, m_inspector, m_contextGroupId, m_contextId);
@@ -95,15 +94,34 @@ v8::Isolate* InspectedContext::isolate() const {
   return m_inspector->isolate();
 }
 
-bool InspectedContext::createInjectedScript() {
-  DCHECK(!m_injectedScript);
-  std::unique_ptr<InjectedScript> injectedScript = InjectedScript::create(this);
+bool InspectedContext::isReported(int sessionId) const {
+  return m_reportedSessionIds.find(sessionId) != m_reportedSessionIds.cend();
+}
+
+void InspectedContext::setReported(int sessionId, bool reported) {
+  if (reported)
+    m_reportedSessionIds.insert(sessionId);
+  else
+    m_reportedSessionIds.erase(sessionId);
+}
+
+InjectedScript* InspectedContext::getInjectedScript(int sessionId) {
+  auto it = m_injectedScripts.find(sessionId);
+  return it == m_injectedScripts.end() ? nullptr : it->second.get();
+}
+
+bool InspectedContext::createInjectedScript(int sessionId) {
+  DCHECK(m_injectedScripts.find(sessionId) == m_injectedScripts.end());
+  std::unique_ptr<InjectedScript> injectedScript =
+      InjectedScript::create(this, sessionId);
   // InjectedScript::create can destroy |this|.
   if (!injectedScript) return false;
-  m_injectedScript = std::move(injectedScript);
+  m_injectedScripts[sessionId] = std::move(injectedScript);
   return true;
 }
 
-void InspectedContext::discardInjectedScript() { m_injectedScript.reset(); }
+void InspectedContext::discardInjectedScript(int sessionId) {
+  m_injectedScripts.erase(sessionId);
+}
 
 }  // namespace v8_inspector

@@ -1,10 +1,10 @@
 'use strict';
 
 // test HTTP throughput in fragmented header case
-var common = require('../common.js');
-var net = require('net');
+const common = require('../common.js');
+const net = require('net');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   len:  [1, 4, 8, 16, 32, 64, 128],
   n:  [5, 50, 500, 2000],
   type: ['send'],
@@ -12,10 +12,10 @@ var bench = common.createBenchmark(main, {
 
 
 function main(conf) {
-  var len = +conf.len;
-  var num = +conf.n;
+  const len = +conf.len;
+  const num = +conf.n;
   var todo = [];
-  var headers = [];
+  const headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
   // An odd number could result in a better length dispersion.
   for (var i = 7; i <= 7 * 7 * 7; i *= 7)
@@ -42,20 +42,20 @@ function main(conf) {
     todo.push('');
     todo = todo.join('\r\n');
     // Using odd numbers in many places may increase length coverage.
-    var chunksize = 37;
+    const chunksize = 37;
     for (i = 0; i < todo.length; i += chunksize) {
-      var cur = todo.slice(i, i + chunksize);
+      const cur = todo.slice(i, i + chunksize);
       channel.write(cur);
     }
   }
 
-  var min = 10;
+  const min = 10;
   var size = 0;
-  var mod = 317;
-  var mult = 17;
-  var add = 11;
+  const mod = 317;
+  const mult = 17;
+  const add = 11;
   var count = 0;
-  var PIPE = process.env.PIPE_NAME;
+  const PIPE = process.env.PIPE_NAME;
   var socket = net.connect(PIPE, function() {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);

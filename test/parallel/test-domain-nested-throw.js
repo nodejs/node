@@ -25,31 +25,19 @@ const assert = require('assert');
 
 const domain = require('domain');
 
-let dispose;
-switch (process.argv[2]) {
-  case 'true':
-    dispose = true;
-    break;
-  case 'false':
-    dispose = false;
-    break;
-  default:
-    parent();
-    return;
+if (process.argv[2] !== 'child') {
+  parent();
+  return;
 }
 
 function parent() {
   const node = process.execPath;
   const spawn = require('child_process').spawn;
   const opt = { stdio: 'inherit' };
-  let child = spawn(node, [__filename, 'true'], opt);
+  const child = spawn(node, [__filename, 'child'], opt);
   child.on('exit', function(c) {
     assert(!c);
-    child = spawn(node, [__filename, 'false'], opt);
-    child.on('exit', function(c) {
-      assert(!c);
-      console.log('ok');
-    });
+    console.log('ok');
   });
 }
 
@@ -77,7 +65,6 @@ function inner(throw1, throw2) {
       console.error('got domain 1 twice');
       process.exit(1);
     }
-    if (dispose) domain1.dispose();
     gotDomain1Error = true;
     throw2();
   });
@@ -108,7 +95,7 @@ process.on('exit', function() {
   assert(gotDomain2Error);
   assert(threw1);
   assert(threw2);
-  console.log('ok', dispose);
+  console.log('ok');
 });
 
 outer();

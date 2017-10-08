@@ -88,4 +88,4 @@ void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
   NODE_SET_METHOD(exports, "runMakeCallback", Method<true>);
 }
 
-NODE_MODULE(binding, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)

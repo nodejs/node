@@ -78,9 +78,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Node* native_context = LoadNativeContext(context);
 
   Label map_done(this, vars);
-  Node* bit_field = LoadMapBitField(receiver_map);
-  int mask = static_cast<int>(1 << Map::kIsConstructor);
-  GotoIf(IsSetWord32(bit_field, mask), &with_constructor);
+  GotoIf(IsConstructorMap(receiver_map), &with_constructor);
 
   bound_function_map.Bind(LoadContextElement(
       native_context, Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));
@@ -106,7 +104,9 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Label arguments_done(this, &argument_array);
   GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
   Node* elements_length = ChangeUint32ToWord(Int32Sub(argc, Int32Constant(1)));
-  Node* elements = AllocateFixedArray(FAST_ELEMENTS, elements_length);
+  Node* elements =
+      AllocateFixedArray(PACKED_ELEMENTS, elements_length, INTPTR_PARAMETERS,
+                         kAllowLargeObjectAllocation);
   VARIABLE(index, MachineType::PointerRepresentation());
   index.Bind(IntPtrConstant(0));
   VariableList foreach_vars({&index}, zone());
@@ -153,8 +153,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
                                  JSBoundFunction::kBoundArgumentsOffset,
                                  argument_array.value());
   Node* empty_fixed_array = EmptyFixedArrayConstant();
-  StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kPropertiesOffset,
-                                 empty_fixed_array);
+  StoreObjectFieldNoWriteBarrier(
+      bound_function, JSObject::kPropertiesOrHashOffset, empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(bound_function, JSObject::kElementsOffset,
                                  empty_fixed_array);
 

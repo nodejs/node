@@ -8,7 +8,7 @@ var inner = new Array();
 inner.a = {x:1};
 inner[0] = 1.5;
 inner.b = {x:2};
-assertTrue(%HasFastDoubleElements(inner));
+assertTrue(%HasDoubleElements(inner));
 
 function foo(o) {
   return o.field.b.x;

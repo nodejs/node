@@ -7,6 +7,10 @@ load('../base.js');
 
 load('filter.js');
 load('map.js');
+load('every.js');
+load('some.js');
+load('reduce.js');
+load('reduce-right.js');
 
 var success = true;
 

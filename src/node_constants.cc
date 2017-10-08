@@ -20,10 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_constants.h"
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 
-#include "uv.h"
 #include "zlib.h"
 
 #include <errno.h>
@@ -1090,6 +1088,11 @@ void DefineSystemConstants(Local<Object> target) {
 #ifdef O_SYNC
   NODE_DEFINE_CONSTANT(target, O_SYNC);
 #endif
+
+#ifdef O_DSYNC
+  NODE_DEFINE_CONSTANT(target, O_DSYNC);
+#endif
+
 
 #ifdef O_SYMLINK
   NODE_DEFINE_CONSTANT(target, O_SYMLINK);

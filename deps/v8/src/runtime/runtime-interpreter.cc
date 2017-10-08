@@ -15,6 +15,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
+#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {

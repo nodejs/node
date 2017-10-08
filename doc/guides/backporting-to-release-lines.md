@@ -6,7 +6,7 @@ Each release line has a staging branch that the releaser will use as a scratch
 pad while preparing a release. The branch name is formatted as follows:
 `vN.x-staging` where `N` is the major release number.
 
-*Note*: For the active staging branches see the [LTS Schedule][].
+*Note*: For the active staging branches see the [Release Schedule][].
 
 ## What needs to be backported?
 
@@ -19,7 +19,7 @@ requesting that a backport pull request be made.
 ## What can be backported?
 
 The "Current" release line is much more lenient than the LTS release lines in
-what can be landed. Our LTS release lines (see the [LTS Plan][])
+what can be landed. Our LTS release lines (see the [Release Plan][])
 require that commits mature in the Current release for at least 2 weeks before
 they can be landed in an LTS staging branch. Only after "maturation" will those
 commits be cherry-picked or backported.
@@ -44,6 +44,11 @@ cd $NODE_DIR
 git fetch upstream v6.x-staging:v6.x-staging -f
 # Assume we want to backport PR #10157
 git checkout -b backport-10157-to-v6.x v6.x-staging
+# Ensure there are no test artifacts from previous builds
+# Note that this command deletes all files and directories
+# not under revision control below the ./test directory.
+# It is optional and should be used with caution.
+git clean -xfd ./test/
 ```
 
 4. After creating the branch, apply the changes to the branch. The cherry-pick
@@ -81,6 +86,6 @@ hint: and commit the result with 'git commit'
 After the PR lands replace the `backport-requested-v6.x` label on the original
 PR with `backported-to-v6.x`.
 
-[LTS Schedule]: https://github.com/nodejs/LTS/#lts-schedule1
-[LTS Plan]: https://github.com/nodejs/LTS#lts-plan
+[Release Schedule]: https://github.com/nodejs/Release#release-schedule1
+[Release Plan]: https://github.com/nodejs/Release#release-plan
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/build

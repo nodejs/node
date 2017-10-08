@@ -46,6 +46,7 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -130,10 +131,12 @@ void UDPWrap::Initialize(Local<Object> target,
                       GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
   env->SetProtoMethod(t, "addMembership", AddMembership);
   env->SetProtoMethod(t, "dropMembership", DropMembership);
+  env->SetProtoMethod(t, "setMulticastInterface", SetMulticastInterface);
   env->SetProtoMethod(t, "setMulticastTTL", SetMulticastTTL);
   env->SetProtoMethod(t, "setMulticastLoopback", SetMulticastLoopback);
   env->SetProtoMethod(t, "setBroadcast", SetBroadcast);
   env->SetProtoMethod(t, "setTTL", SetTTL);
+  env->SetProtoMethod(t, "bufferSize", BufferSize);
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
@@ -222,6 +225,38 @@ void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsBoolean());
+  bool is_recv = args[1].As<v8::Boolean>()->Value();
+  const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
+                                       "uv_send_buffer_size";
+
+  if (!args[0]->IsInt32())
+    return env->ThrowUVException(UV_EINVAL, uv_func_name);
+
+  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
+  int size = static_cast<int>(args[0].As<Uint32>()->Value());
+  int err;
+
+  if (is_recv)
+    err = uv_recv_buffer_size(handle, &size);
+  else
+    err = uv_send_buffer_size(handle, &size);
+
+  if (err != 0)
+    return env->ThrowUVException(err, uv_func_name);
+
+  args.GetReturnValue().Set(size);
+}
+
+
 #define X(name, fn)                                                           \
   void UDPWrap::name(const FunctionCallbackInfo<Value>& args) {               \
     UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());                           \
@@ -238,6 +273,22 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 
 #undef X
 
+void UDPWrap::SetMulticastInterface(const FunctionCallbackInfo<Value>& args) {
+  UDPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  Utf8Value iface(args.GetIsolate(), args[0]);
+
+  const char* iface_cstr = *iface;
+
+  int err = uv_udp_set_multicast_interface(&wrap->handle_, iface_cstr);
+  args.GetReturnValue().Set(err);
+}
 
 void UDPWrap::SetMembership(const FunctionCallbackInfo<Value>& args,
                             uv_membership membership) {
@@ -299,7 +350,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
-  env->set_init_trigger_id(wrap->get_id());
+  env->set_init_trigger_async_id(wrap->get_async_id());
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 
@@ -447,7 +498,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
 Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope scope(env->isolate());
-  AsyncHooks::InitScope init_scope(env, parent->get_id());
+  AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   // If this assert fires then Initialize hasn't been called yet.
   CHECK_EQ(env->udp_constructor_function().IsEmpty(), false);
   Local<Object> instance = env->udp_constructor_function()

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --turbo
+// Flags: --no-stress-fullcodegen
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -107,7 +107,7 @@ function *gen1() {
 }
 
 var g = gen1();
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({}, 0, g);
@@ -120,7 +120,7 @@ function *gen2(a) {
 }
 
 g = gen2(42);
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 42}, 0, g);
@@ -134,7 +134,7 @@ function *gen3(a) {
 }
 
 g = gen3(0);
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 0, b: undefined}, 0, g);
@@ -148,11 +148,12 @@ function *gen4(a, b) {
   var x = 2;
   yield a;
   var y = 3;
+  yield a;
   return b;
 }
 
 g = gen4(0, 1);
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 0, b: 1, x: undefined, y: undefined}, 0, g);
@@ -167,12 +168,13 @@ CheckScopeContent({a: 0, b: 1, x: 2, y: 3}, 0, g);
 
 function *gen5(a) {
   eval('var b = 2');
+  yield a;
   return b;
 }
 
 g = gen5(1);
 g.next();
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 1, b: 2}, 0, g);
@@ -190,13 +192,13 @@ function *gen6() {
 g = gen6();
 g.next();
 CheckScopeChain([debug.ScopeType.With,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({}, 0, g);
 
 g.next();
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 
@@ -216,7 +218,7 @@ g = gen7();
 g.next();
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.With,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({}, 0, g);
@@ -237,7 +239,7 @@ g = gen8();
 g.next();
 CheckScopeChain([debug.ScopeType.With,
                  debug.ScopeType.With,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 2, b: 1}, 0, g);
@@ -259,7 +261,7 @@ function *gen9() {
 g = gen9();
 g.next();
 CheckScopeChain([debug.ScopeType.Catch,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({e: 42}, 0, g);
@@ -275,23 +277,23 @@ g = gen10();
 g.next();
 CheckScopeChain([debug.ScopeType.Block,
                  debug.ScopeType.Block,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
-CheckScopeContent({i: 0}, 0, g);
+CheckScopeContent({i: 0}, 1, g);
 
 g.next();
-CheckScopeContent({i: 1}, 0, g);
-CheckScopeContent({i: 0}, 1, g);  // Additional block scope with i = 0;
+CheckScopeContent({i: 1}, 1, g);
 
 // Nested generators.
 
 var gen12;
 function *gen11() {
+  var b = 2;
   gen12 = function*() {
     var a = 1;
     yield 1;
-    return 2;
+    return b;
   }();
 
   var a = 0;
@@ -301,12 +303,12 @@ function *gen11() {
 gen11().next();
 g = gen12;
 
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Closure,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 1}, 0, g);
-CheckScopeContent({a: 0}, 1, g);
+CheckScopeContent({b: 2}, 1, g);
 
 // Set a variable in an empty scope.
 
@@ -355,7 +357,7 @@ var g = gen15();
 assertEquals(1, g.next().value);
 
 CheckScopeChain([debug.ScopeType.With,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({a: 1, b: 2}, 0, g);
@@ -376,7 +378,7 @@ CheckScopeContent({a: 1, b: 2}, 0, g);
 CheckScopeContent({c: 1, d: 4, e: 42}, 1, g);
 assertEquals(5, g.next().value);  // Initialized after set.
 
-CheckScopeChain([debug.ScopeType.Closure,
+CheckScopeChain([debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 
@@ -404,15 +406,15 @@ g.next();
 
 CheckScopeChain([debug.ScopeType.Block,
                  debug.ScopeType.With,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
-CheckScopeContent({d: 4}, 0, g);
+CheckScopeContent({d: 4, e: undefined}, 0, g);
 CheckScopeContent({a: 1, b: 2}, 1, g);
 CheckScopeContent({c: 3}, 2, g);
 
 Debug.generatorScope(g, 0).setVariableValue("d", 1);
-CheckScopeContent({d: 1}, 0, g);
+CheckScopeContent({d: 1, e: undefined}, 0, g);
 
 assertEquals(1, g.next().value);
 
@@ -434,7 +436,7 @@ g = gen17();
 g.next();
 
 CheckScopeChain([debug.ScopeType.Catch,
-                 debug.ScopeType.Closure,
+                 debug.ScopeType.Local,
                  debug.ScopeType.Script,
                  debug.ScopeType.Global], g);
 CheckScopeContent({e: 42}, 0, g);

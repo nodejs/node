@@ -1,7 +1,5 @@
-#include "env.h"
-#include "env-inl.h"
+#include "node_internals.h"
 #include "async-wrap.h"
-#include "v8.h"
 #include "v8-profiler.h"
 
 #if defined(_MSC_VER)
@@ -50,7 +48,7 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  uv_timer_init(event_loop(), destroy_ids_timer_handle());
+  uv_timer_init(event_loop(), destroy_async_ids_timer_handle());
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
@@ -77,7 +75,7 @@ void Environment::Start(int argc,
       close_and_finish,
       nullptr);
   RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&destroy_ids_timer_handle_),
+      reinterpret_cast<uv_handle_t*>(&destroy_async_ids_timer_handle_),
       close_and_finish,
       nullptr);
 
@@ -213,6 +211,12 @@ bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
   }
 
   return true;
+}
+
+bool Environment::EmitNapiWarning() {
+  bool current_value = emit_napi_warning_;
+  emit_napi_warning_ = false;
+  return current_value;
 }
 
 void Environment::EnvPromiseHook(v8::PromiseHookType type,

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var path = require('path');
+const common = require('../common.js');
+const path = require('path');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   path: [
     '',
     '.',
@@ -14,9 +14,9 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var p = path.posix;
-  var input = String(conf.path);
+  const n = +conf.n;
+  const p = path.posix;
+  const input = String(conf.path);
 
   bench.start();
   for (var i = 0; i < n; i++) {

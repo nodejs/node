@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/elements-kind.h"
 #include "src/objects/map.h"
+#include "src/objects/name.h"
 #include "src/type-hints.h"
 #include "src/zone/zone-containers.h"
 
@@ -36,7 +37,6 @@ enum class FeedbackSlotKind {
   kStoreKeyedStrict,
   kBinaryOp,
   kCompareOp,
-  kToBoolean,
   kStoreDataPropertyInLiteral,
   kTypeProfile,
   kCreateClosure,
@@ -177,7 +177,7 @@ class FeedbackVectorSpecBase {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackVectorSpec)
+  DECL_PRINTER(FeedbackVectorSpec)
 
  private:
   inline FeedbackSlot AddSlot(FeedbackSlotKind kind);
@@ -275,7 +275,7 @@ class FeedbackMetadata : public FixedArray {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackMetadata)
+  DECL_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
   bool HasTypeProfileSlot() const;
@@ -324,13 +324,17 @@ class FeedbackVector : public FixedArray {
   inline int invocation_count() const;
   inline void clear_invocation_count();
 
+  inline Object* optimized_code_cell() const;
   inline Code* optimized_code() const;
+  inline OptimizationMarker optimization_marker() const;
   inline bool has_optimized_code() const;
+  inline bool has_optimization_marker() const;
   void ClearOptimizedCode();
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo* shared,
                                                  const char* reason);
   static void SetOptimizedCode(Handle<FeedbackVector> vector,
                                Handle<Code> code);
+  void SetOptimizationMarker(OptimizationMarker marker);
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) {
@@ -383,7 +387,7 @@ class FeedbackVector : public FixedArray {
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(FeedbackVector)
+  DECL_PRINTER(FeedbackVector)
 
   // Clears the vector slots.
   void ClearSlots(JSFunction* host_function);
@@ -412,7 +416,8 @@ class FeedbackVector : public FixedArray {
 // code that looks into the contents of a slot assuming to find a String,
 // a Symbol, an AllocationSite, a WeakCell, or a FixedArray.
 STATIC_ASSERT(WeakCell::kSize >= 2 * kPointerSize);
-STATIC_ASSERT(WeakCell::kValueOffset == AllocationSite::kTransitionInfoOffset);
+STATIC_ASSERT(WeakCell::kValueOffset ==
+              AllocationSite::kTransitionInfoOrBoilerplateOffset);
 STATIC_ASSERT(WeakCell::kValueOffset == FixedArray::kLengthOffset);
 STATIC_ASSERT(WeakCell::kValueOffset == Name::kHashFieldSlot);
 // Verify that an empty hash field looks like a tagged object, but can't
@@ -721,7 +726,7 @@ class CompareICNexus final : public FeedbackNexus {
   CompareOperationHint GetCompareOperationFeedback() const;
 
   int ExtractMaps(MapHandles* maps) const final {
-    // BinaryOpICs don't record map feedback.
+    // CompareICs don't record map feedback.
     return 0;
   }
   MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {

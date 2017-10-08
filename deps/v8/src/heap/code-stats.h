@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/assembler.h"
-#include "src/heap/spaces.h"
-#include "src/isolate.h"
-#include "src/objects.h"
-
 namespace v8 {
 namespace internal {
+
+class Isolate;
+class HeapObject;
+class LargeObjectSpace;
+class PagedSpace;
+class RelocIterator;
 
 class CodeStatistics {
  public:

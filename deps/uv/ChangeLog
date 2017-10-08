@@ -1,3 +1,70 @@
+2017.10.03, Version 1.15.0 (Stable), 8b69ce1419d2958011d415a636810705c36c2cc2
+
+Changes since version 1.14.1:
+
+* unix: limit uv__has_forked_with_cfrunloop to macOS (Kamil Rytarowski)
+
+* win: fix buffer size in uv__getpwuid_r() (tux.uudiin)
+
+* win,tty: improve SIGWINCH support (Bartosz Sosnowski)
+
+* unix: use fchmod() in uv_fs_copyfile() (cjihrig)
+
+* unix: support copying empty files (cjihrig)
+
+* unix: truncate destination in uv_fs_copyfile() (Nick Logan)
+
+* win,build: keep cwd when setting build environment (darobs)
+
+* test: add NetBSD support to test-udp-ipv6.c (Kamil Rytarowski)
+
+* unix: add NetBSD support in core.c (Kamil Rytarowski)
+
+* linux: increase thread stack size with musl libc (Ben Noordhuis)
+
+* netbsd: correct uv_exepath() on NetBSD (Kamil Rytarowski)
+
+* test: clean up semaphore after use (jBarz)
+
+* win,build: bump vswhere_usability_wrapper to 2.0.0 (Refael Ackermann)
+
+* win: let UV_PROCESS_WINDOWS_HIDE hide consoles (cjihrig)
+
+* zos: lock protect global epoll list in epoll_ctl (jBarz)
+
+* zos: change platform name to match python (jBarz)
+
+* android: fix getifaddrs() (Zheng, Lei)
+
+* netbsd: implement uv__tty_is_slave() (Kamil Rytarowski)
+
+* zos: fix readlink for mounts with system variables (jBarz)
+
+* test: sort the tests alphabetically (Sakthipriyan Vairamani)
+
+* windows: fix compilation warnings (Carlo Marcelo Arenas Belón)
+
+* build: avoid -fstrict-aliasing compile option (jBarz)
+
+* win: remove unused variables (Carlo Marcelo Arenas Belón)
+
+* unix: remove unused variables (Sakthipriyan Vairamani)
+
+* netbsd: disable poll_bad_fdtype on NetBSD (Kamil Rytarowski)
+
+* netbsd: use uv__cloexec and uv__nonblock (Kamil Rytarowski)
+
+* test: fix udp_multicast_join6 on NetBSD (Kamil Rytarowski)
+
+* unix,win: add uv_mutex_init_recursive() (Scott Parker)
+
+* netbsd: do not exclude IPv6 functionality (Kamil Rytarowski)
+
+* fsevents: watch files with fsevents on macos 10.7+ (Ben Noordhuis)
+
+* unix: retry on ENOBUFS in sendmsg(2) (Kamil Rytarowski)
+
+
 2017.09.07, Version 1.14.1 (Stable), b0f9fb2a07a5e638b1580fe9a42a356c3ab35f37
 
 Changes since version 1.14.0:

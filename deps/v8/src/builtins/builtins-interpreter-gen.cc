@@ -11,49 +11,34 @@ namespace internal {
 
 void Builtins::Generate_InterpreterPushArgsThenCall(MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kOther);
+      masm, ConvertReceiverMode::kAny, InterpreterPushArgsMode::kOther);
 }
 
 void Builtins::Generate_InterpreterPushArgsThenCallFunction(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
-      InterpreterPushArgsMode::kJSFunction);
+      masm, ConvertReceiverMode::kAny, InterpreterPushArgsMode::kJSFunction);
 }
 
 void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCall(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kNullOrUndefined, TailCallMode::kDisallow,
+      masm, ConvertReceiverMode::kNullOrUndefined,
       InterpreterPushArgsMode::kOther);
 }
 
 void Builtins::Generate_InterpreterPushUndefinedAndArgsThenCallFunction(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kNullOrUndefined, TailCallMode::kDisallow,
+      masm, ConvertReceiverMode::kNullOrUndefined,
       InterpreterPushArgsMode::kJSFunction);
 }
 
 void Builtins::Generate_InterpreterPushArgsThenCallWithFinalSpread(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow,
+      masm, ConvertReceiverMode::kAny,
       InterpreterPushArgsMode::kWithFinalSpread);
-}
-
-void Builtins::Generate_InterpreterPushArgsThenTailCall(MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kAllow,
-      InterpreterPushArgsMode::kOther);
-}
-
-void Builtins::Generate_InterpreterPushArgsThenTailCallFunction(
-    MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsThenCallImpl(
-      masm, ConvertReceiverMode::kAny, TailCallMode::kAllow,
-      InterpreterPushArgsMode::kJSFunction);
 }
 
 void Builtins::Generate_InterpreterPushArgsThenConstruct(MacroAssembler* masm) {

@@ -1,10 +1,10 @@
 'use strict';
 
-var assert = require('assert');
-var http = require('http');
-var fs = require('fs');
-var { fork } = require('child_process');
-var common = require('../common.js');
+const assert = require('assert');
+const http = require('http');
+const fs = require('fs');
+const { fork } = require('child_process');
+const common = require('../common.js');
 const { PIPE, tmpDir } = require('../../test/common');
 process.env.PIPE_NAME = PIPE;
 
@@ -20,7 +20,7 @@ try {
 } catch (e) { /* ignore */ }
 
 server = http.createServer(function(req, res) {
-  var headers = {
+  const headers = {
     'content-type': 'text/plain',
     'content-length': '2'
   };

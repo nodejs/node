@@ -16,7 +16,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
       : PromiseBuiltinsAssembler(state) {}
 
  protected:
-  typedef std::function<Node*(Node*)> NodeGenerator1;
+  typedef std::function<void(Node*)> ContextInitializer;
 
   // Perform steps to resume generator after `value` is resolved.
   // `on_reject_context_index` is an index into the Native Context, which should
@@ -24,7 +24,8 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   // value following the reject index should be a similar value for the resolve
   // closure. Returns the Promise-wrapped `value`.
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
-              const NodeGenerator1& create_closure_context,
+              int context_length,
+              const ContextInitializer& init_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
               bool is_predicted_as_caught);
 
@@ -33,6 +34,8 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   Node* CreateUnwrapClosure(Node* const native_context, Node* const done);
 
  private:
+  void InitializeNativeClosure(Node* context, Node* native_context,
+                               Node* function, int context_index);
   Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
                                                 Node* done);
 };

@@ -1,12 +1,11 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const {
@@ -14,7 +13,7 @@ const {
   HTTP2_HEADER_CONTENT_LENGTH
 } = http2.constants;
 
-const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 const data = fs.readFileSync(fname);
 const stat = fs.statSync(fname);
 const fd = fs.openSync(fname, 'r');

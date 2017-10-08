@@ -14,11 +14,11 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   56 S> */ B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(1),
-  /*   75 S> */ B(Return),
+  /*   74 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -36,11 +36,11 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   70 S> */ B(LdaConstant), U8(1),
                 B(DeletePropertyStrict), R(1),
-  /*   89 S> */ B(Return),
+  /*   88 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -58,11 +58,11 @@ parameter count: 1
 bytecode array length: 14
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Mov), R(1), R(0),
   /*   56 S> */ B(LdaSmi), I8(2),
                 B(DeletePropertySloppy), R(1),
-  /*   76 S> */ B(Return),
+  /*   75 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -82,7 +82,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
   /*   46 S> */ B(LdaFalse),
-  /*   63 S> */ B(Return),
+  /*   62 S> */ B(Return),
 ]
 constant pool: [
 ]
@@ -103,7 +103,7 @@ bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(1), R(1),
+  /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(1),
                 B(Ldar), R(1),
   /*   56 E> */ B(StaCurrentContextSlot), U8(4),
   /*   64 S> */ B(CreateClosure), U8(1), U8(4), U8(2),
@@ -111,7 +111,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(DeletePropertyStrict), R(1),
-  /*  113 S> */ B(Return),
+  /*  112 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
@@ -130,7 +130,7 @@ bytecode array length: 3
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaTrue),
-  /*   56 S> */ B(Return),
+  /*   55 S> */ B(Return),
 ]
 constant pool: [
 ]

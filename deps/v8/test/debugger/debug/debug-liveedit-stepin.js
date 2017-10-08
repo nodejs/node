@@ -60,15 +60,18 @@ print(JSON.stringify(log, 1));
 assertEquals([
   "debugger;",
   "results.push(BestEditor());",
-  "  return 'Emacs';","}",
+  "  return 'Emacs';",
+  "  return 'Emacs';",
   "results.push(BestEditor());",
   "results.push(BestEditor());",
   "  return 'Emacs';",
-  "  return 'Eclipse';","}",
+  "  return 'Eclipse';",
+  "  return 'Eclipse';",
   "results.push(BestEditor());",
   "results.push(BestEditor());",
   "  return 'Eclipse';",
   "  return 'Vim';",
-  "}","results.push(BestEditor());",
+  "  return 'Vim';",
+  "results.push(BestEditor());",
   "Debug.setListener(null);"
 ], log);

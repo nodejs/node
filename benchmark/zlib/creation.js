@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common.js');
-var zlib = require('zlib');
+const common = require('../common.js');
+const zlib = require('zlib');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: [
     'Deflate', 'DeflateRaw', 'Inflate', 'InflateRaw', 'Gzip', 'Gunzip', 'Unzip'
   ],
@@ -11,14 +11,14 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var n = +conf.n;
-  var fn = zlib['create' + conf.type];
+  const n = +conf.n;
+  const fn = zlib['create' + conf.type];
   if (typeof fn !== 'function')
     throw new Error('Invalid zlib type');
   var i = 0;
 
   if (conf.options === 'true') {
-    var opts = {};
+    const opts = {};
     bench.start();
     for (; i < n; ++i)
       fn(opts);

@@ -34,6 +34,39 @@ paused at:
 #var a = 42;
 
 
+Running test: testResumeAnotherGroup
+paused at:
+#var a = 42;
+
+{
+    error : {
+        code : -32000
+        message : Can only perform operation while paused.
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Can only perform operation while paused.
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Can only perform operation while paused.
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : Can only perform operation while paused.
+    }
+    id : <messageId>
+}
+
 Running test: testDisableBreaksShouldCancelPause
 paused at:
 #debugger

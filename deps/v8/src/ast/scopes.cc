@@ -54,7 +54,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   if (added) *added = p->value == nullptr;
   if (p->value == nullptr) {
@@ -69,7 +69,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
 Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
                                    VariableMode mode) {
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   if (p->value == nullptr) {
     // The variable has not been declared yet -> insert it.
@@ -82,13 +82,13 @@ Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
 
 void VariableMap::Remove(Variable* var) {
   const AstRawString* name = var->raw_name();
-  ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->hash());
+  ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
 }
 
 void VariableMap::Add(Zone* zone, Variable* var) {
   const AstRawString* name = var->raw_name();
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
@@ -96,7 +96,7 @@ void VariableMap::Add(Zone* zone, Variable* var) {
 }
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
-  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->hash());
+  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
   if (p != NULL) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
     DCHECK(p->value != NULL);
@@ -121,7 +121,7 @@ void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
                                   ZoneAllocationPolicy(zone));
   delegate->set_next(static_cast<SloppyBlockFunctionMap::Delegate*>(p->value));
   p->value = delegate;
@@ -314,6 +314,7 @@ void DeclarationScope::SetDefaults() {
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
+  produced_preparsed_scope_data_ = nullptr;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -348,6 +349,7 @@ void Scope::SetDefaults() {
 
   inner_scope_calls_eval_ = false;
   force_context_allocation_ = false;
+  force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
 
@@ -580,9 +582,10 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 
       if (factory) {
         DCHECK(!is_being_lazily_parsed_);
-        Expression* assignment = factory->NewAssignment(
+        Assignment* assignment = factory->NewAssignment(
             Token::ASSIGN, NewUnresolved(factory, name),
             delegate->scope()->NewUnresolved(factory, name), kNoSourcePosition);
+        assignment->set_lookup_hoisting_mode(LookupHoistingMode::kLegacySloppy);
         Statement* statement =
             factory->NewExpressionStatement(assignment, kNoSourcePosition);
         delegate->set_statement(statement);
@@ -663,9 +666,8 @@ void DeclarationScope::Analyze(ParseInfo* info, Isolate* isolate,
 
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK(FLAG_experimental_preparser_scope_analysis);
-    DCHECK_NOT_NULL(info->preparsed_scope_data());
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
-    info->preparsed_scope_data()->RestoreData(scope);
+    info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
   }
 
   scope->AllocateVariables(info, isolate, mode);
@@ -763,16 +765,6 @@ Variable* DeclarationScope::DeclarePromiseVar(const AstRawString* name) {
   DCHECK(is_function_scope());
   DCHECK_NULL(promise_var());
   Variable* result = EnsureRareData()->promise = NewTemporary(name);
-  result->set_is_used();
-  return result;
-}
-
-Variable* DeclarationScope::DeclareAsyncGeneratorAwaitVar(
-    const AstRawString* name) {
-  DCHECK(is_function_scope());
-  DCHECK_NULL(async_generator_await_var());
-  Variable* result = EnsureRareData()->promise = NewTemporary(name);
-  DCHECK_NULL(promise_var());  // promise is alias for generator await var
   result->set_is_used();
   return result;
 }
@@ -1022,7 +1014,9 @@ Variable* DeclarationScope::DeclareParameter(
     DCHECK_EQ(mode, VAR);
     var = Declare(zone(), name, mode);
     // TODO(wingo): Avoid O(n^2) check.
-    *is_duplicate = IsDeclaredParameter(name);
+    if (is_duplicate != nullptr) {
+      *is_duplicate = *is_duplicate || IsDeclaredParameter(name);
+    }
   }
   has_rest_ = is_rest;
   var->set_initializer_position(position);
@@ -1034,8 +1028,8 @@ Variable* DeclarationScope::DeclareParameter(
 }
 
 Variable* DeclarationScope::DeclareParameterName(
-    const AstRawString* name, bool is_rest,
-    AstValueFactory* ast_value_factory) {
+    const AstRawString* name, bool is_rest, AstValueFactory* ast_value_factory,
+    bool declare_as_local, bool add_parameter) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_ || is_rest);
@@ -1045,8 +1039,16 @@ Variable* DeclarationScope::DeclareParameterName(
     has_arguments_parameter_ = true;
   }
   if (FLAG_experimental_preparser_scope_analysis) {
-    Variable* var = Declare(zone(), name, VAR);
-    params_.Add(var, zone());
+    Variable* var;
+    if (declare_as_local) {
+      var = Declare(zone(), name, VAR);
+    } else {
+      var = new (zone())
+          Variable(this, name, TEMPORARY, NORMAL_VARIABLE, kCreatedInitialized);
+    }
+    if (add_parameter) {
+      params_.Add(var, zone());
+    }
     return var;
   }
   DeclareVariableName(name, VAR);
@@ -1138,7 +1140,7 @@ Variable* Scope::DeclareVariable(
             GetDeclarationScope()->sloppy_block_function_map();
         duplicate_allowed = map != nullptr &&
                             map->Lookup(const_cast<AstRawString*>(name),
-                                        name->hash()) != nullptr &&
+                                        name->Hash()) != nullptr &&
                             !IsAsyncFunction(function_kind) &&
                             !(allow_harmony_restrictive_generators &&
                               IsGeneratorFunction(function_kind));
@@ -1220,20 +1222,6 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   } else {
     return variables_.DeclareName(zone(), name, mode);
   }
-}
-
-VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
-                                    const AstRawString* name,
-                                    int start_position, VariableKind kind) {
-  // Note that we must not share the unresolved variables with
-  // the same name because they may be removed selectively via
-  // RemoveUnresolved().
-  DCHECK(!already_resolved_);
-  DCHECK_EQ(factory->zone(), zone());
-  VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_position);
-  proxy->set_next_unresolved(unresolved_);
-  unresolved_ = proxy;
-  return proxy;
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
@@ -1517,13 +1505,30 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   was_lazily_parsed_ = !aborted;
 }
 
-void DeclarationScope::AnalyzePartially(
-    AstNodeFactory* ast_node_factory,
-    PreParsedScopeData* preparsed_scope_data) {
+void Scope::SavePreParsedScopeData() {
+  DCHECK(FLAG_experimental_preparser_scope_analysis);
+  if (ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(this)) {
+    AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
+  }
+
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    scope->SavePreParsedScopeData();
+  }
+}
+
+void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
+  if (produced_preparsed_scope_data_ != nullptr) {
+    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    produced_preparsed_scope_data_->SaveScopeAllocationData(this);
+  }
+}
+
+void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
 
-  if (!outer_scope_->is_script_scope()) {
+  if (!outer_scope_->is_script_scope() ||
+      FLAG_experimental_preparser_scope_analysis) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -1541,13 +1546,16 @@ void DeclarationScope::AnalyzePartially(
       arguments_ = nullptr;
     }
 
-    if (FLAG_experimental_preparser_scope_analysis &&
-        preparsed_scope_data->Producing()) {
-      // Store the information needed for allocating the locals of this scope
-      // and its inner scopes.
-      preparsed_scope_data->SaveData(this);
+    // Migrate function_ to the right Zone.
+    if (function_ != nullptr) {
+      function_ = ast_node_factory->CopyVariable(function_);
+    }
+
+    if (FLAG_experimental_preparser_scope_analysis) {
+      SavePreParsedScopeData();
     }
   }
+
 #ifdef DEBUG
   if (FLAG_print_scopes) {
     PrintF("Inner function scope:\n");
@@ -1580,7 +1588,6 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case WITH_SCOPE: return "with";
   }
   UNREACHABLE();
-  return NULL;
 }
 
 void Indent(int n, const char* str) { PrintF("%*s%s", n, "", str); }
@@ -2182,7 +2189,8 @@ void DeclarationScope::AllocateParameterLocals() {
 
 void DeclarationScope::AllocateParameter(Variable* var, int index) {
   if (MustAllocate(var)) {
-    if (MustAllocateInContext(var)) {
+    if (has_forced_context_allocation_for_parameters() ||
+        MustAllocateInContext(var)) {
       DCHECK(var->IsUnallocated() || var->IsContextSlot());
       if (var->IsUnallocated()) {
         AllocateHeapSlot(var);

@@ -39,4 +39,4 @@ void init(Local<Object> exports) {
   atexit(sanity_check);
 }
 
-NODE_MODULE(binding, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)

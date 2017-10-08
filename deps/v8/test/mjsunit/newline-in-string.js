@@ -35,10 +35,14 @@ var str = 'asdf\
 ';
 assertEquals('asdf\nasdf\rasdf\tasdf\\', str);
 
-// Allow CR+LF in multiline string literals.
+// Allow escaped CR+LF in multiline string literals.
 var code = "'asdf\\" + String.fromCharCode(0xD) + String.fromCharCode(0xA) + "asdf'";
-assertEquals('asdfasdf', eval(code));
+assertEquals("asdfasdf", eval(code));
 
-// Allow LF+CR in multiline string literals.
+// Allow individually escaped LF+CR in multiline string literals.
+code = "'asdf\\" + String.fromCharCode(0xA) + "\\" + String.fromCharCode(0xD) + "asdf'";
+assertEquals("asdfasdf", eval(code));
+
+// Do not allow LF+CR in multiline string literals. (crbug.com/v8/6401)
 code = "'asdf\\" + String.fromCharCode(0xA) + String.fromCharCode(0xD) + "asdf'";
-assertEquals('asdfasdf', eval(code));
+assertThrows(code);

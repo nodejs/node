@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -17,11 +16,16 @@ server.listen(0, common.mustCall(function() {
     response.writeHead(418, { 'foo-bar': 'abc123' }); // Override
 
     common.expectsError(() => { response.writeHead(300); }, {
-      code: 'ERR_HTTP2_INFO_HEADERS_AFTER_RESPOND'
+      code: 'ERR_HTTP2_HEADERS_SENT'
     });
 
     response.on('finish', common.mustCall(function() {
       server.close();
+      process.nextTick(common.mustCall(() => {
+        common.expectsError(() => { response.writeHead(300); }, {
+          code: 'ERR_HTTP2_STREAM_CLOSED'
+        });
+      }));
     }));
     response.end();
   }));

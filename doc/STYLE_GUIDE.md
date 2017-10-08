@@ -6,8 +6,6 @@
     topic the document will describe (e.g., `child_process`).
   * Filenames should be **lowercase**.
   * Some files, such as top-level markdown files, are exceptions.
-  * Older files may use the `.markdown` extension. These may be ported to `.md`
-    at will. **Prefer `.md` for all new documents.**
 * Documents should be word-wrapped at 80 characters.
 * The formatting described in `.editorconfig` is preferred.
   * A [plugin][] is available for some editors to automatically apply these
@@ -65,8 +63,16 @@
   * Make the "Note:" label italic, i.e. `*Note*:`.
   * Use a capital letter after the "Note:" label.
   * Preferably, make the note a new paragraph for better visual distinction.
+* Function arguments or object properties should use the following format:
+  * <code>* \`name\` {type|type2} Optional description. \*\*Default:\*\* \`defaultValue\`</code>
+  * E.g. <code>* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`</code>
+  * The `type` should refer to a Node.js type or a [JavaScript type][]
+* Function returns should use the following format:
+  * <code>* Returns: {type|type2} Optional description.</code>
+  * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>
 
-[plugin]: http://editorconfig.org/#download
-[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
+[Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
+[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
 [The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
+[plugin]: http://editorconfig.org/#download

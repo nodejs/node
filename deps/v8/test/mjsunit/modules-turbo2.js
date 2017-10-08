@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --allow-natives-syntax --turbo
+// Flags: --allow-natives-syntax
 
 export let x = 0;
 

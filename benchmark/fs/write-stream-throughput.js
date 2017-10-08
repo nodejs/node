@@ -1,21 +1,21 @@
 // test the throughput of the fs.WriteStream class.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
+const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const fs = require('fs');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['buf', 'asc', 'utf'],
   size: [2, 1024, 65535, 1024 * 1024]
 });
 
 function main(conf) {
-  var dur = +conf.dur;
-  var type = conf.type;
-  var size = +conf.size;
+  const dur = +conf.dur;
+  const type = conf.type;
+  const size = +conf.size;
   var encoding;
 
   var chunk;
@@ -51,7 +51,7 @@ function main(conf) {
   f.on('close', done);
   f.on('finish', function() {
     ended = true;
-    var written = fs.statSync(filename).size / 1024;
+    const written = fs.statSync(filename).size / 1024;
     try { fs.unlinkSync(filename); } catch (e) {}
     bench.end(written / 1024);
   });

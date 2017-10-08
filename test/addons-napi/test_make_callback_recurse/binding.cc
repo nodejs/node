@@ -12,21 +12,20 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   napi_value recv = args[0];
   napi_value func = args[1];
 
-  napi_make_callback(env,
+  napi_make_callback(env, nullptr /* async_context */,
     recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
 
   return recv;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_function(env, NULL, MakeCallback, NULL, &fn));
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, exports, "makeCallback", fn));
+  NAPI_CALL(env, napi_create_function(
+      env, NULL, NAPI_AUTO_LENGTH, MakeCallback, NULL, &fn));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
+  return exports;
 }
-
 
 }  // namespace
 
-NAPI_MODULE(binding, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

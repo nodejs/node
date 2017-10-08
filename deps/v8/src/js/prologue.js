@@ -38,18 +38,6 @@ function ImportNow(name) {
 }
 
 
-function SetFunctionName(f, name, prefix) {
-  if (IS_SYMBOL(name)) {
-    name = "[" + %SymbolDescription(name) + "]";
-  }
-  if (IS_UNDEFINED(prefix)) {
-    %FunctionSetName(f, name);
-  } else {
-    %FunctionSetName(f, prefix + " " + name);
-  }
-}
-
-
 function InstallConstants(object, constants) {
   %CheckIsBootstrapping();
   %OptimizeObjectForAddingMultipleProperties(object, constants.length >> 1);
@@ -60,44 +48,6 @@ function InstallConstants(object, constants) {
     %AddNamedProperty(object, name, k, attributes);
   }
   %ToFastProperties(object);
-}
-
-
-function InstallFunctions(object, attributes, functions) {
-  %CheckIsBootstrapping();
-  %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
-  for (var i = 0; i < functions.length; i += 2) {
-    var key = functions[i];
-    var f = functions[i + 1];
-    SetFunctionName(f, key);
-    %FunctionRemovePrototype(f);
-    %AddNamedProperty(object, key, f, attributes);
-    %SetNativeFlag(f);
-  }
-  %ToFastProperties(object);
-}
-
-
-// Helper function to install a getter-only accessor property.
-function InstallGetter(object, name, getter, attributes, prefix) {
-  %CheckIsBootstrapping();
-  if (IS_UNDEFINED(attributes)) attributes = DONT_ENUM;
-  SetFunctionName(getter, name, IS_UNDEFINED(prefix) ? "get" : prefix);
-  %FunctionRemovePrototype(getter);
-  %DefineGetterPropertyUnchecked(object, name, getter, attributes);
-  %SetNativeFlag(getter);
-}
-
-
-function OverrideFunction(object, name, f, afterInitialBootstrap) {
-  %CheckIsBootstrapping();
-  %object_define_property(object, name, { value: f,
-                                          writeable: true,
-                                          configurable: true,
-                                          enumerable: false });
-  SetFunctionName(f, name);
-  if (!afterInitialBootstrap) %FunctionRemovePrototype(f);
-  %SetNativeFlag(f);
 }
 
 
@@ -156,11 +106,7 @@ function PostNatives(utils) {
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
-utils.SetFunctionName = SetFunctionName;
 utils.InstallConstants = InstallConstants;
-utils.InstallFunctions = InstallFunctions;
-utils.InstallGetter = InstallGetter;
-utils.OverrideFunction = OverrideFunction;
 utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 

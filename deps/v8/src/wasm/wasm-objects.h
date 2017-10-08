@@ -8,51 +8,64 @@
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/objects.h"
+#include "src/objects/script.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module.h"
+
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
+
+// Has to be the last include (doesn't have include guards)
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 class InterpretedFrame;
-struct WasmModule;
-struct WasmInstance;
 class WasmInterpreter;
 }
 
 class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
-class WasmInstanceWrapper;
 
-#define DECLARE_CASTS(name)             \
-  static bool Is##name(Object* object); \
-  static name* cast(Object* object)
+#define DECL_OOL_QUERY(type) static bool Is##type(Object* object);
+#define DECL_OOL_CAST(type) static type* cast(Object* object);
 
-#define DECLARE_GETTER(name, type) type* name()
+#define DECL_GETTER(name, type) type* name();
 
-#define DECLARE_ACCESSORS(name, type) \
-  void set_##name(type* value);       \
-  DECLARE_GETTER(name, type)
+#define DECL_OPTIONAL_ACCESSORS(name, type) \
+  INLINE(bool has_##name());                \
+  DECL_ACCESSORS(name, type)
 
-#define DECLARE_OPTIONAL_ACCESSORS(name, type) \
-  bool has_##name();                           \
-  DECLARE_ACCESSORS(name, type)
+#define DECL_OPTIONAL_GETTER(name, type) \
+  INLINE(bool has_##name());             \
+  DECL_GETTER(name, type)
 
-#define DECLARE_OPTIONAL_GETTER(name, type) \
-  bool has_##name();                        \
-  DECLARE_GETTER(name, type)
+#define DEF_SIZE(parent)                                                     \
+  static const int kSize = parent::kHeaderSize + kFieldCount * kPointerSize; \
+  static const int kParentSize = parent::kHeaderSize;                        \
+  static const int kHeaderSize = kSize;
+#define DEF_OFFSET(name)             \
+  static const int k##name##Offset = \
+      kSize + (k##name##Index - kFieldCount) * kPointerSize;
 
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
-  // If a second field is added, we need a kWrapperTracerHeader field as well.
-  // TODO(titzer): add the brand as an embedder field instead of a property.
-  enum Fields { kCompiledModule, kFieldCount };
+  DECL_CAST(WasmModuleObject)
 
-  DECLARE_CASTS(WasmModuleObject);
+  // Shared compiled code between multiple WebAssembly.Module objects.
+  DECL_ACCESSORS(compiled_module, WasmCompiledModule)
 
-  WasmCompiledModule* compiled_module();
+  enum {  // --
+    kCompiledModuleIndex,
+    kFieldCount
+  };
+
+  DEF_SIZE(JSObject)
+  DEF_OFFSET(CompiledModule)
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
@@ -61,23 +74,27 @@ class WasmModuleObject : public JSObject {
 // Representation of a WebAssembly.Table JavaScript-level object.
 class WasmTableObject : public JSObject {
  public:
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  // TODO(titzer): add the brand as an embedder field instead of a property.
-  enum Fields {
-    kWrapperTracerHeader,
-    kFunctions,
-    kMaximum,
-    kDispatchTables,
+  DECL_CAST(WasmTableObject)
+
+  DECL_ACCESSORS(functions, FixedArray)
+  // TODO(titzer): introduce DECL_I64_ACCESSORS macro
+  DECL_ACCESSORS(maximum_length, Object)
+  DECL_ACCESSORS(dispatch_tables, FixedArray)
+
+  enum {  // --
+    kFunctionsIndex,
+    kMaximumLengthIndex,
+    kDispatchTablesIndex,
     kFieldCount
   };
 
-  DECLARE_CASTS(WasmTableObject);
-  DECLARE_ACCESSORS(functions, FixedArray);
-  DECLARE_GETTER(dispatch_tables, FixedArray);
+  DEF_SIZE(JSObject)
+  DEF_OFFSET(Functions)
+  DEF_OFFSET(MaximumLength)
+  DEF_OFFSET(DispatchTables)
 
-  uint32_t current_length();
-  bool has_maximum_length();
-  int64_t maximum_length();  // Returns < 0 if no maximum.
+  inline uint32_t current_length() { return functions()->length(); }
+  inline bool has_maximum_length() { return maximum_length()->Number() >= 0; }
   void grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
@@ -92,25 +109,32 @@ class WasmTableObject : public JSObject {
 // Representation of a WebAssembly.Memory JavaScript-level object.
 class WasmMemoryObject : public JSObject {
  public:
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  // TODO(titzer): add the brand as an embedder field instead of a property.
-  enum Fields : uint8_t {
-    kWrapperTracerHeader,
-    kArrayBuffer,
-    kMaximum,
-    kInstancesLink,
+  DECL_CAST(WasmMemoryObject)
+
+  DECL_ACCESSORS(array_buffer, JSArrayBuffer)
+  DECL_INT_ACCESSORS(maximum_pages)
+  DECL_OPTIONAL_ACCESSORS(instances, WeakFixedArray)
+
+  enum {  // --
+    kArrayBufferIndex,
+    kMaximumPagesIndex,
+    kInstancesIndex,
     kFieldCount
   };
 
-  DECLARE_CASTS(WasmMemoryObject);
-  DECLARE_OPTIONAL_ACCESSORS(buffer, JSArrayBuffer);
-  DECLARE_OPTIONAL_ACCESSORS(instances_link, WasmInstanceWrapper);
+  DEF_SIZE(JSObject)
+  DEF_OFFSET(ArrayBuffer)
+  DEF_OFFSET(MaximumPages)
+  DEF_OFFSET(Instances)
 
-  void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
-  void ResetInstancesLink(Isolate* isolate);
+  // Add an instance to the internal (weak) list. amortized O(n).
+  static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+                          Handle<WasmInstanceObject> object);
+  // Remove an instance from the internal (weak) list. O(n).
+  static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+                             Handle<WasmInstanceObject> object);
   uint32_t current_pages();
-  bool has_maximum_pages();
-  int32_t maximum_pages();  // Returns < 0 if there is no maximum.
+  inline bool has_maximum_pages() { return maximum_pages() >= 0; }
 
   static Handle<WasmMemoryObject> New(Isolate* isolate,
                                       Handle<JSArrayBuffer> buffer,
@@ -119,33 +143,39 @@ class WasmMemoryObject : public JSObject {
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 };
 
-// Representation of a WebAssembly.Instance JavaScript-level object.
+// A WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  // TODO(titzer): add the brand as an embedder field instead of a property.
-  enum Fields {
-    kWrapperTracerHeader,
-    kCompiledModule,
-    kMemoryObject,
-    kMemoryArrayBuffer,
-    kGlobalsArrayBuffer,
-    kDebugInfo,
-    kWasmMemInstanceWrapper,
+  DECL_CAST(WasmInstanceObject)
+
+  DECL_ACCESSORS(compiled_module, WasmCompiledModule)
+  DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
+  DECL_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
+  // FixedArray of all instances whose code was imported
+  DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
+
+  enum {  // --
+    kCompiledModuleIndex,
+    kMemoryObjectIndex,
+    kMemoryBufferIndex,
+    kGlobalsBufferIndex,
+    kDebugInfoIndex,
+    kDirectlyCalledInstancesIndex,
     kFieldCount
   };
 
-  DECLARE_CASTS(WasmInstanceObject);
-
-  DECLARE_ACCESSORS(compiled_module, WasmCompiledModule);
-  DECLARE_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer);
-  DECLARE_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer);
-  DECLARE_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject);
-  DECLARE_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo);
-  DECLARE_OPTIONAL_ACCESSORS(instance_wrapper, WasmInstanceWrapper);
+  DEF_SIZE(JSObject)
+  DEF_OFFSET(CompiledModule)
+  DEF_OFFSET(MemoryObject)
+  DEF_OFFSET(MemoryBuffer)
+  DEF_OFFSET(GlobalsBuffer)
+  DEF_OFFSET(DebugInfo)
+  DEF_OFFSET(DirectlyCalledInstances)
 
   WasmModuleObject* module_object();
-  wasm::WasmModule* module();
+  V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
@@ -161,16 +191,14 @@ class WasmInstanceObject : public JSObject {
   uint32_t GetMaxMemoryPages();
 };
 
-// Representation of an exported WASM function.
+// A WASM function that is wrapped and exported to JavaScript.
 class WasmExportedFunction : public JSFunction {
  public:
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  enum Fields { kWrapperTracerHeader, kInstance, kIndex, kFieldCount };
-
-  DECLARE_CASTS(WasmExportedFunction);
-
   WasmInstanceObject* instance();
   int function_index();
+
+  static WasmExportedFunction* cast(Object* object);
+  static bool IsWasmExportedFunction(Object* object);
 
   static Handle<WasmExportedFunction> New(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,
@@ -181,31 +209,33 @@ class WasmExportedFunction : public JSFunction {
 
 // Information shared by all WasmCompiledModule objects for the same module.
 class WasmSharedModuleData : public FixedArray {
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  enum Fields {
-    kWrapperTracerHeader,
-    kModuleWrapper,
-    kModuleBytes,
-    kScript,
-    kAsmJsOffsetTable,
-    kBreakPointInfos,
-    kLazyCompilationOrchestrator,
+ public:
+  DECL_OOL_QUERY(WasmSharedModuleData)
+  DECL_OOL_CAST(WasmSharedModuleData)
+
+  DECL_GETTER(module, wasm::WasmModule)
+  DECL_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString)
+  DECL_ACCESSORS(script, Script)
+  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
+
+  enum {  // --
+    kModuleWrapperIndex,
+    kModuleBytesIndex,
+    kScriptIndex,
+    kAsmJsOffsetTableIndex,
+    kBreakPointInfosIndex,
+    kLazyCompilationOrchestratorIndex,
     kFieldCount
   };
 
- public:
-  DECLARE_CASTS(WasmSharedModuleData);
-
-  DECLARE_GETTER(module, wasm::WasmModule);
-  DECLARE_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString);
-  DECLARE_GETTER(script, Script);
-  DECLARE_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray);
-  DECLARE_OPTIONAL_GETTER(breakpoint_infos, FixedArray);
-
-  static Handle<WasmSharedModuleData> New(
-      Isolate* isolate, Handle<Foreign> module_wrapper,
-      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
-      Handle<ByteArray> asm_js_offset_table);
+  DEF_SIZE(FixedArray)
+  DEF_OFFSET(ModuleWrapper)
+  DEF_OFFSET(ModuleBytes)
+  DEF_OFFSET(Script)
+  DEF_OFFSET(AsmJsOffsetTable)
+  DEF_OFFSET(BreakPointInfos)
+  DEF_OFFSET(LazyCompilationOrchestrator)
 
   // Check whether this module was generated from asm.js source.
   bool is_asm_js();
@@ -221,8 +251,13 @@ class WasmSharedModuleData : public FixedArray {
 
   static void PrepareForLazyCompilation(Handle<WasmSharedModuleData>);
 
+  static Handle<WasmSharedModuleData> New(
+      Isolate* isolate, Handle<Foreign> module_wrapper,
+      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
+
  private:
-  DECLARE_OPTIONAL_GETTER(lazy_compilation_orchestrator, Foreign);
+  DECL_OPTIONAL_GETTER(lazy_compilation_orchestrator, Foreign)
   friend class WasmCompiledModule;
 };
 
@@ -252,7 +287,9 @@ class WasmSharedModuleData : public FixedArray {
 // we embed them as objects, and they may move.
 class WasmCompiledModule : public FixedArray {
  public:
-  enum Fields { kFieldCount };
+  enum {  // --
+    kFieldCount
+  };
 
   static WasmCompiledModule* cast(Object* fixed_array) {
     SLOW_DCHECK(IsWasmCompiledModule(fixed_array));
@@ -300,13 +337,11 @@ class WasmCompiledModule : public FixedArray {
 #define WCM_WASM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                         \
- public:                                                           \
-  TYPE NAME() const {                                              \
-    return static_cast<TYPE>(Smi::cast(get(kID_##NAME))->value()); \
-  }                                                                \
-                                                                   \
- private:                                                          \
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                                     \
+ public:                                                                       \
+  TYPE NAME() const { return static_cast<TYPE>(Smi::ToInt(get(kID_##NAME))); } \
+                                                                               \
+ private:                                                                      \
   void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
 
 #define WCM_WEAK_LINK(TYPE, NAME)                                          \
@@ -441,6 +476,10 @@ class WasmCompiledModule : public FixedArray {
   static void ReinitializeAfterDeserialization(Isolate*,
                                                Handle<WasmCompiledModule>);
 
+  // Get the module name, if set. Returns an empty handle otherwise.
+  static MaybeHandle<String> GetModuleNameOrNull(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
   // UTF-8 string.
@@ -494,7 +533,7 @@ class WasmCompiledModule : public FixedArray {
   // string.
   static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
-      uint32_t offset, uint32_t size);
+      wasm::WireBytesRef ref);
 
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,
@@ -537,14 +576,25 @@ class WasmCompiledModule : public FixedArray {
 
 class WasmDebugInfo : public FixedArray {
  public:
-  // The 0-th field is used by the Blink Wrapper Tracer.
-  enum Fields {
-    kWrapperTracerHeader,
-    kInstance,
-    kInterpreterHandle,
-    kInterpretedFunctions,
+  DECL_OOL_QUERY(WasmDebugInfo)
+  DECL_OOL_CAST(WasmDebugInfo)
+
+  DECL_GETTER(wasm_instance, WasmInstanceObject)
+  DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
+
+  enum {
+    kInstanceIndex,              // instance object.
+    kInterpreterHandleIndex,     // managed object containing the interpreter.
+    kInterpretedFunctionsIndex,  // array of interpreter entry code objects.
+    kLocalsNamesIndex,           // array of array of local names.
     kFieldCount
   };
+
+  DEF_SIZE(FixedArray)
+  DEF_OFFSET(Instance)
+  DEF_OFFSET(InterpreterHandle)
+  DEF_OFFSET(InterpretedFunctions)
+  DEF_OFFSET(LocalsNames)
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
@@ -552,11 +602,8 @@ class WasmDebugInfo : public FixedArray {
   // Returns a pointer to the interpreter instantiated inside this
   // WasmDebugInfo.
   // Use for testing only.
-  static wasm::WasmInterpreter* SetupForTesting(Handle<WasmInstanceObject>,
-                                                wasm::WasmInstance*);
-
-  static bool IsDebugInfo(Object*);
-  static WasmDebugInfo* cast(Object*);
+  V8_EXPORT_PRIVATE static wasm::WasmInterpreter* SetupForTesting(
+      Handle<WasmInstanceObject>, wasm::WasmInstance*);
 
   // Set a breakpoint in the given function at the given byte offset within that
   // function. This will redirect all future calls to this function to the
@@ -594,8 +641,6 @@ class WasmDebugInfo : public FixedArray {
   // Returns the number of calls / function frames executed in the interpreter.
   uint64_t NumInterpretedCalls();
 
-  DECLARE_GETTER(wasm_instance, WasmInstanceObject);
-
   // Update the memory view of the interpreter after executing GrowMemory in
   // compiled code.
   void UpdateMemory(JSArrayBuffer* new_memory);
@@ -612,65 +657,76 @@ class WasmDebugInfo : public FixedArray {
                                          int frame_index);
 };
 
-class WasmInstanceWrapper : public FixedArray {
- public:
-  static Handle<WasmInstanceWrapper> New(Isolate* isolate,
-                                         Handle<WasmInstanceObject> instance);
-  static WasmInstanceWrapper* cast(Object* fixed_array) {
-    SLOW_DCHECK(IsWasmInstanceWrapper(fixed_array));
-    return reinterpret_cast<WasmInstanceWrapper*>(fixed_array);
-  }
-  static bool IsWasmInstanceWrapper(Object* obj);
-  bool has_instance() { return get(kWrapperInstanceObject)->IsWeakCell(); }
-  Handle<WasmInstanceObject> instance_object() {
-    Object* obj = get(kWrapperInstanceObject);
-    DCHECK(obj->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(obj);
-    DCHECK(cell->value()->IsJSObject());
-    return handle(WasmInstanceObject::cast(cell->value()));
-  }
-  bool has_next() { return IsWasmInstanceWrapper(get(kNextInstanceWrapper)); }
-  bool has_previous() {
-    return IsWasmInstanceWrapper(get(kPreviousInstanceWrapper));
-  }
-  void set_next_wrapper(Object* obj) {
-    DCHECK(IsWasmInstanceWrapper(obj));
-    set(kNextInstanceWrapper, obj);
-  }
-  void set_previous_wrapper(Object* obj) {
-    DCHECK(IsWasmInstanceWrapper(obj));
-    set(kPreviousInstanceWrapper, obj);
-  }
-  Handle<WasmInstanceWrapper> next_wrapper() {
-    Object* obj = get(kNextInstanceWrapper);
-    DCHECK(IsWasmInstanceWrapper(obj));
-    return handle(WasmInstanceWrapper::cast(obj));
-  }
-  Handle<WasmInstanceWrapper> previous_wrapper() {
-    Object* obj = get(kPreviousInstanceWrapper);
-    DCHECK(IsWasmInstanceWrapper(obj));
-    return handle(WasmInstanceWrapper::cast(obj));
-  }
-  void reset_next_wrapper() { set_undefined(kNextInstanceWrapper); }
-  void reset_previous_wrapper() { set_undefined(kPreviousInstanceWrapper); }
-  void reset() {
-    for (int kID = 0; kID < kWrapperPropertyCount; kID++) set_undefined(kID);
+// TODO(titzer): these should be moved to wasm-objects-inl.h
+CAST_ACCESSOR(WasmInstanceObject)
+CAST_ACCESSOR(WasmMemoryObject)
+CAST_ACCESSOR(WasmModuleObject)
+CAST_ACCESSOR(WasmTableObject)
+
+// WasmModuleObject
+ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
+          kCompiledModuleOffset)
+
+// WasmTableObject
+ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
+ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
+ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
+
+// WasmMemoryObject
+ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
+SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
+ACCESSORS(WasmMemoryObject, instances, WeakFixedArray, kInstancesOffset)
+
+// WasmInstanceObject
+ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
+          kCompiledModuleOffset)
+ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
+          kMemoryObjectOffset)
+ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer, kMemoryBufferOffset)
+ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
+          kGlobalsBufferOffset)
+ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo, kDebugInfoOffset)
+ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
+          kDirectlyCalledInstancesOffset)
+
+// WasmSharedModuleData
+ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,
+          kModuleBytesOffset)
+ACCESSORS(WasmSharedModuleData, script, Script, kScriptOffset)
+ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
+          kAsmJsOffsetTableOffset)
+ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
+          kBreakPointInfosOffset)
+
+#define OPTIONAL_ACCESSOR(holder, name, offset)                  \
+  bool holder::has_##name() {                                    \
+    return !READ_FIELD(this, offset)->IsUndefined(GetIsolate()); \
   }
 
- private:
-  enum {
-    kWrapperInstanceObject,
-    kNextInstanceWrapper,
-    kPreviousInstanceWrapper,
-    kWrapperPropertyCount
-  };
-};
+OPTIONAL_ACCESSOR(WasmInstanceObject, debug_info, kDebugInfoOffset)
+OPTIONAL_ACCESSOR(WasmInstanceObject, memory_buffer, kMemoryBufferOffset)
+OPTIONAL_ACCESSOR(WasmInstanceObject, memory_object, kMemoryObjectOffset)
 
-#undef DECLARE_CASTS
-#undef DECLARE_GETTER
-#undef DECLARE_ACCESSORS
-#undef DECLARE_OPTIONAL_ACCESSORS
-#undef DECLARE_OPTIONAL_GETTER
+OPTIONAL_ACCESSOR(WasmMemoryObject, instances, kInstancesOffset)
+
+OPTIONAL_ACCESSOR(WasmSharedModuleData, breakpoint_infos,
+                  kBreakPointInfosOffset)
+OPTIONAL_ACCESSOR(WasmSharedModuleData, asm_js_offset_table,
+                  kAsmJsOffsetTableOffset)
+OPTIONAL_ACCESSOR(WasmSharedModuleData, lazy_compilation_orchestrator,
+                  kLazyCompilationOrchestratorOffset)
+
+ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
+
+OPTIONAL_ACCESSOR(WasmDebugInfo, locals_names, kLocalsNamesOffset)
+
+#undef DECL_OOL_QUERY
+#undef DECL_OOL_CAST
+#undef DECL_GETTER
+#undef DECL_OPTIONAL_ACCESSORS
+#undef DECL_OPTIONAL_GETTER
+
+#include "src/objects/object-macros-undef.h"
 
 }  // namespace internal
 }  // namespace v8

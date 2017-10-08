@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -21,9 +20,9 @@ server.listen(0, common.mustCall(function() {
       'foo-bar': 'abc123'
     };
 
+    assert.strictEqual(request.path, undefined);
     assert.strictEqual(request.method, expected[':method']);
     assert.strictEqual(request.scheme, expected[':scheme']);
-    assert.strictEqual(request.path, expected[':path']);
     assert.strictEqual(request.url, expected[':path']);
     assert.strictEqual(request.authority, expected[':authority']);
 
@@ -41,11 +40,27 @@ server.listen(0, common.mustCall(function() {
 
     request.url = '/one';
     assert.strictEqual(request.url, '/one');
-    assert.strictEqual(request.path, '/one');
 
-    request.path = '/two';
-    assert.strictEqual(request.url, '/two');
-    assert.strictEqual(request.path, '/two');
+    // third-party plugins for packages like express use query params to
+    // change the request method
+    request.method = 'POST';
+    assert.strictEqual(request.method, 'POST');
+    common.expectsError(
+      () => request.method = '   ',
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "method" argument must be of type string'
+      }
+    );
+    common.expectsError(
+      () => request.method = true,
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "method" argument must be of type string'
+      }
+    );
 
     response.on('finish', common.mustCall(function() {
       server.close();

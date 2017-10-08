@@ -14,4 +14,4 @@ extern "C" void init (Local<Object> target) {
   NODE_SET_METHOD(target, "hello", Hello);
 }
 
-NODE_MODULE(binding, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)

@@ -489,4 +489,54 @@ assert.doesNotThrow(() => { assert.deepStrictEqual({ a: NaN }, { a: NaN }); });
 assert.doesNotThrow(
   () => { assert.deepStrictEqual([ 1, 2, NaN, 4 ], [ 1, 2, NaN, 4 ]); });
 
+// Handle boxed primitives
+{
+  const boxedString = new String('test');
+  const boxedSymbol = Object(Symbol());
+  assertOnlyDeepEqual(new Boolean(true), Object(false));
+  assertOnlyDeepEqual(Object(true), new Number(1));
+  assertOnlyDeepEqual(new Number(2), new Number(1));
+  assertOnlyDeepEqual(boxedSymbol, Object(Symbol()));
+  assertOnlyDeepEqual(boxedSymbol, {});
+  assertDeepAndStrictEqual(boxedSymbol, boxedSymbol);
+  assertDeepAndStrictEqual(Object(true), Object(true));
+  assertDeepAndStrictEqual(Object(2), Object(2));
+  assertDeepAndStrictEqual(boxedString, Object('test'));
+  boxedString.slow = true;
+  assertNotDeepOrStrict(boxedString, Object('test'));
+  boxedSymbol.slow = true;
+  assertNotDeepOrStrict(boxedSymbol, {});
+}
+
+// Minus zero
+assertOnlyDeepEqual(0, -0);
+assertDeepAndStrictEqual(-0, -0);
+
+// Handle symbols (enumerable only)
+{
+  const symbol1 = Symbol();
+  const obj1 = { [symbol1]: 1 };
+  const obj2 = { [symbol1]: 1 };
+  const obj3 = { [Symbol()]: 1 };
+  // Add a non enumerable symbol as well. It is going to be ignored!
+  Object.defineProperty(obj2, Symbol(), { value: 1 });
+  assertOnlyDeepEqual(obj1, obj3);
+  assertDeepAndStrictEqual(obj1, obj2);
+  // TypedArrays have a fast path. Test for this as well.
+  const a = new Uint8Array(4);
+  const b = new Uint8Array(4);
+  a[symbol1] = true;
+  b[symbol1] = false;
+  assertOnlyDeepEqual(a, b);
+  b[symbol1] = true;
+  assertDeepAndStrictEqual(a, b);
+  // The same as TypedArrays is valid for boxed primitives
+  const boxedStringA = new String('test');
+  const boxedStringB = new String('test');
+  boxedStringA[symbol1] = true;
+  assertOnlyDeepEqual(boxedStringA, boxedStringB);
+  boxedStringA[symbol1] = true;
+  assertDeepAndStrictEqual(a, b);
+}
+
 /* eslint-enable */

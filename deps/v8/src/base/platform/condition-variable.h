@@ -63,25 +63,7 @@ class V8_BASE_EXPORT ConditionVariable final {
 #if V8_OS_POSIX
   typedef pthread_cond_t NativeHandle;
 #elif V8_OS_WIN
-  struct Event;
-  class NativeHandle final {
-   public:
-    NativeHandle() : waitlist_(NULL), freelist_(NULL) {}
-    ~NativeHandle();
-
-    Event* Pre() WARN_UNUSED_RESULT;
-    void Post(Event* event, bool result);
-
-    Mutex* mutex() { return &mutex_; }
-    Event* waitlist() { return waitlist_; }
-
-   private:
-    Event* waitlist_;
-    Event* freelist_;
-    Mutex mutex_;
-
-    DISALLOW_COPY_AND_ASSIGN(NativeHandle);
-  };
+  typedef CONDITION_VARIABLE NativeHandle;
 #endif
 
   NativeHandle& native_handle() {

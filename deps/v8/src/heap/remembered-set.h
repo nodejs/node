@@ -21,14 +21,16 @@ class RememberedSet : public AllStatic {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
+  template <AccessMode access_mode = AccessMode::ATOMIC>
   static void Insert(MemoryChunk* chunk, Address slot_addr) {
     DCHECK(chunk->Contains(slot_addr));
-    SlotSet* slot_set = chunk->slot_set<type>();
+    SlotSet* slot_set = chunk->slot_set<type, access_mode>();
     if (slot_set == nullptr) {
       slot_set = chunk->AllocateSlotSet<type>();
     }
     uintptr_t offset = slot_addr - chunk->address();
-    slot_set[offset / Page::kPageSize].Insert(offset % Page::kPageSize);
+    slot_set[offset / Page::kPageSize].Insert<access_mode>(offset %
+                                                           Page::kPageSize);
   }
 
   // Given a page and a slot in that page, this function returns true if
@@ -127,20 +129,59 @@ class RememberedSet : public AllStatic {
   // Iterates and filters the remembered set in the given memory chunk with
   // the given callback. The callback should take (Address slot) and return
   // SlotCallbackResult.
+  //
+  // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
+  // threads concurrently inserting slots.
   template <typename Callback>
-  static void Iterate(MemoryChunk* chunk, Callback callback) {
+  static void Iterate(MemoryChunk* chunk, Callback callback,
+                      SlotSet::EmptyBucketMode mode) {
     SlotSet* slots = chunk->slot_set<type>();
     if (slots != nullptr) {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       int new_count = 0;
       for (size_t page = 0; page < pages; page++) {
-        new_count +=
-            slots[page].Iterate(callback, SlotSet::PREFREE_EMPTY_BUCKETS);
+        new_count += slots[page].Iterate(callback, mode);
       }
       // Only old-to-old slot sets are released eagerly. Old-new-slot sets are
       // released by the sweeper threads.
       if (type == OLD_TO_OLD && new_count == 0) {
         chunk->ReleaseSlotSet<OLD_TO_OLD>();
+      }
+    }
+  }
+
+  static int NumberOfPreFreedEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    int result = 0;
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        result += slots[page].NumberOfPreFreedEmptyBuckets();
+      }
+    }
+    return result;
+  }
+
+  static void PreFreeEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        slots[page].PreFreeEmptyBuckets();
+      }
+    }
+  }
+
+  static void FreeEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        slots[page].FreeEmptyBuckets();
+        slots[page].FreeToBeFreedBuckets();
       }
     }
   }
@@ -341,7 +382,6 @@ class UpdateTypedSlotHelper {
         break;
     }
     UNREACHABLE();
-    return REMOVE_SLOT;
   }
 };
 
@@ -356,7 +396,6 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return DEBUG_TARGET_SLOT;
   }
   UNREACHABLE();
-  return CLEARED_SLOT;
 }
 
 }  // namespace internal

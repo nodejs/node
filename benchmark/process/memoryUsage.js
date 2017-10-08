@@ -1,12 +1,12 @@
 'use strict';
 
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
+const common = require('../common.js');
+const bench = common.createBenchmark(main, {
   n: [1e5]
 });
 
 function main(conf) {
-  var n = +conf.n;
+  const n = +conf.n;
 
   bench.start();
   for (var i = 0; i < n; i++) {

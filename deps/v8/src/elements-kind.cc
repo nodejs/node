@@ -27,14 +27,14 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case INT32_ELEMENTS:
     case FLOAT32_ELEMENTS:
       return 2;
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS:
     case FLOAT64_ELEMENTS:
       return 3;
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -43,10 +43,8 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
       return kPointerSizeLog2;
     case NO_ELEMENTS:
       UNREACHABLE();
-      return 0;
   }
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -73,21 +71,21 @@ struct InitializeFastElementsKindSequence {
     ElementsKind* fast_elements_kind_sequence =
         new ElementsKind[kFastElementsKindCount];
     *fast_elements_kind_sequence_ptr = fast_elements_kind_sequence;
-    STATIC_ASSERT(FAST_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
-    fast_elements_kind_sequence[0] = FAST_SMI_ELEMENTS;
-    fast_elements_kind_sequence[1] = FAST_HOLEY_SMI_ELEMENTS;
-    fast_elements_kind_sequence[2] = FAST_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[3] = FAST_HOLEY_DOUBLE_ELEMENTS;
-    fast_elements_kind_sequence[4] = FAST_ELEMENTS;
-    fast_elements_kind_sequence[5] = FAST_HOLEY_ELEMENTS;
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS == FIRST_FAST_ELEMENTS_KIND);
+    fast_elements_kind_sequence[0] = PACKED_SMI_ELEMENTS;
+    fast_elements_kind_sequence[1] = HOLEY_SMI_ELEMENTS;
+    fast_elements_kind_sequence[2] = PACKED_DOUBLE_ELEMENTS;
+    fast_elements_kind_sequence[3] = HOLEY_DOUBLE_ELEMENTS;
+    fast_elements_kind_sequence[4] = PACKED_ELEMENTS;
+    fast_elements_kind_sequence[5] = HOLEY_ELEMENTS;
 
     // Verify that kFastElementsKindPackedToHoley is correct.
-    STATIC_ASSERT(FAST_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_SMI_ELEMENTS);
-    STATIC_ASSERT(FAST_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_DOUBLE_ELEMENTS);
-    STATIC_ASSERT(FAST_ELEMENTS + kFastElementsKindPackedToHoley ==
-                  FAST_HOLEY_ELEMENTS);
+    STATIC_ASSERT(PACKED_SMI_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_SMI_ELEMENTS);
+    STATIC_ASSERT(PACKED_DOUBLE_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_DOUBLE_ELEMENTS);
+    STATIC_ASSERT(PACKED_ELEMENTS + kFastElementsKindPackedToHoley ==
+                  HOLEY_ELEMENTS);
   }
 };
 
@@ -111,7 +109,6 @@ int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind) {
     }
   }
   UNREACHABLE();
-  return 0;
 }
 
 
@@ -134,21 +131,19 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
   }
   if (IsFastElementsKind(from_kind) && IsFastTransitionTarget(to_kind)) {
     switch (from_kind) {
-      case FAST_SMI_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS;
-      case FAST_HOLEY_SMI_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS &&
-            to_kind != FAST_HOLEY_SMI_ELEMENTS;
-      case FAST_DOUBLE_ELEMENTS:
-        return to_kind != FAST_SMI_ELEMENTS &&
-            to_kind != FAST_HOLEY_SMI_ELEMENTS &&
-            to_kind != FAST_DOUBLE_ELEMENTS;
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        return to_kind == FAST_ELEMENTS ||
-            to_kind == FAST_HOLEY_ELEMENTS;
-      case FAST_ELEMENTS:
-        return to_kind == FAST_HOLEY_ELEMENTS;
-      case FAST_HOLEY_ELEMENTS:
+      case PACKED_SMI_ELEMENTS:
+        return to_kind != PACKED_SMI_ELEMENTS;
+      case HOLEY_SMI_ELEMENTS:
+        return to_kind != PACKED_SMI_ELEMENTS && to_kind != HOLEY_SMI_ELEMENTS;
+      case PACKED_DOUBLE_ELEMENTS:
+        return to_kind != PACKED_SMI_ELEMENTS &&
+               to_kind != HOLEY_SMI_ELEMENTS &&
+               to_kind != PACKED_DOUBLE_ELEMENTS;
+      case HOLEY_DOUBLE_ELEMENTS:
+        return to_kind == PACKED_ELEMENTS || to_kind == HOLEY_ELEMENTS;
+      case PACKED_ELEMENTS:
+        return to_kind == HOLEY_ELEMENTS;
+      case HOLEY_ELEMENTS:
         return false;
       default:
         return false;

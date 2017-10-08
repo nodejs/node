@@ -26,6 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { Certificate } = crypto;
 const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
@@ -35,26 +36,47 @@ const spkacValid = fixtures.readSync('spkac.valid');
 const spkacFail = fixtures.readSync('spkac.fail');
 const spkacPem = fixtures.readSync('spkac.pem');
 
-const certificate = new crypto.Certificate();
+{
+  // Test instance methods
+  const certificate = new Certificate();
 
-assert.strictEqual(certificate.verifySpkac(spkacValid), true);
-assert.strictEqual(certificate.verifySpkac(spkacFail), false);
+  assert.strictEqual(certificate.verifySpkac(spkacValid), true);
+  assert.strictEqual(certificate.verifySpkac(spkacFail), false);
 
-assert.strictEqual(
-  stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
-  stripLineEndings(spkacPem.toString('utf8'))
-);
-assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
+  assert.strictEqual(
+    stripLineEndings(certificate.exportPublicKey(spkacValid).toString('utf8')),
+    stripLineEndings(spkacPem.toString('utf8'))
+  );
+  assert.strictEqual(certificate.exportPublicKey(spkacFail), '');
 
-assert.strictEqual(
-  certificate.exportChallenge(spkacValid).toString('utf8'),
-  'fb9ab814-6677-42a4-a60c-f905d1a6924d'
-);
-assert.strictEqual(certificate.exportChallenge(spkacFail), '');
+  assert.strictEqual(
+    certificate.exportChallenge(spkacValid).toString('utf8'),
+    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
+  );
+  assert.strictEqual(certificate.exportChallenge(spkacFail), '');
+}
+
+{
+  // Test static methods
+  assert.strictEqual(Certificate.verifySpkac(spkacValid), true);
+  assert.strictEqual(Certificate.verifySpkac(spkacFail), false);
+
+  assert.strictEqual(
+    stripLineEndings(Certificate.exportPublicKey(spkacValid).toString('utf8')),
+    stripLineEndings(spkacPem.toString('utf8'))
+  );
+  assert.strictEqual(Certificate.exportPublicKey(spkacFail), '');
+
+  assert.strictEqual(
+    Certificate.exportChallenge(spkacValid).toString('utf8'),
+    'fb9ab814-6677-42a4-a60c-f905d1a6924d'
+  );
+  assert.strictEqual(Certificate.exportChallenge(spkacFail), '');
+}
 
 function stripLineEndings(obj) {
   return obj.replace(/\n/g, '');
 }
 
 // direct call Certificate() should return instance
-assert(crypto.Certificate() instanceof crypto.Certificate);
+assert(Certificate() instanceof Certificate);

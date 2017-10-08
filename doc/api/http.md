@@ -286,9 +286,9 @@ added: v0.1.17
 
 This object is created internally and returned from [`http.request()`][].  It
 represents an _in-progress_ request whose header has already been queued.  The
-header is still mutable using the `setHeader(name, value)`, `getHeader(name)`,
-`removeHeader(name)` API.  The actual header will be sent along with the first
-data chunk or when calling [`request.end()`][].
+header is still mutable using the [`setHeader(name, value)`][],
+ [`getHeader(name)`][], [`removeHeader(name)`][] API.  The actual header will
+be sent along with the first data chunk or when calling [`request.end()`][].
 
 To get the response, add a listener for [`'response'`][] to the request object.
 [`'response'`][] will be emitted from the request object when the response
@@ -320,14 +320,6 @@ added: v1.4.1
 
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
-
-### Event: 'aborted'
-<!-- YAML
-added: v0.3.8
--->
-
-Emitted when the request has been aborted by the server and the network
-socket has closed.
 
 ### Event: 'connect'
 <!-- YAML
@@ -426,6 +418,16 @@ added: v0.5.3
 * `socket` {net.Socket}
 
 Emitted after a socket is assigned to this request.
+
+### Event: 'timeout'
+<!-- YAML
+added: v0.7.8
+-->
+
+Emitted when the underlying socket times out from inactivity. This only notifies
+that the socket has been idle. The request must be aborted manually.
+
+See also: [`request.setTimeout()`][]
 
 ### Event: 'upgrade'
 <!-- YAML
@@ -541,6 +543,58 @@ then tries to pack the request headers and data into a single TCP packet.
 That's usually desired (it saves a TCP round-trip), but not when the first
 data is not sent until possibly much later.  `request.flushHeaders()` bypasses
 the optimization and kickstarts the request.
+
+### request.getHeader(name)
+<!-- YAML
+added: v1.6.0
+-->
+
+* `name` {string}
+* Returns: {string}
+
+Reads out a header on the request. Note that the name is case insensitive.
+
+Example:
+```js
+const contentType = request.getHeader('Content-Type');
+```
+
+### request.removeHeader(name)
+<!-- YAML
+added: v1.6.0
+-->
+
+* `name` {string}
+
+Removes a header that's already defined into headers object.
+
+Example:
+```js
+request.removeHeader('Content-Type');
+```
+
+### request.setHeader(name, value)
+<!-- YAML
+added: v1.6.0
+-->
+
+* `name` {string}
+* `value` {string}
+
+Sets a single header value for headers object. If this header already exists in
+the to-be-sent headers, its value will be replaced. Use an array of strings
+here to send multiple headers with the same name.
+
+Example:
+```js
+request.setHeader('Content-Type', 'application/json');
+```
+
+or
+
+```js
+request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+```
 
 ### request.setNoDelay([noDelay])
 <!-- YAML
@@ -1405,8 +1459,7 @@ following additional events, methods, and properties.
 added: v0.3.8
 -->
 
-Emitted when the request has been aborted by the client and the network
-socket has closed.
+Emitted when the request has been aborted and the network socket has closed.
 
 ### Event: 'close'
 <!-- YAML
@@ -1897,6 +1950,7 @@ const req = http.request(options, (res) => {
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`agent.getName()`]: #http_agent_getname_options
 [`destroy()`]: #http_agent_destroy
+[`getHeader(name)`]: #http_request_getheader_name
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
@@ -1911,7 +1965,9 @@ const req = http.request(options, (res) => {
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
+[`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
+[`request.setTimeout()`]: #http_request_settimeout_timeout_callback
 [`request.socket`]: #http_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.write(data, encoding)`]: #http_request_write_chunk_encoding_callback
@@ -1923,6 +1979,7 @@ const req = http.request(options, (res) => {
 [`response.writeContinue()`]: #http_response_writecontinue
 [`response.writeHead()`]: #http_response_writehead_statuscode_statusmessage_headers
 [`server.timeout`]: #http_server_timeout
+[`setHeader(name, value)`]: #http_request_setheader_name_value
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
 [`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback

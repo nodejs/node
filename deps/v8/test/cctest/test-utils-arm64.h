@@ -39,6 +39,11 @@
 namespace v8 {
 namespace internal {
 
+// Structure representing Q registers in a RegisterDump.
+struct vec128_t {
+  uint64_t l;
+  uint64_t h;
+};
 
 // RegisterDump: Object allowing integer, floating point and flags registers
 // to be saved to itself for future reference.
@@ -72,14 +77,14 @@ class RegisterDump {
     return dump_.x_[code];
   }
 
-  // FPRegister accessors.
+  // VRegister accessors.
   inline uint32_t sreg_bits(unsigned code) const {
     CHECK(FPRegAliasesMatch(code));
     return dump_.s_[code];
   }
 
   inline float sreg(unsigned code) const {
-    return rawbits_to_float(sreg_bits(code));
+    return bit_cast<float>(sreg_bits(code));
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
@@ -88,8 +93,10 @@ class RegisterDump {
   }
 
   inline double dreg(unsigned code) const {
-    return rawbits_to_double(dreg_bits(code));
+    return bit_cast<double>(dreg_bits(code));
   }
+
+  inline vec128_t qreg(unsigned code) const { return dump_.q_[code]; }
 
   // Stack pointer accessors.
   inline int64_t spreg() const {
@@ -135,7 +142,7 @@ class RegisterDump {
   // As RegAliasesMatch, but for floating-point registers.
   bool FPRegAliasesMatch(unsigned code) const {
     CHECK(IsComplete());
-    CHECK(code < kNumberOfFPRegisters);
+    CHECK(code < kNumberOfVRegisters);
     return (dump_.d_[code] & kSRegMask) == dump_.s_[code];
   }
 
@@ -147,8 +154,11 @@ class RegisterDump {
     uint32_t w_[kNumberOfRegisters];
 
     // Floating-point registers, as raw bits.
-    uint64_t d_[kNumberOfFPRegisters];
-    uint32_t s_[kNumberOfFPRegisters];
+    uint64_t d_[kNumberOfVRegisters];
+    uint32_t s_[kNumberOfVRegisters];
+
+    // Vector registers.
+    vec128_t q_[kNumberOfVRegisters];
 
     // The stack pointer.
     uint64_t sp_;
@@ -163,12 +173,18 @@ class RegisterDump {
   } dump_;
 
   static dump_t for_sizeof();
-  STATIC_ASSERT(sizeof(for_sizeof().d_[0]) == kDRegSize);
-  STATIC_ASSERT(sizeof(for_sizeof().s_[0]) == kSRegSize);
-  STATIC_ASSERT(sizeof(for_sizeof().d_[0]) == kXRegSize);
-  STATIC_ASSERT(sizeof(for_sizeof().s_[0]) == kWRegSize);
-  STATIC_ASSERT(sizeof(for_sizeof().x_[0]) == kXRegSize);
-  STATIC_ASSERT(sizeof(for_sizeof().w_[0]) == kWRegSize);
+  static_assert(kXRegSize == kDRegSize, "X and D registers must be same size.");
+  static_assert(kWRegSize == kSRegSize, "W and S registers must be same size.");
+  static_assert(sizeof(for_sizeof().q_[0]) == kQRegSize,
+                "Array elements must be size of Q register.");
+  static_assert(sizeof(for_sizeof().d_[0]) == kDRegSize,
+                "Array elements must be size of D register.");
+  static_assert(sizeof(for_sizeof().s_[0]) == kSRegSize,
+                "Array elements must be size of S register.");
+  static_assert(sizeof(for_sizeof().x_[0]) == kXRegSize,
+                "Array elements must be size of X register.");
+  static_assert(sizeof(for_sizeof().w_[0]) == kWRegSize,
+                "Array elements must be size of W register.");
 };
 
 // Some of these methods don't use the RegisterDump argument, but they have to
@@ -183,12 +199,14 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg);
 bool Equal64(uint64_t expected, const RegisterDump* core, const Register& reg);
 
 bool EqualFP32(float expected, const RegisterDump* core,
-               const FPRegister& fpreg);
+               const VRegister& fpreg);
 bool EqualFP64(double expected, const RegisterDump* core,
-               const FPRegister& fpreg);
+               const VRegister& fpreg);
 
 bool Equal64(const Register& reg0, const RegisterDump* core,
              const Register& reg1);
+bool Equal128(uint64_t expected_h, uint64_t expected_l,
+              const RegisterDump* core, const VRegister& reg);
 
 bool EqualNzcv(uint32_t expected, uint32_t result);
 
@@ -208,8 +226,8 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
                               int reg_size, int reg_count, RegList allowed);
 
 // As PopulateRegisterArray, but for floating-point registers.
-RegList PopulateFPRegisterArray(FPRegister* s, FPRegister* d, FPRegister* v,
-                                int reg_size, int reg_count, RegList allowed);
+RegList PopulateVRegisterArray(VRegister* s, VRegister* d, VRegister* v,
+                               int reg_size, int reg_count, RegList allowed);
 
 // Ovewrite the contents of the specified registers. This enables tests to
 // check that register contents are written in cases where it's likely that the

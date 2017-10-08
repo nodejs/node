@@ -1,14 +1,14 @@
 #ifndef SRC_TRACING_AGENT_H_
 #define SRC_TRACING_AGENT_H_
 
-#include "node_platform.h"
-#include "tracing/node_trace_buffer.h"
-#include "tracing/node_trace_writer.h"
+#include "libplatform/v8-tracing.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
 namespace tracing {
+
+using v8::platform::tracing::TracingController;
 
 class Agent {
  public:

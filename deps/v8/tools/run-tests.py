@@ -109,12 +109,12 @@ TEST_MAP = {
 TIMEOUT_DEFAULT = 60
 
 # Variants ordered by expected runtime (slowest first).
-VARIANTS = ["default", "noturbofan"]
+VARIANTS = ["default"]
 
 MORE_VARIANTS = [
   "stress",
-  "noturbofan_stress",
   "nooptimization",
+  "fullcode",
   "asm_wasm",
   "wasm_traps",
 ]
@@ -126,15 +126,13 @@ VARIANT_ALIASES = {
   "dev": VARIANTS,
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
+  # TODO(machenbach): Deprecate this after the step is removed on infra side.
   # Additional variants, run on a subset of bots.
-  "extra": ["fullcode"],
+  "extra": [],
 }
 
-DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-               "--nofold-constants", "--enable-slow-asserts",
-               "--verify-heap"]
-RELEASE_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
-                 "--nofold-constants"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort"]
 
 MODES = {
   "debug": {
@@ -189,7 +187,6 @@ SUPPORTED_ARCHS = ["android_arm",
                    "android_x64",
                    "arm",
                    "ia32",
-                   "x87",
                    "mips",
                    "mipsel",
                    "mips64",
@@ -213,7 +210,6 @@ SLOW_ARCHS = ["android_arm",
               "mips64el",
               "s390",
               "s390x",
-              "x87",
               "arm64"]
 
 
@@ -223,11 +219,9 @@ def BuildOptions():
   result.description = """TESTS: %s""" % (TEST_MAP["default"])
   result.add_option("--arch",
                     help=("The architecture to run tests for, "
-                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS),
-                    default="ia32,x64,arm")
+                          "'auto' or 'native' for auto-detect: %s" % SUPPORTED_ARCHS))
   result.add_option("--arch-and-mode",
-                    help="Architecture and mode in the format 'arch.mode'",
-                    default=None)
+                    help="Architecture and mode in the format 'arch.mode'")
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
@@ -276,8 +270,7 @@ def BuildOptions():
                     default=0, type="int")
   result.add_option("-m", "--mode",
                     help="The test modes in which to run (comma-separated,"
-                    " uppercase for ninja and buildbot builds): %s" % MODES.keys(),
-                    default="release,debug")
+                    " uppercase for ninja and buildbot builds): %s" % MODES.keys())
   result.add_option("--no-harness", "--noharness",
                     help="Run without test harness of a given suite",
                     default=False, action="store_true")
@@ -411,10 +404,6 @@ def SetupEnvironment(options):
     if not utils.GuessOS() == 'macos':
       # LSAN is not available on mac.
       asan_options.append('detect_leaks=1')
-      os.environ['LSAN_OPTIONS'] = ":".join([
-        'suppressions=%s' % os.path.join(
-            BASE_DIR, 'tools', 'memory', 'lsan', 'suppressions.txt'),
-      ])
     os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
   if options.sancov_dir:
@@ -477,6 +466,7 @@ def ProcessOptions(options):
     build_config_path = os.path.join(
         BASE_DIR, options.outdir, "v8_build_config.json")
 
+  # Auto-detect test configurations based on the build (GN only).
   if os.path.exists(build_config_path):
     try:
       with open(build_config_path) as f:
@@ -490,19 +480,52 @@ def ProcessOptions(options):
     # In auto-detect mode the outdir is always where we found the build config.
     # This ensures that we'll also take the build products from there.
     options.outdir = os.path.dirname(build_config_path)
-
     options.arch_and_mode = None
-    options.arch = build_config["v8_target_cpu"]
-    if options.arch == 'x86':
-      # TODO(machenbach): Transform all to x86 eventually.
-      options.arch = 'ia32'
-    options.asan = build_config["is_asan"]
-    options.dcheck_always_on = build_config["dcheck_always_on"]
-    options.mode = 'debug' if build_config["is_debug"] else 'release'
-    options.msan = build_config["is_msan"]
-    options.no_i18n = not build_config["v8_enable_i18n_support"]
-    options.no_snap = not build_config["v8_use_snapshot"]
-    options.tsan = build_config["is_tsan"]
+    if options.mode:
+      # In auto-detect mode we don't use the mode for more path-magic.
+      # Therefore transform the buildbot mode here to fit to the GN build
+      # config.
+      options.mode = BuildbotToV8Mode(options.mode)
+
+    # In V8 land, GN's x86 is called ia32.
+    if build_config["v8_target_cpu"] == "x86":
+      build_config["v8_target_cpu"] = "ia32"
+
+    # Update options based on the build config. Sanity check that we're not
+    # trying to use inconsistent options.
+    for param, value in (
+        ('arch', build_config["v8_target_cpu"]),
+        ('asan', build_config["is_asan"]),
+        ('dcheck_always_on', build_config["dcheck_always_on"]),
+        ('gcov_coverage', build_config["is_gcov_coverage"]),
+        ('mode', 'debug' if build_config["is_debug"] else 'release'),
+        ('msan', build_config["is_msan"]),
+        ('no_i18n', not build_config["v8_enable_i18n_support"]),
+        ('no_snap', not build_config["v8_use_snapshot"]),
+        ('tsan', build_config["is_tsan"])):
+      cmd_line_value = getattr(options, param)
+      if cmd_line_value not in [None, True, False] and cmd_line_value != value:
+        # TODO(machenbach): This is for string options only. Requires options
+        # to not have default values. We should make this more modular and
+        # implement it in our own version of the option parser.
+        print "Attempted to set %s to %s, while build is %s." % (
+            param, cmd_line_value, value)
+        return False
+      if cmd_line_value == True and value == False:
+        print "Attempted to turn on %s, but it's not available." % (
+            param)
+        return False
+      if cmd_line_value != value:
+        print ">>> Auto-detected %s=%s" % (param, value)
+      setattr(options, param, value)
+
+  else:
+    # Non-GN build without auto-detect. Set default values for missing
+    # parameters.
+    if not options.mode:
+      options.mode = "release,debug"
+    if not options.arch:
+      options.arch = "ia32,x64,arm"
 
   # Architecture and mode related stuff.
   if options.arch_and_mode:
@@ -808,6 +831,7 @@ def Execute(arch, mode, args, options, suites):
     "novfp3": options.novfp3,
     "predictable": options.predictable,
     "byteorder": sys.byteorder,
+    "no_harness": options.no_harness
   }
   all_tests = []
   num_tests = 0

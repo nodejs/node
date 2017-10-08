@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_AIX
+#if !V8_OS_QNX && !V8_OS_FUCHSIA && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 
@@ -415,7 +415,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #if !(V8_OS_OPENBSD || (V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390)))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_FUCHSIA
 #if V8_HOST_ARCH_IA32
   state->pc = reinterpret_cast<void*>(mcontext.gregs[REG_EIP]);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[REG_ESP]);
@@ -450,11 +450,18 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->sp = reinterpret_cast<void*>(mcontext.gregs[29]);
   state->fp = reinterpret_cast<void*>(mcontext.gregs[30]);
 #elif V8_HOST_ARCH_PPC
+#if V8_LIBC_GLIBC
   state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.regs->nip);
   state->sp =
       reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R1]);
   state->fp =
       reinterpret_cast<void*>(ucontext->uc_mcontext.regs->gpr[PT_R31]);
+#else
+  // Some C libraries, notably Musl, define the regs member as a void pointer
+  state->pc = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[32]);
+  state->sp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[1]);
+  state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gp_regs[31]);
+#endif
 #elif V8_HOST_ARCH_S390
 #if V8_TARGET_ARCH_32_BIT
   // 31-bit target will have bit 0 (MSB) of the PSW set to denote addressing
@@ -602,7 +609,7 @@ void Sampler::Stop() {
 
 
 void Sampler::IncreaseProfilingDepth() {
-  base::NoBarrier_AtomicIncrement(&profiling_, 1);
+  base::Relaxed_AtomicIncrement(&profiling_, 1);
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
 #endif
@@ -613,7 +620,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
   SignalHandler::DecreaseSamplerCount();
 #endif
-  base::NoBarrier_AtomicIncrement(&profiling_, -1);
+  base::Relaxed_AtomicIncrement(&profiling_, -1);
 }
 
 

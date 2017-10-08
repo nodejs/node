@@ -4,8 +4,22 @@ This directory contains modules used to test the Node.js implementation.
 
 ## Table of Contents
 
+* [Benchmark module](#benchmark-module)
 * [Common module API](#common-module-api)
+* [Countdown module](#countdown-module)
+* [Fixtures module](#fixtures-module)
 * [WPT module](#wpt-module)
+
+## Benchmark Module
+
+The `benchmark` module is used by tests to run benchmarks.
+
+### runBenchmark(name, args, env)
+
+* `name` [&lt;String>] Name of benchmark suite to be run.
+* `args` [&lt;Array>] Array of environment variable key/value pairs (ex:
+  `n=1`) to be applied via `--set`.
+* `env` [&lt;Object>] Environment variables to be applied during the run.
 
 ## Common Module API
 
@@ -309,11 +323,13 @@ Deletes the 'tmp' dir and recreates it
 
 ### restoreStderr()
 
-Restore the original `process.stderr.write`.
+Restore the original `process.stderr.write`. Used to restore `stderr` to its
+original state after calling [`common.hijackStdErr()`][].
 
 ### restoreStdout()
 
-Restore the original `process.stdout.write`.
+Restore the original `process.stdout.write`. Used to restore `stdout` to its
+original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
 * return [&lt;String>]
@@ -442,4 +458,6 @@ implementation with tests from
 [&lt;Object>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;RegExp>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
 [&lt;String>]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[`common.hijackStdErr()`]: #hijackstderrlistener
+[`common.hijackStdOut()`]: #hijackstdoutlistener
 [internationalization]: https://github.com/nodejs/node/wiki/Intl

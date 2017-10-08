@@ -156,8 +156,8 @@ def main():
 
   v8_root_path = os.path.dirname(__file__) + "/../../"
   d8_path = "{}/out/{}.debug/d8".format(v8_root_path, program_options.arch)
-  d8_codegen = subprocess.Popen([d8_path, "--ignition",
-                                 "--trace-ignition-codegen", "-e", "1"],
+  d8_codegen = subprocess.Popen([d8_path, "--trace-ignition-codegen",
+                                 "-e", "1"],
                                 stdout=subprocess.PIPE)
 
   bytecode_offsets = bytecode_offset_generator(

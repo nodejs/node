@@ -53,8 +53,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     bool paused_;
   };
 
-  static void Initialize();
-
   explicit IncrementalMarking(Heap* heap);
 
   MarkingState marking_state(HeapObject* object) const {
@@ -65,12 +63,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return MarkingState::Internal(chunk);
   }
 
-  // Transfers mark bits without requiring proper object headers.
-  void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
+  void NotifyLeftTrimming(HeapObject* from, HeapObject* to);
 
   // Transfers color including live byte count, requiring properly set up
   // objects.
-  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC>
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   V8_INLINE void TransferColor(HeapObject* from, HeapObject* to) {
     if (ObjectMarking::IsBlack<access_mode>(to, marking_state(to))) {
       DCHECK(black_allocation());
@@ -139,7 +136,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void FinalizeIncrementally();
 
-  void UpdateMarkingDequeAfterScavenge();
+  void UpdateMarkingWorklistAfterScavenge();
 
   void Hurry();
 
@@ -183,9 +180,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 #endif
 
 #ifdef V8_CONCURRENT_MARKING
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::ATOMIC;
+  static const AccessMode kAtomicity = AccessMode::ATOMIC;
 #else
-  static const MarkBit::AccessMode kAtomicity = MarkBit::AccessMode::NON_ATOMIC;
+  static const AccessMode kAtomicity = AccessMode::NON_ATOMIC;
 #endif
 
   void FinalizeSweeping();
@@ -212,6 +209,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   INLINE(void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value));
   INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
+  INLINE(void RecordWrites(HeapObject* obj));
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
@@ -248,7 +246,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   bool IsIdleMarkingDelayCounterLimitReached();
 
-  void IterateBlackObject(HeapObject* object);
+  void ProcessBlackAllocatedObject(HeapObject* obj);
 
   Heap* heap() const { return heap_; }
 
@@ -262,13 +260,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void AbortBlackAllocation();
 
-  MarkingDeque* marking_deque() {
-    SLOW_DCHECK(marking_deque_ != nullptr);
-    return marking_deque_;
+  MarkCompactCollector::MarkingWorklist* marking_worklist() {
+    SLOW_DCHECK(marking_worklist_ != nullptr);
+    return marking_worklist_;
   }
 
-  void set_marking_deque(MarkingDeque* marking_deque) {
-    marking_deque_ = marking_deque;
+  void set_marking_worklist(
+      MarkCompactCollector::MarkingWorklist* marking_worklist) {
+    marking_worklist_ = marking_worklist;
   }
 
  private:
@@ -311,14 +310,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   static void SetNewSpacePageFlags(MemoryChunk* chunk, bool is_marking);
 
-  INLINE(void ProcessMarkingDeque());
-
-  INLINE(intptr_t ProcessMarkingDeque(
+  INLINE(intptr_t ProcessMarkingWorklist(
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION));
 
   INLINE(bool IsFixedArrayWithProgressBar(HeapObject* object));
   INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
+
+  void RevisitObject(HeapObject* obj);
 
   void IncrementIdleMarkingDelayCounter();
 
@@ -328,7 +327,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   size_t StepSizeToMakeProgress();
 
   Heap* heap_;
-  MarkingDeque* marking_deque_;
+  MarkCompactCollector::MarkingWorklist* marking_worklist_;
 
   double start_time_ms_;
   size_t initial_old_generation_size_;

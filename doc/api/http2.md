@@ -9,14 +9,12 @@ can be accessed using:
 const http2 = require('http2');
 ```
 
-*Note*: Node.js must be launched with the `--expose-http2` command line flag
-in order to use the `'http2'` module.
-
 ## Core API
 
 The Core API provides a low-level interface designed specifically around
 support for HTTP/2 protocol features. It is specifically *not* designed for
-compatibility with the existing [HTTP/1][] module API. However, the [Compatibility API][] is.
+compatibility with the existing [HTTP/1][] module API. However,
+the [Compatibility API][] is.
 
 The following illustrates a simple, plain-text HTTP/2 server using the
 Core API:
@@ -374,7 +372,7 @@ const {
 
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
 req.on('response', (headers) => {
-  console.log(HTTP2_HEADER_STATUS);
+  console.log(headers[HTTP2_HEADER_STATUS]);
   req.on('data', (chunk) => { /** .. **/ });
   req.on('end', () => { /** .. **/ });
 });
@@ -830,8 +828,8 @@ added: v8.4.0
 * Value: {Object}
   * `localWindowSize` {number}
   * `state` {number}
-  * `streamLocalClose` {number}
-  * `streamRemoteClose` {number}
+  * `localClose` {number}
+  * `remoteClose` {number}
   * `sumDependencyWeight` {number}
   * `weight` {number}
 
@@ -851,7 +849,7 @@ the client.
 
 #### Event: 'continue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 Emitted when the server sends a `100 Continue` status, usually because
@@ -1146,7 +1144,8 @@ of the given file:
 
 If an error occurs while attempting to read the file data, the `Http2Stream`
 will be closed using an `RST_STREAM` frame using the standard `INTERNAL_ERROR`
-code.
+code. If the `onError` callback is defined it will be called, otherwise
+the stream will be destroyed.
 
 Example using a file path:
 
@@ -1169,7 +1168,7 @@ server.on('stream', (stream) => {
 
   stream.respondWithFile('/some/file',
                          { 'content-type': 'text/plain' },
-                         { statCheck });
+                         { statCheck, onError });
 });
 ```
 
@@ -1257,7 +1256,7 @@ an `Http2Session` object. If no listener is registered for this event, an
 
 #### Event: 'streamError'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `socket` {http2.ServerHttp2Stream}
@@ -1305,7 +1304,7 @@ added: v8.4.0
 * `response` {http2.Http2ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per session. See the [Compatibility API](compatiblity-api).
+per session. See the [Compatibility API][].
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1317,7 +1316,7 @@ a given number of milliseconds set using `http2server.setTimeout()`.
 
 #### Event: 'checkContinue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `request` {http2.Http2ServerRequest}
@@ -1369,7 +1368,7 @@ added: v8.4.0
 The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
-the connection is terminated. See the
+the connection is terminated. See the [Compatibility API][].
 
 #### Event: 'stream'
 <!-- YAML
@@ -1413,7 +1412,7 @@ added: v8.4.0
 * `response` {http2.Http2ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per session. See the [Compatibility API](compatiblity-api).
+per session. See the [Compatibility API][].
 
 #### Event: 'timeout'
 <!-- YAML
@@ -1422,7 +1421,7 @@ added: v8.4.0
 
 #### Event: 'checkContinue'
 <!-- YAML
-added: REPLACEME
+added: v8.5.0
 -->
 
 * `request` {http2.Http2ServerRequest}
@@ -1505,8 +1504,7 @@ added: v8.4.0
 * `options` {Object}
   * `allowHTTP1` {boolean} Incoming client connections that do not support
     HTTP/2 will be downgraded to HTTP/1.x when set to `true`. The default value
-    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN
-    negotiation](#alpn-negotiation).
+    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. Defaults to 4Kib.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -1916,8 +1914,8 @@ req.end('Jane');
 
 The Compatibility API has the goal of providing a similar developer experience
 of HTTP/1 when using HTTP/2, making it possible to develop applications
-that supports both [HTTP/1](HTTP/1) and HTTP/2. This API targets only the
-**public API** of the [HTTP/1](HTTP/1), however many modules uses internal
+that supports both [HTTP/1][] and HTTP/2. This API targets only the
+**public API** of the [HTTP/1][], however many modules uses internal
 methods or state, and those _are not supported_ as it is a completely
 different implementation.
 
@@ -1977,7 +1975,7 @@ function onRequest(req, res) {
 }
 ```
 
-The `'request'` event works identically on both [HTTPS](https) and
+The `'request'` event works identically on both [HTTPS][] and
 HTTP/2.
 
 ### Class: http2.Http2ServerRequest
@@ -2019,9 +2017,9 @@ added: v8.4.0
 
 * `error` {Error}
 
-Calls `destroy()` on the [`Http2Stream`][] that received the [`ServerRequest`][]. If
-`error` is provided, an `'error'` event is emitted and `error` is passed as an
-argument to any listeners on the event.
+Calls `destroy()` on the [`Http2Stream`][] that received
+the [`Http2ServerRequest`][]. If `error` is provided, an `'error'` event
+is emitted and `error` is passed as an argument to any listeners on the event.
 
 It does nothing if the stream was already destroyed.
 
@@ -2048,7 +2046,7 @@ console.log(request.headers);
 
 See [Headers Object][].
 
-### request.httpVersion
+#### request.httpVersion
 <!-- YAML
 added: v8.4.0
 -->
@@ -2119,7 +2117,14 @@ added: v8.4.0
 * `msecs` {number}
 * `callback` {Function}
 
-Calls `request.connection.setTimeout(msecs, callback)`.
+Sets the [`Http2Stream`]()'s timeout value to `msecs`.  If a callback is
+provided, then it is added as a listener on the `'timeout'` event on
+the response object.
+
+If no `'timeout'` listener is added to the request, the response, or
+the server, then [`Http2Stream`]()s are destroyed when they time out. If a
+handler is assigned to the request, the response, or the server's `'timeout'`
+events, timed out sockets must be handled explicitly.
 
 Returns `request`.
 
@@ -2130,13 +2135,24 @@ added: v8.4.0
 
 * {net.Socket}
 
-The [`net.Socket`][] object associated with the connection.
+Returns a Proxy object that acts as a `net.Socket` but applies getters,
+setters and methods based on HTTP/2 logic.
 
-With TLS support, use [`request.socket.getPeerCertificate()`][] to obtain the
-client's authentication details.
+`destroyed`, `readable`, and `writable` properties will be retrieved from and
+set on `request.stream`.
 
-*Note*: do not use this socket object to send or receive any data. All
-data transfers are managed by HTTP/2 and data might be lost.
+`destroy`, `emit`, `end`, `on` and `once` methods will be called on
+`request.stream`.
+
+`setTimeout` method will be called on `request.stream.session`.
+
+`pause`, `read`, `resume`, and `write` will throw an error with code
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+more information.
+
+All other interactions will be routed directly to the socket. With TLS support,
+use [`request.socket.getPeerCertificate()`][] to obtain the client's
+authentication details.
 
 #### request.stream
 <!-- YAML
@@ -2234,7 +2250,7 @@ passed as the second parameter to the [`'request'`][] event.
 The response implements, but does not inherit from, the [Writable Stream][]
 interface. This is an [`EventEmitter`][] with the following events:
 
-### Event: 'close'
+#### Event: 'close'
 <!-- YAML
 added: v8.4.0
 -->
@@ -2242,7 +2258,7 @@ added: v8.4.0
 Indicates that the underlying [`Http2Stream`]() was terminated before
 [`response.end()`][] was called or able to flush.
 
-### Event: 'finish'
+#### Event: 'finish'
 <!-- YAML
 added: v8.4.0
 -->
@@ -2254,7 +2270,7 @@ does not imply that the client has received anything yet.
 
 After this event, no more events will be emitted on the response object.
 
-### response.addTrailers(headers)
+#### response.addTrailers(headers)
 <!-- YAML
 added: v8.4.0
 -->
@@ -2267,7 +2283,7 @@ message) to the response.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-### response.connection
+#### response.connection
 <!-- YAML
 added: v8.4.0
 -->
@@ -2276,7 +2292,7 @@ added: v8.4.0
 
 See [`response.socket`][].
 
-### response.end([data][, encoding][, callback])
+#### response.end([data][, encoding][, callback])
 <!-- YAML
 added: v8.4.0
 -->
@@ -2295,7 +2311,7 @@ If `data` is specified, it is equivalent to calling
 If `callback` is specified, it will be called when the response stream
 is finished.
 
-### response.finished
+#### response.finished
 <!-- YAML
 added: v8.4.0
 -->
@@ -2305,7 +2321,7 @@ added: v8.4.0
 Boolean value that indicates whether the response has completed. Starts
 as `false`. After [`response.end()`][] executes, the value will be `true`.
 
-### response.getHeader(name)
+#### response.getHeader(name)
 <!-- YAML
 added: v8.4.0
 -->
@@ -2322,7 +2338,7 @@ Example:
 const contentType = response.getHeader('content-type');
 ```
 
-### response.getHeaderNames()
+#### response.getHeaderNames()
 <!-- YAML
 added: v8.4.0
 -->
@@ -2342,7 +2358,7 @@ const headerNames = response.getHeaderNames();
 // headerNames === ['foo', 'set-cookie']
 ```
 
-### response.getHeaders()
+#### response.getHeaders()
 <!-- YAML
 added: v8.4.0
 -->
@@ -2370,7 +2386,7 @@ const headers = response.getHeaders();
 // headers === { foo: 'bar', 'set-cookie': ['foo=bar', 'bar=baz'] }
 ```
 
-### response.hasHeader(name)
+#### response.hasHeader(name)
 <!-- YAML
 added: v8.4.0
 -->
@@ -2387,7 +2403,7 @@ Example:
 const hasContentType = response.hasHeader('content-type');
 ```
 
-### response.headersSent
+#### response.headersSent
 <!-- YAML
 added: v8.4.0
 -->
@@ -2396,7 +2412,7 @@ added: v8.4.0
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
-### response.removeHeader(name)
+#### response.removeHeader(name)
 <!-- YAML
 added: v8.4.0
 -->
@@ -2411,7 +2427,7 @@ Example:
 response.removeHeader('Content-Encoding');
 ```
 
-### response.sendDate
+#### response.sendDate
 <!-- YAML
 added: v8.4.0
 -->
@@ -2424,7 +2440,7 @@ the response if it is not already present in the headers. Defaults to true.
 This should only be disabled for testing; HTTP requires the Date header
 in responses.
 
-### response.setHeader(name, value)
+#### response.setHeader(name, value)
 <!-- YAML
 added: v8.4.0
 -->
@@ -2465,7 +2481,7 @@ const server = http2.createServer((req, res) => {
 });
 ```
 
-### response.setTimeout(msecs[, callback])
+#### response.setTimeout(msecs[, callback])
 <!-- YAML
 added: v8.4.0
 -->
@@ -2484,18 +2500,29 @@ events, timed out sockets must be handled explicitly.
 
 Returns `response`.
 
-### response.socket
+#### response.socket
 <!-- YAML
 added: v8.4.0
 -->
 
 * {net.Socket}
 
-Reference to the underlying socket. Usually users will not want to access
-this property. In particular, the socket will not emit `'readable'` events
-because of how the protocol parser attaches to the socket. After
-`response.end()`, the property is nulled. The `socket` may also be accessed
-via `response.connection`.
+Returns a Proxy object that acts as a `net.Socket` but applies getters,
+setters and methods based on HTTP/2 logic.
+
+`destroyed`, `readable`, and `writable` properties will be retrieved from and
+set on `response.stream`.
+
+`destroy`, `emit`, `end`, `on` and `once` methods will be called on
+`response.stream`.
+
+`setTimeout` method will be called on `response.stream.session`.
+
+`pause`, `read`, `resume`, and `write` will throw an error with code
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+more information.
+
+All other interactions will be routed directly to the socket.
 
 Example:
 
@@ -2508,7 +2535,7 @@ const server = http2.createServer((req, res) => {
 }).listen(3000);
 ```
 
-### response.statusCode
+#### response.statusCode
 <!-- YAML
 added: v8.4.0
 -->
@@ -2528,7 +2555,7 @@ response.statusCode = 404;
 After response header was sent to the client, this property indicates the
 status code which was sent out.
 
-### response.statusMessage
+#### response.statusMessage
 <!-- YAML
 added: v8.4.0
 -->
@@ -2547,7 +2574,7 @@ added: v8.4.0
 
 The [`Http2Stream`][] object backing the response.
 
-### response.write(chunk[, encoding][, callback])
+#### response.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v8.4.0
 -->
@@ -2585,7 +2612,7 @@ Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
-### response.writeContinue()
+#### response.writeContinue()
 <!-- YAML
 added: v8.4.0
 -->
@@ -2594,7 +2621,7 @@ Sends a status `100 Continue` to the client, indicating that the request body
 should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 `Http2SecureServer`.
 
-### response.writeHead(statusCode[, statusMessage][, headers])
+#### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
 added: v8.4.0
 -->
@@ -2606,7 +2633,7 @@ added: v8.4.0
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
 
-For compatibility with [HTTP/1](), a human-readable `statusMessage` may be
+For compatibility with [HTTP/1][], a human-readable `statusMessage` may be
 passed as the second argument. However, because the `statusMessage` has no
 meaning within HTTP/2, the argument will have no effect and a process warning
 will be emitted.
@@ -2650,12 +2677,12 @@ const server = http2.createServer((req, res) => {
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
-### response.createPushResponse(headers, callback)
+#### response.createPushResponse(headers, callback)
 <!-- YAML
 added: v8.4.0
 -->
 
-Call [`stream.pushStream()`][] with the given headers, and wraps the
+Call [`http2stream.pushStream()`][] with the given headers, and wraps the
 given newly created [`Http2Stream`] on `Http2ServerRespose`.
 
 The callback will be called with an error with code `ERR_HTTP2_STREAM_CLOSED`
@@ -2667,7 +2694,7 @@ if the stream is closed.
 [HTTP/2]: https://tools.ietf.org/html/rfc7540
 [HTTPS]: https.html
 [Headers Object]: #http2_headers_object
-[Http2Session and Sockets]: #http2_http2sesion_and_sockets
+[Http2Session and Sockets]: #http2_http2session_and_sockets
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Settings Object]: #http2_settings_object
 [Using options.selectPadding]: #http2_using_options_selectpadding
@@ -2678,14 +2705,15 @@ if the stream is closed.
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Http2ServerRequest`]: #http2_class_http2_http2serverrequest
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
-[`ServerRequest`]: #http2_class_server_request
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
 [`http2.createServer()`]: #http2_createserver_options_onrequesthandler
+[`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
@@ -2695,7 +2723,6 @@ if the stream is closed.
 [`response.write(data, encoding)`]: http.html#http_response_write_chunk_encoding_callback
 [`response.writeContinue()`]: #http2_response_writecontinue
 [`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
-[`stream.pushStream()`]: #http2_stream-pushstream
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [error code]: #error_codes

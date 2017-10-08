@@ -82,7 +82,6 @@ GN_UNSUPPORTED_FEATURES = [
   'solaris',
   'vtune',
   'v8-version.h',
-  'x87',
 ]
 
 ALL_GN_PREFIXES = [

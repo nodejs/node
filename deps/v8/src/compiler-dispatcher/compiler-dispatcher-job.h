@@ -76,8 +76,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
 
-  CompileJobStatus status() const { return status_; }
-
   bool has_context() const { return !context_.is_null(); }
   Context* context() { return *context_; }
 
@@ -87,31 +85,26 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // function.
   bool IsAssociatedWith(Handle<SharedFunctionInfo> shared) const;
 
-  // Transition from kInitial to kReadyToParse.
-  void PrepareToParseOnMainThread();
+  bool IsFinished() {
+    return status() == CompileJobStatus::kDone ||
+           status() == CompileJobStatus::kFailed;
+  }
 
-  // Transition from kReadyToParse to kParsed (or kDone if there is
-  // finish_callback).
-  void Parse();
+  bool IsFailed() { return status() == CompileJobStatus::kFailed; }
 
-  // Transition from kParsed to kReadyToAnalyze (or kFailed). Returns false
-  // when transitioning to kFailed. In that case, an exception is pending.
-  bool FinalizeParsingOnMainThread();
+  // Return true if the next step can be run on any thread, that is when both
+  // StepNextOnMainThread and StepNextOnBackgroundThread could be used for the
+  // next step.
+  bool CanStepNextOnAnyThread() {
+    return status() == CompileJobStatus::kReadyToParse ||
+           status() == CompileJobStatus::kReadyToCompile;
+  }
 
-  // Transition from kReadyToAnalyze to kAnalyzed (or kFailed). Returns
-  // false when transitioning to kFailed. In that case, an exception is pending.
-  bool AnalyzeOnMainThread();
+  // Step the job forward by one state on the main thread.
+  void StepNextOnMainThread();
 
-  // Transition from kAnalyzed to kReadyToCompile (or kFailed). Returns
-  // false when transitioning to kFailed. In that case, an exception is pending.
-  bool PrepareToCompileOnMainThread();
-
-  // Transition from kReadyToCompile to kCompiled.
-  void Compile();
-
-  // Transition from kCompiled to kDone (or kFailed). Returns false when
-  // transitioning to kFailed. In that case, an exception is pending.
-  bool FinalizeCompilingOnMainThread();
+  // Step the job forward by one state on a background thread.
+  void StepNextOnBackgroundThread();
 
   // Transition from any state to kInitial and free all resources.
   void ResetOnMainThread();
@@ -124,7 +117,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   void ShortPrint();
 
  private:
-  FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
+  friend class CompilerDispatcherTest;
+  friend class CompilerDispatcherJobTest;
+
+  CompileJobStatus status() const { return status_; }
 
   CompileJobStatus status_;
   Isolate* isolate_;
@@ -151,6 +147,28 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   std::unique_ptr<CompilationJob> compile_job_;
 
   bool trace_compiler_dispatcher_jobs_;
+
+  // Transition from kInitial to kReadyToParse.
+  void PrepareToParseOnMainThread();
+
+  // Transition from kReadyToParse to kParsed (or kDone if there is
+  // finish_callback).
+  void Parse();
+
+  // Transition from kParsed to kReadyToAnalyze (or kFailed).
+  void FinalizeParsingOnMainThread();
+
+  // Transition from kReadyToAnalyze to kAnalyzed (or kFailed).
+  void AnalyzeOnMainThread();
+
+  // Transition from kAnalyzed to kReadyToCompile (or kFailed).
+  void PrepareToCompileOnMainThread();
+
+  // Transition from kReadyToCompile to kCompiled.
+  void Compile();
+
+  // Transition from kCompiled to kDone (or kFailed).
+  void FinalizeCompilingOnMainThread();
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };

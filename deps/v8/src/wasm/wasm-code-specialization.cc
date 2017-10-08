@@ -45,9 +45,9 @@ class PatchDirectCallsHelper {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
     WasmCompiledModule* comp_mod = instance->compiled_module();
-    int func_index = Smi::cast(deopt_data->get(1))->value();
+    int func_index = Smi::ToInt(deopt_data->get(1));
     func_bytes = comp_mod->module_bytes()->GetChars() +
-                 comp_mod->module()->functions[func_index].code_start_offset;
+                 comp_mod->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;

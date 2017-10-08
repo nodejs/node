@@ -190,7 +190,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       return store ? kExprS128StoreMem : kExprS128LoadMem;
     default:
       UNREACHABLE();
-      return kExprNop;
   }
 }
 

@@ -4,9 +4,6 @@ const common = require('../../common');
 if (common.isWindows)
   common.skip('dlopen global symbol loading is not supported on this os.');
 
-if (common.isAIX)
-  common.skip('this test does not pass on AIX.');
-
 const assert = require('assert');
 const path = require('path');
 const os = require('os');

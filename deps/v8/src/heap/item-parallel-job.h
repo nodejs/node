@@ -128,6 +128,9 @@ class ItemParallelJob {
   // Adds an item to the job. Transfers ownership to the job.
   void AddItem(Item* item) { items_.push_back(item); }
 
+  int NumberOfItems() const { return static_cast<int>(items_.size()); }
+  int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
+
   void Run() {
     DCHECK_GE(tasks_.size(), 0);
     const size_t num_tasks = tasks_.size();

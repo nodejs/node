@@ -438,7 +438,12 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
     return -1;
   }
 
+#if defined(__MVS__)
+  len = os390_readlink(req->path, buf, len);
+#else
   len = readlink(req->path, buf, len);
+#endif
+
 
   if (len == -1) {
     uv__free(buf);
@@ -795,6 +800,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   int64_t in_offset;
 
   dstfd = -1;
+  err = 0;
 
   /* Open the source file. */
   srcfd = uv_fs_open(NULL, &fs_req, req->path, O_RDONLY, 0, NULL);
@@ -809,7 +815,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
     goto out;
   }
 
-  dst_flags = O_WRONLY | O_CREAT;
+  dst_flags = O_WRONLY | O_CREAT | O_TRUNC;
 
   if (req->flags & UV_FS_COPYFILE_EXCL)
     dst_flags |= O_EXCL;
@@ -825,6 +831,11 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
 
   if (dstfd < 0) {
     err = dstfd;
+    goto out;
+  }
+
+  if (fchmod(dstfd, statsbuf.st_mode) == -1) {
+    err = -errno;
     goto out;
   }
 

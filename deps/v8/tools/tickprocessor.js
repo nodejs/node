@@ -645,9 +645,11 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     } else if (funcInfo === false) {
       break;
     }
-    funcInfo.start += libASLRSlide;
-    if (funcInfo.start < libStart && funcInfo.start < libEnd - libStart) {
+    if (funcInfo.start < libStart - libASLRSlide &&
+        funcInfo.start < libEnd - libStart) {
       funcInfo.start += libStart;
+    } else {
+      funcInfo.start += libASLRSlide;
     }
     if (funcInfo.size) {
       funcInfo.end = funcInfo.start + funcInfo.size;

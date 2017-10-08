@@ -10,6 +10,16 @@
 namespace v8 {
 namespace base {
 
+template <class Category, class Type, class Diff = std::ptrdiff_t,
+          class Pointer = Type*, class Reference = Type&>
+struct iterator {
+  typedef Category iterator_category;
+  typedef Type value_type;
+  typedef Diff difference_type;
+  typedef Pointer pointer;
+  typedef Reference reference;
+};
+
 // The intention of the base::iterator_range class is to encapsulate two
 // iterators so that the range defined by the iterators can be used like
 // a regular STL container (actually only a subset of the full container

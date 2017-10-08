@@ -92,7 +92,7 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
 
 
 void ProfilerEventsProcessor::StopSynchronously() {
-  if (!base::NoBarrier_AtomicExchange(&running_, 0)) return;
+  if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
   Join();
 }
 
@@ -143,7 +143,7 @@ ProfilerEventsProcessor::SampleProcessingResult
 
 
 void ProfilerEventsProcessor::Run() {
-  while (!!base::NoBarrier_Load(&running_)) {
+  while (!!base::Relaxed_Load(&running_)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
     base::TimeTicks now;
@@ -300,6 +300,7 @@ void CpuProfiler::CollectSample() {
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, record_samples)) {
+    TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }

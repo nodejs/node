@@ -146,9 +146,9 @@ instead.
 <a id="DEP0012"></a>
 ### DEP0012: Domain.dispose
 
-Type: Runtime
+Type: End-of-Life
 
-[`Domain.dispose()`][] is deprecated. Recover from failed I/O actions
+`Domain.dispose()` is removed. Recover from failed I/O actions
 explicitly via error event handlers set on the domain instead.
 
 <a id="DEP0013"></a>
@@ -185,9 +185,10 @@ and should no longer be used.
 <a id="DEP0017"></a>
 ### DEP0017: Intl.v8BreakIterator
 
-Type: Runtime
+Type: End-of-Life
 
-The `Intl.v8BreakIterator` is deprecated and will be removed or replaced soon.
+`Intl.v8BreakIterator` was a non-standard extension and has been removed.
+See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 
 <a id="DEP0018"></a>
 ### DEP0018: Unhandled promise rejections
@@ -660,10 +661,10 @@ Type: Runtime
 
 `REPLServer.parseREPLKeyword()` was removed from userland visibility.
 
-<a id="DEP00XX"></a>
-### DEP00XX: tls.parseCertString()
+<a id="DEP0076"></a>
+### DEP0076: tls.parseCertString()
 
-Type: Documentation-only
+Type: Runtime
 
 `tls.parseCertString()` is a trivial parsing helper that was made public by
 mistake. This function can usually be replaced with:
@@ -674,7 +675,7 @@ querystring.parse(str, '\n', '=');
 ```
 
 *Note*: This function is not completely equivalent to `querystring.parse()`. One
-difference is that `querystring.parse()` does url encoding:
+difference is that `querystring.parse()` does url decoding:
 
 ```sh
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
@@ -683,11 +684,46 @@ difference is that `querystring.parse()` does url encoding:
 { '%E5%A5%BD': '1' }
 ```
 
+<a id="DEP0077"></a>
+### DEP0077: Module.\_debug()
+
+Type: Runtime
+
+`Module._debug()` has been deprecated.
+
+*Note*: `Module._debug()` was never documented as an officially supported API.
+
+<a id="DEP0078"></a>
+### DEP0078: REPLServer.turnOffEditorMode()
+
+Type: Runtime
+
+`REPLServer.turnOffEditorMode()` was removed from userland visibility.
+
+<a id="DEP0079"></a>
+### DEP0079: Custom inspection function on Objects via .inspect()
+
+Type: Documentation-only
+
+Using a property named `inspect` on an object to specify a custom inspection
+function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
+instead. For backwards compatibility with Node.js prior to version 6.4.0, both
+may be specified.
+
+<a id="DEP0080"></a>
+### DEP0080: path.\_makeLong()
+
+Type: Documentation-only
+
+The internal `path._makeLong()` was not intended for public use. However,
+userland modules have found it useful. The internal API has been deprecated
+and replaced with an identical, public `path.toNamespacedPath()` method.
+
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
-[`Domain.dispose()`]: domain.html#domain_domain_dispose
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
@@ -713,7 +749,7 @@ difference is that `querystring.parse()` does url encoding:
 [`os.networkInterfaces`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`punycode`]: punycode.html
-[`require.extensions`]: globals.html#globals_require_extensions
+[`require.extensions`]: modules.html#modules_require_extensions
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.SecurePair`]: tls.html#tls_class_securepair
@@ -722,6 +758,8 @@ difference is that `querystring.parse()` does url encoding:
 [`util._extend()`]: util.html#util_util_extend_target_source
 [`util.debug()`]: util.html#util_util_debug_string
 [`util.error()`]: util.html#util_util_error_strings
+[`util.inspect()`]: util.html#util_util_inspect_object_options
+[`util.inspect.custom`]: util.html#util_util_inspect_custom
 [`util.isArray()`]: util.html#util_util_isarray_object
 [`util.isBoolean()`]: util.html#util_util_isboolean_object
 [`util.isBuffer()`]: util.html#util_util_isbuffer_object

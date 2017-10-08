@@ -91,6 +91,15 @@ em code {
 
 #gtoc li {
   display: inline;
+  border-right: 1px #000 solid;
+  margin-right: 0.4em;
+  padding-right: 0.4em;
+}
+
+#gtoc li:last-child {
+  border-right: none;
+  margin-right: 0;
+  padding-right: 0;
 }
 
 li.version-picker {
@@ -118,6 +127,8 @@ ol.version-picker {
 
 #gtoc ol.version-picker li {
   display: block;
+  border-right: 0;
+  margin-right: 0;
 }
 
 ol.version-picker li a {

@@ -9,13 +9,16 @@
       'target_name': 'nghttp2',
       'type': 'static_library',
       'include_dirs': ['lib/includes'],
+      'defines': [
+        'BUILDING_NGHTTP2',
+        'NGHTTP2_STATICLIB',
+      ],
       'conditions': [
         ['OS=="win"', {
           'defines': [
             'WIN32',
             '_WINDOWS',
             'HAVE_CONFIG_H',
-            'NGHTTP2_STATICLIB',
           ],
           'msvs_settings': {
             'VCCLCompilerTool': {
@@ -28,6 +31,7 @@
         }]
       ],
       'direct_dependent_settings': {
+        'defines': [ 'NGHTTP2_STATICLIB' ],
         'include_dirs': [ 'lib/includes' ]
       },
       'sources': [

@@ -62,7 +62,7 @@ napi_value getDeleterCallCount(napi_env env, napi_callback_info info) {
 napi_value copyBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
   NAPI_CALL(env, napi_create_buffer_copy(
-    env, sizeof(theText), theText, NULL, &theBuffer));
+      env, sizeof(theText), theText, NULL, &theBuffer));
   return theBuffer;
 }
 
@@ -76,8 +76,8 @@ napi_value bufferHasInstance(napi_env env, napi_callback_info info) {
   napi_valuetype theType;
   NAPI_CALL(env, napi_typeof(env, theBuffer, &theType));
   NAPI_ASSERT(env,
-            theType == napi_object,
-            "bufferHasInstance: instance is not an object");
+              theType == napi_object,
+              "bufferHasInstance: instance is not an object");
   NAPI_CALL(env, napi_is_buffer(env, theBuffer, &hasInstance));
   NAPI_ASSERT(env, hasInstance, "bufferHasInstance: instance is not a buffer");
   napi_value returnValue;
@@ -101,8 +101,8 @@ napi_value bufferInfo(napi_env env, napi_callback_info info) {
                 (void**)(&bufferData),
                 &bufferLength));
   NAPI_CALL(env, napi_get_boolean(env,
-    !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
-    &returnValue));
+      !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
+      &returnValue));
   return returnValue;
 }
 
@@ -119,13 +119,12 @@ napi_value staticBuffer(napi_env env, napi_callback_info info) {
   return theBuffer;
 }
 
-void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
+napi_value Init(napi_env env, napi_value exports) {
   napi_value theValue;
 
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_string_utf8(env, theText, sizeof(theText), &theValue));
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, exports, "theText", theValue));
+  NAPI_CALL(env,
+      napi_create_string_utf8(env, theText, sizeof(theText), &theValue));
+  NAPI_CALL(env, napi_set_named_property(env, exports, "theText", theValue));
 
   napi_property_descriptor methods[] = {
     DECLARE_NAPI_PROPERTY("newBuffer", newBuffer),
@@ -137,8 +136,10 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("staticBuffer", staticBuffer),
   };
 
-  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
-    env, exports, sizeof(methods) / sizeof(methods[0]), methods));
+  NAPI_CALL(env, napi_define_properties(
+      env, exports, sizeof(methods) / sizeof(methods[0]), methods));
+
+  return exports;
 }
 
-NAPI_MODULE(addon, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)

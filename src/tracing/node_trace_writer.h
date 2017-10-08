@@ -13,7 +13,6 @@ namespace tracing {
 
 using v8::platform::tracing::TraceObject;
 using v8::platform::tracing::TraceWriter;
-using v8::platform::tracing::TracingController;
 
 class NodeTraceWriter : public TraceWriter {
  public:

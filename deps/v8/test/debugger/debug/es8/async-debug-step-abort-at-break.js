@@ -24,7 +24,7 @@ Debug.setListener(listener);
 var late_resolve;
 
 function g() {
-  return new Promise( // B3 StepOut
+  return new Promise( // B2 StepOut
     function(res, rej) {
       late_resolve = res;
     }
@@ -34,8 +34,8 @@ function g() {
 async function f() {
   var a = 1;
   debugger;          // B0 StepNext
-  a +=               // B1 StepNext
-       await         // B4 StepNext
+  a +=
+       await         // B1 StepIn
              g();    // B2 StepIn
   return a;
 }
@@ -44,10 +44,10 @@ f();
 
 // Starting a new step action at an intermediate break point
 // means that we will abort the current async step.
-debugger;            // B5 StepNext
+debugger;            // B3 StepNext
 
-late_resolve(3);     // B6 Continue
+late_resolve(3);     // B4 Continue
 
 %RunMicrotasks();
 
-assertEquals(7, step_count);
+assertEquals(5, step_count);

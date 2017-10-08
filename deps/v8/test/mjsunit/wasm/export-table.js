@@ -106,12 +106,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("two",   kSig_v_v).addBody([kExprNop]).exportAs("other");
   builder.addFunction("three", kSig_v_v).addBody([kExprNop]).exportAs("main");
 
-  try {
-    builder.instantiate();
-    assertUnreachable("should have thrown an exception");
-  } catch (e) {
-    assertContains("Duplicate export", e.toString());
-  }
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+    /Duplicate export name 'main' for function 0 and function 2/);
 })();
 
 

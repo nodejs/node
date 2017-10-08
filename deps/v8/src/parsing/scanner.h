@@ -43,7 +43,7 @@ class Utf16CharacterStream {
   inline uc32 Advance() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
       return static_cast<uc32>(*(buffer_cursor_++));
-    } else if (ReadBlock()) {
+    } else if (ReadBlockChecked()) {
       return static_cast<uc32>(*(buffer_cursor_++));
     } else {
       // Note: currently the following increment is necessary to avoid a
@@ -102,6 +102,21 @@ class Utf16CharacterStream {
         buffer_pos_(buffer_pos) {}
   Utf16CharacterStream() : Utf16CharacterStream(nullptr, nullptr, nullptr, 0) {}
 
+  bool ReadBlockChecked() {
+    size_t position = pos();
+    USE(position);
+    bool success = ReadBlock();
+
+    // Post-conditions: 1, We should always be at the right position.
+    //                  2, Cursor should be inside the buffer.
+    //                  3, We should have more characters available iff success.
+    DCHECK_EQ(pos(), position);
+    DCHECK_LE(buffer_cursor_, buffer_end_);
+    DCHECK_LE(buffer_start_, buffer_cursor_);
+    DCHECK_EQ(success, buffer_cursor_ < buffer_end_);
+    return success;
+  }
+
   void ReadBlockAt(size_t new_pos) {
     // The callers of this method (Back/Back2/Seek) should handle the easy
     // case (seeking within the current buffer), and we should only get here
@@ -113,14 +128,8 @@ class Utf16CharacterStream {
     // Change pos() to point to new_pos.
     buffer_pos_ = new_pos;
     buffer_cursor_ = buffer_start_;
-    bool success = ReadBlock();
-    USE(success);
-
-    // Post-conditions: 1, on success, we should be at the right position.
-    //                  2, success == we should have more characters available.
-    DCHECK_IMPLIES(success, pos() == new_pos);
-    DCHECK_EQ(success, buffer_cursor_ < buffer_end_);
-    DCHECK_EQ(success, buffer_start_ < buffer_end_);
+    DCHECK_EQ(pos(), new_pos);
+    ReadBlockChecked();
   }
 
   // Read more data, and update buffer_*_ to point to it.
@@ -333,7 +342,11 @@ class Scanner {
 
   // Scans the input as a template literal
   Token::Value ScanTemplateStart();
-  Token::Value ScanTemplateContinuation();
+  Token::Value ScanTemplateContinuation() {
+    DCHECK_EQ(next_.token, Token::RBRACE);
+    next_.location.beg_pos = source_pos() - 1;  // We already consumed }
+    return ScanTemplateSpan();
+  }
 
   Handle<String> SourceUrl(Isolate* isolate) const;
   Handle<String> SourceMappingUrl(Isolate* isolate) const;

@@ -174,7 +174,9 @@ class Double {
   static const int kMaxExponent = 0x7FF - kExponentBias;
   static const uint64_t kInfinity = V8_2PART_UINT64_C(0x7FF00000, 00000000);
 
-  const uint64_t d64_;
+  // The field d64_ is not marked as const to permit the usage of the copy
+  // constructor.
+  uint64_t d64_;
 
   static uint64_t DiyFpToUint64(DiyFp diy_fp) {
     uint64_t significand = diy_fp.f();

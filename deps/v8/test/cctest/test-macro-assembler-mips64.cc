@@ -107,7 +107,7 @@ TEST(BYTESWAP) {
   __ nop();
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   ::F3 f = FUNCTION_CAST<::F3>(code->entry());
@@ -159,7 +159,7 @@ TEST(LoadConstants) {
   __ nop();
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -204,7 +204,7 @@ TEST(LoadAddress) {
 
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -262,7 +262,7 @@ TEST(jump_tables4) {
   __ Branch(&near_start);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -336,7 +336,7 @@ TEST(jump_tables5) {
   __ nop();
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -428,7 +428,7 @@ TEST(jump_tables6) {
   __ Branch(&near_start);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -455,7 +455,7 @@ static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   __ nop();
 
   CodeDesc desc;
-  assembler.GetCode(&desc);
+  assembler.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -537,7 +537,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   __ nop();
 
   CodeDesc desc;
-  assembler.GetCode(&desc);
+  assembler.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -689,7 +689,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -862,7 +862,7 @@ static bool runOverflow(IN_TYPE valLeft, IN_TYPE valRight,
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -1543,7 +1543,7 @@ TEST(min_max_nan) {
   handle_snan(f16, &handle_maxs_nan, &back_maxs_nan);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   ::F3 f = FUNCTION_CAST<::F3>(code->entry());
@@ -1579,7 +1579,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -1944,7 +1944,7 @@ bool run_Sltu(uint64_t rs, uint64_t rd, Func GenerateSltuInstructionFunc) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -2039,7 +2039,7 @@ static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   __ Branch(&done_max_aba);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code = masm->isolate()->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -2182,7 +2182,7 @@ static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   __ Branch(&done_max_aba);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(masm->isolate(), &desc);
   Handle<Code> code = masm->isolate()->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG

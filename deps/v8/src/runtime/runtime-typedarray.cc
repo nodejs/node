@@ -33,7 +33,9 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
-
+  if (!array_buffer->is_neuterable()) {
+    return isolate->heap()->undefined_value();
+  }
   if (array_buffer->backing_store() == NULL) {
     CHECK(Smi::kZero == array_buffer->byte_length());
     return isolate->heap()->undefined_value();

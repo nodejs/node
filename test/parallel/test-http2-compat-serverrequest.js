@@ -1,4 +1,3 @@
-// Flags: --expose-http2
 'use strict';
 
 const common = require('../common');
@@ -15,16 +14,11 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
     const expected = {
-      statusCode: null,
       version: '2.0',
       httpVersionMajor: 2,
       httpVersionMinor: 0
     };
 
-    assert.strictEqual(request.closed, false);
-    assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
-
-    assert.strictEqual(request.statusCode, expected.statusCode);
     assert.strictEqual(request.httpVersion, expected.version);
     assert.strictEqual(request.httpVersionMajor, expected.httpVersionMajor);
     assert.strictEqual(request.httpVersionMinor, expected.httpVersionMinor);
@@ -34,9 +28,10 @@ server.listen(0, common.mustCall(function() {
     assert.strictEqual(request.socket, request.connection);
 
     response.on('finish', common.mustCall(function() {
-      assert.strictEqual(request.closed, true);
-      assert.strictEqual(request.code, h2.constants.NGHTTP2_NO_ERROR);
-      server.close();
+      process.nextTick(() => {
+        assert.ok(request.socket);
+        server.close();
+      });
     }));
     response.end();
   }));

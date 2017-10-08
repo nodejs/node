@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 const zlib = require('zlib');
@@ -18,17 +18,29 @@ if (!/^1\.2\.[0-8]$/.test(process.versions.zlib)) {
 
 // Regression tests for bugs in the validation logic.
 
-assert.throws(() => {
-  zlib.createGzip({ chunkSize: 0 });
-}, /^RangeError: Invalid chunk size: 0$/);
+common.expectsError(
+  () => zlib.createGzip({ chunkSize: 0 }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
-assert.throws(() => {
-  zlib.createGzip({ windowBits: 0 });
-}, /^RangeError: Invalid windowBits: 0$/);
+common.expectsError(
+  () => zlib.createGzip({ windowBits: 0 }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
-assert.throws(() => {
-  zlib.createGzip({ memLevel: 0 });
-}, /^RangeError: Invalid memLevel: 0$/);
+common.expectsError(
+  () => zlib.createGzip({ memLevel: 0 }),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: RangeError
+  }
+);
 
 {
   const stream = zlib.createGzip({ level: NaN });

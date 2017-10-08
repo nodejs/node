@@ -55,9 +55,13 @@ function ondone(err, key) {
 }
 
 // Error path should not leak memory (check with valgrind).
-assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, 20, null);
-}, /^Error: No callback provided to pbkdf2$/);
+common.expectsError(
+  () => crypto.pbkdf2('password', 'salt', 1, 20, null),
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  }
+);
 
 // Should not work with Infinity key length
 assert.throws(function() {
@@ -95,10 +99,18 @@ assert.doesNotThrow(() => {
   }));
 });
 
-assert.throws(() => {
-  crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall());
-}, /^TypeError: The "digest" argument is required and must not be undefined$/);
+common.expectsError(
+  () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "digest" argument must be one of type string or null'
+  });
 
-assert.throws(() => {
-  crypto.pbkdf2Sync('password', 'salt', 8, 8);
-}, /^TypeError: The "digest" argument is required and must not be undefined$/);
+common.expectsError(
+  () => crypto.pbkdf2Sync('password', 'salt', 8, 8),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "digest" argument must be one of type string or null'
+  });

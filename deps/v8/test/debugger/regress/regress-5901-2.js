@@ -8,8 +8,8 @@ function f() {
 }
 
 function g() {
-  return f();
-}  // Break
+  return f();  // Break
+}
 
 function h() {
   return g();
@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
 }
 
 Debug.setListener(listener);
-% OptimizeFunctionOnNextCall(h);
+%OptimizeFunctionOnNextCall(h);
 h();
 Debug.setListener(null);
 assertNull(exception);

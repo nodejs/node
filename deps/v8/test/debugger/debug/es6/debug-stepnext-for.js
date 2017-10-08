@@ -110,11 +110,11 @@ var expected = [
   // For-in-let: get enumerable, next, body, next,  ...
   "g16","g11","G4","g11","G4","g11","G4","g11",
   // For-of-var: [Symbol.iterator](), next(), body, next(), body, ...
-  "h16","h13","H4","h13","H4","h13","H4","h13",
+  "h16","h11","H4","h11","H4","h11","H4","h11",
   // For-of: [Symbol.iterator](), next(), body, next(), body, ...
-  "i12","i9","I4","i9","I4","i9","I4","i9",
+  "i12","i7","I4","i7","I4","i7","I4","i7",
   // For-of-let: [Symbol.iterator](), next(), body, next(), ...
-  "j18","j14","J4","j14","J4","j14","J4","j14",
+  "j18","j11","J4","j11","J4","j11","J4","j11",
   // For-var: init, condition, body, next, condition, body, ...
   "k15","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
   // For: init, condition, body, next, condition, body, ...
@@ -122,7 +122,7 @@ var expected = [
   // For-let: init, condition, body, next, condition, body, ...
   "m15","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
   // For-of, empty: [Symbol.iterator](), next() once
-  "n16", "n13",
+  "n16", "n11",
   // Spread: expression statement, spread
   "o2", "o9",
   // Exit.

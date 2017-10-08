@@ -38,6 +38,6 @@ inline void Initialize(v8::Local<v8::Object> binding) {
   NODE_SET_METHOD(binding, "getPromiseField", GetPromiseField);
 }
 
-NODE_MODULE(binding, Initialize)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)
 
 }  // anonymous namespace

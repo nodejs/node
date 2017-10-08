@@ -120,7 +120,9 @@ Handle<Code> CodeStub::GetCodeCopy(const FindAndReplacePattern& pattern) {
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
   Handle<UnseededNumberDictionary> dict(heap->code_stubs());
-  dict = UnseededNumberDictionary::DeleteKey(dict, GetKey());
+  int entry = dict->FindEntry(GetKey());
+  DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
+  dict = UnseededNumberDictionary::DeleteEntry(dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
@@ -135,7 +137,6 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
-    masm.set_generating_stub(true);
     // TODO(yangguo): remove this once we can serialize IC stubs.
     masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);
@@ -144,7 +145,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
   // Create the code object.
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Code::Flags flags = Code::ComputeFlags(GetCodeKind(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(
@@ -164,6 +165,9 @@ Handle<Code> CodeStub::GetCode() {
 
   {
     HandleScope scope(isolate());
+    // Canonicalize handles, so that we can share constant pool entries pointing
+    // to code targets without dereferencing their handles.
+    CanonicalHandleScope canonical(isolate());
 
     Handle<Code> new_object = GenerateCode();
     new_object->set_stub_key(GetKey());
@@ -185,11 +189,8 @@ Handle<Code> CodeStub::GetCode() {
       AddToSpecialCache(new_object);
     } else {
       // Update the dictionary and the root in Heap.
-      Handle<UnseededNumberDictionary> dict =
-          UnseededNumberDictionary::AtNumberPut(
-              Handle<UnseededNumberDictionary>(heap->code_stubs()),
-              GetKey(),
-              new_object);
+      Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
+          handle(heap->code_stubs()), GetKey(), new_object);
       heap->SetRootCodeStubs(*dict);
     }
     code = *new_object;
@@ -211,7 +212,6 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "<NoCache>Stub";
     case NUMBER_OF_IDS:
       UNREACHABLE();
-      return NULL;
   }
   return NULL;
 }
@@ -280,56 +280,6 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
 }
 
 
-// static
-void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
-  if (FLAG_minimal) return;
-  // Generate the uninitialized versions of the stub.
-  for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
-    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op));
-    stub.GetCode();
-  }
-
-  // Generate special versions of the stub.
-  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
-}
-
-
-void BinaryOpICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << state();
-}
-
-
-// static
-void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
-                                         const BinaryOpICState& state) {
-  if (FLAG_minimal) return;
-  BinaryOpICStub stub(isolate, state);
-  stub.GetCode();
-}
-
-
-// static
-void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
-  // Generate special versions of the stub.
-  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
-}
-
-
-void BinaryOpICWithAllocationSiteStub::PrintState(
-    std::ostream& os) const {  // NOLINT
-  os << state();
-}
-
-
-// static
-void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
-    Isolate* isolate, const BinaryOpICState& state) {
-  if (state.CouldCreateAllocationMementos()) {
-    BinaryOpICWithAllocationSiteStub stub(isolate, state);
-    stub.GetCode();
-  }
-}
-
 void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub_" << flags() << "_" << pretenure_flag();
 }
@@ -385,7 +335,6 @@ InlineCacheState CompareICStub::GetICState() const {
       return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
-  return ::v8::internal::UNINITIALIZED;
 }
 
 
@@ -489,6 +438,23 @@ TF_STUB(StringLengthStub, CodeStubAssembler) {
   Node* string = LoadJSValueValue(value);
   Node* result = LoadStringLength(string);
   Return(result);
+}
+
+TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* new_map = Parameter(Descriptor::kMap);
+
+  Label bailout(this);
+  TransitionElementsKind(object, new_map, stub->from_kind(), stub->to_kind(),
+                         stub->is_jsarray(), &bailout);
+  Return(object);
+
+  BIND(&bailout);
+  {
+    Comment("Call runtime");
+    TailCallRuntime(Runtime::kTransitionElementsKind, context, object, new_map);
+  }
 }
 
 // TODO(ishell): move to builtins.
@@ -606,7 +572,7 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
 }
 
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << convert_mode() << ", " << tail_call_mode();
+  os << convert_mode();
 }
 
 // TODO(ishell): Move to CallICAssembler.
@@ -624,15 +590,14 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   // Static checks to assert it is safe to examine the type feedback element.
   // We don't know that we have a weak cell. We might have a private symbol
   // or an AllocationSite, but the memory is safe to examine.
-  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
-  // FixedArray.
-  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
-  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // AllocationSite::kTransitionInfoOrBoilerplateOffset - contains a Smi or
+  // pointer to FixedArray. WeakCell::kValueOffset - contains a JSFunction or
+  // Smi(0) Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
   // computed, meaning that it can't appear to be a pointer. If the low bit is
   // 0, then hash is computed, but the 0 bit prevents the field from appearing
   // to be a pointer.
   STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
-  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOrBoilerplateOffset ==
                     WeakCell::kValueOffset &&
                 WeakCell::kValueOffset == Symbol::kHashFieldSlot);
 
@@ -661,8 +626,8 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   BIND(&call_function);
   {
     // Call using CallFunction builtin.
-    Callable callable = CodeFactory::CallFunction(
-        isolate(), stub->convert_mode(), stub->tail_call_mode());
+    Callable callable =
+        CodeFactory::CallFunction(isolate(), stub->convert_mode());
     TailCallStub(callable, context, target, argc);
   }
 
@@ -680,8 +645,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
     GotoIf(is_megamorphic, &call);
 
     Comment("check if it is an allocation site");
-    GotoIfNot(IsAllocationSiteMap(LoadMap(feedback_element)),
-              &check_initialized);
+    GotoIfNot(IsAllocationSite(feedback_element), &check_initialized);
 
     // If it is not the Array() function, mark megamorphic.
     Node* context_slot = LoadContextElement(LoadNativeContext(context),
@@ -765,8 +729,7 @@ TF_STUB(CallICStub, CodeStubAssembler) {
   {
     // Call using call builtin.
     Comment("call using Call builtin");
-    Callable callable_call = CodeFactory::Call(isolate(), stub->convert_mode(),
-                                               stub->tail_call_mode());
+    Callable callable_call = CodeFactory::Call(isolate(), stub->convert_mode());
     TailCallStub(callable_call, context, target, argc);
   }
 }
@@ -778,8 +741,7 @@ TF_STUB(CallICTrampolineStub, CodeStubAssembler) {
   Node* slot = Parameter(Descriptor::kSlot);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = CodeFactory::CallIC(isolate(), stub->convert_mode(),
-                                          stub->tail_call_mode());
+  Callable callable = CodeFactory::CallIC(isolate(), stub->convert_mode());
   TailCallStub(callable, context, target, argc, slot, vector);
 }
 
@@ -790,12 +752,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
   code->set_handler_table(*handler_table);
 }
 
-void TransitionElementsKindStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
-}
-
 
 void AllocateHeapNumberStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
@@ -803,24 +759,6 @@ void AllocateHeapNumberStub::InitializeDescriptor(
       Runtime::FunctionForId(Runtime::kAllocateHeapNumber)->entry);
 }
 
-
-void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
-  descriptor->SetMissHandler(Runtime::kToBooleanIC_Miss);
-}
-
-
-void BinaryOpICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(FUNCTION_ADDR(Runtime_BinaryOpIC_Miss));
-  descriptor->SetMissHandler(Runtime::kBinaryOpIC_Miss);
-}
-
-
-void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_BinaryOpIC_MissWithAllocationSite));
-}
 
 // TODO(ishell): move to builtins.
 TF_STUB(GetPropertyStub, CodeStubAssembler) {
@@ -929,68 +867,17 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   if (FLAG_minimal) return;
-  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS, STANDARD_STORE)
+  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
-  StoreFastElementStub(isolate, false, FAST_HOLEY_ELEMENTS,
-                       STORE_AND_GROW_NO_TRANSITION).GetCode();
+  StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,
+                       STORE_AND_GROW_NO_TRANSITION)
+      .GetCode();
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind kind = static_cast<ElementsKind>(i);
     StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();
     StoreFastElementStub(isolate, true, kind, STORE_AND_GROW_NO_TRANSITION)
         .GetCode();
   }
-}
-
-bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
-  ToBooleanHints old_hints = hints();
-  ToBooleanHints new_hints = old_hints;
-  bool to_boolean_value = false;  // Dummy initialization.
-  if (object->IsUndefined(isolate())) {
-    new_hints |= ToBooleanHint::kUndefined;
-    to_boolean_value = false;
-  } else if (object->IsBoolean()) {
-    new_hints |= ToBooleanHint::kBoolean;
-    to_boolean_value = object->IsTrue(isolate());
-  } else if (object->IsNull(isolate())) {
-    new_hints |= ToBooleanHint::kNull;
-    to_boolean_value = false;
-  } else if (object->IsSmi()) {
-    new_hints |= ToBooleanHint::kSmallInteger;
-    to_boolean_value = Smi::cast(*object)->value() != 0;
-  } else if (object->IsJSReceiver()) {
-    new_hints |= ToBooleanHint::kReceiver;
-    to_boolean_value = !object->IsUndetectable();
-  } else if (object->IsString()) {
-    DCHECK(!object->IsUndetectable());
-    new_hints |= ToBooleanHint::kString;
-    to_boolean_value = String::cast(*object)->length() != 0;
-  } else if (object->IsSymbol()) {
-    new_hints |= ToBooleanHint::kSymbol;
-    to_boolean_value = true;
-  } else if (object->IsHeapNumber()) {
-    DCHECK(!object->IsUndetectable());
-    new_hints |= ToBooleanHint::kHeapNumber;
-    double value = HeapNumber::cast(*object)->value();
-    to_boolean_value = value != 0 && !std::isnan(value);
-  } else {
-    // We should never see an internal object at runtime here!
-    UNREACHABLE();
-    to_boolean_value = true;
-  }
-
-  set_sub_minor_key(HintsBits::update(sub_minor_key(), new_hints));
-  return to_boolean_value;
-}
-
-void ToBooleanICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << hints();
-}
-
-void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
-  StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
-  stub1.GetCode();
-  stub2.GetCode();
 }
 
 
@@ -1020,7 +907,7 @@ TF_STUB(ArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* native_context = LoadObjectField(Parameter(Descriptor::kFunction),
                                          JSFunction::kContextOffset);
   bool track_allocation_site =
-      AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE &&
+      AllocationSite::ShouldTrack(elements_kind) &&
       stub->override_mode() != DISABLE_ALLOCATION_SITES;
   Node* allocation_site =
       track_allocation_site ? Parameter(Descriptor::kAllocationSite) : nullptr;
@@ -1028,17 +915,16 @@ TF_STUB(ArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* array =
       AllocateJSArray(elements_kind, array_map,
                       IntPtrConstant(JSArray::kPreallocatedArrayElements),
-                      SmiConstant(Smi::kZero), allocation_site);
+                      SmiConstant(0), allocation_site);
   Return(array);
 }
 
 TF_STUB(InternalArrayNoArgumentConstructorStub, CodeStubAssembler) {
   Node* array_map = LoadObjectField(Parameter(Descriptor::kFunction),
                                     JSFunction::kPrototypeOrInitialMapOffset);
-  Node* array =
-      AllocateJSArray(stub->elements_kind(), array_map,
-                      IntPtrConstant(JSArray::kPreallocatedArrayElements),
-                      SmiConstant(Smi::kZero));
+  Node* array = AllocateJSArray(
+      stub->elements_kind(), array_map,
+      IntPtrConstant(JSArray::kPreallocatedArrayElements), SmiConstant(0));
   Return(array);
 }
 
@@ -1069,21 +955,19 @@ void ArrayConstructorAssembler::GenerateConstructor(
 
   if (IsFastPackedElementsKind(elements_kind)) {
     Label abort(this, Label::kDeferred);
-    Branch(SmiEqual(array_size, SmiConstant(Smi::kZero)), &small_smi_size,
-           &abort);
+    Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
-    Node* reason = SmiConstant(Smi::FromInt(kAllocatingNonEmptyPackedArray));
+    Node* reason = SmiConstant(kAllocatingNonEmptyPackedArray);
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =
-        IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
+        IsDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
     int max_fast_elements =
         (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
          AllocationMemento::kSize) /
         element_size;
-    Branch(SmiAboveOrEqual(array_size,
-                           SmiConstant(Smi::FromInt(max_fast_elements))),
+    Branch(SmiAboveOrEqual(array_size, SmiConstant(max_fast_elements)),
            &call_runtime, &small_smi_size);
   }
 
@@ -1109,9 +993,13 @@ TF_STUB(ArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
   Node* function = Parameter(Descriptor::kFunction);
   Node* native_context = LoadObjectField(function, JSFunction::kContextOffset);
   Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
-  AllocationSiteMode mode = stub->override_mode() == DISABLE_ALLOCATION_SITES
-                                ? DONT_TRACK_ALLOCATION_SITE
-                                : AllocationSite::GetMode(elements_kind);
+  AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE;
+  if (stub->override_mode() == DONT_OVERRIDE) {
+    mode = AllocationSite::ShouldTrack(elements_kind)
+               ? TRACK_ALLOCATION_SITE
+               : DONT_TRACK_ALLOCATION_SITE;
+  }
+
   Node* array_size = Parameter(Descriptor::kArraySizeSmiParameter);
   Node* allocation_site = Parameter(Descriptor::kAllocationSite);
 

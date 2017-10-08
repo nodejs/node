@@ -12,6 +12,16 @@
 namespace v8 {
 namespace internal {
 
+// Handles should be trivially copyable so that they can be efficiently passed
+// by value. If they are not trivially copyable, they cannot be passed in
+// registers.
+static_assert(IS_TRIVIALLY_COPYABLE(HandleBase),
+              "HandleBase should be trivially copyable");
+static_assert(IS_TRIVIALLY_COPYABLE(Handle<Object>),
+              "Handle<Object> should be trivially copyable");
+static_assert(IS_TRIVIALLY_COPYABLE(MaybeHandle<Object>),
+              "MaybeHandle<Object> should be trivially copyable");
+
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);

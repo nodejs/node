@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* SmiConstant(Smi* value);
   Node* SmiConstant(int value);
   Node* HeapConstant(Handle<HeapObject> object);
-  Node* CStringConstant(const char* str);
+  Node* StringConstant(const char* str);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
@@ -350,6 +350,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   template <class... TArgs>
   Node* TailCallRuntime(Runtime::FunctionId function, Node* context,
                         TArgs... args);
+
+  // Tail call into the runtime passing the same |argc| stack arguments that we
+  // were called with.
+  Node* TailCallRuntimeN(Runtime::FunctionId function, Node* context,
+                         Node* argc);
 
   template <class... TArgs>
   Node* CallStub(Callable const& callable, Node* context, TArgs... args) {

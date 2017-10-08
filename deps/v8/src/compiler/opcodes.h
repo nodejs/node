@@ -106,6 +106,7 @@
   JS_COMPARE_BINOP_LIST(V)      \
   JS_BITWISE_BINOP_LIST(V)      \
   JS_ARITH_BINOP_LIST(V)        \
+  V(JSHasInPrototypeChain)      \
   V(JSInstanceOf)               \
   V(JSOrdinaryHasInstance)
 
@@ -116,7 +117,8 @@
   V(JSToName)                      \
   V(JSToNumber)                    \
   V(JSToObject)                    \
-  V(JSToString)
+  V(JSToString)                    \
+  V(JSToPrimitiveToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
   V(JSClassOf)                \
@@ -161,9 +163,11 @@
 #define JS_OTHER_OP_LIST(V)         \
   V(JSConstructForwardVarargs)      \
   V(JSConstruct)                    \
+  V(JSConstructWithArrayLike)       \
   V(JSConstructWithSpread)          \
   V(JSCallForwardVarargs)           \
   V(JSCall)                         \
+  V(JSCallWithArrayLike)            \
   V(JSCallWithSpread)               \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
@@ -177,6 +181,7 @@
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \
   V(JSStackCheck)                   \
+  V(JSStringConcat)                 \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \
@@ -311,9 +316,12 @@
   V(BooleanNot)                     \
   V(StringCharAt)                   \
   V(StringCharCodeAt)               \
+  V(SeqStringCharCodeAt)            \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
   V(StringIndexOf)                  \
+  V(StringToLowerCaseIntl)          \
+  V(StringToUpperCaseIntl)          \
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \
@@ -321,10 +329,13 @@
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \
   V(CheckString)                    \
+  V(CheckSeqString)                 \
+  V(CheckNonEmptyString)            \
+  V(CheckSymbol)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
   V(CheckFloat64Hole)               \
-  V(CheckTaggedHole)                \
+  V(CheckNotTaggedHole)             \
   V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
   V(LoadField)                      \
@@ -335,6 +346,7 @@
   V(StoreBuffer)                    \
   V(StoreElement)                   \
   V(StoreTypedElement)              \
+  V(TransitionAndStoreElement)      \
   V(ObjectIsDetectableCallable)     \
   V(ObjectIsNaN)                    \
   V(ObjectIsNonCallable)            \
@@ -350,7 +362,9 @@
   V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
   V(MaybeGrowFastElements)          \
-  V(TransitionElementsKind)
+  V(TransitionElementsKind)         \
+  V(LookupHashStorageIndex)         \
+  V(LoadHashMapValue)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \
@@ -693,31 +707,12 @@
   V(S128And)                    \
   V(S128Or)                     \
   V(S128Xor)                    \
-  V(S32x4Shuffle)               \
-  V(S32x4Select)                \
-  V(S16x8Shuffle)               \
-  V(S16x8Select)                \
+  V(S128Select)                 \
   V(S8x16Shuffle)               \
-  V(S8x16Select)                \
-  V(S1x4Zero)                   \
-  V(S1x4And)                    \
-  V(S1x4Or)                     \
-  V(S1x4Xor)                    \
-  V(S1x4Not)                    \
   V(S1x4AnyTrue)                \
   V(S1x4AllTrue)                \
-  V(S1x8Zero)                   \
-  V(S1x8And)                    \
-  V(S1x8Or)                     \
-  V(S1x8Xor)                    \
-  V(S1x8Not)                    \
   V(S1x8AnyTrue)                \
   V(S1x8AllTrue)                \
-  V(S1x16Zero)                  \
-  V(S1x16And)                   \
-  V(S1x16Or)                    \
-  V(S1x16Xor)                   \
-  V(S1x16Not)                   \
   V(S1x16AnyTrue)               \
   V(S1x16AllTrue)
 

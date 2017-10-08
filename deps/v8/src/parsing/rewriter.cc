@@ -386,14 +386,6 @@ bool Rewriter::Rewrite(ParseInfo* info, Isolate* isolate) {
       int pos = kNoSourcePosition;
       Expression* result_value =
           processor.factory()->NewVariableProxy(result, pos);
-      if (scope->is_module_scope()) {
-        auto args = new (info->zone()) ZoneList<Expression*>(2, info->zone());
-        args->Add(result_value, info->zone());
-        args->Add(processor.factory()->NewBooleanLiteral(true, pos),
-                  info->zone());
-        result_value = processor.factory()->NewCallRuntime(
-            Runtime::kInlineCreateIterResultObject, args, pos);
-      }
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_value, pos);
       body->Add(result_statement, info->zone());

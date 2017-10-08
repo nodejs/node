@@ -14,10 +14,10 @@
 // do not know what you are doing, avoid these routines, and use a Mutex.
 //
 // It is incorrect to make direct assignments to/from an atomic variable.
-// You should use one of the Load or Store routines.  The NoBarrier
-// versions are provided when no barriers are needed:
-//   NoBarrier_Store()
-//   NoBarrier_Load()
+// You should use one of the Load or Store routines.  The Relaxed  versions
+// are provided when no fences are needed:
+//   Relaxed_Store()
+//   Relaxed_Load()
 // Although there are currently no compiler enforcement, you are encouraged
 // to use these.
 //
@@ -35,15 +35,6 @@
 
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
-
-#if defined(V8_OS_WIN) && defined(V8_HOST_ARCH_64_BIT)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence. So, on
-// X64, undef it, and call its documented
-// (http://msdn.microsoft.com/en-us/library/windows/desktop/ms684208.aspx)
-// implementation directly.
-#undef MemoryBarrier
-#endif
 
 namespace v8 {
 namespace base {
@@ -74,17 +65,16 @@ typedef intptr_t AtomicWord;
 // Always return the old value of "*ptr"
 //
 // This routine implies no memory barriers.
-Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
-                                  Atomic32 old_value,
-                                  Atomic32 new_value);
+Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
+                                Atomic32 new_value);
 
 // Atomically store new_value into *ptr, returning the previous value held in
 // *ptr.  This routine implies no memory barriers.
-Atomic32 NoBarrier_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
+Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
 
 // Atomically increment *ptr by "increment".  Returns the new value of
 // *ptr with the increment applied.  This routine implies no memory barriers.
-Atomic32 NoBarrier_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
+Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
 
 Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
                                  Atomic32 increment);
@@ -95,9 +85,8 @@ Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
 // a store with appropriate memory-ordering instructions.  "Acquire" operations
 // ensure that no later memory access can be reordered ahead of the operation.
 // "Release" operations ensure that no previous memory access can be reordered
-// after the operation.  "Barrier" operations have both "Acquire" and "Release"
-// semantics.   A MemoryBarrier() has "Barrier" semantics, but does no memory
-// access.
+// after the operation.  "Fence" operations have both "Acquire" and "Release"
+// semantics. A MemoryFence() has "Fence" semantics, but does no memory access.
 Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
@@ -105,22 +94,21 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 old_value,
                                 Atomic32 new_value);
 
-void MemoryBarrier();
-void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value);
-void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value);
+void MemoryFence();
+void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value);
+void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
 
-Atomic8 NoBarrier_Load(volatile const Atomic8* ptr);
-Atomic32 NoBarrier_Load(volatile const Atomic32* ptr);
+Atomic8 Relaxed_Load(volatile const Atomic8* ptr);
+Atomic32 Relaxed_Load(volatile const Atomic32* ptr);
 Atomic32 Acquire_Load(volatile const Atomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
 #ifdef V8_HOST_ARCH_64_BIT
-Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64* ptr,
-                                  Atomic64 old_value,
-                                  Atomic64 new_value);
-Atomic64 NoBarrier_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
-Atomic64 NoBarrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
+Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
+                                Atomic64 new_value);
+Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
+Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
 Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
 
 Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
@@ -129,9 +117,9 @@ Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
 Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
                                 Atomic64 old_value,
                                 Atomic64 new_value);
-void NoBarrier_Store(volatile Atomic64* ptr, Atomic64 value);
+void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value);
 void Release_Store(volatile Atomic64* ptr, Atomic64 value);
-Atomic64 NoBarrier_Load(volatile const Atomic64* ptr);
+Atomic64 Relaxed_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 

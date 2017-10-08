@@ -3,10 +3,10 @@
 const common = require('../common.js');
 const PORT = common.PORT;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   n: [1e3],
   nheaders: [0, 10, 100, 1000],
-}, { flags: ['--expose-http2', '--no-warnings'] });
+}, { flags: ['--no-warnings'] });
 
 function main(conf) {
   const n = +conf.n;

@@ -39,7 +39,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
   // Initially, we can load from offset 12, but not OOB.
   var oob_index = kNumPages * kPageSize;
-  var initial_interpreted = % WasmNumInterpretedCalls(instance);
+  var initial_interpreted = %WasmNumInterpretedCalls(instance);
   assertEquals(0, exp.load(12));
   assertEquals(0, exp.load_interpreted(12));
   assertTraps(kTrapMemOutOfBounds, () => exp.load(oob_index));
@@ -74,5 +74,5 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(-1, exp.grow_memory(kMaxPages - kNumPages + 1));
   assertEquals(-1, exp.grow_memory_interpreted(kMaxPages - kNumPages + 1));
   // Overall, we executed 9 functions in the interpreter.
-  assertEquals(initial_interpreted + 9, % WasmNumInterpretedCalls(instance));
+  assertEquals(initial_interpreted + 9, %WasmNumInterpretedCalls(instance));
 })();

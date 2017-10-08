@@ -3,19 +3,19 @@
 // Yes, this is a silly benchmark.  Most benchmarks are silly.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
+const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const fs = require('fs');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   dur: [5],
   len: [1024, 16 * 1024 * 1024],
   concurrent: [1, 10]
 });
 
 function main(conf) {
-  var len = +conf.len;
+  const len = +conf.len;
   try { fs.unlinkSync(filename); } catch (e) {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);

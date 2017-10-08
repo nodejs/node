@@ -3,7 +3,6 @@ set noparent
 alph@chromium.org
 caseq@chromium.org
 dgozman@chromium.org
-jochen@chromium.org
 kozyatinskiy@chromium.org
 pfeldman@chromium.org
 yangguo@chromium.org
@@ -13,3 +12,5 @@ yangguo@chromium.org
 per-file js_protocol.json=set noparent
 per-file js_protocol.json=dgozman@chromium.org
 per-file js_protocol.json=pfeldman@chromium.org
+
+# COMPONENT: Platform>DevTools>JavaScript

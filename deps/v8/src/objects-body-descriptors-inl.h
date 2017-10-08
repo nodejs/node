@@ -7,6 +7,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects/hash-table.h"
 #include "src/transitions.h"
 
 namespace v8 {
@@ -107,7 +108,7 @@ void BodyDescriptorBase::IteratePointer(Heap* heap, HeapObject* obj,
 
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  static const int kStartOffset = JSReceiver::kPropertiesOffset;
+  static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     if (offset < kStartOffset) return false;
@@ -133,7 +134,7 @@ class JSObject::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
  public:
-  static const int kStartOffset = JSReceiver::kPropertiesOffset;
+  static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     return offset >= kStartOffset;
@@ -172,14 +173,9 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOffset, kNonWeakFieldsEndOffset, v);
-
-    if (body_visiting_policy & kVisitCodeEntry) {
-      v->VisitCodeEntry(JSFunction::cast(obj),
-                        obj->address() + kCodeEntryOffset);
-    }
-
-    if (body_visiting_policy & kVisitNextFunction) {
+    IteratePointers(obj, kPropertiesOrHashOffset, kNonWeakFieldsEndOffset, v);
+    v->VisitCodeEntry(JSFunction::cast(obj), obj->address() + kCodeEntryOffset);
+    if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
     }
     IterateBodyImpl(obj, kSize, object_size, v);
@@ -188,15 +184,12 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                    kNonWeakFieldsEndOffset);
 
-    if (body_visiting_policy & kVisitCodeEntry) {
-      StaticVisitor::VisitCodeEntry(heap, obj,
-                                    obj->address() + kCodeEntryOffset);
-    }
+    StaticVisitor::VisitCodeEntry(heap, obj, obj->address() + kCodeEntryOffset);
 
-    if (body_visiting_policy & kVisitNextFunction) {
+    if (body_visiting_policy == kIgnoreWeakness) {
       IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
     }
     IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
@@ -225,7 +218,7 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     // Array buffers contain raw pointers that the GC does not know about. These
     // are stored at kBackStoreOffset and later, so we do not iterate over
     // those.
-    IteratePointers(obj, kPropertiesOffset, kBackingStoreOffset, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, kBackingStoreOffset, v);
     IterateBodyImpl(obj, kSize, object_size, v);
   }
 
@@ -235,13 +228,49 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     // Array buffers contain raw pointers that the GC does not know about. These
     // are stored at kBackStoreOffset and later, so we do not iterate over
     // those.
-    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+    IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                    kBackingStoreOffset);
     IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
     return map->instance_size();
+  }
+};
+
+template <typename Derived>
+class SmallOrderedHashTable<Derived>::BodyDescriptor final
+    : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) {
+    Derived* table = reinterpret_cast<Derived*>(obj);
+    if (offset < table->GetDataTableStartOffset()) return false;
+    return IsValidSlotImpl(obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    Derived* table = reinterpret_cast<Derived*>(obj);
+    int start = table->GetDataTableStartOffset();
+    for (int i = 0; i < table->Capacity(); i++) {
+      IteratePointer(obj, start + (i * kPointerSize), v);
+    }
+  }
+
+  template <typename StaticVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size) {
+    Heap* heap = obj->GetHeap();
+    Derived* table = reinterpret_cast<Derived*>(obj);
+    int start = table->GetDataTableStartOffset();
+    for (int i = 0; i < table->Capacity(); i++) {
+      IteratePointer<StaticVisitor>(heap, obj, start + (i * kPointerSize));
+    }
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    Derived* table = reinterpret_cast<Derived*>(obj);
+    return table->Size();
   }
 };
 
@@ -257,7 +286,7 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size) {}
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
-    return reinterpret_cast<ByteArray*>(obj)->ByteArraySize();
+    return ByteArray::SizeFor(ByteArray::cast(obj)->synchronized_length());
   }
 };
 
@@ -285,7 +314,8 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
-    return reinterpret_cast<BytecodeArray*>(obj)->BytecodeArraySize();
+    return BytecodeArray::SizeFor(
+        BytecodeArray::cast(obj)->synchronized_length());
   }
 };
 
@@ -302,7 +332,7 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return FixedDoubleArray::SizeFor(
-        reinterpret_cast<FixedDoubleArray*>(obj)->length());
+        FixedDoubleArray::cast(obj)->synchronized_length());
   }
 };
 
@@ -325,7 +355,7 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
-    return reinterpret_cast<FixedTypedArrayBase*>(object)->size();
+    return FixedTypedArrayBase::cast(object)->size();
   }
 };
 
@@ -342,10 +372,10 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    if (body_visiting_policy == kVisitStrong) {
-      IterateBodyImpl(obj, kPropertiesOffset, object_size, v);
+    if (body_visiting_policy == kIgnoreWeakness) {
+      IterateBodyImpl(obj, kPropertiesOrHashOffset, object_size, v);
     } else {
-      IteratePointers(obj, kPropertiesOffset, kTableOffset, v);
+      IteratePointers(obj, kPropertiesOrHashOffset, kTableOffset, v);
       IterateBodyImpl(obj, kSize, object_size, v);
     }
   }
@@ -353,10 +383,11 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
     Heap* heap = obj->GetHeap();
-    if (body_visiting_policy == kVisitStrong) {
-      IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOffset, object_size);
+    if (body_visiting_policy == kIgnoreWeakness) {
+      IterateBodyImpl<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
+                                     object_size);
     } else {
-      IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
+      IteratePointers<StaticVisitor>(heap, obj, kPropertiesOrHashOffset,
                                      kTableOffset);
       IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
     }
@@ -511,7 +542,7 @@ class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     SeqOneByteString* string = SeqOneByteString::cast(obj);
-    return string->SizeFor(string->length());
+    return string->SizeFor(string->synchronized_length());
   }
 };
 
@@ -528,7 +559,7 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* obj) {
     SeqTwoByteString* string = SeqTwoByteString::cast(obj);
-    return string->SizeFor(string->length());
+    return string->SizeFor(string->synchronized_length());
   }
 };
 
@@ -555,7 +586,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
         }
     }
     UNREACHABLE();
-    return ReturnType();
   }
 
   switch (type) {
@@ -563,6 +593,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
+    case PROPERTY_ARRAY_TYPE:
+      return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3);
     case TRANSITION_ARRAY_TYPE:
       return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3);
     case JS_OBJECT_TYPE:
@@ -582,8 +614,11 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
-    case JS_SET_ITERATOR_TYPE:
-    case JS_MAP_ITERATOR_TYPE:
+    case JS_SET_KEY_VALUE_ITERATOR_TYPE:
+    case JS_SET_VALUE_ITERATOR_TYPE:
+    case JS_MAP_KEY_ITERATOR_TYPE:
+    case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
+    case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
 
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
@@ -629,6 +664,10 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
+    case WASM_INSTANCE_TYPE:
+    case WASM_MEMORY_TYPE:
+    case WASM_MODULE_TYPE:
+    case WASM_TABLE_TYPE:
       return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3);
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -657,7 +696,14 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<Symbol::BodyDescriptor>(p1, p2, p3);
     case BYTECODE_ARRAY_TYPE:
       return Op::template apply<BytecodeArray::BodyDescriptor>(p1, p2, p3);
-
+    case SMALL_ORDERED_HASH_SET_TYPE:
+      return Op::template apply<
+          SmallOrderedHashTable<SmallOrderedHashSet>::BodyDescriptor>(p1, p2,
+                                                                      p3);
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+      return Op::template apply<
+          SmallOrderedHashTable<SmallOrderedHashMap>::BodyDescriptor>(p1, p2,
+                                                                      p3);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
@@ -686,7 +732,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();
-      return ReturnType();
   }
 }
 

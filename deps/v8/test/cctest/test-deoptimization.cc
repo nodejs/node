@@ -51,59 +51,50 @@ using ::v8::internal::Object;
 
 // Utility class to set the following runtime flags when constructed and return
 // to their default state when destroyed:
-//   --allow-natives-syntax --always-opt --noturbo-inlining --nouse-inlining
+//   --allow-natives-syntax --always-opt --noturbo-inlining
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
       : always_opt_(i::FLAG_always_opt),
         allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining),
-        use_inlining_(i::FLAG_use_inlining) {
+        turbo_inlining_(i::FLAG_turbo_inlining) {
     i::FLAG_always_opt = true;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_turbo_inlining = false;
-    i::FLAG_use_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
     i::FLAG_always_opt = always_opt_;
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_turbo_inlining = turbo_inlining_;
-    i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool always_opt_;
   bool allow_natives_syntax_;
   bool turbo_inlining_;
-  bool use_inlining_;
 };
-
 
 // Utility class to set the following runtime flags when constructed and return
 // to their default state when destroyed:
-//   --allow-natives-syntax --noturbo-inlining --nouse-inlining
+//   --allow-natives-syntax --noturbo-inlining
 class AllowNativesSyntaxNoInlining {
  public:
   AllowNativesSyntaxNoInlining()
       : allow_natives_syntax_(i::FLAG_allow_natives_syntax),
-        turbo_inlining_(i::FLAG_turbo_inlining),
-        use_inlining_(i::FLAG_use_inlining) {
+        turbo_inlining_(i::FLAG_turbo_inlining) {
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_turbo_inlining = false;
-    i::FLAG_use_inlining = false;
   }
 
   ~AllowNativesSyntaxNoInlining() {
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_turbo_inlining = turbo_inlining_;
-    i::FLAG_use_inlining = use_inlining_;
   }
 
  private:
   bool allow_natives_syntax_;
   bool turbo_inlining_;
-  bool use_inlining_;
 };
 
 
@@ -124,6 +115,7 @@ static Handle<JSFunction> GetJSFunction(v8::Local<v8::Context> context,
 
 
 TEST(DeoptimizeSimple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -170,6 +162,7 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -217,6 +210,7 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -250,6 +244,7 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -287,6 +282,7 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -323,6 +319,7 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -376,6 +373,7 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
+  ManualGCScope manual_gc_scope;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -413,6 +411,7 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   AllowNativesSyntaxNoInlining options;
   v8::Isolate::CreateParams create_params;
@@ -522,6 +521,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -552,6 +552,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -582,6 +583,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationSUB) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -612,6 +614,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMUL) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -642,6 +645,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationDIV) {
 
 
 UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -672,6 +676,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationMOD) {
 
 
 UNINITIALIZED_TEST(DeoptimizeCompare) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -736,6 +741,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -836,6 +842,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
 
 
 UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
+  ManualGCScope manual_gc_scope;
   i::FLAG_concurrent_recompilation = false;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

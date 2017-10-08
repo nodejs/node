@@ -8,9 +8,9 @@
 // Verify that our assumptions are valid.
 'use strict';
 
-var common = require('../common.js');
+const common = require('../common.js');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   n: [1, 4, 8, 16],
   len: [1, 64, 256],
   c: [100]
@@ -18,9 +18,9 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   const http = require('http');
-  var chunk = Buffer.alloc(conf.len, '8');
+  const chunk = Buffer.alloc(conf.len, '8');
 
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     function send(left) {
       if (left === 0) return res.end();
       res.write(chunk);

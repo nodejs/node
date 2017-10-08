@@ -66,6 +66,7 @@ let kDataSectionCode = 11;     // Data segments
 let kNameSectionCode = 12;     // Name section (encoded as string)
 
 // Name section types
+let kModuleNameCode = 0;
 let kFunctionNamesCode = 1;
 let kLocalNamesCode = 2;
 
