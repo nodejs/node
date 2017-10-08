@@ -36,8 +36,8 @@ function main(conf) {
   const key = crypto.generateLegacyKey(conf.cipher, alice_secret);
   const iv = crypto.generateLegacyIV(conf.cipher, alice_secret);
 
-  var alice_cipher = crypto.createCipheriv(conf.cipher, key, iv);
-  var bob_cipher = crypto.createDecipheriv(conf.cipher, key, iv);
+  const alice_cipher = crypto.createCipheriv(conf.cipher, key, iv);
+  const bob_cipher = crypto.createDecipheriv(conf.cipher, key, iv);
 
   var message;
   var encoding;

@@ -135,10 +135,6 @@ testImmutability(crypto.getCurves);
 
 // Regression tests for #5725: hex input that's not a power of two should
 // throw, not assert in C++ land.
-if (common.hasFipsCrypto) {
-
-}
-
 assert.throws(function() {
   crypto.createCipher('aes192', 'test').update('0', 'hex');
 }, common.hasFipsCrypto ? /not supported in FIPS mode/ : /Bad input string/);
