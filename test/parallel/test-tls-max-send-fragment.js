@@ -34,8 +34,8 @@ let received = 0;
 const maxChunk = 768;
 
 const server = tls.createServer({
-  key: fixtures.readSync('/keys/agent1-key.pem'),
-  cert: fixtures.readSync('/keys/agent1-cert.pem')
+  key: fixtures.readKey('/agent1-key.pem'),
+  cert: fixtures.readKey('/agent1-cert.pem')
 }, function(c) {
   // Lower and upper limits
   assert(!c.setMaxSendFragment(511));
