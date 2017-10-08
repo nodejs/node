@@ -110,9 +110,9 @@ function onSession(session) {
     common.mustCall(onRequest)
   );
 
-  server.on('unknownProtocol', common.mustCall((socket) => {
+  server.once('unknownProtocol', common.mustCall((socket) => {
     socket.destroy();
-  }, 2));
+  }));
 
   server.listen(0);
 
