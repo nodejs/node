@@ -5,12 +5,11 @@ if (!common.hasFipsCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 
 const input = 'hello';
 
-const dsapri = fs.readFileSync(
-  `${common.fixturesDir}/keys/dsa_private_1025.pem`);
+const dsapri = readKey('dsa_private_1025.pem');
 const sign = crypto.createSign('SHA1');
 sign.update(input);
 

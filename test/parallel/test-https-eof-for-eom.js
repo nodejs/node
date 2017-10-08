@@ -36,10 +36,11 @@ const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
 const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem')
 };
 
 

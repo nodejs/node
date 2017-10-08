@@ -26,10 +26,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 
-const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
-const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
+const key = readKey('agent1-key.pem');
+const cert = readKey('agent1-cert.pem');
 
 tls.createServer({ key: key, cert: cert }, common.mustCall(function(conn) {
   conn.end();

@@ -26,12 +26,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const tls = require('tls');
-const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 const net = require('net');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`)
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem')
 };
 
 const server = tls.createServer(options, common.mustNotCall());

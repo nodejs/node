@@ -32,11 +32,11 @@ const assert = require('assert');
 const tls = require('tls');
 
 const exec = require('child_process').exec;
-const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem'),
   ciphers: '-ALL:ECDHE-RSA-AES128-SHA256',
   ecdhCurve: 'prime256v1'
 };

@@ -26,16 +26,16 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const fs = require('fs');
 const https = require('https');
 const http = require('http');
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 
 const tests = [];
 
 const serverOptions = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem')
 };
 
 function test(fn) {

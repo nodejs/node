@@ -30,11 +30,11 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
-const fs = require('fs');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`)
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem')
 };
 
 // create server

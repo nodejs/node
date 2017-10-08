@@ -5,10 +5,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 const fs = require('fs');
 
-const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
-const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
+const key = readKey('agent2-key.pem');
+const cert = readKey('agent2-cert.pem');
 
 let ntests = 0;
 let nsuccess = 0;
