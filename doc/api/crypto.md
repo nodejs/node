@@ -1714,8 +1714,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 added: v1.1.0
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+  - `key` {string} A PEM encoded public key.
+  - `passphrase` {string} An optional passphrase for the public key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
@@ -1734,8 +1734,8 @@ be passed instead of a public key.
 added: v0.11.14
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+  - `key` {string} A PEM encoded public key.
+  - `passphrase` {string} An optional passphrase for the public key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.

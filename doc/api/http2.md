@@ -372,7 +372,7 @@ const {
 
 const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
 req.on('response', (headers) => {
-  console.log(HTTP2_HEADER_STATUS);
+  console.log(headers[HTTP2_HEADER_STATUS]);
   req.on('data', (chunk) => { /** .. **/ });
   req.on('end', () => { /** .. **/ });
 });
@@ -828,8 +828,8 @@ added: v8.4.0
 * Value: {Object}
   * `localWindowSize` {number}
   * `state` {number}
-  * `streamLocalClose` {number}
-  * `streamRemoteClose` {number}
+  * `localClose` {number}
+  * `remoteClose` {number}
   * `sumDependencyWeight` {number}
   * `weight` {number}
 
@@ -1368,7 +1368,7 @@ added: v8.4.0
 The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
 receives the socket for handling. If no listener is registered for this event,
-the connection is terminated. See the
+the connection is terminated. See the [Compatibility API][].
 
 #### Event: 'stream'
 <!-- YAML
