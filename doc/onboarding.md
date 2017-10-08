@@ -172,6 +172,11 @@ onboarding session.
     * [https://github.com/nodejs/readable-stream](https://github.com/nodejs/readable-stream)
     * [https://github.com/nodejs/LTS](https://github.com/nodejs/LTS)
     * [https://github.com/nodejs/citgm](https://github.com/nodejs/citgm)
+  * The Node.js Foundation hosts regular summits for active contributors to the Node.js
+    project, where we have face-to-face discussion about our work on the project.
+    The foundation has travel funds to cover participants' expenses including
+    accommodation, transportation, visa fees etc. if needed. Check out the
+    [summit](https://github.com/nodejs/summit) repository for details.
 
 [Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
