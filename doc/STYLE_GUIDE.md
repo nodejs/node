@@ -1,10 +1,9 @@
 # Style Guide
 
-* Documents are written in markdown files.
-* Those files should be written in **`lowercase-with-dashes.md`**.
+* Documentation is written in markdown files with names formatted as
+  `lowercase-with-dashes.md`.
   * Underscores in filenames are allowed only when they are present in the
     topic the document will describe (e.g., `child_process`).
-  * Filenames should be **lowercase**.
   * Some files, such as top-level markdown files, are exceptions.
 * Documents should be word-wrapped at 80 characters.
 * The formatting described in `.editorconfig` is preferred.
@@ -19,10 +18,10 @@
 * Generally avoid personal pronouns in reference documentation ("I", "you",
   "we").
   * Pronouns are acceptable in more colloquial documentation, like guides.
-  * Use **gender-neutral pronouns** and **mass nouns**. Non-comprehensive
+  * Use gender-neutral pronouns and mass nouns. Non-comprehensive
     examples:
-    * **OK**: "they", "their", "them", "folks", "people", "developers", "cats"
-    * **NOT OK**: "his", "hers", "him", "her", "guys", "dudes"
+    * OK: "they", "their", "them", "folks", "people", "developers", "cats"
+    * NOT OK: "his", "hers", "him", "her", "guys", "dudes"
 * When combining wrapping elements (parentheses and quotes), terminal
   punctuation should be placed:
   * Inside the wrapping element if the wrapping element contains a complete
@@ -54,7 +53,7 @@
     is necessary, include it as an asset in `assets/code-examples` and link to
     it.
 * When using underscores, asterisks, and backticks, please use proper escaping
-  (**\\\_**, **\\\*** and **\\\`** instead of **\_**, **\*** and **\`**).
+  (`\_`, `\*` and ``\` `` instead of `_`, `*` and `` ` ``).
 * References to constructor functions should use PascalCase.
 * References to constructor instances should use camelCase.
 * References to methods should be used with parentheses: for example,
