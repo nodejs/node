@@ -1598,11 +1598,9 @@ void URL::Parse(const char* input,
                    special_back_slash) {
           if (buffer.size() > 0) {
             unsigned port = 0;
-            for (size_t i = 0; i < buffer.size(); i++) {
+            // the condition port <= 0xffff prevents integer overflow
+            for (size_t i = 0; port <= 0xffff && i < buffer.size(); i++)
               port = port * 10 + buffer[i] - '0';
-              // prevent integer overflow
-              if (port > 0xffff) break;
-            }
             if (port > 0xffff) {
               // TODO(TimothyGu): This hack is currently needed for the host
               // setter since it needs access to hostname if it is valid, and
