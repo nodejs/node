@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { readSync, readKey, path } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -11,22 +11,22 @@ const http2 = require('http2');
 const fs = require('fs');
 const tls = require('tls');
 
-const ajs_data = readSync('a.js', 'utf8');
+const ajs_data = fixtures.readSync('a.js', 'utf8');
 
 const {
   HTTP2_HEADER_PATH,
   HTTP2_HEADER_STATUS
 } = http2.constants;
 
-const key = readKey('agent8-key.pem', 'binary');
-const cert = readKey('agent8-cert.pem', 'binary');
-const ca = readKey('fake-startcom-root-cert.pem', 'binary');
+const key = fixtures.readKey('agent8-key.pem', 'binary');
+const cert = fixtures.readKey('agent8-cert.pem', 'binary');
+const ca = fixtures.readKey('fake-startcom-root-cert.pem', 'binary');
 
 const server = http2.createSecureServer({ key, cert });
 
 server.on('stream', (stream, headers) => {
   const name = headers[HTTP2_HEADER_PATH].slice(1);
-  const file = path(name);
+  const file = fixtures.path(name);
   fs.stat(file, (err, stat) => {
     if (err != null || stat.isDirectory()) {
       stream.respond({ [HTTP2_HEADER_STATUS]: 404 });
