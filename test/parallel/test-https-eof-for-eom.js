@@ -35,7 +35,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const https = require('https');
 const tls = require('tls');
-const fs = require('fs');
 const { readKey } = require('../common/fixtures');
 
 const options = {
