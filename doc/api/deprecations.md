@@ -651,12 +651,11 @@ key-derivation function such as [`crypto.pbkdf2()`][] to obtain a valid key if
 you normally supply a string to [`crypto.createCipher()`][].
 
 If the previous key-derivation is required for backward compatiability, the new
-APIs [`crypto.generateLegacyKey()`][] and [`crypto.generateLegacyIV()`][] have
-been added.
+APIs [`crypto.generateLegacyKey()`][] and [`crypto.generateLegacyIV()`][] expose the old algorithms.
 
 Additionally, for ciphers that require an initialization vector, a proper-length
 initialization vector must be passed to [`crypto.createCipheriv()`][].
-Initialization vectors must never be re-used, especially in modes such as
+Initialization vectors should never be re-used, especially in modes such as
 AES-CTR, where encryption is effectively removed upon reuse. Applications will
 need to store this initialization vector along with the encrypted data, as it is
 required for decryption. 
