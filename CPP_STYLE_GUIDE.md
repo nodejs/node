@@ -1,9 +1,10 @@
 # C++ style guide
 
-Unfortunately, the C++ linter (which can be run explicitly
-via `make cpplint`) does not currently catch a lot of rules that are specific
-to the Node.js C++ code base. This document explains the most common of these
-rules:
+Unfortunately, the C++ linter (based on
+[Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
+explicitly via `make cpplint`, does not currently catch a lot of rules that are
+specific to the Node.js C++ code base. This document explains the most common of
+these rules:
 
 ## Left-leaning (C++ style) asterisks for pointer declarations
 
@@ -52,11 +53,17 @@ void FunctionWithAReallyReallyReallyLongNameSeriouslyStopIt(
 
 ## CamelCase for methods, functions and classes
 
+Exceptions are simple getters/setters, which are named `property_name()` and
+`set_property_name()`, respectively.
+
 ```c++
 class FooBar {
  public:
   void DoSomething();
   static void DoSomethingButItsStaticInstead();
+
+  void set_foo_flag(int flag_value);
+  int foo_flag() const;  // Use const-correctness whenever possible.
 };
 ```
 
@@ -102,10 +109,12 @@ class FancyContainer {
 
 What it says in the title.
 
-## Avoid throwing errors in nested C++ methods
+## Avoid throwing JavaScript errors in nested C++ methods
 
-If you need to throw errors from a C++ binding method, try to do it at the
-top level and not inside of nested calls.
+If you need to throw JavaScript errors from a C++ binding method, try to do it
+at the top level and not inside of nested calls.
+
+(Using C++ `throw` is not allowed.)
 
 A lot of code inside Node.js is written so that typechecking etc. is performed
 in JavaScript.
