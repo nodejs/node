@@ -22,8 +22,14 @@ function assertSettings(settings) {
 
 function onStream(stream, headers, flags) {
 
-  assertSettings(stream.session.localSettings);
-  assertSettings(stream.session.remoteSettings);
+  const localSettings = stream.session.localSettings;
+  const remoteSettings = stream.session.remoteSettings;
+  assertSettings(localSettings);
+  assertSettings(remoteSettings);
+
+  // Test that stored settings are returned when called for second time
+  assert.strictEqual(stream.session.localSettings, localSettings);
+  assert.strictEqual(stream.session.remoteSettings, remoteSettings);
 
   stream.respond({
     'content-type': 'text/html',

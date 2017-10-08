@@ -6,28 +6,27 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-// Http2ServerResponse.writeHead should override previous headers
+// makes sure that Http2ServerResponse setHeader & removeHeader, do not throw
+// any errors if the stream was destroyed before headers were sent
 
 const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
-    response.setHeader('foo-bar', 'def456');
-    response.writeHead(418, { 'foo-bar': 'abc123' }); // Override
+    response.destroy();
 
-    common.expectsError(() => { response.writeHead(300); }, {
-      code: 'ERR_HTTP2_HEADERS_SENT'
-    });
+    response.on('finish', common.mustCall(() => {
+      assert.strictEqual(response.headersSent, false);
+      assert.doesNotThrow(() => response.setHeader('test', 'value'));
+      assert.doesNotThrow(() => response.removeHeader('test', 'value'));
 
-    response.on('finish', common.mustCall(function() {
-      server.close();
-      process.nextTick(common.mustCall(() => {
-        common.expectsError(() => { response.writeHead(300); }, {
-          code: 'ERR_HTTP2_STREAM_CLOSED'
-        });
-      }));
+      process.nextTick(() => {
+        assert.doesNotThrow(() => response.setHeader('test', 'value'));
+        assert.doesNotThrow(() => response.removeHeader('test', 'value'));
+
+        server.close();
+      });
     }));
-    response.end();
   }));
 
   const url = `http://localhost:${port}`;
@@ -39,10 +38,6 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('response', common.mustCall(function(headers) {
-      assert.strictEqual(headers['foo-bar'], 'abc123');
-      assert.strictEqual(headers[':status'], 418);
-    }, 1));
     request.on('end', common.mustCall(function() {
       client.destroy();
     }));
