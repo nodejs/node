@@ -24,9 +24,10 @@ const npmPath = path.join(
   'npm-cli.js'
 );
 
+const fixtures = require('../common/fixtures');
 const pkgContent = JSON.stringify({
   dependencies: {
-    'package-name': `${common.fixturesDir}/packages/main`
+    'package-name': fixtures.path('packages/main')
   }
 });
 
