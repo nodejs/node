@@ -14,7 +14,7 @@ const assert = require('assert');
 
 common.refreshTmpDir();
 
-const warnmod = require.resolve(`${fixtures.fixturesDir}/warnings.js`);
+const warnmod = require.resolve(fixtures.path('/warnings.js'));
 const warnpath = path.join(common.tmpDir, 'warnings.txt');
 
 fork(warnmod, { env: Object.assign({}, process.env,
