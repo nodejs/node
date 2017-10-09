@@ -16,15 +16,15 @@ arr2[1] = 4000;
 const arr_buf = Buffer.from(arr1.buffer);
 const ar_buf = Buffer.from(arr2.buffer);
 
-assert.deepStrictEqual(arr_buf, ar_buf, 0);
+assert.deepStrictEqual(arr_buf, ar_buf);
 
 arr1[1] = 6000;
 arr2[1] = 6000;
 
-assert.deepStrictEqual(arr_buf, ar_buf, 0);
+assert.deepStrictEqual(arr_buf, ar_buf);
 
 // Checks for calling Buffer.byteLength on a SharedArrayBuffer
 
-assert.strictEqual(Buffer.byteLength(sab), sab.byteLength, 0);
+assert.strictEqual(Buffer.byteLength(sab), sab.byteLength);
 
 assert.doesNotThrow(() => Buffer.from({ buffer: sab }));
