@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 
 let nconns = 0;
 
@@ -22,8 +21,8 @@ process.on('exit', function() {
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
   const soptions = {
     secureProtocol: SSL_Method,
-    key: fs.readFileSync(fixtures.path('/keys/agent2-key.pem')),
-    cert: fs.readFileSync(fixtures.path('/keys/agent2-cert.pem')),
+    key: fixtures.readKey('agent2-key.pem'),
+    cert: fixtures.readKey('agent2-cert.pem'),
     ciphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
              'ECDHE-RSA-AES128-GCM-SHA256',
     honorCipherOrder: !!honorCipherOrder
