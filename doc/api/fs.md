@@ -626,6 +626,19 @@ Any specified file descriptor has to have been opened for appending.
 *Note*: If a file descriptor is specified as the `file`, it will not be closed
 automatically.
 
+*Note:* When a file being watched by `fs.watchFile()` disappears and reappears,
+then the `previousStat` reported in the second callback event (the file's
+reappearance) will be the same as the `previousStat` of the first callback
+event (its disappearance).
+
+This happens when:
+- the file is deleted, followed by a restore
+- the file is renamed twice - the second time back to its original name
+
+In such cases the reappearance callback will not report the `previousStat` of
+the file with all zeroes. This is the correct and expected behavior for
+`uv_fs_poll_start()`, the libuv function that `fs.watchFile()` uses internally.
+
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
 added: v0.6.7
