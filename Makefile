@@ -205,10 +205,6 @@ v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
-ifeq ($(NODE_TARGET_TYPE),static_library)
-test: all
-	$(MAKE) cctest
-else
 test: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
@@ -221,7 +217,6 @@ test: all
 		$(CI_NATIVE_SUITES) \
 		$(CI_DOC) \
 		known_issues
-endif
 
 # For a quick test, does not run linter or build doc
 test-only: all
