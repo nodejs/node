@@ -395,6 +395,8 @@ For more information about the governance of the Node.js project, see
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
 **Minwoo Jung** &lt;minwoo@nodesource.com&gt; (he/him)
+* [kfarnung](https://github.com/kfarnung) -
+**Kyle Farnung** &lt;kfarnung@microsoft.com&gt; (he/him)
 * [kunalspathak](https://github.com/kunalspathak) -
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
