@@ -61,8 +61,10 @@ note1 - The gcc4.8-libs package needs to be installed, because node
 
 note2 - Running Node.js on Windows is officially supported using Cmd. Running Node.js
   through any other Windows shell (e.g. WSL, Git Bash, Cygwin, etc) is experimental.
-  Please note that running Node.js through Git Bash and Cygwin requires usage of [winpty](https://github.com/rprichard/winpty) (installed with Git for Windows) for Node.js to work
-  correctly (e.g. `winpty node.exe script.js`).
+  Please note that running Node.js through Git Bash and Cygwin requires usage of
+  [winpty](https://github.com/rprichard/winpty) (installed with Git Bash) for Node.js to work
+  correctly (e.g. `winpty node.exe script.js`). Note that if you call node without the `.exe`
+  extension through Git Bash, winpty is used automatically.
 
 ### Supported toolchains
 
