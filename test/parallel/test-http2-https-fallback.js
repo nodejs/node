@@ -1,13 +1,12 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const { strictEqual } = require('assert');
-const { join } = require('path');
-const { readFileSync } = require('fs');
 const { createSecureContext } = require('tls');
 const { createSecureServer, connect } = require('http2');
 const { get } = require('https');
@@ -16,13 +15,9 @@ const { connect: tls } = require('tls');
 
 const countdown = (count, done) => () => --count === 0 && done();
 
-function loadKey(keyname) {
-  return readFileSync(join(common.fixturesDir, 'keys', keyname));
-}
-
-const key = loadKey('agent8-key.pem');
-const cert = loadKey('agent8-cert.pem');
-const ca = loadKey('fake-startcom-root-cert.pem');
+const key = fixtures.readKey('agent8-key.pem');
+const cert = fixtures.readKey('agent8-cert.pem');
+const ca = fixtures.readKey('fake-startcom-root-cert.pem');
 
 const clientOptions = { secureContext: createSecureContext({ ca }) };
 

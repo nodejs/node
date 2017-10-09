@@ -53,7 +53,8 @@ try {
   assert.strictEqual(e.errno, 'ETIMEDOUT');
   err = e;
 } finally {
-  assert.strictEqual(ret, undefined, 'we should not have a return value');
+  assert.strictEqual(ret, undefined,
+                     `should not have a return value, received ${ret}`);
   assert.strictEqual(caught, true, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
@@ -74,11 +75,11 @@ cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
 ret = execSync(cmd);
 
 assert.strictEqual(ret.length, msgBuf.length);
-assert.deepStrictEqual(ret, msgBuf, 'execSync result buffer should match');
+assert.deepStrictEqual(ret, msgBuf);
 
 ret = execSync(cmd, { encoding: 'utf8' });
 
-assert.strictEqual(ret, `${msg}\n`, 'execSync encoding result should match');
+assert.strictEqual(ret, `${msg}\n`);
 
 const args = [
   '-e',
@@ -90,8 +91,7 @@ assert.deepStrictEqual(ret, msgBuf);
 
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 
-assert.strictEqual(ret, `${msg}\n`,
-                   'execFileSync encoding result should match');
+assert.strictEqual(ret, `${msg}\n`);
 
 // Verify that the cwd option works - GH #7824
 {
