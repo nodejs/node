@@ -246,6 +246,15 @@ assert.strictEqual(
   errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
   'The test header is required');
 
+// Test ERR_HTTP2_FRAME_ERROR
+assert.strictEqual(
+  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar', 'baz']),
+  'Error sending frame type foo for stream baz with code bar');
+assert.strictEqual(
+  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar']),
+  'Error sending frame type foo with code bar');
+
+
 // Test that `code` property is mutable and that changing it does not change the
 // name.
 {
