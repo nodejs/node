@@ -461,7 +461,7 @@ class CallbackWrapper {
   CallbackWrapper(napi_value this_arg, size_t args_length, void* data)
       : _this(this_arg), _args_length(args_length), _data(data) {}
 
-  virtual napi_value NewTarget() = 0;
+  virtual napi_value GetNewTarget() = 0;
   virtual void Args(napi_value* buffer, size_t bufferlength) = 0;
   virtual void SetReturnValue(napi_value value) = 0;
 
@@ -490,7 +490,7 @@ class CallbackWrapperBase : public CallbackWrapper {
                 ->Value();
   }
 
-  napi_value NewTarget() override { return nullptr; }
+  napi_value GetNewTarget() override { return nullptr; }
 
  protected:
   void InvokeCallback() {
@@ -538,7 +538,7 @@ class FunctionCallbackWrapper
       const v8::FunctionCallbackInfo<v8::Value>& cbinfo)
       : CallbackWrapperBase(cbinfo, cbinfo.Length()) {}
 
-  napi_value NewTarget() override {
+  napi_value GetNewTarget() override {
     if (_cbinfo.IsConstructCall()) {
       return v8impl::JsValueFromV8LocalValue(_cbinfo.NewTarget());
     } else {
@@ -858,8 +858,12 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
 
 // Registers a NAPI module.
 void napi_module_register(napi_module* mod) {
+  int module_version = -1;
+#ifdef EXTERNAL_NAPI
+  module_version = NODE_MODULE_VERSION;
+#endif  // EXTERNAL_NAPI
   node::node_module* nm = new node::node_module {
-    -1,
+    module_version,
     mod->nm_flags,
     nullptr,
     mod->nm_filename,
@@ -1912,7 +1916,7 @@ napi_status napi_get_new_target(napi_env env,
   v8impl::CallbackWrapper* info =
       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
 
-  *result = info->NewTarget();
+  *result = info->GetNewTarget();
   return napi_clear_last_error(env);
 }
 
@@ -3339,7 +3343,7 @@ class Work : public node::AsyncResource {
                 void* data = nullptr)
     : AsyncResource(env->isolate,
                     async_resource,
-                    async_resource_name),
+                    *v8::String::Utf8Value(async_resource_name)),
     _env(env),
     _data(data),
     _execute(execute),

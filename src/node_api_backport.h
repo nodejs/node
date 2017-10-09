@@ -50,7 +50,7 @@ class AsyncResource {
  public:
   AsyncResource(v8::Isolate* _isolate,
                 v8::Local<v8::Object> _object,
-                v8::Local<v8::String> name);
+                char* name);
   ~AsyncResource();
   v8::Isolate* isolate;
   v8::Persistent<v8::Object> object;

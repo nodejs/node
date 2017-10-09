@@ -73,7 +73,7 @@ CallbackScope::~CallbackScope() {
 
 AsyncResource::AsyncResource(v8::Isolate* _isolate,
                              v8::Local<v8::Object> _object,
-                             v8::Local<v8::String> name) : isolate(_isolate) {
+                             char* name) : isolate(_isolate) {
   object.Reset(isolate, _object);
 }
 
