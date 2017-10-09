@@ -7,23 +7,18 @@
 const common = require('../common');
 const assert = require('assert');
 
-let b = 0;
+let handled = false;
 
 process.on('warning', common.mustCall((warning) => {
-  switch (b++) {
-    case 0:
-      assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
-      assert(/Unhandled promise rejection/.test(warning.message));
-      break;
-    case 1:
-      assert.strictEqual(warning.name, 'DeprecationWarning');
-      break;
-    case 2:
-      assert.strictEqual(warning.name, 'PromiseRejectionHandledWarning');
-      assert(/Promise rejection was handled asynchronously/
-        .test(warning.message));
+  if (handled === false) {
+    assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
+    assert(/^Unhandled promise rejection/.test(warning.message));
+    handled = true;
+  } else {
+    assert.strictEqual(warning.name, 'PromiseRejectionHandledWarning');
+    assert(/^Promise rejection was handled asynchronous/.test(warning.message));
   }
-}, 3));
+}, 2));
 
 const p = Promise.reject('This was rejected');
 setImmediate(common.mustCall(() => p.catch(() => {})));

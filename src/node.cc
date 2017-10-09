@@ -65,6 +65,8 @@
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
+#include "track-promise.h"
+#include "track-promise-inl.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -90,6 +92,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -133,6 +136,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::Debug;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Float64Array;
@@ -158,6 +162,7 @@ using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
+using v8::Set;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
@@ -1313,6 +1318,49 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
+}  // anonymous namespace
+
+
+Local<Value> GetPromiseReason(Environment* env, Local<Value> promise) {
+  Local<Array> internal_props =
+      Debug::GetInternalProperties(env->isolate(),
+                                   promise).ToLocalChecked().As<Array>();
+
+  return internal_props->Get(3);
+}
+
+
+void TrackPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject());
+  Local<Object> promise = args[0].As<Object>();
+
+  promise->Set(env->context(),
+               env->promise_rejection_index_string(),
+               Number::New(env->isolate(), env->promise_tracker_index_++))
+                  .FromJust();
+
+  // Make some sort of list size check so as to not leak memory.
+  if (env->promise_tracker_.Size() > 10000) {
+    // XXX(Fishrock123): Do some intelligent logic here?
+    return;
+  }
+
+  env->promise_tracker_.TrackPromise(promise);
+}
+
+
+void UntrackPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject());
+  Local<Object> promise = args[0].As<Object>();
+
+  env->promise_tracker_.UntrackPromise(promise);
+}
+
+
 void PromiseRejectCallback(PromiseRejectMessage message) {
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
@@ -1320,7 +1368,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   Local<Integer> event = Integer::New(isolate, message.GetEvent());
 
   Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback = env->promise_reject_function();
+  Local<Function> callback = env->promise_unhandled_rejection_function();
 
   if (value.IsEmpty())
     value = Undefined(isolate);
@@ -1331,21 +1379,24 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   callback->Call(process, arraysize(args), args);
 }
 
+
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
   CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsObject());
 
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
-  env->set_promise_reject_function(args[0].As<Function>());
+  env->set_promise_unhandled_rejection_function(args[0].As<Function>());
+
+  env->SetMethod(args[1].As<Object>(), "trackPromise", TrackPromise);
+  env->SetMethod(args[1].As<Object>(), "untrackPromise", UntrackPromise);
 
   env->process_object()->Delete(
       env->context(),
       FIXED_ONE_BYTE_STRING(isolate, "_setupPromises")).FromJust();
 }
-
-}  // anonymous namespace
 
 
 void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
@@ -1828,10 +1879,9 @@ void AppendExceptionLine(Environment* env,
             arrow_str).FromMaybe(false));
 }
 
-
-static void ReportException(Environment* env,
-                            Local<Value> er,
-                            Local<Message> message) {
+void ReportException(Environment* env,
+                     Local<Value> er,
+                     Local<Message> message) {
   HandleScope scope(env->isolate());
 
   AppendExceptionLine(env, er, message, FATAL_ERROR);
@@ -2768,6 +2818,14 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
+  InternalFatalException(isolate, error, message, false);
+}
+
+
+void InternalFatalException(Isolate* isolate,
+                            Local<Value> error,
+                            Local<Message> message,
+                            bool from_promise) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -2790,9 +2848,12 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = { error,
+                             Boolean::New(env->isolate(), from_promise) };
+
     // this will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
-        fatal_exception_function->Call(process_object, 1, &error);
+        fatal_exception_function->Call(process_object, 2, argv);
 
     if (fatal_try_catch.HasCaught()) {
       // the fatal exception function threw, so we must exit
@@ -4755,6 +4816,31 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       more = uv_loop_alive(env.event_loop());
     } while (more == true);
     PERFORMANCE_MARK(&env, LOOP_EXIT);
+  }
+
+  Local<Object> oldest_rejected_promise;
+  int64_t lowest_rejection_index = -1;
+
+  env.promise_tracker_.ForEach([&](Environment* env, Local<Object> promise) {
+    Local<Value> index_ =
+        promise->Get(env->context(), env->promise_rejection_index_string())
+            .ToLocalChecked();
+    CHECK(index_->IsNumber());
+    int64_t index = index_->IntegerValue(env->context()).FromJust();
+    if (index < lowest_rejection_index || lowest_rejection_index == -1) {
+      oldest_rejected_promise = promise;
+      lowest_rejection_index = index;
+    }
+  });
+
+  if (!oldest_rejected_promise.IsEmpty()) {
+    Local<Value> orp = oldest_rejected_promise.As<Value>();
+    Local<Value> err = GetPromiseReason(&env, orp);
+    Local<Message> message = Exception::CreateMessage(isolate, err);
+
+    // XXX(Fishrock123): Should this just call ReportException and
+    // set exit_code = 1 instead?
+    InternalFatalException(isolate, err, message, true);
   }
 
   env.set_trace_sync_io(false);

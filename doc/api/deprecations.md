@@ -193,11 +193,11 @@ See [`Intl.Segmenter`](https://github.com/tc39/proposal-intl-segmenter).
 <a id="DEP0018"></a>
 ### DEP0018: Unhandled promise rejections
 
-Type: Runtime
+Type: End-of-Life
 
-Unhandled promise rejections are deprecated. In the future, promise rejections
-that are not handled will terminate the Node.js process with a non-zero exit
-code.
+Any unhandled promise rejection that is garbage collected is going to exit the
+process similar to unhandled exceptions. Please make sure to always handle all
+possible rejections.
 
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
