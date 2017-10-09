@@ -357,7 +357,7 @@ parser.add_option('--with-dtrace',
 parser.add_option('--with-lttng',
     action='store_true',
     dest='with_lttng',
-    help='build with Lttng (Only available to Linux)')
+    help='build with Lttng (Only supported on Linux)')
 
 parser.add_option('--with-etw',
     action='store_true',
