@@ -27,14 +27,8 @@ h4 { font-size: 1.5rem }
 h5 { font-size: 1.25rem }
 h6 { font-size: 1rem }
 
-h1, h2, h3, h4 {
-  margin: .8rem 0 .5rem;
-  line-height: 1.2;
-}
-
-h5, h6 {
-  margin: 1rem 0 .8rem;
-  line-height: 1.2;
+h1, h2, h3, h4, h5, h6 {
+  margin: 1.5rem 0 1rem;
 }
 
 pre, tt, code, .pre, span.type, a.type {
@@ -194,7 +188,7 @@ ol.version-picker li:last-child a {
 }
 
 .api_metadata {
-  font-size: .75rem;
+  font-size: .85rem;
   margin-bottom: 1rem;
 }
 
