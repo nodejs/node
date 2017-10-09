@@ -69,8 +69,8 @@ function testSampleDebugSession() {
       actual = v['value']['value'];
       expected = expects[v['name']][i];
       if (actual !== expected) {
-        failures.push('Iteration ' + i + ' variable: ' + v['name'] +
-                      ' expected: ' + expected + ' actual: ' + actual);
+        failures.push(`Iteration ${i} variable: ${v['name']} ` +
+          `expected: ${expected} actual: ${actual}`);
       }
     }
   };

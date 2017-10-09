@@ -36,7 +36,7 @@ for (const test of failureTests) {
         return false;
 
       // The input could be processed, so we don't do strict matching here
-      const match = (error + '').match(/Invalid URL: (.*)$/);
+      const match = (`${error}`).match(/Invalid URL: (.*)$/);
       if (!match) {
         return false;
       }
