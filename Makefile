@@ -13,6 +13,7 @@ OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test-cov
 GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
+GCOV ?= gcov
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -32,6 +33,10 @@ V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
   V8_TEST_OPTIONS += --noi18n
   V8_BUILD_OPTIONS += i18nsupport=off
+endif
+
+ifeq ($(OSTYPE), darwin)
+  GCOV = xcrun llvm-cov gcov
 endif
 
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
@@ -124,10 +129,12 @@ coverage-clean:
 	$(RM) -r gcovr testing
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp coverage
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcno
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/cctest/src/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/cctest/test/cctest/*.gcno
 
 # Build and test with code coverage reporting.  Leave the lib directory
 # instrumented for any additional runs the user may want to make.
@@ -157,7 +164,7 @@ coverage-build: all
 coverage-test: coverage-build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
 	-$(MAKE) $(COVTESTS)
 	mv lib lib__
@@ -170,7 +177,8 @@ coverage-test: coverage-build
 		--report-dir "../coverage")
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target/node \
-		--html --html-detail -o ../coverage/cxxcoverage.html)
+		--html --html-detail -o ../coverage/cxxcoverage.html \
+		--gcov-executable="$(GCOV)")
 	mv lib lib_
 	mv lib__ lib
 	@echo -n "Javascript coverage %: "
