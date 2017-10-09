@@ -37,18 +37,18 @@ The community does not build or test against end of life distributions (EoL).
 Thus we do not recommend that you use Node on end of life or unsupported platforms
 in production.
 
-|  System      | Support type | Version                          | Architectures        | Notes                        |
-|--------------|--------------|----------------------------------|----------------------|------------------------------|
-| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x86, x64, arm, arm64 |                              |
-| macOS        | Tier 1       | >= 10.10                         | x64                  |                              |
-| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017, see note 2 |
-| SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1                    |
-| FreeBSD      | Tier 2       | >= 10                            | x64                  |                              |
-| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                              |
-| AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                              |
-| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                              |
-| macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage             |
-| Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                              |
+|  System      | Support type | Version                          | Architectures        | Notes            |
+|--------------|--------------|----------------------------------|----------------------|------------------|
+| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x86, x64, arm, arm64 |                  |
+| macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
+| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017 |
+| SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
+| FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
+| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
+| AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
+| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
+| macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
+| Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
 
 note1 - The gcc4.8-libs package needs to be installed, because node
   binaries have been built with GCC 4.8, for which runtime libraries are not
@@ -59,12 +59,11 @@ note1 - The gcc4.8-libs package needs to be installed, because node
   by Joyent. SmartOS images >= 16.4 are not supported because
   GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
-note2 - Running Node.js on Windows is officially supported using Cmd. Running Node.js
-  through any other Windows shell (e.g. WSL, Git Bash, Cygwin, etc) is experimental.
-  Please note that running Node.js through Git Bash and Cygwin requires usage of
-  [winpty](https://github.com/rprichard/winpty) (installed with Git Bash) for Node.js to work
-  correctly (e.g. `winpty node.exe script.js`). Note that if you call node without the `.exe`
-  extension through Git Bash, winpty is used automatically.
+*Note*: Running node in windows terminal emulators like `mintty` requires the
+  usage of [winpty](https://github.com/rprichard/winpty) for node's tty
+  channels to work correctly (e.g. `winpty node.exe script.js`). In "Git bash"
+  if you call the node shell wrapper (`node` without the `.exe` extension),
+  `winpty` is used automatically.
 
 ### Supported toolchains
 
