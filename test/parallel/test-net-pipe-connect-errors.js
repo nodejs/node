@@ -24,7 +24,6 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const net = require('net');
-const path = require('path');
 const assert = require('assert');
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
