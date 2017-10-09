@@ -209,26 +209,26 @@ assert.strictEqual(
 
   // Test single char pattern
   assert.strictEqual(0, twoByteString.indexOf('\u039a', 0, 'ucs2'));
-  assert.strictEqual(2, twoByteString.indexOf('\u0391', 0, 'ucs2'),
-                     'Alpha');
-  assert.strictEqual(4, twoByteString.indexOf('\u03a3', 0, 'ucs2'),
-                     'First Sigma');
-  assert.strictEqual(6, twoByteString.indexOf('\u03a3', 6, 'ucs2'),
-                     'Second Sigma');
-  assert.strictEqual(8, twoByteString.indexOf('\u0395', 0, 'ucs2'),
-                     'Epsilon');
-  assert.strictEqual(-1, twoByteString.indexOf('\u0392', 0, 'ucs2'),
-                     'Not beta');
+  let index = twoByteString.indexOf('\u0391', 0, 'ucs2');
+  assert.strictEqual(2, index, `Alpha - at index ${index}`);
+  index = twoByteString.indexOf('\u03a3', 0, 'ucs2');
+  assert.strictEqual(4, index, `First Sigma - at index ${index}`);
+  index = twoByteString.indexOf('\u03a3', 6, 'ucs2');
+  assert.strictEqual(6, index, `Second Sigma - at index ${index}`);
+  index = twoByteString.indexOf('\u0395', 0, 'ucs2');
+  assert.strictEqual(8, index, `Epsilon - at index ${index}`);
+  index = twoByteString.indexOf('\u0392', 0, 'ucs2');
+  assert.strictEqual(-1, index, `Not beta - at index ${index}`);
 
   // Test multi-char pattern
-  assert.strictEqual(
-    0, twoByteString.indexOf('\u039a\u0391', 0, 'ucs2'), 'Lambda Alpha');
-  assert.strictEqual(
-    2, twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
-  assert.strictEqual(
-    4, twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
-  assert.strictEqual(
-    6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
+  index = twoByteString.indexOf('\u039a\u0391', 0, 'ucs2');
+  assert.strictEqual(0, index, `Lambda Alpha - at index ${index}`);
+  index = twoByteString.indexOf('\u0391\u03a3', 0, 'ucs2');
+  assert.strictEqual(2, index, `Alpha Sigma - at index ${index}`);
+  index = twoByteString.indexOf('\u03a3\u03a3', 0, 'ucs2');
+  assert.strictEqual(4, index, `Sigma Sigma - at index ${index}`);
+  index = twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2');
+  assert.strictEqual(6, index, `Sigma Epsilon - at index ${index}`);
 }
 
 const mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
@@ -255,16 +255,18 @@ for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   assert.strictEqual((i + 15) & ~0xf, index,
                      `Long ABACABA...-string at index ${i}`);
 }
-assert.strictEqual(510, longBufferString.indexOf('AJABACA'),
-                   'Long AJABACA, First J');
-assert.strictEqual(
-  1534, longBufferString.indexOf('AJABACA', 511), 'Long AJABACA, Second J');
+
+let index = longBufferString.indexOf('AJABACA');
+assert.strictEqual(510, index, `Long AJABACA, First J - at index ${index}`);
+index = longBufferString.indexOf('AJABACA', 511);
+assert.strictEqual(1534, index, `Long AJABACA, Second J - at index ${index}`);
 
 pattern = 'JABACABADABACABA';
+index = longBufferString.indexOf(pattern);
+assert.strictEqual(511, index, `Long JABACABA..., First J - at index ${index}`);
+index = longBufferString.indexOf(pattern, 512);
 assert.strictEqual(
-  511, longBufferString.indexOf(pattern), 'Long JABACABA..., First J');
-assert.strictEqual(
-  1535, longBufferString.indexOf(pattern, 512), 'Long JABACABA..., Second J');
+  1535, index, `Long JABACABA..., Second J - at index ${index}`);
 
 // Search for a non-ASCII string in a pure ASCII string.
 const asciiString = Buffer.from(
