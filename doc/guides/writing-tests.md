@@ -148,8 +148,8 @@ const http = require('http');
 let request = 0;
 let response = 0;
 process.on('exit', function() {
-  assert.equal(request, 1, `http server "request" callback was not called`);
-  assert.equal(response, 1, `http request "response" callback was not called`);
+  assert.equal(request, 1, 'http server "request" callback was not called');
+  assert.equal(response, 1, 'http request "response" callback was not called');
 });
 
 const server = http.createServer(function(req, res) {
