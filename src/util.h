@@ -418,13 +418,21 @@ class BufferValue : public MaybeStackBuffer<char> {
   } while (0)
 
 #define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsArrayBufferView());                                          \
-  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
-  v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
-  const size_t name##_offset = name->ByteOffset();                            \
-  const size_t name##_length = name->ByteLength();                            \
-  char* const name##_data =                                                   \
-      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
+  size_t name##_length;                                                       \
+  char* name##_data;                                                          \
+  if ((val)->IsArrayBuffer()) {                                               \
+    v8::Local<v8::ArrayBuffer> name = (val).As<v8::ArrayBuffer>();            \
+    v8::ArrayBuffer::Contents name##_c = name->GetContents();                 \
+    name##_length = name##_c.ByteLength();                                    \
+    name##_data = static_cast<char*>(name##_c.Data());                        \
+  } else {                                                                    \
+    CHECK((val)->IsArrayBufferView());                                        \
+    v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();    \
+    v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();       \
+    const size_t name##_offset = name->ByteOffset();                          \
+    name##_length = name->ByteLength();                                       \
+    name##_data = static_cast<char*>(name##_c.Data()) + name##_offset;        \
+  }                                                                           \
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
