@@ -5,6 +5,7 @@
 // other than start listening.
 
 const common = require('../common');
+const commonFixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -17,10 +18,8 @@ const net = require('net');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(
-    path.resolve(common.fixturesDir, 'keys/agent2-key.pem')),
-  cert: fs.readFileSync(
-    path.resolve(common.fixturesDir, 'keys/agent2-cert.pem'))
+  key: commonFixtures.readKey('agent2-key.pem'),
+  cert: commonFixtures.readKey('agent2-cert.pem')
 };
 
 // There should not be any throws
