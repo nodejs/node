@@ -60,6 +60,12 @@ note1 - The gcc4.8-libs package needs to be installed, because node
   by Joyent. SmartOS images >= 16.4 are not supported because
   GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
+*Note*: On Windows, running Node.js in windows terminal emulators like `mintty`
+  requires the usage of [winpty](https://github.com/rprichard/winpty) for
+  Node's tty channels to work correctly (e.g. `winpty node.exe script.js`).
+  In "Git bash" if you call the node shell alias (`node` without the `.exe`
+  extension), `winpty` is used automatically.
+
 ### Supported toolchains
 
 Depending on host platform, the selection of toolchains may vary.
