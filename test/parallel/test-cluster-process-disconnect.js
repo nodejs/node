@@ -6,8 +6,16 @@ const cluster = require('cluster');
 if (cluster.isMaster) {
   const worker = cluster.fork();
   worker.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(code, 0, 'worker did not exit normally');
-    assert.strictEqual(signal, null, 'worker did not exit normally');
+    assert.strictEqual(
+      code,
+      0,
+      `Worker did not exit normally with code: ${code}`
+    );
+    assert.strictEqual(
+      signal,
+      null,
+      `Worker did not exit normally with signal: ${signal}`
+    );
   }));
 } else {
   const net = require('net');
