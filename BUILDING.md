@@ -89,6 +89,8 @@ installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 
+If the path to your build directory contains a space, the build will likely fail.
+
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
 
@@ -112,8 +114,6 @@ and not a newer version.
 
 * On macOS you may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
-
-If the path to your build directory contains a space, the build will likely fail.
 
 ```console
 $ sudo ./tools/macosx-firewall.sh
