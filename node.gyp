@@ -383,7 +383,7 @@
               'inputs': [ 'src/nolttng_macros.py' ]
             }],
             [ 'node_use_perfctr=="false"', {
-              'inputs': [ 'src/perfctr_macros.py' ]
+              'inputs': [ 'src/noperfctr_macros.py' ]
             }]
           ],
           'action': [
