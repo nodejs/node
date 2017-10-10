@@ -139,7 +139,10 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
 // Regression test for https://github.com/nodejs/node/issues/3574.
 {
-  const emptyFile = fixtures.path('empty.js');
+  let emptyFile = fixtures.path('empty.js');
+  if (common.isWindows) {
+    emptyFile = emptyFile.replace(/\\/g, '\\\\');
+  }
 
   child.exec(`${nodejs} -e 'require("child_process").fork("${emptyFile}")'`,
              common.mustCall((err, stdout, stderr) => {
