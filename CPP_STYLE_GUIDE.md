@@ -2,7 +2,7 @@
 
 Unfortunately, the C++ linter (based on
 [Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
-explicitly via `make cpplint`, does not currently catch a lot of rules that are
+explicitly via `make lint-cpp`, does not currently catch a lot of rules that are
 specific to the Node.js C++ code base. This document explains the most common of
 these rules:
 
@@ -28,12 +28,16 @@ if (foo) {
 
 (Braces are optional if the statement body only has one line.)
 
+`namespace`s receive no indentation on their own.
+
 ## 4 spaces of indentation for statement continuations
 
 ```c++
 VeryLongTypeName very_long_result = SomeValueWithAVeryLongName +
     SomeOtherValueWithAVeryLongName;
 ```
+
+Operators are before the line break in these cases.
 
 ## Align function arguments vertically
 
@@ -49,6 +53,20 @@ If that doesn’t work, break after the `(` and use 4 spaces of indentation:
 void FunctionWithAReallyReallyReallyLongNameSeriouslyStopIt(
     int okay_there_is_no_space_left_in_the_previous_line,
     ...);
+```
+
+## Initialization lists
+
+Long initialization lists are formatted like this:
+
+```c++
+HandleWrap::HandleWrap(Environment* env,
+                       Local<Object> object,
+                       uv_handle_t* handle,
+                       AsyncWrap::ProviderType provider)
+    : AsyncWrap(env, object, provider),
+      state_(kInitialized),
+      handle_(handle) {
 ```
 
 ## CamelCase for methods, functions and classes
