@@ -15,8 +15,6 @@ ReqWrap<T>::ReqWrap(Environment* env,
                     v8::Local<v8::Object> object,
                     AsyncWrap::ProviderType provider)
     : AsyncWrap(env, object, provider) {
-  if (env->in_domain())
-    object->Set(env->domain_string(), env->domain_array()->Get(0));
 
   // FIXME(bnoordhuis) The fact that a reinterpret_cast is needed is
   // arguably a good indicator that there should be more than one queue.

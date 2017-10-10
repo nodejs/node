@@ -150,7 +150,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::PromiseHookType;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
@@ -1178,7 +1177,6 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   return isEmittingTopLevelDomainError || !DomainsStackHasErrorHandler(env);
 }
 
-
 Local<Value> GetDomainProperty(Environment* env, Local<Object> object) {
   Local<Value> domain_v =
       object->GetPrivate(env->context(), env->domain_private_symbol())
@@ -1219,36 +1217,6 @@ void DomainExit(Environment* env, v8::Local<v8::Object> object) {
   }
 }
 
-
-void DomainPromiseHook(PromiseHookType type,
-                       Local<Promise> promise,
-                       Local<Value> parent,
-                       void* arg) {
-  Environment* env = static_cast<Environment*>(arg);
-  Local<Context> context = env->context();
-
-  if (type == PromiseHookType::kInit && env->in_domain()) {
-    Local<Value> domain_obj =
-        env->domain_array()->Get(context, 0).ToLocalChecked();
-    if (promise->CreationContext() == context) {
-      promise->Set(context, env->domain_string(), domain_obj).FromJust();
-    } else {
-      // Do not expose object from another context publicly in promises created
-      // in non-main contexts.
-      promise->SetPrivate(context, env->domain_private_symbol(), domain_obj)
-          .FromJust();
-    }
-    return;
-  }
-
-  if (type == PromiseHookType::kBefore) {
-    DomainEnter(env, promise);
-  } else if (type == PromiseHookType::kAfter) {
-    DomainExit(env, promise);
-  }
-}
-
-
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1259,38 +1227,13 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
   Local<Object> process_object = env->process_object();
 
-  Local<String> tick_callback_function_key = env->tick_domain_cb_string();
-  Local<Function> tick_callback_function =
-      process_object->Get(tick_callback_function_key).As<Function>();
-
-  if (!tick_callback_function->IsFunction()) {
-    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
-    ABORT();
-  }
-
-  process_object->Set(env->tick_callback_string(), tick_callback_function);
-  env->set_tick_callback_function(tick_callback_function);
-
   CHECK(args[0]->IsArray());
-  env->set_domain_array(args[0].As<Array>());
-
-  CHECK(args[1]->IsArray());
-  env->set_domains_stack_array(args[1].As<Array>());
+  env->set_domains_stack_array(args[0].As<Array>());
 
   // Do a little housekeeping.
   env->process_object()->Delete(
       env->context(),
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse")).FromJust();
-
-  uint32_t* const fields = env->domain_flag()->fields();
-  uint32_t const fields_count = env->domain_flag()->fields_count();
-
-  Local<ArrayBuffer> array_buffer =
-      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
-
-  env->AddPromiseHook(DomainPromiseHook, static_cast<void*>(env));
-
-  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
 
@@ -1414,7 +1357,8 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(Environment::GetCurrent(env->isolate()), env);
 
-  if (env->using_domains() && !object_.IsEmpty()) {
+  if (asyncContext.async_id == 0 && env->using_domains() &&
+      !object_.IsEmpty()) {
     DomainEnter(env, object_);
   }
 
@@ -1447,7 +1391,8 @@ void InternalCallbackScope::Close() {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
   }
 
-  if (env_->using_domains() && !object_.IsEmpty()) {
+  if (async_context_.async_id == 0 && env_->using_domains() &&
+      !object_.IsEmpty()) {
     DomainExit(env_, object_);
   }
 

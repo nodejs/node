@@ -200,22 +200,6 @@ inline bool Environment::AsyncCallbackScope::in_makecallback() const {
   return env_->makecallback_cntr_ > 1;
 }
 
-inline Environment::DomainFlag::DomainFlag() {
-  for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
-}
-
-inline uint32_t* Environment::DomainFlag::fields() {
-  return fields_;
-}
-
-inline int Environment::DomainFlag::fields_count() const {
-  return kFieldsCount;
-}
-
-inline uint32_t Environment::DomainFlag::count() const {
-  return fields_[kCount];
-}
-
 inline Environment::TickInfo::TickInfo() {
   for (int i = 0; i < kFieldsCount; ++i)
     fields_[i] = 0;
@@ -347,12 +331,6 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
-inline bool Environment::in_domain() const {
-  // The const_cast is okay, it doesn't violate conceptual const-ness.
-  return using_domains() &&
-         const_cast<Environment*>(this)->domain_flag()->count() > 0;
-}
-
 inline Environment* Environment::from_immediate_check_handle(
     uv_check_t* handle) {
   return ContainerOf(&Environment::immediate_check_handle_, handle);
@@ -391,10 +369,6 @@ inline uv_loop_t* Environment::event_loop() const {
 
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
-}
-
-inline Environment::DomainFlag* Environment::domain_flag() {
-  return &domain_flag_;
 }
 
 inline Environment::TickInfo* Environment::tick_info() {
