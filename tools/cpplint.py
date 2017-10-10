@@ -1074,8 +1074,8 @@ class FileInfo(object):
     """
     fullname = self.FullName()
     # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
-    toplevel = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), '..')).replace('\\', '/').decode('utf-8')
+    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) \
+    .replace('\\', '/').decode('utf-8')
     prefix = os.path.commonprefix([fullname, toplevel])
     return fullname[len(prefix) + 1:]
 
