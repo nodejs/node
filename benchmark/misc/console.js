@@ -93,6 +93,8 @@ function runUsingArgumentsAndApply(n, concat) {
 function main(conf) {
   const n = +conf.n;
   switch (conf.method) {
+    // '' is a default case for tests
+    case '':
     case 'restAndSpread':
       runUsingRestAndSpread(n, conf.concat);
       break;

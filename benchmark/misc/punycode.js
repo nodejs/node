@@ -63,6 +63,8 @@ function main(conf) {
   const n = +conf.n;
   const val = conf.val;
   switch (conf.method) {
+    // '' is a default case for tests
+    case '':
     case 'punycode':
       runPunycode(n, val);
       break;
