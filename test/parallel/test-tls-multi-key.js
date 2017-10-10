@@ -1,4 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
+no// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the
@@ -27,16 +27,15 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fs = require('fs');
 
 const options = {
   key: [
-    fs.readFileSync(fixtures.path('/keys/ec-key.pem')),
-    fs.readFileSync(fixtures.path('/keys/agent1-key.pem')),
+    fixtures.readKey('ec-key.pem'),
+    fixtures.readKey('agent1-key.pem'),
   ],
   cert: [
-    fs.readFileSync(fixtures.path('/keys/agent1-cert.pem')),
-    fs.readFileSync(fixtures.path('/keys/ec-cert.pem')),
+    fixtures.readKey('agent1-cert.pem'),
+    fixtures.readKey('ec-cert.pem'),
   ]
 };
 
