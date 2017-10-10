@@ -5593,13 +5593,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   if (args[5]->IsFunction()) {
     obj->Set(env->ondone_string(), args[5]);
 
-    if (env->in_domain()) {
-      obj->Set(env->context(),
-               env->domain_string(),
-               env->domain_array()->Get(env->context(), 0).ToLocalChecked())
-          .FromJust();
-    }
-
     uv_queue_work(env->event_loop(),
                   req.release()->work_req(),
                   PBKDF2Request::Work,
@@ -5788,13 +5781,6 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsFunction()) {
     obj->Set(env->ondone_string(), args[1]);
 
-    if (env->in_domain()) {
-      obj->Set(env->context(),
-               env->domain_string(),
-               env->domain_array()->Get(env->context(), 0).ToLocalChecked())
-          .FromJust();
-    }
-
     uv_queue_work(env->event_loop(),
                   req.release()->work_req(),
                   RandomBytesWork,
@@ -5833,13 +5819,6 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
                              RandomBytesRequest::DONT_FREE_DATA));
   if (args[3]->IsFunction()) {
     obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
-
-    if (env->in_domain()) {
-      obj->Set(env->context(),
-               env->domain_string(),
-               env->domain_array()->Get(env->context(), 0).ToLocalChecked())
-          .FromJust();
-    }
 
     uv_queue_work(env->event_loop(),
                   req.release()->work_req(),
