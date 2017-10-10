@@ -1,12 +1,12 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 
 // Verify connection with explicitly created client SecureContext.
 
-const join = require('path').join;
 const {
   assert, connect, keys, tls
-} = require(join(common.fixturesDir, 'tls-connect'));
+} = require(fixtures.path('tls-connect'));
 
 connect({
   client: {
