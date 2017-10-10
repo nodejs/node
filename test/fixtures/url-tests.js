@@ -2,7 +2,7 @@
 
 /* The following tests are copied from WPT. Modifications to them should be
    upstreamed first. Refs:
-   https://github.com/w3c/web-platform-tests/blob/5d149f0/url/urltestdata.json
+   https://github.com/w3c/web-platform-tests/blob/11757f1/url/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -5809,6 +5809,24 @@ module.exports =
   {
     "input": "http://#",
     "base": "about:blank",
+    "failure": true
+  },
+  "Port overflow (2^32 + 81)",
+  {
+    "input": "http://f:4294967377/c",
+    "base": "http://example.org/",
+    "failure": true
+  },
+  "Port overflow (2^64 + 81)",
+  {
+    "input": "http://f:18446744073709551697/c",
+    "base": "http://example.org/",
+    "failure": true
+  },
+  "Port overflow (2^128 + 81)",
+  {
+    "input": "http://f:340282366920938463463374607431768211537/c",
+    "base": "http://example.org/",
     "failure": true
   },
   "# Non-special-URL path tests",
