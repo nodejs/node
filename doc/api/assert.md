@@ -194,22 +194,25 @@ If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
-## assert.fail(message)
+## assert.fail([message])
 ## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
 <!-- YAML
 added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {any} (default: 'Failed')
 * `operator` {string} (default: '!=')
 * `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
-Otherwise, the error message is the value of `message`.
+If just the two `actual` and `expected` arguments are provided, `operator` will
+default to `'!='`. If `message` is provided only it will be used as the error
+message, the other arguments will be stored as properties on the thrown object.
 If `stackStartFunction` is provided, all stack frames above that function will
-be removed from stacktrace (see [`Error.captureStackTrace`]).
+be removed from stacktrace (see [`Error.captureStackTrace`]). If no arguments
+are given, the default message `Failed` will be used.
 
 ```js
 const assert = require('assert');
@@ -222,6 +225,14 @@ assert.fail(1, 2, 'fail');
 
 assert.fail(1, 2, 'whoops', '>');
 // AssertionError: whoops
+```
+
+*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+influence on the error message.
+
+```js
+assert.fail();
+// AssertionError: Failed
 
 assert.fail('boom');
 // AssertionError: boom
