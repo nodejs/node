@@ -1900,7 +1900,7 @@ const req = client.request({
 });
 
 req.on('response', (headers) => {
-  console.log(headers[':status']);
+  console.log(headers[http2.constants.HTTP2_HEADER_STATUS]);
 });
 let data = '';
 req.setEncoding('utf8');
