@@ -1255,7 +1255,7 @@ bool IsRestOf(Operator const* op) {
   return OpParameter<bool>(op);
 }
 
-const Operator* CommonOperatorBuilder::ObjectState(int object_id,
+const Operator* CommonOperatorBuilder::ObjectState(uint32_t object_id,
                                                    int pointer_slots) {
   return new (zone()) Operator1<ObjectStateInfo>(  // --
       IrOpcode::kObjectState, Operator::kPure,     // opcode
@@ -1265,7 +1265,7 @@ const Operator* CommonOperatorBuilder::ObjectState(int object_id,
 }
 
 const Operator* CommonOperatorBuilder::TypedObjectState(
-    int object_id, const ZoneVector<MachineType>* types) {
+    uint32_t object_id, const ZoneVector<MachineType>* types) {
   return new (zone()) Operator1<TypedObjectStateInfo>(  // --
       IrOpcode::kTypedObjectState, Operator::kPure,     // opcode
       "TypedObjectState",                               // name
