@@ -207,7 +207,7 @@ bool config_preserve_symlinks = false;
 bool config_expose_internals = false;
 
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
-const char* config_warning_file;
+std::string config_warning_file;  // NOLINT(runtime/string)
 
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
@@ -4410,9 +4410,8 @@ void Init(int* argc,
   if (openssl_config.empty())
     SafeGetenv("OPENSSL_CONF", &openssl_config);
 
-  if (auto redirect_warnings = secure_getenv("NODE_REDIRECT_WARNINGS")) {
-    config_warning_file = redirect_warnings;
-  }
+  if (config_warning_file.empty())
+    SafeGetenv("NODE_REDIRECT_WARNINGS", &config_warning_file);
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;
