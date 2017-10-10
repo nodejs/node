@@ -52,7 +52,7 @@ extern bool config_expose_internals;
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 // Used to redirect warning output to a file rather than sending
 // it to stderr.
-extern const char* config_warning_file;
+extern std::string config_warning_file;
 
 // Forward declaration
 class Environment;
