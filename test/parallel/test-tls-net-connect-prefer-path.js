@@ -31,7 +31,6 @@ function mkServer(lib, tcp, cb) {
     args.unshift({
       cert: fixtures.readSync('test_cert.pem'),
       key: fixtures.readSync('test_key.pem')
-
     });
   }
   const server = lib.createServer(...args);
