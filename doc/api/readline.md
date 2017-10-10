@@ -347,6 +347,12 @@ the current position of the cursor down.
 <!-- YAML
 added: v0.1.98
 changes:
+  - version: v8.3.0, 6.11.4
+    pr-url: https://github.com/nodejs/node/pull/13497
+    description: Remove max limit of `crlfDelay` option.
+  - version: v6.6.0
+    pr-url: https://github.com/nodejs/node/pull/8109
+    description: The `crlfDelay` option is supported now.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/7125
     description: The `prompt` option is supported now.
