@@ -5,9 +5,10 @@ require('../common');
 const runBenchmark = require('../common/benchmark');
 
 runBenchmark('misc', [
-  'n=1',
-  'val=magyarország.icom.museum',
+  'concat=0',
+  'method=',
   'millions=.000001',
+  'n=1',
   'type=extend',
-  'concat=0'
+  'val=magyarország.icom.museum'
 ]);
