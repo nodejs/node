@@ -12,7 +12,6 @@ common.refreshTmpDir();
 
 const tls = require('tls');
 const net = require('net');
-const fs = require('fs');
 const assert = require('assert');
 
 function libName(lib) {
