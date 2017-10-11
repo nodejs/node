@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -15,7 +16,7 @@ function pathToFileURL(p) {
   return new URL(`file://${p}`);
 }
 
-const p = path.resolve(common.fixturesDir, 'a.js');
+const p = path.resolve(fixtures.fixturesDir, 'a.js');
 const url = pathToFileURL(p);
 
 assert(url instanceof URL);
