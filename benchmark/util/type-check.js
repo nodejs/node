@@ -29,7 +29,7 @@ const bench = common.createBenchmark(main, {
   type: Object.keys(args),
   version: ['native', 'js'],
   argument: ['true', 'false-primitive', 'false-object'],
-  n: [1e7]
+  n: [5e6]
 }, {
   flags: ['--expose-internals']
 });
@@ -38,7 +38,7 @@ function main(conf) {
   const util = process.binding('util');
   const types = require('internal/util/types');
 
-  const n = (+conf.n * 1e6) | 0;
+  const n = (+conf.n) | 0;
   const func = { native: util, js: types }[conf.version][`is${conf.type}`];
   const arg = args[conf.type][conf.argument];
 

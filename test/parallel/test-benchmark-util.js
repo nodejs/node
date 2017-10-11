@@ -4,4 +4,4 @@ require('../common');
 
 const runBenchmark = require('../common/benchmark');
 
-runBenchmark('util', ['n=1', 'arguments=0']);
+runBenchmark('util', ['n=1']);
