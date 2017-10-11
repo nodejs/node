@@ -4,6 +4,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
