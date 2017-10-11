@@ -22,14 +22,12 @@ assert.strictEqual(zlib.gunzipSync(data).toString(), (abc + def));
 
 zlib.gunzip(data, common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.strictEqual(result.toString(), (abc + def),
-                     `result "${result.toString()}" should match original string: "${(abc + def)}"`);
+  assert.strictEqual(result.toString(), (abc + def));
 }));
 
 zlib.unzip(data, common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.strictEqual(result.toString(), (abc + def),
-                     `result "${result.toString()}" should match original string: "${(abc + def)}"`);
+  assert.strictEqual(result.toString(), (abc + def));
 }));
 
 // Multi-member support does not apply to zlib inflate/deflate.
@@ -39,7 +37,7 @@ zlib.unzip(Buffer.concat([
 ]), common.mustCall((err, result) => {
   assert.ifError(err);
   assert.strictEqual(result.toString(), abc,
-                     `result "${result.toString()}" should match contents of first "member": "${abc}"`);
+                     `First "member": ${result.toString()} === ${abc}`);
 }));
 
 // files that have the "right" magic bytes for starting a new gzip member
