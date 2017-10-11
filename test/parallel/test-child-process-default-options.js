@@ -19,7 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable max-len */
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -46,5 +45,6 @@ child.stdout.on('data', function(chunk) {
 
 process.on('exit', function() {
   assert.ok(response.includes('HELLO=WORLD'),
-            `spawn did not use process.env as default(process.env.HELLO = ${process.env.HELLO})`);
+            'spawn did not use process.env as default' +
+            `(process.env.HELLO = ${process.env.HELLO})`);
 });
