@@ -64,7 +64,9 @@ from other Collaborators. Leave at least 48 hours during the week and
 72 hours over weekends to account for international time differences
 and work schedules. Trivial changes (e.g. those which fix minor bugs
 or improve performance without affecting API or causing other
-wide-reaching impact) may be landed after a shorter delay.
+wide-reaching impact), and focused changes that affect only documentation
+and/or the test suite, may be landed after a shorter delay if they have
+multiple approvals.
 
 For non-breaking changes, if there is no disagreement amongst
 Collaborators, a pull request may be landed given appropriate review.
