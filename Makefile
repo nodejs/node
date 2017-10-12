@@ -965,6 +965,7 @@ LINT_CPP_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
+	benchmark/misc/function_call/binding.cc \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
