@@ -317,10 +317,10 @@ Port tests are running on.
 
 Logs '1..0 # Skipped: ' + `msg`
 
-### refreshTmpDir
+### refreshTmpDir()
 * return [&lt;String>]
 
-Deletes the 'tmp' dir and recreates it
+Deletes the testing 'tmp' directory and recreates it.
 
 ### restoreStderr()
 
