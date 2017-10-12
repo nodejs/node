@@ -73,6 +73,7 @@ StreamWrap::StreamWrap(Environment* env,
 void StreamWrap::AddMethods(Environment* env,
                             v8::Local<v8::FunctionTemplate> target,
                             int flags) {
+  env->SetProtoMethod(target, "updateWriteQueueSize", UpdateWriteQueueSize);
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
   StreamBase::AddMethods<StreamWrap>(env, target, flags);
 }
@@ -113,11 +114,14 @@ bool StreamWrap::IsIPCPipe() {
 }
 
 
-void StreamWrap::UpdateWriteQueueSize() {
+uint32_t StreamWrap::UpdateWriteQueueSize() {
   HandleScope scope(env()->isolate());
-  Local<Integer> write_queue_size =
-      Integer::NewFromUnsigned(env()->isolate(), stream()->write_queue_size);
-  object()->Set(env()->write_queue_size_string(), write_queue_size);
+  uint32_t write_queue_size = stream()->write_queue_size;
+  object()->Set(env()->context(),
+                env()->write_queue_size_string(),
+                Integer::NewFromUnsigned(env()->isolate(),
+                                         write_queue_size)).FromJust();
+  return write_queue_size;
 }
 
 
@@ -239,6 +243,16 @@ void StreamWrap::OnRead(uv_stream_t* handle,
   }
 
   static_cast<StreamBase*>(wrap)->OnRead(nread, buf, type);
+}
+
+
+void StreamWrap::UpdateWriteQueueSize(
+    const FunctionCallbackInfo<Value>& args) {
+  StreamWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  uint32_t write_queue_size = wrap->UpdateWriteQueueSize();
+  args.GetReturnValue().Set(write_queue_size);
 }
 
 

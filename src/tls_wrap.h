@@ -167,6 +167,10 @@ class TLSWrap : public AsyncWrap,
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
   bool eof_;
+
+ private:
+  static void UpdateWriteQueueSize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 }  // namespace node
