@@ -1092,6 +1092,8 @@ changes:
     certificate can match or chain to.
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
+    For PEM encoded certificates, supported types are "X509 CERTIFICATE", and
+    "CERTIFICATE".
   * `cert` {string|string[]|Buffer|Buffer[]} Cert chains in PEM format. One cert
     chain should be provided per private key. Each cert chain should consist of
     the PEM formatted certificate for a provided private `key`, followed by the
