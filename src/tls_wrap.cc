@@ -183,7 +183,7 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
 
   if (args.Length() < 1 || !args[0]->IsObject()) {
     return env->ThrowTypeError(
-        "First argument should be a StreamWrap instance");
+        "First argument should be a LibuvStreamWrap instance");
   }
   if (args.Length() < 2 || !args[1]->IsObject()) {
     return env->ThrowTypeError(
