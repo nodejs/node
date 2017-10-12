@@ -26,15 +26,18 @@ const keys = exports.keys = {
   agent5: load('agent5', 'ca2'),
   agent6: load('agent6', 'ca1'),
   agent7: load('agent7', 'fake-cnnic-root'),
+  agent10: load('agent10', 'ca2'),
+  ec10: load('ec10', 'ca5'),
   ec: load('ec', 'ec'),
 };
 
-function load(cert, issuer) {
-  issuer = issuer || cert; // Assume self-signed if no issuer
+// root is the self-signed root of the trust chain, not an intermediate ca.
+function load(cert, root) {
+  root = root || cert; // Assume self-signed if no issuer
   const id = {
     key: fixtures.readKey(cert + '-key.pem', 'binary'),
     cert: fixtures.readKey(cert + '-cert.pem', 'binary'),
-    ca: fixtures.readKey(issuer + '-cert.pem', 'binary'),
+    ca: fixtures.readKey(root + '-cert.pem', 'binary'),
   };
   return id;
 }
