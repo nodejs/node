@@ -227,6 +227,14 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
 
+benchmark/misc/function_call/build/Release/binding.node: all \
+		benchmark/misc/function_call/binding.cc \
+		benchmark/misc/function_call/binding.gyp
+	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--python="$(PYTHON)" \
+		--directory="$(shell pwd)/benchmark/misc/function_call" \
+		--nodedir="$(shell pwd)"
+
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
 # near the build-addons rule for more background.
@@ -904,8 +912,7 @@ bench-http: all
 bench-fs: all
 	@$(NODE) benchmark/run.js fs
 
-bench-misc: all
-	@$(MAKE) -C benchmark/misc/function_call/
+bench-misc: benchmark/misc/function_call/build/Release/binding.node
 	@$(NODE) benchmark/run.js misc
 
 bench-array: all
