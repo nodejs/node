@@ -153,8 +153,8 @@ if (process.argv[2] !== 'child') {
               assert.strictEqual(
                 count,
                 messages.length,
-                `A worker received an invalid multicast message.
-                Received ${messages.length} and wanted ${count}.`
+                'A worker received an invalid multicast message.' +
+                `Received ${messages.length} and wanted ${count}.`
               );
             });
 
