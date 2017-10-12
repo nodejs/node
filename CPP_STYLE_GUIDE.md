@@ -26,7 +26,7 @@ if (foo) {
 }
 ```
 
-(Braces are optional if the statement body only has one line.)
+Braces are optional if the statement body only has one line.
 
 `namespace`s receive no indentation on their own.
 
@@ -135,4 +135,4 @@ at the top level and not inside of nested calls.
 A lot of code inside Node.js is written so that typechecking etc. is performed
 in JavaScript.
 
-(Using C++ `throw` is not allowed.)
+Using C++ `throw` is not allowed.
