@@ -1899,7 +1899,9 @@ const req = client.request({
   ':authority': `localhost:${port}`
 });
 
-req.on('response', common.mustCall());
+req.on('response', (headers) => {
+  console.log(headers[http2.constants.HTTP2_HEADER_STATUS]);
+});
 let data = '';
 req.setEncoding('utf8');
 req.on('data', (chunk) => data += chunk);
