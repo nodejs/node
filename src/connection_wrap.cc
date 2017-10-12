@@ -24,10 +24,10 @@ template <typename WrapType, typename UVType>
 ConnectionWrap<WrapType, UVType>::ConnectionWrap(Environment* env,
                                                  Local<Object> object,
                                                  ProviderType provider)
-    : StreamWrap(env,
-                 object,
-                 reinterpret_cast<uv_stream_t*>(&handle_),
-                 provider) {}
+    : LibuvStreamWrap(env,
+                      object,
+                      reinterpret_cast<uv_stream_t*>(&handle_),
+                      provider) {}
 
 
 template <typename WrapType, typename UVType>
