@@ -3,9 +3,9 @@
 // Tests the ability to minimally request a byte range with respondWithFD
 
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const fixtures = require('../common/fixtures');
 const http2 = require('http2');
 const assert = require('assert');
 const fs = require('fs');
