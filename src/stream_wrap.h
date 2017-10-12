@@ -33,10 +33,7 @@
 
 namespace node {
 
-// Forward declaration
-class StreamWrap;
-
-class StreamWrap : public HandleWrap, public StreamBase {
+class LibuvStreamWrap : public HandleWrap, public StreamBase {
  public:
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -78,12 +75,12 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
  protected:
-  StreamWrap(Environment* env,
-             v8::Local<v8::Object> object,
-             uv_stream_t* stream,
-             AsyncWrap::ProviderType provider);
+  LibuvStreamWrap(Environment* env,
+                  v8::Local<v8::Object> object,
+                  uv_stream_t* stream,
+                  AsyncWrap::ProviderType provider);
 
-  ~StreamWrap() {
+  ~LibuvStreamWrap() {
   }
 
   AsyncWrap* GetAsyncWrap() override;
