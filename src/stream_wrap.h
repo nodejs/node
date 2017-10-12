@@ -67,13 +67,15 @@ class StreamWrap : public HandleWrap, public StreamBase {
   }
 
   AsyncWrap* GetAsyncWrap() override;
-  void UpdateWriteQueueSize();
+  uint32_t UpdateWriteQueueSize();
 
   static void AddMethods(Environment* env,
                          v8::Local<v8::FunctionTemplate> target,
                          int flags = StreamBase::kFlagNone);
 
  private:
+  static void UpdateWriteQueueSize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv
