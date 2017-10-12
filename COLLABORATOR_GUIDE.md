@@ -521,7 +521,7 @@ Validate that the commit message is properly formatted using
 [core-validate-commit](https://github.com/evanlucas/core-validate-commit).
 
 ```text
-$ core-validate-commit
+$ git rev-list upstream/master...HEAD | xargs core-validate-commit 
 ```
 
 Time to push it:
