@@ -517,6 +517,13 @@ Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
 successful continuous integration run, other changes may have landed on master
 since then, so running the tests one last time locally is a good practice.
 
+Validate that the commit message is properly formatted using
+[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+
+```text
+$ git rev-list upstream/master...HEAD | xargs core-validate-commit
+```
+
 Time to push it:
 
 ```text
