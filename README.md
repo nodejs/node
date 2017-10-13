@@ -369,8 +369,6 @@ For more information about the governance of the Node.js project, see
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
-* [isaacs](https://github.com/isaacs) -
-**Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [italoacasas](https://github.com/italoacasas) -
 **Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
 * [JacksonTian](https://github.com/JacksonTian) -
@@ -407,8 +405,6 @@ For more information about the governance of the Node.js project, see
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
-* [lxe](https://github.com/lxe) -
-**Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
 **Matthew Loring** &lt;mattloring@google.com&gt;
 * [mcollina](https://github.com/mcollina) -
@@ -421,8 +417,6 @@ For more information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
-* [monsanto](https://github.com/monsanto) -
-**Christopher Monsanto** &lt;chris@monsan.to&gt;
 * [mscdex](https://github.com/mscdex) -
 **Brian White** &lt;mscdex@mscdex.net&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
@@ -431,18 +425,12 @@ For more information about the governance of the Node.js project, see
 **Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [ofrobots](https://github.com/ofrobots) -
 **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
-* [Olegas](https://github.com/Olegas) -
-**Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [orangemocha](https://github.com/orangemocha) -
 **Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
 **Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
-* [petkaantonov](https://github.com/petkaantonov) -
-**Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
 * [phillipj](https://github.com/phillipj) -
 **Phillip Johnsen** &lt;johphi@gmail.com&gt;
-* [piscisaureus](https://github.com/piscisaureus) -
-**Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [pmq20](https://github.com/pmq20) -
 **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
@@ -453,8 +441,6 @@ For more information about the governance of the Node.js project, see
 **Refael Ackermann** &lt;refack@gmail.com&gt; (he/him)
 * [richardlau](https://github.com/richardlau) -
 **Richard Lau** &lt;riclau@uk.ibm.com&gt;
-* [rlidwka](https://github.com/rlidwka) -
-**Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [rmg](https://github.com/rmg) -
 **Ryan Graham** &lt;r.m.graham@gmail.com&gt;
 * [robertkowalski](https://github.com/robertkowalski) -
@@ -487,8 +473,6 @@ For more information about the governance of the Node.js project, see
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
-* [tellnes](https://github.com/tellnes) -
-**Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [thekemkid](https://github.com/thekemkid) -
@@ -519,6 +503,25 @@ For more information about the governance of the Node.js project, see
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
+
+### Collaborator Emeriti
+
+* [isaacs](https://github.com/isaacs) -
+**Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [lxe](https://github.com/lxe) -
+**Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
+* [monsanto](https://github.com/monsanto) -
+**Christopher Monsanto** &lt;chris@monsan.to&gt;
+* [Olegas](https://github.com/Olegas) -
+**Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
+* [petkaantonov](https://github.com/petkaantonov) -
+**Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
+* [piscisaureus](https://github.com/piscisaureus) -
+**Bert Belder** &lt;bertbelder@gmail.com&gt;
+* [rlidwka](https://github.com/rlidwka) -
+**Alex Kocharin** &lt;alex@kocharin.ru&gt;
+* [tellnes](https://github.com/tellnes) -
+**Christian Tellnes** &lt;christian@tellnes.no&gt;
 
 Collaborators follow the [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in
 maintaining the Node.js project.
