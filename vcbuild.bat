@@ -129,6 +129,10 @@ goto next-arg
 
 :args-done
 
+if "%*"=="lint" (
+  goto lint-cpp
+)
+
 if defined build_release (
   set config=Release
   set package=1
@@ -480,12 +484,12 @@ setlocal enabledelayedexpansion
 for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
   set relpath=%%G
   set relpath=!relpath:*%~dp0=!
-  call :add-to-list !relpath!
+  call :add-to-list !relpath! > nul
 )
 ( endlocal
   set cppfilelist=%localcppfilelist%
 )
-call :run-python tools/cpplint.py %cppfilelist%
+call :run-python tools/cpplint.py %cppfilelist% > nul
 goto exit
 
 :add-to-list
@@ -541,6 +545,7 @@ echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
+echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
 goto exit
 
 :run-python
