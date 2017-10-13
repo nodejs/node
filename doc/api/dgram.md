@@ -226,14 +226,14 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.getRecvBufferSize(size)
+### socket.getRecvBufferSize()
 <!-- YAML
 added: v8.7.0
 -->
 
 * Returns {number} the `SO_RCVBUF` socket receive buffer size in bytes.
 
-### socket.getSendBufferSize(size)
+### socket.getSendBufferSize()
 <!-- YAML
 added: v8.7.0
 -->
