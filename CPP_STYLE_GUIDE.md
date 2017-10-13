@@ -1,4 +1,4 @@
-# C++ style guide
+# C++ Style Guide
 
 Unfortunately, the C++ linter (based on
 [Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
