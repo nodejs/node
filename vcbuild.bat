@@ -502,7 +502,7 @@ if %errorlevel% equ 0 goto exit
 echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc"
 if %errorlevel% equ 0 goto exit
 
-echo %1 | findstr /c:"test\\addons-napi\common.h"
+echo %1 | findstr /c:"test\\addons-napi\\common.h"
 if %errorlevel% equ 0 goto exit
 
 set "localcppfilelist=%localcppfilelist% %1"
