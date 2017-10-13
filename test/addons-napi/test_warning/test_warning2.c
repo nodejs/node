@@ -8,4 +8,4 @@ napi_value Init(napi_env env, napi_value exports) {
   return result;
 }
 
-NAPI_MODULE(test_warning2, Init)
+NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
