@@ -131,6 +131,28 @@ SlowStream.prototype.end = function(chunk) {
   return this.ended;
 };
 
+// windowBits: 8 shouldn't throw
+assert.doesNotThrow(() => {
+  zlib.createDeflateRaw({ windowBits: 8 });
+}, 'windowsBits set to 8 should follow legacy zlib behavior');
+
+{
+  const node = fs.createReadStream(process.execPath);
+  const raw = [];
+  const reinflated = [];
+  node.on('data', (chunk) => raw.push(chunk));
+
+  // Usually, the inflate windowBits parameter needs to be at least the
+  // value of the matching deflate’s windowBits. However, inflate raw with
+  // windowBits = 8 should be able to handle compressed data from a source
+  // that does not know about the silent 8-to-9 upgrade of windowBits
+  // that older versions of zlib/Node perform.
+  node.pipe(zlib.createDeflateRaw({ windowBits: 9 }))
+      .pipe(zlib.createInflateRaw({ windowBits: 8 }))
+      .on('data', (chunk) => reinflated.push(chunk))
+      .on('end', common.mustCall(
+        () => assert(Buffer.concat(raw).equals(Buffer.concat(reinflated)))));
+}
 
 // for each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
