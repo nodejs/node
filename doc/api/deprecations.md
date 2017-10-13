@@ -719,6 +719,17 @@ The internal `path._makeLong()` was not intended for public use. However,
 userland modules have found it useful. The internal API has been deprecated
 and replaced with an identical, public `path.toNamespacedPath()` method.
 
+<a id="DEP00XX"></a>
+### DEP0081: fs.truncate()
+
+Type: Runtime
+
+`fs.truncate()` `fs.truncateSync()` usage with
+a file descriptor has been deprecated.
+
+*Note*: Please use `fs.ftruncate()` or `fs.ftruncateSync()`
+to work with file descriptors.
+
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
