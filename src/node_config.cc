@@ -12,6 +12,7 @@ using v8::Context;
 using v8::Local;
 using v8::Object;
 using v8::ReadOnly;
+using v8::String;
 using v8::Value;
 
 // The config binding is used to provide an internal view of compile or runtime
@@ -47,6 +48,16 @@ void InitConfig(Local<Object> target,
 
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
+
+  if (!config_warning_file.empty()) {
+    Local<String> name = OneByteString(env->isolate(), "warningFile");
+    Local<String> value = String::NewFromUtf8(env->isolate(),
+                                              config_warning_file.data(),
+                                              v8::NewStringType::kNormal,
+                                              config_warning_file.size())
+                                                .ToLocalChecked();
+    target->DefineOwnProperty(env->context(), name, value).FromJust();
+  }
 }  // InitConfig
 
 }  // namespace node

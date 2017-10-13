@@ -122,6 +122,16 @@ added: v6.0.0
 
 Print stack traces for process warnings (including deprecations).
 
+### `--redirect-warnings=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+Write process warnings to the given file instead of printing to stderr. The
+file will be created if it does not exist, and will be appended to if it does.
+If an error occurs while attempting to write the warning to the file, the
+warning will be written to stderr instead.
+
 ### `--trace-sync-io`
 <!-- YAML
 added: v2.1.0
@@ -322,6 +332,45 @@ added: v6.11.0
 
 When set to `1`, process warnings are silenced.
 
+### `NODE_OPTIONS=options...`
+<!-- YAML
+added: REPLACEME
+-->
+
+`options...` are interpreted as if they had been specified on the command line
+before the actual command line (so they can be overriden).  Node will exit with
+an error if an option that is not allowed in the environment is used, such as
+`-p` or a script file.
+
+Node options that are allowed are:
+- `--enable-fips`
+- `--force-fips`
+- `--icu-data-dir`
+- `--debug-brk`
+- `--debug-port`
+- `--debug`
+- `--napi-modules`
+- `--no-deprecation`
+- `--no-warnings`
+- `--openssl-config`
+- `--redirect-warnings`
+- `--require`, `-r`
+- `--throw-deprecation`
+- `--tls-cipher-list`
+- `--trace-deprecation`
+- `--trace-sync-io`
+- `--trace-warnings`
+- `--track-heap-objects`
+- `--use-bundled-ca`
+- `--use-openssl-ca`
+- `--v8-pool-size`
+- `--zero-fill-buffers`
+
+V8 options that are allowed are:
+- `--abort-on-uncaught-exception`
+- `--max_old_space_size`
+
+
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
 added: v3.0.0
@@ -382,6 +431,17 @@ containing trusted certificates.
 Note: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
+
+### `NODE_REDIRECT_WARNINGS=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set, process warnings will be emitted to the given file instead of
+printing to stderr. The file will be created if it does not exist, and will be
+appended to if it does. If an error occurs while attempting to write the
+warning to the file, the warning will be written to stderr instead. This is
+equivalent to using the `--redirect-warnings=file` command-line flag.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
