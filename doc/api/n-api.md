@@ -551,10 +551,11 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
 ```
 
 - `[in] location`: Optional location at which the error occurred.
-- `[in] location_len`: The length of the location in bytes, or -1 if it is
-null-terminated.
+- `[in] location_len`: The length of the location in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[in] message`: The message associated with the error.
-- `[in] message_len`: The length of the message in bytes, or -1 if it is
+- `[in] message_len`: The length of the message in bytes, or
+NAPI_AUTO_LENGTH if it is
 null-terminated.
 
 The function call does not return, the process will be terminated.
@@ -1256,8 +1257,8 @@ napi_status napi_create_function(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] utf8name`: A string representing the name of the function encoded as
 UTF8.
-- `[in] length`: The length of the utf8name in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the utf8name in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript.
 - `[in] data`: Optional arbitrary context data to be passed into the native
@@ -1489,8 +1490,8 @@ napi_status napi_create_string_latin1(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
-- `[in] length`: The length of the string in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the string in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1514,8 +1515,8 @@ napi_status napi_create_string_utf16(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF16-LE-encoded string.
-- `[in] length`: The length of the string in two-byte code units, or -1 if
-it is null-terminated.
+- `[in] length`: The length of the string in two-byte code units, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1539,8 +1540,8 @@ napi_status napi_create_string_utf8(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF8-encoded string.
-- `[in] length`: The length of the string in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the string in bytes, or NAPI_AUTO_LENGTH
+if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -2304,7 +2305,7 @@ status = napi_create_array(env, &arr);
 if (status != napi_ok) return status;
 
 // Create a napi_value for 'hello'
-status = napi_create_string_utf8(env, "hello", -1, &value);
+status = napi_create_string_utf8(env, "hello", NAPI_AUTO_LENGTH, &value);
 if (status != napi_ok) return status;
 
 // arr[123] = 'hello';
@@ -2993,7 +2994,7 @@ status = napi_get_named_property(env, global, "MyObject", &constructor);
 if (status != napi_ok) return;
 
 // const arg = "hello"
-status = napi_create_string_utf8(env, "hello", -1, &arg);
+status = napi_create_string_utf8(env, "hello", NAPI_AUTO_LENGTH, &arg);
 if (status != napi_ok) return;
 
 napi_value* argv = &arg;
@@ -3040,8 +3041,8 @@ napi_status napi_define_class(napi_env env,
  - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the utf8name in bytes, or -1 if it is
-null-terminated.
+ - `[in] length`: The length of the utf8name in bytes, or NAPI_AUTO_LENGTH
+if it is null-terminated.
  - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual
    C++ constructor function.)
