@@ -26,7 +26,7 @@ const assert = require('assert');
 
 assert.strictEqual(
   fixtures.path('a.js').toLowerCase(),
-  require.resolve(fixtures.path('a').toLowerCase()));
+  require.resolve(fixtures.path('a')).toLowerCase());
 assert.strictEqual(
   fixtures.path('a.js').toLowerCase(),
   require.resolve(fixtures.path('a')).toLowerCase());
