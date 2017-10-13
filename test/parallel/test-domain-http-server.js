@@ -51,7 +51,7 @@ const server = http.createServer(function(req, res) {
     const data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
 
     // this line will throw if you pick an unknown key
-    assert.notStrictEqual(data, undefined, 'Data should not be undefined');
+    assert.notStrictEqual(data, undefined);
 
     res.writeHead(200);
     res.end(data);
@@ -109,7 +109,7 @@ function next() {
 }
 
 process.on('exit', function() {
-  assert.strictEqual(serverCaught, 2, `Expected value was 2, but actual value was ${serverCaught}`);
-  assert.strictEqual(clientCaught, 2, `Expected value was 2, but actual value was ${clientCaught}`);
+  assert.strictEqual(serverCaught, 2);
+  assert.strictEqual(clientCaught, 2);
   console.log('ok');
 });
