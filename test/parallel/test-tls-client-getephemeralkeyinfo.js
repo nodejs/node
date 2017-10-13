@@ -8,8 +8,8 @@ const assert = require('assert');
 const tls = require('tls');
 const fs = require('fs');
 
-const fixturesKey = fixtures.readKey('/agent2-key.pem');
-const fixturesCert = fixtures.readKey('/agent2-cert.pem');
+const fixturesKey = fixtures.readKey('agent2-key.pem');
+const fixturesCert = fixtures.readKey('agent2-cert.pem');
 
 let ntests = 0;
 let nsuccess = 0;
