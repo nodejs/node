@@ -21,11 +21,11 @@
 
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const https = require('https');
 
