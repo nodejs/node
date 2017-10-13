@@ -216,12 +216,12 @@ inherits(TickProcessor, LogReader);
 TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
-  PARSER: 2,
-  BYTECODE_COMPILER: 3,
-  COMPILER: 4,
-  OTHER: 5,
-  EXTERNAL: 6,
-  IDLE: 7,
+  COMPILER: 2,
+  OTHER: 3,
+  EXTERNAL: 4,
+  IDLE: 5,
+  PARSER: 6,
+  BYTECODE_COMPILER: 7,
 };
 
 

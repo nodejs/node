@@ -384,10 +384,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_VALUE_TYPE)                                              \
-  V(JS_MESSAGE_OBJECT_TYPE)                                     \
-  V(JS_DATE_TYPE)                                               \
   V(JS_API_OBJECT_TYPE)                                         \
   V(JS_OBJECT_TYPE)                                             \
+  V(JS_MESSAGE_OBJECT_TYPE)                                     \
+  V(JS_DATE_TYPE)                                               \
   V(JS_ARGUMENTS_TYPE)                                          \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
   V(JS_GENERATOR_OBJECT_TYPE)                                   \
@@ -741,11 +741,11 @@ enum InstanceType : uint8_t {
   // interceptors.
   JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
   JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
-  JS_MESSAGE_OBJECT_TYPE,
-  JS_DATE_TYPE,
   // Like JS_OBJECT_TYPE, but created from API function.
   JS_API_OBJECT_TYPE,
   JS_OBJECT_TYPE,
+  JS_MESSAGE_OBJECT_TYPE,
+  JS_DATE_TYPE,
   JS_ARGUMENTS_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,

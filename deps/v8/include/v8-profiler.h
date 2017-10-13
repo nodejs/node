@@ -809,6 +809,9 @@ class V8_EXPORT HeapProfiler {
    */
   static const uint16_t kPersistentHandleNoClassId = 0;
 
+  /** Returns memory used for profiler internal data and snapshots. */
+  size_t GetProfilerMemorySize();
+
  private:
   HeapProfiler();
   ~HeapProfiler();
