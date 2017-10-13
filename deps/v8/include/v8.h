@@ -1729,12 +1729,12 @@ class V8_EXPORT StackFrame {
 enum StateTag {
   JS,
   GC,
-  PARSER,
-  BYTECODE_COMPILER,
   COMPILER,
   OTHER,
   EXTERNAL,
-  IDLE
+  IDLE,
+  PARSER,
+  BYTECODE_COMPILER
 };
 
 // A RegisterState represents the current state of registers used
@@ -6348,6 +6348,8 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  * Callback to check if code generation from strings is allowed. See
  * Context::AllowCodeGenerationFromStrings.
  */
+typedef bool (*DeprecatedAllowCodeGenerationFromStringsCallback)(
+    Local<Context> context);
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context,
                                                        Local<String> source);
 
@@ -7636,6 +7638,9 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+  V8_DEPRECATED("Use callback with source parameter.",
+                void SetAllowCodeGenerationFromStringsCallback(
+                    DeprecatedAllowCodeGenerationFromStringsCallback callback));
 
   /**
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
@@ -7795,6 +7800,15 @@ class V8_EXPORT V8 {
   V8_INLINE static V8_DEPRECATED(
       "Use isolate version",
       void SetFatalErrorHandler(FatalErrorCallback that));
+
+  /**
+   * Set the callback to invoke to check if code generation from
+   * strings should be allowed.
+   */
+  V8_INLINE static V8_DEPRECATED(
+      "Use isolate version",
+      void SetAllowCodeGenerationFromStringsCallback(
+          DeprecatedAllowCodeGenerationFromStringsCallback that));
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
@@ -8205,12 +8219,8 @@ class V8_EXPORT SnapshotCreator {
    * Set the default context to be included in the snapshot blob.
    * The snapshot will not contain the global proxy, and we expect one or a
    * global object template to create one, to be provided upon deserialization.
-   *
-   * \param callback optional callback to serialize internal fields.
    */
-  void SetDefaultContext(Local<Context> context,
-                         SerializeInternalFieldsCallback callback =
-                             SerializeInternalFieldsCallback());
+  void SetDefaultContext(Local<Context> context);
 
   /**
    * Add additional context to be included in the snapshot blob.
@@ -8562,9 +8572,7 @@ class V8_EXPORT Context {
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = NULL,
       MaybeLocal<ObjectTemplate> global_template = MaybeLocal<ObjectTemplate>(),
-      MaybeLocal<Value> global_object = MaybeLocal<Value>(),
-      DeserializeInternalFieldsCallback internal_fields_deserializer =
-          DeserializeInternalFieldsCallback());
+      MaybeLocal<Value> global_object = MaybeLocal<Value>());
 
   /**
    * Create a new context from a (non-default) context snapshot. There
@@ -9021,8 +9029,8 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbd;
-  static const int kJSObjectType = 0xbe;
+  static const int kJSApiObjectType = 0xbb;
+  static const int kJSObjectType = 0xbc;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x82;
   static const int kForeignType = 0x86;
@@ -10274,6 +10282,14 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif
 }
+
+void V8::SetAllowCodeGenerationFromStringsCallback(
+    DeprecatedAllowCodeGenerationFromStringsCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
+  isolate->SetAllowCodeGenerationFromStringsCallback(
+      reinterpret_cast<AllowCodeGenerationFromStringsCallback>(callback));
+}
+
 
 bool V8::IsDead() {
   Isolate* isolate = Isolate::GetCurrent();

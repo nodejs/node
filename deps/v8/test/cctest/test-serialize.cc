@@ -588,272 +588,6 @@ TEST(CustomSnapshotDataBlob1) {
   isolate1->Dispose();
 }
 
-struct InternalFieldData {
-  uint32_t data;
-};
-
-v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
-                                        void* data) {
-  CHECK_EQ(reinterpret_cast<void*>(2016), data);
-  InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
-      holder->GetAlignedPointerFromInternalField(index));
-  if (embedder_field == nullptr) return {nullptr, 0};
-  int size = sizeof(*embedder_field);
-  char* payload = new char[size];
-  // We simply use memcpy to serialize the content.
-  memcpy(payload, embedder_field, size);
-  return {payload, size};
-}
-
-std::vector<InternalFieldData*> deserialized_data;
-
-void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
-                               v8::StartupData payload, void* data) {
-  if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
-    return;
-  }
-  CHECK_EQ(reinterpret_cast<void*>(2017), data);
-  InternalFieldData* embedder_field = new InternalFieldData{0};
-  memcpy(embedder_field, payload.data, payload.raw_size);
-  holder->SetAlignedPointerInInternalField(index, embedder_field);
-  deserialized_data.push_back(embedder_field);
-}
-
-typedef std::vector<std::tuple<const char*, int32_t>> Int32Expectations;
-
-void TestInt32Expectations(const Int32Expectations& expectations) {
-  for (const auto& e : expectations) {
-    ExpectInt32(std::get<0>(e), std::get<1>(e));
-  }
-}
-
-void TypedArrayTestHelper(const char* code,
-                          const Int32Expectations& expectations) {
-  DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
-  v8::StartupData blob;
-  {
-    v8::SnapshotCreator creator;
-    v8::Isolate* isolate = creator.GetIsolate();
-    {
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-
-      CompileRun(code);
-      TestInt32Expectations(expectations);
-      creator.SetDefaultContext(
-          context, v8::SerializeInternalFieldsCallback(
-                       SerializeInternalFields, reinterpret_cast<void*>(2016)));
-    }
-    blob =
-        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
-  }
-
-  v8::Isolate::CreateParams create_params;
-  create_params.snapshot_blob = &blob;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = TestIsolate::New(create_params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(
-        isolate, NULL, v8::MaybeLocal<v8::ObjectTemplate>(),
-        v8::MaybeLocal<v8::Value>(),
-        v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
-                                              reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
-    CHECK(deserialized_data.empty());  // We do not expect any embedder data.
-    v8::Context::Scope c_scope(context);
-    TestInt32Expectations(expectations);
-  }
-  isolate->Dispose();
-}
-
-TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
-  const char* code =
-      "var x = new Uint8Array(128);"
-      "x[0] = 12;"
-      "var arr = new Array(17);"
-      "arr[1] = 24;"
-      "var y = new Uint32Array(arr);"
-      "var buffer = new ArrayBuffer(128);"
-      "var z = new Int16Array(buffer);"
-      "z[0] = 48;";
-  Int32Expectations expectations = {std::make_tuple("x[0]", 12),
-                                    std::make_tuple("y[1]", 24),
-                                    std::make_tuple("z[0]", 48)};
-
-  TypedArrayTestHelper(code, expectations);
-}
-
-TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
-  const char* code =
-      "var x = new Int32Array([12, 24, 48, 96]);"
-      "var y = new Uint8Array(x.buffer)";
-  Int32Expectations expectations = {
-    std::make_tuple("x[0]", 12),
-    std::make_tuple("x[1]", 24),
-#if !V8_TARGET_BIG_ENDIAN
-    std::make_tuple("y[0]", 12),
-    std::make_tuple("y[1]", 0),
-    std::make_tuple("y[2]", 0),
-    std::make_tuple("y[3]", 0),
-    std::make_tuple("y[4]", 24)
-#else
-    std::make_tuple("y[3]", 12),
-    std::make_tuple("y[2]", 0),
-    std::make_tuple("y[1]", 0),
-    std::make_tuple("y[0]", 0),
-    std::make_tuple("y[7]", 24)
-#endif
-  };
-
-  TypedArrayTestHelper(code, expectations);
-}
-
-TEST(CustomSnapshotDataBlobDataView) {
-  const char* code =
-      "var x = new Int8Array([1, 2, 3, 4]);"
-      "var v = new DataView(x.buffer)";
-  Int32Expectations expectations = {std::make_tuple("v.getInt8(0)", 1),
-                                    std::make_tuple("v.getInt8(1)", 2),
-                                    std::make_tuple("v.getInt16(0)", 258),
-                                    std::make_tuple("v.getInt16(1)", 515)};
-
-  TypedArrayTestHelper(code, expectations);
-}
-
-TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
-  const char* code =
-      "var x = new Int16Array([12, 24, 48]);"
-      "%ArrayBufferNeuter(x.buffer);";
-  Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
-                                    std::make_tuple("x.length", 0)};
-
-  DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
-  v8::StartupData blob;
-  {
-    v8::SnapshotCreator creator;
-    v8::Isolate* isolate = creator.GetIsolate();
-    {
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-
-      CompileRun(code);
-      TestInt32Expectations(expectations);
-      creator.SetDefaultContext(
-          context, v8::SerializeInternalFieldsCallback(
-                       SerializeInternalFields, reinterpret_cast<void*>(2016)));
-    }
-    blob =
-        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
-  }
-
-  v8::Isolate::CreateParams create_params;
-  create_params.snapshot_blob = &blob;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = TestIsolate::New(create_params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(
-        isolate, NULL, v8::MaybeLocal<v8::ObjectTemplate>(),
-        v8::MaybeLocal<v8::Value>(),
-        v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
-                                              reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
-    v8::Context::Scope c_scope(context);
-    TestInt32Expectations(expectations);
-
-    v8::Local<v8::Value> x = CompileRun("x");
-    CHECK(x->IsTypedArray());
-    i::Handle<i::JSTypedArray> array =
-        i::Handle<i::JSTypedArray>::cast(v8::Utils::OpenHandle(*x));
-    CHECK(array->WasNeutered());
-    CHECK_NULL(
-        FixedTypedArrayBase::cast(array->elements())->external_pointer());
-  }
-  isolate->Dispose();
-}
-
-i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
-    v8::Local<v8::Value> typed_array) {
-  CHECK(typed_array->IsTypedArray());
-
-  i::Handle<i::JSArrayBufferView> view = i::Handle<i::JSArrayBufferView>::cast(
-      v8::Utils::OpenHandle(*typed_array));
-
-  return i::handle(i::JSArrayBuffer::cast(view->buffer()));
-}
-
-TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
-  const char* code =
-      "var x = new Uint8Array(8);"
-      "x[0] = 12;"
-      "x[7] = 24;"
-      "var y = new Int16Array([12, 24, 48]);"
-      "var z = new Int32Array(64);"
-      "z[0] = 96;";
-  Int32Expectations expectations = {
-      std::make_tuple("x[0]", 12), std::make_tuple("x[7]", 24),
-      std::make_tuple("y[2]", 48), std::make_tuple("z[0]", 96)};
-
-  DisableAlwaysOpt();
-  i::FLAG_allow_natives_syntax = true;
-  v8::StartupData blob;
-  {
-    v8::SnapshotCreator creator;
-    v8::Isolate* isolate = creator.GetIsolate();
-    {
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-
-      CompileRun(code);
-      TestInt32Expectations(expectations);
-      creator.SetDefaultContext(
-          context, v8::SerializeInternalFieldsCallback(
-                       SerializeInternalFields, reinterpret_cast<void*>(2016)));
-    }
-    blob =
-        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
-  }
-
-  v8::Isolate::CreateParams create_params;
-  create_params.snapshot_blob = &blob;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = TestIsolate::New(create_params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(
-        isolate, NULL, v8::MaybeLocal<v8::ObjectTemplate>(),
-        v8::MaybeLocal<v8::Value>(),
-        v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
-                                              reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
-    v8::Context::Scope c_scope(context);
-    TestInt32Expectations(expectations);
-
-    i::Handle<i::JSArrayBuffer> buffer =
-        GetBufferFromTypedArray(CompileRun("x"));
-    // The resulting buffer should be on-heap.
-    CHECK_NULL(buffer->backing_store());
-
-    buffer = GetBufferFromTypedArray(CompileRun("y"));
-    CHECK_NULL(buffer->backing_store());
-
-    buffer = GetBufferFromTypedArray(CompileRun("z"));
-    // The resulting buffer should be off-heap.
-    CHECK_NOT_NULL(buffer->backing_store());
-  }
-  isolate->Dispose();
-}
-
 TEST(CustomSnapshotDataBlob2) {
   DisableAlwaysOpt();
   const char* source2 =
@@ -2311,6 +2045,33 @@ TEST(SnapshotCreatorUnknownExternalReferences) {
       creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 
   delete[] blob.data;
+}
+
+struct InternalFieldData {
+  uint32_t data;
+};
+ 
+v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
+                                        void* data) {
+  CHECK_EQ(reinterpret_cast<void*>(2016), data);
+  InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
+      holder->GetAlignedPointerFromInternalField(index));
+  int size = sizeof(*embedder_field);
+  char* payload = new char[size];
+  // We simply use memcpy to serialize the content.
+  memcpy(payload, embedder_field, size);
+  return {payload, size};
+}
+ 
+std::vector<InternalFieldData*> deserialized_data;
+ 
+void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
+                               v8::StartupData payload, void* data) {
+  CHECK_EQ(reinterpret_cast<void*>(2017), data);
+  InternalFieldData* embedder_field = new InternalFieldData{0};
+  memcpy(embedder_field, payload.data, payload.raw_size);
+  holder->SetAlignedPointerInInternalField(index, embedder_field);
+  deserialized_data.push_back(embedder_field);
 }
 
 TEST(SnapshotCreatorTemplates) {
