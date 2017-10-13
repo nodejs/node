@@ -525,7 +525,7 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
-For example, if you have a pattern that takes in `(foo, onSuccessCallback, onErrorCallback)`, you can do:
+For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
 doSomething[util.promisify.custom] = function(foo) {
