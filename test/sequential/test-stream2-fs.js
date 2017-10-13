@@ -28,7 +28,7 @@ const fs = require('fs');
 const FSReadable = fs.ReadStream;
 
 const path = require('path');
-const file = path.resolve(fixtures.path(), 'x1024.txt');
+const file = path.resolve(fixtures.path('x1024.txt'));
 
 const size = fs.statSync(file).size;
 
