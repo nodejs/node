@@ -597,8 +597,7 @@ Isolate* SnapshotCreator::GetIsolate() {
   return SnapshotCreatorData::cast(data_)->isolate_;
 }
 
-void SnapshotCreator::SetDefaultContext(
-    Local<Context> context, SerializeInternalFieldsCallback callback) {
+void SnapshotCreator::SetDefaultContext(Local<Context> context) {
   DCHECK(!context.IsEmpty());
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   DCHECK(!data->created_);
@@ -606,7 +605,8 @@ void SnapshotCreator::SetDefaultContext(
   Isolate* isolate = data->isolate_;
   CHECK_EQ(isolate, context->GetIsolate());
   data->default_context_.Reset(isolate, context);
-  data->default_embedder_fields_serializer_ = callback;
+  data->default_embedder_fields_serializer_ =
+      v8::SerializeInternalFieldsCallback();
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
@@ -6559,10 +6559,9 @@ Local<Context> NewContext(
 Local<Context> v8::Context::New(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
-    v8::MaybeLocal<Value> global_object,
-    DeserializeInternalFieldsCallback internal_fields_deserializer) {
+    v8::MaybeLocal<Value> global_object) {
   return NewContext(external_isolate, extensions, global_template,
-                    global_object, 0, internal_fields_deserializer);
+                    global_object, 0, v8::DeserializeInternalFieldsCallback());
 }
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
@@ -9052,6 +9051,13 @@ void Isolate::SetAllowCodeGenerationFromStringsCallback(
   isolate->set_allow_code_gen_callback(callback);
 }
 
+void Isolate::SetAllowCodeGenerationFromStringsCallback(
+    DeprecatedAllowCodeGenerationFromStringsCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->set_allow_code_gen_callback(
+      reinterpret_cast<AllowCodeGenerationFromStringsCallback>(callback));
+}
+
 #define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
   void Isolate::Set##ExternalName(Type callback) {             \
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this); \
@@ -10507,6 +10513,10 @@ void HeapProfiler::SetGetRetainerInfosCallback(
     GetRetainerInfosCallback callback) {
   reinterpret_cast<i::HeapProfiler*>(this)->SetGetRetainerInfosCallback(
       callback);
+}
+
+size_t HeapProfiler::GetProfilerMemorySize() {
+  return 0;
 }
 
 v8::Testing::StressType internal::Testing::stress_type_ =
