@@ -269,10 +269,8 @@ class Registry {
      * @returns {Registry}              New registry with errorCount populated
      */
     lintSourceCode(sourceCodes, config, cb) {
-        let ruleSetIdx,
-            lintedRegistry;
+        let lintedRegistry = new Registry();
 
-        lintedRegistry = new Registry();
         lintedRegistry.rules = Object.assign({}, this.rules);
 
         const ruleSets = lintedRegistry.buildRuleSets();
@@ -287,7 +285,7 @@ class Registry {
         filenames.forEach(filename => {
             debug(`Linting file: ${filename}`);
 
-            ruleSetIdx = 0;
+            let ruleSetIdx = 0;
 
             ruleSets.forEach(ruleSet => {
                 const lintConfig = Object.assign({}, config, { rules: ruleSet });

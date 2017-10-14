@@ -9,7 +9,7 @@
 /*
  * This is a wrapper around mocha to allow for DRY unittests for eslint
  * Format:
- * RuleTester.add("{ruleName}", {
+ * RuleTester.run("{ruleName}", {
  *      valid: [
  *          "{code}",
  *          { code: "{code}", options: {options}, globals: {globals}, parser: "{parser}", settings: {settings} }
@@ -159,7 +159,8 @@ class RuleTester {
 
             // we have to clone because merge uses the first argument for recipient
             lodash.cloneDeep(defaultConfig),
-            testerConfig
+            testerConfig,
+            { rules: { "rule-tester/validate-ast": "error" } }
         );
 
         /**
@@ -250,7 +251,6 @@ class RuleTester {
         const testerConfig = this.testerConfig,
             requiredScenarios = ["valid", "invalid"],
             scenarioErrors = [],
-            result = {},
             linter = this.linter;
 
         if (lodash.isNil(test) || typeof test !== "object") {
@@ -269,16 +269,13 @@ class RuleTester {
             ].concat(scenarioErrors).join("\n"));
         }
 
-        /* eslint-disable no-shadow */
-
         /**
          * Run the rule for the given item
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {Object} Eslint run result
          * @private
          */
-        function runRuleForItem(ruleName, item) {
+        function runRuleForItem(item) {
             let config = lodash.cloneDeep(testerConfig),
                 code, filename, beforeAST, afterAST;
 
@@ -310,7 +307,17 @@ class RuleTester {
                 config.rules[ruleName] = 1;
             }
 
-            linter.defineRule(ruleName, rule);
+            linter.defineRule(ruleName, Object.assign({}, rule, {
+
+                // Create a wrapper rule that freezes the `context` properties.
+                create(context) {
+                    freezeDeeply(context.options);
+                    freezeDeeply(context.settings);
+                    freezeDeeply(context.parserOptions);
+
+                    return (typeof rule === "function" ? rule : rule.create)(context);
+                }
+            }));
 
             const schema = validator.getRuleOptionsSchema(ruleName, linter.rules);
 
@@ -335,55 +342,20 @@ class RuleTester {
              * The goal is to check whether or not AST was modified when
              * running the rule under test.
              */
-            linter.reset();
+            linter.defineRule("rule-tester/validate-ast", () => ({
+                Program(node) {
+                    beforeAST = cloneDeeplyExcludesParent(node);
+                },
+                "Program:exit"(node) {
+                    afterAST = node;
+                }
+            }));
 
-            linter.on("Program", node => {
-                beforeAST = cloneDeeplyExcludesParent(node);
-            });
-
-            linter.on("Program:exit", node => {
-                afterAST = node;
-            });
-
-            // Freezes rule-context properties.
-            const originalGet = linter.rules.get;
-
-            try {
-                linter.rules.get = function(ruleId) {
-                    const rule = originalGet.call(linter.rules, ruleId);
-
-                    if (typeof rule === "function") {
-                        return function(context) {
-                            Object.freeze(context);
-                            freezeDeeply(context.options);
-                            freezeDeeply(context.settings);
-                            freezeDeeply(context.parserOptions);
-
-                            return rule(context);
-                        };
-                    }
-                    return {
-                        meta: rule.meta,
-                        create(context) {
-                            Object.freeze(context);
-                            freezeDeeply(context.options);
-                            freezeDeeply(context.settings);
-                            freezeDeeply(context.parserOptions);
-
-                            return rule.create(context);
-                        }
-                    };
-
-                };
-
-                return {
-                    messages: linter.verify(code, config, filename, true),
-                    beforeAST,
-                    afterAST: cloneDeeplyExcludesParent(afterAST)
-                };
-            } finally {
-                linter.rules.get = originalGet;
-            }
+            return {
+                messages: linter.verify(code, config, filename, true),
+                beforeAST,
+                afterAST: cloneDeeplyExcludesParent(afterAST)
+            };
         }
 
         /**
@@ -404,13 +376,12 @@ class RuleTester {
         /**
          * Check if the template is valid or not
          * all valid cases go through this
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {void}
          * @private
          */
-        function testValidTemplate(ruleName, item) {
-            const result = runRuleForItem(ruleName, item);
+        function testValidTemplate(item) {
+            const result = runRuleForItem(item);
             const messages = result.messages;
 
             assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
@@ -444,16 +415,15 @@ class RuleTester {
         /**
          * Check if the template is invalid or not
          * all invalid cases go through this.
-         * @param {string} ruleName name of the rule
          * @param {string|Object} item Item to run the rule against
          * @returns {void}
          * @private
          */
-        function testInvalidTemplate(ruleName, item) {
+        function testInvalidTemplate(item) {
             assert.ok(item.errors || item.errors === 0,
                 `Did not specify errors for an invalid test of ${ruleName}`);
 
-            const result = runRuleForItem(ruleName, item);
+            const result = runRuleForItem(item);
             const messages = result.messages;
 
 
@@ -525,7 +495,7 @@ class RuleTester {
                         "Expected no autofixes to be suggested"
                     );
                 } else {
-                    const fixResult = SourceCodeFixer.applyFixes(linter.getSourceCode(), messages);
+                    const fixResult = SourceCodeFixer.applyFixes(item.code, messages);
 
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }
@@ -543,7 +513,7 @@ class RuleTester {
                 test.valid.forEach(valid => {
                     RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
                         linter.defineRules(this.rules);
-                        testValidTemplate(ruleName, valid);
+                        testValidTemplate(valid);
                     });
                 });
             });
@@ -552,13 +522,11 @@ class RuleTester {
                 test.invalid.forEach(invalid => {
                     RuleTester.it(invalid.code, () => {
                         linter.defineRules(this.rules);
-                        testInvalidTemplate(ruleName, invalid);
+                        testInvalidTemplate(invalid);
                     });
                 });
             });
         });
-
-        return result.suite;
     }
 }
 

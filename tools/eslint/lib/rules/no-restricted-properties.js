@@ -109,20 +109,28 @@ module.exports = {
             if (matchedObjectProperty) {
                 const message = matchedObjectProperty.message ? ` ${matchedObjectProperty.message}` : "";
 
-                // eslint-disable-next-line eslint-plugin/report-message-format
-                context.report({ node, message: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}", data: {
-                    objectName,
-                    propertyName,
-                    message
-                } });
+                context.report({
+                    node,
+                    // eslint-disable-next-line eslint-plugin/report-message-format
+                    message: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}",
+                    data: {
+                        objectName,
+                        propertyName,
+                        message
+                    }
+                });
             } else if (globalMatchedProperty) {
                 const message = globalMatchedProperty.message ? ` ${globalMatchedProperty.message}` : "";
 
-                // eslint-disable-next-line eslint-plugin/report-message-format
-                context.report({ node, message: "'{{propertyName}}' is restricted from being used.{{message}}", data: {
-                    propertyName,
-                    message
-                } });
+                context.report({
+                    node,
+                    // eslint-disable-next-line eslint-plugin/report-message-format
+                    message: "'{{propertyName}}' is restricted from being used.{{message}}",
+                    data: {
+                        propertyName,
+                        message
+                    }
+                });
             }
         }
 

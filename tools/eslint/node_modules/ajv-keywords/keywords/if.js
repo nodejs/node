@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = function defFunc(ajv) {
-  if (!ajv._opts.v5) console.warn('keywords if/then/else require v5 option');
+  if (!ajv.RULES.keywords.switch) require('./switch')(ajv);
 
   defFunc.definition = {
     macro: function (schema, parentSchema) {

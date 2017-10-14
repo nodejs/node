@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_switch(it, $keyword) {
+module.exports = function generate_switch(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -7,7 +7,6 @@ module.exports = function generate_switch(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -41,14 +40,14 @@ module.exports = function generate_switch(it, $keyword) {
         $it.baseId = $currentBaseId;
         $it.createErrors = true;
         it.compositeRule = $it.compositeRule = $wasComposite;
-        out += ' ' + ($ifPassed) + ' = valid' + ($it.level) + '; if (' + ($ifPassed) + ') {  ';
+        out += ' ' + ($ifPassed) + ' = ' + ($nextValid) + '; if (' + ($ifPassed) + ') {  ';
         if (typeof $sch.then == 'boolean') {
           if ($sch.then === false) {
             var $$outStack = $$outStack || [];
             $$outStack.push(out);
             out = ''; /* istanbul ignore else */
             if (it.createErrors !== false) {
-              out += ' { keyword: \'' + ($errorKeyword || 'switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
+              out += ' { keyword: \'' + ('switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
               if (it.opts.messages !== false) {
                 out += ' , message: \'should pass "switch" keyword validation\' ';
               }
@@ -71,7 +70,7 @@ module.exports = function generate_switch(it, $keyword) {
               out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
             }
           }
-          out += ' var valid' + ($it.level) + ' = ' + ($sch.then) + '; ';
+          out += ' var ' + ($nextValid) + ' = ' + ($sch.then) + '; ';
         } else {
           $it.schema = $sch.then;
           $it.schemaPath = $schemaPath + '[' + $caseIndex + '].then';
@@ -88,7 +87,7 @@ module.exports = function generate_switch(it, $keyword) {
             $$outStack.push(out);
             out = ''; /* istanbul ignore else */
             if (it.createErrors !== false) {
-              out += ' { keyword: \'' + ($errorKeyword || 'switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
+              out += ' { keyword: \'' + ('switch') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { caseIndex: ' + ($caseIndex) + ' } ';
               if (it.opts.messages !== false) {
                 out += ' , message: \'should pass "switch" keyword validation\' ';
               }
@@ -111,7 +110,7 @@ module.exports = function generate_switch(it, $keyword) {
               out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
             }
           }
-          out += ' var valid' + ($it.level) + ' = ' + ($sch.then) + '; ';
+          out += ' var ' + ($nextValid) + ' = ' + ($sch.then) + '; ';
         } else {
           $it.schema = $sch.then;
           $it.schemaPath = $schemaPath + '[' + $caseIndex + '].then';
@@ -123,7 +122,7 @@ module.exports = function generate_switch(it, $keyword) {
       $shouldContinue = $sch.continue
     }
   }
-  out += '' + ($closingBraces) + 'var ' + ($valid) + ' = valid' + ($it.level) + '; ';
+  out += '' + ($closingBraces) + 'var ' + ($valid) + ' = ' + ($nextValid) + '; ';
   out = it.util.cleanUpCode(out);
   return out;
 }

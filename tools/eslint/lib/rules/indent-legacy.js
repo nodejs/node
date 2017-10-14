@@ -729,7 +729,7 @@ module.exports = {
                 if (!parentVarNode || parentVarNode.loc.start.line !== node.loc.start.line) {
                     if (parent.type !== "VariableDeclarator" || parentVarNode === parentVarNode.parent.declarations[0]) {
                         if (parent.type === "VariableDeclarator" && parentVarNode.loc.start.line === parent.loc.start.line) {
-                            nodeIndent = nodeIndent + (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
+                            nodeIndent += (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
                         } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
                             const parentElements = node.parent.type === "ObjectExpression" ? node.parent.properties : node.parent.elements;
 
@@ -765,7 +765,7 @@ module.exports = {
                         }
                     }
                 } else if (!parentVarNode && !isFirstArrayElementOnSameLine(parent) && parent.type !== "MemberExpression" && parent.type !== "ExpressionStatement" && parent.type !== "AssignmentExpression" && parent.type !== "Property") {
-                    nodeIndent = nodeIndent + indentSize;
+                    nodeIndent += indentSize;
                 }
 
                 checkFirstNodeLineIndent(node, nodeIndent);
@@ -965,7 +965,8 @@ module.exports = {
             const regex = /^return\s*?\(\s*?\);*?/;
 
             const statementWithoutArgument = sourceCode.getText(node).replace(
-                sourceCode.getText(node.argument), "");
+                sourceCode.getText(node.argument), ""
+            );
 
             return regex.test(statementWithoutArgument);
         }
@@ -1039,7 +1040,7 @@ module.exports = {
 
                 const checkNodes = [node.property];
 
-                const dot = context.getTokenBefore(node.property);
+                const dot = sourceCode.getTokenBefore(node.property);
 
                 if (dot.type === "Punctuator" && dot.value === ".") {
                     checkNodes.push(dot);

@@ -88,12 +88,11 @@ function getTopLoopNode(node, excludedNode) {
  * Checks whether a given reference which refers to an upper scope's variable is
  * safe or not.
  *
- * @param {ASTNode} funcNode - A target function node.
  * @param {ASTNode} loopNode - A containing loop node.
  * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is safe or not.
  */
-function isSafe(funcNode, loopNode, reference) {
+function isSafe(loopNode, reference) {
     const variable = reference.resolved;
     const definition = variable && variable.defs[0];
     const declaration = definition && definition.parent;
@@ -183,7 +182,7 @@ module.exports = {
             const references = context.getScope().through;
 
             if (references.length > 0 &&
-                !references.every(isSafe.bind(null, node, loopNode))
+                !references.every(isSafe.bind(null, loopNode))
             ) {
                 context.report({ node, message: "Don't make functions within a loop." });
             }
