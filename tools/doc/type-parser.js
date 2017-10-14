@@ -58,6 +58,8 @@ const typeMap = {
   'URLSearchParams': 'url.html#url_class_urlsearchparams'
 };
 
+const arrayPart = /(?:\[])+$/;
+
 module.exports = {
   toLink: function(typeInput) {
     const typeLinks = [];
@@ -69,12 +71,10 @@ module.exports = {
       if (typeText) {
         let typeUrl = null;
 
-        // To support type[], we store the full string and use
-        // the bracket-less version to lookup the type URL
+        // To support type[], type[][] etc., we store the full string
+        // and use the bracket-less version to lookup the type URL
         const typeTextFull = typeText;
-        if (/\[]$/.test(typeText)) {
-          typeText = typeText.slice(0, -2);
-        }
+        typeText = typeText.replace(arrayPart, '');
 
         const primitive = jsPrimitives[typeText.toLowerCase()];
 
