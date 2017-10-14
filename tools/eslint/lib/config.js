@@ -24,7 +24,7 @@ const debug = require("debug")("eslint:config");
 // Constants
 //------------------------------------------------------------------------------
 
-const PERSONAL_CONFIG_DIR = os.homedir() || null;
+const PERSONAL_CONFIG_DIR = os.homedir();
 const SUBCONFIG_SEP = ":";
 
 //------------------------------------------------------------------------------
@@ -148,15 +148,13 @@ class Config {
     getPersonalConfig() {
         if (typeof this.personalConfig === "undefined") {
             let config;
+            const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
 
-            if (PERSONAL_CONFIG_DIR) {
-                const filename = ConfigFile.getFilenameForDirectory(PERSONAL_CONFIG_DIR);
-
-                if (filename) {
-                    debug("Using personal config");
-                    config = ConfigFile.load(filename, this);
-                }
+            if (filename) {
+                debug("Using personal config");
+                config = ConfigFile.load(filename, this);
             }
+
             this.personalConfig = config || null;
         }
 
@@ -351,10 +349,8 @@ class Config {
             config = ConfigOps.merge(config, { parser: this.parser });
         }
 
-        // Step 4: Apply environments to the config if present
-        if (config.env) {
-            config = ConfigOps.applyEnvironments(config, this.linterContext.environments);
-        }
+        // Step 4: Apply environments to the config
+        config = ConfigOps.applyEnvironments(config, this.linterContext.environments);
 
         this.configCache.setMergedConfig(vector, config);
 

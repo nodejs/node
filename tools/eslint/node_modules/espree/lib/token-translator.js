@@ -57,7 +57,9 @@ function convertTemplatePart(tokens, code) {
     }
 
     if (firstToken.range) {
-        token.range = [firstToken.range[0], lastTemplateToken.range[1]];
+        token.start = firstToken.range[0];
+        token.end = lastTemplateToken.range[1];
+        token.range = [token.start, token.end];
     }
 
     return token;
@@ -230,7 +232,7 @@ TokenTranslator.prototype = {
             // store new curly for later
             this._curlyBrace = token;
             return;
-        } else if (token.type === tt.template) {
+        } else if (token.type === tt.template || token.type === tt.invalidTemplate) {
             if (this._curlyBrace) {
                 templateTokens.push(this._curlyBrace);
                 this._curlyBrace = null;

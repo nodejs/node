@@ -28,11 +28,11 @@ exports.default = function (value, columnWidth) {
   let useWrapWord = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
 
   if (!_lodash2.default.isString(value)) {
-    throw new Error('Value must be a string.');
+    throw new TypeError('Value must be a string.');
   }
 
   if (!_lodash2.default.isInteger(columnWidth)) {
-    throw new Error('Column width must be an integer.');
+    throw new TypeError('Column width must be an integer.');
   }
 
   if (columnWidth < 1) {

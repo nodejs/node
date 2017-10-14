@@ -14,7 +14,7 @@ npm install --save cli-width
 ```
 
 ```js
-'use stict';
+'use strict';
 
 var cliWidth = require('cli-width');
 
