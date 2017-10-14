@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
-const { NodeInstance } = require('./inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function runTests() {
   const script = 'setInterval(() => {debugger;}, 60000);';
