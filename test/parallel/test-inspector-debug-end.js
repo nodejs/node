@@ -2,7 +2,7 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const { strictEqual } = require('assert');
-const { NodeInstance } = require('./inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function testNoServerNoCrash() {
   console.log('Test there\'s no crash stopping server that was not started');

@@ -6,7 +6,7 @@ common.skipIfInspectorDisabled();
 const assert = require('assert');
 const { mainScriptPath,
         readMainScriptSource,
-        NodeInstance } = require('./inspector-helper.js');
+        NodeInstance } = require('../common/inspector-helper.js');
 
 function checkListResponse(response) {
   assert.strictEqual(1, response.length);
