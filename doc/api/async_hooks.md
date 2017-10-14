@@ -95,7 +95,7 @@ respective asynchronous event during a resource's lifetime.
 All callbacks are optional. So, for example, if only resource cleanup needs to
 be tracked then only the `destroy` callback needs to be passed. The
 specifics of all functions that can be passed to `callbacks` is in the section
-[`Hook Callbacks`][].
+[Hook Callbacks][].
 
 ```js
 const async_hooks = require('async_hooks');
@@ -637,5 +637,5 @@ constructor.
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_before_asyncid
-[`Hook Callbacks`]: #async_hooks_hook_callbacks
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
+[Hook Callbacks]: #async_hooks_hook_callbacks
