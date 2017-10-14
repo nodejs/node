@@ -4,10 +4,11 @@ const common = require('../common');
 // This test ensures that it is possible to add a listener to multiple events at once
 
 const assert = require('assert');
-const EventEmitter = require('../../lib/events');
-const myEE = new EventEmitter();
 
 async function test_goodInput_1() {
+
+    const EventEmitter = require('../../lib/events');
+    const myEE = new EventEmitter();
 
     const input = {
         event1 : [ common.mustCall() ],
@@ -24,6 +25,9 @@ async function test_goodInput_1() {
 
 async function test_goodInput_2() {
 
+    const EventEmitter = require('../../lib/events');
+    const myEE = new EventEmitter();
+
     const input = {
         event3() { common.mustCall() },
         event4() { common.mustCall() }
@@ -39,6 +43,9 @@ async function test_goodInput_2() {
 
 async function test_badInputs() {
 
+    const EventEmitter = require('../../lib/events');
+    const myEE = new EventEmitter();
+    
     await assert.throws(function() { myEE.onMultiple(undefined) } );
     await assert.throws(function() { myEE.onMultiple(true) } );
     await assert.throws(function() { myEE.onMultiple(1) } );
