@@ -53,37 +53,28 @@ function SourceCodeFixer() {
 /**
  * Applies the fixes specified by the messages to the given text. Tries to be
  * smart about the fixes and won't apply fixes over the same area in the text.
- * @param {SourceCode} sourceCode The source code to apply the changes to.
+ * @param {string} sourceText The text to apply the changes to.
  * @param {Message[]} messages The array of messages reported by ESLint.
  * @param {boolean|Function} [shouldFix=true] Determines whether each message should be fixed
  * @returns {Object} An object containing the fixed text and any unfixed messages.
  */
-SourceCodeFixer.applyFixes = function(sourceCode, messages, shouldFix) {
+SourceCodeFixer.applyFixes = function(sourceText, messages, shouldFix) {
     debug("Applying fixes");
-
-    if (!sourceCode) {
-        debug("No source code to fix");
-        return {
-            fixed: false,
-            messages,
-            output: ""
-        };
-    }
 
     if (shouldFix === false) {
         debug("shouldFix parameter was false, not attempting fixes");
         return {
             fixed: false,
             messages,
-            output: sourceCode.text
+            output: sourceText
         };
     }
 
     // clone the array
     const remainingMessages = [],
         fixes = [],
-        bom = (sourceCode.hasBOM ? BOM : ""),
-        text = sourceCode.text;
+        bom = sourceText.startsWith(BOM) ? BOM : "",
+        text = bom ? sourceText.slice(1) : sourceText;
     let lastPos = Number.NEGATIVE_INFINITY,
         output = bom;
 

@@ -64,7 +64,8 @@ function translateOptions(cliOptions) {
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
         fix: cliOptions.fix && (cliOptions.quiet ? quietFixPredicate : true),
-        allowInlineConfig: cliOptions.inlineConfig
+        allowInlineConfig: cliOptions.inlineConfig,
+        reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives
     };
 }
 

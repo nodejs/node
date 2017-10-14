@@ -243,7 +243,6 @@ var validate = (function() {
       'use strict';
       var vErrors = null;
       var errors = 0;
-      if (rootData === undefined) rootData = data;
       if (typeof data !== "string") {
         var err = {
           keyword: 'type',
@@ -341,7 +340,6 @@ var validate = (function() {
       'use strict';
       var vErrors = null;
       var errors = 0;
-      if (rootData === undefined) rootData = data;
       if ((data && typeof data === "object" && !Array.isArray(data))) {
         var errs__0 = errors;
         var valid1 = true;
@@ -366,6 +364,20 @@ var validate = (function() {
         var data1 = data.alignment;
         if (data1 !== undefined) {
           var errs_1 = errors;
+          if (typeof data1 !== "string") {
+            var err = {
+              keyword: 'type',
+              dataPath: (dataPath || '') + '.alignment',
+              schemaPath: '#/properties/alignment/type',
+              params: {
+                type: 'string'
+              },
+              message: 'should be string'
+            };
+            if (vErrors === null) vErrors = [err];
+            else vErrors.push(err);
+            errors++;
+          }
           var schema1 = validate.schema.properties.alignment.enum;
           var valid1;
           valid1 = false;
@@ -383,20 +395,6 @@ var validate = (function() {
                 allowedValues: schema1
               },
               message: 'should be equal to one of the allowed values'
-            };
-            if (vErrors === null) vErrors = [err];
-            else vErrors.push(err);
-            errors++;
-          }
-          if (typeof data1 !== "string") {
-            var err = {
-              keyword: 'type',
-              dataPath: (dataPath || '') + '.alignment',
-              schemaPath: '#/properties/alignment/type',
-              params: {
-                type: 'string'
-              },
-              message: 'should be string'
             };
             if (vErrors === null) vErrors = [err];
             else vErrors.push(err);
@@ -540,7 +538,7 @@ var validate = (function() {
   refVal4.errors = null;
   refVal[4] = refVal4;
   return function validate(data, dataPath, parentData, parentDataProperty, rootData) {
-    'use strict';
+    'use strict'; /*# sourceURL=config.json */
     var vErrors = null;
     var errors = 0;
     if (rootData === undefined) rootData = data;
@@ -596,7 +594,8 @@ var validate = (function() {
         var errs_1 = errors;
         var errs__1 = errors;
         var valid1;
-        if (!(typeof data.drawHorizontalLine == "function")) {
+        valid1 = typeof data.drawHorizontalLine == "function";
+        if (!valid1) {
           if (errs__1 == errors) {
             var err = {
               keyword: 'typeof',
@@ -613,9 +612,7 @@ var validate = (function() {
           } else {
             for (var i1 = errs__1; i1 < errors; i1++) {
               var ruleErr1 = vErrors[i1];
-              if (ruleErr1.dataPath === undefined) {
-                ruleErr1.dataPath = (dataPath || '') + '.drawHorizontalLine';
-              }
+              if (ruleErr1.dataPath === undefined) ruleErr1.dataPath = (dataPath || '') + '.drawHorizontalLine';
               if (ruleErr1.schemaPath === undefined) {
                 ruleErr1.schemaPath = "#/properties/drawHorizontalLine/typeof";
               }
@@ -643,8 +640,8 @@ var validate = (function() {
   };
 })();
 validate.schema = {
-  "id": "config.json",
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$id": "config.json",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "type": "object",
   "properties": {
     "border": {

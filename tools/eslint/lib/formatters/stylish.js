@@ -5,6 +5,7 @@
 "use strict";
 
 const chalk = require("chalk"),
+    stripAnsi = require("strip-ansi"),
     table = require("text-table");
 
 //------------------------------------------------------------------------------
@@ -64,14 +65,14 @@ module.exports = function(results) {
                     message.line || 0,
                     message.column || 0,
                     messageType,
-                    message.message.replace(/\.$/, ""),
+                    message.message.replace(/([^ ])\.$/, "$1"),
                     chalk.dim(message.ruleId || "")
                 ];
             }),
             {
                 align: ["", "r", "l"],
                 stringLength(str) {
-                    return chalk.stripColor(str).length;
+                    return stripAnsi(str).length;
                 }
             }
         ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
