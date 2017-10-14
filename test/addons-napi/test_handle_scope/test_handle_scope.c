@@ -33,13 +33,15 @@ napi_value NewScopeEscapeTwice(napi_env env, napi_callback_info info) {
   napi_escapable_handle_scope scope;
   napi_value output = NULL;
   napi_value escapee = NULL;
+  napi_status status;
 
   NAPI_CALL(env, napi_open_escapable_handle_scope(env, &scope));
   NAPI_CALL(env, napi_create_object(env, &output));
   NAPI_CALL(env, napi_escape_handle(env, scope, output, &escapee));
-  NAPI_CALL(env, napi_escape_handle(env, scope, output, &escapee));
+  status = napi_escape_handle(env, scope, output, &escapee);
+  NAPI_ASSERT(env, status == napi_escape_called_twice, "Escaping twice fails");
   NAPI_CALL(env, napi_close_escapable_handle_scope(env, scope));
-  return escapee;
+  return NULL;
 }
 
 napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
