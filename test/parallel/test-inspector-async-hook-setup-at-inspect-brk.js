@@ -3,20 +3,24 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 common.crashOnUnhandledRejection();
-const { NodeInstance } = require('./inspector-helper');
+const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
 
-const script = 'setInterval(() => { debugger; }, 50);';
+const script = `
+setTimeout(() => {
+  debugger;
+  process.exitCode = 55;
+}, 50);
+`;
 
-async function skipFirstBreakpoint(session) {
-  console.log('[test]', 'Skipping the first breakpoint in the eval script');
+async function skipBreakpointAtStart(session) {
   await session.waitForBreakOnLine(0, '[eval]');
   await session.send({ 'method': 'Debugger.resume' });
 }
 
 async function checkAsyncStackTrace(session) {
   console.error('[test]', 'Verify basic properties of asyncStackTrace');
-  const paused = await session.waitForBreakOnLine(2, '[eval]');
+  const paused = await session.waitForBreakOnLine(4, '[eval]');
   assert(paused.params.asyncStackTrace,
          `${Object.keys(paused.params)} contains "asyncStackTrace" property`);
   assert(paused.params.asyncStackTrace.description, 'Timeout');
@@ -36,13 +40,11 @@ async function runTests() {
       'params': { 'patterns': [] } },
     { 'method': 'Runtime.runIfWaitingForDebugger' }
   ]);
-
-  await skipFirstBreakpoint(session);
+  await skipBreakpointAtStart(session);
   await checkAsyncStackTrace(session);
 
-  console.error('[test]', 'Stopping child instance');
-  session.disconnect();
-  instance.kill();
+  await session.runToCompletion();
+  assert.strictEqual(55, (await instance.expectShutdown()).exitCode);
 }
 
 runTests();

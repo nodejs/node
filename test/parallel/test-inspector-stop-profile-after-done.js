@@ -2,7 +2,7 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const assert = require('assert');
-const { NodeInstance } = require('./inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function runTests() {
   const child = new NodeInstance(['--inspect=0'],

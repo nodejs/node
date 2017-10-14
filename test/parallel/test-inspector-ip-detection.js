@@ -4,7 +4,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { NodeInstance } = require('./inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 const os = require('os');
 
 const ip = pickIPv4Address();
