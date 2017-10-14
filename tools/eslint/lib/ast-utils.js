@@ -626,6 +626,9 @@ module.exports = {
                 //     // setup...
                 //     return function foo() { ... };
                 //   })();
+                //   obj.foo = (() =>
+                //     function foo() { ... }
+                //   )();
                 case "ReturnStatement": {
                     const func = getUpperFunction(parent);
 
@@ -635,6 +638,12 @@ module.exports = {
                     node = func.parent;
                     break;
                 }
+                case "ArrowFunctionExpression":
+                    if (node !== parent.body || !isCallee(parent)) {
+                        return true;
+                    }
+                    node = parent.parent;
+                    break;
 
                 // e.g.
                 //   var obj = { foo() { ... } };
@@ -655,16 +664,15 @@ module.exports = {
                 //   [Foo = function() { ... }] = a;
                 case "AssignmentExpression":
                 case "AssignmentPattern":
-                    if (parent.right === node) {
-                        if (parent.left.type === "MemberExpression") {
-                            return false;
-                        }
-                        if (isAnonymous &&
-                            parent.left.type === "Identifier" &&
-                            startsWithUpperCase(parent.left.name)
-                        ) {
-                            return false;
-                        }
+                    if (parent.left.type === "MemberExpression") {
+                        return false;
+                    }
+                    if (
+                        isAnonymous &&
+                        parent.left.type === "Identifier" &&
+                        startsWithUpperCase(parent.left.name)
+                    ) {
+                        return false;
                     }
                     return true;
 
@@ -809,19 +817,14 @@ module.exports = {
                 return 17;
 
             case "CallExpression":
-
-                // IIFE is allowed to have parens in any position (#655)
-                if (node.callee.type === "FunctionExpression") {
-                    return -1;
-                }
                 return 18;
 
             case "NewExpression":
                 return 19;
 
-            // no default
+            default:
+                return 20;
         }
-        return 20;
     },
 
     /**

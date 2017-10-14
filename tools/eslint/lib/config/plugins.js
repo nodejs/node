@@ -43,7 +43,7 @@ class Plugins {
      * @returns {string} The name of the plugin without prefix.
      */
     static removePrefix(pluginName) {
-        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.substring(PLUGIN_NAME_PREFIX.length) : pluginName;
+        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.slice(PLUGIN_NAME_PREFIX.length) : pluginName;
     }
 
     /**

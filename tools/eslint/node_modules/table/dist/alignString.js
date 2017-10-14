@@ -65,11 +65,11 @@ const alignCenter = (subject, width) => {
 
 exports.default = (subject, containerWidth, alignment) => {
   if (!_lodash2.default.isString(subject)) {
-    throw new Error('Subject parameter value must be a string.');
+    throw new TypeError('Subject parameter value must be a string.');
   }
 
   if (!_lodash2.default.isNumber(containerWidth)) {
-    throw new Error('Container width parameter value must be a number.');
+    throw new TypeError('Container width parameter value must be a number.');
   }
 
   const subjectWidth = (0, _stringWidth2.default)(subject);
@@ -81,7 +81,7 @@ exports.default = (subject, containerWidth, alignment) => {
   }
 
   if (!_lodash2.default.isString(alignment)) {
-    throw new Error('Alignment parameter value must be a string.');
+    throw new TypeError('Alignment parameter value must be a string.');
   }
 
   if (alignments.indexOf(alignment) === -1) {

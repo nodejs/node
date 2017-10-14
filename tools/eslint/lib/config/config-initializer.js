@@ -65,6 +65,7 @@ function writeFile(config, format) {
  * @param {string} moduleName The module name to get.
  * @returns {Object} The peer dependencies of the given module.
  * This object is the object of `peerDependencies` field of `package.json`.
+ * Returns null if npm was not found.
  */
 function getPeerDependencies(moduleName) {
     let result = getPeerDependencies.cache.get(moduleName);
@@ -356,7 +357,8 @@ function hasESLintVersionConflict(answers) {
     // Get the required range of ESLint version.
     const configName = getStyleGuideName(answers);
     const moduleName = `eslint-config-${configName}@latest`;
-    const requiredESLintVersionRange = getPeerDependencies(moduleName).eslint;
+    const peerDependencies = getPeerDependencies(moduleName) || {};
+    const requiredESLintVersionRange = peerDependencies.eslint;
 
     if (!requiredESLintVersionRange) {
         return false;
@@ -380,7 +382,6 @@ function hasESLintVersionConflict(answers) {
  * @returns {Promise} The promise with the result of the prompt
  */
 function promptUser() {
-    let config;
 
     return inquirer.prompt([
         {
@@ -467,7 +468,8 @@ function promptUser() {
                 earlyAnswers.styleguide = "airbnb-base";
             }
 
-            config = getConfigForStyleGuide(earlyAnswers.styleguide, earlyAnswers.installESLint);
+            const config = getConfigForStyleGuide(earlyAnswers.styleguide, earlyAnswers.installESLint);
+
             writeFile(config, earlyAnswers.format);
 
             return void 0;
@@ -527,7 +529,8 @@ function promptUser() {
             if (earlyAnswers.source === "auto") {
                 const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
 
-                config = processAnswers(combinedAnswers);
+                const config = processAnswers(combinedAnswers);
+
                 installModules(config);
                 writeFile(config, earlyAnswers.format);
 
@@ -573,7 +576,8 @@ function promptUser() {
             ]).then(answers => {
                 const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
 
-                config = processAnswers(totalAnswers);
+                const config = processAnswers(totalAnswers);
+
                 installModules(config);
                 writeFile(config, answers.format);
             });

@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const ajv = require("../util/ajv"),
+    lodash = require("lodash"),
     configSchema = require("../../conf/config-schema.js"),
     util = require("util");
 
@@ -180,6 +181,25 @@ function formatErrors(errors) {
 }
 
 /**
+ * Emits a deprecation warning containing a given filepath. A new deprecation warning is emitted
+ * for each unique file path, but repeated invocations with the same file path have no effect.
+ * No warnings are emitted if the `--no-deprecation` or `--no-warnings` Node runtime flags are active.
+ * @param {string} source The name of the configuration source to report the warning for.
+ * @returns {void}
+ */
+const emitEcmaFeaturesWarning = lodash.memoize(source => {
+
+    /*
+     * util.deprecate seems to be the only way to emit a warning in Node 4.x while respecting the --no-warnings flag.
+     * (In Node 6+, process.emitWarning could be used instead.)
+     */
+    util.deprecate(
+        () => {},
+        `[eslint] The 'ecmaFeatures' config file property is deprecated, and has no effect. (found in ${source})`
+    )();
+});
+
+/**
  * Validates the top level properties of the config object.
  * @param {Object} config The config object to validate.
  * @param {string} source The name of the configuration source to report in any errors.
@@ -189,7 +209,11 @@ function validateConfigSchema(config, source) {
     validateSchema = validateSchema || ajv.compile(configSchema);
 
     if (!validateSchema(config)) {
-        throw new Error(`${source}:\n\tESLint configuration is invalid:\n${formatErrors(validateSchema.errors)}`);
+        throw new Error(`ESLint configuration in ${source} is invalid:\n${formatErrors(validateSchema.errors)}`);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(config, "ecmaFeatures")) {
+        emitEcmaFeaturesWarning(source);
     }
 }
 

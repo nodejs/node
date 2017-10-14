@@ -88,7 +88,6 @@ function getCallbackInfo(node) {
                         parent.parent.arguments.length === 1 &&
                         parent.parent.arguments[0].type === "ThisExpression"
                     );
-                    node = parent;
                     parent = parent.parent;
                 } else {
                     return retv;
@@ -133,7 +132,7 @@ function hasDuplicateParams(paramsList) {
 module.exports = {
     meta: {
         docs: {
-            description: "require arrow functions as callbacks",
+            description: "require using arrow functions for callbacks",
             category: "ECMAScript 6",
             recommended: false
         },

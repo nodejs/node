@@ -12,7 +12,9 @@ const baseConfigProperties = {
     parserOptions: { type: "object" },
     plugins: { type: "array" },
     rules: { type: "object" },
-    settings: { type: "object" }
+    settings: { type: "object" },
+
+    ecmaFeatures: { type: "object" } // deprecated; logs a warning when used
 };
 
 const overrideProperties = Object.assign(

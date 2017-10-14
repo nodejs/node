@@ -238,7 +238,7 @@ module.exports = {
                     // `do while` expressions sometimes need a space to be inserted after `do`.
                     // e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
                     const needsPrecedingSpace = node.type === "DoWhileStatement" &&
-                        sourceCode.getTokenBefore(bodyNode).end === bodyNode.start &&
+                        sourceCode.getTokenBefore(bodyNode).range[1] === bodyNode.range[0] &&
                         !astUtils.canTokensBeAdjacent("do", sourceCode.getFirstToken(bodyNode, { skip: 1 }));
 
                     const openingBracket = sourceCode.getFirstToken(bodyNode);
