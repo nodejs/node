@@ -33,7 +33,8 @@ See [`http.close()`][] for details.
 
 ### server.listen()
 
-Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
+Starts the HTTPS server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.setTimeout([msecs][, callback])
 <!-- YAML

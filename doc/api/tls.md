@@ -410,7 +410,8 @@ encryption/decryption of the [TLS Session Tickets][]
 
 ### server.listen()
 
-Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
+Starts the server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.setTicketKeys(keys)
 <!-- YAML

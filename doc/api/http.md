@@ -843,7 +843,8 @@ Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
 ### server.listen()
 
-Start a server listening for connections. This method is identical to [`server.listen()`][] from [`net.Server`][].
+Starts the HTTP server listening for connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.listening
 <!-- YAML
