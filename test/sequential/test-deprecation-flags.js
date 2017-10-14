@@ -20,20 +20,21 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const depmod = require.resolve(`${common.fixturesDir}/deprecated.js`);
+const depmod = fixtures.path('deprecated.js');
 const node = process.execPath;
 
 const depUserlandFunction =
-  require.resolve(`${common.fixturesDir}/deprecated-userland-function.js`);
+  fixtures.path('deprecated-userland-function.js');
 
 const depUserlandClass =
-  require.resolve(`${common.fixturesDir}/deprecated-userland-class.js`);
+  fixtures.path('deprecated-userland-class.js');
 
 const depUserlandSubClass =
-  require.resolve(`${common.fixturesDir}/deprecated-userland-subclass.js`);
+  fixtures.path('deprecated-userland-subclass.js');
 
 const normal = [depmod];
 const noDep = ['--no-deprecation', depmod];
