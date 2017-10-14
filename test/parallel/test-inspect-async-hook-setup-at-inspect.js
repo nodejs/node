@@ -3,7 +3,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIf32Bits();
 common.crashOnUnhandledRejection();
-const { NodeInstance } = require('../inspector/inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 const assert = require('assert');
 
 // Even with --inspect, the default async call stack depth is 0. We need a
