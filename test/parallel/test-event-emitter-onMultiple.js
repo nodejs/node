@@ -7,7 +7,7 @@ const assert = require('assert');
 const EventEmitter = require('../../lib/events');
 const myEE = new EventEmitter();
 
-async function test1() {
+async function test_goodInput_1() {
 
     const input = {
         event1 : [ common.mustCall() ],
@@ -20,19 +20,21 @@ async function test1() {
     await myEE.emit("event2");;
 
 }
-    
-async function test2() {
 
-    const input1 = "String";
-    const input2 = 3;
-    const input3 = [];
+async function test_badInputs() {
 
-    await assert.throws( async function() { await myEE.onMultiple(input1) } );
-    await assert.throws( async function() { await myEE.onMultiple(input2) } );
-    await assert.throws( async function() { await myEE.onMultiple(input3) } );
+    await assert.throws(function() { myEE.onMultiple(undefined) } );
+    await assert.throws(function() { myEE.onMultiple(true) } );
+    await assert.throws(function() { myEE.onMultiple(1) } );
+    await assert.throws(function() { myEE.onMultiple("foo") } );
+    await assert.throws(function() { myEE.onMultiple(Symbol("Foo")) } );
+    await assert.throws(function() { myEE.onMultiple(function() {}) } );
+    await assert.throws(function() { myEE.onMultiple([]) } );    
+       
 }
 
-async function test3() {
+/*
+async function test_goodInput_2() {
 
     let ok = 0;
 
@@ -48,5 +50,7 @@ async function test3() {
 
     await assert.deepStrictEqual(ok, 2, "Not all events were emitted")
 }
+*/
 
-test1();
+test_goodInput_1();
+test_badInputs();
