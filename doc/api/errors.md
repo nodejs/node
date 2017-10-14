@@ -1251,6 +1251,12 @@ buffer.
 
 Used when a string that contains unescaped characters was received.
 
+<a id="ERR_UNHANDLED_ERROR"></a>
+### ERR_UNHANDLED_ERROR
+
+Used when an unhandled "error" occurs (for instance, when an `'error'` event
+is emitted by an `EventEmitter` but an `'error'` handler is not registered).
+
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
 

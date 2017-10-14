@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+
 if (!common.hasFipsCrypto)
   common.skip('node compiled without FIPS OpenSSL.');
 

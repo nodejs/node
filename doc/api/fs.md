@@ -279,8 +279,7 @@ added: v0.1.93
 added: v0.1.93
 -->
 
-Emitted when the `ReadStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
+Emitted when the `ReadStream`'s underlying file descriptor has been closed.
 
 ### Event: 'open'
 <!-- YAML
@@ -398,8 +397,7 @@ added: v0.1.93
 added: v0.1.93
 -->
 
-Emitted when the `WriteStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
+Emitted when the `WriteStream`'s underlying file descriptor has been closed.
 
 ### Event: 'open'
 <!-- YAML
@@ -2268,6 +2266,9 @@ Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
+*Note*: Passing a file descriptor is deprecated and may result in an error
+being thrown in the future.
+
 ## fs.truncateSync(path[, len])
 <!-- YAML
 added: v0.8.6
@@ -2278,6 +2279,9 @@ added: v0.8.6
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
+
+*Note*: Passing a file descriptor is deprecated and may result in an error
+being thrown in the future.
 
 ## fs.unlink(path, callback)
 <!-- YAML

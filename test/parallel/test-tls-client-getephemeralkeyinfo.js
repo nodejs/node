@@ -2,6 +2,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const tls = require('tls');
@@ -15,7 +16,7 @@ let ntests = 0;
 let nsuccess = 0;
 
 function loadDHParam(n) {
-  let path = common.fixturesDir;
+  let path = fixtures.fixturesDir;
   if (n !== 'error') path += '/keys';
   return fs.readFileSync(`${path}/dh${n}.pem`);
 }

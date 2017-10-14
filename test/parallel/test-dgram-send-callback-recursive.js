@@ -15,7 +15,7 @@ function onsend() {
   if (sent++ < limit) {
     client.send(chunk, 0, chunk.length, port, common.localhostIPv4, onsend);
   } else {
-    assert.strictEqual(async, true, 'Send should be asynchronous.');
+    assert.strictEqual(async, true);
   }
 }
 

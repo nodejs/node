@@ -7,6 +7,7 @@
 #include "node_url.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_internals.h"
 
 namespace node {
 namespace loader {
@@ -523,5 +524,5 @@ void ModuleWrap::Initialize(Local<Object> target,
 }  // namespace loader
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(module_wrap,
-                                  node::loader::ModuleWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(module_wrap,
+                                   node::loader::ModuleWrap::Initialize)

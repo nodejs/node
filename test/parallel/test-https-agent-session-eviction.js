@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { readKey } = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');

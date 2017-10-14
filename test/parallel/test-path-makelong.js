@@ -21,11 +21,12 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 
 if (common.isWindows) {
-  const file = path.join(common.fixturesDir, 'a.js');
+  const file = fixtures.path('a.js');
   const resolvedFile = path.resolve(file);
 
   assert.strictEqual(`\\\\?\\${resolvedFile}`,

@@ -33,7 +33,8 @@ const fixtures = require('../common/fixtures');
 assert.strictEqual(
   typeof global.gc,
   'function',
-  'Run this test with --expose-gc'
+  `Type of global.gc is not a function. Type: ${typeof global.gc}.` +
+    ' Run this test with --expose-gc'
 );
 
 tls.createServer({

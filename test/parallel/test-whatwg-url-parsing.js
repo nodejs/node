@@ -26,7 +26,7 @@ const failureTests = tests.filter((test) => test.failure).concat([
 ]);
 
 const expectedError = common.expectsError(
-  { code: 'ERR_INVALID_URL', type: TypeError }, 110);
+  { code: 'ERR_INVALID_URL', type: TypeError }, failureTests.length);
 
 for (const test of failureTests) {
   assert.throws(
@@ -36,7 +36,7 @@ for (const test of failureTests) {
         return false;
 
       // The input could be processed, so we don't do strict matching here
-      const match = (error + '').match(/Invalid URL: (.*)$/);
+      const match = (`${error}`).match(/Invalid URL: (.*)$/);
       if (!match) {
         return false;
       }

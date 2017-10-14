@@ -39,7 +39,7 @@ function spawnCopyDeepSync(source, destination) {
 function runNPMPackageTests({ srcDir, install, rebuild, testArgs, logfile }) {
   // Make sure we don't conflict with concurrent test runs
   const srcHash = createHash('md5').update(srcDir).digest('hex');
-  common.tmpDir = common.tmpDir + '.npm.' + srcHash;
+  common.tmpDir = `${common.tmpDir}.npm.${srcHash}`;
   common.refreshTmpDir();
 
   const tmpDir = common.tmpDir;

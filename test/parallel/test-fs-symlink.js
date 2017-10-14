@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 if (!common.canCreateSymLink())
   common.skip('insufficient privileges');
 
@@ -34,7 +35,7 @@ let fileTime;
 common.refreshTmpDir();
 
 // test creating and reading symbolic link
-const linkData = path.join(common.fixturesDir, '/cycles/root.js');
+const linkData = fixtures.path('/cycles/root.js');
 const linkPath = path.join(common.tmpDir, 'symlink1.js');
 
 fs.symlink(linkData, linkPath, common.mustCall(function(err) {
