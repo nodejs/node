@@ -2571,10 +2571,6 @@ This happens when:
 - the file is deleted, followed by a restore
 - the file is renamed twice - the second time back to its original name
 
-In such cases the reappearance callback will not report the `previousStat` of
-the file with all zeroes. This is the correct and expected behavior for
-`uv_fs_poll_start()`, the libuv function that `fs.watchFile()` uses internally.
-
 ## fs.write(fd, buffer[, offset[, length[, position]]], callback)
 <!-- YAML
 added: v0.0.2
