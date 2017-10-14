@@ -1421,7 +1421,7 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`.
+* `byteOffset` {integer} Where to end searching in `buf`.
   **Default:** [`buf.length`]` - 1`
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
