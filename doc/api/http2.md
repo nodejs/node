@@ -1322,7 +1322,7 @@ added: v8.5.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-If a [`'request'`][] listener is registered or [`'http2.createServer()'`][] is
+If a [`'request'`][] listener is registered or [`http2.createServer()`][] is
 supplied a callback function, the `'checkContinue'` event is emitted each time
 a request with an HTTP `Expect: 100-continue` is received. If this event is
 not listened for, the server will automatically respond with a status
@@ -1427,7 +1427,7 @@ added: v8.5.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-If a [`'request'`][] listener is registered or [`'http2.createSecureServer()'`][]
+If a [`'request'`][] listener is registered or [`http2.createSecureServer()`][]
 is supplied a callback function, the `'checkContinue'` event is emitted each
 time a request with an HTTP `Expect: 100-continue` is received. If this event
 is not listened for, the server will automatically respond with a status
@@ -2149,7 +2149,7 @@ set on `request.stream`.
 `setTimeout` method will be called on `request.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket. With TLS support,
@@ -2521,7 +2521,7 @@ set on `response.stream`.
 `setTimeout` method will be called on `response.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket.
