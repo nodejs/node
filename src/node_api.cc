@@ -48,6 +48,7 @@ struct napi_env__ {
   v8::Persistent<v8::ObjectTemplate> accessor_data_template;
   bool has_instance_available;
   napi_extended_error_info last_error;
+  int open_handle_scopes = 0;
 };
 
 #define ENV_OBJECT_TEMPLATE(env, prefix, destination, field_count) \
@@ -508,11 +509,15 @@ class CallbackWrapperBase : public CallbackWrapper {
     // Make sure any errors encountered last time we were in N-API are gone.
     napi_clear_last_error(env);
 
+    int open_handle_scopes = env->open_handle_scopes;
+
     napi_value result = cb(env, cbinfo_wrapper);
 
     if (result != nullptr) {
       this->SetReturnValue(result);
     }
+
+    CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
 
     if (!env->last_exception.IsEmpty()) {
       isolate->ThrowException(
@@ -2587,6 +2592,7 @@ napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result) {
 
   *result = v8impl::JsHandleScopeFromV8HandleScope(
       new v8impl::HandleScopeWrapper(env->isolate));
+  env->open_handle_scopes++;
   return napi_clear_last_error(env);
 }
 
@@ -2595,7 +2601,11 @@ napi_status napi_close_handle_scope(napi_env env, napi_handle_scope scope) {
   // JS exceptions.
   CHECK_ENV(env);
   CHECK_ARG(env, scope);
+  if (env->open_handle_scopes == 0) {
+    return napi_handle_scope_mismatch;
+  }
 
+  env->open_handle_scopes--;
   delete v8impl::V8HandleScopeFromJsHandleScope(scope);
   return napi_clear_last_error(env);
 }
@@ -2610,6 +2620,7 @@ napi_status napi_open_escapable_handle_scope(
 
   *result = v8impl::JsEscapableHandleScopeFromV8EscapableHandleScope(
       new v8impl::EscapableHandleScopeWrapper(env->isolate));
+  env->open_handle_scopes++;
   return napi_clear_last_error(env);
 }
 
@@ -2620,8 +2631,12 @@ napi_status napi_close_escapable_handle_scope(
   // JS exceptions.
   CHECK_ENV(env);
   CHECK_ARG(env, scope);
+  if (env->open_handle_scopes == 0) {
+    return napi_handle_scope_mismatch;
+  }
 
   delete v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
+  env->open_handle_scopes--;
   return napi_clear_last_error(env);
 }
 
