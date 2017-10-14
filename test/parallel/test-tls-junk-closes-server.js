@@ -21,17 +21,17 @@
 
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 const net = require('net');
 
 const options = {
-  key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem')
 };
 
 const server = tls.createServer(options, common.mustNotCall());

@@ -24,12 +24,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 
-const key = fixtures.readKey('agent1-key.pem');
-const cert = fixtures.readKey('agent1-cert.pem');
+const key = readKey('agent1-key.pem');
+const cert = readKey('agent1-cert.pem');
 
 tls.createServer({ key: key, cert: cert }, common.mustCall(function(conn) {
   conn.end();

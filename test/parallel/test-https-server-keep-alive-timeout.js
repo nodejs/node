@@ -5,15 +5,15 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fixtures = require('../common/fixtures');
 const https = require('https');
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 
 const tests = [];
 
 const serverOptions = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem')
 };
 
 function test(fn) {

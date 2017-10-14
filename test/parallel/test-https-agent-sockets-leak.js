@@ -6,12 +6,12 @@ if (!common.hasCrypto)
 
 const https = require('https');
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem')
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem'),
+  ca: readKey('ca1-cert.pem')
 };
 
 const server = https.Server(options, common.mustCall((req, res) => {
