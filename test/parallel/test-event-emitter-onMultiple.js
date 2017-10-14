@@ -21,6 +21,22 @@ async function test_goodInput_1() {
 
 }
 
+
+async function test_goodInput_2() {
+
+    const input = {
+        event3() { common.mustCall() },
+        event4() { common.mustCall() }
+    }
+
+    await myEE.onMultiple(input);
+
+    await myEE.emit("event3");
+    await myEE.emit("event4");;
+
+}
+
+
 async function test_badInputs() {
 
     await assert.throws(function() { myEE.onMultiple(undefined) } );
@@ -33,24 +49,6 @@ async function test_badInputs() {
        
 }
 
-/*
-async function test_goodInput_2() {
-
-    let ok = 0;
-
-    const input = {
-        event3() { ok++; },
-        event4() { ok++; }
-    }
-
-    await myEE.onMultiple(input);
-
-    await myEE.emit("event3");
-    await myEE.emit("event4");;
-
-    await assert.deepStrictEqual(ok, 2, "Not all events were emitted")
-}
-*/
-
 test_goodInput_1();
+test_goodInput_2();
 test_badInputs();
