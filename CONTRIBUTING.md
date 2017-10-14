@@ -282,6 +282,9 @@ should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
 in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows).
 
+For contributing C++ code, you may want to look at the
+[C++ Style Guide](CPP_STYLE_GUIDE.md).
+
 #### Step 4: Commit
 
 It is a recommended best practice to keep your changes as logically grouped
