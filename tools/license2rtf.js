@@ -274,10 +274,7 @@ function RtfGenerator() {
   };
 
   function toHex(number, length) {
-    var hex = (~~number).toString(16);
-    while (hex.length < length)
-      hex = `0${hex}`;
-    return hex;
+    return (~~number).toString(16).padStart(length, '0');
   }
 
   function rtfEscape(string) {
