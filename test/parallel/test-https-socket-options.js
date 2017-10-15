@@ -21,13 +21,12 @@
 
 'use strict';
 const common = require('../common');
-const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const fixtures = require('../common/fixtures');
 const https = require('https');
-const fs = require('fs');
 const http = require('http');
 
 const options = {
