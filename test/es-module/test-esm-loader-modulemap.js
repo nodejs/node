@@ -1,11 +1,12 @@
 'use strict';
 // Flags: --expose-internals
 
-// This test ensures that the type checking of ModuleMap throws errors appropriately
-
-const { URL } = require('url');
+// This test ensures that the type checking of ModuleMap throws
+// errors appropriately
 
 const common = require('../common');
+
+const { URL } = require('url');
 const Loader = require('internal/loader/Loader');
 const ModuleMap = require('internal/loader/ModuleMap');
 const ModuleJob = require('internal/loader/ModuleJob');
