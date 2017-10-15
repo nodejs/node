@@ -7,14 +7,15 @@ if (!common.hasCrypto)
 
 const https = require('https');
 const crypto = require('crypto');
-const fixtures = require('../common/fixtures');
+
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem')
 };
 
-const ca = fixtures.readKey('ca1-cert.pem');
+const ca = readKey('ca1-cert.pem');
 
 const clientSessions = {};
 let serverRequests = 0;

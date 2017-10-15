@@ -24,18 +24,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
+const { readKey } = require('../common/fixtures');
 
 const options = {
   key: [
-    fixtures.readKey('ec-key.pem'),
-    fixtures.readKey('agent1-key.pem'),
+    readKey('ec-key.pem'),
+    readKey('agent1-key.pem'),
   ],
   cert: [
-    fixtures.readKey('agent1-cert.pem'),
-    fixtures.readKey('ec-cert.pem'),
+    readKey('agent1-cert.pem'),
+    readKey('ec-cert.pem')
   ]
 };
 

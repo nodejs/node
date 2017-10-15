@@ -3,14 +3,14 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const fixtures = require('../common/fixtures');
 const https = require('https');
 const crypto = require('crypto');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem'),
-  ca: fixtures.readKey('ca1-cert.pem')
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem'),
+  ca: readKey('ca1-cert.pem')
 };
 
 const server = https.createServer(options, function(req, res) {

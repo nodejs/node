@@ -8,6 +8,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const https = require('https');
+const { readKey } = require('../common/fixtures');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const options = {

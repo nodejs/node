@@ -30,11 +30,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
-const fixtures = require('../common/fixtures');
+const { readKey } = require('../common/fixtures');
 
 const options = {
-  key: fixtures.readKey('agent2-key.pem'),
-  cert: fixtures.readKey('agent2-cert.pem')
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem')
 };
 
 // create server

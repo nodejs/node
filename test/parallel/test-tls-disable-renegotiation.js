@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const fixtures = require('../common/fixtures');
+const { readKey } = require('../common/fixtures');
 
 // Tests that calling disableRenegotiation on a TLSSocket stops renegotiation.
 
@@ -11,8 +11,8 @@ if (!common.hasCrypto)
 const tls = require('tls');
 
 const options = {
-  key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  key: readKey('agent1-key.pem'),
+  cert: readKey('agent1-cert.pem')
 };
 
 const server = tls.Server(options, common.mustCall((socket) => {
