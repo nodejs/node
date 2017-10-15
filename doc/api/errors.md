@@ -940,6 +940,11 @@ Used when `hostname` can not be parsed from a provided URL.
 
 Used when a file descriptor ('fd') is not valid (e.g. it has a negative value).
 
+<a id="ERR_INVALID_FD_TYPE"></a>
+### ERR_INVALID_FD_TYPE
+
+Used when a file descriptor ('fd') type is not valid.
+
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
 
