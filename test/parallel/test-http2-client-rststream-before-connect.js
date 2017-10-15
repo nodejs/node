@@ -15,11 +15,14 @@ server.on('listening', common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
 
   const req = client.request({ ':path': '/' });
-  client.rstStream(req, 0);
-  assert.strictEqual(req.rstCode, 0);
+  // make sure that destroy is called twice
+  req._destroy = common.mustCall(req._destroy.bind(req), 2);
 
-  // make sure that destroy is called
-  req._destroy = common.mustCall(req._destroy.bind(req));
+  client.rstStream(req, 0);
+  // redundant call to rstStream with new code
+  client.rstStream(req, 1);
+  // confirm that rstCode is from the first call to rstStream
+  assert.strictEqual(req.rstCode, 0);
 
   req.on('streamClosed', common.mustCall((code) => {
     assert.strictEqual(req.destroyed, true);
