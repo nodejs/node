@@ -17,6 +17,10 @@ using v8::EscapableHandleScope;
 using v8::Isolate;
 using v8::MaybeLocal;
 
+// Unlike the HTTP/1 implementation, the HTTP/2 implementation is not limited
+// to a fixed number of known supported HTTP methods. These constants, therefore
+// are provided strictly as a convenience to users and are exposed via the
+// require('http2').constants object.
 #define HTTP_KNOWN_METHODS(V)                                                 \
   V(ACL, "ACL")                                                               \
   V(BASELINE_CONTROL, "BASELINE-CONTROL")                                     \
@@ -58,6 +62,8 @@ using v8::MaybeLocal;
   V(UPDATEREDIRECTREF, "UPDATEREDIRECTREF")                                   \
   V(VERSION_CONTROL, "VERSION-CONTROL")
 
+// These are provided strictly as a convenience to users and are exposed via the
+// require('http2').constants objects
 #define HTTP_KNOWN_HEADERS(V)                                                 \
   V(STATUS, ":status")                                                        \
   V(METHOD, ":method")                                                        \
@@ -143,6 +149,9 @@ HTTP_KNOWN_HEADERS(V)
 HTTP_KNOWN_HEADER_MAX
 };
 
+// While some of these codes are used within the HTTP/2 implementation in
+// core, they are provided strictly as a convenience to users and are exposed
+// via the require('http2').constants object.
 #define HTTP_STATUS_CODES(V)                                                  \
   V(CONTINUE, 100)                                                            \
   V(SWITCHING_PROTOCOLS, 101)                                                 \
@@ -213,15 +222,22 @@ HTTP_STATUS_CODES(V)
 #undef V
 };
 
+// The Padding Strategy determines the method by which extra padding is
+// selected for HEADERS and DATA frames. These are configurable via the
+// options passed in to a Http2Session object.
 enum padding_strategy_type {
-  // No padding strategy
+  // No padding strategy. This is the default.
   PADDING_STRATEGY_NONE,
   // Padding will ensure all data frames are maxFrameSize
   PADDING_STRATEGY_MAX,
-  // Padding will be determined via JS callback
+  // Padding will be determined via a JS callback. Note that this can be
+  // expensive because the callback is called once for every DATA and
+  // HEADERS frame. For performance reasons, this strategy should be
+  // avoided.
   PADDING_STRATEGY_CALLBACK
 };
 
+// These are the error codes provided by the underlying nghttp2 implementation.
 #define NGHTTP2_ERROR_CODES(V)                                                 \
   V(NGHTTP2_ERR_INVALID_ARGUMENT)                                              \
   V(NGHTTP2_ERR_BUFFER_ERROR)                                                  \
@@ -281,6 +297,10 @@ const char* nghttp2_errname(int rv) {
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
 
+// The Http2Options class is used to parse the options object passed in to
+// a Http2Session object and convert those into an appropriate nghttp2_option
+// struct. This is the primary mechanism by which the Http2Session object is
+// configured.
 class Http2Options {
  public:
   explicit Http2Options(Environment* env);
