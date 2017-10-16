@@ -89,22 +89,24 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
 
-  if (object()->Has(context, env()->ongetpadding_string()).FromJust()) {
-    AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
-        env()->http2_state()->padding_buffer;
-    buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
-    buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
-    MakeCallback(env()->ongetpadding_string(), 0, nullptr);
-    uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
-    retval = retval <= maxPayloadLen ? retval : maxPayloadLen;
-    retval = retval >= frameLen ? retval : frameLen;
 #if defined(DEBUG) && DEBUG
-    CHECK_GE(retval, frameLen);
-    CHECK_LE(retval, maxPayloadLen);
+  CHECK(object->Has(context, env()->ongetpadding_string()).FromJust());
 #endif
-    return retval;
-  }
-  return frameLen;
+
+  AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
+      env()->http2_state()->padding_buffer;
+  buffer[PADDING_BUF_FRAME_LENGTH] = frameLen;
+  buffer[PADDING_BUF_MAX_PAYLOAD_LENGTH] = maxPayloadLen;
+  buffer[PADDING_BUF_RETURN_VALUE] = frameLen;
+  MakeCallback(env()->ongetpadding_string(), 0, nullptr);
+  uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
+  retval = retval <= maxPayloadLen ? retval : maxPayloadLen;
+  retval = retval >= frameLen ? retval : frameLen;
+#if defined(DEBUG) && DEBUG
+  CHECK_GE(retval, frameLen);
+  CHECK_LE(retval, maxPayloadLen);
+#endif
+  return retval;
 }
 
 void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
@@ -838,20 +840,18 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
 
-  if (object()->Has(context, env()->ontrailers_string()).FromJust()) {
-    Local<Value> argv[1] = {
-      Integer::New(isolate, stream->id())
-    };
+  Local<Value> argv[1] = {
+    Integer::New(isolate, stream->id())
+  };
 
-    Local<Value> ret = MakeCallback(env()->ontrailers_string(),
-                                    arraysize(argv), argv).ToLocalChecked();
-    if (!ret.IsEmpty()) {
-      if (ret->IsArray()) {
-        Local<Array> headers = ret.As<Array>();
-        if (headers->Length() > 0) {
-          Headers trailers(isolate, context, headers);
-          submit_trailers.Submit(*trailers, trailers.length());
-        }
+  Local<Value> ret = MakeCallback(env()->ontrailers_string(),
+                                  arraysize(argv), argv).ToLocalChecked();
+  if (!ret.IsEmpty()) {
+    if (ret->IsArray()) {
+      Local<Array> headers = ret.As<Array>();
+      if (headers->Length() > 0) {
+        Headers trailers(isolate, context, headers);
+        submit_trailers.Submit(*trailers, trailers.length());
       }
     }
   }
@@ -905,15 +905,13 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
     }
   } while (headers != nullptr);
 
-  if (object()->Has(context, env()->onheaders_string()).FromJust()) {
-    Local<Value> argv[4] = {
-      Integer::New(isolate, stream->id()),
-      Integer::New(isolate, cat),
-      Integer::New(isolate, flags),
-      holder
-    };
-    MakeCallback(env()->onheaders_string(), arraysize(argv), argv);
-  }
+  Local<Value> args[4] = {
+    Integer::New(isolate, stream->id()),
+    Integer::New(isolate, cat),
+    Integer::New(isolate, flags),
+    holder
+  };
+  MakeCallback(env()->onheaders_string(), arraysize(args), args);
 }
 
 
@@ -922,13 +920,12 @@ void Http2Session::OnStreamClose(int32_t id, uint32_t code) {
   Local<Context> context = env()->context();
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
-  if (object()->Has(context, env()->onstreamclose_string()).FromJust()) {
-    Local<Value> argv[2] = {
-      Integer::New(isolate, id),
-      Integer::NewFromUnsigned(isolate, code)
-    };
-    MakeCallback(env()->onstreamclose_string(), arraysize(argv), argv);
-  }
+
+  Local<Value> argv[2] = {
+    Integer::New(isolate, id),
+    Integer::NewFromUnsigned(isolate, code)
+  };
+  MakeCallback(env()->onstreamclose_string(), arraysize(argv), argv);
 }
 
 void FreeDataChunk(char* data, void* hint) {
@@ -964,10 +961,9 @@ void Http2Session::OnSettings(bool ack) {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
-  if (object()->Has(context, env()->onsettings_string()).FromJust()) {
-    Local<Value> argv[1] = { Boolean::New(isolate, ack) };
-    MakeCallback(env()->onsettings_string(), arraysize(argv), argv);
-  }
+
+  Local<Value> argv[1] = { Boolean::New(isolate, ack) };
+  MakeCallback(env()->onsettings_string(), arraysize(argv), argv);
 }
 
 void Http2Session::OnFrameError(int32_t id, uint8_t type, int error_code) {
@@ -975,14 +971,13 @@ void Http2Session::OnFrameError(int32_t id, uint8_t type, int error_code) {
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
-  if (object()->Has(context, env()->onframeerror_string()).FromJust()) {
-    Local<Value> argv[3] = {
-      Integer::New(isolate, id),
-      Integer::New(isolate, type),
-      Integer::New(isolate, error_code)
-    };
-    MakeCallback(env()->onframeerror_string(), arraysize(argv), argv);
-  }
+
+  Local<Value> argv[3] = {
+    Integer::New(isolate, id),
+    Integer::New(isolate, type),
+    Integer::New(isolate, error_code)
+  };
+  MakeCallback(env()->onframeerror_string(), arraysize(argv), argv);
 }
 
 void Http2Session::OnPriority(int32_t stream,
@@ -993,15 +988,14 @@ void Http2Session::OnPriority(int32_t stream,
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
-  if (object()->Has(context, env()->onpriority_string()).FromJust()) {
-    Local<Value> argv[4] = {
-      Integer::New(isolate, stream),
-      Integer::New(isolate, parent),
-      Integer::New(isolate, weight),
-      Boolean::New(isolate, exclusive)
-    };
-    MakeCallback(env()->onpriority_string(), arraysize(argv), argv);
-  }
+
+  Local<Value> argv[4] = {
+    Integer::New(isolate, stream),
+    Integer::New(isolate, parent),
+    Integer::New(isolate, weight),
+    Boolean::New(isolate, exclusive)
+  };
+  MakeCallback(env()->onpriority_string(), arraysize(argv), argv);
 }
 
 void Http2Session::OnGoAway(int32_t lastStreamID,
@@ -1012,21 +1006,20 @@ void Http2Session::OnGoAway(int32_t lastStreamID,
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
   Context::Scope context_scope(context);
-  if (object()->Has(context, env()->ongoawaydata_string()).FromJust()) {
-    Local<Value> argv[3] = {
-      Integer::NewFromUnsigned(isolate, errorCode),
-      Integer::New(isolate, lastStreamID),
-      Undefined(isolate)
-    };
 
-    if (length > 0) {
-      argv[2] = Buffer::Copy(isolate,
-                             reinterpret_cast<char*>(data),
-                             length).ToLocalChecked();
-    }
+  Local<Value> argv[3] = {
+    Integer::NewFromUnsigned(isolate, errorCode),
+    Integer::New(isolate, lastStreamID),
+    Undefined(isolate)
+  };
 
-    MakeCallback(env()->ongoawaydata_string(), arraysize(argv), argv);
+  if (length > 0) {
+    argv[2] = Buffer::Copy(isolate,
+                           reinterpret_cast<char*>(data),
+                           length).ToLocalChecked();
   }
+
+  MakeCallback(env()->ongoawaydata_string(), arraysize(argv), argv);
 }
 
 void Http2Session::OnStreamAllocImpl(size_t suggested_size,
