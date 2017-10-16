@@ -26,6 +26,8 @@ const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
 
+/* eslint-disable accessor-pairs */
+
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
 assert.strictEqual(util.inspect(''), "''");
@@ -1149,3 +1151,4 @@ if (typeof Symbol !== 'undefined') {
 }
 
 assert.doesNotThrow(() => util.inspect(process));
+/* eslint-enable accessor-pairs */
