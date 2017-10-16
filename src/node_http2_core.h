@@ -17,11 +17,11 @@ namespace http2 {
 #ifdef NODE_DEBUG_HTTP2
 
 // Adapted from nghttp2 own debug printer
-static inline void _debug_vfprintf(const char *fmt, va_list args) {
+static inline void _debug_vfprintf(const char* fmt, va_list args) {
   vfprintf(stderr, fmt, args);
 }
 
-void inline debug_vfprintf(const char *format, ...) {
+void inline debug_vfprintf(const char* format, ...) {
   va_list args;
   va_start(args, format);
   _debug_vfprintf(format, args);
@@ -251,7 +251,7 @@ class Nghttp2Session {
   static inline int OnDataChunkReceived(nghttp2_session* session,
                                         uint8_t flags,
                                         int32_t id,
-                                        const uint8_t *data,
+                                        const uint8_t* data,
                                         size_t len,
                                         void* user_data);
   static inline ssize_t OnStreamReadFD(nghttp2_session* session,
