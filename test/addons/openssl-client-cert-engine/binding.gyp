@@ -14,7 +14,7 @@
           'include_dirs': ['../../../deps/openssl/openssl/include'],
           'link_settings': {
             'libraries': [
-              '../../../../out/<(PRODUCT_DIR)/<(OPENSSL_PRODUCT)'
+              '../../../../out/<(PRODUCT_DIR)/<(openssl_product)'
             ]
           },
         }]
