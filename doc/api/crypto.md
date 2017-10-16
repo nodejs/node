@@ -1617,9 +1617,9 @@ Example:
 
 ```js
 const crypto = require('crypto');
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
+crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '3745e48...aa39b34'
+  console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
 });
 ```
 
@@ -1669,8 +1669,8 @@ Example:
 
 ```js
 const crypto = require('crypto');
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key.toString('hex'));  // '3745e48...aa39b34'
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
 An array of supported digest functions can be retrieved using
