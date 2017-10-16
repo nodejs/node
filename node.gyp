@@ -229,7 +229,7 @@
           'conditions': [
             ['OS in "linux freebsd openbsd solaris android"', {
               'ldflags': [
-                '-Wl,--whole-archive,<(OBJ_DIR)/<(STATIC_LIB_PREFIX)'
+                '-Wl,--whole-archive,<(obj_dir)/<(STATIC_LIB_PREFIX)'
                     '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
@@ -773,10 +773,10 @@
             {
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
-                '<(OBJ_DIR)/<(node_lib_target_name)/src/node_dtrace.o',
+                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace.o',
               ],
               'outputs': [
-                '<(OBJ_DIR)/<(node_lib_target_name)/src/node_dtrace_provider.o'
+                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace_provider.o'
               ],
               'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
                 '<@(_inputs)', '-o', '<@(_outputs)' ]
@@ -808,7 +808,7 @@
             {
               'action_name': 'node_dtrace_ustack_constants',
               'inputs': [
-                '<(V8_BASE)'
+                '<(v8_base)'
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
@@ -826,7 +826,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/v8constants.h'
               ],
               'outputs': [
-                '<(OBJ_DIR)/<(node_lib_target_name)/src/node_dtrace_ustack.o'
+                '<(obj_dir)/<(node_lib_target_name)/src/node_dtrace_ustack.o'
               ],
               'conditions': [
                 [ 'target_arch=="ia32" or target_arch=="arm"', {
@@ -916,32 +916,32 @@
       ],
 
       'variables': {
-        'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src',
-        'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/gen',
-        'OBJ_TRACING_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src/tracing',
-        'OBJ_SUFFIX': 'o',
-        'OBJ_SEPARATOR': '/',
+        'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
+        'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
+        'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)/src/tracing',
+        'obj_suffix': 'o',
+        'obj_separator': '/',
         'conditions': [
           ['OS=="win"', {
-            'OBJ_SUFFIX': 'obj',
+            'obj_suffix': 'obj',
           }],
           ['GENERATOR=="ninja"', {
-            'OBJ_PATH': '<(OBJ_DIR)/src',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/gen',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing',
-            'OBJ_SEPARATOR': '/<(node_lib_target_name).',
+            'obj_path': '<(obj_dir)/src',
+            'obj_gen_path': '<(obj_dir)/gen',
+            'obj_tracing_path': '<(obj_dir)/src/tracing',
+            'obj_separator': '/<(node_lib_target_name).',
           }, {
             'conditions': [
               ['OS=="win"', {
-                'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
-                'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
-                'OBJ_TRACING_PATH': '<(OBJ_DIR)/<(node_lib_target_name)',
+                'obj_path': '<(obj_dir)/<(node_lib_target_name)',
+                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)',
+                'obj_tracing_path': '<(obj_dir)/<(node_lib_target_name)',
               }],
               ['OS=="aix"', {
-                'OBJ_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/src',
-                'OBJ_GEN_PATH': '<(OBJ_DIR)/<(node_lib_target_name)/gen',
-                'OBJ_TRACING_PATH':
-                  '<(OBJ_DIR)/<(node_lib_target_name)/src/tracing',
+                'obj_path': '<(obj_dir)/<(node_lib_target_name)/src',
+                'obj_gen_path': '<(obj_dir)/<(node_lib_target_name)/gen',
+                'obj_tracing_path':
+                  '<(obj_dir)/<(node_lib_target_name)/src/tracing',
               }],
             ]}
           ]
@@ -974,25 +974,25 @@
       ],
 
       'libraries': [
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)async_wrap.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)env.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_debug_options.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_i18n.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_perf.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_platform.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_url.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)util.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_bytes.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_search.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)stream_base.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_constants.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)agent.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_writer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)trace_event.<(OBJ_SUFFIX)',
-        '<(OBJ_GEN_PATH)<(OBJ_SEPARATOR)node_javascript.<(OBJ_SUFFIX)',
+        '<(obj_path)<(obj_separator)async_wrap.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)env.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_buffer.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_debug_options.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_i18n.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_perf.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_platform.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_url.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)util.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)string_bytes.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)string_search.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)stream_base.<(obj_suffix)',
+        '<(obj_path)<(obj_separator)node_constants.<(obj_suffix)',
+        '<(obj_tracing_path)<(obj_separator)agent.<(obj_suffix)',
+        '<(obj_tracing_path)<(obj_separator)node_trace_buffer.<(obj_suffix)',
+        '<(obj_tracing_path)<(obj_separator)node_trace_writer.<(obj_suffix)',
+        '<(obj_tracing_path)<(obj_separator)trace_event.<(obj_suffix)',
+        '<(obj_gen_path)<(obj_separator)node_javascript.<(obj_suffix)',
       ],
 
       'conditions': [
@@ -1000,10 +1000,10 @@
           'conditions': [
             ['node_target_type!="static_library"', {
               'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto_bio.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto_clienthello.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)tls_wrap.<(OBJ_SUFFIX)',
+                '<(obj_path)<(obj_separator)node_crypto.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)node_crypto_bio.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)node_crypto_clienthello.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)tls_wrap.<(obj_suffix)',
               ],
             }],
           ],
@@ -1014,9 +1014,9 @@
         [ 'node_use_perfctr=="true"', {
           'defines': [ 'HAVE_PERFCTR=1' ],
           'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)node_counters.<(OBJ_SUFFIX)',
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)'
-              'node_win32_perfctr_provider.<(OBJ_SUFFIX)',
+            '<(obj_path)<(obj_separator)node_counters.<(obj_suffix)',
+            '<(obj_path)<(obj_separator)'
+              'node_win32_perfctr_provider.<(obj_suffix)',
           ],
         }],
         ['v8_enable_inspector==1', {
@@ -1027,11 +1027,11 @@
           'conditions': [
             ['node_target_type!="static_library"', {
               'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_agent.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_io.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_js_api.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_socket.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)inspector_socket_server.<(OBJ_SUFFIX)',
+                '<(obj_path)<(obj_separator)inspector_agent.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)inspector_io.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)inspector_js_api.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)inspector_socket.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)inspector_socket_server.<(obj_suffix)',
               ],
             }],
           ],
@@ -1041,19 +1041,19 @@
         }],
         [ 'node_use_dtrace=="true" and node_target_type!="static_library"', {
           'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
+            '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
           ],
           'conditions': [
             ['OS!="mac" and OS!="linux"', {
               'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_provider.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
+                '<(obj_path)<(obj_separator)node_dtrace_provider.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)node_dtrace_ustack.<(obj_suffix)',
               ]
             }],
             ['OS=="linux"', {
               'libraries': [
-                '<(SHARED_INTERMEDIATE_DIR)<(OBJ_SEPARATOR)'
-                  'node_dtrace_provider.<(OBJ_SUFFIX)',
+                '<(SHARED_INTERMEDIATE_DIR)<(obj_separator)'
+                  'node_dtrace_provider.<(obj_suffix)',
               ]
             }],
           ],
@@ -1061,22 +1061,22 @@
           'conditions': [
             [ 'node_use_etw=="true" and OS=="win"', {
               'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)'
-                  'node_win32_etw_provider.<(OBJ_SUFFIX)',
+                '<(obj_path)<(obj_separator)node_dtrace.<(obj_suffix)',
+                '<(obj_path)<(obj_separator)'
+                  'node_win32_etw_provider.<(obj_suffix)',
               ],
             }]
           ]
         }],
         [ 'OS=="win" and node_target_type!="static_library"', {
           'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)backtrace_win32.<(OBJ_SUFFIX)',
+            '<(obj_path)<(obj_separator)backtrace_win32.<(obj_suffix)',
           ],
         }, {
           'conditions': [
             ['node_target_type!="static_library"', {
               'libraries': [
-                '<(OBJ_PATH)<(OBJ_SEPARATOR)backtrace_posix.<(OBJ_SUFFIX)',
+                '<(obj_path)<(obj_separator)backtrace_posix.<(obj_suffix)',
               ],
             }],
           ],
