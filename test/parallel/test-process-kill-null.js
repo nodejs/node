@@ -20,11 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 const cat = spawn('cat');
+if (cat.pid === undefined) {
+  common.skip('cat not available');
+}
 let called;
 
 assert.ok(process.kill(cat.pid, 0));
