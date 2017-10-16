@@ -5,6 +5,7 @@ rules:
   # http://eslint.org/docs/rules/#ecmascript-6
   no-var: error
   prefer-const: error
+  symbol-description: off
 
   # Custom rules in tools/eslint-rules
   prefer-assert-iferror: error
