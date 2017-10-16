@@ -18,6 +18,7 @@ overrides:
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
+  for-direction: error
   no-control-regex: error
   no-debugger: error
   no-dupe-args: error
@@ -41,6 +42,7 @@ rules:
 
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
+  accessor-pairs: error
   dot-location: [error, property]
   eqeqeq: [error, smart]
   no-fallthrough: error
@@ -122,6 +124,7 @@ rules:
                 ignoreUrls: true,
                 tabWidth: 2}]
   new-parens: error
+  no-lonely-if: error
   no-mixed-spaces-and-tabs: error
   no-multiple-empty-lines: [error, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-restricted-syntax: [error, {
@@ -172,6 +175,7 @@ rules:
   no-this-before-super: error
   prefer-const: [error, {ignoreReadBeforeAssign: true}]
   rest-spread-spacing: error
+  symbol-description: error
   template-curly-spacing: error
 
   # Custom rules in tools/eslint-rules

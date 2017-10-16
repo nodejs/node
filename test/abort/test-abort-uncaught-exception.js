@@ -24,11 +24,10 @@ function run(flags, signals) {
         assert.strictEqual(code, 0xC0000005);
       else
         assert.strictEqual(code, 1);
+    } else if (signals) {
+      assert(signals.includes(sig), `Unexpected signal ${sig}`);
     } else {
-      if (signals)
-        assert(signals.includes(sig), `Unexpected signal ${sig}`);
-      else
-        assert.strictEqual(sig, null);
+      assert.strictEqual(sig, null);
     }
   }));
 }
