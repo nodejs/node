@@ -93,19 +93,21 @@ If `callback` is not a function, a [`TypeError`][] will be thrown.
 ```js
 const util = require('util');
 const setImmediatePromise = util.promisify(setImmediate);
-
-setImmediatePromise('foobar').then((value) => {
-  // value === 'foobar' (passing values is optional)
-  // This is executed after all I/O callbacks.
-});
+function setImmediateFunction(){
+  setImmediatePromise('foobar').then((value) => {
+    // value === 'foobar' (passing values is optional)
+    // This is executed after all I/O callbacks.
+    console.log(value);
+  });
+}
 
 // or with async function
-async function timerExample() {
+function timerExample() {
   console.log('Before I/O callbacks');
-  await setImmediatePromise();
+  setImmediateFunction();
   console.log('After I/O callbacks');
 }
-timerExample();
+timerExample()
 ```
 
 ### setInterval(callback, delay[, ...args])
