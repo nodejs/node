@@ -6,7 +6,8 @@ const PORT = common.PORT;
 const bench = common.createBenchmark(main, {
   n: [1e3],
   nheaders: [0, 10, 100, 1000],
-}, { flags: ['--no-warnings'] });
+  benchmarker: ['h2load']
+}, { flags: ['--no-warnings', '--expose-http2'] });
 
 function main(conf) {
   const n = +conf.n;
