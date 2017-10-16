@@ -29,21 +29,18 @@ napi_status napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
   explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
-      has_instance_available(true), last_error() {}
+      last_error() {}
   ~napi_env__() {
     last_exception.Reset();
-    has_instance.Reset();
     wrap_template.Reset();
     function_data_template.Reset();
     accessor_data_template.Reset();
   }
   v8::Isolate* isolate;
   v8::Persistent<v8::Value> last_exception;
-  v8::Persistent<v8::Value> has_instance;
   v8::Persistent<v8::ObjectTemplate> wrap_template;
   v8::Persistent<v8::ObjectTemplate> function_data_template;
   v8::Persistent<v8::ObjectTemplate> accessor_data_template;
-  bool has_instance_available;
   napi_extended_error_info last_error;
 };
 
@@ -455,7 +452,7 @@ class CallbackWrapper {
   CallbackWrapper(napi_value this_arg, size_t args_length, void* data)
       : _this(this_arg), _args_length(args_length), _data(data) {}
 
-  virtual napi_value NewTarget() = 0;
+  virtual napi_value GetNewTarget() = 0;
   virtual void Args(napi_value* buffer, size_t bufferlength) = 0;
   virtual void SetReturnValue(napi_value value) = 0;
 
@@ -484,7 +481,7 @@ class CallbackWrapperBase : public CallbackWrapper {
                 ->Value();
   }
 
-  napi_value NewTarget() override { return nullptr; }
+  napi_value GetNewTarget() override { return nullptr; }
 
  protected:
   void InvokeCallback() {
@@ -532,7 +529,7 @@ class FunctionCallbackWrapper
       const v8::FunctionCallbackInfo<v8::Value>& cbinfo)
       : CallbackWrapperBase(cbinfo, cbinfo.Length()) {}
 
-  napi_value NewTarget() override {
+  napi_value GetNewTarget() override {
     if (_cbinfo.IsConstructCall()) {
       return v8impl::JsValueFromV8LocalValue(_cbinfo.NewTarget());
     } else {
@@ -854,8 +851,12 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
 
 // Registers a NAPI module.
 void napi_module_register(napi_module* mod) {
+  int module_version = -1;
+#ifdef EXTERNAL_NAPI
+  module_version = NODE_MODULE_VERSION;
+#endif  // EXTERNAL_NAPI
   node::node_module* nm = new node::node_module {
-    -1,
+    module_version,
     mod->nm_flags,
     nullptr,
     mod->nm_filename,
@@ -1908,7 +1909,7 @@ napi_status napi_get_new_target(napi_env env,
   v8impl::CallbackWrapper* info =
       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
 
-  *result = info->NewTarget();
+  *result = info->GetNewTarget();
   return napi_clear_last_error(env);
 }
 
@@ -2689,98 +2690,12 @@ napi_status napi_instanceof(napi_env env,
     return napi_set_last_error(env, napi_function_expected);
   }
 
-  if (env->has_instance_available) {
-    napi_value value, js_result = nullptr, has_instance = nullptr;
-    napi_status status = napi_generic_failure;
-    napi_valuetype value_type;
+  napi_status status = napi_generic_failure;
 
-    // Get "Symbol" from the global object
-    if (env->has_instance.IsEmpty()) {
-      status = napi_get_global(env, &value);
-      if (status != napi_ok) return status;
-      status = napi_get_named_property(env, value, "Symbol", &value);
-      if (status != napi_ok) return status;
-      status = napi_typeof(env, value, &value_type);
-      if (status != napi_ok) return status;
-
-      // Get "hasInstance" from Symbol
-      if (value_type == napi_function) {
-        status = napi_get_named_property(env, value, "hasInstance", &value);
-        if (status != napi_ok) return status;
-        status = napi_typeof(env, value, &value_type);
-        if (status != napi_ok) return status;
-
-        // Store Symbol.hasInstance in a global persistent reference
-        if (value_type == napi_symbol) {
-          env->has_instance.Reset(env->isolate,
-              v8impl::V8LocalValueFromJsValue(value));
-          has_instance = value;
-        }
-      }
-    } else {
-      has_instance = v8impl::JsValueFromV8LocalValue(
-          v8::Local<v8::Value>::New(env->isolate, env->has_instance));
-    }
-
-    if (has_instance) {
-      status = napi_get_property(env, constructor, has_instance, &value);
-      if (status != napi_ok) return status;
-      status = napi_typeof(env, value, &value_type);
-      if (status != napi_ok) return status;
-
-      // Call the function to determine whether the object is an instance of the
-      // constructor
-      if (value_type == napi_function) {
-        status = napi_call_function(env, constructor, value, 1, &object,
-          &js_result);
-        if (status != napi_ok) return status;
-        return napi_get_value_bool(env, js_result, result);
-      }
-    }
-
-    env->has_instance_available = false;
-  }
-
-  // If running constructor[Symbol.hasInstance](object) did not work, we perform
-  // a traditional instanceof (early Node.js 6.x).
-
-  v8::Local<v8::String> prototype_string;
-  CHECK_NEW_FROM_UTF8(env, prototype_string, "prototype");
-
-  auto maybe_prototype = ctor->Get(context, prototype_string);
-  CHECK_MAYBE_EMPTY(env, maybe_prototype, napi_generic_failure);
-
-  v8::Local<v8::Value> prototype_property = maybe_prototype.ToLocalChecked();
-  if (!prototype_property->IsObject()) {
-    napi_throw_type_error(
-        env,
-        "ERR_NAPI_CONS_PROTOTYPE_OBJECT",
-        "Constructor.prototype must be an object");
-
-    return napi_set_last_error(env, napi_object_expected);
-  }
-
-  auto maybe_ctor = prototype_property->ToObject(context);
-  CHECK_MAYBE_EMPTY(env, maybe_ctor, napi_generic_failure);
-  ctor = maybe_ctor.ToLocalChecked();
-
-  v8::Local<v8::Value> current_obj = v8impl::V8LocalValueFromJsValue(object);
-  if (!current_obj->StrictEquals(ctor)) {
-    for (v8::Local<v8::Value> original_obj = current_obj;
-         !(current_obj->IsNull() || current_obj->IsUndefined());) {
-      if (current_obj->StrictEquals(ctor)) {
-        *result = !(original_obj->IsNumber() ||
-                    original_obj->IsBoolean() ||
-                    original_obj->IsString());
-        break;
-      }
-      v8::Local<v8::Object> obj;
-      CHECK_TO_OBJECT(env, context, obj, v8impl::JsValueFromV8LocalValue(
-        current_obj));
-      current_obj = obj->GetPrototype();
-    }
-  }
-
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(object);
+  auto maybe_result = val->InstanceOf(context, ctor);
+  CHECK_MAYBE_NOTHING(env, maybe_result, status);
+  *result = maybe_result.FromJust();
   return GET_RETURN_STATUS(env);
 }
 
@@ -3335,7 +3250,7 @@ class Work : public node::AsyncResource {
                 void* data = nullptr)
     : AsyncResource(env->isolate,
                     async_resource,
-                    async_resource_name),
+                    *v8::String::Utf8Value(async_resource_name)),
     _env(env),
     _data(data),
     _execute(execute),

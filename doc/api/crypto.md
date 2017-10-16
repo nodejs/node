@@ -64,11 +64,12 @@ console.log(challenge.toString('utf8'));
 // Prints: the challenge as a UTF8 string
 ```
 
-### Certificate.exportPublicKey(spkac)
+### Certificate.exportPublicKey(spkac[, encoding])
 <!-- YAML
 added: REPLACEME
 -->
 - `spkac` {string | Buffer | TypedArray | DataView}
+- `encoding` {string}
 - Returns {Buffer} The public key component of the `spkac` data structure,
 which includes a public key and a challenge.
 
@@ -1616,9 +1617,9 @@ Example:
 
 ```js
 const crypto = require('crypto');
-crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, derivedKey) => {
+crypto.pbkdf2('secret', 'salt', 100000, 64, 'sha512', (err, derivedKey) => {
   if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '3745e48...aa39b34'
+  console.log(derivedKey.toString('hex'));  // '3745e48...08d59ae'
 });
 ```
 
@@ -1668,8 +1669,8 @@ Example:
 
 ```js
 const crypto = require('crypto');
-const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key.toString('hex'));  // '3745e48...aa39b34'
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 64, 'sha512');
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
 An array of supported digest functions can be retrieved using
@@ -1714,8 +1715,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 added: v1.1.0
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+  - `key` {string} A PEM encoded public key.
+  - `passphrase` {string} An optional passphrase for the public key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
@@ -1734,8 +1735,8 @@ be passed instead of a public key.
 added: v0.11.14
 -->
 - `publicKey` {Object | string}
-  - `key` {string} A PEM encoded private key.
-  - `passphrase` {string} An optional passphrase for the private key.
+  - `key` {string} A PEM encoded public key.
+  - `passphrase` {string} An optional passphrase for the public key.
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.

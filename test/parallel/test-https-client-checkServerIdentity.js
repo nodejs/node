@@ -25,13 +25,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const https = require('https');
-const fs = require('fs');
-const path = require('path');
 
 const options = {
-  key: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'keys/agent3-cert.pem'))
+  key: fixtures.readKey('agent3-key.pem'),
+  cert: fixtures.readKey('agent3-cert.pem')
 };
 
 const server = https.createServer(options, common.mustCall(function(req, res) {
@@ -46,7 +45,7 @@ function authorized() {
   const req = https.request({
     port: server.address().port,
     rejectUnauthorized: true,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))]
+    ca: [fixtures.readKey('ca2-cert.pem')]
   }, common.mustNotCall());
   req.on('error', function(err) {
     override();
@@ -58,7 +57,7 @@ function override() {
   const options = {
     port: server.address().port,
     rejectUnauthorized: true,
-    ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))],
+    ca: [fixtures.readKey('ca2-cert.pem')],
     checkServerIdentity: function(host, cert) {
       return false;
     }

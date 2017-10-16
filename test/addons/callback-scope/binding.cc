@@ -68,4 +68,4 @@ void Initialize(v8::Local<v8::Object> exports) {
 
 }  // namespace
 
-NODE_MODULE(binding, Initialize)
+NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

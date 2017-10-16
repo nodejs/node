@@ -64,6 +64,8 @@ function main(conf) {
   const n = +conf.millions * 1e6;
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'copy':
       runCopyArguments(n);
       break;

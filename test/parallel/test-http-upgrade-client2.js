@@ -26,7 +26,7 @@ const http = require('http');
 const CRLF = '\r\n';
 
 const server = http.createServer();
-server.on('upgrade', function(req, socket, head) {
+server.on('upgrade', function(req, socket) {
   socket.write(`HTTP/1.1 101 Ok${CRLF}` +
                `Connection: Upgrade${CRLF}` +
                `Upgrade: Test${CRLF}${CRLF}` +
@@ -47,7 +47,7 @@ server.listen(0, common.mustCall(function() {
     });
     let wasUpgrade = false;
 
-    function onUpgrade(res, socket, head) {
+    function onUpgrade(res, socket) {
       console.log('client upgraded');
       wasUpgrade = true;
 

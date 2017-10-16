@@ -66,7 +66,7 @@ Please use these when possible / appropriate
 * `confirmed-bug` - Bugs you have verified exist
 * `discuss` - Things that need larger discussion
 * `feature request` - Any issue that requests a new feature (usually not PRs)
-* `good first contribution` - Issues suitable for newcomers to process
+* `good first issue` - Issues suitable for newcomers to process
 
 --
 

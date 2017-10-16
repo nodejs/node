@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const assert = require('assert');
 const h2 = require('http2');
 
 const server = h2.createServer();
@@ -32,11 +33,9 @@ server.on('stream', common.mustCall((stream) => {
   }, common.mustCall((pushedStream) => {
     pushedStream.respond({ ':status': 200 });
     pushedStream.on('aborted', common.mustCall());
-    pushedStream.on('error', common.mustCall(common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      type: Error,
-      message: 'Stream closed with error code 8'
-    })));
+    pushedStream.on('error', common.mustNotCall());
+    pushedStream.on('streamClosed',
+                    common.mustCall((code) => assert.strictEqual(code, 8)));
   }));
 
   stream.end('hello world');

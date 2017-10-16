@@ -64,7 +64,9 @@ from other Collaborators. Leave at least 48 hours during the week and
 72 hours over weekends to account for international time differences
 and work schedules. Trivial changes (e.g. those which fix minor bugs
 or improve performance without affecting API or causing other
-wide-reaching impact) may be landed after a shorter delay.
+wide-reaching impact), and focused changes that affect only documentation
+and/or the test suite, may be landed after a shorter delay if they have
+multiple approvals.
 
 For non-breaking changes, if there is no disagreement amongst
 Collaborators, a pull request may be landed given appropriate review.
@@ -514,6 +516,13 @@ commit logs, ensure that they are properly formatted, and add
 Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
 successful continuous integration run, other changes may have landed on master
 since then, so running the tests one last time locally is a good practice.
+
+Validate that the commit message is properly formatted using
+[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+
+```text
+$ git rev-list upstream/master...HEAD | xargs core-validate-commit
+```
 
 Time to push it:
 

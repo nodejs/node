@@ -802,6 +802,12 @@ SETTINGS. By default, a maximum number of un-acknowledged `SETTINGS` frame may
 be sent at any given time. This error code is used when that limit has been
 reached.
 
+<a id="ERR_HTTP2_NO_SOCKET_MANIPULATION"></a>
+### ERR_HTTP2_NO_SOCKET_MANIPULATION
+
+Used when attempting to read, write, pause, and/or resume a socket attached to
+an `Http2Session`.
+
 <a id="ERR_HTTP2_OUT_OF_STREAMS"></a>
 ### ERR_HTTP2_OUT_OF_STREAMS
 
@@ -933,6 +939,11 @@ Used when `hostname` can not be parsed from a provided URL.
 ### ERR_INVALID_FD
 
 Used when a file descriptor ('fd') is not valid (e.g. it has a negative value).
+
+<a id="ERR_INVALID_FD_TYPE"></a>
+### ERR_INVALID_FD_TYPE
+
+Used when a file descriptor ('fd') type is not valid.
 
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
@@ -1244,6 +1255,12 @@ buffer.
 ### ERR_UNESCAPED_CHARACTERS
 
 Used when a string that contains unescaped characters was received.
+
+<a id="ERR_UNHANDLED_ERROR"></a>
+### ERR_UNHANDLED_ERROR
+
+Used when an unhandled "error" occurs (for instance, when an `'error'` event
+is emitted by an `EventEmitter` but an `'error'` handler is not registered).
 
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING

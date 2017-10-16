@@ -1,9 +1,7 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-
-const expectedError = /^TypeError: "lookup" option should be a function$/;
 
 ['foobar', 1, {}, []].forEach((input) => connectThrows(input));
 
@@ -17,7 +15,10 @@ function connectThrows(input) {
 
   assert.throws(() => {
     net.connect(opts);
-  }, expectedError);
+  }, common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  }));
 }
 
 connectDoesNotThrow(() => {});

@@ -65,28 +65,31 @@ class ActivityCollector {
     }
 
     const violations = [];
+    let tempActivityString;
+
     function v(msg) { violations.push(msg); }
     for (const a of this._activities.values()) {
+      tempActivityString = activityString(a);
       if (types != null && !types.includes(a.type)) continue;
 
       if (a.init && a.init.length > 1) {
-        v('Activity inited twice\n' + activityString(a) +
+        v(`Activity inited twice\n${tempActivityString}` +
           '\nExpected "init" to be called at most once');
       }
       if (a.destroy && a.destroy.length > 1) {
-        v('Activity destroyed twice\n' + activityString(a) +
+        v(`Activity destroyed twice\n${tempActivityString}` +
           '\nExpected "destroy" to be called at most once');
       }
       if (a.before && a.after) {
         if (a.before.length < a.after.length) {
           v('Activity called "after" without calling "before"\n' +
-            activityString(a) +
+            `${tempActivityString}` +
             '\nExpected no "after" call without a "before"');
         }
         if (a.before.some((x, idx) => x > a.after[idx])) {
           v('Activity had an instance where "after" ' +
             'was invoked before "before"\n' +
-            activityString(a) +
+            `${tempActivityString}` +
             '\nExpected "after" to be called after "before"');
         }
       }
@@ -94,7 +97,7 @@ class ActivityCollector {
         if (a.before.some((x, idx) => x > a.destroy[idx])) {
           v('Activity had an instance where "destroy" ' +
             'was invoked before "before"\n' +
-            activityString(a) +
+            `${tempActivityString}` +
             '\nExpected "destroy" to be called after "before"');
         }
       }
@@ -102,12 +105,12 @@ class ActivityCollector {
         if (a.after.some((x, idx) => x > a.destroy[idx])) {
           v('Activity had an instance where "destroy" ' +
             'was invoked before "after"\n' +
-            activityString(a) +
+            `${tempActivityString}` +
             '\nExpected "destroy" to be called after "after"');
         }
       }
       if (!a.handleIsObject) {
-        v('No resource object\n' + activityString(a) +
+        v(`No resource object\n${tempActivityString}` +
           '\nExpected "init" to be called with a resource object');
       }
     }
@@ -125,7 +128,7 @@ class ActivityCollector {
       Array.from(this._activities.values()) :
       this.activitiesOfTypes(types);
 
-    if (stage != null) console.log('\n%s', stage);
+    if (stage != null) console.log(`\n${stage}`);
     console.log(util.inspect(activities, false, depth, true));
   }
 
@@ -206,7 +209,7 @@ class ActivityCollector {
   _maybeLog(uid, type, name) {
     if (this._logid &&
       (type == null || this._logtype == null || this._logtype === type)) {
-      print(this._logid + '.' + name + '.uid-' + uid);
+      print(`${this._logid}.${name}.uid-${uid}`);
     }
   }
 }

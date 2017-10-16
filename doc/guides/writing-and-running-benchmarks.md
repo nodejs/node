@@ -10,6 +10,7 @@
   * [Running all benchmarks](#running-all-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
   * [Comparing parameters](#comparing-parameters)
+  * [Running Benchmarks on the CI](#running-benchmarks-on-the-ci)
 * [Creating a benchmark](#creating-a-benchmark)
   * [Basics of a benchmark](#basics-of-a-benchmark)
   * [Creating an HTTP benchmark](#creating-an-http-benchmark)
@@ -298,6 +299,11 @@ chunk     encoding       mean confidence.interval
 
 ![compare tool boxplot](doc_img/scatter-plot.png)
 
+### Running Benchmarks on the CI
+
+To see the performance impact of a Pull Request by running benchmarks on
+the CI, check out [How to: Running core benchmarks on Node.js CI][benchmark-ci].
+
 ## Creating a benchmark
 
 ### Basics of a benchmark
@@ -432,3 +438,4 @@ Supported options keys are:
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
 [git-for-windows]: http://git-scm.com/download/win
 [nghttp2.org]: http://nghttp2.org
+[benchmark-ci]: https://github.com/nodejs/benchmarking/blob/master/docs/core_benchmarks.md

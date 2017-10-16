@@ -59,6 +59,12 @@ note1 - The gcc4.8-libs package needs to be installed, because node
   by Joyent. SmartOS images >= 16.4 are not supported because
   GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
+*Note*: On Windows, running Node.js in windows terminal emulators like `mintty`
+  requires the usage of [winpty](https://github.com/rprichard/winpty) for
+  Node's tty channels to work correctly (e.g. `winpty node.exe script.js`).
+  In "Git bash" if you call the node shell alias (`node` without the `.exe`
+  extension), `winpty` is used automatically.
+
 ### Supported toolchains
 
 Depending on host platform, the selection of toolchains may vary.
@@ -88,7 +94,7 @@ On macOS you will need to install the `Xcode Command Line Tools` by running
 installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
-* You may want to setup [firewall rules](tools/macosx-firewall.sh)
+* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
 
 If the path to your build directory contains a space, the build will likely fail.
@@ -126,6 +132,9 @@ To run the tests:
 $ make test
 ```
 
+At this point you are ready to make code changes and re-run the tests!
+Optionally, continue below.
+
 To run the tests and generate code coverage reports:
 
 ```console
@@ -142,7 +151,7 @@ and overwrites the `lib/` directory. To clean up after generating the coverage
 reports:
 
 ```console
-make coverage-clean
+$ make coverage-clean
 ```
 
 To build the documentation:
