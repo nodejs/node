@@ -335,21 +335,19 @@ function runTest(port, testIndex) {
     port = server.address().port;
     if (tcase.debug) {
       console.error(`${prefix}TLS server running on port ${port}`);
+    } else if (tcase.renegotiate) {
+      runNextClient(0);
     } else {
-      if (tcase.renegotiate) {
-        runNextClient(0);
-      } else {
-        let clientsCompleted = 0;
-        for (let i = 0; i < tcase.clients.length; i++) {
-          runClient(`${prefix}${i} `, port, tcase.clients[i], function() {
-            clientsCompleted++;
-            if (clientsCompleted === tcase.clients.length) {
-              server.close();
-              successfulTests++;
-              runTest(port, nextTest++);
-            }
-          });
-        }
+      let clientsCompleted = 0;
+      for (let i = 0; i < tcase.clients.length; i++) {
+        runClient(`${prefix}${i} `, port, tcase.clients[i], function() {
+          clientsCompleted++;
+          if (clientsCompleted === tcase.clients.length) {
+            server.close();
+            successfulTests++;
+            runTest(port, nextTest++);
+          }
+        });
       }
     }
   });

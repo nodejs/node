@@ -37,10 +37,8 @@ if (cluster.isMaster) {
     unbound.disconnect();
     unbound.on('disconnect', cluster.disconnect);
   }
-} else {
-  if (process.env.BOUND === 'y') {
-    const source = net.createServer();
+} else if (process.env.BOUND === 'y') {
+  const source = net.createServer();
 
-    source.listen(0);
-  }
+  source.listen(0);
 }
