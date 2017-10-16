@@ -43,10 +43,8 @@ module.exports.inSkipBlock = function(node) {
         }
         return false;
       });
-    } else {
-      if (hasSkip(consequent.expression)) {
-        hasSkipBlock = true;
-      }
+    } else if (hasSkip(consequent.expression)) {
+      hasSkipBlock = true;
     }
   }
   return hasSkipBlock;
