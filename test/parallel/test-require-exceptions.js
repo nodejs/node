@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const fixtures = require ('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 // A module with an error in it should throw
 assert.throws(function() {
