@@ -198,19 +198,23 @@ class EscapableHandleScopeWrapper {
   bool escape_called_;
 };
 
+NAPI_EXTERN
 napi_handle_scope JsHandleScopeFromV8HandleScope(HandleScopeWrapper* s) {
   return reinterpret_cast<napi_handle_scope>(s);
 }
 
+NAPI_EXTERN
 HandleScopeWrapper* V8HandleScopeFromJsHandleScope(napi_handle_scope s) {
   return reinterpret_cast<HandleScopeWrapper*>(s);
 }
 
+NAPI_EXTERN
 napi_escapable_handle_scope JsEscapableHandleScopeFromV8EscapableHandleScope(
     EscapableHandleScopeWrapper* s) {
   return reinterpret_cast<napi_escapable_handle_scope>(s);
 }
 
+NAPI_EXTERN
 EscapableHandleScopeWrapper*
 V8EscapableHandleScopeFromJsEscapableHandleScope(
     napi_escapable_handle_scope s) {
@@ -224,18 +228,22 @@ V8EscapableHandleScopeFromJsEscapableHandleScope(
 static_assert(sizeof(v8::Local<v8::Value>) == sizeof(napi_value),
   "Cannot convert between v8::Local<v8::Value> and napi_value");
 
+NAPI_EXTERN
 napi_deferred JsDeferredFromV8Persistent(v8::Persistent<v8::Value>* local) {
   return reinterpret_cast<napi_deferred>(local);
 }
 
+NAPI_EXTERN
 v8::Persistent<v8::Value>* V8PersistentFromJsDeferred(napi_deferred local) {
   return reinterpret_cast<v8::Persistent<v8::Value>*>(local);
 }
 
+NAPI_EXTERN
 napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
   return reinterpret_cast<napi_value>(*local);
 }
 
+NAPI_EXTERN
 v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   v8::Local<v8::Value> local;
   memcpy(&local, &v, sizeof(v));
@@ -634,6 +642,7 @@ class SetterCallbackWrapper
 
 // Creates an object to be made available to the static function callback
 // wrapper, used to retrieve the native callback function and data pointer.
+NAPI_EXTERN
 v8::Local<v8::Object> CreateFunctionCallbackData(napi_env env,
                                                  napi_callback cb,
                                                  void* data) {
@@ -659,6 +668,7 @@ v8::Local<v8::Object> CreateFunctionCallbackData(napi_env env,
 // Creates an object to be made available to the static getter/setter
 // callback wrapper, used to retrieve the native getter/setter callback
 // function and data pointer.
+NAPI_EXTERN
 v8::Local<v8::Object> CreateAccessorCallbackData(napi_env env,
                                                  napi_callback getter,
                                                  napi_callback setter,
@@ -701,6 +711,7 @@ const char napi_wrap_name[] = "N-API Wrapper";
 // Search the object's prototype chain for the wrapper object. Usually the
 // wrapper would be the first in the chain, but it is OK for other objects to
 // be inserted in the prototype chain.
+NAPI_EXTERN
 bool FindWrapper(v8::Local<v8::Object> obj,
                  v8::Local<v8::Object>* result = nullptr,
                  v8::Local<v8::Object>* parent = nullptr) {
@@ -734,6 +745,7 @@ static void DeleteEnv(napi_env env, void* data, void* hint) {
   delete env;
 }
 
+NAPI_EXTERN
 napi_env GetEnv(v8::Local<v8::Context> context) {
   napi_env result;
 
@@ -769,6 +781,7 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   return result;
 }
 
+NAPI_EXTERN
 napi_status Unwrap(napi_env env,
                    napi_value js_object,
                    void** result,
@@ -792,6 +805,7 @@ napi_status Unwrap(napi_env env,
   return napi_ok;
 }
 
+NAPI_EXTERN
 napi_status ConcludeDeferred(napi_env env,
                              napi_deferred deferred,
                              napi_value result,
@@ -3242,6 +3256,7 @@ static napi_status ConvertUVErrorCode(int code) {
 // Wrapper around uv_work_t which calls user-provided callbacks.
 class Work : public node::AsyncResource {
  private:
+  NAPI_EXTERN
   explicit Work(napi_env env,
                 v8::Local<v8::Object> async_resource,
                 v8::Local<v8::String> async_resource_name,
@@ -3262,6 +3277,7 @@ class Work : public node::AsyncResource {
   ~Work() { }
 
  public:
+  NAPI_EXTERN
   static Work* New(napi_env env,
                    v8::Local<v8::Object> async_resource,
                    v8::Local<v8::String> async_resource_name,
@@ -3272,15 +3288,18 @@ class Work : public node::AsyncResource {
                     execute, complete, data);
   }
 
+  NAPI_EXTERN
   static void Delete(Work* work) {
     delete work;
   }
 
+  NAPI_EXTERN
   static void ExecuteCallback(uv_work_t* req) {
     Work* work = static_cast<Work*>(req->data);
     work->_execute(work->_env, work->_data);
   }
 
+  NAPI_EXTERN
   static void CompleteCallback(uv_work_t* req, int status) {
     Work* work = static_cast<Work*>(req->data);
 
@@ -3309,6 +3328,7 @@ class Work : public node::AsyncResource {
     }
   }
 
+  NAPI_EXTERN
   uv_work_t* Request() {
     return &_request;
   }

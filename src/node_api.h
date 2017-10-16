@@ -28,7 +28,12 @@
     #define NAPI_EXTERN __declspec(dllexport)
   #endif
 #else
-  #define NAPI_EXTERN /* nothing */
+  #ifdef EXTERNAL_NAPI
+    // Building the external N-API itself
+    #define NAPI_EXTERN __attribute__((visibility("hidden")))
+  #else
+    #define NAPI_EXTERN /* nothing */
+  #endif
 #endif
 
 #ifdef _WIN32
