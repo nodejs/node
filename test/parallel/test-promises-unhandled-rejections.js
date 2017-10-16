@@ -182,7 +182,7 @@ asyncTest('When re-throwing new errors in a promise catch, only the' +
   });
 });
 
-asyncTest('Test params of unhandledRejection for a synchronously-rejected' +
+asyncTest('Test params of unhandledRejection for a synchronously-rejected ' +
           'promise', function(done) {
   const e = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
@@ -294,7 +294,7 @@ asyncTest('While inside setImmediate, catching a rejected promise derived ' +
 });
 
 // State adapation tests
-asyncTest('catching a promise which is asynchronously rejected (via' +
+asyncTest('catching a promise which is asynchronously rejected (via ' +
           'resolution to an asynchronously-rejected promise) prevents' +
           ' unhandledRejection', function(done) {
   const e = new Error();
@@ -378,7 +378,7 @@ asyncTest(
 );
 
 // Combinations with Promise.all
-asyncTest('Catching the Promise.all() of a collection that includes a' +
+asyncTest('Catching the Promise.all() of a collection that includes a ' +
           'rejected promise prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
@@ -663,7 +663,7 @@ asyncTest('nextTick is immediately scheduled when called inside an event' +
 });
 
 asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
-          ' unhandledException, and does not cause .catch() to throw an' +
+          ' unhandledException, and does not cause .catch() to throw an ' +
           'exception', function(done) {
   clean();
   const e = new Error();
