@@ -885,6 +885,31 @@ Used when `http2.connect()` is passed a URL that uses any protocol other than
 
 Used when a given index is out of the accepted range (e.g. negative offsets).
 
+<a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
+### ERR_INSPECTOR_ALREADY_CONNECTED
+
+When using the `inspector` module, the `ERR_INSPECTOR_ALREADY_CONNECTED` error
+code is used when an attempt is made to connect when the inspector is already
+connected.
+
+<a id="ERR_INSPECTOR_CLOSED"></a>
+### ERR_INSPECTOR_CLOSED
+
+When using the `inspector` module, the `ERR_INSPECTOR_CLOSED` error code is
+used when an attempt is made to use the inspector after the session has
+already closed.
+
+<a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
+### ERR_INSPECTOR_NOT_AVAILABLE
+
+Used to identify when the `inspector` module is not available for use.
+
+<a id="ERR_INSPECTOR_NOT_CONNECTED"></a>
+### ERR_INSPECTOR_NOT_CONNECTED
+
+When using the `inspector` module, the `ERR_INSPECTOR_NOT_CONNECTED` error code
+is used when an attempt is made to use the inspector before it is connected.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
