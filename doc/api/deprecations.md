@@ -728,6 +728,15 @@ Type: Runtime
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
+<a id="DEP0082"></a>
+### DEP0082: REPLServer.prototype.memory()
+
+Type: Runtime
+
+`REPLServer.prototype.memory()` is a function only necessary for the
+internal mechanics of the `REPLServer` itself, and is therefore not
+necessary in user space.
+
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
