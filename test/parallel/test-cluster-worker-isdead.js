@@ -5,12 +5,13 @@ const assert = require('assert');
 
 if (cluster.isMaster) {
   const worker = cluster.fork();
-  const workerDead = worker.isDead();
+  let workerDead = worker.isDead();
   assert.ok(!workerDead,
-            `isDead() returned ${workerDead}. isDead() should return false ` +
-            'right after the worker has been created.');
+            `isDead() returned ${workerDead}. isDead() should return ` +
+            'false right after the worker has been created.');
 
   worker.on('exit', function() {
+    workerDead = worker.isDead();
     assert.ok(workerDead,
               `isDead() returned ${workerDead}. After an event has been ` +
               'emitted, isDead should return true');
