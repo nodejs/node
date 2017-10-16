@@ -1687,11 +1687,14 @@ added: v0.11.14
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer}
 
 Decrypts `buffer` with `privateKey`.
 
 `privateKey` can be an object or a string. If `privateKey` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
+
+Returns a new `Buffer` with the decrypted content.
 
 ### crypto.privateEncrypt(privateKey, buffer)
 <!-- YAML
@@ -1704,11 +1707,14 @@ added: v1.1.0
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer}
 
 Encrypts `buffer` with `privateKey`.
 
 `privateKey` can be an object or a string. If `privateKey` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
+
+Returns a new `Buffer` with the encrypted content.
 
 ### crypto.publicDecrypt(publicKey, buffer)
 <!-- YAML
@@ -1721,6 +1727,7 @@ added: v1.1.0
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer}
 
 Decrypts `buffer` with `publicKey`.
 
@@ -1729,6 +1736,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
+
+Returns a new `Buffer` with the decrypted content.
 
 ### crypto.publicEncrypt(publicKey, buffer)
 <!-- YAML
@@ -1741,6 +1750,7 @@ added: v0.11.14
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer}
 
 Encrypts the content of `buffer` with `publicKey` and returns a new
 [`Buffer`][] with encrypted content.
@@ -1750,6 +1760,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
+
+Returns a new `Buffer` with the encrypted content.
 
 ### crypto.randomBytes(size[, callback])
 <!-- YAML
