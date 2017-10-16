@@ -296,7 +296,9 @@ end:
 
     GetTrailers(session, handle, stream, flags);
   }
+#if defined(DEBUG) && DEBUG
   CHECK(offset <= length);
+#endif
   return offset;
 }
 
@@ -307,7 +309,9 @@ inline ssize_t Nghttp2Session::OnSelectPadding(nghttp2_session *session,
                                                size_t maxPayloadLen,
                                                void *user_data) {
   Nghttp2Session *handle = static_cast<Nghttp2Session *>(user_data);
+#if defined(DEBUG) && DEBUG
   CHECK(handle->HasGetPaddingCallback());
+#endif
   ssize_t padding = handle->GetPadding(frame->hd.length, maxPayloadLen);
   DEBUG_HTTP2("Nghttp2Session %s: using padding, size: %d\n",
               handle->TypeName(), padding);
@@ -420,7 +424,9 @@ inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
               TypeName(), id);
   Nghttp2Stream* stream = this->FindStream(id);
   // If the stream does not exist, something really bad happened
+#if defined(DEBUG) && DEBUG
   CHECK_NE(stream, nullptr);
+#endif
   bool done = (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) ==
               NGHTTP2_FLAG_END_STREAM;
   stream->FlushDataChunks(done);
@@ -436,7 +442,9 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
               TypeName(), id);
   Nghttp2Stream* stream = FindStream(id);
   // If the stream does not exist, something really bad happened
+#if defined(DEBUG) && DEBUG
   CHECK_NE(stream, nullptr);
+#endif
   OnHeaders(stream,
             stream->headers(),
             stream->headers_category(),
@@ -588,7 +596,9 @@ inline void Nghttp2Session::MarkDestroying() {
 }
 
 inline int Nghttp2Session::Free() {
+#if defined(DEBUG) && DEBUG
   CHECK(session_ != nullptr);
+#endif
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
   // Stop the loop
   CHECK_EQ(uv_prepare_stop(&prep_), 0);
@@ -762,7 +772,9 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
     size_t len,
     Nghttp2Stream** assigned,
     int options) {
+#if defined(DEBUG) && DEBUG
   CHECK_GT(len, 0);
+#endif
   DEBUG_HTTP2("Nghttp2Stream %d: sending push promise\n", id_);
   int32_t ret = nghttp2_submit_push_promise(session_->session(),
                                             NGHTTP2_FLAG_NONE,
@@ -784,7 +796,9 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
 inline int Nghttp2Stream::SubmitResponse(nghttp2_nv* nva,
                                          size_t len,
                                          int options) {
+#if defined(DEBUG) && DEBUG
   CHECK_GT(len, 0);
+#endif
   DEBUG_HTTP2("Nghttp2Stream %d: submitting response\n", id_);
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider* provider = nullptr;
@@ -804,8 +818,10 @@ inline int Nghttp2Stream::SubmitFile(int fd,
                                      int64_t offset,
                                      int64_t length,
                                      int options) {
+#if defined(DEBUG) && DEBUG
   CHECK_GT(len, 0);
   CHECK_GT(fd, 0);
+#endif
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider prov;
@@ -829,7 +845,9 @@ inline int32_t Nghttp2Session::SubmitRequest(
     size_t len,
     Nghttp2Stream** assigned,
     int options) {
+#if defined(DEBUG) && DEBUG
   CHECK_GT(len, 0);
+#endif
   DEBUG_HTTP2("Nghttp2Session: submitting request\n");
   nghttp2_data_provider* provider = nullptr;
   nghttp2_data_provider prov;

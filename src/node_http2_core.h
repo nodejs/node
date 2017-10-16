@@ -304,6 +304,7 @@ class Nghttp2Stream {
       int options = 0);
 
   inline ~Nghttp2Stream() {
+#if defined(DEBUG) && DEBUG
     CHECK_EQ(session_, nullptr);
     CHECK_EQ(queue_head_, nullptr);
     CHECK_EQ(queue_tail_, nullptr);
@@ -311,6 +312,7 @@ class Nghttp2Stream {
     CHECK_EQ(data_chunks_tail_, nullptr);
     CHECK_EQ(current_headers_head_, nullptr);
     CHECK_EQ(current_headers_tail_, nullptr);
+#endif
     DEBUG_HTTP2("Nghttp2Stream %d: freed\n", id_);
   }
 
@@ -449,8 +451,10 @@ class Nghttp2Stream {
                 id_, category);
     // We shouldn't be in the middle of a headers block already.
     // Something bad happened if this fails
+#if defined(DEBUG) && DEBUG
     CHECK_EQ(current_headers_head_, nullptr);
     CHECK_EQ(current_headers_tail_, nullptr);
+#endif
     current_headers_category_ = category;
   }
 

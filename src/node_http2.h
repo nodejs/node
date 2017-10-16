@@ -294,7 +294,9 @@ class Http2Options {
   }
 
   void SetPaddingStrategy(padding_strategy_type val) {
+#if DEBUG
     CHECK_LE(val, PADDING_STRATEGY_CALLBACK);
+#endif
     padding_strategy_ = static_cast<padding_strategy_type>(val);
   }
 
@@ -364,7 +366,9 @@ class Http2Session : public AsyncWrap,
       return OnMaxFrameSizePadding(frameLength, maxPayloadLen);
     }
 
+#if defined(DEBUG) && DEBUG
     CHECK_EQ(padding_strategy_, PADDING_STRATEGY_CALLBACK);
+#endif
 
     return OnCallbackPadding(frameLength, maxPayloadLen);
   }

@@ -98,8 +98,10 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
     uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
     retval = retval <= maxPayloadLen ? retval : maxPayloadLen;
     retval = retval >= frameLen ? retval : frameLen;
+#if defined(DEBUG) && DEBUG
     CHECK_GE(retval, frameLen);
     CHECK_LE(retval, maxPayloadLen);
+#endif
     return retval;
   }
   return frameLen;
@@ -215,8 +217,10 @@ template <get_setting fn>
 void RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing settings for session\n");
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
+#endif
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<Object>());
   nghttp2_session* s = session->session();
@@ -241,8 +245,10 @@ void RefreshSettings(const FunctionCallbackInfo<Value>& args) {
 void RefreshSessionState(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: refreshing session state\n");
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsObject());
+#endif
   AliasedBuffer<double, v8::Float64Array>& buffer =
       env->http2_state()->session_state_buffer;
   Http2Session* session;
@@ -271,9 +277,11 @@ void RefreshSessionState(const FunctionCallbackInfo<Value>& args) {
 
 void RefreshStreamState(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsNumber());
+#endif
   int32_t id = args[1]->Int32Value(env->context()).ToChecked();
   DEBUG_HTTP2("Http2Session: refreshing stream %d state\n", id);
   Http2Session* session;
@@ -321,8 +329,9 @@ void RefreshStreamState(const FunctionCallbackInfo<Value>& args) {
 
 void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK(args.IsConstructCall());
-
+#endif
   int val = args[0]->IntegerValue(env->context()).ToChecked();
   nghttp2_session_type type = static_cast<nghttp2_session_type>(val);
   DEBUG_HTTP2("Http2Session: creating a session of type: %d\n", type);
@@ -334,7 +343,9 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::Consume(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsExternal());
+#endif
   session->Consume(args[0].As<External>());
 }
 
@@ -375,9 +386,12 @@ void Http2Session::SubmitPriority(const FunctionCallbackInfo<Value>& args) {
   DEBUG_HTTP2("Http2Session: submitting priority for stream %d: "
               "parent: %d, weight: %d, exclusive: %d, silent: %d\n",
               id, parent, weight, exclusive, silent);
+
+#if defined(DEBUG) && DEBUG
   CHECK_GT(id, 0);
   CHECK_GE(parent, 0);
   CHECK_GE(weight, 0);
+#endif
 
   Nghttp2Stream* stream;
   if (!(stream = session->FindStream(id))) {
@@ -455,8 +469,11 @@ void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::SubmitRstStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
+
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsNumber());
+#endif
 
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
@@ -480,7 +497,9 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
   // args[2] parentStream ID (for priority spec)
   // args[3] weight (for priority spec)
   // args[4] exclusive boolean (for priority spec)
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsArray());
+#endif
 
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
@@ -511,8 +530,10 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsArray());
+#endif
 
   Http2Session* session;
   Nghttp2Stream* stream;
@@ -540,11 +561,13 @@ void Http2Session::SubmitResponse(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());  // Stream ID
   CHECK(args[1]->IsNumber());  // File Descriptor
   CHECK(args[2]->IsArray());   // Headers
   CHECK(args[3]->IsNumber());  // Offset
   CHECK(args[4]->IsNumber());  // Length
+#endif
 
   Http2Session* session;
   Nghttp2Stream* stream;
@@ -562,7 +585,9 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
   int64_t length = args[4]->IntegerValue(context).ToChecked();
   int options = args[5]->IntegerValue(context).ToChecked();
 
+#if defined(DEBUG) && DEBUG
   CHECK_GE(offset, 0);
+#endif
 
   DEBUG_HTTP2("Http2Session: submitting file %d for stream %d: headers: %d, "
               "end-stream: %d\n", fd, id, headers->Length());
@@ -578,8 +603,10 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
 }
 
 void Http2Session::SendHeaders(const FunctionCallbackInfo<Value>& args) {
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsArray());
+#endif
 
   Http2Session* session;
   Nghttp2Stream* stream;
@@ -606,7 +633,9 @@ void Http2Session::SendHeaders(const FunctionCallbackInfo<Value>& args) {
 
 void Http2Session::ShutdownStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
+#endif
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Nghttp2Stream* stream;
@@ -621,7 +650,9 @@ void Http2Session::ShutdownStream(const FunctionCallbackInfo<Value>& args) {
 
 void Http2Session::StreamReadStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
+#endif
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Nghttp2Stream* stream;
@@ -635,7 +666,9 @@ void Http2Session::StreamReadStart(const FunctionCallbackInfo<Value>& args) {
 
 void Http2Session::StreamReadStop(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());
+#endif
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Nghttp2Stream* stream;
@@ -688,9 +721,10 @@ void Http2Session::DestroyStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
+#endif
   int32_t id = args[0]->Int32Value(env->context()).ToChecked();
   DEBUG_HTTP2("Http2Session: destroy stream %d\n", id);
   Nghttp2Stream* stream;
@@ -707,8 +741,10 @@ void Http2Session::SubmitPushPromise(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
+#if defined(DEBUG) && DEBUG
   CHECK(args[0]->IsNumber());  // parent stream ID
   CHECK(args[1]->IsArray());  // headers array
+#endif
 
   Nghttp2Stream* parent;
   int32_t id = args[0]->Int32Value(context).ToChecked();
@@ -836,7 +872,9 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
   Local<Function> fn = env()->push_values_to_array_function();
   Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
 
+#if defined(DEBUG) && DEBUG
   CHECK_LE(cat, NGHTTP2_HCAT_HEADERS);
+#endif
 
   // The headers are passed in above as a linked list of nghttp2_header_list
   // structs. The following converts that into a JS array with the structure:
@@ -1030,9 +1068,13 @@ void Http2Session::OnStreamReadImpl(ssize_t nread,
 
 void Http2Session::Consume(Local<External> external) {
   DEBUG_HTTP2("Http2Session: consuming socket\n");
+#if defined(DEBUG) && DEBUG
   CHECK(prev_alloc_cb_.is_empty());
+#endif
   StreamBase* stream = static_cast<StreamBase*>(external->Value());
+#if defined(DEBUG) && DEBUG
   CHECK_NE(stream, nullptr);
+#endif
   stream->Consume();
   stream_ = stream;
   prev_alloc_cb_ = stream->alloc_cb();
@@ -1057,11 +1099,15 @@ void Http2Session::Unconsume() {
 Headers::Headers(Isolate* isolate,
                  Local<Context> context,
                  Local<Array> headers) {
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(headers->Length(), 2);
+#endif
   Local<Value> header_string = headers->Get(context, 0).ToLocalChecked();
   Local<Value> header_count = headers->Get(context, 1).ToLocalChecked();
+#if defined(DEBUG) && DEBUG
   CHECK(header_string->IsString());
   CHECK(header_count->IsUint32());
+#endif
   count_ = header_count.As<Uint32>()->Value();
   int header_string_len = header_string.As<String>()->Length();
 
@@ -1112,8 +1158,10 @@ Headers::Headers(Isolate* isolate,
     p += nva[n].valuelen + 1;
   }
 
+#if defined(DEBUG) && DEBUG
   CHECK_EQ(p, header_contents + header_string_len);
   CHECK_EQ(n, count_);
+#endif
 }
 
 
