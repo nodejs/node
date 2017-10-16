@@ -1325,7 +1325,9 @@ def get_bin_override():
   # sys.executable. This directory will be prefixed to the PATH, so that
   # other tools that shell out to `python` will use the appropriate python
 
-  if os.path.realpath(which('python')) == os.path.realpath(sys.executable):
+  which_python = which('python')
+  if (which_python and
+      os.path.realpath(which_python) == os.path.realpath(sys.executable)):
     return
 
   bin_override = os.path.abspath('out/tools/bin')
