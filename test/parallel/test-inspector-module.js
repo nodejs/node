@@ -54,7 +54,7 @@ common.expectsError(
   {
     code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
     type: Error,
-    message: 'Already connected'
+    message: 'The inspector is already connected'
   }
 );
 
