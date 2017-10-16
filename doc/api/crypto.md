@@ -1687,6 +1687,7 @@ added: v0.11.14
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer} A new `Buffer` with the decrypted content.
 
 Decrypts `buffer` with `privateKey`.
 
@@ -1704,6 +1705,7 @@ added: v1.1.0
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer} A new `Buffer` with the encrypted content.
 
 Encrypts `buffer` with `privateKey`.
 
@@ -1721,6 +1723,7 @@ added: v1.1.0
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer} A new `Buffer` with the decrypted content.
 
 Decrypts `buffer` with `publicKey`.
 
@@ -1741,6 +1744,7 @@ added: v0.11.14
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
+- Returns: {Buffer} A new `Buffer` with the encrypted content.
 
 Encrypts the content of `buffer` with `publicKey` and returns a new
 [`Buffer`][] with encrypted content.
