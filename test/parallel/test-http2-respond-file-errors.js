@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures')
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
@@ -28,7 +29,7 @@ const types = {
   symbol: Symbol('test')
 };
 
-const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+const fname = path.resolve(fixtures.fixturesDir, 'elipses.txt');
 
 const server = http2.createServer();
 
