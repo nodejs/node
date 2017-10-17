@@ -4787,9 +4787,9 @@ Local<Context> NewContext(Isolate* isolate,
   auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
   auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
   Local<Value> intl_v;
-  Local<Object> intl;
   if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
-      intl_v->ToObject(context).ToLocal(&intl)) {
+      intl_v->IsObject()) {
+    Local<Object> intl = intl_v.As<Object>();
     intl->Delete(context, break_iter_key).FromJust();
   }
   return context;
