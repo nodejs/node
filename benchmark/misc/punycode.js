@@ -1,11 +1,14 @@
 'use strict';
 
 const common = require('../common.js');
-const icu = process.binding('icu');
+let icu;
+try {
+  icu = process.binding('icu');
+} catch (err) {}
 const punycode = require('punycode');
 
 const bench = common.createBenchmark(main, {
-  method: ['punycode', 'icu'],
+  method: ['punycode'].concat(icu !== undefined ? ['icu'] : []),
   n: [1024],
   val: [
     'افغانستا.icom.museum',
@@ -69,8 +72,11 @@ function main(conf) {
       runPunycode(n, val);
       break;
     case 'icu':
-      runICU(n, val);
-      break;
+      if (icu !== undefined) {
+        runICU(n, val);
+        break;
+      }
+      // fallthrough
     default:
       throw new Error('Unexpected method');
   }
