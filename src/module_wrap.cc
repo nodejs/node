@@ -208,10 +208,24 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
 }
 
 void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
-  auto iso = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  auto isolate = args.GetIsolate();
   auto that = args.This();
   ModuleWrap* obj = Unwrap<ModuleWrap>(that);
-  auto result = obj->module_.Get(iso)->GetModuleNamespace();
+  CHECK_NE(obj, nullptr);
+
+  auto module = obj->module_.Get(isolate);
+
+  switch (module->GetStatus()) {
+    default:
+      return env->ThrowError("cannot get namespace, Module has not been instantiated");
+    case v8::Module::Status::kInstantiated:
+    case v8::Module::Status::kEvaluating:
+    case v8::Module::Status::kEvaluated:
+      break;
+  }
+
+  auto result = module->GetModuleNamespace();
   args.GetReturnValue().Set(result);
 }
 
