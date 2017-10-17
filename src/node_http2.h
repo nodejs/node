@@ -399,7 +399,7 @@ class Http2Session : public AsyncWrap,
                  uint8_t flags) override;
   void OnStreamClose(int32_t id, uint32_t code) override;
   void Send(uv_buf_t* bufs, size_t total) override;
-  void OnDataChunk(Nghttp2Stream* stream, nghttp2_data_chunk_t* chunk) override;
+  void OnDataChunk(Nghttp2Stream* stream, uv_buf_t* chunk) override;
   void OnSettings(bool ack) override;
   void OnPriority(int32_t stream,
                   int32_t parent,
@@ -471,6 +471,7 @@ class Http2Session : public AsyncWrap,
   static void SendShutdownNotice(const FunctionCallbackInfo<Value>& args);
   static void SubmitGoaway(const FunctionCallbackInfo<Value>& args);
   static void DestroyStream(const FunctionCallbackInfo<Value>& args);
+  static void FlushData(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);

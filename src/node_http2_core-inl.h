@@ -23,9 +23,6 @@ namespace http2 {
     }                                                                         \
   } while (0);
 
-extern Freelist<nghttp2_data_chunk_t, FREELIST_MAX>
-    data_chunk_free_list;
-
 extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 extern Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
@@ -329,16 +326,12 @@ inline int Nghttp2Session::OnDataChunkReceived(nghttp2_session* session,
   DEBUG_HTTP2("Nghttp2Session %s: buffering data chunk for stream %d, size: "
               "%d, flags: %d\n", handle->TypeName(),
               id, len, flags);
-  Nghttp2Stream* stream = handle->FindStream(id);
-  nghttp2_data_chunk_t* chunk = data_chunk_free_list.pop();
-  chunk->buf = uv_buf_init(new char[len], len);
-  memcpy(chunk->buf.base, data, len);
-  if (stream->data_chunks_tail_ == nullptr) {
-    stream->data_chunks_head_ =
-        stream->data_chunks_tail_ = chunk;
-  } else {
-    stream->data_chunks_tail_->next = chunk;
-    stream->data_chunks_tail_ = chunk;
+  if (len > 0) {
+    nghttp2_session_consume_connection(session, len);
+    Nghttp2Stream* stream = handle->FindStream(id);
+    char* buf = Malloc<char>(len);
+    memcpy(buf, data, len);
+    stream->data_chunks_.emplace(uv_buf_init(buf, len));
   }
   return 0;
 }
@@ -401,18 +394,18 @@ inline Nghttp2Stream* Nghttp2Session::FindStream(int32_t id) {
   }
 }
 
-// Flushes any received queued chunks of data out to the JS layer
-inline void Nghttp2Stream::FlushDataChunks(bool done) {
-  while (data_chunks_head_ != nullptr) {
-    DEBUG_HTTP2("Nghttp2Stream %d: emitting data chunk\n", id_);
-    nghttp2_data_chunk_t* item = data_chunks_head_;
-    data_chunks_head_ = item->next;
-    // item will be passed to the Buffer instance and freed on gc
-    session_->OnDataChunk(this, item);
+// Flushes one buffered data chunk at a time.
+inline void Nghttp2Stream::FlushDataChunks() {
+  if (!data_chunks_.empty()) {
+    uv_buf_t buf = data_chunks_.front();
+    data_chunks_.pop();
+    if (buf.len > 0) {
+      nghttp2_session_consume_stream(session_->session(), id_, buf.len);
+      session_->OnDataChunk(this, &buf);
+    } else {
+      session_->OnDataChunk(this, nullptr);
+    }
   }
-  data_chunks_tail_ = nullptr;
-  if (done)
-    session_->OnDataChunk(this, nullptr);
 }
 
 // Passes all of the the chunks for a data frame out to the JS layer
@@ -427,9 +420,10 @@ inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
 #if defined(DEBUG) && DEBUG
   CHECK_NE(stream, nullptr);
 #endif
-  bool done = (frame->hd.flags & NGHTTP2_FLAG_END_STREAM) ==
-              NGHTTP2_FLAG_END_STREAM;
-  stream->FlushDataChunks(done);
+  if (frame->hd.flags & NGHTTP2_FLAG_END_STREAM)
+    stream->data_chunks_.emplace(uv_buf_init(0, 0));
+  if (stream->IsReading())
+    stream->FlushDataChunks();
 }
 
 // Passes all of the collected headers for a HEADERS frame out to the JS layer.
@@ -669,8 +663,8 @@ inline void Nghttp2Stream::ResetState(
   session_ = session;
   queue_head_ = nullptr;
   queue_tail_ = nullptr;
-  data_chunks_head_ = nullptr;
-  data_chunks_tail_ = nullptr;
+  while (!data_chunks_.empty())
+    data_chunks_.pop();
   current_headers_head_ = nullptr;
   current_headers_tail_ = nullptr;
   current_headers_category_ = category;
@@ -699,13 +693,8 @@ inline void Nghttp2Stream::Destroy() {
   }
 
   // Free any remaining incoming data chunks.
-  while (data_chunks_head_ != nullptr) {
-    nghttp2_data_chunk_t* chunk = data_chunks_head_;
-    data_chunks_head_ = chunk->next;
-    delete[] chunk->buf.base;
-    data_chunk_free_list.push(chunk);
-  }
-  data_chunks_tail_ = nullptr;
+  while (!data_chunks_.empty())
+    data_chunks_.pop();
 
   // Free any remaining outgoing data chunks.
   while (queue_head_ != nullptr) {
@@ -907,21 +896,9 @@ inline int Nghttp2Stream::Write(nghttp2_stream_write_t* req,
 }
 
 inline void Nghttp2Stream::ReadStart() {
-  // Has no effect if IsReading() is true.
   if (IsReading())
     return;
   DEBUG_HTTP2("Nghttp2Stream %d: start reading\n", id_);
-  if (IsPaused()) {
-    // If handle->reading is less than zero, read_start had never previously
-    // been called. If handle->reading is zero, reading had started and read
-    // stop had been previously called, meaning that the flow control window
-    // has been explicitly set to zero. Reset the flow control window now to
-    // restart the flow of data.
-    nghttp2_session_set_local_window_size(session_->session(),
-                                          NGHTTP2_FLAG_NONE,
-                                          id_,
-                                          prev_local_window_size_);
-  }
   flags_ |= NGHTTP2_STREAM_FLAG_READ_START;
   flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
 
@@ -931,22 +908,9 @@ inline void Nghttp2Stream::ReadStart() {
 
 inline void Nghttp2Stream::ReadStop() {
   DEBUG_HTTP2("Nghttp2Stream %d: stop reading\n", id_);
-  // Has no effect if IsReading() is false, which will happen if we either
-  // have not started reading yet at all (NGHTTP2_STREAM_FLAG_READ_START is not
-  // set) or if we're already paused (NGHTTP2_STREAM_FLAG_READ_PAUSED is set.
   if (!IsReading())
     return;
   flags_ |= NGHTTP2_STREAM_FLAG_READ_PAUSED;
-
-  // When not reading, explicitly set the local window size to 0 so that
-  // the peer does not keep sending data that has to be buffered
-  int32_t ret =
-    nghttp2_session_get_stream_local_window_size(session_->session(), id_);
-  if (ret >= 0)
-    prev_local_window_size_ = ret;
-  nghttp2_session_set_local_window_size(session_->session(),
-                                        NGHTTP2_FLAG_NONE,
-                                        id_, 0);
 }
 
 Nghttp2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {

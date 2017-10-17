@@ -18,9 +18,6 @@ using v8::Undefined;
 
 namespace http2 {
 
-Freelist<nghttp2_data_chunk_t, FREELIST_MAX>
-    data_chunk_free_list;
-
 Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
@@ -31,6 +28,8 @@ Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
 
 Http2Options::Http2Options(Environment* env) {
   nghttp2_option_new(&options_);
+
+  nghttp2_option_set_no_auto_window_update(options_, 1);
 
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
       env->http2_state()->options_buffer;
@@ -649,7 +648,6 @@ void Http2Session::ShutdownStream(const FunctionCallbackInfo<Value>& args) {
   stream->Shutdown();
 }
 
-
 void Http2Session::StreamReadStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 #if defined(DEBUG) && DEBUG
@@ -734,6 +732,23 @@ void Http2Session::DestroyStream(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
   }
   stream->Destroy();
+}
+
+void Http2Session::FlushData(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+#if defined(DEBUG) && DEBUG
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+#endif
+  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+  DEBUG_HTTP2("Http2Session: flushing data to js for stream %d\n", id);
+  Nghttp2Stream* stream;
+  if (!(stream = session->FindStream(id))) {
+    return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
+  }
+  stream->FlushDataChunks();
 }
 
 void Http2Session::SubmitPushPromise(const FunctionCallbackInfo<Value>& args) {
@@ -928,15 +943,9 @@ void Http2Session::OnStreamClose(int32_t id, uint32_t code) {
   MakeCallback(env()->onstreamclose_string(), arraysize(argv), argv);
 }
 
-void FreeDataChunk(char* data, void* hint) {
-  nghttp2_data_chunk_t* item = reinterpret_cast<nghttp2_data_chunk_t*>(hint);
-  delete[] data;
-  data_chunk_free_list.push(item);
-}
-
 void Http2Session::OnDataChunk(
     Nghttp2Stream* stream,
-    nghttp2_data_chunk_t* chunk) {
+    uv_buf_t* chunk) {
   Isolate* isolate = env()->isolate();
   Local<Context> context = env()->context();
   HandleScope scope(isolate);
@@ -947,11 +956,8 @@ void Http2Session::OnDataChunk(
   ssize_t len = -1;
   Local<Object> buf;
   if (chunk != nullptr) {
-    len = chunk->buf.len;
-    buf = Buffer::New(isolate,
-                      chunk->buf.base, len,
-                      FreeDataChunk,
-                      chunk).ToLocalChecked();
+    len = chunk->len;
+    buf = Buffer::New(isolate, chunk->base, len).ToLocalChecked();
   }
   EmitData(len, buf, obj);
 }
@@ -1240,6 +1246,8 @@ void Initialize(Local<Object> target,
                       Http2Session::SetNextStreamID);
   env->SetProtoMethod(session, "destroyStream",
                       Http2Session::DestroyStream);
+  env->SetProtoMethod(session, "flushData",
+                      Http2Session::FlushData);
   StreamBase::AddMethods<Http2Session>(env, session,
                                         StreamBase::kFlagHasWritev |
                                         StreamBase::kFlagNoShutdown);

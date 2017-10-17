@@ -8,6 +8,8 @@
 #include "uv.h"
 #include "nghttp2/nghttp2.h"
 
+#include <list>
+#include <queue>
 #include <stdio.h>
 #include <unordered_map>
 
@@ -39,7 +41,6 @@ class Nghttp2Session;
 class Nghttp2Stream;
 
 struct nghttp2_stream_write_t;
-struct nghttp2_data_chunk_t;
 
 #define MAX_BUFFER_COUNT 10
 #define SEND_BUFFER_RECOMMENDED_SIZE 4096
@@ -163,7 +164,7 @@ class Nghttp2Session {
                          uint8_t flags) {}
   virtual void OnStreamClose(int32_t id, uint32_t code) {}
   virtual void OnDataChunk(Nghttp2Stream* stream,
-                           nghttp2_data_chunk_t* chunk) {}
+                           uv_buf_t* chunk) {}
   virtual void OnSettings(bool ack) {}
   virtual void OnPriority(int32_t id,
                           int32_t parent,
@@ -316,7 +317,7 @@ class Nghttp2Stream {
     DEBUG_HTTP2("Nghttp2Stream %d: freed\n", id_);
   }
 
-  inline void FlushDataChunks(bool done = false);
+  inline void FlushDataChunks();
 
   // Resets the state of the stream instance to defaults
   inline void ResetState(
@@ -485,8 +486,7 @@ class Nghttp2Stream {
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
 
   // Inbound Data... This is the data received via DATA frames for this stream.
-  nghttp2_data_chunk_t* data_chunks_head_ = nullptr;
-  nghttp2_data_chunk_t* data_chunks_tail_ = nullptr;
+  std::queue<uv_buf_t, std::list<uv_buf_t>> data_chunks_;
 
   // The RST_STREAM code used to close this stream
   int32_t code_ = NGHTTP2_NO_ERROR;
@@ -504,11 +504,6 @@ struct nghttp2_stream_write_t {
   int status;
   Nghttp2Stream* handle;
   nghttp2_stream_write_queue* item;
-};
-
-struct nghttp2_data_chunk_t {
-  uv_buf_t buf;
-  nghttp2_data_chunk_t* next = nullptr;
 };
 
 }  // namespace http2
