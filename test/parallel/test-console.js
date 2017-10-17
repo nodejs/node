@@ -42,10 +42,12 @@ assert.doesNotThrow(function() {
   console.timeEnd('label');
 });
 
+// Check that the `Error` is a `TypeError` but do not check the message as it
+// will be different in different JavaScript engines.
 assert.throws(() => console.time(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 assert.throws(() => console.timeEnd(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 
 
 // an Object with a custom .inspect() function
