@@ -207,6 +207,14 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret);
 }
 
+void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
+  auto iso = args.GetIsolate();
+  auto that = args.This();
+  ModuleWrap* obj = Unwrap<ModuleWrap>(that);
+  auto result = obj->module_.Get(iso)->GetModuleNamespace();
+  args.GetReturnValue().Set(result);
+}
+
 MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
                                                Local<String> specifier,
                                                Local<Module> referrer) {
@@ -516,6 +524,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);
   env->SetProtoMethod(tpl, "evaluate", Evaluate);
+  env->SetProtoMethod(tpl, "namespace", Namespace);
 
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"), tpl->GetFunction());
   env->SetMethod(target, "resolve", node::loader::ModuleWrap::Resolve);
