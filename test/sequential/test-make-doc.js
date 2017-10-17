@@ -43,4 +43,3 @@ const generatedHtmls = docs.filter(function(doc) {
 for (const html of generatedHtmls) {
   assert.ok(linkedHtmls.includes(html), `${html} is not linked in toc`);
 }
-  
