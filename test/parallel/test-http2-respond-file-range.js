@@ -3,6 +3,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
+const { fixturesDir } = require('../common/fixtures');
 const http2 = require('http2');
 const assert = require('assert');
 const path = require('path');
@@ -14,7 +15,7 @@ const {
   HTTP2_HEADER_LAST_MODIFIED
 } = http2.constants;
 
-const fname = path.resolve(common.fixturesDir, 'printA.js');
+const fname = path.resolve(fixturesDir, 'printA.js');
 const data = fs.readFileSync(fname);
 const stat = fs.statSync(fname);
 
