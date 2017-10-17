@@ -380,7 +380,7 @@ test-ci-js: | clear-stalled
 	fi
 
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi doc
+test-ci: | clear-stalled build-addons build-addons-napi
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -556,6 +556,7 @@ docclean:
 build-ci:
 	$(PYTHON) ./configure $(CONFIG_FLAGS)
 	$(MAKE)
+	$(MAKE) doc
 
 run-ci: build-ci
 	$(MAKE) test-ci
