@@ -589,7 +589,7 @@ TEST_F(InspectorSocketServerTest, TerminatingSessionReportsDone) {
 
 TEST_F(InspectorSocketServerTest, FailsToBindToNodejsHost) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, "nodejs.org", 0, nullptr);
+  ServerHolder server(&delegate, &loop, "nodejs.org", 80, nullptr);
   ASSERT_FALSE(server->Start());
   SPIN_WHILE(uv_loop_alive(&loop));
 }
