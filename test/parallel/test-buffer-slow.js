@@ -34,7 +34,9 @@ try {
   assert.strictEqual(
     SlowBuffer(buffer.kMaxLength).length, buffer.kMaxLength);
 } catch (e) {
-  assert.strictEqual(e.message, 'Array buffer allocation failed');
+  // Don't match on message as it is from the JavaScript engine. V8 and
+  // ChakraCore provide different messages.
+  assert.strictEqual(e.name, 'RangeError');
 }
 
 // should work with number-coercible values
