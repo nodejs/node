@@ -1,17 +1,16 @@
 'use strict';
+
+// This test that the family option of https.get is honored.
+
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (!common.hasIPv6)
-  common.skip('no IPv6 support');
+common.skipIfNoIpv6Localhost((ipv6Host) => {
+  const assert = require('assert');
+  const https = require('https');
+  const fixtures = require('../common/fixtures');
 
-const assert = require('assert');
-const fixtures = require('../common/fixtures');
-const https = require('https');
-const dns = require('dns');
-
-function runTest() {
   https.createServer({
     cert: fixtures.readKey('agent1-cert.pem'),
     key: fixtures.readKey('agent1-key.pem'),
@@ -20,7 +19,7 @@ function runTest() {
     res.end();
   })).listen(0, '::1', common.mustCall(function() {
     const options = {
-      host: 'localhost',
+      host: ipv6Host,
       port: this.address().port,
       family: 6,
       rejectUnauthorized: false,
@@ -31,18 +30,4 @@ function runTest() {
       this.destroy();
     }));
   }));
-}
-
-dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
-  if (err) {
-    if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')
-      common.skip('localhost does not resolve to ::1');
-
-    throw err;
-  }
-
-  if (addresses.some((val) => val.address === '::1'))
-    runTest();
-  else
-    common.skip('localhost does not resolve to ::1');
 });
