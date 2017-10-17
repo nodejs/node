@@ -62,6 +62,7 @@ class Agent {
   void AsyncTaskStarted(void* task);
   void AsyncTaskFinished(void* task);
   void AllAsyncTasksCanceled();
+  void InterceptAsyncStackDepthMessage(const v8_inspector::StringView& message);
 
   void RegisterAsyncHook(v8::Isolate* isolate,
     v8::Local<v8::Function> enable_function,
@@ -93,6 +94,9 @@ class Agent {
   void ContextCreated(v8::Local<v8::Context> context);
 
  private:
+  void EnableAsyncHook(v8::Isolate* isolate);
+  void DisableAsyncHook(v8::Isolate* isolate);
+
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;
   std::unique_ptr<InspectorIo> io_;
@@ -102,6 +106,8 @@ class Agent {
   DebugOptions debug_options_;
   int next_context_number_;
 
+  bool pending_enable_async_hook_;
+  bool pending_disable_async_hook_;
   v8::Persistent<v8::Function> enable_async_hook_function_;
   v8::Persistent<v8::Function> disable_async_hook_function_;
 };

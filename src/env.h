@@ -101,6 +101,7 @@ class ModuleWrap;
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
+  V(async_stack_depth_string, "Debugger.setAsyncCallStackDepth")              \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -185,7 +186,9 @@ class ModuleWrap;
   V(length_string, "length")                                                  \
   V(mac_string, "mac")                                                        \
   V(max_buffer_string, "maxBuffer")                                           \
+  V(max_depth_string, "maxDepth")                                             \
   V(message_string, "message")                                                \
+  V(method_string, "method")                                                  \
   V(minttl_string, "minttl")                                                  \
   V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
@@ -228,6 +231,7 @@ class ModuleWrap;
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
+  V(params_string, "params")                                                  \
   V(parse_error_string, "Parse Error")                                        \
   V(path_string, "path")                                                      \
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
