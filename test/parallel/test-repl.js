@@ -72,7 +72,7 @@ function clean_up() {
 function strict_mode_error_test() {
   send_expect([
     { client: client_unix, send: 'ref = 1',
-      expect: /^ReferenceError:\sref\sis\snot\sdefined\nnode via Unix socket> $/ },
+      expect: /^ReferenceError:\s/ },
   ]);
 }
 
@@ -143,7 +143,7 @@ function error_test() {
       expect: prompt_unix },
     // But passing the same string to eval() should throw
     { client: client_unix, send: 'eval("function test_func() {")',
-      expect: /^SyntaxError: Unexpected end of input/ },
+      expect: /^SyntaxError: / },
     // Can handle multiline template literals
     { client: client_unix, send: '`io.js',
       expect: prompt_multiline },
@@ -172,51 +172,48 @@ function error_test() {
     // invalid input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-      expect: /^SyntaxError: Unexpected token i/ },
+      expect: /^SyntaxError: / },
     // end of input to JSON.parse error is special case of syntax error,
     // should throw
     { client: client_unix, send: 'JSON.parse(\'066\');',
-      expect: /^SyntaxError: Unexpected number/ },
+      expect: /^SyntaxError: / },
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{\');',
-      expect: /^SyntaxError: Unexpected end of JSON input/ },
+      expect: /^SyntaxError: / },
     // invalid RegExps are a special case of syntax error,
     // should throw
     { client: client_unix, send: '/(/;',
-      expect: /^SyntaxError: Invalid regular expression:/ },
+      expect: /^SyntaxError: / },
     // invalid RegExp modifiers are a special case of syntax error,
     // should throw (GH-4012)
     { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
-      expect: /^SyntaxError: Invalid flags supplied to RegExp constructor/ },
+      expect: /^SyntaxError: / },
     // strict mode syntax errors should be caught (GH-5178)
     { client: client_unix,
       send: '(function() { "use strict"; return 0755; })()',
-      expect: /\bSyntaxError: Octal literals are not allowed in strict mode/ },
+      expect: /\bSyntaxError: / },
     {
       client: client_unix,
       send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect:
-        /\bSyntaxError: Duplicate parameter name not allowed in this context/
+      expect: /\bSyntaxError: /
     },
     {
       client: client_unix,
       send: '(function() { "use strict"; with (this) {} })()',
-      expect: /\bSyntaxError: Strict mode code may not include a with statement/
+      expect: /\bSyntaxError: /
     },
     {
       client: client_unix,
       send: '(function() { "use strict"; var x; delete x; })()',
-      expect:
-        /\bSyntaxError: Delete of an unqualified identifier in strict mode/
+      expect: /\bSyntaxError: /
     },
     { client: client_unix,
       send: '(function() { "use strict"; eval = 17; })()',
-      expect: /\bSyntaxError: Unexpected eval or arguments in strict mode/ },
+      expect: /\bSyntaxError: / },
     {
       client: client_unix,
       send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect:
-        /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./
+      expect: /\bSyntaxError: /
     },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
@@ -268,7 +265,7 @@ function error_test() {
       expect: `Invalid REPL keyword\n${prompt_unix}` },
     // fail when we are not inside a String and a line continuation is used
     { client: client_unix, send: '[] \\',
-      expect: /\bSyntaxError: Invalid or unexpected token/ },
+      expect: /\bSyntaxError: / },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
       expect: `${prompt_multiline}${prompt_multiline}'thefourtheye'\n${
