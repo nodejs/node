@@ -1598,6 +1598,9 @@ added: v8.4.0
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `createConnection` {Function} An optional callback that receives the `URL`
+    instance passed to `connect` and the `options` object, and returns any
+    [`Duplex`][] stream that is to be used as the connection for this session.
 * `listener` {Function}
 * Returns {Http2Session}
 
