@@ -1,6 +1,7 @@
 // Flags: --experimental-modules
 /* eslint-disable required-modules */
-'use strict';
+
+import assert from 'assert';
 
 let knownGlobals = [
   Buffer,
@@ -16,45 +17,6 @@ let knownGlobals = [
   setTimeout
 ];
 
-knownGlobals.push(global.gc);
-
-knownGlobals.push(DTRACE_HTTP_SERVER_RESPONSE);
-knownGlobals.push(DTRACE_HTTP_SERVER_REQUEST);
-knownGlobals.push(DTRACE_HTTP_CLIENT_RESPONSE);
-knownGlobals.push(DTRACE_HTTP_CLIENT_REQUEST);
-knownGlobals.push(DTRACE_NET_STREAM_END);
-knownGlobals.push(DTRACE_NET_SERVER_CONNECTION);
-
-knownGlobals.push(COUNTER_NET_SERVER_CONNECTION);
-knownGlobals.push(COUNTER_NET_SERVER_CONNECTION_CLOSE);
-knownGlobals.push(COUNTER_HTTP_SERVER_REQUEST);
-knownGlobals.push(COUNTER_HTTP_SERVER_RESPONSE);
-knownGlobals.push(COUNTER_HTTP_CLIENT_REQUEST);
-knownGlobals.push(COUNTER_HTTP_CLIENT_RESPONSE);
-
-knownGlobals.push(LTTNG_HTTP_SERVER_RESPONSE);
-knownGlobals.push(LTTNG_HTTP_SERVER_REQUEST);
-knownGlobals.push(LTTNG_HTTP_CLIENT_RESPONSE);
-knownGlobals.push(LTTNG_HTTP_CLIENT_REQUEST);
-knownGlobals.push(LTTNG_NET_STREAM_END);
-knownGlobals.push(LTTNG_NET_SERVER_CONNECTION);
-
-knownGlobals.push(ArrayBuffer);
-knownGlobals.push(Int8Array);
-knownGlobals.push(Uint8Array);
-knownGlobals.push(Uint8ClampedArray);
-knownGlobals.push(Int16Array);
-knownGlobals.push(Uint16Array);
-knownGlobals.push(Int32Array);
-knownGlobals.push(Uint32Array);
-knownGlobals.push(Float32Array);
-knownGlobals.push(Float64Array);
-knownGlobals.push(DataView);
-
-knownGlobals.push(Proxy);
-
-knownGlobals.push(Symbol);
-
 if (process.env.NODE_TEST_KNOWN_GLOBALS) {
   const knownFromEnv = process.env.NODE_TEST_KNOWN_GLOBALS.split(',');
   allowGlobals(...knownFromEnv);
@@ -65,6 +27,61 @@ export function allowGlobals(...whitelist) {
 }
 
 export function leakedGlobals() {
+  //add possible expected globals
+  if (global.gc) {
+    knownGlobals.push(global.gc);
+  }
+
+  if (global.DTRACE_HTTP_SERVER_RESPONSE) {
+    knownGlobals.push(DTRACE_HTTP_SERVER_RESPONSE);
+    knownGlobals.push(DTRACE_HTTP_SERVER_REQUEST);
+    knownGlobals.push(DTRACE_HTTP_CLIENT_RESPONSE);
+    knownGlobals.push(DTRACE_HTTP_CLIENT_REQUEST);
+    knownGlobals.push(DTRACE_NET_STREAM_END);
+    knownGlobals.push(DTRACE_NET_SERVER_CONNECTION);
+  }
+
+  if (global.COUNTER_NET_SERVER_CONNECTION) {
+    knownGlobals.push(COUNTER_NET_SERVER_CONNECTION);
+    knownGlobals.push(COUNTER_NET_SERVER_CONNECTION_CLOSE);
+    knownGlobals.push(COUNTER_HTTP_SERVER_REQUEST);
+    knownGlobals.push(COUNTER_HTTP_SERVER_RESPONSE);
+    knownGlobals.push(COUNTER_HTTP_CLIENT_REQUEST);
+    knownGlobals.push(COUNTER_HTTP_CLIENT_RESPONSE);
+  }
+
+  if (global.LTTNG_HTTP_SERVER_RESPONSE) {
+    knownGlobals.push(LTTNG_HTTP_SERVER_RESPONSE);
+    knownGlobals.push(LTTNG_HTTP_SERVER_REQUEST);
+    knownGlobals.push(LTTNG_HTTP_CLIENT_RESPONSE);
+    knownGlobals.push(LTTNG_HTTP_CLIENT_REQUEST);
+    knownGlobals.push(LTTNG_NET_STREAM_END);
+    knownGlobals.push(LTTNG_NET_SERVER_CONNECTION);
+  }
+
+  if (global.ArrayBuffer) {
+    knownGlobals.push(ArrayBuffer);
+    knownGlobals.push(Int8Array);
+    knownGlobals.push(Uint8Array);
+    knownGlobals.push(Uint8ClampedArray);
+    knownGlobals.push(Int16Array);
+    knownGlobals.push(Uint16Array);
+    knownGlobals.push(Int32Array);
+    knownGlobals.push(Uint32Array);
+    knownGlobals.push(Float32Array);
+    knownGlobals.push(Float64Array);
+    knownGlobals.push(DataView);
+  }
+
+  // Harmony features.
+  if (global.Proxy) {
+    knownGlobals.push(Proxy);
+  }
+
+  if (global.Symbol) {
+    knownGlobals.push(Symbol);
+  }
+
   const leaked = [];
 
   for (const val in global) {
@@ -81,7 +98,7 @@ export function leakedGlobals() {
 }
 
 // Turn this off if the test should not check for global leaks.
-export var globalCheck = true;
+export let globalCheck = true;
 
 process.on('exit', function() {
   if (!globalCheck) return;
