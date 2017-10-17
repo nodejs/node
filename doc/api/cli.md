@@ -128,7 +128,7 @@ Print stack traces for process warnings (including deprecations).
 
 ### `--redirect-warnings=file`
 <!-- YAML
-added: REPLACEME
+added: v6.12.0
 -->
 
 Write process warnings to the given file instead of printing to stderr. The
@@ -338,7 +338,7 @@ When set to `1`, process warnings are silenced.
 
 ### `NODE_OPTIONS=options...`
 <!-- YAML
-added: REPLACEME
+added: v6.12.0
 -->
 
 `options...` are interpreted as if they had been specified on the command line
@@ -438,7 +438,7 @@ OpenSSL, it may cause them to trust the same CAs as node.
 
 ### `NODE_REDIRECT_WARNINGS=file`
 <!-- YAML
-added: REPLACEME
+added: v6.12.0
 -->
 
 When set, process warnings will be emitted to the given file instead of

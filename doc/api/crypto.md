@@ -897,7 +897,7 @@ console.log(sign.sign(privateKey, 'hex'));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
@@ -1005,7 +1005,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
