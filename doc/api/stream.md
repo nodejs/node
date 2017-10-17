@@ -2064,8 +2064,8 @@ contain multi-byte characters.
 [`writable.uncork()`]: #stream_writable_uncork
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
-[child process stdin]: child_process.html#child_process_child_stdin
-[child process stdout and stderr]: child_process.html#child_process_child_stdout
+[child process stdin]: child_process.html#child_process_subprocess_stdin
+[child process stdout and stderr]: child_process.html#child_process_subprocess_stdout
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
 [crypto]: crypto.html
 [Duplex]: #stream_class_stream_duplex
@@ -2080,7 +2080,7 @@ contain multi-byte characters.
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [Readable]: #stream_class_stream_readable
 [zlib]: zlib.html
-[hwm-gotcha]: #stream_highWaterMark_discrepency_after_calling_readable_setencoding
+[hwm-gotcha]: #stream_highwatermark_discrepency_after_calling_readable_setencoding
 [Readable]: #stream_class_stream_readable
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
