@@ -12,7 +12,7 @@ separate module.
 added: v0.4.5
 -->
 
-An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
+An [`Agent`][] object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
 for more information.
 
 ## Class: https.Server
@@ -168,9 +168,10 @@ changes:
 
 Makes a request to a secure web server.
 
-The following additional `options` from [`tls.connect()`][] are also accepted
-when using a custom [`Agent`][]: `ca`, `cert`, `ciphers`, `clientCertEngine`,
-`key`, `passphrase`, `pfx`, `rejectUnauthorized`, `secureProtocol`, `servername`
+The following additional `options` from [`tls.connect()`][] are also accepted:
+`ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
+`honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
+`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
@@ -220,7 +221,7 @@ const req = https.request(options, (res) => {
 });
 ```
 
-Alternatively, opt out of connection pooling by not using an `Agent`.
+Alternatively, opt out of connection pooling by not using an [`Agent`][].
 
 Example:
 
