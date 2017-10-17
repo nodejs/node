@@ -27,10 +27,52 @@ JSStream::JSStream(Environment* env, Local<Object> obj)
       StreamBase(env) {
   node::Wrap(obj, this);
   MakeWeak<JSStream>(this);
+
+  set_alloc_cb({ OnAllocImpl, this });
+  set_read_cb({ OnReadImpl, this });
 }
 
 
 JSStream::~JSStream() {
+}
+
+
+void JSStream::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
+  buf->base = Malloc(size);
+  buf->len = size;
+}
+
+
+void JSStream::OnReadImpl(ssize_t nread,
+                          const uv_buf_t* buf,
+                          uv_handle_type pending,
+                          void* ctx) {
+  JSStream* wrap = static_cast<JSStream*>(ctx);
+  CHECK_NE(wrap, nullptr);
+  Environment* env = wrap->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  if (nread < 0)  {
+    if (buf != nullptr && buf->base != nullptr)
+      free(buf->base);
+    wrap->EmitData(nread, Local<Object>(), Local<Object>());
+    return;
+  }
+
+  if (nread == 0) {
+    if (buf->base != nullptr)
+      free(buf->base);
+    return;
+  }
+
+  CHECK_LE(static_cast<size_t>(nread), buf->len);
+  char* base = node::Realloc(buf->base, nread);
+
+  CHECK_EQ(pending, UV_UNKNOWN_HANDLE);
+
+  Local<Object> obj = Buffer::New(env, base, nread).ToLocalChecked();
+  wrap->EmitData(nread, obj, Local<Object>());
 }
 
 
@@ -134,37 +176,6 @@ void JSStream::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void FreeCallback(char* data, void* hint) {
-  // Intentional no-op
-}
-
-
-void JSStream::DoAlloc(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-  uv_buf_t buf;
-  wrap->OnAlloc(args[0]->Int32Value(), &buf);
-  Local<Object> vbuf = Buffer::New(
-      wrap->env(),
-      buf.base,
-      buf.len,
-      FreeCallback,
-      nullptr).ToLocalChecked();
-  return args.GetReturnValue().Set(vbuf);
-}
-
-
-void JSStream::DoRead(const FunctionCallbackInfo<Value>& args) {
-  JSStream* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-  CHECK(Buffer::HasInstance(args[1]));
-  uv_buf_t buf = uv_buf_init(Buffer::Data(args[1]), Buffer::Length(args[1]));
-  wrap->OnRead(args[0]->Int32Value(), &buf);
-}
-
-
 void JSStream::DoAfterWrite(const FunctionCallbackInfo<Value>& args) {
   JSStream* wrap;
   CHECK(args[0]->IsObject());
@@ -230,8 +241,6 @@ void JSStream::Initialize(Local<Object> target,
 
   AsyncWrap::AddWrapMethods(env, t);
 
-  env->SetProtoMethod(t, "doAlloc", DoAlloc);
-  env->SetProtoMethod(t, "doRead", DoRead);
   env->SetProtoMethod(t, "doAfterWrite", DoAfterWrite);
   env->SetProtoMethod(t, "finishWrite", Finish<WriteWrap>);
   env->SetProtoMethod(t, "finishShutdown", Finish<ShutdownWrap>);
