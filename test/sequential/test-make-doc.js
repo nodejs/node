@@ -1,9 +1,11 @@
 'use strict';
 
+// This tests that `make doc` generates the documentation properly.
+// Note that for this test to pass, `make doc` must be run first.
+
 const common = require('../common');
 
 const assert = require('assert');
-const exec = require('child_process').exec;
 const fs = require('fs');
 const path = require('path');
 
@@ -11,50 +13,34 @@ if (common.isWindows) {
   common.skip('Do not make doc on Windows');
 }
 
-// Make sure all the relative links work and
-// all the generated documents are linked in TOC
-function verifyToc() {
-  const apiPath = path.join(common.projectDir, 'out', 'doc', 'api');
-  const docs = fs.readdirSync(apiPath);
-  assert.notStrictEqual(docs.indexOf('_toc.html'), -1);
+const apiPath = path.join(common.projectDir, 'out', 'doc', 'api');
+const docs = fs.readdirSync(apiPath);
+assert.ok(docs.includes('_toc.html'));
 
-  const toc = fs.readFileSync(path.join(apiPath, '_toc.html'), 'utf8');
-  const re = /href="([^/]+\.html)"/;
-  const globalRe = new RegExp(re, 'g');
-  const links = toc.match(globalRe);
-  assert.notStrictEqual(links, null);
+const toc = fs.readFileSync(path.join(apiPath, '_toc.html'), 'utf8');
+const re = /href="([^/]+\.html)"/;
+const globalRe = new RegExp(re, 'g');
+const links = toc.match(globalRe);
+assert.notStrictEqual(links, null);
 
-  const linkedHtmls = links.map((link) => link.match(re)[1]);
-  for (const html of linkedHtmls) {
-    assert.notStrictEqual(docs.indexOf(html), -1, `${html} does not exist`);
-  }
-
-  const excludes = ['.json', '_toc', 'assets'];
-  const generatedHtmls = docs.filter(function(doc) {
-    for (const exclude of excludes) {
-      if (doc.includes(exclude)) {
-        return false;
-      }
-    }
-    return true;
-  });
-
-  for (const html of generatedHtmls) {
-    assert.notStrictEqual(
-      linkedHtmls.indexOf(html),
-      -1,
-      `${html} is not linked in toc`);
-  }
+// Test that all the relative links in the TOC of the documentation
+// work and all the generated documents are linked in TOC.
+const linkedHtmls = links.map((link) => link.match(re)[1]);
+for (const html of linkedHtmls) {
+  assert.ok(docs.includes(html), `${html} does not exist`);
 }
 
-exec('make doc', {
-  cwd: common.projectDir
-}, common.mustCall(function onExit(err, stdout, stderr) {
-  console.log(stdout);
-  if (stderr.length > 0) {
-    console.log('stderr is not empty: ');
-    console.log(stderr);
+const excludes = ['.json', '_toc', 'assets'];
+const generatedHtmls = docs.filter(function(doc) {
+  for (const exclude of excludes) {
+    if (doc.includes(exclude)) {
+      return false;
+    }
   }
-  assert.ifError(err);
-  verifyToc();
-}));
+  return true;
+});
+
+for (const html of generatedHtmls) {
+  assert.ok(linkedHtmls.includes(html), `${html} is not linked in toc`);
+}
+  
