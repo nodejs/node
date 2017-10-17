@@ -797,11 +797,14 @@ added: v0.1.0
 
 * `socket` {net.Socket}
 
-When a new TCP stream is established. `socket` is an object of type
-[`net.Socket`][]. Usually users will not want to access this event. In
-particular, the socket will not emit `'readable'` events because of how
-the protocol parser attaches to the socket. The `socket` can also be
-accessed at `request.connection`.
+This event is emitted when a new TCP stream is established. `socket` is
+typically an object of type [`net.Socket`][]. Usually users will not want to
+access this event. In particular, the socket will not emit `'readable'` events
+because of how the protocol parser attaches to the socket. The `socket` can
+also be accessed at `request.connection`.
+
+*Note*: This event can also be explicitly emitted by users to inject connections
+into the HTTP server. In that case, any [`Duplex`][] stream can be passed.
 
 ### Event: 'request'
 <!-- YAML
@@ -1769,7 +1772,7 @@ changes:
     use for the request when the `agent` option is not used. This can be used to
     avoid creating a custom `Agent` class just to override the default
     `createConnection` function. See [`agent.createConnection()`][] for more
-    details.
+    details. Any [`Duplex`][] stream is a valid return value.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
 * `callback` {Function}
@@ -1868,6 +1871,7 @@ const req = http.request(options, (res) => {
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
+[`Duplex`]: stream.html#stream_class_stream_duplex
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URL`]: url.html#url_the_whatwg_url_api
