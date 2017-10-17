@@ -519,7 +519,7 @@ doc: $(NODE_EXE) doc-only
 $(apidoc_dirs):
 	mkdir -p $@
 
-out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
+out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	cp $< $@
 
 out/doc/%: doc/%
