@@ -2,10 +2,10 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 const assert = require('assert');
-const { NodeInstance } = require('./inspector-helper.js');
-const path = require('path');
+const { NodeInstance } = require('../common/inspector-helper.js');
+const fixtures = require('../common/fixtures');
 
-const script = path.join(path.dirname(module.filename), 'global-function.js');
+const script = fixtures.path('inspector-global-function.js');
 
 async function setupDebugger(session) {
   console.log('[test]', 'Setting up a debugger');
