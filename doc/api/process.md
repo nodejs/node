@@ -430,7 +430,7 @@ It is important to take note of the following:
    called asynchronously and therefore unable to correct the underlying problem.
 
 *Note*: Windows does not support sending signals, but Node.js offers some
-emulation with [`process.kill()`][], and [`ChildProcess.kill()`][]. Sending
+emulation with [`process.kill()`][], and [`subprocess.kill()`][]. Sending
 signal `0` can be used to test for the existence of a process. Sending `SIGINT`,
 `SIGTERM`, and `SIGKILL` cause the unconditional termination of the target
 process.
@@ -1779,9 +1779,9 @@ cases:
 [`'message'`]: child_process.html#child_process_event_message
 [`'rejectionHandled'`]: #process_event_rejectionhandled
 [`'uncaughtException'`]: #process_event_uncaughtexception
-[`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
-[`ChildProcess.kill()`]: child_process.html#child_process_child_kill_signal
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
+[`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
+[`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`Error`]: errors.html#errors_class_error
