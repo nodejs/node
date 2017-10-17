@@ -313,9 +313,13 @@ changes:
   * `colors` {boolean} If `true`, the output will be styled with ANSI color
     codes. Defaults to `false`. Colors are customizable, see
     [Customizing `util.inspect` colors][].
-  * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions exported on the `object` being inspected will not be called.
-    Defaults to `true`.
+  * `customInspect` {boolean} If `false`, then custom functions exported
+    by the `object` being inspected, either with the `inspect` name or with
+    the `inspect.custom` Symbol, will not be called to generate it's
+    inspected value. Defaults to `true`.
+  * `customInspectMethod` {boolean} If `false`, then the  custom inspect
+    method exported by `inspect` name on the `object` being inspected will
+    not be called. Defaults to `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. Defaults to `false`.
