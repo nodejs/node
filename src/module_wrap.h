@@ -34,6 +34,7 @@ class ModuleWrap : public BaseObject {
   static void Link(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Namespace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetUrl(v8::Local<v8::String> property,
                      const v8::PropertyCallbackInfo<v8::Value>& info);
   static void Resolve(const v8::FunctionCallbackInfo<v8::Value>& args);
