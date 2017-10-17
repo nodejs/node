@@ -45,6 +45,8 @@ AsyncWrap* JSStream::GetAsyncWrap() {
 
 
 bool JSStream::IsAlive() {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   v8::Local<v8::Value> fn = object()->Get(env()->isalive_string());
   if (!fn->IsFunction())
     return false;
@@ -54,18 +56,24 @@ bool JSStream::IsAlive() {
 
 
 bool JSStream::IsClosing() {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   return MakeCallback(env()->isclosing_string(), 0, nullptr)
       .ToLocalChecked()->IsTrue();
 }
 
 
 int JSStream::ReadStart() {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   return MakeCallback(env()->onreadstart_string(), 0, nullptr)
       .ToLocalChecked()->Int32Value();
 }
 
 
 int JSStream::ReadStop() {
+  HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
   return MakeCallback(env()->onreadstop_string(), 0, nullptr)
       .ToLocalChecked()->Int32Value();
 }
@@ -73,6 +81,7 @@ int JSStream::ReadStop() {
 
 int JSStream::DoShutdown(ShutdownWrap* req_wrap) {
   HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
   Local<Value> argv[] = {
     req_wrap->object()
@@ -93,6 +102,7 @@ int JSStream::DoWrite(WriteWrap* w,
   CHECK_EQ(send_handle, nullptr);
 
   HandleScope scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
 
   Local<Array> bufs_arr = Array::New(env()->isolate(), count);
   Local<Object> buf;
