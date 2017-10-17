@@ -25,6 +25,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 const os = require('os');
+const dns = require('dns');
 const { exec, execSync, spawn, spawnSync } = require('child_process');
 const stream = require('stream');
 const util = require('util');
@@ -763,6 +764,64 @@ exports.skipIf32Bits = function skipIf32Bits() {
   if (process.binding('config').bits < 64) {
     exports.skip('The tested feature is not available in 32bit builds');
   }
+};
+
+exports.skipIfNoIpv6Localhost = function skipIfNoIpv6Localhost(cb) {
+  if (!exports.hasIPv6) {
+    exports.skip('no IPv6 support');
+  }
+
+  const hosts = exports.localIPv6Hosts;
+  let localhostTries = 10;  // Try to resolve "localhost" 10 times
+
+  function tryResolve(hostIdx) {
+    const host = hosts[hostIdx];
+
+    dns.lookup(host, { family: 6, all: true }, (err, addresses) => {
+      // ENOTFOUND means we don't have the requested address. In this
+      // case we try the next one in the list and if we run out of
+      // candidates we assume IPv6 is not supported on the
+      // machine and skip the test.
+      // EAI_AGAIN means we tried to remotely resolve the address and
+      // timed out or hit some intermittent connectivity issue with the
+      // dns server.  Although we are looking for local loopback addresses
+      // we may go remote since the list we search includes addresses that
+      // cover more than is available on any one distribution. The
+      // net is that if we get an EAI_AGAIN we were looking for an
+      // address which does not exist in this distribution so the error
+      // is not significant and we should just move on and try the
+      // next address in the list.
+      if (err) {
+        const isResolutionErr = (err.syscall === 'getaddrinfo') &&
+          ((err.code === 'ENOTFOUND') || (err.code === 'EAI_AGAIN'));
+
+        if (!isResolutionErr) {
+          throw err;
+        }
+
+        if (host !== 'localhost') {
+          // Try again with the next available host
+          if (hostIdx + 1 < hosts.length) {
+            return tryResolve(hostIdx + 1);
+          }
+        } else if (localhostTries > 0) {  // Try again with localhost
+          localhostTries--;
+          return tryResolve(hostIdx);
+        }
+
+        exports.skip('No available local host that resolves to ::1');
+      }
+
+      // Success, return the host that can be resolved to ::1
+      if (addresses.some((val) => val.address === '::1')) {
+        return cb(host);
+      }
+
+      exports.skip('No available local host that resolves to ::1');
+    });
+  }
+
+  tryResolve(0);
 };
 
 const arrayBufferViews = [
