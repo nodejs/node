@@ -591,7 +591,7 @@ inline int Nghttp2Session::Free() {
   CHECK(session_ != nullptr);
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
   // Stop the loop
-  uv_prepare_stop(&prep_);
+  CHECK_EQ(uv_prepare_stop(&prep_), 0);
   auto PrepClose = [](uv_handle_t* handle) {
     Nghttp2Session* session =
         ContainerOf(&Nghttp2Session::prep_,
