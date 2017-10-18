@@ -161,7 +161,11 @@ if (common.isWindows) {
 } else {
   is.number(pwd.uid);
   is.number(pwd.gid);
-  assert.ok(pwd.shell.includes(path.sep));
+  assert.strictEqual(typeof pwd.shell, 'string');
+  // It's possible for /etc/passwd to leave the user's shell blank.
+  if (pwd.shell.length > 0) {
+    assert(pwd.shell.includes(path.sep));
+  }
   assert.strictEqual(pwd.uid, pwdBuf.uid);
   assert.strictEqual(pwd.gid, pwdBuf.gid);
   assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
