@@ -429,7 +429,6 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
             stream->headers(),
             stream->headers_category(),
             frame->hd.flags);
-  stream->FreeHeaders();
 }
 
 // Notifies the JS layer that a PRIORITY frame has been received
@@ -694,16 +693,11 @@ inline void Nghttp2Stream::Destroy() {
   }
 
   // Free any remaining headers
-  FreeHeaders();
+  while (!current_headers_.empty())
+    current_headers_.pop();
 
   // Return this stream instance to the freelist
   stream_free_list.push(this);
-}
-
-inline void Nghttp2Stream::FreeHeaders() {
-  DEBUG_HTTP2("Nghttp2Stream %d: freeing headers\n", id_);
-  while (!current_headers_.empty())
-    current_headers_.pop();
 }
 
 // Submit informational headers for a stream.

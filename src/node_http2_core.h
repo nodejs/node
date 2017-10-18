@@ -439,8 +439,6 @@ class Nghttp2Stream {
     return current_headers_category_;
   }
 
-  inline void FreeHeaders();
-
   void StartHeaders(nghttp2_headers_category category) {
     DEBUG_HTTP2("Nghttp2Stream %d: starting headers, category: %d\n",
                 id_, category);
