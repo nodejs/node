@@ -94,8 +94,7 @@ class Agent {
   void ContextCreated(v8::Local<v8::Context> context);
 
  private:
-  void EnableAsyncHook(v8::Isolate* isolate);
-  void DisableAsyncHook(v8::Isolate* isolate);
+  void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
 
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;

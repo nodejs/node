@@ -535,14 +535,7 @@ void Agent::Stop() {
 
   // Disable tracking of async stack traces
   if (!disable_async_hook_function_.IsEmpty()) {
-    Local<Function> disable_fn = disable_async_hook_function_.Get(isolate);
-    auto result = disable_fn->Call(parent_env_->context(),
-      Undefined(parent_env_->isolate()), 0, nullptr);
-    if (result.IsEmpty()) {
-      FatalError(
-        "node::InspectorAgent::Stop",
-        "Cannot disable Inspector's AsyncHook, please report this.");
-    }
+    ToggleAsyncHook(isolate, disable_async_hook_function_.Get(isolate));
   }
 }
 
@@ -607,34 +600,21 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
   disable_async_hook_function_.Reset(isolate, disable_function);
   if (pending_enable_async_hook_) {
     pending_enable_async_hook_ = false;
-    EnableAsyncHook(isolate);
+    ToggleAsyncHook(isolate, enable_async_hook_function_.Get(isolate));
   } else if (pending_disable_async_hook_) {
     pending_disable_async_hook_ = false;
-    DisableAsyncHook(isolate);
+    ToggleAsyncHook(isolate, disable_async_hook_function_.Get(isolate));
   }
 }
 
-void Agent::EnableAsyncHook(Isolate* isolate) {
-  CHECK(!enable_async_hook_function_.IsEmpty());
-  Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
+void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
+  HandleScope handle_scope(isolate);
   auto context = parent_env_->context();
-  auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
+  auto result = fn->Call(context, Undefined(isolate), 0, nullptr);
   if (result.IsEmpty()) {
     FatalError(
-      "node::inspector::Agent::EnableAsyncHook",
-      "Cannot enable Inspector's AsyncHook, please report this.");
-  }
-}
-
-void Agent::DisableAsyncHook(Isolate* isolate) {
-  CHECK(!disable_async_hook_function_.IsEmpty());
-  Local<Function> disable_fn = disable_async_hook_function_.Get(isolate);
-  auto context = parent_env_->context();
-  auto result = disable_fn->Call(context, Undefined(isolate), 0, nullptr);
-  if (result.IsEmpty()) {
-    FatalError(
-      "node::inspector::Agent::DisableAsyncHook",
-      "Cannot disable Inspector's AsyncHook, please report this.");
+      "node::inspector::Agent::ToggleAsyncHook",
+      "Cannot toggle Inspector's AsyncHook, please report this.");
   }
 }
 
@@ -664,10 +644,15 @@ void Agent::InterceptAsyncStackDepthMessage(const StringView& message) {
   // --inspect-brk, the debugger must necessarily attach before much JavaScript
   // can execute. The Debugger.setAsyncCallStackDepth message arrives too early
   // and we must intercept this in C++.
+  //
+  // TODO: for performance reasons, it would be good to pre-scan the string for
+  // 'Debugger.setAsyncCallStackDepth' and return early if not found.
 
   v8::Isolate* isolate = parent_env_->isolate();
+  HandleScope handle_scope(isolate);
   Local<Context> context = parent_env_->context();
 
+  v8::TryCatch try_catch(isolate); // catch and ignore exceptions.
   MaybeLocal<String> string =
     String::NewFromTwoByte(isolate, message.characters16(),
                            v8::NewStringType::kNormal, message.length());
@@ -688,28 +673,23 @@ void Agent::InterceptAsyncStackDepthMessage(const StringView& message) {
   // We ignore (return early) on malformed messages and let v8-inspector deal
   // with them.
 
-  MaybeLocal<Value> maybe_parsed =
-    v8::JSON::Parse(context, string.ToLocalChecked());
-  if (maybe_parsed.IsEmpty()) {
+  Local<Value> scratch;
+  Local<Object> parsed;
+  if (!v8::JSON::Parse(context, string.ToLocalChecked()).ToLocal(&scratch) ||
+      !scratch->IsObject() ||
+      !scratch->ToObject(context).ToLocal(&parsed)) {
     return;
   }
-
-  Local<Value> parsed = maybe_parsed.ToLocalChecked();
-  if (!parsed->IsObject()) {
-    return;
-  }
-
-  Local<Object> object = parsed.As<Object>();
 
   Local<Value> method;
-  if (!object->Get(context, parent_env_->method_string()).ToLocal(&method) ||
+  if (!parsed->Get(context, parent_env_->method_string()).ToLocal(&method) ||
       !method->IsString() ||
       !method->StrictEquals(parent_env_->async_stack_depth_string())) {
     return;
   }
 
   Local<Value> params;
-  if (!object->Get(context, parent_env_->params_string()).ToLocal(&params) ||
+  if (!parsed->Get(context, parent_env_->params_string()).ToLocal(&params) ||
       !params->IsObject()) {
     return;
   }
@@ -721,35 +701,26 @@ void Agent::InterceptAsyncStackDepthMessage(const StringView& message) {
     return;
   }
 
-  Maybe<double> maybe_depth = depth_value->NumberValue(context);
-  if (maybe_depth.IsNothing()) {
-    return;
-  }
-
-  double depth = maybe_depth.FromJust();
+  double depth = depth_value->NumberValue(context).FromJust();
   if (depth == 0) {
     // Disable.
-    if (!disable_async_hook_function_.IsEmpty()) {
-      DisableAsyncHook(isolate);
+    if (pending_enable_async_hook_) {
+      CHECK(!pending_disable_async_hook_);
+      pending_enable_async_hook_ = false;
+    } else if (!disable_async_hook_function_.IsEmpty()) {
+      ToggleAsyncHook(isolate, disable_async_hook_function_.Get(isolate));
     } else {
-      if (pending_enable_async_hook_) {
-        CHECK(!pending_disable_async_hook_);
-        pending_enable_async_hook_ = false;
-      } else {
-        pending_disable_async_hook_ = true;
-      }
+      pending_disable_async_hook_ = true;
     }
   } else {
     // Enable.
-    if (!enable_async_hook_function_.IsEmpty()) {
-      EnableAsyncHook(isolate);
+    if (pending_disable_async_hook_) {
+      CHECK(!pending_enable_async_hook_);
+      pending_disable_async_hook_ = false;
+    } else if (!enable_async_hook_function_.IsEmpty()) {
+      ToggleAsyncHook(isolate, enable_async_hook_function_.Get(isolate));
     } else {
-      if (pending_disable_async_hook_) {
-        CHECK(!pending_enable_async_hook_);
-        pending_disable_async_hook_ = false;
-      } else {
-        pending_enable_async_hook_ = true;
-      }
+      pending_enable_async_hook_ = true;
     }
   }
 }
