@@ -379,7 +379,8 @@ changes:
     end-of-line input. Default to `100` milliseconds.
     `crlfDelay` will be coerced to a number no less than `100`. It can be set to
     `Infinity`, in which case `\r` followed by `\n` will always be considered a
-    single newline.
+    single newline (which may be reasonable for [reading files][] with `\r\n`
+    line delimiter).
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
     from the list. Defaults to `false`.
@@ -532,7 +533,8 @@ const readline = require('readline');
 const fs = require('fs');
 
 const rl = readline.createInterface({
-  input: fs.createReadStream('sample.txt')
+  input: fs.createReadStream('sample.txt'),
+  crlfDelay: Infinity
 });
 
 rl.on('line', (line) => {
@@ -547,3 +549,4 @@ rl.on('line', (line) => {
 [Readable]: stream.html#stream_readable_streams
 [TTY]: tty.html
 [Writable]: stream.html#stream_writable_streams
+[reading files]: #readline_example_read_file_stream_line_by_line
