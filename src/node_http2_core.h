@@ -8,7 +8,6 @@
 #include "uv.h"
 #include "nghttp2/nghttp2.h"
 
-#include <list>
 #include <queue>
 #include <stdio.h>
 #include <unordered_map>
@@ -158,7 +157,7 @@ class Nghttp2Session {
   virtual void Send(uv_buf_t* buf, size_t length) {}
   virtual void OnHeaders(
       Nghttp2Stream* stream,
-      std::queue<nghttp2_header, std::list<nghttp2_header>>* headers,
+      std::queue<nghttp2_header>* headers,
       nghttp2_headers_category cat,
       uint8_t flags) {}
   virtual void OnStreamClose(int32_t id, uint32_t code) {}
@@ -430,8 +429,7 @@ class Nghttp2Stream {
     return id_;
   }
 
-  inline std::queue<nghttp2_header,
-                    std::list<nghttp2_header>>* headers() {
+  inline std::queue<nghttp2_header>* headers() {
     return &current_headers_;
   }
 
@@ -462,7 +460,7 @@ class Nghttp2Stream {
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
-  std::queue<nghttp2_stream_write*, std::list<nghttp2_stream_write*>> queue_;
+  std::queue<nghttp2_stream_write*> queue_;
   unsigned int queue_index_ = 0;
   size_t queue_offset_ = 0;
   int64_t fd_offset_ = 0;
@@ -472,10 +470,10 @@ class Nghttp2Stream {
   // they are temporarily stored here until the OnFrameReceived is called
   // signalling the end of the HEADERS frame
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
-  std::queue<nghttp2_header, std::list<nghttp2_header>> current_headers_;
+  std::queue<nghttp2_header> current_headers_;
 
   // Inbound Data... This is the data received via DATA frames for this stream.
-  std::queue<uv_buf_t, std::list<uv_buf_t>> data_chunks_;
+  std::queue<uv_buf_t> data_chunks_;
 
   // The RST_STREAM code used to close this stream
   int32_t code_ = NGHTTP2_NO_ERROR;

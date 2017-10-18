@@ -4,7 +4,6 @@
 #include "node_http2.h"
 #include "node_http2_state.h"
 
-#include <list>
 #include <queue>
 
 namespace node {
@@ -875,7 +874,7 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
 
 void Http2Session::OnHeaders(
     Nghttp2Stream* stream,
-    std::queue<nghttp2_header, std::list<nghttp2_header>>* headers,
+    std::queue<nghttp2_header>* headers,
     nghttp2_headers_category cat,
     uint8_t flags) {
   Local<Context> context = env()->context();
