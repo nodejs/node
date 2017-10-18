@@ -7,9 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-test-inspector-bindings               : PASS, FLAKY
-test-inspector-debug-end              : PASS, FLAKY
-test-inspector-stop-profile-after-done: PASS, FLAKY
 
 [$system==linux]
 
@@ -23,4 +20,3 @@ test-npm-install:      PASS,FLAKY
 [$system==freebsd]
 
 [$system==aix]
-test-inspector-stop-profile-after-done: PASS, FLAKY
