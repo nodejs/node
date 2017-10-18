@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/frame-constants.h"
 #include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
 
@@ -144,7 +145,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
                     [this, elements, &offset](Node* arg) {
                       StoreNoWriteBarrier(MachineRepresentation::kTagged,
                                           elements, offset.value(), arg);
-                      Increment(offset, kPointerSize);
+                      Increment(&offset, kPointerSize);
                     },
                     first_arg, nullptr, param_mode);
   return result;
@@ -205,12 +206,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   return result.value();
 }
 
-TF_BUILTIN(FastNewRestParameter, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(Descriptor::kFunction);
-  Node* context = Parameter(Descriptor::kContext);
-  Return(EmitFastNewRestParameter(context, function));
-}
-
 Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
                                                              Node* function) {
   VARIABLE(result, MachineRepresentation::kTagged);
@@ -259,12 +254,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
 
   BIND(&done);
   return result.value();
-}
-
-TF_BUILTIN(FastNewStrictArguments, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(FastNewArgumentsDescriptor::kFunction);
-  Node* context = Parameter(FastNewArgumentsDescriptor::kContext);
-  Return(EmitFastNewStrictArguments(context, function));
 }
 
 Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
@@ -331,7 +320,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
     mapped_offset = BuildFastLoop(
         var_list1, argument_offset, mapped_offset,
         [this, elements, &current_argument](Node* offset) {
-          Increment(current_argument, kPointerSize);
+          Increment(&current_argument, kPointerSize);
           Node* arg = LoadBufferObject(current_argument.value(), 0);
           StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, offset,
                               arg);
@@ -369,7 +358,7 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
                     StoreNoWriteBarrier(
                         MachineRepresentation::kTagged, adjusted_map_array,
                         offset, ParameterToTagged(context_index.value(), mode));
-                    Increment(context_index, 1, mode);
+                    Increment(&context_index, 1, mode);
                   },
                   -kPointerSize, INTPTR_PARAMETERS);
 

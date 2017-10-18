@@ -754,7 +754,7 @@
           '-Wno-unused-parameter',
           '-pthread',
           '-pedantic',
-          '-Wmissing-field-initializers',
+          '-Wno-missing-field-initializers',
           '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [

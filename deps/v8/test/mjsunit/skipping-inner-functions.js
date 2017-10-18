@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-preparser-scope-analysis
+// Flags: --preparser-scope-analysis --enable-slow-asserts
 
 (function TestBasicSkipping() {
   var result = 0;
@@ -82,7 +82,7 @@
 })();
 
 // Skippable top level functions.
-let result = 0;
+var result = 0;
 function lazy_top_level(ctxt_alloc_param) {
   let ctxt_alloc_var = 24;
   function skip_me() {
@@ -203,3 +203,95 @@ let f1 = (ctxt_alloc_param) => {
 }
 f1(9)();
 assertEquals(19, result);
+
+function TestStrictEvalInParams() {
+  "use strict";
+  var result = 0;
+
+  function lazy(a = function() { return 2; }, b = eval('3')) {
+    function skip_me() {
+      result = a() + b;
+    }
+    return skip_me;
+  }
+  lazy()();
+  assertEquals(5, result);
+
+  function not_skippable_either() {}
+}
+
+TestStrictEvalInParams();
+
+function TestSloppyEvalInFunctionWithComplexParams() {
+  var result = 0;
+
+  function lazy1(ctxt_alloc_param = 2) {
+    var ctxt_alloc_var = 3;
+    function skip_me() {
+      result = ctxt_alloc_param + ctxt_alloc_var;
+    }
+    eval('');
+    return skip_me;
+  }
+  lazy1()();
+  assertEquals(5, result);
+
+  function lazy2(ctxt_alloc_param = 4) {
+    var ctxt_alloc_var = 5;
+    function skip_me() {
+      eval('result = ctxt_alloc_param + ctxt_alloc_var;');
+    }
+    return skip_me;
+  }
+  lazy2()();
+  assertEquals(9, result);
+}
+
+TestSloppyEvalInFunctionWithComplexParams();
+
+function TestSkippableFunctionInForOfHeader() {
+  var c;
+  function inner() {
+    for (let [a, b = c = function() { return a; }] of [[10]]) {
+    }
+  }
+  inner();
+  var result = c();
+  assertEquals(10, result);
+}
+
+TestSkippableFunctionInForOfHeader();
+
+function TestSkippableFunctionInForOfBody() {
+  var c;
+  function inner() {
+    for (let [a, b] of [[10, 11]]) {
+      c = function f() {
+        return a + b;
+      }
+    }
+  }
+  inner();
+  var result = c();
+  assertEquals(21, result);
+}
+
+TestSkippableFunctionInForOfBody();
+
+
+function TestSkippableFunctionInForOfHeaderAndBody() {
+  var c1;
+  var c2;
+  function inner() {
+    for (let [a, b = c1 = function() { return a; }] of [[10]]) {
+      c2 = function f() {
+        return a + 1;
+      }
+    }
+  }
+  inner();
+  var result = c1() + c2();
+  assertEquals(21, result);
+}
+
+TestSkippableFunctionInForOfHeaderAndBody();

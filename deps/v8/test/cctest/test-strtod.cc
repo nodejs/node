@@ -36,7 +36,8 @@
 #include "src/strtod.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static Vector<const char> StringToVector(const char* str) {
   return Vector<const char>(str, StrLength(str));
@@ -478,3 +479,6 @@ TEST(RandomStrtod) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

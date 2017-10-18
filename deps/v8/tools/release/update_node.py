@@ -70,7 +70,7 @@ def CommitPatch(options):
   the fake git clone fetch it into node.js. We can leave the commit, as
   bot_update will ensure a clean state on each run.
   """
-  print ">> Comitting patch"
+  print ">> Committing patch"
   subprocess.check_call(
       ["git", "-c", "user.name=fake", "-c", "user.email=fake@chromium.org",
        "commit", "--allow-empty", "-m", "placeholder-commit"],

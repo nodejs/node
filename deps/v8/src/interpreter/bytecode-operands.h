@@ -135,6 +135,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 class BytecodeOperands {
  public:
+  // The total number of bytecodes used.
+  static const int kOperandTypeCount = static_cast<int>(OperandType::kLast) + 1;
+
   // Returns true if |accumulator_use| reads the accumulator.
   static constexpr bool ReadsAccumulator(AccumulatorUse accumulator_use) {
     return accumulator_use == AccumulatorUse::kRead ||

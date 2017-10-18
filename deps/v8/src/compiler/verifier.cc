@@ -507,6 +507,8 @@ void Verifier::Visitor::Check(Node* node) {
       // still be kStateValues.
       break;
     }
+    case IrOpcode::kObjectId:
+      CheckTypeIs(node, Type::Object());
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
     case IrOpcode::kArgumentsElementsState:
@@ -516,6 +518,7 @@ void Verifier::Visitor::Check(Node* node) {
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:
+    case IrOpcode::kCallWithCallerSavedRegisters:
       // TODO(rossberg): what are the constraints on these?
       break;
     case IrOpcode::kTailCall:
@@ -543,16 +546,6 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is 32 bit integral.
       CheckTypeIs(node, Type::Integral32());
       break;
-
-    case IrOpcode::kJSStringConcat:
-      // Type is string and all inputs are strings.
-      CheckTypeIs(node, Type::String());
-      for (int i = 0; i < StringConcatParameterOf(node->op()).operand_count();
-           i++) {
-        CheckValueInputIs(node, i, Type::String());
-      }
-      break;
-
     case IrOpcode::kJSAdd:
       // Type is Number or String.
       CheckTypeIs(node, Type::NumberOrString());
@@ -585,7 +578,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kJSToString:
-    case IrOpcode::kJSToPrimitiveToString:
       // Type is String.
       CheckTypeIs(node, Type::String());
       break;
@@ -622,7 +614,12 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Array.
       CheckTypeIs(node, Type::Array());
       break;
+    case IrOpcode::kJSCreateEmptyLiteralArray:
+      // Type is Array.
+      CheckTypeIs(node, Type::Array());
+      break;
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
@@ -773,6 +770,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kComment:
+    case IrOpcode::kDebugAbort:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:
@@ -799,6 +797,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::Number());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSafeIntegerSubtract:
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeNumberMultiply:
@@ -1001,6 +1001,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Boolean());
       break;
 
+    case IrOpcode::kObjectIsCallable:
     case IrOpcode::kObjectIsDetectableCallable:
     case IrOpcode::kObjectIsNaN:
     case IrOpcode::kObjectIsNonCallable:
@@ -1188,11 +1189,16 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::InternalizedString());
       break;
     case IrOpcode::kCheckMaps:
-      // (Any, Internal, ..., Internal) -> Any
       CheckValueInputIs(node, 0, Type::Any());
-      for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
-        CheckValueInputIs(node, i, Type::Internal());
-      }
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kCompareMaps:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kCheckMapValue:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
       CheckNotTyped(node);
       break;
     case IrOpcode::kCheckNumber:
@@ -1213,10 +1219,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckSeqString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SeqString());
-      break;
-    case IrOpcode::kCheckNonEmptyString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::NonEmptyString());
       break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
@@ -1260,8 +1262,6 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckTypeIs(node, FieldAccessOf(node->op()).type));
       break;
-    case IrOpcode::kLoadBuffer:
-      break;
     case IrOpcode::kLoadElement:
       // Object -> elementtype
       // TODO(rossberg): activate once machine ops are typed.
@@ -1276,8 +1276,6 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckValueInputIs(node, 0, Type::Object());
       // CheckValueInputIs(node, 1, FieldAccessOf(node->op()).type));
       CheckNotTyped(node);
-      break;
-    case IrOpcode::kStoreBuffer:
       break;
     case IrOpcode::kStoreElement:
       // (Object, elementtype) -> _|_
@@ -1295,6 +1293,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kNumberSilenceNaN:
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Number());
+      break;
+    case IrOpcode::kMapGuard:
+      CheckNotTyped(node);
       break;
     case IrOpcode::kTypeGuard:
       CheckTypeIs(node, TypeGuardTypeOf(node->op()));

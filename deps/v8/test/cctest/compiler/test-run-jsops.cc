@@ -387,7 +387,6 @@ TEST(PropertyKeyedDelete) {
 
 
 TEST(GlobalLoad) {
-  FLAG_stress_fullcodegen = false;
   FunctionTester T("(function() { return g; })");
 
   T.CheckThrows(T.undefined(), T.undefined());
@@ -397,7 +396,6 @@ TEST(GlobalLoad) {
 
 
 TEST(GlobalStoreStrict) {
-  FLAG_stress_fullcodegen = false;
   FunctionTester T("(function(a,b) { 'use strict'; g = a + b; return g; })");
 
   T.CheckThrows(T.Val(22), T.Val(11));

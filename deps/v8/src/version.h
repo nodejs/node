@@ -18,7 +18,6 @@ class Version {
   static int GetMinor() { return minor_; }
   static int GetBuild() { return build_; }
   static int GetPatch() { return patch_; }
-  static const char* GetEmbedder() { return embedder_; }
   static bool IsCandidate() { return candidate_; }
   static uint32_t Hash() {
     return static_cast<uint32_t>(
@@ -39,15 +38,13 @@ class Version {
   static int minor_;
   static int build_;
   static int patch_;
-  static const char* embedder_;
   static bool candidate_;
   static const char* soname_;
   static const char* version_string_;
 
   // In test-version.cc.
   friend void SetVersion(int major, int minor, int build, int patch,
-                         const char* embedder, bool candidate,
-                         const char* soname);
+                         bool candidate, const char* soname);
 };
 
 }  // namespace internal

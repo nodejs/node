@@ -217,7 +217,7 @@ def ExpandInlineMacros(lines):
     name_pattern = re.compile("\\b%s\\(" % name)
     macro = TextMacro(args, body)
 
-    # advance position to where the macro defintion was
+    # advance position to where the macro definition was
     pos = macro_match.start()
 
     def non_expander(s):
@@ -242,7 +242,7 @@ def ExpandInlineConstants(lines):
     lines = (lines[:const_match.start()] +
              re.sub(name_pattern, replacement, lines[const_match.end():]))
 
-    # advance position to where the constant defintion was
+    # advance position to where the constant definition was
     pos = const_match.start()
 
 

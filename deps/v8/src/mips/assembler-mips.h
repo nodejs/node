@@ -75,6 +75,106 @@ namespace internal {
   V(f16) V(f18) V(f20) V(f22) V(f24)
 // clang-format on
 
+// Register lists.
+// Note that the bit values must match those used in actual instruction
+// encoding.
+const int kNumRegs = 32;
+
+const RegList kJSCallerSaved = 1 << 2 |   // v0
+                               1 << 3 |   // v1
+                               1 << 4 |   // a0
+                               1 << 5 |   // a1
+                               1 << 6 |   // a2
+                               1 << 7 |   // a3
+                               1 << 8 |   // t0
+                               1 << 9 |   // t1
+                               1 << 10 |  // t2
+                               1 << 11 |  // t3
+                               1 << 12 |  // t4
+                               1 << 13 |  // t5
+                               1 << 14 |  // t6
+                               1 << 15;   // t7
+
+const int kNumJSCallerSaved = 14;
+
+// Callee-saved registers preserved when switching from C to JavaScript.
+const RegList kCalleeSaved = 1 << 16 |  // s0
+                             1 << 17 |  // s1
+                             1 << 18 |  // s2
+                             1 << 19 |  // s3
+                             1 << 20 |  // s4
+                             1 << 21 |  // s5
+                             1 << 22 |  // s6 (roots in Javascript code)
+                             1 << 23 |  // s7 (cp in Javascript code)
+                             1 << 30;   // fp/s8
+
+const int kNumCalleeSaved = 9;
+
+const RegList kCalleeSavedFPU = 1 << 20 |  // f20
+                                1 << 22 |  // f22
+                                1 << 24 |  // f24
+                                1 << 26 |  // f26
+                                1 << 28 |  // f28
+                                1 << 30;   // f30
+
+const int kNumCalleeSavedFPU = 6;
+
+const RegList kCallerSavedFPU = 1 << 0 |   // f0
+                                1 << 2 |   // f2
+                                1 << 4 |   // f4
+                                1 << 6 |   // f6
+                                1 << 8 |   // f8
+                                1 << 10 |  // f10
+                                1 << 12 |  // f12
+                                1 << 14 |  // f14
+                                1 << 16 |  // f16
+                                1 << 18;   // f18
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of 8.
+const int kNumSafepointRegisters = 24;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
+
+const int kUndefIndex = -1;
+// Map with indexes on stack that corresponds to codes of saved registers.
+const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
+                                                       kUndefIndex,  // at
+                                                       0,            // v0
+                                                       1,            // v1
+                                                       2,            // a0
+                                                       3,            // a1
+                                                       4,            // a2
+                                                       5,            // a3
+                                                       6,            // t0
+                                                       7,            // t1
+                                                       8,            // t2
+                                                       9,            // t3
+                                                       10,           // t4
+                                                       11,           // t5
+                                                       12,           // t6
+                                                       13,           // t7
+                                                       14,           // s0
+                                                       15,           // s1
+                                                       16,           // s2
+                                                       17,           // s3
+                                                       18,           // s4
+                                                       19,           // s5
+                                                       20,           // s6
+                                                       21,           // s7
+                                                       kUndefIndex,  // t8
+                                                       kUndefIndex,  // t9
+                                                       kUndefIndex,  // k0
+                                                       kUndefIndex,  // k1
+                                                       kUndefIndex,  // gp
+                                                       kUndefIndex,  // sp
+                                                       22,           // fp
+                                                       kUndefIndex};
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -475,7 +575,7 @@ class Operand BASE_EMBEDDED {
 };
 
 
-// On MIPS we have only one adressing mode with base_reg + offset.
+// On MIPS we have only one addressing mode with base_reg + offset.
 // Class MemOperand represents a memory operand in load and store instructions.
 class MemOperand : public Operand {
  public:
@@ -675,21 +775,9 @@ class Assembler : public AssemblerBase {
   static constexpr int kCallTargetAddressOffset = 4 * kInstrSize;
 #endif
 
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 4 * kInstrSize;
-
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 4;
-
-#ifdef _MIPS_ARCH_MIPS32R6
-  static constexpr int kDebugBreakSlotInstructions = 3;
-#else
-  static constexpr int kDebugBreakSlotInstructions = 4;
-#endif
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstrSize;
 
   // Max offset for instructions with 16-bit offset field
   static constexpr int kMaxBranchOffset = (1 << (18 - 1)) - 1;
@@ -702,6 +790,8 @@ class Assembler : public AssemblerBase {
 #else
   static constexpr int kTrampolineSlotsSize = 4 * kInstrSize;
 #endif
+
+  RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
   // Code generation.
@@ -925,6 +1015,10 @@ class Assembler : public AssemblerBase {
   void swl(Register rd, const MemOperand& rs);
   void swr(Register rd, const MemOperand& rs);
 
+  // ----------Atomic instructions--------------
+
+  void ll(Register rd, const MemOperand& rs);
+  void sc(Register rd, const MemOperand& rs);
 
   // ---------PC-Relative-instructions-----------
 
@@ -1761,11 +1855,6 @@ class Assembler : public AssemblerBase {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
   };
 
-  // Debugging.
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
-
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
@@ -1977,6 +2066,8 @@ class Assembler : public AssemblerBase {
 
   inline void CheckBuffer();
 
+  RegList scratch_register_list_;
+
  private:
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
@@ -2093,6 +2184,8 @@ class Assembler : public AssemblerBase {
   void GenInstrImmediate(
       Opcode opcode, Register r1, FPURegister r2, int32_t j,
       CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(Opcode opcode, Register base, Register rt,
+                         int32_t offset9, int bit6, SecondaryField func);
   void GenInstrImmediate(
       Opcode opcode, Register rs, int32_t offset21,
       CompactBranchType is_compact_branch = CompactBranchType::NO);
@@ -2184,7 +2277,7 @@ class Assembler : public AssemblerBase {
   // - space for labels.
   //
   // Space for trampoline slots is equal to slot_count * 2 * kInstrSize.
-  // Space for trampoline slots preceeds space for labels. Each label is of one
+  // Space for trampoline slots precedes space for labels. Each label is of one
   // instruction size, so total amount for labels is equal to
   // label_count *  kInstrSize.
   class Trampoline {
@@ -2285,6 +2378,19 @@ class EnsureSpace BASE_EMBEDDED {
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBuffer();
   }
+};
+
+class UseScratchRegisterScope {
+ public:
+  explicit UseScratchRegisterScope(Assembler* assembler);
+  ~UseScratchRegisterScope();
+
+  Register Acquire();
+  bool hasAvailable() const;
+
+ private:
+  RegList* available_;
+  RegList old_available_;
 };
 
 }  // namespace internal

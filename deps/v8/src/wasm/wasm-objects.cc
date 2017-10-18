@@ -26,8 +26,19 @@
     instance->PrintInstancesChain(); \
   } while (false)
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 namespace {
 
@@ -228,23 +239,46 @@ void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
         FixedArray::cast(dispatch_tables->get(i + 2)));
     Handle<FixedArray> old_signature_table(
         FixedArray::cast(dispatch_tables->get(i + 3)));
-    Handle<FixedArray> new_function_table =
-        isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count);
-    Handle<FixedArray> new_signature_table =
-        isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count);
+    Handle<FixedArray> new_function_table = isolate->global_handles()->Create(
+        *isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count));
+    Handle<FixedArray> new_signature_table = isolate->global_handles()->Create(
+        *isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count));
 
+    GlobalHandleAddress new_function_table_addr = new_function_table.address();
+    GlobalHandleAddress new_signature_table_addr =
+        new_signature_table.address();
+
+    int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
     // Update dispatch tables with new function/signature tables
     dispatch_tables->set(i + 2, *new_function_table);
     dispatch_tables->set(i + 3, *new_signature_table);
 
     // Patch the code of the respective instance.
-    CodeSpecialization code_specialization(isolate, &specialization_zone);
-    code_specialization.PatchTableSize(old_size, old_size + count);
-    code_specialization.RelocateObject(old_function_table, new_function_table);
-    code_specialization.RelocateObject(old_signature_table,
-                                       new_signature_table);
-    code_specialization.ApplyToWholeInstance(
-        WasmInstanceObject::cast(dispatch_tables->get(i)));
+    {
+      DisallowHeapAllocation no_gc;
+      CodeSpecialization code_specialization(isolate, &specialization_zone);
+      WasmInstanceObject* instance =
+          WasmInstanceObject::cast(dispatch_tables->get(i));
+      WasmCompiledModule* compiled_module = instance->compiled_module();
+      GlobalHandleAddress old_function_table_addr =
+          WasmCompiledModule::GetTableValue(
+              compiled_module->ptr_to_function_tables(), table_index);
+      GlobalHandleAddress old_signature_table_addr =
+          WasmCompiledModule::GetTableValue(
+              compiled_module->ptr_to_signature_tables(), table_index);
+      code_specialization.PatchTableSize(old_size, old_size + count);
+      code_specialization.RelocatePointer(old_function_table_addr,
+                                          new_function_table_addr);
+      code_specialization.RelocatePointer(old_signature_table_addr,
+                                          new_signature_table_addr);
+      code_specialization.ApplyToWholeInstance(instance);
+      WasmCompiledModule::UpdateTableValue(
+          compiled_module->ptr_to_function_tables(), table_index,
+          new_function_table_addr);
+      WasmCompiledModule::UpdateTableValue(
+          compiled_module->ptr_to_signature_tables(), table_index,
+          new_signature_table_addr);
+    }
   }
 }
 
@@ -252,7 +286,7 @@ namespace {
 
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                        Handle<JSArrayBuffer> old_buffer,
-                                       uint32_t pages, uint32_t max_pages) {
+                                       uint32_t pages, uint32_t maximum_pages) {
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
   if (!old_buffer.is_null()) {
@@ -263,7 +297,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   uint32_t old_pages = old_size / WasmModule::kPageSize;
   DCHECK_GE(std::numeric_limits<uint32_t>::max(),
             old_size + pages * WasmModule::kPageSize);
-  if (old_pages > max_pages || pages > max_pages - old_pages) {
+  if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
 
@@ -274,8 +308,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                         : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
-  Handle<JSArrayBuffer> new_buffer = NewArrayBuffer(
-      isolate, new_size, enable_guard_regions, IsShared(old_buffer));
+  Handle<JSArrayBuffer> new_buffer =
+      NewArrayBuffer(isolate, new_size, enable_guard_regions);
   if (new_buffer.is_null()) return new_buffer;
   Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
   memcpy(new_mem_start, old_mem_start, old_size);
@@ -365,26 +399,23 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (pages == 0) {
     // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
     // backing store and neuter the old one to be spec compliant.
-    if (old_size != 0) {
       new_buffer = SetupArrayBuffer(
           isolate, old_buffer->allocation_base(),
           old_buffer->allocation_length(), old_buffer->backing_store(),
-          old_size, old_buffer->is_external(), old_buffer->has_guard_region(),
-          IsShared(old_buffer));
+          old_size, old_buffer->is_external(), old_buffer->has_guard_region());
       memory_object->set_array_buffer(*new_buffer);
-    }
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
     return old_size / WasmModule::kPageSize;
   }
 
-  uint32_t max_pages;
+  uint32_t maximum_pages;
   if (memory_object->has_maximum_pages()) {
-    max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-    if (FLAG_wasm_max_mem_pages < max_pages) return -1;
+    maximum_pages = Min(FLAG_wasm_max_mem_pages,
+                        static_cast<uint32_t>(memory_object->maximum_pages()));
   } else {
-    max_pages = FLAG_wasm_max_mem_pages;
+    maximum_pages = FLAG_wasm_max_mem_pages;
   }
-  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
+  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
   if (new_buffer.is_null()) return -1;
 
   if (memory_object->has_instances()) {
@@ -458,9 +489,9 @@ int32_t WasmInstanceObject::GrowMemory(Isolate* isolate,
     old_size = old_buffer->byte_length()->Number();
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
   }
-  uint32_t max_pages = instance->GetMaxMemoryPages();
+  uint32_t maximum_pages = instance->GetMaxMemoryPages();
   Handle<JSArrayBuffer> buffer =
-      GrowMemoryBuffer(isolate, old_buffer, pages, max_pages);
+      GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
   if (buffer.is_null()) return -1;
   SetInstanceMemory(isolate, instance, buffer);
   UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
@@ -476,12 +507,12 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
       if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
-  uint32_t compiled_max_pages = compiled_module()->module()->max_mem_pages;
+  uint32_t compiled_maximum_pages = compiled_module()->module()->maximum_pages;
   Isolate* isolate = GetIsolate();
   assert(compiled_module()->module()->is_wasm());
   isolate->counters()->wasm_wasm_max_mem_pages_count()->AddSample(
-      compiled_max_pages);
-  if (compiled_max_pages != 0) return compiled_max_pages;
+      compiled_maximum_pages);
+  if (compiled_maximum_pages != 0) return compiled_maximum_pages;
   return FLAG_wasm_max_mem_pages;
 }
 
@@ -606,10 +637,6 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
 
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*arr));
   return Handle<WasmSharedModuleData>::cast(arr);
-}
-
-Foreign* WasmSharedModuleData::lazy_compilation_orchestrator() {
-  return Foreign::cast(get(kLazyCompilationOrchestratorIndex));
 }
 
 bool WasmSharedModuleData::is_asm_js() {
@@ -787,14 +814,15 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
   LazyCompilationOrchestrator* orch = new LazyCompilationOrchestrator();
   Handle<Managed<LazyCompilationOrchestrator>> orch_handle =
       Managed<LazyCompilationOrchestrator>::New(isolate, orch);
-  shared->set(kLazyCompilationOrchestratorIndex, *orch_handle);
+  shared->set_lazy_compilation_orchestrator(*orch_handle);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
-    Handle<FixedArray> code_table,
-    MaybeHandle<FixedArray> maybe_empty_function_tables,
-    MaybeHandle<FixedArray> maybe_signature_tables) {
+    Handle<FixedArray> code_table, Handle<FixedArray> export_wrappers,
+    const std::vector<wasm::GlobalHandleAddress>& function_tables,
+    const std::vector<wasm::GlobalHandleAddress>& signature_tables) {
+  DCHECK_EQ(function_tables.size(), signature_tables.size());
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
@@ -804,23 +832,38 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
   compiled_module->set_code_table(code_table);
-  int function_table_count =
-      static_cast<int>(shared->module()->function_tables.size());
-  if (function_table_count > 0) {
-    compiled_module->set_signature_tables(
-        maybe_signature_tables.ToHandleChecked());
-    compiled_module->set_empty_function_tables(
-        maybe_empty_function_tables.ToHandleChecked());
-    compiled_module->set_function_tables(
-        maybe_empty_function_tables.ToHandleChecked());
-  }
+  compiled_module->set_export_wrappers(export_wrappers);
   // TODO(mtrofin): we copy these because the order of finalization isn't
   // reliable, and we need these at Reset (which is called at
   // finalization). If the order were reliable, and top-down, we could instead
   // just get them from shared().
-  compiled_module->set_min_mem_pages(shared->module()->min_mem_pages);
+  compiled_module->set_initial_pages(shared->module()->initial_pages);
   compiled_module->set_num_imported_functions(
       shared->module()->num_imported_functions);
+
+  int num_function_tables = static_cast<int>(function_tables.size());
+  if (num_function_tables > 0) {
+    Handle<FixedArray> st =
+        isolate->factory()->NewFixedArray(num_function_tables, TENURED);
+    Handle<FixedArray> ft =
+        isolate->factory()->NewFixedArray(num_function_tables, TENURED);
+    for (int i = 0; i < num_function_tables; ++i) {
+      size_t index = static_cast<size_t>(i);
+      SetTableValue(isolate, ft, i, function_tables[index]);
+      SetTableValue(isolate, st, i, signature_tables[index]);
+    }
+    // TODO(wasm): setting the empty tables here this way is OK under the
+    // assumption that we compile and then instantiate. It needs rework if we do
+    // direct instantiation. The empty tables are used as a default when
+    // resetting the compiled module.
+    compiled_module->set_signature_tables(st);
+    compiled_module->set_empty_signature_tables(st);
+    compiled_module->set_function_tables(ft);
+    compiled_module->set_empty_function_tables(ft);
+  }
+
+  // TODO(mtrofin): copy the rest of the specialization parameters over.
+  // We're currently OK because we're only using defaults.
   return compiled_module;
 }
 
@@ -851,6 +894,27 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   return ret;
 }
 
+void WasmCompiledModule::SetTableValue(Isolate* isolate,
+                                       Handle<FixedArray> table, int index,
+                                       Address value) {
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(
+      static_cast<double>(reinterpret_cast<size_t>(value)), MUTABLE, TENURED);
+  table->set(index, *number);
+}
+
+void WasmCompiledModule::UpdateTableValue(FixedArray* table, int index,
+                                          Address value) {
+  DisallowHeapAllocation no_gc;
+  HeapNumber::cast(table->get(index))
+      ->set_value(static_cast<double>(reinterpret_cast<size_t>(value)));
+}
+
+Address WasmCompiledModule::GetTableValue(FixedArray* table, int index) {
+  DisallowHeapAllocation no_gc;
+  double value = HeapNumber::cast(table->get(index))->value();
+  return reinterpret_cast<Address>(static_cast<size_t>(value));
+}
+
 void WasmCompiledModule::Reset(Isolate* isolate,
                                WasmCompiledModule* compiled_module) {
   DisallowHeapAllocation no_gc;
@@ -858,7 +922,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   Object* undefined = *isolate->factory()->undefined_value();
   Object* fct_obj = compiled_module->ptr_to_code_table();
   if (fct_obj != nullptr && fct_obj != undefined) {
-    uint32_t old_mem_size = compiled_module->mem_size();
+    uint32_t old_mem_size = compiled_module->GetEmbeddedMemSizeOrZero();
     // We use default_mem_size throughout, as the mem size of an uninstantiated
     // module, because if we can statically prove a memory access is over
     // bounds, we'll codegen a trap. See {WasmGraphBuilder::BoundsCheckMem}
@@ -870,10 +934,8 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     Zone specialization_zone(isolate->allocator(), ZONE_NAME);
     CodeSpecialization code_specialization(isolate, &specialization_zone);
 
-    if (old_mem_size > 0 && old_mem_start != nullptr) {
-      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
-                                                   nullptr, default_mem_size);
-    }
+    code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
+                                                 nullptr, default_mem_size);
 
     if (compiled_module->has_globals_start()) {
       Address globals_start =
@@ -885,16 +947,27 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     // Reset function tables.
     if (compiled_module->has_function_tables()) {
       FixedArray* function_tables = compiled_module->ptr_to_function_tables();
+      FixedArray* signature_tables = compiled_module->ptr_to_signature_tables();
       FixedArray* empty_function_tables =
           compiled_module->ptr_to_empty_function_tables();
+      FixedArray* empty_signature_tables =
+          compiled_module->ptr_to_empty_signature_tables();
       if (function_tables != empty_function_tables) {
         DCHECK_EQ(function_tables->length(), empty_function_tables->length());
         for (int i = 0, e = function_tables->length(); i < e; ++i) {
-          code_specialization.RelocateObject(
-              handle(function_tables->get(i), isolate),
-              handle(empty_function_tables->get(i), isolate));
+          GlobalHandleAddress func_addr =
+              WasmCompiledModule::GetTableValue(function_tables, i);
+          GlobalHandleAddress sig_addr =
+              WasmCompiledModule::GetTableValue(signature_tables, i);
+          code_specialization.RelocatePointer(
+              func_addr,
+              WasmCompiledModule::GetTableValue(empty_function_tables, i));
+          code_specialization.RelocatePointer(
+              sig_addr,
+              WasmCompiledModule::GetTableValue(empty_signature_tables, i));
         }
         compiled_module->set_ptr_to_function_tables(empty_function_tables);
+        compiled_module->set_ptr_to_signature_tables(empty_signature_tables);
       }
     }
 
@@ -979,6 +1052,13 @@ MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
   // TODO(wasm): cache strings from modules if it's a performance win.
   Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
                                         isolate);
+  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+      isolate, module_bytes, ref);
+}
+
+MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+    Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+    wasm::WireBytesRef ref) {
   DCHECK_GE(module_bytes->length(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(
@@ -1052,17 +1132,40 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
       isolate);
   DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
   WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
+  int function_table_count =
+      static_cast<int>(compiled_module->module()->function_tables.size());
+  if (function_table_count > 0) {
+    // The tables are of the right size, but contain bogus global handle
+    // addresses. Produce new global handles for the empty tables, then reset,
+    // which will relocate the code. We end up with a WasmCompiledModule as-if
+    // it were just compiled.
+    DCHECK(compiled_module->has_function_tables());
+    DCHECK(compiled_module->has_signature_tables());
+    DCHECK(compiled_module->has_empty_signature_tables());
+    DCHECK(compiled_module->has_empty_function_tables());
+
+    for (int i = 0; i < function_table_count; ++i) {
+      Handle<Object> global_func_table_handle =
+          isolate->global_handles()->Create(isolate->heap()->undefined_value());
+      Handle<Object> global_sig_table_handle =
+          isolate->global_handles()->Create(isolate->heap()->undefined_value());
+      GlobalHandleAddress new_func_table = global_func_table_handle.address();
+      GlobalHandleAddress new_sig_table = global_sig_table_handle.address();
+      SetTableValue(isolate, compiled_module->empty_function_tables(), i,
+                    new_func_table);
+      SetTableValue(isolate, compiled_module->empty_signature_tables(), i,
+                    new_sig_table);
+    }
+  }
+
+  // Reset, but don't delete any global handles, because their owning instance
+  // may still be active.
   WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
-uint32_t WasmCompiledModule::mem_size() const {
-  DCHECK(has_embedded_mem_size() == has_embedded_mem_start());
-  return has_embedded_mem_start() ? embedded_mem_size() : default_mem_size();
-}
-
 uint32_t WasmCompiledModule::default_mem_size() const {
-  return min_mem_pages() * WasmModule::kPageSize;
+  return initial_pages() * WasmModule::kPageSize;
 }
 
 MaybeHandle<String> WasmCompiledModule::GetModuleNameOrNull(

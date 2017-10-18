@@ -171,7 +171,7 @@ Address Zone::NewExpand(size_t size) {
   Address result = RoundUp(segment->start(), kAlignmentInBytes);
   position_ = result + size;
   // Check for address overflow.
-  // (Should not happen since the segment is guaranteed to accomodate
+  // (Should not happen since the segment is guaranteed to accommodate
   // size bytes + header and alignment padding)
   DCHECK(reinterpret_cast<uintptr_t>(position_) >=
          reinterpret_cast<uintptr_t>(result));

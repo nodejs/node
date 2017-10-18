@@ -74,7 +74,7 @@ class Binary extends Array {
     // Emit section length.
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
-    this.push(...section);
+    for (var i = 0; i < section.length; i++) this.push(section[i]);
   }
 }
 
@@ -107,8 +107,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     for (let b of body) {
-      if (typeof b != 'number')
-        throw new Error('invalid body (entries have to be numbers): ' + body);
+      if (typeof b !== 'number' || (b & (~0xFF)) !== 0 )
+        throw new Error('invalid body (entries must be 8 bit numbers): ' + body);
     }
     this.body = body.slice();
     // Automatically add the end for the function block to the body.
@@ -153,9 +153,11 @@ class WasmModuleBuilder {
     this.imports = [];
     this.exports = [];
     this.globals = [];
+    this.exceptions = [];
     this.functions = [];
     this.function_table = [];
-    this.function_table_length = 0;
+    this.function_table_length_min = 0;
+    this.function_table_length_max = 0;
     this.function_table_inits = [];
     this.segments = [];
     this.explicit = [];
@@ -196,8 +198,9 @@ class WasmModuleBuilder {
   }
 
   addType(type) {
-    // TODO: canonicalize types?
     this.types.push(type);
+    var pl = type.params.length;  // should have params
+    var rl = type.results.length; // should have results
     return this.types.length - 1;
   }
 
@@ -206,6 +209,13 @@ class WasmModuleBuilder {
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
+  }
+
+  addException(type) {
+    if (type.results.length != 0)
+      throw new Error('Invalid exception signature: ' + type);
+    this.exceptions.push(type);
+    return this.exceptions.length - 1;
   }
 
   addFunction(name, type) {
@@ -267,8 +277,11 @@ class WasmModuleBuilder {
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length && !is_import) {
-        this.function_table_length = length;
+      if (length > this.function_table_length_min && !is_import) {
+        this.function_table_length_min = length;
+      }
+      if (length > this.function_table_length_max && !is_import) {
+         this.function_table_length_max = length;
       }
     }
     return this;
@@ -282,8 +295,9 @@ class WasmModuleBuilder {
     return this.addFunctionTableInit(this.function_table.length, false, array);
   }
 
-  setFunctionTableLength(length) {
-    this.function_table_length = length;
+  setFunctionTableBounds(min, max) {
+    this.function_table_length_min = min;
+    this.function_table_length_max = max;
     return this;
   }
 
@@ -362,14 +376,16 @@ class WasmModuleBuilder {
     }
 
     // Add function_table.
-    if (wasm.function_table_length > 0) {
+    if (wasm.function_table_length_min > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u8(1);  // one table entry
         section.emit_u8(kWasmAnyFunctionTypeForm);
-        section.emit_u8(1);
-        section.emit_u32v(wasm.function_table_length);
-        section.emit_u32v(wasm.function_table_length);
+        // TODO(gdeepti): Cleanup to use optional max flag,
+        // fix up tests to set correct initial/maximum values
+        section.emit_u32v(1);
+        section.emit_u32v(wasm.function_table_length_min);
+        section.emit_u32v(wasm.function_table_length_max);
       });
     }
 
@@ -378,9 +394,10 @@ class WasmModuleBuilder {
       if (debug) print("emitting memory @ " + binary.length);
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
-        section.emit_u32v(kResizableMaximumFlag);
+        const has_max = wasm.memory.max !== undefined;
+        section.emit_u32v(has_max ? kResizableMaximumFlag : 0);
         section.emit_u32v(wasm.memory.min);
-        section.emit_u32v(wasm.memory.max);
+        if (has_max) section.emit_u32v(wasm.memory.max);
       });
     }
 
@@ -481,6 +498,20 @@ class WasmModuleBuilder {
           section.emit_u32v(init.array.length);
           for (let index of init.array) {
             section.emit_u32v(index);
+          }
+        }
+      });
+    }
+
+    // Add exceptions.
+    if (wasm.exceptions.length > 0) {
+      if (debug) print("emitting exceptions @ " + binary.length);
+      binary.emit_section(kExceptionSectionCode, section => {
+        section.emit_u32v(wasm.exceptions.length);
+        for (let type of wasm.exceptions) {
+          section.emit_u32v(type.params.length);
+          for (let param of type.params) {
+            section.enit_u8(param);
           }
         }
       });

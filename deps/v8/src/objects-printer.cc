@@ -15,6 +15,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
+#include "src/transitions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -79,6 +80,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
+    case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
       break;
@@ -94,6 +96,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayPrint(os);
       break;
+    case FEEDBACK_VECTOR_TYPE:
+      FeedbackVector::cast(this)->FeedbackVectorPrint(os);
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
@@ -106,43 +111,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
-    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE:
-      JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
-      break;
+#define ARRAY_ITERATOR_CASE(type) case type:
+    ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
+#undef ARRAY_ITERATOR_CASE
+    JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
+    break;
 
     case FILLER_TYPE:
       os << "filler";
@@ -269,6 +242,7 @@ void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
 
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "BytecodeArray");
   Disassemble(os);
 }
 
@@ -601,6 +575,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
+  if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
@@ -619,11 +594,15 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     os << "\n - layout descriptor: ";
     layout_descriptor()->ShortPrint(os);
   }
-  int nof_transitions = TransitionArray::NumberOfTransitions(raw_transitions());
-  if (nof_transitions > 0) {
-    os << "\n - transitions #" << nof_transitions << ": "
-       << Brief(raw_transitions());
-    TransitionArray::PrintTransitions(os, raw_transitions(), false);
+  {
+    DisallowHeapAllocation no_gc;
+    TransitionsAccessor transitions(this, &no_gc);
+    int nof_transitions = transitions.NumberOfTransitions();
+    if (nof_transitions > 0) {
+      os << "\n - transitions #" << nof_transitions << ": "
+         << Brief(raw_transitions());
+      transitions.PrintTransitions(os);
+    }
   }
   os << "\n - prototype: " << Brief(prototype());
   os << "\n - constructor: " << Brief(GetConstructor());
@@ -642,7 +621,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "FixedArray");
+  HeapObject::PrintHeader(os, IsHashTable() ? "HashTable" : "FixedArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
   PrintFixedArrayElements(os, this);
@@ -676,7 +655,6 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - capacity: " << length();
   for (int i = 0; i < length(); i++) {
     os << "\n  [" << i << "]: " << Brief(get(i));
-    if (i == kNextLinkIndex) os << " (next link)";
     if (i == kPrototypeTransitionsIndex) os << " (prototype transitions)";
     if (i == kTransitionLengthIndex) os << " (number of transitions)";
   }
@@ -751,7 +729,10 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  os << "\n Optimized Code: " << Brief(optimized_code());
+  os << "\n SharedFunctionInfo: " << Brief(shared_function_info());
+  os << "\n Optimized Code: " << Brief(optimized_code_cell());
+  os << "\n Invocation Count: " << invocation_count();
+  os << "\n Profiler Ticks: " << profiler_ticks();
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -1082,7 +1063,6 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
      << shared()->internal_formal_parameter_count();
   os << "\n - kind = " << shared()->kind();
   os << "\n - context = " << Brief(context());
-  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
   os << "\n - code = " << Brief(code());
   if (IsInterpreted()) {
     os << "\n - interpreted";
@@ -1090,7 +1070,26 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
       os << "\n - bytecode = " << shared()->bytecode_array();
     }
   }
+  shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);
+  os << "\n - feedback vector: ";
+  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+    feedback_vector()->FeedbackVectorPrint(os);
+  } else {
+    os << "not available\n";
+  }
+}
+
+void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
+  if (HasSourceCode()) {
+    os << "\n - source code = ";
+    String* source = String::cast(Script::cast(script())->source());
+    int start = start_position();
+    int length = end_position() - start;
+    std::unique_ptr<char[]> source_string = source->ToCString(
+        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
+    os << source_string.get();
+  }
 }
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
@@ -1106,22 +1105,16 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties = " << expected_nof_properties();
   os << "\n - language_mode = " << language_mode();
-  os << "\n - ast_node_count = " << ast_node_count();
   os << "\n - instance class name = ";
   instance_class_name()->Print(os);
   os << " - code = " << Brief(code());
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
-  if (HasSourceCode()) {
-    os << "\n - source code = ";
-    String* source = String::cast(Script::cast(script())->source());
-    int start = start_position();
-    int length = end_position() - start;
-    std::unique_ptr<char[]> source_string = source->ToCString(
-        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
-    os << source_string.get();
+  if (HasAsmWasmData()) {
+    os << "\n - asm_wasm_data = " << Brief(asm_wasm_data());
   }
+  PrintSourceCode(os);
   // Script files are often large, hard to read.
   // os << "\n - script =";
   // script()->Print(os);
@@ -1673,70 +1666,99 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
   }
 }
 
+// static
+void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
+                                             Map* target, Object* raw_target) {
+  os << "\n     ";
+#ifdef OBJECT_PRINT
+  key->NamePrint(os);
+#else
+  key->ShortPrint(os);
+#endif
+  os << ": ";
+  Heap* heap = key->GetHeap();
+  if (key == heap->nonextensible_symbol()) {
+    os << "(transition to non-extensible)";
+  } else if (key == heap->sealed_symbol()) {
+    os << "(transition to sealed)";
+  } else if (key == heap->frozen_symbol()) {
+    os << "(transition to frozen)";
+  } else if (key == heap->elements_transition_symbol()) {
+    os << "(transition to " << ElementsKindToString(target->elements_kind())
+       << ")";
+  } else if (key == heap->strict_function_transition_symbol()) {
+    os << " (transition to strict function)";
+  } else {
+    DCHECK(!IsSpecialTransition(key));
+    os << "(transition to ";
+    int descriptor = target->LastAdded();
+    DescriptorArray* descriptors = target->instance_descriptors();
+    descriptors->PrintDescriptorDetails(os, descriptor,
+                                        PropertyDetails::kForTransitions);
+    os << ")";
+  }
+  os << " -> " << Brief(target);
+  if (!raw_target->IsMap() && !raw_target->IsWeakCell()) {
+    os << " (handler: " << Brief(raw_target) << ")";
+  }
+}
+
 void TransitionArray::Print() {
   OFStream os(stdout);
-  TransitionArray::PrintTransitions(os, this);
-  os << "\n" << std::flush;
+  Print(os);
 }
 
-
-void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
-                                       bool print_header) {  // NOLINT
-  int num_transitions = NumberOfTransitions(transitions);
-  if (print_header) {
-    os << "Transition array #" << num_transitions << ":";
-  }
+void TransitionArray::Print(std::ostream& os) {
+  int num_transitions = number_of_transitions();
+  os << "Transition array #" << num_transitions << ":";
   for (int i = 0; i < num_transitions; i++) {
-    Name* key = GetKey(transitions, i);
-    Map* target = GetTarget(transitions, i);
-    os << "\n     ";
-#ifdef OBJECT_PRINT
-    key->NamePrint(os);
-#else
-    key->ShortPrint(os);
-#endif
-    os << ": ";
-    Heap* heap = key->GetHeap();
-    if (key == heap->nonextensible_symbol()) {
-      os << "(transition to non-extensible)";
-    } else if (key == heap->sealed_symbol()) {
-      os << "(transition to sealed)";
-    } else if (key == heap->frozen_symbol()) {
-      os << "(transition to frozen)";
-    } else if (key == heap->elements_transition_symbol()) {
-      os << "(transition to " << ElementsKindToString(target->elements_kind())
-         << ")";
-    } else if (key == heap->strict_function_transition_symbol()) {
-      os << " (transition to strict function)";
-    } else {
-      DCHECK(!IsSpecialTransition(key));
-      os << "(transition to ";
-      int descriptor = target->LastAdded();
-      DescriptorArray* descriptors = target->instance_descriptors();
-      descriptors->PrintDescriptorDetails(os, descriptor,
-                                          PropertyDetails::kForTransitions);
-      os << ")";
-    }
-    os << " -> " << Brief(target);
+    Name* key = GetKey(i);
+    Map* target = GetTarget(i);
+    Object* raw_target = GetRawTarget(i);
+    TransitionsAccessor::PrintOneTransition(os, key, target, raw_target);
   }
-}
-
-void TransitionArray::PrintTransitionTree(Map* map) {
-  OFStream os(stdout);
-  os << "map= " << Brief(map);
-  PrintTransitionTree(os, map);
   os << "\n" << std::flush;
 }
 
-// static
-void TransitionArray::PrintTransitionTree(std::ostream& os, Map* map,
-                                          int level) {
-  Object* transitions = map->raw_transitions();
-  int num_transitions = NumberOfTransitions(transitions);
+void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
+  WeakCell* cell = nullptr;
+  switch (encoding()) {
+    case kPrototypeInfo:
+    case kUninitialized:
+      return;
+    case kWeakCell:
+      cell = GetTargetCell<kWeakCell>();
+      break;
+    case kTuple3Handler:
+      cell = GetTargetCell<kTuple3Handler>();
+      break;
+    case kFixedArrayHandler:
+      cell = GetTargetCell<kFixedArrayHandler>();
+      break;
+    case kFullTransitionArray:
+      return transitions()->Print(os);
+  }
+  DCHECK(!cell->cleared());
+  Map* target = Map::cast(cell->value());
+  Name* key = GetSimpleTransitionKey(target);
+  PrintOneTransition(os, key, target, raw_transitions_);
+}
+
+void TransitionsAccessor::PrintTransitionTree() {
+  OFStream os(stdout);
+  os << "map= " << Brief(map_);
+  DisallowHeapAllocation no_gc;
+  PrintTransitionTree(os, 0, &no_gc);
+  os << "\n" << std::flush;
+}
+
+void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
+                                              DisallowHeapAllocation* no_gc) {
+  int num_transitions = NumberOfTransitions();
   if (num_transitions == 0) return;
   for (int i = 0; i < num_transitions; i++) {
-    Name* key = GetKey(transitions, i);
-    Map* target = GetTarget(transitions, i);
+    Name* key = GetKey(i);
+    Map* target = GetTarget(i);
     os << std::endl
        << "  " << level << "/" << i << ":" << std::setw(level * 2 + 2) << " ";
     std::stringstream ss;
@@ -1768,16 +1790,17 @@ void TransitionArray::PrintTransitionTree(std::ostream& os, Map* map,
       descriptors->PrintDescriptorDetails(os, descriptor,
                                           PropertyDetails::kForTransitions);
     }
-    TransitionArray::PrintTransitionTree(os, target, level + 1);
+    TransitionsAccessor transitions(target, no_gc);
+    transitions.PrintTransitionTree(os, level + 1, no_gc);
   }
 }
 
 void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
-  Object* transitions = map()->raw_transitions();
-  int num_transitions = TransitionArray::NumberOfTransitions(transitions);
-  if (num_transitions == 0) return;
+  DisallowHeapAllocation no_gc;
+  TransitionsAccessor ta(map(), &no_gc);
+  if (ta.NumberOfTransitions() == 0) return;
   os << "\n - transitions";
-  TransitionArray::PrintTransitions(os, transitions, false);
+  ta.PrintTransitions(os);
 }
 #endif  // defined(DEBUG) || defined(OBJECT_PRINT)
 }  // namespace internal
@@ -1847,7 +1870,10 @@ extern void _v8_internal_Print_TransitionTree(void* object) {
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
-    i::TransitionArray::PrintTransitionTree(reinterpret_cast<i::Map*>(object));
+    i::DisallowHeapAllocation no_gc;
+    i::TransitionsAccessor transitions(reinterpret_cast<i::Map*>(object),
+                                       &no_gc);
+    transitions.PrintTransitionTree();
 #endif
   }
 }

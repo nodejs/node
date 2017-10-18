@@ -6,7 +6,6 @@
 
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -16,75 +15,6 @@ namespace internal {
 
 
 const int Deoptimizer::table_entry_size_ = 10;
-
-
-int Deoptimizer::patch_size() {
-  return Assembler::kCallSequenceLength;
-}
-
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  // Empty because there is no need for relocation information for the code
-  // patching in Deoptimizer::PatchCodeForDeoptimization below.
-}
-
-
-void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
-  Address instruction_start = code->instruction_start();
-  // Invalidate the relocation information, as it will become invalid by the
-  // code patching below, and is not needed any more.
-  code->InvalidateRelocation();
-
-  // Fail hard and early if we enter this code object again.
-  byte* pointer = code->FindCodeAgeSequence();
-  if (pointer != NULL) {
-    pointer += kNoCodeAgeSequenceLength;
-  } else {
-    pointer = code->instruction_start();
-  }
-  CodePatcher patcher(isolate, pointer, 1);
-  patcher.masm()->int3();
-
-  DeoptimizationInputData* data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  int osr_offset = data->OsrPcOffset()->value();
-  if (osr_offset > 0) {
-    CodePatcher osr_patcher(isolate, instruction_start + osr_offset, 1);
-    osr_patcher.masm()->int3();
-  }
-
-  // For each LLazyBailout instruction insert a absolute call to the
-  // corresponding deoptimization entry, or a short call to an absolute
-  // jump if space is short. The absolute jumps are put in a table just
-  // before the safepoint table (space was allocated there when the Code
-  // object was created, if necessary).
-
-#ifdef DEBUG
-  Address prev_call_address = NULL;
-#endif
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  deopt_data->SetSharedFunctionInfo(Smi::kZero);
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-    // Position where Call will be patched in.
-    Address call_address = instruction_start + deopt_data->Pc(i)->value();
-    // There is room enough to write a long call instruction because we pad
-    // LLazyBailout instructions with nops if necessary.
-    CodePatcher patcher(isolate, call_address, Assembler::kCallSequenceLength);
-    patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
-                         Assembler::RelocInfoNone());
-    DCHECK(prev_call_address == NULL ||
-           call_address >= prev_call_address + patch_size());
-    DCHECK(call_address + patch_size() <= code->instruction_end());
-#ifdef DEBUG
-    prev_call_address = call_address;
-#endif
-  }
-}
-
 
 #define __ masm()->
 
@@ -97,7 +27,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
   __ subp(rsp, Immediate(kDoubleRegsSize));
 
-  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);

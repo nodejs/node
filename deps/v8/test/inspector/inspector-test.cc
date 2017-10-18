@@ -342,7 +342,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         return;
       }
 
-      v8::String::Utf8Value str(str_obj);
+      v8::String::Utf8Value str(args.GetIsolate(), str_obj);
       int n =
           static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
       if (n != str.length()) {
@@ -361,13 +361,14 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: setlocale get one string argument.");
       Exit();
     }
-    v8::String::Utf8Value str(args[0]);
+
+    v8::String::Utf8Value str(args.GetIsolate(), args[1]);
     setlocale(LC_NUMERIC, *str);
   }
 
   static bool ReadFile(v8::Isolate* isolate, v8::Local<v8::Value> name,
                        v8::internal::Vector<const char>* chars) {
-    v8::String::Utf8Value str(name);
+    v8::String::Utf8Value str(isolate, name);
     bool exists = false;
     std::string filename(*str, str.length());
     *chars = v8::internal::ReadFile(filename.c_str(), &exists);
@@ -668,6 +669,10 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     inspector->Set(ToV8String(isolate, "allowAccessorFormatting"),
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::AllowAccessorFormatting));
+    inspector->Set(
+        ToV8String(isolate, "markObjectAsNotInspectable"),
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::MarkObjectAsNotInspectable));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -789,6 +794,22 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     object
         ->SetPrivate(isolate->GetCurrentContext(), shouldFormatAccessorsPrivate,
                      v8::Null(isolate))
+        .ToChecked();
+  }
+
+  static void MarkObjectAsNotInspectable(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsObject()) {
+      fprintf(stderr, "Internal error: markObjectAsNotInspectable(object).");
+      Exit();
+    }
+    v8::Local<v8::Object> object = args[0].As<v8::Object>();
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Private> notInspectablePrivate =
+        v8::Private::ForApi(isolate, ToV8String(isolate, "notInspectable"));
+    object
+        ->SetPrivate(isolate->GetCurrentContext(), notInspectablePrivate,
+                     v8::True(isolate))
         .ToChecked();
   }
 };

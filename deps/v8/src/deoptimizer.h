@@ -6,8 +6,9 @@
 #define V8_DEOPTIMIZER_H_
 
 #include "src/allocation.h"
+#include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
-#include "src/float.h"
+#include "src/frame-constants.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
@@ -244,9 +245,9 @@ class TranslatedFrame {
 class TranslatedState {
  public:
   TranslatedState();
-  explicit TranslatedState(JavaScriptFrame* frame);
+  explicit TranslatedState(const JavaScriptFrame* frame);
 
-  void Prepare(bool has_adapted_arguments, Address stack_frame_pointer);
+  void Prepare(Address stack_frame_pointer);
 
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
@@ -373,7 +374,6 @@ class Deoptimizer : public Malloced {
     bool needs_frame;
   };
 
-  static bool TraceEnabledFor(StackFrame::Type frame_type);
   static const char* MessageFor(BailoutType type);
 
   int output_count() const { return output_count_; }
@@ -399,13 +399,6 @@ class Deoptimizer : public Malloced {
                                                         int jsframe_index,
                                                         Isolate* isolate);
 
-  // Makes sure that there is enough room in the relocation
-  // information of a code object to perform lazy deoptimization
-  // patching. If there is not enough room a new relocation
-  // information object is allocated and comments are added until it
-  // is big enough.
-  static void EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code);
-
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
@@ -425,9 +418,6 @@ class Deoptimizer : public Malloced {
       Isolate* isolate, OptimizedFunctionVisitor* visitor);
 
   static void UnlinkOptimizedCode(Code* code, Context* native_context);
-
-  // The size in bytes of the code required at a lazy deopt patch site.
-  static int patch_size();
 
   ~Deoptimizer();
 
@@ -504,7 +494,7 @@ class Deoptimizer : public Malloced {
 
   Deoptimizer(Isolate* isolate, JSFunction* function, BailoutType type,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
-  Code* FindOptimizedCode(JSFunction* function);
+  Code* FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
@@ -551,9 +541,6 @@ class Deoptimizer : public Malloced {
 
   // Deoptimizes all code marked in the given context.
   static void DeoptimizeMarkedCodeForContext(Context* native_context);
-
-  // Patch the given code so that it will deoptimize itself.
-  static void PatchCodeForDeoptimization(Isolate* isolate, Code* code);
 
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than
@@ -744,9 +731,6 @@ class FrameDescription {
 
   void SetContinuation(intptr_t pc) { continuation_ = pc; }
 
-  StackFrame::Type GetFrameType() const { return type_; }
-  void SetFrameType(StackFrame::Type type) { type_ = type; }
-
   // Argument count, including receiver.
   int parameter_count() { return parameter_count_; }
 
@@ -792,7 +776,6 @@ class FrameDescription {
   intptr_t fp_;
   intptr_t context_;
   intptr_t constant_pool_;
-  StackFrame::Type type_;
   Smi* state_;
 
   // Continuation is the PC where the execution continues after

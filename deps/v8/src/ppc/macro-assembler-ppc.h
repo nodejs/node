@@ -8,7 +8,6 @@
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/double.h"
-#include "src/frames.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -178,7 +177,7 @@ class TurboAssembler : public Assembler {
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type, Register base = no_reg,
                     int prologue_offset = 0);
-  void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
+  void Prologue(Register base, int prologue_offset = 0);
 
   // Push a standard frame, consisting of lr, fp, constant pool,
   // context and JS function
@@ -316,6 +315,13 @@ class TurboAssembler : public Assembler {
   void MultiPushDoubles(RegList dregs, Register location = sp);
   void MultiPopDoubles(RegList dregs, Register location = sp);
 
+  void PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                       Register exclusion2 = no_reg,
+                       Register exclusion3 = no_reg);
+  void PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
+
   // Load an object from the root table.
   void LoadRoot(Register destination, Heap::RootListIndex index,
                 Condition cond = al);
@@ -407,6 +413,10 @@ class TurboAssembler : public Assembler {
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
             Condition cond = al);
   void Call(Label* target);
+
+  void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
+    Call(target, rmode);
+  }
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -705,11 +715,6 @@ class MacroAssembler : public TurboAssembler {
                      pointers_to_here_check_for_value);
   }
 
-  // Notify the garbage collector that we wrote a code entry into a
-  // JSFunction. Only scratch is clobbered by the operation.
-  void RecordWriteCodeEntryField(Register js_function, Register code_entry,
-                                 Register scratch);
-
   void RecordWriteForMap(Register object, Register map, Register dst,
                          LinkRegisterStatus lr_status, SaveFPRegsMode save_fp);
 
@@ -724,19 +729,10 @@ class MacroAssembler : public TurboAssembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  void PopCommonFrame(Register marker_reg = no_reg);
-
-  void PushObject(Handle<Object> handle);
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-  // Store value in register src in the safepoint stack slot for
-  // register dst.
-  void StoreToSafepointRegisterSlot(Register src, Register dst);
-  // Load the value of the src register from its safepoint stack slot
-  // into register dst.
-  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // Loads the constant pool pointer (kConstantPoolRegister).
   void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
@@ -746,10 +742,6 @@ class MacroAssembler : public TurboAssembler {
   // from C.
   // Does not handle errors.
   void FlushICache(Register address, size_t size, Register scratch);
-
-
-
-
 
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.
@@ -763,8 +755,6 @@ class MacroAssembler : public TurboAssembler {
   void LeaveExitFrame(bool save_doubles, Register argument_count,
                       bool restore_context,
                       bool argument_count_is_length = false);
-
-  void LoadContext(Register dst, int context_chain_length);
 
   // Load the global object from the current context.
   void LoadGlobalObject(Register dst) {
@@ -838,8 +828,7 @@ class MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
                           const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag,
-                          const CallWrapper& call_wrapper);
+                          const ParameterCount& actual, InvokeFlag flag);
 
   // On function call, call into the debugger if necessary.
   void CheckDebugHook(Register fun, Register new_target,
@@ -849,19 +838,14 @@ class MacroAssembler : public TurboAssembler {
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register new_target,
-                      const ParameterCount& actual, InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
+                      const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
+                      const ParameterCount& actual, InvokeFlag flag);
 
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
-
-  void IsObjectJSStringType(Register object, Register scratch, Label* fail);
+                      const ParameterCount& actual, InvokeFlag flag);
 
   void DebugBreak();
   // Frame restart support
@@ -877,44 +861,6 @@ class MacroAssembler : public TurboAssembler {
   void PopStackHandler();
 
   // ---------------------------------------------------------------------------
-  // Inline caching support
-
-  void GetNumberHash(Register t0, Register scratch);
-
-  inline void MarkCode(NopMarkerTypes type) { nop(type); }
-
-  // Check if the given instruction is a 'type' marker.
-  // i.e. check if is is a mov r<type>, r<type> (referenced as nop(type))
-  // These instructions are generated to mark special location in the code,
-  // like some special IC code.
-  static inline bool IsMarkedCode(Instr instr, int type) {
-    DCHECK((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER));
-    return IsNop(instr, type);
-  }
-
-
-  static inline int GetCodeMarker(Instr instr) {
-    int dst_reg_offset = 12;
-    int dst_mask = 0xf << dst_reg_offset;
-    int src_mask = 0xf;
-    int dst_reg = (instr & dst_mask) >> dst_reg_offset;
-    int src_reg = instr & src_mask;
-    uint32_t non_register_mask = ~(dst_mask | src_mask);
-    uint32_t mov_mask = al | 13 << 21;
-
-    // Return <n> if we have a mov rn rn, else return -1.
-    int type = ((instr & non_register_mask) == mov_mask) &&
-                       (dst_reg == src_reg) && (FIRST_IC_MARKER <= dst_reg) &&
-                       (dst_reg < LAST_CODE_MARKER)
-                   ? src_reg
-                   : -1;
-    DCHECK((type == -1) ||
-           ((FIRST_IC_MARKER <= type) && (type < LAST_CODE_MARKER)));
-    return type;
-  }
-
-
-  // ---------------------------------------------------------------------------
   // Allocation support
 
   // Allocate an object in new space or old space. The object_size is
@@ -927,38 +873,11 @@ class MacroAssembler : public TurboAssembler {
   void Allocate(int object_size, Register result, Register scratch1,
                 Register scratch2, Label* gc_required, AllocationFlags flags);
 
-  void Allocate(Register object_size, Register result, Register result_end,
-                Register scratch, Label* gc_required, AllocationFlags flags);
-
-  // Allocates a heap number or jumps to the gc_required label if the young
-  // space is full and a scavenge is needed. All registers are clobbered also
-  // when control continues at the gc_required label.
-  void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
-                          Register heap_number_map, Label* gc_required,
-                          MutableMode mode = IMMUTABLE);
-  void AllocateHeapNumberWithValue(Register result, DoubleRegister value,
-                                   Register scratch1, Register scratch2,
-                                   Register heap_number_map,
-                                   Label* gc_required);
-
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
   // and {value}.
   void AllocateJSValue(Register result, Register constructor, Register value,
                        Register scratch1, Register scratch2,
                        Label* gc_required);
-
-  // Initialize fields with filler values.  |count| fields starting at
-  // |current_address| are overwritten with the value in |filler|.  At the end
-  // the loop, |current_address| points at the next uninitialized field.
-  // |count| is assumed to be non-zero.
-  void InitializeNFieldsWithFiller(Register current_address, Register count,
-                                   Register filler);
-
-  // Initialize fields with filler values.  Fields starting at |current_address|
-  // not including |end_address| are overwritten with the value in |filler|.  At
-  // the end the loop, |current_address| takes the value of |end_address|.
-  void InitializeFieldsWithFiller(Register current_address,
-                                  Register end_address, Register filler);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -1006,7 +925,6 @@ class MacroAssembler : public TurboAssembler {
   void CheckMap(Register obj, Register scratch, Heap::RootListIndex index,
                 Label* fail, SmiCheckType smi_check_type);
 
-
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
   // Load the value of the weak cell in the value register. Branch to the given
@@ -1034,90 +952,13 @@ class MacroAssembler : public TurboAssembler {
     bne(if_not_equal);
   }
 
-  // Load and check the instance type of an object for being a string.
-  // Loads the type into the second argument register.
-  // Returns a condition that will be enabled if the object was a string.
-  Condition IsObjectStringType(Register obj, Register type) {
-    LoadP(type, FieldMemOperand(obj, HeapObject::kMapOffset));
-    lbz(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
-    andi(r0, type, Operand(kIsNotStringMask));
-    DCHECK_EQ(0u, kStringTag);
-    return eq;
-  }
-
-  // Get the number of least significant bits from a register
-  void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
-  void GetLeastBitsFromInt32(Register dst, Register src, int mun_least_bits);
-
   // Load the value of a smi object into a double register.
   void SmiToDouble(DoubleRegister value, Register smi);
-
-  // Check if a double can be exactly represented as a signed 32-bit integer.
-  // CR_EQ in cr7 is set if true.
-  void TestDoubleIsInt32(DoubleRegister double_input, Register scratch1,
-                         Register scratch2, DoubleRegister double_scratch);
-
-  // Check if a double is equal to -0.0.
-  // CR_EQ in cr7 holds the result.
-  void TestDoubleIsMinusZero(DoubleRegister input, Register scratch1,
-                             Register scratch2);
-
-  // Check the sign of a double.
-  // CR_LT in cr7 holds the result.
-  void TestDoubleSign(DoubleRegister input, Register scratch);
-  void TestHeapNumberSign(Register input, Register scratch);
 
   // Try to convert a double to a signed 32-bit integer.
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,
                              Register scratch, DoubleRegister double_scratch);
-
-  // Floor a double and writes the value to the result register.
-  // Go to exact if the conversion is exact (to be able to test -0),
-  // fall through calling code if an overflow occurred, else go to done.
-  // In return, input_high is loaded with high bits of input.
-  void TryInt32Floor(Register result, DoubleRegister double_input,
-                     Register input_high, Register scratch,
-                     DoubleRegister double_scratch, Label* done, Label* exact);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
-  // succeeds, otherwise falls through if result is saturated. On return
-  // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
-  void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
-                                  Label* done);
-
-  // Performs a truncating conversion of a floating point number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
-  // Exits with 'result' holding the answer.
-  void TruncateDoubleToI(Register result, DoubleRegister double_input);
-
-  // Performs a truncating conversion of a heap number as used by
-  // the JS bitwise operations. See ECMA-262 9.5: ToInt32. 'result' and 'input'
-  // must be different registers.  Exits with 'result' holding the answer.
-  void TruncateHeapNumberToI(Register result, Register object);
-
-  // Converts the smi or heap number in object to an int32 using the rules
-  // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
-  // and brought into the range -2^31 .. +2^31 - 1. 'result' and 'input' must be
-  // different registers.
-  void TruncateNumberToI(Register object, Register result,
-                         Register heap_number_map, Register scratch1,
-                         Label* not_int32);
-
-  // Overflow handling functions.
-  // Usage: call the appropriate arithmetic function and then call one of the
-  // flow control functions with the corresponding label.
-
-  void BranchOnOverflow(Label* label) { blt(label, cr0); }
-
-  void BranchOnNoOverflow(Label* label) { bge(label, cr0); }
-
-  void RetOnOverflow(void) { Ret(lt, cr0); }
-
-  void RetOnNoOverflow(void) { Ret(ge, cr0); }
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -1152,9 +993,6 @@ class MacroAssembler : public TurboAssembler {
     CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
   }
 
-  // Convenience function: call an external reference.
-  void CallExternalReference(const ExternalReference& ext, int num_arguments);
-
   // Convenience function: tail call a runtime routine (jump).
   void TailCallRuntime(Runtime::FunctionId fid);
 
@@ -1163,10 +1001,6 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
-
-  // Emit code for a truncating division by a constant. The dividend register is
-  // unchanged and ip gets clobbered. Dividend and result must be different.
-  void TruncatingDiv(Register result, Register dividend, int32_t divisor);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -1179,28 +1013,6 @@ class MacroAssembler : public TurboAssembler {
                         Register scratch2);
 
   // ---------------------------------------------------------------------------
-  // Number utilities
-
-  // Check whether the value of reg is a power of two and not zero. If not
-  // control continues at the label not_power_of_two. If reg is a power of two
-  // the register scratch contains the value of (reg - 1) when control falls
-  // through.
-  void JumpIfNotPowerOfTwoOrZero(Register reg, Register scratch,
-                                 Label* not_power_of_two_or_zero);
-  // Check whether the value of reg is a power of two and not zero.
-  // Control falls through if it is, with scratch containing the mask
-  // value (reg - 1).
-  // Otherwise control jumps to the 'zero_and_neg' label if the value of reg is
-  // zero or negative, or jumps to the 'not_power_of_two' label if the value is
-  // strictly positive but not a power of two.
-  void JumpIfNotPowerOfTwoOrZeroAndNeg(Register reg, Register scratch,
-                                       Label* zero_and_neg,
-                                       Label* not_power_of_two);
-
-
-
-
-  // ---------------------------------------------------------------------------
   // Smi utilities
 
   // Shift left by kSmiShift
@@ -1208,34 +1020,6 @@ class MacroAssembler : public TurboAssembler {
   void SmiTag(Register dst, Register src, RCBit rc = LeaveRC) {
     ShiftLeftImm(dst, src, Operand(kSmiShift), rc);
   }
-
-#if !V8_TARGET_ARCH_PPC64
-  // Test for overflow < 0: use BranchOnOverflow() or BranchOnNoOverflow().
-  void SmiTagCheckOverflow(Register reg, Register overflow);
-  void SmiTagCheckOverflow(Register dst, Register src, Register overflow);
-
-  inline void JumpIfNotSmiCandidate(Register value, Register scratch,
-                                    Label* not_smi_label) {
-    // High bits must be identical to fit into an Smi
-    STATIC_ASSERT(kSmiShift == 1);
-    addis(scratch, value, Operand(0x40000000u >> 16));
-    cmpi(scratch, Operand::Zero());
-    blt(not_smi_label);
-  }
-#endif
-  inline void TestUnsignedSmiCandidate(Register value, Register scratch) {
-    // The test is different for unsigned int values. Since we need
-    // the value to be in the range of a positive smi, we can't
-    // handle any of the high bits being set in the value.
-    TestBitRange(value, kBitsPerPointer - 1, kBitsPerPointer - 1 - kSmiShift,
-                 scratch);
-  }
-  inline void JumpIfNotUnsignedSmiCandidate(Register value, Register scratch,
-                                            Label* not_smi_label) {
-    TestUnsignedSmiCandidate(value, scratch);
-    bne(not_smi_label, cr0);
-  }
-
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
 #if V8_TARGET_ARCH_PPC64
@@ -1247,82 +1031,15 @@ class MacroAssembler : public TurboAssembler {
 #endif
   }
 
-  void SmiToByteArrayOffset(Register dst, Register src) { SmiUntag(dst, src); }
-
-  void SmiToShortArrayOffset(Register dst, Register src) {
-#if V8_TARGET_ARCH_PPC64
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > 1);
-    ShiftRightArithImm(dst, src, kSmiShift - 1);
-#else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift == 1);
-    if (!dst.is(src)) {
-      mr(dst, src);
-    }
-#endif
-  }
-
-  void SmiToIntArrayOffset(Register dst, Register src) {
-#if V8_TARGET_ARCH_PPC64
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > 2);
-    ShiftRightArithImm(dst, src, kSmiShift - 2);
-#else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < 2);
-    ShiftLeftImm(dst, src, Operand(2 - kSmiShift));
-#endif
-  }
-
-#define SmiToFloatArrayOffset SmiToIntArrayOffset
-
-  void SmiToDoubleArrayOffset(Register dst, Register src) {
-#if V8_TARGET_ARCH_PPC64
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kDoubleSizeLog2);
-    ShiftRightArithImm(dst, src, kSmiShift - kDoubleSizeLog2);
-#else
-    STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kDoubleSizeLog2);
-    ShiftLeftImm(dst, src, Operand(kDoubleSizeLog2 - kSmiShift));
-#endif
-  }
-
-  void SmiToArrayOffset(Register dst, Register src, int elementSizeLog2) {
-    if (kSmiShift < elementSizeLog2) {
-      ShiftLeftImm(dst, src, Operand(elementSizeLog2 - kSmiShift));
-    } else if (kSmiShift > elementSizeLog2) {
-      ShiftRightArithImm(dst, src, kSmiShift - elementSizeLog2);
-    } else if (!dst.is(src)) {
-      mr(dst, src);
-    }
-  }
-
-  void IndexToArrayOffset(Register dst, Register src, int elementSizeLog2,
-                          bool isSmi) {
-    if (isSmi) {
-      SmiToArrayOffset(dst, src, elementSizeLog2);
-    } else {
-      ShiftLeftImm(dst, src, Operand(elementSizeLog2));
-    }
-  }
-
   // Untag the source value into destination and jump if source is a smi.
   // Souce and destination can be the same register.
   void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
-
-
-  inline void TestIfPositiveSmi(Register value, Register scratch) {
-#if V8_TARGET_ARCH_PPC64
-    rldicl(scratch, value, 1, kBitsPerPointer - (1 + kSmiTagSize), SetRC);
-#else
-    rlwinm(scratch, value, 1, kBitsPerPointer - (1 + kSmiTagSize),
-           kBitsPerPointer - 1, SetRC);
-#endif
-  }
 
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
     TestIfSmi(value, r0);
     bne(not_smi_label, cr0);
   }
-  // Jump if either of the registers contain a non-smi.
-  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
@@ -1333,7 +1050,7 @@ class MacroAssembler : public TurboAssembler {
 
 
 #if V8_TARGET_ARCH_PPC64
-  // Ensure it is permissable to read/write int value directly from
+  // Ensure it is permissible to read/write int value directly from
   // upper half of the smi.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
@@ -1361,16 +1078,6 @@ class MacroAssembler : public TurboAssembler {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // Abort execution if reg is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertIsRoot(Register reg, Heap::RootListIndex index);
-
-  // ---------------------------------------------------------------------------
-  // HeapNumber utilities
-
-  void JumpIfNotHeapNumber(Register object, Register heap_number_map,
-                           Register scratch, Label* on_not_heap_number);
-
   // ---------------------------------------------------------------------------
   // String utilities
 
@@ -1382,13 +1089,6 @@ class MacroAssembler : public TurboAssembler {
                                                     Register scratch2,
                                                     Label* failure);
 
-  // Checks if both objects are sequential one-byte strings and jumps to label
-  // if either is not.
-  void JumpIfNotBothSequentialOneByteStrings(Register first, Register second,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* not_flat_one_byte_strings);
-
   // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
@@ -1397,29 +1097,10 @@ class MacroAssembler : public TurboAssembler {
 
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
 
-  void EmitSeqStringSetCharCheck(Register string, Register index,
-                                 Register value, uint32_t encoding_mask);
-
   // ---------------------------------------------------------------------------
   // Patching helpers.
 
-  // Decode offset from constant pool load instruction(s).
-  // Caller must place the instruction word at <location> in <result>.
-  void DecodeConstantPoolOffset(Register result, Register location);
-
-  void ClampUint8(Register output_reg, Register input_reg);
-
-  // Saturate a value into 8-bit unsigned integer
-  //   if input_value < 0, output_value is 0
-  //   if input_value > 255, output_value is 255
-  //   otherwise output_value is the (int)input_value (round to nearest)
-  void ClampDoubleToUint8(Register result_reg, DoubleRegister input_reg,
-                          DoubleRegister temp_double_reg);
-
-
   void LoadInstanceDescriptors(Register map, Register descriptors);
-  void EnumLength(Register dst, Register map);
-  void NumberOfOwnDescriptors(Register dst, Register map);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);
 
@@ -1434,50 +1115,8 @@ class MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  template <typename Field>
-  void DecodeFieldToSmi(Register dst, Register src) {
-#if V8_TARGET_ARCH_PPC64
-    DecodeField<Field>(dst, src);
-    SmiTag(dst);
-#else
-    // 32-bit can do this in one instruction:
-    int start = Field::kSize + kSmiShift - 1;
-    int end = kSmiShift;
-    int rotate = kSmiShift - Field::kShift;
-    if (rotate < 0) {
-      rotate += kBitsPerPointer;
-    }
-    rlwinm(dst, src, rotate, kBitsPerPointer - start - 1,
-           kBitsPerPointer - end - 1);
-#endif
-  }
-
-  template <typename Field>
-  void DecodeFieldToSmi(Register reg) {
-    DecodeFieldToSmi<Field>(reg, reg);
-  }
-
-  // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadFeedbackVector(Register vector);
-
-
   void EnterBuiltinFrame(Register context, Register target, Register argc);
   void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
-  // Expects object in r3 and returns map with validated enum cache
-  // in r3.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Label* call_runtime);
-
-  // AllocationMemento support. Arrays may have an associated
-  // AllocationMemento object that can be checked for in order to pretransition
-  // to another type.
-  // On entry, receiver_reg should point to the array object.
-  // scratch_reg gets clobbered.
-  // If allocation info is present, condition flags are set to eq.
-  void TestJSArrayForAllocationMemento(Register receiver_reg,
-                                       Register scratch_reg,
-                                       Register scratch2_reg,
-                                       Label* no_memento_found);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1485,8 +1124,7 @@ class MacroAssembler : public TurboAssembler {
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual, Label* done,
-                      bool* definitely_mismatches, InvokeFlag flag,
-                      const CallWrapper& call_wrapper);
+                      bool* definitely_mismatches, InvokeFlag flag);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object, Register scratch,
@@ -1504,9 +1142,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
-  MemOperand SafepointRegisterSlot(Register reg);
-  MemOperand SafepointRegistersAndDoublesSlot(Register reg);
-
 
   // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.

@@ -5,6 +5,7 @@
 #include <limits.h>
 
 #include "src/base/atomic-utils.h"
+#include "src/base/platform/platform.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -125,149 +126,160 @@ TEST(AtomicValue, WithVoidStar) {
   EXPECT_EQ(&dummy, a.Value());
 }
 
-TEST(NoBarrierAtomicValue, Initial) {
-  NoBarrierAtomicValue<TestFlag> a(kA);
-  EXPECT_EQ(TestFlag::kA, a.Value());
-}
-
-TEST(NoBarrierAtomicValue, SetValue) {
-  NoBarrierAtomicValue<TestFlag> a(kB);
-  a.SetValue(kC);
-  EXPECT_EQ(TestFlag::kC, a.Value());
-}
-
-TEST(NoBarrierAtomicValue, WithVoidStar) {
-  NoBarrierAtomicValue<void*> a(nullptr);
-  NoBarrierAtomicValue<void*> dummy(nullptr);
-  EXPECT_EQ(nullptr, a.Value());
-  a.SetValue(&a);
-  EXPECT_EQ(&a, a.Value());
-}
-
-TEST(NoBarrierAtomicValue, Construction) {
-  NoBarrierAtomicValue<TestFlag> a(kA);
-  TestFlag b = kA;
-  NoBarrierAtomicValue<TestFlag>* ptr =
-      NoBarrierAtomicValue<TestFlag>::FromAddress(&b);
-  EXPECT_EQ(ptr->Value(), a.Value());
-}
-
-TEST(NoBarrierAtomicValue, ConstructionVoidStar) {
-  NoBarrierAtomicValue<void*> a(nullptr);
-  void* b = nullptr;
-  NoBarrierAtomicValue<void*>* ptr =
-      NoBarrierAtomicValue<void*>::FromAddress(&b);
-  EXPECT_EQ(ptr->Value(), a.Value());
+TEST(AsAtomic8, CompareAndSwap_Sequential) {
+  uint8_t bytes[8];
+  for (int i = 0; i < 8; i++) {
+    bytes[i] = 0xF0 + i;
+  }
+  for (int i = 0; i < 8; i++) {
+    EXPECT_EQ(0xF0 + i,
+              AsAtomic8::Release_CompareAndSwap(&bytes[i], i, 0xF7 + i));
+  }
+  for (int i = 0; i < 8; i++) {
+    EXPECT_EQ(0xF0 + i,
+              AsAtomic8::Release_CompareAndSwap(&bytes[i], 0xF0 + i, 0xF7 + i));
+  }
+  for (int i = 0; i < 8; i++) {
+    EXPECT_EQ(0xF7 + i, bytes[i]);
+  }
 }
 
 namespace {
 
-enum TestSetValue { kAA, kBB, kCC, kLastValue = kCC };
+class ByteIncrementingThread final : public Thread {
+ public:
+  ByteIncrementingThread()
+      : Thread(Options("ByteIncrementingThread")),
+        byte_addr_(nullptr),
+        increments_(0) {}
+
+  void Initialize(uint8_t* byte_addr, int increments) {
+    byte_addr_ = byte_addr;
+    increments_ = increments;
+  }
+
+  void Run() override {
+    for (int i = 0; i < increments_; i++) {
+      Increment();
+    }
+  }
+
+  void Increment() {
+    uint8_t byte;
+    do {
+      byte = AsAtomic8::Relaxed_Load(byte_addr_);
+    } while (AsAtomic8::Release_CompareAndSwap(byte_addr_, byte, byte + 1) !=
+             byte);
+  }
+
+ private:
+  uint8_t* byte_addr_;
+  int increments_;
+};
 
 }  // namespace
 
+TEST(AsAtomic8, CompareAndSwap_Concurrent) {
+  const int kIncrements = 10;
+  const int kByteCount = 8;
+  uint8_t bytes[kByteCount];
+  const int kThreadsPerByte = 4;
+  const int kThreadCount = kByteCount * kThreadsPerByte;
+  ByteIncrementingThread threads[kThreadCount];
 
-TEST(AtomicEnumSet, Constructor) {
-  AtomicEnumSet<TestSetValue> a;
-  EXPECT_TRUE(a.IsEmpty());
-  EXPECT_FALSE(a.Contains(kAA));
+  for (int i = 0; i < kByteCount; i++) {
+    AsAtomic8::Relaxed_Store(&bytes[i], i);
+    for (int j = 0; j < kThreadsPerByte; j++) {
+      threads[i * kThreadsPerByte + j].Initialize(&bytes[i], kIncrements);
+    }
+  }
+  for (int i = 0; i < kThreadCount; i++) {
+    threads[i].Start();
+  }
+
+  for (int i = 0; i < kThreadCount; i++) {
+    threads[i].Join();
+  }
+
+  for (int i = 0; i < kByteCount; i++) {
+    EXPECT_EQ(i + kIncrements * kThreadsPerByte,
+              AsAtomic8::Relaxed_Load(&bytes[i]));
+  }
 }
 
-
-TEST(AtomicEnumSet, AddSingle) {
-  AtomicEnumSet<TestSetValue> a;
-  a.Add(kAA);
-  EXPECT_FALSE(a.IsEmpty());
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_FALSE(a.Contains(kBB));
-  EXPECT_FALSE(a.Contains(kCC));
+TEST(AsAtomicWord, SetBits_Sequential) {
+  uintptr_t word = 0;
+  // Fill the word with a repeated 0xF0 pattern.
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    word = (word << 8) | 0xF0;
+  }
+  // Check the pattern.
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    EXPECT_EQ(0xF0u, (word >> (i * 8) & 0xFFu));
+  }
+  // Set the i-th byte value to i.
+  uintptr_t mask = 0xFF;
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    uintptr_t byte = static_cast<uintptr_t>(i) << (i * 8);
+    AsAtomicWord::SetBits(&word, byte, mask);
+    mask <<= 8;
+  }
+  for (unsigned i = 0; i < sizeof(word); i++) {
+    EXPECT_EQ(i, (word >> (i * 8) & 0xFFu));
+  }
 }
 
+namespace {
 
-TEST(AtomicEnumSet, AddOtherSet) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  EXPECT_FALSE(a.IsEmpty());
-  EXPECT_TRUE(b.IsEmpty());
-  b.Add(a);
-  EXPECT_FALSE(b.IsEmpty());
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_TRUE(b.Contains(kAA));
-}
+class BitSettingThread final : public Thread {
+ public:
+  BitSettingThread()
+      : Thread(Options("BitSettingThread")),
+        word_addr_(nullptr),
+        bit_index_(0) {}
 
+  void Initialize(uintptr_t* word_addr, int bit_index) {
+    word_addr_ = word_addr;
+    bit_index_ = bit_index;
+  }
 
-TEST(AtomicEnumSet, RemoveSingle) {
-  AtomicEnumSet<TestSetValue> a;
-  a.Add(kAA);
-  a.Add(kBB);
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_TRUE(a.Contains(kBB));
-  a.Remove(kAA);
-  EXPECT_FALSE(a.Contains(kAA));
-  EXPECT_TRUE(a.Contains(kBB));
-}
+  void Run() override {
+    uintptr_t bit = 1;
+    bit = bit << bit_index_;
+    AsAtomicWord::SetBits(word_addr_, bit, bit);
+  }
 
+ private:
+  uintptr_t* word_addr_;
+  int bit_index_;
+};
 
-TEST(AtomicEnumSet, RemoveOtherSet) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  a.Add(kBB);
-  b.Add(kBB);
-  a.Remove(b);
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_FALSE(a.Contains(kBB));
-  EXPECT_FALSE(a.Contains(kCC));
-}
+}  // namespace.
 
+TEST(AsAtomicWord, SetBits_Concurrent) {
+  const int kBitCount = sizeof(uintptr_t) * 8;
+  const int kThreadCount = kBitCount / 2;
+  BitSettingThread threads[kThreadCount];
 
-TEST(AtomicEnumSet, RemoveEmptySet) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  a.Add(kBB);
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_TRUE(a.Contains(kBB));
-  EXPECT_FALSE(a.Contains(kCC));
-  EXPECT_TRUE(b.IsEmpty());
-  a.Remove(b);
-  EXPECT_TRUE(a.Contains(kAA));
-  EXPECT_TRUE(a.Contains(kBB));
-  EXPECT_FALSE(a.Contains(kCC));
-}
-
-
-TEST(AtomicEnumSet, Intersect) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  b.Add(kCC);
-  a.Intersect(b);
-  EXPECT_TRUE(a.IsEmpty());
-}
-
-
-TEST(AtomicEnumSet, ContainsAnyOf) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  b.Add(kCC);
-  EXPECT_FALSE(a.ContainsAnyOf(b));
-  b.Add(kAA);
-  EXPECT_TRUE(a.ContainsAnyOf(b));
-}
-
-
-TEST(AtomicEnumSet, Equality) {
-  AtomicEnumSet<TestSetValue> a;
-  AtomicEnumSet<TestSetValue> b;
-  a.Add(kAA);
-  EXPECT_FALSE(a == b);
-  EXPECT_TRUE(a != b);
-  b.Add(kAA);
-  EXPECT_TRUE(a == b);
-  EXPECT_FALSE(a != b);
+  uintptr_t word;
+  AsAtomicWord::Relaxed_Store(&word, 0);
+  for (int i = 0; i < kThreadCount; i++) {
+    // Thread i sets bit number i * 2.
+    threads[i].Initialize(&word, i * 2);
+  }
+  for (int i = 0; i < kThreadCount; i++) {
+    threads[i].Start();
+  }
+  for (int i = 0; i < kThreadCount; i++) {
+    threads[i].Join();
+  }
+  uintptr_t actual_word = AsAtomicWord::Relaxed_Load(&word);
+  for (int i = 0; i < kBitCount; i++) {
+    // Every second bit must be set.
+    uintptr_t expected = (i % 2 == 0);
+    EXPECT_EQ(expected, actual_word & 1u);
+    actual_word >>= 1;
+  }
 }
 
 }  // namespace base

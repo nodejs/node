@@ -63,6 +63,10 @@ endif
 ifeq ($(tracemaps), on)
   GYPFLAGS += -Dv8_trace_maps=1
 endif
+# concurrentmarking=on
+ifeq ($(concurrentmarking), on)
+  GYPFLAGS += -Dv8_enable_concurrent_marking=1
+endif
 # backtrace=off
 ifeq ($(backtrace), off)
   GYPFLAGS += -Dv8_enable_backtrace=0

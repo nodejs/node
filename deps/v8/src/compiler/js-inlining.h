@@ -41,6 +41,7 @@ class JSInliner final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node);
 
  private:
+  Zone* zone() const { return local_zone_; }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;

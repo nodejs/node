@@ -82,7 +82,7 @@ InspectorTest.runTestSuite([
   {
     Protocol.Runtime.enable()
       .then(() => Protocol.Runtime.compileScript({ expression: "({a:1})", sourceURL: "boo.js", persistScript: true }))
-      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId, awaitPromise: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId, awaitPromise: true, returnByValue: true }))
       .then((result) => InspectorTest.logMessage(result))
       .then(() => Protocol.Runtime.disable())
       .then(() => next());

@@ -5,13 +5,8 @@
 #ifndef V8_MIPS_CODE_STUBS_MIPS_H_
 #define V8_MIPS_CODE_STUBS_MIPS_H_
 
-#include "src/mips/frames-mips.h"
-
 namespace v8 {
 namespace internal {
-
-
-void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 
 class StringHelper : public AllStatic {
