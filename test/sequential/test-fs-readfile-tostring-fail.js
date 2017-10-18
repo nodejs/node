@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
-if (common.isAIX && Number(cp.execSync('ulimit -f')) < kStringMaxLength)
+if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
   common.skip('intensive toString tests due to file size confinements');
 
 common.refreshTmpDir();
