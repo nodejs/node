@@ -76,7 +76,32 @@
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
+ * 
+ * Node.js will not change the module version during a Major release line
+ * We will at times update the version of V8 shipped in the release line
+ * if it can be made ABI compatible with the previous version.
+ * 
+ * Module version by Node.js version:
+ * Node.js v0.10.x: 11
+ * Node.js v0.12.x: 14
+ * Node.js v4.x: 46
+ * Node.js v5.x: 47
+ * Node.js v6.x: 48
+ * Node.js v7.x: 51
+ * Node.js v8.x: 57
+ *
+ * Module version by V8 ABI version:
+ * V8 5.4: 51
+ * V8 5.5: 52
+ * V8 5.6: 53
+ * V8 5.7: 54
+ * V8 5.8: 55
+ * V8 5.9: 56
+ * V8 6.0: 57
+ * V8 6.1: 58
+ *
+ * More information can be found at https://nodejs.org/en/download/releases/
  */
-#define NODE_MODULE_VERSION 58 /* Node.js v8.0.0 */
+#define NODE_MODULE_VERSION 58
 
 #endif  // SRC_NODE_VERSION_H_
