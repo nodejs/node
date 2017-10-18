@@ -10,7 +10,7 @@
 namespace node {
 namespace http2 {
 
-#define FREELIST_MAX 1024
+#define FREELIST_MAX 10240
 
 extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
@@ -227,37 +227,36 @@ inline ssize_t Nghttp2Session::OnStreamRead(nghttp2_session* session,
   // While there is data in the queue, copy data into buf until it is full.
   // There may be data left over, which will be sent the next time nghttp
   // calls this callback.
-  while (stream->queue_head_ != nullptr) {
+  while (!stream->queue_.empty()) {
     DEBUG_HTTP2("Nghttp2Session %s: processing outbound data chunk\n",
                 handle->TypeName());
-    nghttp2_stream_write_queue* head = stream->queue_head_;
-    while (stream->queue_head_index_ < head->nbufs) {
+    nghttp2_stream_write* head = stream->queue_.front();
+    while (stream->queue_index_ < head->nbufs) {
       if (remaining == 0)
         goto end;
 
-      unsigned int n = stream->queue_head_index_;
+      unsigned int n = stream->queue_index_;
       // len is the number of bytes in head->bufs[n] that are yet to be written
-      size_t len = head->bufs[n].len - stream->queue_head_offset_;
+      size_t len = head->bufs[n].len - stream->queue_offset_;
       size_t bytes_to_write = len < remaining ? len : remaining;
       memcpy(buf + offset,
-             head->bufs[n].base + stream->queue_head_offset_,
+             head->bufs[n].base + stream->queue_offset_,
              bytes_to_write);
       offset += bytes_to_write;
       remaining -= bytes_to_write;
       if (bytes_to_write < len) {
-        stream->queue_head_offset_ += bytes_to_write;
+        stream->queue_offset_ += bytes_to_write;
       } else {
-        stream->queue_head_index_++;
-        stream->queue_head_offset_ = 0;
+        stream->queue_index_++;
+        stream->queue_offset_ = 0;
       }
     }
-    stream->queue_head_offset_ = 0;
-    stream->queue_head_index_ = 0;
-    stream->queue_head_ = head->next;
+    stream->queue_offset_ = 0;
+    stream->queue_index_ = 0;
     head->cb(head->req, 0);
     delete head;
+    stream->queue_.pop();
   }
-  stream->queue_tail_ = nullptr;
 
 end:
   // If we are no longer writable and there is no more data in the queue,
@@ -267,8 +266,8 @@ end:
   // that will wait for data to become available.
   // If neither of these flags are set, then nghttp2 will call this callback
   // again to get the data for the next DATA frame.
-  int writable = stream->queue_head_ != nullptr || stream->IsWritable();
-  if (offset == 0 && writable && stream->queue_head_ == nullptr) {
+  int writable = !stream->queue_.empty() || stream->IsWritable();
+  if (offset == 0 && writable && stream->queue_.empty()) {
     DEBUG_HTTP2("Nghttp2Session %s: deferring stream %d\n",
                 handle->TypeName(), id);
     return NGHTTP2_ERR_DEFERRED;
@@ -648,8 +647,11 @@ inline void Nghttp2Stream::ResetState(
     int options) {
   DEBUG_HTTP2("Nghttp2Stream %d: resetting stream state\n", id);
   session_ = session;
-  queue_head_ = nullptr;
-  queue_tail_ = nullptr;
+  while (!queue_.empty()) {
+    nghttp2_stream_write* head = queue_.front();
+    delete head;
+    queue_.pop();
+  }
   while (!data_chunks_.empty())
     data_chunks_.pop();
   while (!current_headers_.empty())
@@ -659,8 +661,8 @@ inline void Nghttp2Stream::ResetState(
   id_ = id;
   code_ = NGHTTP2_NO_ERROR;
   prev_local_window_size_ = 65535;
-  queue_head_index_ = 0;
-  queue_head_offset_ = 0;
+  queue_index_ = 0;
+  queue_offset_ = 0;
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
 }
 
@@ -684,13 +686,12 @@ inline void Nghttp2Stream::Destroy() {
     data_chunks_.pop();
 
   // Free any remaining outgoing data chunks.
-  while (queue_head_ != nullptr) {
-    nghttp2_stream_write_queue* head = queue_head_;
-    queue_head_ = head->next;
+  while (!queue_.empty()) {
+    nghttp2_stream_write* head = queue_.front();
     head->cb(head->req, UV_ECANCELED);
     delete head;
+    queue_.pop();
   }
-  queue_tail_ = nullptr;
 
   // Free any remaining headers
   FreeHeaders();
@@ -857,22 +858,13 @@ inline int Nghttp2Stream::Write(nghttp2_stream_write_t* req,
   }
   DEBUG_HTTP2("Nghttp2Stream %d: queuing buffers  to send, count: %d\n",
               id_, nbufs);
-  nghttp2_stream_write_queue* item = new nghttp2_stream_write_queue;
+  nghttp2_stream_write* item = new nghttp2_stream_write;
   item->cb = cb;
   item->req = req;
   item->nbufs = nbufs;
   item->bufs.AllocateSufficientStorage(nbufs);
-  req->handle = this;
-  req->item = item;
   memcpy(*(item->bufs), bufs, nbufs * sizeof(*bufs));
-
-  if (queue_head_ == nullptr) {
-    queue_head_ = item;
-    queue_tail_ = item;
-  } else {
-    queue_tail_->next = item;
-    queue_tail_ = item;
-  }
+  queue_.push(item);
   nghttp2_session_resume_data(session_->session(), id_);
   return 0;
 }

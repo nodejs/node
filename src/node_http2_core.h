@@ -42,7 +42,7 @@ class Nghttp2Stream;
 
 struct nghttp2_stream_write_t;
 
-#define MAX_BUFFER_COUNT 10
+#define MAX_BUFFER_COUNT 16
 #define SEND_BUFFER_RECOMMENDED_SIZE 4096
 
 enum nghttp2_session_type {
@@ -78,11 +78,10 @@ typedef void (*nghttp2_stream_write_cb)(
     nghttp2_stream_write_t* req,
     int status);
 
-struct nghttp2_stream_write_queue {
+struct nghttp2_stream_write {
   unsigned int nbufs = 0;
   nghttp2_stream_write_t* req = nullptr;
   nghttp2_stream_write_cb cb = nullptr;
-  nghttp2_stream_write_queue* next = nullptr;
   MaybeStackBuffer<uv_buf_t, MAX_BUFFER_COUNT> bufs;
 };
 
@@ -307,12 +306,6 @@ class Nghttp2Stream {
   inline ~Nghttp2Stream() {
 #if defined(DEBUG) && DEBUG
     CHECK_EQ(session_, nullptr);
-    CHECK_EQ(queue_head_, nullptr);
-    CHECK_EQ(queue_tail_, nullptr);
-    CHECK_EQ(data_chunks_head_, nullptr);
-    CHECK_EQ(data_chunks_tail_, nullptr);
-    CHECK_EQ(current_headers_head_, nullptr);
-    CHECK_EQ(current_headers_tail_, nullptr);
 #endif
     DEBUG_HTTP2("Nghttp2Stream %d: freed\n", id_);
   }
@@ -454,8 +447,7 @@ class Nghttp2Stream {
     // We shouldn't be in the middle of a headers block already.
     // Something bad happened if this fails
 #if defined(DEBUG) && DEBUG
-    CHECK_EQ(current_headers_head_, nullptr);
-    CHECK_EQ(current_headers_tail_, nullptr);
+    CHECK(current_headers_.empty());
 #endif
     current_headers_category_ = category;
   }
@@ -472,10 +464,9 @@ class Nghttp2Stream {
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
-  nghttp2_stream_write_queue* queue_head_ = nullptr;
-  nghttp2_stream_write_queue* queue_tail_ = nullptr;
-  unsigned int queue_head_index_ = 0;
-  size_t queue_head_offset_ = 0;
+  std::queue<nghttp2_stream_write*, std::list<nghttp2_stream_write*>> queue_;
+  unsigned int queue_index_ = 0;
+  size_t queue_offset_ = 0;
   int64_t fd_offset_ = 0;
   int64_t fd_length_ = -1;
 
@@ -502,8 +493,6 @@ class Nghttp2Stream {
 struct nghttp2_stream_write_t {
   void* data;
   int status;
-  Nghttp2Stream* handle;
-  nghttp2_stream_write_queue* item;
 };
 
 }  // namespace http2
