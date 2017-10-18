@@ -212,6 +212,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmI8x16GtU:
     case kArmI8x16GeU:
     case kArmS128Zero:
+    case kArmS128Dup:
     case kArmS128And:
     case kArmS128Or:
     case kArmS128Xor:

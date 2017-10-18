@@ -4,7 +4,7 @@
 
 // Environment Variables: LC_ALL=pt-BR.UTF8
 
-// The data files packaged with d8 currently have Brazillian Portugese
+// The data files packaged with d8 currently have Brazillian Portuguese
 // DateTimeFormat but not Collation
 
 if (this.Intl) {

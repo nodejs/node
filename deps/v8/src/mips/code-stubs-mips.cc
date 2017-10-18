@@ -4,19 +4,22 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/code-stubs.h"
 #include "src/api-arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
+#include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/frame-constants.h"
+#include "src/frames.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
-#include "src/mips/code-stubs-mips.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
+
+#include "src/mips/code-stubs-mips.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {
@@ -32,18 +35,6 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ Addu(a0, a0, Operand(3));
   __ TailCallRuntime(Runtime::kNewArray);
 }
-
-static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
-                                          Condition cc);
-static void EmitSmiNonsmiComparison(MacroAssembler* masm,
-                                    Register lhs,
-                                    Register rhs,
-                                    Label* rhs_not_nan,
-                                    Label* slow,
-                                    bool strict);
-static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
-                                           Register lhs,
-                                           Register rhs);
 
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
@@ -183,498 +174,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ Pop(scratch, scratch2, scratch3);
   __ Ret();
-}
-
-
-// Handle the case where the lhs and rhs are the same object.
-// Equality is almost reflexive (everything but NaN), so this is a test
-// for "identity and not NaN".
-static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
-                                          Condition cc) {
-  Label not_identical;
-  Label heap_number, return_equal;
-  Register exp_mask_reg = t5;
-
-  __ Branch(&not_identical, ne, a0, Operand(a1));
-
-  __ li(exp_mask_reg, Operand(HeapNumber::kExponentMask));
-
-  // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
-  // so we do the second best thing - test it ourselves.
-  // They are both equal and they are not both Smis so both of them are not
-  // Smis. If it's not a heap number, then return equal.
-  __ GetObjectType(a0, t4, t4);
-  if (cc == less || cc == greater) {
-    // Call runtime on identical JSObjects.
-    __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
-    // Call runtime on identical symbols since we need to throw a TypeError.
-    __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
-  } else {
-    __ Branch(&heap_number, eq, t4, Operand(HEAP_NUMBER_TYPE));
-    // Comparing JS objects with <=, >= is complicated.
-    if (cc != eq) {
-      __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
-      // Call runtime on identical symbols since we need to throw a TypeError.
-      __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
-      // Normally here we fall through to return_equal, but undefined is
-      // special: (undefined == undefined) == true, but
-      // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
-      if (cc == less_equal || cc == greater_equal) {
-        __ Branch(&return_equal, ne, t4, Operand(ODDBALL_TYPE));
-        __ LoadRoot(t2, Heap::kUndefinedValueRootIndex);
-        __ Branch(&return_equal, ne, a0, Operand(t2));
-        DCHECK(is_int16(GREATER) && is_int16(LESS));
-        __ Ret(USE_DELAY_SLOT);
-        if (cc == le) {
-          // undefined <= undefined should fail.
-          __ li(v0, Operand(GREATER));
-        } else  {
-          // undefined >= undefined should fail.
-          __ li(v0, Operand(LESS));
-        }
-      }
-    }
-  }
-
-  __ bind(&return_equal);
-  DCHECK(is_int16(GREATER) && is_int16(LESS));
-  __ Ret(USE_DELAY_SLOT);
-  if (cc == less) {
-    __ li(v0, Operand(GREATER));  // Things aren't less than themselves.
-  } else if (cc == greater) {
-    __ li(v0, Operand(LESS));     // Things aren't greater than themselves.
-  } else {
-    __ mov(v0, zero_reg);         // Things are <=, >=, ==, === themselves.
-  }
-
-  // For less and greater we don't have to check for NaN since the result of
-  // x < x is false regardless.  For the others here is some code to check
-  // for NaN.
-  if (cc != lt && cc != gt) {
-    __ bind(&heap_number);
-    // It is a heap number, so return non-equal if it's NaN and equal if it's
-    // not NaN.
-
-    // The representation of NaN values has all exponent bits (52..62) set,
-    // and not all mantissa bits (0..51) clear.
-    // Read top bits of double representation (second word of value).
-    __ lw(t2, FieldMemOperand(a0, HeapNumber::kExponentOffset));
-    // Test that exponent bits are all set.
-    __ And(t3, t2, Operand(exp_mask_reg));
-    // If all bits not set (ne cond), then not a NaN, objects are equal.
-    __ Branch(&return_equal, ne, t3, Operand(exp_mask_reg));
-
-    // Shift out flag and all exponent bits, retaining only mantissa.
-    __ sll(t2, t2, HeapNumber::kNonMantissaBitsInTopWord);
-    // Or with all low-bits of mantissa.
-    __ lw(t3, FieldMemOperand(a0, HeapNumber::kMantissaOffset));
-    __ Or(v0, t3, Operand(t2));
-    // For equal we already have the right value in v0:  Return zero (equal)
-    // if all bits in mantissa are zero (it's an Infinity) and non-zero if
-    // not (it's a NaN).  For <= and >= we need to load v0 with the failing
-    // value if it's a NaN.
-    if (cc != eq) {
-      // All-zero means Infinity means equal.
-      __ Ret(eq, v0, Operand(zero_reg));
-      DCHECK(is_int16(GREATER) && is_int16(LESS));
-      __ Ret(USE_DELAY_SLOT);
-      if (cc == le) {
-        __ li(v0, Operand(GREATER));  // NaN <= NaN should fail.
-      } else {
-        __ li(v0, Operand(LESS));     // NaN >= NaN should fail.
-      }
-    }
-  }
-  // No fall through here.
-
-  __ bind(&not_identical);
-}
-
-
-static void EmitSmiNonsmiComparison(MacroAssembler* masm,
-                                    Register lhs,
-                                    Register rhs,
-                                    Label* both_loaded_as_doubles,
-                                    Label* slow,
-                                    bool strict) {
-  DCHECK((lhs.is(a0) && rhs.is(a1)) ||
-         (lhs.is(a1) && rhs.is(a0)));
-
-  Label lhs_is_smi;
-  __ JumpIfSmi(lhs, &lhs_is_smi);
-  // Rhs is a Smi.
-  // Check whether the non-smi is a heap number.
-  __ GetObjectType(lhs, t4, t4);
-  if (strict) {
-    // If lhs was not a number and rhs was a Smi then strict equality cannot
-    // succeed. Return non-equal (lhs is already not zero).
-    __ Ret(USE_DELAY_SLOT, ne, t4, Operand(HEAP_NUMBER_TYPE));
-    __ mov(v0, lhs);
-  } else {
-    // Smi compared non-strictly with a non-Smi non-heap-number. Call
-    // the runtime.
-    __ Branch(slow, ne, t4, Operand(HEAP_NUMBER_TYPE));
-  }
-
-  // Rhs is a smi, lhs is a number.
-  // Convert smi rhs to double.
-  __ sra(at, rhs, kSmiTagSize);
-  __ mtc1(at, f14);
-  __ cvt_d_w(f14, f14);
-  __ Ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-
-  // We now have both loaded as doubles.
-  __ jmp(both_loaded_as_doubles);
-
-  __ bind(&lhs_is_smi);
-  // Lhs is a Smi.  Check whether the non-smi is a heap number.
-  __ GetObjectType(rhs, t4, t4);
-  if (strict) {
-    // If lhs was not a number and rhs was a Smi then strict equality cannot
-    // succeed. Return non-equal.
-    __ Ret(USE_DELAY_SLOT, ne, t4, Operand(HEAP_NUMBER_TYPE));
-    __ li(v0, Operand(1));
-  } else {
-    // Smi compared non-strictly with a non-Smi non-heap-number. Call
-    // the runtime.
-    __ Branch(slow, ne, t4, Operand(HEAP_NUMBER_TYPE));
-  }
-
-  // Lhs is a smi, rhs is a number.
-  // Convert smi lhs to double.
-  __ sra(at, lhs, kSmiTagSize);
-  __ mtc1(at, f12);
-  __ cvt_d_w(f12, f12);
-  __ Ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-  // Fall through to both_loaded_as_doubles.
-}
-
-
-static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
-                                           Register lhs,
-                                           Register rhs) {
-    // If either operand is a JS object or an oddball value, then they are
-    // not equal since their pointers are different.
-    // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    Label first_non_object;
-    // Get the type of the first operand into a2 and compare it with
-    // FIRST_JS_RECEIVER_TYPE.
-    __ GetObjectType(lhs, a2, a2);
-    __ Branch(&first_non_object, less, a2, Operand(FIRST_JS_RECEIVER_TYPE));
-
-    // Return non-zero.
-    Label return_not_equal;
-    __ bind(&return_not_equal);
-    __ Ret(USE_DELAY_SLOT);
-    __ li(v0, Operand(1));
-
-    __ bind(&first_non_object);
-    // Check for oddballs: true, false, null, undefined.
-    __ Branch(&return_not_equal, eq, a2, Operand(ODDBALL_TYPE));
-
-    __ GetObjectType(rhs, a3, a3);
-    __ Branch(&return_not_equal, greater, a3, Operand(FIRST_JS_RECEIVER_TYPE));
-
-    // Check for oddballs: true, false, null, undefined.
-    __ Branch(&return_not_equal, eq, a3, Operand(ODDBALL_TYPE));
-
-    // Now that we have the types we might as well check for
-    // internalized-internalized.
-    STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-    __ Or(a2, a2, Operand(a3));
-    __ And(at, a2, Operand(kIsNotStringMask | kIsNotInternalizedMask));
-    __ Branch(&return_not_equal, eq, at, Operand(zero_reg));
-}
-
-
-static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
-                                       Register lhs,
-                                       Register rhs,
-                                       Label* both_loaded_as_doubles,
-                                       Label* not_heap_numbers,
-                                       Label* slow) {
-  __ GetObjectType(lhs, a3, a2);
-  __ Branch(not_heap_numbers, ne, a2, Operand(HEAP_NUMBER_TYPE));
-  __ lw(a2, FieldMemOperand(rhs, HeapObject::kMapOffset));
-  // If first was a heap number & second wasn't, go to slow case.
-  __ Branch(slow, ne, a3, Operand(a2));
-
-  // Both are heap numbers. Load them up then jump to the code we have
-  // for that.
-  __ Ldc1(f12, FieldMemOperand(lhs, HeapNumber::kValueOffset));
-  __ Ldc1(f14, FieldMemOperand(rhs, HeapNumber::kValueOffset));
-
-  __ jmp(both_loaded_as_doubles);
-}
-
-
-// Fast negative check for internalized-to-internalized equality.
-static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
-                                                     Register lhs, Register rhs,
-                                                     Label* possible_strings,
-                                                     Label* runtime_call) {
-  DCHECK((lhs.is(a0) && rhs.is(a1)) ||
-         (lhs.is(a1) && rhs.is(a0)));
-
-  // a2 is object type of rhs.
-  Label object_test, return_equal, return_unequal, undetectable;
-  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-  __ And(at, a2, Operand(kIsNotStringMask));
-  __ Branch(&object_test, ne, at, Operand(zero_reg));
-  __ And(at, a2, Operand(kIsNotInternalizedMask));
-  __ Branch(possible_strings, ne, at, Operand(zero_reg));
-  __ GetObjectType(rhs, a3, a3);
-  __ Branch(runtime_call, ge, a3, Operand(FIRST_NONSTRING_TYPE));
-  __ And(at, a3, Operand(kIsNotInternalizedMask));
-  __ Branch(possible_strings, ne, at, Operand(zero_reg));
-
-  // Both are internalized. We already checked they weren't the same pointer so
-  // they are not equal. Return non-equal by returning the non-zero object
-  // pointer in v0.
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);  // In delay slot.
-
-  __ bind(&object_test);
-  __ lw(a2, FieldMemOperand(lhs, HeapObject::kMapOffset));
-  __ lw(a3, FieldMemOperand(rhs, HeapObject::kMapOffset));
-  __ lbu(t0, FieldMemOperand(a2, Map::kBitFieldOffset));
-  __ lbu(t1, FieldMemOperand(a3, Map::kBitFieldOffset));
-  __ And(at, t0, Operand(1 << Map::kIsUndetectable));
-  __ Branch(&undetectable, ne, at, Operand(zero_reg));
-  __ And(at, t1, Operand(1 << Map::kIsUndetectable));
-  __ Branch(&return_unequal, ne, at, Operand(zero_reg));
-
-  __ GetInstanceType(a2, a2);
-  __ Branch(runtime_call, lt, a2, Operand(FIRST_JS_RECEIVER_TYPE));
-  __ GetInstanceType(a3, a3);
-  __ Branch(runtime_call, lt, a3, Operand(FIRST_JS_RECEIVER_TYPE));
-
-  __ bind(&return_unequal);
-  // Return non-equal by returning the non-zero object pointer in v0.
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, a0);  // In delay slot.
-
-  __ bind(&undetectable);
-  __ And(at, t1, Operand(1 << Map::kIsUndetectable));
-  __ Branch(&return_unequal, eq, at, Operand(zero_reg));
-
-  // If both sides are JSReceivers, then the result is false according to
-  // the HTML specification, which says that only comparisons with null or
-  // undefined are affected by special casing for document.all.
-  __ GetInstanceType(a2, a2);
-  __ Branch(&return_equal, eq, a2, Operand(ODDBALL_TYPE));
-  __ GetInstanceType(a3, a3);
-  __ Branch(&return_unequal, ne, a3, Operand(ODDBALL_TYPE));
-
-  __ bind(&return_equal);
-  __ Ret(USE_DELAY_SLOT);
-  __ li(v0, Operand(EQUAL));  // In delay slot.
-}
-
-
-static void CompareICStub_CheckInputType(MacroAssembler* masm, Register input,
-                                         Register scratch,
-                                         CompareICState::State expected,
-                                         Label* fail) {
-  Label ok;
-  if (expected == CompareICState::SMI) {
-    __ JumpIfNotSmi(input, fail);
-  } else if (expected == CompareICState::NUMBER) {
-    __ JumpIfSmi(input, &ok);
-    __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
-                DONT_DO_SMI_CHECK);
-  }
-  // We could be strict about internalized/string here, but as long as
-  // hydrogen doesn't care, the stub doesn't have to care either.
-  __ bind(&ok);
-}
-
-
-// On entry a1 and a2 are the values to be compared.
-// On exit a0 is 0, positive or negative to indicate the result of
-// the comparison.
-void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
-  Register lhs = a1;
-  Register rhs = a0;
-  Condition cc = GetCondition();
-
-  Label miss;
-  CompareICStub_CheckInputType(masm, lhs, a2, left(), &miss);
-  CompareICStub_CheckInputType(masm, rhs, a3, right(), &miss);
-
-  Label slow;  // Call builtin.
-  Label not_smis, both_loaded_as_doubles;
-
-  Label not_two_smis, smi_done;
-  __ Or(a2, a1, a0);
-  __ JumpIfNotSmi(a2, &not_two_smis);
-  __ sra(a1, a1, 1);
-  __ sra(a0, a0, 1);
-  __ Ret(USE_DELAY_SLOT);
-  __ subu(v0, a1, a0);
-  __ bind(&not_two_smis);
-
-  // NOTICE! This code is only reached after a smi-fast-case check, so
-  // it is certain that at least one operand isn't a smi.
-
-  // Handle the case where the objects are identical.  Either returns the answer
-  // or goes to slow.  Only falls through if the objects were not identical.
-  EmitIdenticalObjectComparison(masm, &slow, cc);
-
-  // If either is a Smi (we know that not both are), then they can only
-  // be strictly equal if the other is a HeapNumber.
-  STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
-  __ And(t2, lhs, Operand(rhs));
-  __ JumpIfNotSmi(t2, &not_smis, t0);
-  // One operand is a smi. EmitSmiNonsmiComparison generates code that can:
-  // 1) Return the answer.
-  // 2) Go to slow.
-  // 3) Fall through to both_loaded_as_doubles.
-  // 4) Jump to rhs_not_nan.
-  // In cases 3 and 4 we have found out we were dealing with a number-number
-  // comparison and the numbers have been loaded into f12 and f14 as doubles,
-  // or in GP registers (a0, a1, a2, a3) depending on the presence of the FPU.
-  EmitSmiNonsmiComparison(masm, lhs, rhs,
-                          &both_loaded_as_doubles, &slow, strict());
-
-  __ bind(&both_loaded_as_doubles);
-  // f12, f14 are the double representations of the left hand side
-  // and the right hand side if we have FPU. Otherwise a2, a3 represent
-  // left hand side and a0, a1 represent right hand side.
-  Label nan;
-  __ li(t0, Operand(LESS));
-  __ li(t1, Operand(GREATER));
-  __ li(t2, Operand(EQUAL));
-
-  // Check if either rhs or lhs is NaN.
-  __ BranchF(NULL, &nan, eq, f12, f14);
-
-  // Check if LESS condition is satisfied. If true, move conditionally
-  // result to v0.
-  if (!IsMipsArchVariant(kMips32r6)) {
-    __ c(OLT, D, f12, f14);
-    __ Movt(v0, t0);
-    // Use previous check to store conditionally to v0 oposite condition
-    // (GREATER). If rhs is equal to lhs, this will be corrected in next
-    // check.
-    __ Movf(v0, t1);
-    // Check if EQUAL condition is satisfied. If true, move conditionally
-    // result to v0.
-    __ c(EQ, D, f12, f14);
-    __ Movt(v0, t2);
-  } else {
-    Label skip;
-    __ BranchF(USE_DELAY_SLOT, &skip, NULL, lt, f12, f14);
-    __ mov(v0, t0);  // Return LESS as result.
-
-    __ BranchF(USE_DELAY_SLOT, &skip, NULL, eq, f12, f14);
-    __ mov(v0, t2);  // Return EQUAL as result.
-
-    __ mov(v0, t1);  // Return GREATER as result.
-    __ bind(&skip);
-  }
-
-  __ Ret();
-
-  __ bind(&nan);
-  // NaN comparisons always fail.
-  // Load whatever we need in v0 to make the comparison fail.
-  DCHECK(is_int16(GREATER) && is_int16(LESS));
-  __ Ret(USE_DELAY_SLOT);
-  if (cc == lt || cc == le) {
-    __ li(v0, Operand(GREATER));
-  } else {
-    __ li(v0, Operand(LESS));
-  }
-
-
-  __ bind(&not_smis);
-  // At this point we know we are dealing with two different objects,
-  // and neither of them is a Smi. The objects are in lhs_ and rhs_.
-  if (strict()) {
-    // This returns non-equal for some object types, or falls through if it
-    // was not lucky.
-    EmitStrictTwoHeapObjectCompare(masm, lhs, rhs);
-  }
-
-  Label check_for_internalized_strings;
-  Label flat_string_check;
-  // Check for heap-number-heap-number comparison. Can jump to slow case,
-  // or load both doubles and jump to the code that handles
-  // that case. If the inputs are not doubles then jumps to
-  // check_for_internalized_strings.
-  // In this case a2 will contain the type of lhs_.
-  EmitCheckForTwoHeapNumbers(masm,
-                             lhs,
-                             rhs,
-                             &both_loaded_as_doubles,
-                             &check_for_internalized_strings,
-                             &flat_string_check);
-
-  __ bind(&check_for_internalized_strings);
-  if (cc == eq && !strict()) {
-    // Returns an answer for two internalized strings or two
-    // detectable objects.
-    // Otherwise jumps to string case or not both strings case.
-    // Assumes that a2 is the type of lhs_ on entry.
-    EmitCheckForInternalizedStringsOrObjects(
-        masm, lhs, rhs, &flat_string_check, &slow);
-  }
-
-  // Check for both being sequential one-byte strings,
-  // and inline if that is the case.
-  __ bind(&flat_string_check);
-
-  __ JumpIfNonSmisNotBothSequentialOneByteStrings(lhs, rhs, a2, a3, &slow);
-
-  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, a2,
-                      a3);
-  if (cc == eq) {
-    StringHelper::GenerateFlatOneByteStringEquals(masm, lhs, rhs, a2, a3, t0);
-  } else {
-    StringHelper::GenerateCompareFlatOneByteStrings(masm, lhs, rhs, a2, a3, t0,
-                                                    t1);
-  }
-  // Never falls through to here.
-
-  __ bind(&slow);
-  if (cc == eq) {
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(cp);
-      __ Call(strict() ? isolate()->builtins()->StrictEqual()
-                       : isolate()->builtins()->Equal(),
-              RelocInfo::CODE_TARGET);
-      __ Pop(cp);
-    }
-    // Turn true into 0 and false into some non-zero value.
-    STATIC_ASSERT(EQUAL == 0);
-    __ LoadRoot(a0, Heap::kTrueValueRootIndex);
-    __ Ret(USE_DELAY_SLOT);
-    __ subu(v0, v0, a0);  // In delay slot.
-  } else {
-    // Prepare for call to builtin. Push object pointers, a0 (lhs) first,
-    // a1 (rhs) second.
-    __ Push(lhs, rhs);
-    int ncr;  // NaN compare result.
-    if (cc == lt || cc == le) {
-      ncr = GREATER;
-    } else {
-      DCHECK(cc == gt || cc == ge);  // Remaining cases.
-      ncr = LESS;
-    }
-    __ li(a0, Operand(Smi::FromInt(ncr)));
-    __ push(a0);
-
-    // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-    // tagged as a small integer.
-    __ TailCallRuntime(Runtime::kCompare);
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
 }
 
 
@@ -850,8 +349,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  CreateWeakCellStub::GenerateAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
@@ -881,6 +378,8 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(isolate, 1, kDontSaveFPRegs);
   stub.GetCode();
+  CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
+  save_doubles.GetCode();
 }
 
 
@@ -1196,18 +695,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // 4 args slots
   // args
 
-  if (type() == StackFrame::ENTRY_CONSTRUCT) {
-    ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
-                                      isolate);
-    __ li(t0, Operand(construct_entry));
+  if (type() == StackFrame::CONSTRUCT_ENTRY) {
+    __ Call(BUILTIN_CODE(isolate, JSConstructEntryTrampoline),
+            RelocInfo::CODE_TARGET);
   } else {
-    ExternalReference entry(Builtins::kJSEntryTrampoline, masm->isolate());
-    __ li(t0, Operand(entry));
+    __ Call(BUILTIN_CODE(isolate, JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
-  __ lw(t9, MemOperand(t0));  // Deref address.
-
-  // Call JSEntryTrampoline.
-  __ Call(t9, Code::kHeaderSize - kHeapObjectTag);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();
@@ -1238,260 +731,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ MultiPop(kCalleeSaved | ra.bit());
   // Return.
   __ Jump(ra);
-}
-
-
-static void CallStubInRecordCallTarget(MacroAssembler* masm, CodeStub* stub) {
-  // a0 : number of arguments to the construct function
-  // a2 : feedback vector
-  // a3 : slot in feedback vector (Smi)
-  // a1 : the function to call
-  FrameScope scope(masm, StackFrame::INTERNAL);
-  const RegList kSavedRegs = 1 << 4 |  // a0
-                             1 << 5 |  // a1
-                             1 << 6 |  // a2
-                             1 << 7 |  // a3
-                             1 << cp.code();
-
-  // Number-of-arguments register must be smi-tagged to call out.
-  __ SmiTag(a0);
-  __ MultiPush(kSavedRegs);
-
-  __ CallStub(stub);
-
-  __ MultiPop(kSavedRegs);
-  __ SmiUntag(a0);
-}
-
-
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
-  // Cache the called function in a feedback vector slot.  Cache states
-  // are uninitialized, monomorphic (indicated by a JSFunction), and
-  // megamorphic.
-  // a0 : number of arguments to the construct function
-  // a1 : the function to call
-  // a2 : feedback vector
-  // a3 : slot in feedback vector (Smi)
-  Label initialize, done, miss, megamorphic, not_array_function;
-
-  DCHECK_EQ(*FeedbackVector::MegamorphicSentinel(masm->isolate()),
-            masm->isolate()->heap()->megamorphic_symbol());
-  DCHECK_EQ(*FeedbackVector::UninitializedSentinel(masm->isolate()),
-            masm->isolate()->heap()->uninitialized_symbol());
-
-  // Load the cache state into t2.
-  __ Lsa(t2, a2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ lw(t2, FieldMemOperand(t2, FixedArray::kHeaderSize));
-
-  // A monomorphic cache hit or an already megamorphic state: invoke the
-  // function without changing the state.
-  // We don't know if t2 is a WeakCell or a Symbol, but it's harmless to read at
-  // this position in a symbol (see static asserts in feedback-vector.h).
-  Label check_allocation_site;
-  Register feedback_map = t1;
-  Register weak_value = t4;
-  __ lw(weak_value, FieldMemOperand(t2, WeakCell::kValueOffset));
-  __ Branch(&done, eq, a1, Operand(weak_value));
-  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-  __ Branch(&done, eq, t2, Operand(at));
-  __ lw(feedback_map, FieldMemOperand(t2, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kWeakCellMapRootIndex);
-  __ Branch(&check_allocation_site, ne, feedback_map, Operand(at));
-
-  // If the weak cell is cleared, we have a new chance to become monomorphic.
-  __ JumpIfSmi(weak_value, &initialize);
-  __ jmp(&megamorphic);
-
-  __ bind(&check_allocation_site);
-  // If we came here, we need to see if we are the array function.
-  // If we didn't have a matching function, and we didn't find the megamorph
-  // sentinel, then we have in the slot either some other function or an
-  // AllocationSite.
-  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-  __ Branch(&miss, ne, feedback_map, Operand(at));
-
-  // Make sure the function is the Array() function
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, t2);
-  __ Branch(&megamorphic, ne, a1, Operand(t2));
-  __ jmp(&done);
-
-  __ bind(&miss);
-
-  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
-  // megamorphic.
-  __ LoadRoot(at, Heap::kuninitialized_symbolRootIndex);
-  __ Branch(&initialize, eq, t2, Operand(at));
-  // MegamorphicSentinel is an immortal immovable object (undefined) so no
-  // write-barrier is needed.
-  __ bind(&megamorphic);
-  __ Lsa(t2, a2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
-  __ sw(at, FieldMemOperand(t2, FixedArray::kHeaderSize));
-  __ jmp(&done);
-
-  // An uninitialized cache is patched with the function.
-  __ bind(&initialize);
-  // Make sure the function is the Array() function.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, t2);
-  __ Branch(&not_array_function, ne, a1, Operand(t2));
-
-  // The target function is the Array constructor,
-  // Create an AllocationSite if we don't already have it, store it in the
-  // slot.
-  CreateAllocationSiteStub create_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &create_stub);
-  __ Branch(&done);
-
-  __ bind(&not_array_function);
-  CreateWeakCellStub weak_cell_stub(masm->isolate());
-  CallStubInRecordCallTarget(masm, &weak_cell_stub);
-
-  __ bind(&done);
-
-  // Increment the call count for all function calls.
-  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ lw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-  __ Addu(t0, t0, Operand(Smi::FromInt(1)));
-  __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
-}
-
-
-void CallConstructStub::Generate(MacroAssembler* masm) {
-  // a0 : number of arguments
-  // a1 : the function to call
-  // a2 : feedback vector
-  // a3 : slot in feedback vector (Smi, for RecordCallTarget)
-
-  Label non_function;
-  // Check that the function is not a smi.
-  __ JumpIfSmi(a1, &non_function);
-  // Check that the function is a JSFunction.
-  __ GetObjectType(a1, t1, t1);
-  __ Branch(&non_function, ne, t1, Operand(JS_FUNCTION_TYPE));
-
-  GenerateRecordCallTarget(masm);
-
-  __ Lsa(t1, a2, a3, kPointerSizeLog2 - kSmiTagSize);
-  Label feedback_register_initialized;
-  // Put the AllocationSite from the feedback vector into a2, or undefined.
-  __ lw(a2, FieldMemOperand(t1, FixedArray::kHeaderSize));
-  __ lw(t1, FieldMemOperand(a2, AllocationSite::kMapOffset));
-  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
-  __ Branch(&feedback_register_initialized, eq, t1, Operand(at));
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  __ bind(&feedback_register_initialized);
-
-  __ AssertUndefinedOrAllocationSite(a2, t1);
-
-  // Pass function as new target.
-  __ mov(a3, a1);
-
-  // Tail call to the function-specific construct stub (still in the caller
-  // context at this point).
-  __ lw(t0, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kConstructStubOffset));
-  __ Jump(at, t0, Code::kHeaderSize - kHeapObjectTag);
-
-  __ bind(&non_function);
-  __ mov(a3, a1);
-  __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-}
-
-// StringCharCodeAtGenerator.
-void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
-  DCHECK(!t0.is(index_));
-  DCHECK(!t0.is(result_));
-  DCHECK(!t0.is(object_));
-  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
-    // If the receiver is a smi trigger the non-string case.
-    __ JumpIfSmi(object_, receiver_not_string_);
-
-    // Fetch the instance type of the receiver into result register.
-    __ lw(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-    __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-    // If the receiver is not a string trigger the non-string case.
-    __ And(t0, result_, Operand(kIsNotStringMask));
-    __ Branch(receiver_not_string_, ne, t0, Operand(zero_reg));
-  }
-
-  // If the index is non-smi trigger the non-smi case.
-  __ JumpIfNotSmi(index_, &index_not_smi_);
-
-  __ bind(&got_smi_index_);
-
-  // Check for index out of range.
-  __ lw(t0, FieldMemOperand(object_, String::kLengthOffset));
-  __ Branch(index_out_of_range_, ls, t0, Operand(index_));
-
-  __ sra(index_, index_, kSmiTagSize);
-
-  StringCharLoadGenerator::Generate(masm,
-                                    object_,
-                                    index_,
-                                    result_,
-                                    &call_runtime_);
-
-  __ sll(result_, result_, kSmiTagSize);
-  __ bind(&exit_);
-}
-
-
-void StringCharCodeAtGenerator::GenerateSlow(
-    MacroAssembler* masm, EmbedMode embed_mode,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharCodeAtSlowCase);
-
-  // Index is not a smi.
-  __ bind(&index_not_smi_);
-  // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_,
-              result_,
-              Heap::kHeapNumberMapRootIndex,
-              index_not_number_,
-              DONT_DO_SMI_CHECK);
-  call_helper.BeforeCall(masm);
-  // Consumed by runtime conversion function:
-  if (embed_mode == PART_OF_IC_HANDLER) {
-    __ Push(LoadWithVectorDescriptor::VectorRegister(),
-            LoadWithVectorDescriptor::SlotRegister(), object_, index_);
-  } else {
-    __ Push(object_, index_);
-  }
-  __ CallRuntime(Runtime::kNumberToSmi);
-
-  // Save the conversion result before the pop instructions below
-  // have a chance to overwrite it.
-  __ Move(index_, v0);
-  if (embed_mode == PART_OF_IC_HANDLER) {
-    __ Pop(LoadWithVectorDescriptor::VectorRegister(),
-           LoadWithVectorDescriptor::SlotRegister(), object_);
-  } else {
-    __ pop(object_);
-  }
-  // Reload the instance type.
-  __ lw(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  call_helper.AfterCall(masm);
-  // If index is still not a smi, it must be out of range.
-  __ JumpIfNotSmi(index_, index_out_of_range_);
-  // Otherwise, return to the fast path.
-  __ Branch(&got_smi_index_);
-
-  // Call runtime. We get here when the receiver is a string and the
-  // index is a number, but the code of getting the actual character
-  // is too complex (e.g., when the string needs to be flattened).
-  __ bind(&call_runtime_);
-  call_helper.BeforeCall(masm);
-  __ sll(index_, index_, kSmiTagSize);
-  __ Push(object_, index_);
-  __ CallRuntime(Runtime::kStringCharCodeAtRT);
-
-  __ Move(result_, v0);
-
-  call_helper.AfterCall(masm);
-  __ jmp(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
 void StringHelper::GenerateFlatOneByteStringEquals(
@@ -1596,389 +835,6 @@ void StringHelper::GenerateOneByteCharsCompareLoop(
   __ Branch(chars_not_equal, ne, scratch1, Operand(scratch2));
   __ Addu(index, index, 1);
   __ Branch(&loop, ne, index, Operand(zero_reg));
-}
-
-
-void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
-  DCHECK_EQ(CompareICState::BOOLEAN, state());
-  Label miss;
-
-  __ CheckMap(a1, a2, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
-  __ CheckMap(a0, a3, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
-  if (!Token::IsEqualityOp(op())) {
-    __ lw(a1, FieldMemOperand(a1, Oddball::kToNumberOffset));
-    __ AssertSmi(a1);
-    __ lw(a0, FieldMemOperand(a0, Oddball::kToNumberOffset));
-    __ AssertSmi(a0);
-  }
-  __ Ret(USE_DELAY_SLOT);
-  __ Subu(v0, a1, a0);
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateSmis(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::SMI);
-  Label miss;
-  __ Or(a2, a1, a0);
-  __ JumpIfNotSmi(a2, &miss);
-
-  if (GetCondition() == eq) {
-    // For equality we do not care about the sign of the result.
-    __ Ret(USE_DELAY_SLOT);
-    __ Subu(v0, a0, a1);
-  } else {
-    // Untag before subtracting to avoid handling overflow.
-    __ SmiUntag(a1);
-    __ SmiUntag(a0);
-    __ Ret(USE_DELAY_SLOT);
-    __ Subu(v0, a1, a0);
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::NUMBER);
-
-  Label generic_stub;
-  Label unordered, maybe_undefined1, maybe_undefined2;
-  Label miss;
-
-  if (left() == CompareICState::SMI) {
-    __ JumpIfNotSmi(a1, &miss);
-  }
-  if (right() == CompareICState::SMI) {
-    __ JumpIfNotSmi(a0, &miss);
-  }
-
-  // Inlining the double comparison and falling back to the general compare
-  // stub if NaN is involved.
-  // Load left and right operand.
-  Label done, left, left_smi, right_smi;
-  __ JumpIfSmi(a0, &right_smi);
-  __ CheckMap(a0, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
-              DONT_DO_SMI_CHECK);
-  __ Subu(a2, a0, Operand(kHeapObjectTag));
-  __ Ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
-  __ Branch(&left);
-  __ bind(&right_smi);
-  __ SmiUntag(a2, a0);  // Can't clobber a0 yet.
-  FPURegister single_scratch = f6;
-  __ mtc1(a2, single_scratch);
-  __ cvt_d_w(f2, single_scratch);
-
-  __ bind(&left);
-  __ JumpIfSmi(a1, &left_smi);
-  __ CheckMap(a1, a2, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
-              DONT_DO_SMI_CHECK);
-  __ Subu(a2, a1, Operand(kHeapObjectTag));
-  __ Ldc1(f0, MemOperand(a2, HeapNumber::kValueOffset));
-  __ Branch(&done);
-  __ bind(&left_smi);
-  __ SmiUntag(a2, a1);  // Can't clobber a1 yet.
-  single_scratch = f8;
-  __ mtc1(a2, single_scratch);
-  __ cvt_d_w(f0, single_scratch);
-
-  __ bind(&done);
-
-  // Return a result of -1, 0, or 1, or use CompareStub for NaNs.
-  Label fpu_eq, fpu_lt;
-  // Test if equal, and also handle the unordered/NaN case.
-  __ BranchF(&fpu_eq, &unordered, eq, f0, f2);
-
-  // Test if less (unordered case is already handled).
-  __ BranchF(&fpu_lt, NULL, lt, f0, f2);
-
-  // Otherwise it's greater, so just fall thru, and return.
-  DCHECK(is_int16(GREATER) && is_int16(EQUAL) && is_int16(LESS));
-  __ Ret(USE_DELAY_SLOT);
-  __ li(v0, Operand(GREATER));
-
-  __ bind(&fpu_eq);
-  __ Ret(USE_DELAY_SLOT);
-  __ li(v0, Operand(EQUAL));
-
-  __ bind(&fpu_lt);
-  __ Ret(USE_DELAY_SLOT);
-  __ li(v0, Operand(LESS));
-
-  __ bind(&unordered);
-  __ bind(&generic_stub);
-  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
-                     CompareICState::GENERIC, CompareICState::GENERIC);
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-
-  __ bind(&maybe_undefined1);
-  if (Token::IsOrderedRelationalCompareOp(op())) {
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    __ Branch(&miss, ne, a0, Operand(at));
-    __ JumpIfSmi(a1, &unordered);
-    __ GetObjectType(a1, a2, a2);
-    __ Branch(&maybe_undefined2, ne, a2, Operand(HEAP_NUMBER_TYPE));
-    __ jmp(&unordered);
-  }
-
-  __ bind(&maybe_undefined2);
-  if (Token::IsOrderedRelationalCompareOp(op())) {
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    __ Branch(&unordered, eq, a1, Operand(at));
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::INTERNALIZED_STRING);
-  Label miss;
-
-  // Registers containing left and right operands respectively.
-  Register left = a1;
-  Register right = a0;
-  Register tmp1 = a2;
-  Register tmp2 = a3;
-
-  // Check that both operands are heap objects.
-  __ JumpIfEitherSmi(left, right, &miss);
-
-  // Check that both operands are internalized strings.
-  __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
-  __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
-  __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
-  __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-  __ Or(tmp1, tmp1, Operand(tmp2));
-  __ And(at, tmp1, Operand(kIsNotStringMask | kIsNotInternalizedMask));
-  __ Branch(&miss, ne, at, Operand(zero_reg));
-
-  // Make sure a0 is non-zero. At this point input operands are
-  // guaranteed to be non-zero.
-  DCHECK(right.is(a0));
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ mov(v0, right);
-  // Internalized strings are compared by identity.
-  __ Ret(ne, left, Operand(right));
-  DCHECK(is_int16(EQUAL));
-  __ Ret(USE_DELAY_SLOT);
-  __ li(v0, Operand(Smi::FromInt(EQUAL)));
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::UNIQUE_NAME);
-  DCHECK(GetCondition() == eq);
-  Label miss;
-
-  // Registers containing left and right operands respectively.
-  Register left = a1;
-  Register right = a0;
-  Register tmp1 = a2;
-  Register tmp2 = a3;
-
-  // Check that both operands are heap objects.
-  __ JumpIfEitherSmi(left, right, &miss);
-
-  // Check that both operands are unique names. This leaves the instance
-  // types loaded in tmp1 and tmp2.
-  __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
-  __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
-  __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
-  __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-
-  __ JumpIfNotUniqueNameInstanceType(tmp1, &miss);
-  __ JumpIfNotUniqueNameInstanceType(tmp2, &miss);
-
-  // Use a0 as result
-  __ mov(v0, a0);
-
-  // Unique names are compared by identity.
-  Label done;
-  __ Branch(&done, ne, left, Operand(right));
-  // Make sure a0 is non-zero. At this point input operands are
-  // guaranteed to be non-zero.
-  DCHECK(right.is(a0));
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ li(v0, Operand(Smi::FromInt(EQUAL)));
-  __ bind(&done);
-  __ Ret();
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::STRING);
-  Label miss;
-
-  bool equality = Token::IsEqualityOp(op());
-
-  // Registers containing left and right operands respectively.
-  Register left = a1;
-  Register right = a0;
-  Register tmp1 = a2;
-  Register tmp2 = a3;
-  Register tmp3 = t0;
-  Register tmp4 = t1;
-  Register tmp5 = t2;
-
-  // Check that both operands are heap objects.
-  __ JumpIfEitherSmi(left, right, &miss);
-
-  // Check that both operands are strings. This leaves the instance
-  // types loaded in tmp1 and tmp2.
-  __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
-  __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
-  __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
-  __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kNotStringTag != 0);
-  __ Or(tmp3, tmp1, tmp2);
-  __ And(tmp5, tmp3, Operand(kIsNotStringMask));
-  __ Branch(&miss, ne, tmp5, Operand(zero_reg));
-
-  // Fast check for identical strings.
-  Label left_ne_right;
-  STATIC_ASSERT(EQUAL == 0);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Branch(&left_ne_right, ne, left, Operand(right));
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(v0, zero_reg);  // In the delay slot.
-  __ bind(&left_ne_right);
-
-  // Handle not identical strings.
-
-  // Check that both strings are internalized strings. If they are, we're done
-  // because we already know they are not identical. We know they are both
-  // strings.
-  if (equality) {
-    DCHECK(GetCondition() == eq);
-    STATIC_ASSERT(kInternalizedTag == 0);
-    __ Or(tmp3, tmp1, Operand(tmp2));
-    __ And(tmp5, tmp3, Operand(kIsNotInternalizedMask));
-    Label is_symbol;
-    __ Branch(&is_symbol, ne, tmp5, Operand(zero_reg));
-    // Make sure a0 is non-zero. At this point input operands are
-    // guaranteed to be non-zero.
-    DCHECK(right.is(a0));
-    __ Ret(USE_DELAY_SLOT);
-    __ mov(v0, a0);  // In the delay slot.
-    __ bind(&is_symbol);
-  }
-
-  // Check that both strings are sequential one-byte.
-  Label runtime;
-  __ JumpIfBothInstanceTypesAreNotSequentialOneByte(tmp1, tmp2, tmp3, tmp4,
-                                                    &runtime);
-
-  // Compare flat one-byte strings. Returns when done.
-  if (equality) {
-    StringHelper::GenerateFlatOneByteStringEquals(masm, left, right, tmp1, tmp2,
-                                                  tmp3);
-  } else {
-    StringHelper::GenerateCompareFlatOneByteStrings(masm, left, right, tmp1,
-                                                    tmp2, tmp3, tmp4);
-  }
-
-  // Handle more complex cases in runtime.
-  __ bind(&runtime);
-  if (equality) {
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(left, right);
-      __ CallRuntime(Runtime::kStringEqual);
-    }
-    __ LoadRoot(a0, Heap::kTrueValueRootIndex);
-    __ Ret(USE_DELAY_SLOT);
-    __ Subu(v0, v0, a0);  // In delay slot.
-  } else {
-    __ Push(left, right);
-    __ TailCallRuntime(Runtime::kStringCompare);
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateReceivers(MacroAssembler* masm) {
-  DCHECK_EQ(CompareICState::RECEIVER, state());
-  Label miss;
-  __ And(a2, a1, Operand(a0));
-  __ JumpIfSmi(a2, &miss);
-
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  __ GetObjectType(a0, a2, a2);
-  __ Branch(&miss, lt, a2, Operand(FIRST_JS_RECEIVER_TYPE));
-  __ GetObjectType(a1, a2, a2);
-  __ Branch(&miss, lt, a2, Operand(FIRST_JS_RECEIVER_TYPE));
-
-  DCHECK_EQ(eq, GetCondition());
-  __ Ret(USE_DELAY_SLOT);
-  __ subu(v0, a0, a1);
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateKnownReceivers(MacroAssembler* masm) {
-  Label miss;
-  Handle<WeakCell> cell = Map::WeakCellForMap(known_map_);
-  __ And(a2, a1, a0);
-  __ JumpIfSmi(a2, &miss);
-  __ GetWeakValue(t0, cell);
-  __ lw(a2, FieldMemOperand(a0, HeapObject::kMapOffset));
-  __ lw(a3, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ Branch(&miss, ne, a2, Operand(t0));
-  __ Branch(&miss, ne, a3, Operand(t0));
-
-  if (Token::IsEqualityOp(op())) {
-    __ Ret(USE_DELAY_SLOT);
-    __ subu(v0, a0, a1);
-  } else {
-    if (op() == Token::LT || op() == Token::LTE) {
-      __ li(a2, Operand(Smi::FromInt(GREATER)));
-    } else {
-      __ li(a2, Operand(Smi::FromInt(LESS)));
-    }
-    __ Push(a1, a0, a2);
-    __ TailCallRuntime(Runtime::kCompare);
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void CompareICStub::GenerateMiss(MacroAssembler* masm) {
-  {
-    // Call the runtime system in a fresh internal frame.
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a1, a0);
-    __ Push(ra, a1, a0);
-    __ li(t0, Operand(Smi::FromInt(op())));
-    __ addiu(sp, sp, -kPointerSize);
-    __ CallRuntime(Runtime::kCompareIC_Miss, 3, kDontSaveFPRegs,
-                   USE_DELAY_SLOT);
-    __ sw(t0, MemOperand(sp));  // In the delay slot.
-    // Compute the entry point of the rewritten stub.
-    __ Addu(a2, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
-    // Restore registers.
-    __ Pop(a1, a0, ra);
-  }
-  __ Jump(a2);
 }
 
 
@@ -2869,6 +1725,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- sp[(argc - 1)* 4]   : first argument
   //  -- sp[argc * 4]        : receiver
+  //  -- sp[(argc + 1)* 4]   : accessor_holder
   // -----------------------------------
 
   Register callee = a0;
@@ -2879,6 +1736,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
+  STATIC_ASSERT(FCA::kArgsLength == 8);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
   STATIC_ASSERT(FCA::kContextSaveIndex == 6);
   STATIC_ASSERT(FCA::kCalleeIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
@@ -2886,18 +1745,12 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 7);
-  STATIC_ASSERT(FCA::kArgsLength == 8);
 
   // new target
   __ PushRoot(Heap::kUndefinedValueRootIndex);
 
   // Save context, callee and call data.
   __ Push(context, callee, call_data);
-  if (!is_lazy()) {
-    // Load context from callee.
-    __ lw(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
 
   Register scratch = call_data;
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
@@ -2906,6 +1759,38 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ li(scratch, Operand(ExternalReference::isolate_address(masm->isolate())));
   // Push isolate and holder.
   __ Push(scratch, holder);
+
+  // Enter a new context
+  if (is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- sp[0]                                 : holder
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength - 1) * 4]        : new_target
+    //  -- sp[FCA::kArgsLength * 4]              : last argument
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength + argc - 1) * 4] : first argument
+    //  -- sp[(FCA::kArgsLength + argc) * 4]     : receiver
+    //  -- sp[(FCA::kArgsLength + argc + 1) * 4] : accessor_holder
+    // -----------------------------------------------------------
+
+    // Load context from accessor_holder
+    Register accessor_holder = context;
+    Register scratch2 = callee;
+    __ lw(accessor_holder,
+          MemOperand(sp, (FCA::kArgsLength + 1 + argc()) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ lw(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
+    __ lbu(scratch2, FieldMemOperand(scratch, Map::kBitFieldOffset));
+    __ And(scratch2, scratch2, Operand(1 << Map::kIsConstructor));
+    __ Branch(&skip_looking_for_constructor, ne, scratch2, Operand(zero_reg));
+    __ GetMapConstructor(context, scratch, scratch, scratch2);
+    __ bind(&skip_looking_for_constructor);
+    __ lw(context, FieldMemOperand(context, JSFunction::kContextOffset));
+  } else {
+    // Load context from callee.
+    __ lw(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+  }
 
   // Prepare arguments.
   __ mov(scratch, sp);
@@ -2944,11 +1829,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  int stack_space = 0;
-  int32_t stack_space_offset = 3 * kPointerSize;
-  stack_space = argc() + FCA::kArgsLength + 1;
+  const int stack_space = argc() + FCA::kArgsLength + 2;
   // TODO(adamk): Why are we clobbering this immediately?
-  stack_space_offset = kInvalidStackOffset;
+  const int32_t stack_space_offset = kInvalidStackOffset;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            stack_space_offset, return_value_operand,
                            &context_restore_operand);

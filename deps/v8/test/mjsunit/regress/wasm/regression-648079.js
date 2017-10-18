@@ -7,6 +7,11 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
+// Non-standard opcodes.
+let kWasmS128 = 0x7b;
+let kSig_s_v = makeSig([], [kWasmS128]);
+let kExprS128LoadMem = 0xc0;
+
 (function() {
 "use asm";
 var builder = new WasmModuleBuilder();

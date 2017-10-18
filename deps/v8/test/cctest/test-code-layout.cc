@@ -14,7 +14,8 @@
 #include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(CodeLayoutWithoutUnwindingInfo) {
   CcTest::InitializeVM();
@@ -91,3 +92,6 @@ TEST(CodeLayoutWithUnwindingInfo) {
            Code::kHeaderSize + RoundUp(buffer_size, kInt64Size) + kInt64Size +
                unwinding_info_size - kHeapObjectTag);
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -34,22 +34,19 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
+  int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
-    if (info->has_shared_info()) {
-      int attempt = info->shared_info()->opt_count();
-      SNPrintF(filename, "turbo-%s-%i", debug_name.get(), attempt);
-    } else {
-      SNPrintF(filename, "turbo-%s", debug_name.get());
-    }
+    SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
   } else if (info->has_shared_info()) {
-    int attempt = info->shared_info()->opt_count();
-    SNPrintF(filename, "turbo-%p-%i", static_cast<void*>(info), attempt);
+    SNPrintF(filename, "turbo-%p-%i",
+             static_cast<void*>(info->shared_info()->address()),
+             optimization_id);
   } else {
-    SNPrintF(filename, "turbo-none-%s", phase);
+    SNPrintF(filename, "turbo-none-%i", optimization_id);
   }
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
-  if (FLAG_trace_file_names && info->parse_info()) {
+  if (FLAG_trace_file_names && !info->script().is_null()) {
     Object* source_name = info->script()->name();
     if (source_name->IsString()) {
       String* str = String::cast(source_name);
@@ -540,7 +537,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        PrintableInstruction printable = {RegisterConfiguration::Turbofan(),
+        PrintableInstruction printable = {RegisterConfiguration::Default(),
                                           instructions->InstructionAt(j)};
         os_ << j << " " << printable << " <|@\n";
       }
@@ -584,7 +581,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      const auto config = RegisterConfiguration::Turbofan();
+      const auto config = RegisterConfiguration::Default();
       if (op.IsRegister()) {
         os_ << " \"" << config->GetGeneralRegisterName(op.register_code())
             << "\"";

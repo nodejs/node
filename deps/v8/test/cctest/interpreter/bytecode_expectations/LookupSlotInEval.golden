@@ -20,7 +20,7 @@ parameter count: 1
 bytecode array length: 6
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaLookupGlobalSlot), U8(0), U8(3), U8(1),
+  /*   15 S> */ B(LdaLookupGlobalSlot), U8(0), U8(0), U8(1),
   /*   24 S> */ B(Return),
 ]
 constant pool: [
@@ -93,7 +93,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(0), U8(3), U8(1),
+  /*   15 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(0), U8(0), U8(1),
                 B(TypeOf),
   /*   31 S> */ B(Return),
 ]

@@ -463,7 +463,8 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
 
     BIND(&bailout);
     {
-      var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+      var_type_feedback->Bind(
+          SmiConstant(BinaryOperationFeedback::kSignedSmallInputs));
       Node* value = Float64Div(SmiToFloat64(lhs), SmiToFloat64(rhs));
       var_result.Bind(AllocateHeapNumberWithValue(value));
       Goto(&end);

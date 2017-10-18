@@ -20,10 +20,12 @@ namespace internal {
 
 class AliasedArgumentsEntry;
 class BreakPointInfo;
+class BreakPoint;
 class BoilerplateDescription;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
+class JSModuleNamespace;
 struct SourceRange;
 class PreParsedScopeData;
 
@@ -83,6 +85,11 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   Handle<FixedArray> NewUninitializedFixedArray(int size);
+
+  // Allocates a feedback vector whose slots are initialized with undefined
+  // values.
+  Handle<FeedbackVector> NewFeedbackVector(
+      Handle<SharedFunctionInfo> shared, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
@@ -360,6 +367,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
+  Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
   Handle<StackFrameInfo> NewStackFrameInfo();
   Handle<SourcePositionTableWithFrameCache>
   NewSourcePositionTableWithFrameCache(
@@ -440,6 +448,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
+
+  Handle<FeedbackVector> CopyFeedbackVector(Handle<FeedbackVector> array);
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
@@ -679,13 +689,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // The reference to the Code object is stored in self_reference.
   // This allows generated code to reference its own Code object
   // by containing this handle.
-  Handle<Code> NewCode(const CodeDesc& desc,
-                       Code::Flags flags,
-                       Handle<Object> self_reference,
-                       bool immovable = false,
-                       bool crankshafted = false,
-                       int prologue_offset = Code::kPrologueOffsetNotSet,
-                       bool is_debug = false);
+  Handle<Code> NewCode(const CodeDesc& desc, Code::Flags flags,
+                       Handle<Object> self_reference, bool immovable = false,
+                       int prologue_offset = Code::kPrologueOffsetNotSet);
 
   Handle<Code> CopyCode(Handle<Code> code);
 

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+/// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,7 +33,6 @@
 #include "src/basic-block-profiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/interpreter/interpreter.h"
-#include "src/list-inl.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -343,7 +342,7 @@ class TraceConfigParser {
                              .ToLocalChecked()
                              ->ToString(context)
                              .ToLocalChecked();
-        String::Utf8Value str(v->ToString(context).ToLocalChecked());
+        String::Utf8Value str(isolate, v->ToString(context).ToLocalChecked());
         trace_config->AddIncludedCategory(*str);
       }
       return v8_array->Length();
@@ -356,7 +355,7 @@ class TraceConfigParser {
     Local<Value> value = GetValue(isolate, context, object, kRecordModeParam);
     if (value->IsString()) {
       Local<String> v8_string = value->ToString(context).ToLocalChecked();
-      String::Utf8Value str(v8_string);
+      String::Utf8Value str(isolate, v8_string);
       if (strcmp(kRecordUntilFull, *str) == 0) {
         return platform::tracing::TraceRecordMode::RECORD_UNTIL_FULL;
       } else if (strcmp(kRecordContinuously, *str) == 0) {
@@ -452,7 +451,7 @@ const base::TimeTicks Shell::kInitialTicks =
 Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
-i::List<Worker*> Shell::workers_;
+std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
@@ -592,12 +591,12 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       if (!result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.
-        v8::String::Utf8Value str(result);
+        v8::String::Utf8Value str(isolate, result);
         fwrite(*str, sizeof(**str), str.length(), stdout);
         printf("\n");
       }
     } else {
-      v8::String::Utf8Value str(Stringify(isolate, result));
+      v8::String::Utf8Value str(isolate, Stringify(isolate, result));
       fwrite(*str, sizeof(**str), str.length(), stdout);
       printf("\n");
     }
@@ -607,8 +606,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
 namespace {
 
-std::string ToSTLString(Local<String> v8_str) {
-  String::Utf8Value utf8(v8_str);
+std::string ToSTLString(Isolate* isolate, Local<String> v8_str) {
+  String::Utf8Value utf8(isolate, v8_str);
   // Should not be able to fail since the input is a String.
   CHECK(*utf8);
   return *utf8;
@@ -720,7 +719,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
       d->module_to_directory_map.find(Global<Module>(isolate, referrer));
   CHECK(dir_name_it != d->module_to_directory_map.end());
   std::string absolute_path =
-      NormalizePath(ToSTLString(specifier), dir_name_it->second);
+      NormalizePath(ToSTLString(isolate, specifier), dir_name_it->second);
   auto module_it = d->specifier_to_module_map.find(absolute_path);
   CHECK(module_it != d->specifier_to_module_map.end());
   return module_it->second.Get(isolate);
@@ -761,7 +760,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
-    std::string absolute_path = NormalizePath(ToSTLString(name), dir_name);
+    std::string absolute_path =
+        NormalizePath(ToSTLString(isolate, name), dir_name);
     if (!d->specifier_to_module_map.count(absolute_path)) {
       if (FetchModuleTree(context, absolute_path).IsEmpty()) {
         return MaybeLocal<Module>();
@@ -823,12 +823,12 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
 
-  std::string source_url = ToSTLString(referrer);
+  std::string source_url = ToSTLString(isolate, referrer);
   std::string dir_name =
       DirName(IsAbsolutePath(source_url)
                   ? source_url
                   : NormalizePath(source_url, GetWorkingDirectory()));
-  std::string file_name = ToSTLString(specifier);
+  std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
   TryCatch try_catch(isolate);
@@ -923,6 +923,7 @@ PerIsolateData::RealmScope::~RealmScope() {
     // TODO(adamk): No need to reset manually, Globals reset when destructed.
     realm.Reset();
   }
+  data_->realm_count_ = 0;
   delete[] data_->realms_;
   // TODO(adamk): No need to reset manually, Globals reset when destructed.
   if (!data_->realm_shared_.IsEmpty())
@@ -1176,7 +1177,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
 
-    v8::String::Utf8Value str(str_obj);
+    v8::String::Utf8Value str(args.GetIsolate(), str_obj);
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
@@ -1205,13 +1206,13 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  String::Utf8Value file(args[0]);
+  String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == NULL) {
     Throw(args.GetIsolate(), "Error loading file");
     return;
   }
   if (args.Length() == 2) {
-    String::Utf8Value format(args[1]);
+    String::Utf8Value format(args.GetIsolate(), args[1]);
     if (*format && std::strcmp(*format, "binary") == 0) {
       ReadBuffer(args);
       return;
@@ -1266,7 +1267,7 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
 void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
-    String::Utf8Value file(args[i]);
+    String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == NULL) {
       Throw(args.GetIsolate(), "Error loading file");
       return;
@@ -1303,7 +1304,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    if (workers_.length() >= kMaxWorkers) {
+    if (workers_.size() >= kMaxWorkers) {
       Throw(args.GetIsolate(), "Too many workers, I won't let you create more");
       return;
     }
@@ -1317,9 +1318,9 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     Worker* worker = new Worker;
     args.Holder()->SetAlignedPointerInInternalField(0, worker);
-    workers_.Add(worker);
+    workers_.push_back(worker);
 
-    String::Utf8Value script(args[0]);
+    String::Utf8Value script(args.GetIsolate(), args[0]);
     if (!*script) {
       Throw(args.GetIsolate(), "Can't get worker script");
       return;
@@ -1428,7 +1429,7 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     return *value ? *value : "<string conversion failed>";
   };
 
-  v8::String::Utf8Value exception(try_catch->Exception());
+  v8::String::Utf8Value exception(isolate, try_catch->Exception());
   const char* exception_string = ToCString(exception);
   Local<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
@@ -1443,14 +1444,15 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
            exception_string);
   } else {
     // Print (filename):(line number): (message).
-    v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
+    v8::String::Utf8Value filename(isolate,
+                                   message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber(context).FromMaybe(-1);
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);
     Local<String> sourceline;
     if (message->GetSourceLine(context).ToLocal(&sourceline)) {
       // Print line of source code.
-      v8::String::Utf8Value sourcelinevalue(sourceline);
+      v8::String::Utf8Value sourcelinevalue(isolate, sourceline);
       const char* sourceline_string = ToCString(sourcelinevalue);
       printf("%s\n", sourceline_string);
       // Print wavy underline (GetUnderline is deprecated).
@@ -1468,7 +1470,8 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
   Local<Value> stack_trace_string;
   if (try_catch->StackTrace(context).ToLocal(&stack_trace_string) &&
       stack_trace_string->IsString()) {
-    v8::String::Utf8Value stack_trace(Local<String>::Cast(stack_trace_string));
+    v8::String::Utf8Value stack_trace(isolate,
+                                      Local<String>::Cast(stack_trace_string));
     printf("%s\n", ToCString(stack_trace));
   }
   printf("\n");
@@ -1793,10 +1796,11 @@ static void PrintNonErrorsMessageCallback(Local<Message> message,
     return *value ? *value : "<string conversion failed>";
   };
   Isolate* isolate = Isolate::GetCurrent();
-  v8::String::Utf8Value msg(message->Get());
+  v8::String::Utf8Value msg(isolate, message->Get());
   const char* msg_string = ToCString(msg);
   // Print (filename):(line number): (message).
-  v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
+  v8::String::Utf8Value filename(isolate,
+                                 message->GetScriptOrigin().ResourceName());
   const char* filename_string = ToCString(filename);
   Maybe<int> maybeline = message->GetLineNumber(isolate->GetCurrentContext());
   int linenum = maybeline.IsJust() ? maybeline.FromJust() : -1;
@@ -1868,7 +1872,7 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   std::ofstream dispatch_counters_stream(
       i::FLAG_trace_ignition_dispatches_output_file);
   dispatch_counters_stream << *String::Utf8Value(
-      JSON::Stringify(context, dispatch_counters).ToLocalChecked());
+      isolate, JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
 namespace {
@@ -1910,7 +1914,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
     // Skip unnamed scripts.
     Local<String> name;
     if (!script->Name().ToLocal(&name)) continue;
-    std::string file_name = ToSTLString(name);
+    std::string file_name = ToSTLString(isolate, name);
     // Skip scripts not backed by a file.
     if (!std::ifstream(file_name).good()) continue;
     sink << "SF:";
@@ -1933,7 +1937,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
         Local<String> name;
         std::stringstream name_stream;
         if (function_data.Name().ToLocal(&name)) {
-          name_stream << ToSTLString(name);
+          name_stream << ToSTLString(isolate, name);
         } else {
           name_stream << "<" << start_line + 1 << "-";
           name_stream << start.GetColumnNumber() << ">";
@@ -2048,6 +2052,10 @@ static FILE* FOpen(const char* path, const char* mode) {
 }
 
 static char* ReadChars(const char* name, int* size_out) {
+  if (Shell::options.read_from_tcp_port >= 0) {
+    return Shell::ReadCharsFromTcpPort(name, size_out);
+  }
+
   FILE* file = FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -2092,9 +2100,9 @@ static void ReadBufferWeakCallback(
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   DCHECK(sizeof(char) == sizeof(uint8_t));  // NOLINT
-  String::Utf8Value filename(args[0]);
-  int length;
   Isolate* isolate = args.GetIsolate();
+  String::Utf8Value filename(isolate, args[0]);
+  int length;
   if (*filename == NULL) {
     Throw(isolate, "Error loading file");
     return;
@@ -2717,6 +2725,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
       options.disable_in_process_stack_traces = true;
       argv[i] = NULL;
+#ifdef V8_OS_POSIX
+    } else if (strncmp(argv[i], "--read-from-tcp-port=", 21) == 0) {
+      options.read_from_tcp_port = atoi(argv[i] + 21);
+      argv[i] = NULL;
+#endif  // V8_OS_POSIX
+    } else if (strcmp(argv[i], "--enable-os-system") == 0) {
+      options.enable_os_system = true;
+      argv[i] = NULL;
     }
   }
 
@@ -2939,7 +2955,7 @@ class Serializer : public ValueSerializer::Delegate {
         if (transfer_array->Get(context, i).ToLocal(&element)) {
           if (!element->IsArrayBuffer()) {
             Throw(isolate_, "Transfer array elements must be an ArrayBuffer");
-            break;
+            return Nothing<bool>();
           }
 
           Local<ArrayBuffer> array_buffer = Local<ArrayBuffer>::Cast(element);
@@ -3071,16 +3087,14 @@ void Shell::CleanupWorkers() {
   // Make a copy of workers_, because we don't want to call Worker::Terminate
   // while holding the workers_mutex_ lock. Otherwise, if a worker is about to
   // create a new Worker, it would deadlock.
-  i::List<Worker*> workers_copy;
+  std::vector<Worker*> workers_copy;
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = false;
-    workers_copy.AddAll(workers_);
-    workers_.Clear();
+    workers_copy.swap(workers_);
   }
 
-  for (int i = 0; i < workers_copy.length(); ++i) {
-    Worker* worker = workers_copy[i];
+  for (Worker* worker : workers_copy) {
     worker->WaitForThread();
     delete worker;
   }
@@ -3142,7 +3156,6 @@ int Shell::Main(int argc, char* argv[]) {
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
   }
-  SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   int result = 0;

@@ -19,7 +19,7 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaGlobal), U8(0), U8(3),
+  /*   39 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(0),
@@ -46,7 +46,7 @@ parameter count: 1
 bytecode array length: 11
 bytecodes: [
   /*   28 E> */ B(StackCheck),
-  /*   51 S> */ B(LdaGlobal), U8(0), U8(3),
+  /*   51 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaSmi), I8(1),
                 B(DeletePropertyStrict), R(0),
@@ -66,17 +66,14 @@ snippet: "
   };
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 11
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   39 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
-                B(Star), R(1),
-                B(LdaConstant), U8(0),
-                B(DeletePropertySloppy), R(1),
+                B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
   /*   55 S> */ B(Return),
 ]
 constant pool: [
@@ -93,17 +90,14 @@ snippet: "
   };
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 11
 bytecodes: [
   /*   18 E> */ B(StackCheck),
-  /*   25 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   25 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
-                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
-                B(Star), R(1),
-                B(LdaConstant), U8(0),
-                B(DeletePropertySloppy), R(1),
+                B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
   /*   41 S> */ B(Return),
 ]
 constant pool: [

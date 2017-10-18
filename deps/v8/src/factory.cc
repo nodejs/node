@@ -16,7 +16,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
-#include "src/objects/module-info.h"
+#include "src/objects/module.h"
 #include "src/objects/scope-info.h"
 
 namespace v8 {
@@ -190,6 +190,13 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFixedArray(size, NOT_TENURED),
                      FixedArray);
+}
+
+Handle<FeedbackVector> Factory::NewFeedbackVector(
+    Handle<SharedFunctionInfo> shared, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateFeedbackVector(*shared, pretenure),
+      FeedbackVector);
 }
 
 Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
@@ -1339,6 +1346,11 @@ Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
                      FixedDoubleArray);
 }
 
+Handle<FeedbackVector> Factory::CopyFeedbackVector(
+    Handle<FeedbackVector> array) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->CopyFeedbackVector(*array),
+                     FeedbackVector);
+}
 
 Handle<Object> Factory::NewNumber(double value,
                                   PretenureFlag pretenure) {
@@ -1426,6 +1438,9 @@ Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 Handle<Object> Factory::NewInvalidStringLengthError() {
+  if (FLAG_abort_on_stack_or_string_length_overflow) {
+    FATAL("Aborting on invalid string length");
+  }
   // Invalidate the "string length" protector.
   if (isolate()->IsStringLengthOverflowIntact()) {
     isolate()->InvalidateStringLengthOverflowProtector();
@@ -1637,10 +1652,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
-    info->ResetForNewContext(isolate()->heap()->global_ic_age());
-  }
-
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.
     Compiler::PostInstantiation(result, pretenure);
@@ -1674,9 +1685,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
             *info, "new function from shared function info");
   }
   result->set_feedback_vector_cell(*vector);
-  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
-    info->ResetForNewContext(isolate()->heap()->global_ic_age());
-  }
 
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.
@@ -1701,7 +1709,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   Handle<PreParsedScopeData> result =
-      Handle<PreParsedScopeData>::cast(NewStruct(PREPARSED_SCOPE_DATA_TYPE));
+      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE));
   result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
   result->set_child_data(*empty_fixed_array());
   return result;
@@ -1721,14 +1729,9 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
                      Code);
 }
 
-
-Handle<Code> Factory::NewCode(const CodeDesc& desc,
-                              Code::Flags flags,
-                              Handle<Object> self_ref,
-                              bool immovable,
-                              bool crankshafted,
-                              int prologue_offset,
-                              bool is_debug) {
+Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
+                              Handle<Object> self_ref, bool immovable,
+                              int prologue_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
@@ -1759,7 +1762,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_has_unwinding_info(has_unwinding_info);
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
-  code->set_is_crankshafted(crankshafted);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(Smi::kZero);
@@ -1783,11 +1785,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
       break;
   }
 
-  if (is_debug) {
-    DCHECK(code->kind() == Code::FUNCTION);
-    code->set_has_debug_break_slots(true);
-  }
-
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_ref.is_null()) *(self_ref.location()) = *code;
@@ -1798,6 +1795,8 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
   code->CopyFrom(desc);
+
+  code->clear_padding();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) code->ObjectVerify();
@@ -1886,6 +1885,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(map);
+  new_map->set_may_have_interesting_symbols(true);
   new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
@@ -1923,9 +1923,9 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  Map* map = isolate()->get_initial_js_array_map(elements_kind);
+  Context* native_context = isolate()->raw_native_context();
+  Map* map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map == nullptr) {
-    Context* native_context = isolate()->context()->native_context();
     JSFunction* array_function = native_context->array_function();
     map = array_function->initial_map();
   }
@@ -2407,6 +2407,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   Handle<Map> map = NewMap(JS_GLOBAL_PROXY_TYPE, size);
   // Maintain invariant expected from any JSGlobalProxy.
   map->set_is_access_check_needed(true);
+  map->set_may_have_interesting_symbols(true);
   CALL_HEAP_FUNCTION(
       isolate(), isolate()->heap()->AllocateJSObjectFromMap(*map, NOT_TENURED),
       JSGlobalProxy);
@@ -2468,7 +2469,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
-  Handle<Code> code = isolate()->builtins()->CompileLazy();
+  Handle<Code> code = BUILTIN_CODE(isolate(), CompileLazy);
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
   Handle<SharedFunctionInfo> result =
       NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
@@ -2518,14 +2519,14 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
-    code = isolate()->builtins()->Illegal();
+    code = BUILTIN_CODE(isolate(), Illegal);
   }
   share->set_code(*code);
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
       is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
-                     : isolate()->builtins()->ConstructedNonConstructable();
+                     : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
   share->SetConstructStub(*construct_stub);
   share->set_instance_class_name(*Object_string());
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
@@ -2539,9 +2540,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 #if V8_SFI_HAS_UNIQUE_ID
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
-  share->set_profiler_ticks(0);
-  share->set_ast_node_count(0);
-  share->set_counters(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -2552,10 +2550,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_function_token_position(0);
   // All compiler hints default to false or 0.
   share->set_compiler_hints(0);
-  share->set_opt_count_and_bailout_reason(0);
   share->set_kind(kind);
 
   share->set_preparsed_scope_data(*null_value());
+
+  share->clear_padding();
 
   // Link into the list.
   Handle<Object> new_noscript_list =
@@ -2676,6 +2675,14 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   new_break_point_info->set_source_position(source_position);
   new_break_point_info->set_break_point_objects(*undefined_value());
   return new_break_point_info;
+}
+
+Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
+  Handle<BreakPoint> new_break_point =
+      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE));
+  new_break_point->set_id(id);
+  new_break_point->set_condition(*condition);
+  return new_break_point;
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo() {

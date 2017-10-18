@@ -7,7 +7,9 @@
 
 #include "src/interpreter/bytecodes.h"
 
-#include "src/frames.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/frame-constants.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -37,10 +39,6 @@ class V8_EXPORT_PRIVATE Register final {
   // Returns the register which holds the current context object.
   static Register current_context();
   bool is_current_context() const;
-
-  // Returns the register for the incoming new target value.
-  static Register new_target();
-  bool is_new_target() const;
 
   // Returns the register for the bytecode array.
   static Register bytecode_array();
@@ -105,9 +103,8 @@ class RegisterList {
       : first_reg_index_(first_reg_index), register_count_(register_count) {}
   explicit RegisterList(Register r) : RegisterList(r.index(), 1) {}
 
-  // Increases/decreases the size of the register list by one.
+  // Increases the size of the register list by one.
   void IncrementRegisterCount() { register_count_++; }
-  void DecrementRegisterCount() { register_count_--; }
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.

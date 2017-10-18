@@ -328,18 +328,17 @@ local gc, gc_caused, funcs
 
 local WHITELIST = {
    -- The following functions call CEntryStub which is always present.
-   "MacroAssembler.*CallExternalReference",
    "MacroAssembler.*CallRuntime",
    "CompileCallLoadPropertyWithInterceptor",
    "CallIC.*GenerateMiss",
 
-   -- DirectCEntryStub is a special stub used on ARM. 
+   -- DirectCEntryStub is a special stub used on ARM.
    -- It is pinned and always present.
-   "DirectCEntryStub.*GenerateCall",  
+   "DirectCEntryStub.*GenerateCall",
 
-   -- TODO GCMole currently is sensitive enough to understand that certain 
-   --      functions only cause GC and return Failure simulataneously. 
-   --      Callsites of such functions are safe as long as they are properly 
+   -- TODO GCMole currently is sensitive enough to understand that certain
+   --      functions only cause GC and return Failure simulataneously.
+   --      Callsites of such functions are safe as long as they are properly
    --      check return value and propagate the Failure to the caller.
    --      It should be possible to extend GCMole to understand this.
    "Heap.*AllocateFunctionPrototype",

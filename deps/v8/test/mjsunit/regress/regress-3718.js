@@ -18,4 +18,5 @@ assertEquals("String", getTypeName(""));
 assertEquals("Boolean", getTypeName(false));
 assertEquals("Object", getTypeName({}));
 assertEquals("Array", getTypeName([]));
+assertEquals("Proxy", getTypeName(new Proxy({},{})));
 assertEquals("Custom", getTypeName(new (function Custom(){})()));

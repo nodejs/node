@@ -91,6 +91,10 @@
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
   'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
+  # This test allocates a 2G block of memory and if there are multiple
+  # variants this can lead to OOM.
+  'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
@@ -178,8 +182,8 @@
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
 
-  # BUG(v8:6577).
-  'wasm/exceptions': [SKIP],
+  # Allocates a huge string and then flattens it, very slow in debug mode.
+  'regress/regress-752764': [PASS, ['mode == debug', SLOW]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -248,6 +252,9 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+
+  # BUG(chromium:751825): Crashes flakily.
+  'wasm/js-api': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -421,6 +428,7 @@
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, SLOW],
+  'wasm/atomics': [PASS, SLOW],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
@@ -546,7 +554,6 @@
 ['deopt_fuzzer == True', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
-  'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
   'regress/regress-2185-2': [SKIP],
   'readonly': [SKIP],
@@ -578,6 +585,7 @@
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
+  'regress/regress-740784': [PASS, SLOW],
 }],  # 'arch == ppc and simulator_run'
 
 ##############################################################################
@@ -589,9 +597,11 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['variant == fullcode', {
-  'es6/array-iterator-turbo': [SKIP],
-}],  # variant == nocranshaft
+['arch == ppc64 or arch == ppc or arch == s390 or arch == s390x', {
+
+  # TODO(ppc/s390): implement atomic operations
+  'wasm/atomics': [SKIP],
+}],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
 
 ##############################################################################
 ['variant == stress', {
@@ -645,14 +655,5 @@
     # included in the snapshot
     'mjsunit-assertion-error' : [SKIP],
 }], # no_harness
-
-##############################################################################
-# This test allocates a 2G block of memory and if there are multiple
-# varients this leads kills by the OOM killer, crashes or messages
-# indicating the OS cannot allocate memory, exclude for Node.js runs
-# re-evalute when we move up to v8 5.1
-[ALWAYS, {
-'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-}],  # ALWAYS
 
 ]

@@ -145,21 +145,6 @@ expression: new WeakSet([{}])
 
 Running test: iteratorObject
 expression: (new Map([[1,2]])).entries()
-{
-    name : [[IteratorHasMore]]
-    type : boolean
-    value : true
-}
-{
-    name : [[IteratorIndex]]
-    type : number
-    value : 0
-}
-{
-    name : [[IteratorKind]]
-    type : string
-    value : entries
-}
 [[Entries]]:
 [
     [0] : {
@@ -181,21 +166,6 @@ expression: (new Map([[1,2]])).entries()
 ]
 
 expression: (new Set([[1,2]])).entries()
-{
-    name : [[IteratorHasMore]]
-    type : boolean
-    value : true
-}
-{
-    name : [[IteratorIndex]]
-    type : number
-    value : 0
-}
-{
-    name : [[IteratorKind]]
-    type : string
-    value : entries
-}
 [[Entries]]:
 [
     [0] : {
@@ -237,12 +207,42 @@ Running test: noPreviewForFunctionObject
 
 Running test: otherObjects
 expression: [1,2,3]
+{
+    name : 0
+    type : number
+    value : 1
+}
+{
+    name : 1
+    type : number
+    value : 2
+}
+{
+    name : 2
+    type : number
+    value : 3
+}
 
 expression: /123/
+{
+    name : lastIndex
+    type : number
+    value : 0
+}
 
 expression: ({})
 
 
 Running test: overridenArrayGetter
 expression: Promise.resolve(42)
+{
+    name : [[PromiseStatus]]
+    type : string
+    value : resolved
+}
+{
+    name : [[PromiseValue]]
+    type : number
+    value : 42
+}
 

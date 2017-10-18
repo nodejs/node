@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -241,6 +242,24 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         mode_(mode),
         zone_(gen->zone()) {}
 
+  void SaveRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    for (int i = 0; i < Register::kNumRegisters; ++i) {
+      if ((registers >> i) & 1u) {
+        __ pushq(Register::from_code(i));
+      }
+    }
+  }
+
+  void RestoreRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
+      if ((registers >> i) & 1u) {
+        __ popq(Register::from_code(i));
+      }
+    }
+  }
+
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
@@ -248,15 +267,44 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
+    __ leap(scratch1_, operand_);
+
+#ifdef V8_CSA_WRITE_BARRIER
+    Callable const callable =
+        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
+    RegList registers = callable.descriptor().allocatable_registers();
+
+    SaveRegisters(registers);
+
+    Register object_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kObject));
+    Register slot_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kSlot));
+    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kIsolate));
+
+    __ pushq(object_);
+    __ pushq(scratch1_);
+
+    __ popq(slot_parameter);
+    __ popq(object_parameter);
+
+    __ LoadAddress(isolate_parameter,
+                   ExternalReference::isolate_address(__ isolate()));
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
+
+    RestoreRegisters(registers);
+#else
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    __ leap(scratch1_, operand_);
+
     __ CallStubDelayed(
         new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                     remembered_set_action, save_fp_mode));
+#endif
   }
 
  private:
@@ -832,7 +880,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
   switch (arch_opcode) {
     case kArchCallCodeObject: {
-      EnsureSpaceForLazyDeopt();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = i.InputCode(0);
         __ Call(code, RelocInfo::CODE_TARGET);
@@ -875,31 +922,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
         __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, kWrongFunctionContext);
       }
-      __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
+      __ movp(rcx, FieldOperand(func, JSFunction::kCodeOffset));
+      __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+      __ call(rcx);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
-      break;
-    }
-    case kArchTailCallJSFunctionFromJSFunction: {
-      Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
-        // Check the function's context matches the context argument.
-        __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
-        __ Assert(equal, kWrongFunctionContext);
-      }
-      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                       i.TempRegister(0), i.TempRegister(1),
-                                       i.TempRegister(2));
-      __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
-      frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchPrepareCallCFunction: {
@@ -907,6 +940,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->SetFrameAccessToFP();
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters);
+      break;
+    }
+    case kArchSaveCallerRegisters: {
+      // kReturnRegister0 should have been saved before entering the stub.
+      __ PushCallerSaved(kSaveFPRegs, kReturnRegister0);
+      break;
+    }
+    case kArchRestoreCallerRegisters: {
+      // Don't overwrite the returned value.
+      __ PopCallerSaved(kSaveFPRegs, kReturnRegister0);
       break;
     }
     case kArchPrepareTailCall:
@@ -939,6 +982,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RecordComment(reinterpret_cast<const char*>(comment_string));
       break;
     }
+    case kArchDebugAbort:
+      DCHECK(i.InputRegister(0).is(rdx));
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      }
+      __ int3();
+      break;
     case kArchDebugBreak:
       __ int3();
       break;
@@ -2915,25 +2972,6 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ jmp(Operand(kScratchRegister, input, times_8, 0));
 }
 
-CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, SourcePosition pos) {
-  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
-  Deoptimizer::BailoutType bailout_type =
-      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
-                                                   : Deoptimizer::EAGER;
-  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      __ isolate(), deoptimization_id, bailout_type);
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (info()->is_source_positions_enabled()) {
-    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
-  }
-  __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-  return kSuccess;
-}
-
-
 namespace {
 
 static const int kQuadWordSize = 16;
@@ -2973,7 +3011,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ pushq(rbp);
       __ movq(rbp, rsp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
       if (descriptor->PushArgumentCount()) {
         __ pushq(kJavaScriptCallArgCountRegister);
       }
@@ -2981,7 +3019,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
 
-    if (!descriptor->IsJSFunctionCall() || !info()->GeneratePreagedPrologue()) {
+    if (!descriptor->IsJSFunctionCall()) {
       unwinding_info_writer_.MarkFrameConstructed(pc_base);
     }
   }
@@ -3168,14 +3206,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           } else {
             // TODO(dcarney): don't need scratch in this case.
             int32_t value = src.ToInt32();
-            if (value == 0) {
+            if (RelocInfo::IsWasmSizeReference(src.rmode())) {
+              __ movl(dst, Immediate(value, src.rmode()));
+            } else if (value == 0) {
               __ xorl(dst, dst);
             } else {
-              if (RelocInfo::IsWasmSizeReference(src.rmode())) {
-                __ movl(dst, Immediate(value, src.rmode()));
-              } else {
-                __ movl(dst, Immediate(value));
-              }
+              __ movl(dst, Immediate(value));
             }
           }
           break;
@@ -3324,7 +3360,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        -kPointerSize);
     } else {
-      // Use the XOR trick to swap without a temporary.
+      // Use the XOR trick to swap without a temporary. The xorps may read
+      // from or write to an unaligned address, causing a slowdown, but swaps
+      // between slots should be rare.
       __ Movups(kScratchDoubleReg, src);
       __ Xorps(kScratchDoubleReg, dst);  // scratch contains src ^ dst.
       __ Movups(src, kScratchDoubleReg);
@@ -3364,22 +3402,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   for (size_t index = 0; index < target_count; ++index) {
     __ dq(targets[index]);
-  }
-}
-
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  int current_pc = __ pc_offset();
-  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    __ Nop(padding_size);
   }
 }
 

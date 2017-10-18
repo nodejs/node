@@ -30,12 +30,12 @@
 
 #include "src/base/platform/platform.h"
 #include "src/isolate.h"
-#include "src/list-inl.h"
 
 class ThreadIdValidationThread : public v8::base::Thread {
  public:
   ThreadIdValidationThread(v8::base::Thread* thread_to_start,
-                           i::List<i::ThreadId>* refs, unsigned int thread_no,
+                           std::vector<i::ThreadId>* refs,
+                           unsigned int thread_no,
                            v8::base::Semaphore* semaphore)
       : Thread(Options("ThreadRefValidationThread")),
         refs_(refs),
@@ -57,7 +57,7 @@ class ThreadIdValidationThread : public v8::base::Thread {
   }
 
  private:
-  i::List<i::ThreadId>* refs_;
+  std::vector<i::ThreadId>* refs_;
   int thread_no_;
   v8::base::Thread* thread_to_start_;
   v8::base::Semaphore* semaphore_;
@@ -66,16 +66,18 @@ class ThreadIdValidationThread : public v8::base::Thread {
 
 TEST(ThreadIdValidation) {
   const int kNThreads = 100;
-  i::List<ThreadIdValidationThread*> threads(kNThreads);
-  i::List<i::ThreadId> refs(kNThreads);
+  std::vector<ThreadIdValidationThread*> threads;
+  std::vector<i::ThreadId> refs;
+  threads.reserve(kNThreads);
+  refs.reserve(kNThreads);
   v8::base::Semaphore semaphore(0);
   ThreadIdValidationThread* prev = NULL;
   for (int i = kNThreads - 1; i >= 0; i--) {
     ThreadIdValidationThread* newThread =
         new ThreadIdValidationThread(prev, &refs, i, &semaphore);
-    threads.Add(newThread);
+    threads.push_back(newThread);
     prev = newThread;
-    refs.Add(i::ThreadId::Invalid());
+    refs.push_back(i::ThreadId::Invalid());
   }
   prev->Start();
   for (int i = 0; i < kNThreads; i++) {

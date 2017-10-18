@@ -11,8 +11,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::base;
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 class DeleteRecorder {
  public:
@@ -76,3 +76,6 @@ TEST(DisposeCollect) {
   CHECK(deleted1);
   CHECK(deleted2);
 }
+
+}  // namespace internal
+}  // namespace v8

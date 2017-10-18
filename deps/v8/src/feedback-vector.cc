@@ -6,8 +6,8 @@
 #include "src/code-stubs.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/ic-inl.h"
-#include "src/ic/ic-state.h"
 #include "src/objects.h"
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -195,13 +195,17 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   const int slot_count = shared->feedback_metadata()->slot_count();
-  const int length = slot_count + kReservedIndexCount;
 
-  Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
-  array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
-  array->set(kSharedFunctionInfoIndex, *shared);
-  array->set(kOptimizedCodeIndex, Smi::FromEnum(OptimizationMarker::kNone));
-  array->set(kInvocationCountIndex, Smi::kZero);
+  Handle<FeedbackVector> vector = factory->NewFeedbackVector(shared, TENURED);
+
+  DCHECK_EQ(vector->length(), slot_count);
+
+  DCHECK_EQ(vector->shared_function_info(), *shared);
+  DCHECK_EQ(vector->optimized_code_cell(),
+            Smi::FromEnum(OptimizationMarker::kNone));
+  DCHECK_EQ(vector->invocation_count(), 0);
+  DCHECK_EQ(vector->profiler_ticks(), 0);
+  DCHECK_EQ(vector->deopt_count(), 0);
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -217,23 +221,23 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
     switch (kind) {
       case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
-        array->set(index, isolate->heap()->empty_weak_cell(),
-                   SKIP_WRITE_BARRIER);
+        vector->set(index, isolate->heap()->empty_weak_cell(),
+                    SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
-        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCreateClosure: {
         Handle<Cell> cell = factory->NewNoClosuresCell(undefined_value);
-        array->set(index, *cell);
+        vector->set(index, *cell);
         break;
       }
       case FeedbackSlotKind::kLiteral:
-        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
-        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = Smi::kZero;
         break;
       case FeedbackSlotKind::kLoadProperty:
@@ -248,22 +252,22 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kTypeProfile:
-        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
-        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
     }
     for (int j = 1; j < entry_size; j++) {
-      array->set(index + j, extra_value, SKIP_WRITE_BARRIER);
+      vector->set(index + j, extra_value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
 
-  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(array);
+  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(vector);
   if (!isolate->is_best_effort_code_coverage()) {
     AddToCodeCoverageList(isolate, result);
   }
@@ -299,20 +303,20 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
   DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
   Factory* factory = vector->GetIsolate()->factory();
   Handle<WeakCell> cell = factory->NewWeakCell(code);
-  vector->set(kOptimizedCodeIndex, *cell);
+  vector->set_optimized_code_cell(*cell);
 }
 
 void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
-  set(kOptimizedCodeIndex, Smi::FromEnum(marker));
+  set_optimized_code_cell(Smi::FromEnum(marker));
 }
 
 void FeedbackVector::ClearOptimizedCode() {
-  set(kOptimizedCodeIndex, Smi::FromEnum(OptimizationMarker::kNone));
+  set_optimized_code_cell(Smi::FromEnum(OptimizationMarker::kNone));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo* shared, const char* reason) {
-  Object* slot = get(kOptimizedCodeIndex);
+  Object* slot = optimized_code_cell();
   if (slot->IsSmi()) return;
 
   WeakCell* cell = WeakCell::cast(slot);
@@ -330,7 +334,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
       PrintF("]\n");
     }
     if (!code->deopt_already_counted()) {
-      shared->increment_deopt_count();
+      increment_deopt_count();
       code->set_deopt_already_counted(true);
     }
     ClearOptimizedCode();
@@ -452,7 +456,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
     }
   }
   if (feedback_updated) {
-    IC::OnFeedbackChanged(isolate, host_function);
+    IC::OnFeedbackChanged(isolate, this, host_function);
   }
 }
 
@@ -916,6 +920,16 @@ BinaryOperationHint BinaryOpICNexus::GetBinaryOperationFeedback() const {
 CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
   int feedback = Smi::ToInt(GetFeedback());
   return CompareOperationHintFromFeedback(feedback);
+}
+
+InlineCacheState ForInICNexus::StateFromFeedback() const {
+  Object* feedback = GetFeedback();
+  if (feedback == *FeedbackVector::UninitializedSentinel(GetIsolate())) {
+    return UNINITIALIZED;
+  } else if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
+    return MEGAMORPHIC;
+  }
+  return GENERIC;
 }
 
 InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {

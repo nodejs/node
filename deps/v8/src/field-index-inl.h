@@ -6,6 +6,7 @@
 #define V8_FIELD_INDEX_INL_H_
 
 #include "src/field-index.h"
+#include "src/objects-inl.h"
 #include "src/objects/descriptor-array.h"
 
 namespace v8 {

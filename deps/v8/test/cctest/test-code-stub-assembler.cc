@@ -30,6 +30,8 @@ int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
   return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
 }
 
+static int sum3(int a0, int a1, int a2) { return a0 + a1 + a2; }
+
 }  // namespace
 
 TEST(CallCFunction9) {
@@ -59,6 +61,31 @@ TEST(CallCFunction9) {
 
   Handle<Object> result = ft.Call().ToHandleChecked();
   CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+}
+
+TEST(CallCFunction3WithCallerSavedRegisters) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    Node* const fun_constant = m.ExternalConstant(
+        ExternalReference(reinterpret_cast<Address>(sum3), isolate));
+
+    MachineType type_intptr = MachineType::IntPtr();
+
+    Node* const result = m.CallCFunction3WithCallerSavedRegisters(
+        type_intptr, type_intptr, type_intptr, type_intptr, fun_constant,
+        m.IntPtrConstant(0), m.IntPtrConstant(1), m.IntPtrConstant(2));
+    m.Return(m.SmiTag(result));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(3, Handle<Smi>::cast(result)->value());
 }
 
 namespace {
@@ -170,7 +197,7 @@ TEST(FixedArrayAccessSmiIndex) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
   array->set(4, Smi::FromInt(733));
   m.Return(m.LoadFixedArrayElement(m.HeapConstant(array),
-                                   m.SmiTag(m.Int32Constant(4)), 0,
+                                   m.SmiTag(m.IntPtrConstant(4)), 0,
                                    CodeStubAssembler::SMI_PARAMETERS));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
@@ -393,6 +420,35 @@ TEST(TryToName) {
     Handle<Object> key(isolate->factory()->NewHeapNumber(153));
     Handle<Object> index(Smi::FromInt(153), isolate);
     ft.CheckTrue(key, expect_index, index);
+  }
+
+  {
+    // TryToName(<true>) => if_keyisunique: "true".
+    Handle<Object> key = isolate->factory()->true_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("true");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<false>) => if_keyisunique: "false".
+    Handle<Object> key = isolate->factory()->false_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("false");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<null>) => if_keyisunique: "null".
+    Handle<Object> key = isolate->factory()->null_value();
+    Handle<Object> unique = isolate->factory()->InternalizeUtf8String("null");
+    ft.CheckTrue(key, expect_unique, unique);
+  }
+
+  {
+    // TryToName(<undefined>) => if_keyisunique: "undefined".
+    Handle<Object> key = isolate->factory()->undefined_value();
+    Handle<Object> unique =
+        isolate->factory()->InternalizeUtf8String("undefined");
+    ft.CheckTrue(key, expect_unique, unique);
   }
 
   {
@@ -864,6 +920,7 @@ TEST(TryHasOwnProperty) {
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
     function->initial_map()->set_is_prototype_map(true);
     function->initial_map()->set_dictionary_map(true);
+    function->initial_map()->set_may_have_interesting_symbols(true);
     Handle<JSObject> object = factory->NewJSGlobalObject(function);
     AddProperties(object, names, arraysize(names));
 
@@ -1745,15 +1802,15 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
                          Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
         .Check();
     CodeStubArguments args(this, IntPtrConstant(kNumParams));
-    Variable arg_index(this, MachineType::PointerRepresentation());
+    TVariable<IntPtrT> arg_index(this);
     Label bailout(this);
-    arg_index.Bind(IntPtrConstant(0));
-    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), args,
-                                      arg_index, &bailout);
+    arg_index = IntPtrConstant(0);
+    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), &args,
+                                      &arg_index, &bailout);
     Return(length);
 
     BIND(&bailout);
-    Return(SmiTag(IntPtrAdd(arg_index.value(), IntPtrConstant(2))));
+    Return(SmiTag(IntPtrAdd(arg_index, IntPtrConstant(2))));
 
     FunctionTester ft(csa_tester->GenerateCode(), kNumParams);
 
@@ -1915,7 +1972,7 @@ TEST(AllocateAndSetJSPromise) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const promise = m.AllocateAndSetJSPromise(
-      context, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+      context, v8::Promise::kRejected, m.SmiConstant(1));
   m.Return(promise);
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -1923,7 +1980,7 @@ TEST(AllocateAndSetJSPromise) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result->IsJSPromise());
   Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(v8::Promise::kPending, js_promise->status());
+  CHECK_EQ(v8::Promise::kRejected, js_promise->status());
   CHECK_EQ(Smi::FromInt(1), js_promise->result());
   CHECK(!js_promise->has_handler());
 }
@@ -2524,6 +2581,29 @@ TEST(DirectMemoryTest16BitWord32) {
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   CHECK_EQ(1, ft.CallChecked<Smi>()->value());
+}
+
+TEST(LoadJSArrayElementsMap) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    Node* context = m.Parameter(kNumParams + 2);
+    Node* native_context = m.LoadNativeContext(context);
+    Node* kind = m.SmiToWord32(m.Parameter(0));
+    m.Return(m.LoadJSArrayElementsMap(kind, native_context));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  for (int kind = 0; kind <= HOLEY_DOUBLE_ELEMENTS; kind++) {
+    Handle<Map> csa_result =
+        ft.CallChecked<Map>(handle(Smi::FromInt(kind), isolate));
+    ElementsKind elements_kind = static_cast<ElementsKind>(kind);
+    Handle<Map> result(
+        isolate->native_context()->GetInitialJSArrayMap(elements_kind));
+    CHECK_EQ(*csa_result, *result);
+  }
 }
 
 }  // namespace compiler
