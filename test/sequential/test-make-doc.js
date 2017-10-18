@@ -1,23 +1,21 @@
 'use strict';
+const common = require('../common');
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
 
 // This tests that `make doc` generates the documentation properly.
 // Note that for this test to pass, `make doc` must be run first.
-
-const common = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-if (common.isWindows) {
-  common.skip('Do not make doc on Windows');
-}
-
-const apiPath = path.join(common.projectDir, 'out', 'doc', 'api');
+const apiPath = path.resolve(common.projectDir, 'out', 'doc', 'api');
 const docs = fs.readdirSync(apiPath);
 assert.ok(docs.includes('_toc.html'));
 
-const toc = fs.readFileSync(path.join(apiPath, '_toc.html'), 'utf8');
+const toc = fs.readFileSync(path.resolve(apiPath, '_toc.html'), 'utf8');
 const re = /href="([^/]+\.html)"/;
 const globalRe = new RegExp(re, 'g');
 const links = toc.match(globalRe);
