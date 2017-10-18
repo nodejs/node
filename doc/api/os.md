@@ -58,7 +58,7 @@ added: v0.3.3
 * Returns: {Array}
 
 The `os.cpus()` method returns an array of objects containing information about
-each CPU/core installed.
+each logical CPU core.
 
 The properties included on each object include:
 
