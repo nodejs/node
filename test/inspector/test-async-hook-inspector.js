@@ -29,14 +29,14 @@ const session = new inspector.Session();
 verifyAsyncHookDisabled('creating a session should not enable async hooks');
 
 session.connect();
-verifyAsyncHookDisabled('creating a session should not enable async hooks');
+verifyAsyncHookDisabled('connecting a session should not enable async hooks');
 
 session.post('Debugger.setAsyncCallStackDepth', { invalid: 'message' }, () => {
   verifyAsyncHookDisabled('invalid message should not enable async hooks');
 
   session.post('Debugger.setAsyncCallStackDepth', { maxDepth: 'five' }, () => {
-    verifyAsyncHookDisabled('invalid maxDepth (sting) should not enable async' +
-      ' hooks');
+    verifyAsyncHookDisabled('invalid maxDepth (string) should not enable ' + 
+      'async hooks');
 
     session.post('Debugger.setAsyncCallStackDepth', { maxDepth: NaN }, () => {
       verifyAsyncHookDisabled('invalid maxDepth (NaN) should not enable async' +
