@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     kInterceptor = 1 << 0,
     kPrototypeChain = 1 << 1,
 
-    // Convience combinations of bits.
+    // Convenience combinations of bits.
     OWN_SKIP_INTERCEPTOR = 0,
     OWN = kInterceptor,
     PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kPrototypeChain,
