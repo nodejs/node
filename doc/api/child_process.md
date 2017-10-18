@@ -264,6 +264,8 @@ changes:
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -338,6 +340,8 @@ changes:
     When this option is provided, it overrides `silent`. If the array variant
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. **Default:** `false`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
 * Returns: {ChildProcess}
@@ -404,6 +408,9 @@ changes:
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. This is set to `true` automatically
+    when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {ChildProcess}
@@ -813,6 +820,9 @@ changes:
     `'/bin/sh'` on UNIX, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell Requirements][] and
     [Default Windows Shell][]. **Default:** `false` (no shell).
+  * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
+    done on Windows. Ignored on Unix. This is set to `true` automatically
+    when `shell` is specified. **Default:** `false`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
 * Returns: {Object}
