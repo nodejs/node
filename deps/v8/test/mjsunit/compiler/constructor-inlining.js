@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-restrict-constructor-return --max-deopt-count 200
+// Flags: --allow-natives-syntax --harmony-restrict-constructor-return
 
 if (this.FLAG_harmony_restrict_constructor_return === undefined)
   this.FLAG_harmony_restrict_constructor_return = true;

@@ -252,14 +252,14 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   }
 
   // Setup the "name" property based on the "name" of the {target}.
-  // If the targets name is the default JSFunction accessor, we can keep the
+  // If the target's name is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
-  LookupIterator name_lookup(target, isolate->factory()->name_string(), target,
-                             LookupIterator::OWN);
+  LookupIterator name_lookup(target, isolate->factory()->name_string(), target);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
-      !name_lookup.GetAccessors()->IsAccessorInfo()) {
+      !name_lookup.GetAccessors()->IsAccessorInfo() ||
+      (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
     Handle<Object> target_name;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_name,
                                        Object::GetProperty(&name_lookup));

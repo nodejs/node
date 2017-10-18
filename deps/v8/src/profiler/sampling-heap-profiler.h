@@ -172,11 +172,8 @@ class SamplingAllocationObserver : public AllocationObserver {
   void Step(int bytes_allocated, Address soon_object, size_t size) override {
     USE(heap_);
     DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
-    if (soon_object) {
-      // TODO(ofrobots): it would be better to sample the next object rather
-      // than skipping this sample epoch if soon_object happens to be null.
-      profiler_->SampleObject(soon_object, size);
-    }
+    DCHECK(soon_object);
+    profiler_->SampleObject(soon_object, size);
   }
 
   intptr_t GetNextStepSize() override { return GetNextSampleInterval(rate_); }

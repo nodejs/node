@@ -792,7 +792,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 3082 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlot), U16(256), U16(3), U16(1),
+  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlot), U16(256), U16(0), U16(1),
   /* 3095 S> */ B(Return),
 ]
 constant pool: [
@@ -1843,7 +1843,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 3082 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlotInsideTypeof), U16(256), U16(3), U16(1),
+  /* 3086 S> */ B(Wide), B(LdaLookupGlobalSlotInsideTypeof), U16(256), U16(0), U16(1),
                 B(TypeOf),
   /* 3102 S> */ B(Return),
 ]

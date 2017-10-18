@@ -40,7 +40,7 @@
 namespace v8 {
 namespace internal {
 
-const auto GetRegConfig = RegisterConfiguration::Crankshaft;
+const auto GetRegConfig = RegisterConfiguration::Default;
 
 //------------------------------------------------------------------------------
 
@@ -726,7 +726,7 @@ void Decoder::Format(Instruction* instr, const char* format) {
 
 
 // The disassembler may end up decoding data inlined in the code. We do not want
-// it to crash if the data does not ressemble any known instruction.
+// it to crash if the data does not resemble any known instruction.
 #define VERIFY(condition) \
 if(!(condition)) {        \
   Unknown(instr);         \
@@ -2602,7 +2602,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
                                 DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
   } else if (instruction_bits == kCodeAgeJumpInstruction) {
-    // The code age prologue has a constant immediatly following the jump
+    // The code age prologue has a constant immediately following the jump
     // instruction.
     Instruction* target = Instruction::At(instr_ptr + Instruction::kInstrSize);
     DecodeType2(instr);

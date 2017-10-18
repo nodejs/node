@@ -48,21 +48,6 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #undef __
 
 // -------------------------------------------------------------------------
-// Platform-specific RuntimeCallHelper functions.
-
-void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterFrame(StackFrame::INTERNAL);
-  DCHECK(!masm->has_frame());
-  masm->set_has_frame(true);
-}
-
-void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveFrame(StackFrame::INTERNAL);
-  DCHECK(masm->has_frame());
-  masm->set_has_frame(false);
-}
-
-// -------------------------------------------------------------------------
 // Code generators
 
 #define __ ACCESS_MASM(masm)
@@ -167,73 +152,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, Register string,
 }
 
 #undef __
-
-CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
-  USE(isolate);
-  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
-  // Since patcher is a large object, allocate it dynamically when needed,
-  // to avoid overloading the stack in stress conditions.
-  // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
-  // the process, before ARM simulator ICache is setup.
-  std::unique_ptr<CodePatcher> patcher(
-      new CodePatcher(isolate, young_sequence_.start(),
-                      young_sequence_.length(), CodePatcher::DONT_FLUSH));
-  PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->PushStandardFrame(r3);
-}
-
-#ifdef DEBUG
-bool CodeAgingHelper::IsOld(byte* candidate) const {
-  return Assembler::IsNop(Assembler::instr_at(candidate));
-}
-#endif
-
-bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
-  bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
-  return result;
-}
-
-Code::Age Code::GetCodeAge(Isolate* isolate, byte* sequence) {
-  if (IsYoungSequence(isolate, sequence)) return kNoAgeCodeAge;
-
-  Code* code = NULL;
-  Address target_address =
-      Assembler::target_address_at(sequence + kCodeAgingTargetDelta, code);
-  Code* stub = GetCodeFromTargetAddress(target_address);
-  return GetAgeOfCodeAgeStub(stub);
-}
-
-void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
-                                Code::Age age) {
-  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
-  if (age == kNoAgeCodeAge) {
-    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    Assembler::FlushICache(isolate, sequence, young_length);
-  } else {
-    // FIXED_SEQUENCE
-    Code* stub = GetCodeAgeStub(isolate, age);
-    CodePatcher patcher(isolate, sequence, young_length);
-    intptr_t target = reinterpret_cast<intptr_t>(stub->instruction_start());
-    // We need to push lr on stack so that GenerateMakeCodeYoungAgainCommon
-    // knows where to pick up the return address
-    //
-    // Since we can no longer guarentee ip will hold the branch address
-    // because of BRASL, use Call so that GenerateMakeCodeYoungAgainCommon
-    // can calculate the branch address offset
-    patcher.masm()->nop();  // marker to detect sequence (see IsOld)
-    patcher.masm()->CleanseP(r14);
-    patcher.masm()->Push(r14);
-    patcher.masm()->mov(r2, Operand(target));
-    patcher.masm()->Call(r2);
-    for (int i = 0; i < kNoCodeAgeSequenceLength - kCodeAgingSequenceLength;
-         i += 2) {
-      // TODO(joransiu): Create nop function to pad
-      //       (kNoCodeAgeSequenceLength - kCodeAgingSequenceLength) bytes.
-      patcher.masm()->nop();  // 2-byte nops().
-    }
-  }
-}
 
 }  // namespace internal
 }  // namespace v8

@@ -635,12 +635,9 @@ template <typename SrcChar, typename DestChar>
 void JsonStringifier::SerializeString_(Handle<String> string) {
   int length = string->length();
   builder_.Append<uint8_t, DestChar>('"');
-  // We make a rough estimate to find out if the current string can be
-  // serialized without allocating a new string part. The worst case length of
-  // an escaped character is 6.  Shifting the remainin string length right by 3
-  // is a more pessimistic estimate, but faster to calculate.
-  int worst_case_length = length << 3;
-  if (builder_.CurrentPartCanFit(worst_case_length)) {
+  // We might be able to fit the whole escaped string in the current string
+  // part, or we might need to allocate.
+  if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
     DisallowHeapAllocation no_gc;
     Vector<const SrcChar> vector = string->GetCharVector<SrcChar>();
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
@@ -657,7 +654,6 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
       }
     }
   }
-
   builder_.Append<uint8_t, DestChar>('"');
 }
 

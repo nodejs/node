@@ -75,6 +75,11 @@ class ScopeIterator {
   // Populate the set with collected non-local variable names.
   Handle<StringSet> GetNonLocals();
 
+  // Return function which represents closure for current scope.
+  Handle<JSFunction> GetClosure();
+  int start_position();
+  int end_position();
+
 #ifdef DEBUG
   // Debug print of the content of the current scope.
   void DebugPrint();
@@ -168,6 +173,9 @@ class ScopeIterator {
   // and will be returned, but no inner function scopes.
   void GetNestedScopeChain(Isolate* isolate, Scope* scope,
                            int statement_position);
+
+  bool HasNestedScopeChain();
+  ExtendedScopeInfo& LastNestedScopeChain();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };

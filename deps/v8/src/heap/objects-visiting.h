@@ -6,9 +6,10 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
-#include "src/heap/heap.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/string.h"
 
 namespace v8 {
@@ -21,6 +22,7 @@ namespace internal {
   V(Cell)                        \
   V(Code)                        \
   V(ConsString)                  \
+  V(FeedbackVector)              \
   V(FixedArray)                  \
   V(FixedDoubleArray)            \
   V(FixedFloat64Array)           \
@@ -89,10 +91,6 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
  public:
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  void VisitCodeEntry(JSFunction* host, Address code_entry) final {
-    // Code is not in new space.
-  }
-
   // Special cases for young generation.
 
   V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
@@ -123,7 +121,6 @@ class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
   V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitJSWeakCollection(Map* map, JSWeakCollection* object);
-  V8_INLINE int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object);
   V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
   V8_INLINE int VisitCode(Map* map, Code* object);
   V8_INLINE int VisitMap(Map* map, Map* object);
@@ -131,12 +128,8 @@ class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
   V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
 
   // ObjectVisitor implementation.
-  V8_INLINE void VisitCodeEntry(JSFunction* host, Address entry_address) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCellPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitDebugTarget(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeAgeSequence(Code* host, RelocInfo* rinfo) final;
   // Skip weak next code link.
   V8_INLINE void VisitNextCodeLink(Code* host, Object** p) final {}
 

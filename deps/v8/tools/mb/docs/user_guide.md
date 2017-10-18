@@ -20,7 +20,7 @@ For more discussion of MB, see also [the design spec](design_spec.md).
 
 ### `mb analyze`
 
-`mb analyze` is reponsible for determining what targets are affected by
+`mb analyze` is responsible for determining what targets are affected by
 a list of files (e.g., the list of files in a patch on a trybot):
 
 ```

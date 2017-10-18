@@ -1251,6 +1251,7 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
 }
 
 bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
+  DisallowHeapAllocation no_gc;
   // In the case of failure, the position in the stream is reset.
   const uint8_t* original_position = position_;
 
@@ -1265,8 +1266,6 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
     return false;
   }
 
-  expected = String::Flatten(expected);
-  DisallowHeapAllocation no_gc;
   String::FlatContent flat = expected->GetFlatContent();
 
   // If the bytes are verbatim what is in the flattened string, then the string
@@ -1775,10 +1774,11 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       // transition was found.
       Handle<Object> key;
       Handle<Map> target;
-      Handle<String> expected_key = TransitionArray::ExpectedTransitionKey(map);
+      TransitionsAccessor transitions(map);
+      Handle<String> expected_key = transitions.ExpectedTransitionKey();
       if (!expected_key.is_null() && ReadExpectedString(expected_key)) {
         key = expected_key;
-        target = TransitionArray::ExpectedTransitionTarget(map);
+        target = transitions.ExpectedTransitionTarget();
       } else {
         if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(key)) {
           return Nothing<uint32_t>();
@@ -1786,8 +1786,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         if (key->IsString()) {
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
-          target = TransitionArray::FindTransitionToField(
-              map, Handle<String>::cast(key));
+          // Don't reuse |transitions| because it could be stale.
+          target = TransitionsAccessor(map).FindTransitionToField(
+              Handle<String>::cast(key));
           transitioning = !target.is_null();
         } else {
           transitioning = false;

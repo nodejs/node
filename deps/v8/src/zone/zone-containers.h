@@ -12,8 +12,11 @@
 #include <queue>
 #include <set>
 #include <stack>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "src/base/functional.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
@@ -131,6 +134,35 @@ class ZoneMap
   explicit ZoneMap(Zone* zone)
       : std::map<K, V, Compare, ZoneAllocator<std::pair<const K, V>>>(
             Compare(), ZoneAllocator<std::pair<const K, V>>(zone)) {}
+};
+
+// A wrapper subclass for std::unordered_map to make it easy to construct one
+// that uses a zone allocator.
+template <typename K, typename V, typename Hash = base::hash<K>,
+          typename KeyEqual = std::equal_to<K>>
+class ZoneUnorderedMap
+    : public std::unordered_map<K, V, Hash, KeyEqual,
+                                ZoneAllocator<std::pair<const K, V>>> {
+ public:
+  // Constructs an empty map.
+  explicit ZoneUnorderedMap(Zone* zone)
+      : std::unordered_map<K, V, Hash, KeyEqual,
+                           ZoneAllocator<std::pair<const K, V>>>(
+            100, Hash(), KeyEqual(),
+            ZoneAllocator<std::pair<const K, V>>(zone)) {}
+};
+
+// A wrapper subclass for std::unordered_set to make it easy to construct one
+// that uses a zone allocator.
+template <typename K, typename Hash = base::hash<K>,
+          typename KeyEqual = std::equal_to<K>>
+class ZoneUnorderedSet
+    : public std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>> {
+ public:
+  // Constructs an empty map.
+  explicit ZoneUnorderedSet(Zone* zone)
+      : std::unordered_set<K, Hash, KeyEqual, ZoneAllocator<K>>(
+            100, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
 };
 
 // A wrapper subclass for std::multimap to make it easy to construct one that

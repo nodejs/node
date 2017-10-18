@@ -14,14 +14,15 @@ void ReportUncaughtException(v8::Isolate* isolate,
                              const v8::TryCatch& try_catch) {
   CHECK(try_catch.HasCaught());
   v8::HandleScope handle_scope(isolate);
-  std::string message = *v8::String::Utf8Value(try_catch.Message()->Get());
+  std::string message =
+      *v8::String::Utf8Value(isolate, try_catch.Message()->Get());
   int line = try_catch.Message()
                  ->GetLineNumber(isolate->GetCurrentContext())
                  .FromJust();
-  std::string source_line =
-      *v8::String::Utf8Value(try_catch.Message()
-                                 ->GetSourceLine(isolate->GetCurrentContext())
-                                 .ToLocalChecked());
+  std::string source_line = *v8::String::Utf8Value(
+      isolate, try_catch.Message()
+                   ->GetSourceLine(isolate->GetCurrentContext())
+                   .ToLocalChecked());
   fprintf(stderr, "Unhandle exception: %s @%s[%d]\n", message.data(),
           source_line.data(), line);
 }

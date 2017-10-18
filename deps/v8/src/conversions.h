@@ -26,6 +26,9 @@ class UnicodeCache;
 // we don't need to preserve all the digits.
 const int kMaxSignificantDigits = 772;
 
+// The limit for the the fractionDigits/precision for toFixed, toPrecision
+// and toExponential.
+const int kMaxFractionDigits = 100;
 
 inline bool isDigit(int x, int radix) {
   return (x >= '0' && x <= '9' && x < '0' + radix)

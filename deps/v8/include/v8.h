@@ -139,6 +139,7 @@ template<typename T> class ReturnValue;
 
 namespace internal {
 class Arguments;
+class DeferredHandles;
 class Heap;
 class HeapObject;
 class Isolate;
@@ -1169,8 +1170,8 @@ class V8_EXPORT Module {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 
   /**
-   * Returns the namespace object of this module. The module must have
-   * been successfully instantiated before and must not be errored.
+   * Returns the namespace object of this module.
+   * The module's status must be kEvaluated.
    */
   Local<Value> GetModuleNamespace();
 };
@@ -1725,7 +1726,16 @@ class V8_EXPORT StackFrame {
 
 
 // A StateTag represents a possible state of the VM.
-enum StateTag { JS, GC, COMPILER, OTHER, EXTERNAL, IDLE };
+enum StateTag {
+  JS,
+  GC,
+  PARSER,
+  BYTECODE_COMPILER,
+  COMPILER,
+  OTHER,
+  EXTERNAL,
+  IDLE
+};
 
 // A RegisterState represents the current state of registers used
 // by the sampling profiler API.
@@ -2442,7 +2452,8 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
-  static const int kMaxLength = (1 << 28) - 16;
+  static constexpr int kMaxLength =
+      sizeof(void*) == 4 ? (1 << 28) - 16 : (1 << 30) - 1 - 24;
 
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
@@ -2761,7 +2772,9 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Utf8Value {
    public:
-    explicit Utf8Value(Local<v8::Value> obj);
+    V8_DEPRECATE_SOON("Use Isolate version",
+                      explicit Utf8Value(Local<v8::Value> obj));
+    Utf8Value(Isolate* isolate, Local<v8::Value> obj);
     ~Utf8Value();
     char* operator*() { return str_; }
     const char* operator*() const { return str_; }
@@ -2784,7 +2797,9 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Value {
    public:
-    explicit Value(Local<v8::Value> obj);
+    V8_DEPRECATE_SOON("Use Isolate version",
+                      explicit Value(Local<v8::Value> obj));
+    Value(Isolate* isolate, Local<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
     const uint16_t* operator*() const { return str_; }
@@ -4104,12 +4119,10 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // supports move semantics, and does not support copy semantics.
   class TransferrableModule final {
    public:
-    TransferrableModule(TransferrableModule&& src)
-        : compiled_code(std::move(src.compiled_code)),
-          wire_bytes(std::move(src.wire_bytes)) {}
+    TransferrableModule(TransferrableModule&& src) = default;
     TransferrableModule(const TransferrableModule& src) = delete;
 
-    TransferrableModule& operator=(TransferrableModule&& src);
+    TransferrableModule& operator=(TransferrableModule&& src) = default;
     TransferrableModule& operator=(const TransferrableModule& src) = delete;
 
    private:
@@ -4166,6 +4179,46 @@ class V8_EXPORT WasmCompiledModule : public Object {
   static void CheckCast(Value* obj);
 };
 
+// TODO(mtrofin): when streaming compilation is done, we can rename this
+// to simply WasmModuleObjectBuilder
+class V8_EXPORT WasmModuleObjectBuilderStreaming final {
+ public:
+  WasmModuleObjectBuilderStreaming(Isolate* isolate);
+  // The buffer passed into OnBytesReceived is owned by the caller.
+  void OnBytesReceived(const uint8_t*, size_t size);
+  void Finish();
+  void Abort(Local<Value> exception);
+  Local<Promise> GetPromise();
+
+  ~WasmModuleObjectBuilderStreaming();
+
+ private:
+  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
+
+  WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
+      delete;
+  WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&) =
+      default;
+  WasmModuleObjectBuilderStreaming& operator=(
+      const WasmModuleObjectBuilderStreaming&) = delete;
+  WasmModuleObjectBuilderStreaming& operator=(
+      WasmModuleObjectBuilderStreaming&&) = default;
+  Isolate* isolate_ = nullptr;
+
+#if V8_CC_MSVC
+  // We don't need the static Copy API, so the default
+  // NonCopyablePersistentTraits would be sufficient, however,
+  // MSVC eagerly instantiates the Copy.
+  // We ensure we don't use Copy, however, by compiling with the
+  // defaults everywhere else.
+  Persistent<Promise, CopyablePersistentTraits<Promise>> promise_;
+#else
+  Persistent<Promise> promise_;
+#endif
+  std::vector<Buffer> received_buffers_;
+  size_t total_size_ = 0;
+};
+
 class V8_EXPORT WasmModuleObjectBuilder final {
  public:
   WasmModuleObjectBuilder(Isolate* isolate) : isolate_(isolate) {}
@@ -4182,11 +4235,9 @@ class V8_EXPORT WasmModuleObjectBuilder final {
   // Disable copy semantics *in this implementation*. We can choose to
   // relax this, albeit it's not clear why.
   WasmModuleObjectBuilder(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder(WasmModuleObjectBuilder&& src)
-      : received_buffers_(std::move(src.received_buffers_)),
-        total_size_(src.total_size_) {}
+  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&) = default;
   WasmModuleObjectBuilder& operator=(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&);
+  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&) = default;
 
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
@@ -4459,6 +4510,12 @@ class V8_EXPORT ArrayBufferView : public Object {
  */
 class V8_EXPORT TypedArray : public ArrayBufferView {
  public:
+  /*
+   * The largest typed array size that can be constructed using New.
+   */
+  static constexpr size_t kMaxLength =
+      sizeof(void*) == 4 ? (1u << 30) - 1 : (1u << 31) - 1;
+
   /**
    * Number of elements in this typed array
    * (e.g. for Int16Array, |ByteLength|/2).
@@ -5069,7 +5126,6 @@ typedef void (*NamedPropertyDeleterCallback)(
     Local<String> property,
     const PropertyCallbackInfo<Boolean>& info);
 
-
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
@@ -5192,7 +5248,6 @@ typedef void (*GenericNamedPropertyQueryCallback)(
  */
 typedef void (*GenericNamedPropertyDeleterCallback)(
     Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
-
 
 /**
  * Returns an array containing the names of the properties the named
@@ -6165,7 +6220,9 @@ typedef void (*DeprecatedCallCompletedCallback)();
  * The Promise returned from this function is forwarded to userland
  * JavaScript. The embedder must resolve this promise with the module
  * namespace object. In case of an exception, the embedder must reject
- * this promise with the exception.
+ * this promise with the exception. If the promise creation itself
+ * fails (e.g. due to stack overflow), the embedder must propagate
+ * that exception by returning an empty MaybeLocal.
  */
 typedef MaybeLocal<Promise> (*HostImportModuleDynamicallyCallback)(
     Local<Context> context, Local<String> referrer, Local<String> specifier);
@@ -6291,8 +6348,6 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  * Callback to check if code generation from strings is allowed. See
  * Context::AllowCodeGenerationFromStrings.
  */
-typedef bool (*DeprecatedAllowCodeGenerationFromStringsCallback)(
-    Local<Context> context);
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context,
                                                        Local<String> source);
 
@@ -6503,7 +6558,7 @@ struct JitCodeEvent {
   struct line_info_t {
     // PC offset
     size_t offset;
-    // Code postion
+    // Code position
     size_t pos;
     // The position type.
     PositionType position_type;
@@ -6782,7 +6837,7 @@ class V8_EXPORT Isolate {
      * deserialization. This array and its content must stay valid for the
      * entire lifetime of the isolate.
      */
-    intptr_t* external_references;
+    const intptr_t* external_references;
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
@@ -6928,6 +6983,7 @@ class V8_EXPORT Isolate {
     kAssigmentExpressionLHSIsCallInStrict = 37,
     kPromiseConstructorReturnedUndefined = 38,
     kConstructorNonUndefinedPrimitiveReturn = 39,
+    kLabeledExpressionStatement = 40,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
@@ -7203,8 +7259,6 @@ class V8_EXPORT Isolate {
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
-  typedef void (*GCCallbackWithData)(Isolate* isolate, GCType type,
-                                     GCCallbackFlags flags, void* data);
 
   /**
    * Enables the host application to receive a notification before a
@@ -7215,8 +7269,6 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
-  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
   void AddGCPrologueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
@@ -7224,7 +7276,6 @@ class V8_EXPORT Isolate {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
   void RemoveGCPrologueCallback(GCCallback callback);
 
   /**
@@ -7241,8 +7292,6 @@ class V8_EXPORT Isolate {
    * not possible to register the same callback function two times with
    * different GCType filters.
    */
-  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
   void AddGCEpilogueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
@@ -7250,8 +7299,6 @@ class V8_EXPORT Isolate {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
-                                void* data = nullptr);
   void RemoveGCEpilogueCallback(GCCallback callback);
 
   typedef size_t (*GetExternallyAllocatedMemoryInBytesCallback)();
@@ -7362,8 +7409,8 @@ class V8_EXPORT Isolate {
           DeprecatedCallCompletedCallback callback));
 
   /**
-   * Experimental: Set the PromiseHook callback for various promise
-   * lifecycle events.
+   * Set the PromiseHook callback for various promise lifecycle
+   * events.
    */
   void SetPromiseHook(PromiseHook hook);
 
@@ -7580,9 +7627,6 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
-  V8_DEPRECATED("Use callback with source parameter.",
-                void SetAllowCodeGenerationFromStringsCallback(
-                    DeprecatedAllowCodeGenerationFromStringsCallback callback));
 
   /**
    * Embedder over{ride|load} injection points for wasm APIs. The expectation
@@ -7720,7 +7764,7 @@ typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
  * ReturnAddressLocationResolver is used as a callback function when v8 is
  * resolving the location of a return address on the stack. Profilers that
  * change the return address on the stack can use this to resolve the stack
- * location to whereever the profiler stashed the original return address.
+ * location to wherever the profiler stashed the original return address.
  *
  * \param return_addr_location A location on stack where a machine
  *    return address resides.
@@ -7742,15 +7786,6 @@ class V8_EXPORT V8 {
   V8_INLINE static V8_DEPRECATED(
       "Use isolate version",
       void SetFatalErrorHandler(FatalErrorCallback that));
-
-  /**
-   * Set the callback to invoke to check if code generation from
-   * strings should be allowed.
-   */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void SetAllowCodeGenerationFromStringsCallback(
-          DeprecatedAllowCodeGenerationFromStringsCallback that));
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
@@ -8147,7 +8182,7 @@ class V8_EXPORT SnapshotCreator {
    * \param external_references a null-terminated array of external references
    *        that must be equivalent to CreateParams::external_references.
    */
-  SnapshotCreator(intptr_t* external_references = nullptr,
+  SnapshotCreator(const intptr_t* external_references = nullptr,
                   StartupData* existing_blob = nullptr);
 
   ~SnapshotCreator();
@@ -8161,8 +8196,12 @@ class V8_EXPORT SnapshotCreator {
    * Set the default context to be included in the snapshot blob.
    * The snapshot will not contain the global proxy, and we expect one or a
    * global object template to create one, to be provided upon deserialization.
+   *
+   * \param callback optional callback to serialize internal fields.
    */
-  void SetDefaultContext(Local<Context> context);
+  void SetDefaultContext(Local<Context> context,
+                         SerializeInternalFieldsCallback callback =
+                             SerializeInternalFieldsCallback());
 
   /**
    * Add additional context to be included in the snapshot blob.
@@ -8514,7 +8553,9 @@ class V8_EXPORT Context {
   static Local<Context> New(
       Isolate* isolate, ExtensionConfiguration* extensions = NULL,
       MaybeLocal<ObjectTemplate> global_template = MaybeLocal<ObjectTemplate>(),
-      MaybeLocal<Value> global_object = MaybeLocal<Value>());
+      MaybeLocal<Value> global_object = MaybeLocal<Value>(),
+      DeserializeInternalFieldsCallback internal_fields_deserializer =
+          DeserializeInternalFieldsCallback());
 
   /**
    * Create a new context from a (non-default) context snapshot. There
@@ -8971,8 +9012,8 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbb;
-  static const int kJSObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xbd;
+  static const int kJSObjectType = 0xbe;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x82;
   static const int kForeignType = 0x86;
@@ -10224,14 +10265,6 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif
 }
-
-void V8::SetAllowCodeGenerationFromStringsCallback(
-    DeprecatedAllowCodeGenerationFromStringsCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->SetAllowCodeGenerationFromStringsCallback(
-      reinterpret_cast<AllowCodeGenerationFromStringsCallback>(callback));
-}
-
 
 bool V8::IsDead() {
   Isolate* isolate = Isolate::GetCurrent();

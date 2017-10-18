@@ -173,8 +173,14 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case GC:
         name = "(GC)";
         break;
+      case PARSER:
+        name = "(PARSER)";
+        break;
       case COMPILER:
         name = "(COMPILER)";
+        break;
+      case BYTECODE_COMPILER:
+        name = "(BYTECODE_COMPILER)";
         break;
       case OTHER:
         name = "(V8 API)";

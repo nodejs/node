@@ -139,7 +139,7 @@ class Decoder {
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(uint32_t size, const char* name = "skip") {
     // Only trace if the name is not null.
-    TRACE_IF(name, "  +%u  %-20s: %d bytes\n", pc_offset(), name, size);
+    TRACE_IF(name, "  +%u  %-20s: %u bytes\n", pc_offset(), name, size);
     if (checkAvailable(size)) {
       pc_ += size;
     } else {
@@ -148,13 +148,13 @@ class Decoder {
   }
 
   // Check that at least {size} bytes exist between {pc_} and {end_}.
-  bool checkAvailable(int size) {
-    intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
-    if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
-      errorf(pc_, "reading %d bytes would underflow/overflow", size);
+  bool checkAvailable(uint32_t size) {
+    uintptr_t pc_overflow_value = std::numeric_limits<uintptr_t>::max() - size;
+    if ((uintptr_t)pc_ > pc_overflow_value) {
+      errorf(pc_, "reading %u bytes would underflow/overflow", size);
       return false;
     } else if (pc_ < start_ || end_ < (pc_ + size)) {
-      errorf(pc_, "expected %d bytes, fell off end", size);
+      errorf(pc_, "expected %u bytes, fell off end", size);
       return false;
     } else {
       return true;

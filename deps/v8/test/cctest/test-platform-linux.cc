@@ -36,8 +36,8 @@
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-using namespace ::v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(VirtualMemory) {
   v8::base::VirtualMemory* vm =
@@ -52,3 +52,6 @@ TEST(VirtualMemory) {
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -338,33 +338,21 @@ bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
 }
 
-Address RelocInfo::wasm_memory_reference() {
-  DCHECK(IsWasmMemoryReference(rmode_));
+Address RelocInfo::embedded_address() const {
   return Assembler::target_address_at(pc_, host_);
 }
 
-uint32_t RelocInfo::wasm_memory_size_reference() {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
+uint32_t RelocInfo::embedded_size() const {
   return reinterpret_cast<uint32_t>(Assembler::target_address_at(pc_, host_));
 }
 
-Address RelocInfo::wasm_global_reference() {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  return Assembler::target_address_at(pc_, host_);
-}
-
-uint32_t RelocInfo::wasm_function_table_size_reference() {
-  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  return reinterpret_cast<uint32_t>(Assembler::target_address_at(pc_, host_));
-}
-
-void RelocInfo::unchecked_update_wasm_memory_reference(
-    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+                                     ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
-                                           ICacheFlushMode flush_mode) {
+void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
+                                  ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
@@ -1053,7 +1041,7 @@ void Assembler::next(Label* L) {
   DCHECK(L->is_linked());
   int link = target_at(L->pos());
   if (link == L->pos()) {
-    // Branch target points to the same instuction. This is the end of the link
+    // Branch target points to the same instruction. This is the end of the link
     // chain.
     L->Unuse();
   } else {
@@ -1361,7 +1349,7 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
     DCHECK(offset_8 >= 0);  // no masking needed
     instr |= B | (offset_8 >> 4)*B8 | (offset_8 & 0xf);
   } else if (x.shift_imm_ != 0) {
-    // Scaled register offsets are not supported, compute the offset seperately
+    // Scaled register offsets are not supported, compute the offset separately
     // to a scratch register.
     UseScratchRegisterScope temps(this);
     // Allow re-using rd for load instructions if possible.
@@ -1596,8 +1584,7 @@ void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
-  // the mov instruction. They must be generated using nop(int/NopMarkerTypes)
-  // or MarkCode(int/NopMarkerTypes) pseudo instructions.
+  // the mov instruction. They must be generated using nop(int/NopMarkerTypes).
   DCHECK(!(src.IsRegister() && src.rm().is(dst) && s == LeaveCC && cond == al));
   AddrMode1(cond | MOV | s, dst, no_reg, src);
 }

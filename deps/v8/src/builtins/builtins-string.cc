@@ -56,7 +56,8 @@ BUILTIN(StringFromCodePoint) {
 
   // Optimistically assume that the resulting String contains only one byte
   // characters.
-  List<uint8_t> one_byte_buffer(length);
+  std::vector<uint8_t> one_byte_buffer;
+  one_byte_buffer.reserve(length);
   uc32 code = 0;
   int index;
   for (index = 0; index < length; index++) {
@@ -67,22 +68,24 @@ BUILTIN(StringFromCodePoint) {
     if (code > String::kMaxOneByteCharCode) {
       break;
     }
-    one_byte_buffer.Add(code);
+    one_byte_buffer.push_back(code);
   }
 
   if (index == length) {
-    RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromOneByte(
-                                          one_byte_buffer.ToConstVector()));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, isolate->factory()->NewStringFromOneByte(Vector<uint8_t>(
+                     one_byte_buffer.data(), one_byte_buffer.size())));
   }
 
-  List<uc16> two_byte_buffer(length - index);
+  std::vector<uc16> two_byte_buffer;
+  two_byte_buffer.reserve(length - index);
 
   while (true) {
     if (code <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
-      two_byte_buffer.Add(code);
+      two_byte_buffer.push_back(code);
     } else {
-      two_byte_buffer.Add(unibrow::Utf16::LeadSurrogate(code));
-      two_byte_buffer.Add(unibrow::Utf16::TrailSurrogate(code));
+      two_byte_buffer.push_back(unibrow::Utf16::LeadSurrogate(code));
+      two_byte_buffer.push_back(unibrow::Utf16::TrailSurrogate(code));
     }
 
     if (++index == length) {
@@ -97,13 +100,12 @@ BUILTIN(StringFromCodePoint) {
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      isolate->factory()->NewRawTwoByteString(one_byte_buffer.length() +
-                                              two_byte_buffer.length()));
+      isolate->factory()->NewRawTwoByteString(
+          static_cast<int>(one_byte_buffer.size() + two_byte_buffer.size())));
 
-  CopyChars(result->GetChars(), one_byte_buffer.ToConstVector().start(),
-            one_byte_buffer.length());
-  CopyChars(result->GetChars() + one_byte_buffer.length(),
-            two_byte_buffer.ToConstVector().start(), two_byte_buffer.length());
+  CopyChars(result->GetChars(), one_byte_buffer.data(), one_byte_buffer.size());
+  CopyChars(result->GetChars() + one_byte_buffer.size(), two_byte_buffer.data(),
+            two_byte_buffer.size());
 
   return *result;
 }
@@ -170,38 +172,6 @@ BUILTIN(StringPrototypeEndsWith) {
     }
   }
   return isolate->heap()->true_value();
-}
-
-// ES6 section 21.1.3.7
-// String.prototype.includes ( searchString [ , position ] )
-BUILTIN(StringPrototypeIncludes) {
-  HandleScope handle_scope(isolate);
-  TO_THIS_STRING(str, "String.prototype.includes");
-
-  // Check if the search string is a regExp and fail if it is.
-  Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
-  if (is_reg_exp.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-  if (is_reg_exp.FromJust()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "String.prototype.includes")));
-  }
-  Handle<String> search_string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
-                                     Object::ToString(isolate, search));
-  Handle<Object> position;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, position,
-      Object::ToInteger(isolate, args.atOrUndefined(isolate, 2)));
-
-  uint32_t index = str->ToValidIndex(*position);
-  int index_in_str = String::IndexOf(isolate, str, search_string, index);
-  return *isolate->factory()->ToBoolean(index_in_str != -1);
 }
 
 // ES6 section 21.1.3.9

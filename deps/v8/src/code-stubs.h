@@ -11,7 +11,6 @@
 #include "src/factory.h"
 #include "src/find-and-replace-pattern.h"
 #include "src/globals.h"
-#include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -34,10 +33,7 @@ class Node;
   V(ArrayConstructor)                         \
   V(CallApiCallback)                          \
   V(CallApiGetter)                            \
-  V(CallConstruct)                            \
-  V(CallIC)                                   \
   V(CEntry)                                   \
-  V(CompareIC)                                \
   V(DoubleToI)                                \
   V(InternalArrayConstructor)                 \
   V(JSEntry)                                  \
@@ -48,18 +44,11 @@ class Node;
   V(StoreSlowElement)                         \
   V(SubString)                                \
   V(NameDictionaryLookup)                     \
-  /* These are only called from FCG */        \
-  /* They can be removed when only the TF  */ \
-  /* version of the corresponding stub is  */ \
-  /* used universally */                      \
-  V(CallICTrampoline)                         \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
   V(ArrayNArgumentsConstructor)               \
-  V(CreateAllocationSite)                     \
-  V(CreateWeakCell)                           \
   V(StringLength)                             \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
@@ -87,10 +76,7 @@ class Node;
 
 // List of code stubs only used on ARM 64 bits platforms.
 #if V8_TARGET_ARCH_ARM64
-#define CODE_STUB_LIST_ARM64(V) \
-  V(DirectCEntry)               \
-  V(RestoreRegistersState)      \
-  V(StoreRegistersState)
+#define CODE_STUB_LIST_ARM64(V) V(DirectCEntry)
 
 #else
 #define CODE_STUB_LIST_ARM64(V)
@@ -477,24 +463,6 @@ class TurboFanCodeStub : public CodeStub {
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
 };
 
-
-// Helper interface to prepare to/restore after making runtime calls.
-class RuntimeCallHelper {
- public:
-  virtual ~RuntimeCallHelper() {}
-
-  virtual void BeforeCall(MacroAssembler* masm) const = 0;
-
-  virtual void AfterCall(MacroAssembler* masm) const = 0;
-
- protected:
-  RuntimeCallHelper() {}
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RuntimeCallHelper);
-};
-
-
 }  // namespace internal
 }  // namespace v8
 
@@ -520,30 +488,6 @@ class RuntimeCallHelper {
 
 namespace v8 {
 namespace internal {
-
-
-// RuntimeCallHelper implementation used in stubs: enters/leaves a
-// newly created internal frame before/after the runtime call.
-class StubRuntimeCallHelper : public RuntimeCallHelper {
- public:
-  StubRuntimeCallHelper() {}
-
-  void BeforeCall(MacroAssembler* masm) const override;
-
-  void AfterCall(MacroAssembler* masm) const override;
-};
-
-
-// Trivial RuntimeCallHelper implementation.
-class NopRuntimeCallHelper : public RuntimeCallHelper {
- public:
-  NopRuntimeCallHelper() {}
-
-  void BeforeCall(MacroAssembler* masm) const override {}
-
-  void AfterCall(MacroAssembler* masm) const override {}
-};
-
 
 class StringLengthStub : public TurboFanCodeStub {
  public:
@@ -627,26 +571,6 @@ class NumberToStringStub final : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
 };
 
-class CreateAllocationSiteStub : public TurboFanCodeStub {
- public:
-  explicit CreateAllocationSiteStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-  static void GenerateAheadOfTime(Isolate* isolate);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
-  DEFINE_TURBOFAN_CODE_STUB(CreateAllocationSite, TurboFanCodeStub);
-};
-
-class CreateWeakCellStub : public TurboFanCodeStub {
- public:
-  explicit CreateWeakCellStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateWeakCell);
-  DEFINE_TURBOFAN_CODE_STUB(CreateWeakCell, TurboFanCodeStub);
-};
-
 class GrowArrayElementsStub : public TurboFanCodeStub {
  public:
   GrowArrayElementsStub(Isolate* isolate, ElementsKind kind)
@@ -726,27 +650,6 @@ class MathPowStub: public PlatformCodeStub {
   class ExponentTypeBits : public BitField<ExponentType, 0, 2> {};
 
   DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
-};
-
-class CallICStub : public TurboFanCodeStub {
- public:
-  CallICStub(Isolate* isolate, ConvertReceiverMode convert_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = ConvertModeBits::encode(convert_mode);
-  }
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertModeBits::decode(minor_key_);
-  }
-
- protected:
-  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
-
- private:
-  void PrintState(std::ostream& os) const final;  // NOLINT
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallIC);
-  DEFINE_TURBOFAN_CODE_STUB(CallIC, TurboFanCodeStub);
 };
 
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
@@ -853,84 +756,6 @@ class StringAddStub final : public TurboFanCodeStub {
 };
 
 
-class CompareICStub : public PlatformCodeStub {
- public:
-  CompareICStub(Isolate* isolate, Token::Value op, CompareICState::State left,
-                CompareICState::State right, CompareICState::State state)
-      : PlatformCodeStub(isolate) {
-    DCHECK(Token::IsCompareOp(op));
-    DCHECK(OpBits::is_valid(op - Token::EQ));
-    minor_key_ = OpBits::encode(op - Token::EQ) |
-                 LeftStateBits::encode(left) | RightStateBits::encode(right) |
-                 StateBits::encode(state);
-  }
-  // Creates uninitialized compare stub.
-  CompareICStub(Isolate* isolate, Token::Value op)
-      : CompareICStub(isolate, op, CompareICState::UNINITIALIZED,
-                      CompareICState::UNINITIALIZED,
-                      CompareICState::UNINITIALIZED) {}
-
-  CompareICStub(Isolate* isolate, ExtraICState extra_ic_state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = extra_ic_state;
-  }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  void set_known_map(Handle<Map> map) { known_map_ = map; }
-
-  InlineCacheState GetICState() const;
-
-  Token::Value op() const {
-    return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
-  }
-
-  CompareICState::State left() const {
-    return LeftStateBits::decode(minor_key_);
-  }
-  CompareICState::State right() const {
-    return RightStateBits::decode(minor_key_);
-  }
-  CompareICState::State state() const { return StateBits::decode(minor_key_); }
-
- private:
-  Code::Kind GetCodeKind() const override { return Code::COMPARE_IC; }
-
-  void GenerateBooleans(MacroAssembler* masm);
-  void GenerateSmis(MacroAssembler* masm);
-  void GenerateNumbers(MacroAssembler* masm);
-  void GenerateInternalizedStrings(MacroAssembler* masm);
-  void GenerateStrings(MacroAssembler* masm);
-  void GenerateUniqueNames(MacroAssembler* masm);
-  void GenerateReceivers(MacroAssembler* masm);
-  void GenerateMiss(MacroAssembler* masm);
-  void GenerateKnownReceivers(MacroAssembler* masm);
-  void GenerateGeneric(MacroAssembler* masm);
-
-  bool strict() const { return op() == Token::EQ_STRICT; }
-  Condition GetCondition() const;
-
-  // Although we don't cache anything in the special cache we have to define
-  // this predicate to avoid appearance of code stubs with embedded maps in
-  // the global stub cache.
-  bool UseSpecialCache() override {
-    return state() == CompareICState::KNOWN_RECEIVER;
-  }
-
-  class OpBits : public BitField<int, 0, 3> {};
-  class LeftStateBits : public BitField<CompareICState::State, 3, 4> {};
-  class RightStateBits : public BitField<CompareICState::State, 7, 4> {};
-  class StateBits : public BitField<CompareICState::State, 11, 4> {};
-
-  Handle<Map> known_map_;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
-  DEFINE_PLATFORM_CODE_STUB(CompareIC, PlatformCodeStub);
-};
-
-
 class CEntryStub : public PlatformCodeStub {
  public:
   CEntryStub(Isolate* isolate, int result_size,
@@ -972,7 +797,7 @@ class JSEntryStub : public PlatformCodeStub {
  public:
   JSEntryStub(Isolate* isolate, StackFrame::Type type)
       : PlatformCodeStub(isolate) {
-    DCHECK(type == StackFrame::ENTRY || type == StackFrame::ENTRY_CONSTRUCT);
+    DCHECK(type == StackFrame::ENTRY || type == StackFrame::CONSTRUCT_ENTRY);
     minor_key_ = StackFrameTypeBits::encode(type);
   }
 
@@ -996,15 +821,6 @@ class JSEntryStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(JSEntry, PlatformCodeStub);
 };
 
-// TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
-class CallConstructStub final : public PlatformCodeStub {
- public:
-  explicit CallConstructStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
-  DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);
-};
-
 
 enum ReceiverCheckMode {
   // We don't know anything about the receiver.
@@ -1021,72 +837,6 @@ enum EmbedMode {
   PART_OF_IC_HANDLER,
 
   NOT_PART_OF_IC_HANDLER
-};
-
-
-// Generates code implementing String.prototype.charCodeAt.
-//
-// Only supports the case when the receiver is a string and the index
-// is a number (smi or heap number) that is a valid index into the
-// string. Additional index constraints are specified by the
-// flags. Otherwise, bails out to the provided labels.
-//
-// Register usage: |object| may be changed to another string in a way
-// that doesn't affect charCodeAt/charAt semantics, |index| is
-// preserved, |scratch| and |result| are clobbered.
-class StringCharCodeAtGenerator {
- public:
-  StringCharCodeAtGenerator(Register object, Register index, Register result,
-                            Label* receiver_not_string, Label* index_not_number,
-                            Label* index_out_of_range,
-                            ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
-      : object_(object),
-        index_(index),
-        result_(result),
-        receiver_not_string_(receiver_not_string),
-        index_not_number_(index_not_number),
-        index_out_of_range_(index_out_of_range),
-        check_mode_(check_mode) {
-    DCHECK(!result_.is(object_));
-    DCHECK(!result_.is(index_));
-  }
-
-  // Generates the fast case code. On the fallthrough path |result|
-  // register contains the result.
-  void GenerateFast(MacroAssembler* masm);
-
-  // Generates the slow case code. Must not be naturally
-  // reachable. Expected to be put after a ret instruction (e.g., in
-  // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
-                    const RuntimeCallHelper& call_helper);
-
- private:
-  Register object_;
-  Register index_;
-  Register result_;
-
-  Label* receiver_not_string_;
-  Label* index_not_number_;
-  Label* index_out_of_range_;
-
-  ReceiverCheckMode check_mode_;
-
-  Label call_runtime_;
-  Label index_not_smi_;
-  Label got_smi_index_;
-  Label exit_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
-};
-
-class CallICTrampolineStub : public CallICStub {
- public:
-  CallICTrampolineStub(Isolate* isolate, ConvertReceiverMode convert_mode)
-      : CallICStub(isolate, convert_mode) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallICTrampoline);
-  DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, CallICStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {

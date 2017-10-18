@@ -6,7 +6,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/ppc/frames-ppc.h"
+#include "src/ppc/frame-constants-ppc.h"
 
 namespace v8 {
 namespace internal {
@@ -181,6 +181,11 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
+
+void InstructionSelector::VisitDebugAbort(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kArchDebugAbort, g.NoOutput(), g.UseFixed(node->InputAt(0), r4));
 }
 
 void InstructionSelector::VisitLoad(Node* node) {
