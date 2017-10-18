@@ -2712,9 +2712,9 @@ if the stream is closed.
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
-[`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
+[`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
-[`http2.createServer()`]: #http2_createserver_options_onrequesthandler
+[`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
