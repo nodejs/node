@@ -85,7 +85,7 @@ execution is suspended (through breakpoints, for example):
 session.on('Debugger.paused', ({ params }) => {
   console.log(params.hitBreakpoints);
 });
-// [ '/node/test/inspector/test-bindings.js:11:0' ]
+// [ '/the/file/that/has/the/breakpoint.js:11:0' ]
 ```
 
 ### session.connect()
