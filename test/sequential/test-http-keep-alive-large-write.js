@@ -15,6 +15,7 @@ const http = require('http');
 //    that the backing stream is still active and writing
 // 4) Our timer fires, we resume the socket and start at 1)
 
+const minReadSize = 250000;
 const serverTimeout = common.platformTimeout(500);
 let offsetTimeout = common.platformTimeout(100);
 let serverConnectionHandle;
@@ -52,7 +53,10 @@ server.listen(0, common.mustCall(() => {
     let firstReceivedAt;
     res.on('data', common.mustCallAtLeast((buf) => {
       if (receivedBufferLength === 0) {
-        currentWriteSize = writeSize - serverConnectionHandle.writeQueueSize;
+        currentWriteSize = Math.max(
+          minReadSize,
+          writeSize - serverConnectionHandle.writeQueueSize
+        );
         didReceiveData = false;
         firstReceivedAt = Date.now();
       }
