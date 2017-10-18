@@ -370,6 +370,10 @@ void IsolateData::SetLogConsoleApiMessageCalls(bool log) {
   log_console_api_message_calls_ = log;
 }
 
+void IsolateData::SetLogMaxAsyncCallStackDepthChanged(bool log) {
+  log_max_async_call_stack_depth_changed_ = log;
+}
+
 v8::MaybeLocal<v8::Value> IsolateData::memoryInfo(v8::Isolate* isolate,
                                                   v8::Local<v8::Context>) {
   if (memory_info_.IsEmpty()) return v8::MaybeLocal<v8::Value>();
@@ -395,4 +399,9 @@ void IsolateData::consoleAPIMessage(int contextGroupId,
   fprintf(stdout, ":%d:%d)", lineNumber, columnNumber);
   Print(isolate_, stack->toString()->string());
   fprintf(stdout, "\n");
+}
+
+void IsolateData::maxAsyncCallStackDepthChanged(int depth) {
+  if (!log_max_async_call_stack_depth_changed_) return;
+  fprintf(stdout, "maxAsyncCallStackDepthChanged: %d\n", depth);
 }
