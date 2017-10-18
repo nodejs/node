@@ -716,20 +716,21 @@ bool define_was_called_in_order = false;
 void GetterCallbackOrder(Local<Name> property,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called_in_order = true;
-  CHECK(define_was_called_in_order);
+  CHECK(!define_was_called_in_order);
   info.GetReturnValue().Set(property);
 }
 
 void DefinerCallbackOrder(Local<Name> property,
                           const v8::PropertyDescriptor& desc,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(!get_was_called_in_order);  // Define called before get.
+  // Get called before DefineProperty because we query the descriptor first.
+  CHECK(get_was_called_in_order);
   define_was_called_in_order = true;
 }
 
 }  // namespace
 
-// Check that definer callback is called before getter callback.
+// Check that getter callback is called before definer callback.
 THREADED_TEST(DefinerCallbackGetAndDefine) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::FunctionTemplate> templ =
