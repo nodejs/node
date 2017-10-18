@@ -319,6 +319,14 @@ class NodeInspectorClient : public V8InspectorClient {
     return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
   }
 
+  void maxAsyncCallStackDepthChanged(int depth) override {
+    if (depth == 0) {
+      env_->inspector_agent()->DisableAsyncHook();
+    } else {
+      env_->inspector_agent()->EnableAsyncHook();
+    }
+  }
+
   void contextCreated(Local<Context> context, const std::string& name) {
     std::unique_ptr<StringBuffer> name_buffer = Utf8ToStringView(name);
     v8_inspector::V8ContextInfo info(context, CONTEXT_GROUP_ID,
@@ -449,7 +457,9 @@ Agent::Agent(Environment* env) : parent_env_(env),
                                  client_(nullptr),
                                  platform_(nullptr),
                                  enabled_(false),
-                                 next_context_number_(1) {}
+                                 next_context_number_(1),
+                                 pending_enable_async_hook_(false),
+                                 pending_disable_async_hook_(false) {}
 
 // Destructor needs to be defined here in implementation file as the header
 // does not have full definition of some classes.
@@ -498,17 +508,6 @@ bool Agent::StartIoThread(bool wait_for_connect) {
   HandleScope handle_scope(isolate);
   auto context = parent_env_->context();
 
-  // Enable tracking of async stack traces
-  if (!enable_async_hook_function_.IsEmpty()) {
-    Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
-    auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
-    if (result.IsEmpty()) {
-      FatalError(
-        "node::InspectorAgent::StartIoThread",
-        "Cannot enable Inspector's AsyncHook, please report this.");
-    }
-  }
-
   // Send message to enable debug in workers
   Local<Object> process_object = parent_env_->process_object();
   Local<Value> emit_fn =
@@ -537,38 +536,9 @@ void Agent::Stop() {
     io_.reset();
     enabled_ = false;
   }
-
-  v8::Isolate* isolate = parent_env_->isolate();
-  HandleScope handle_scope(isolate);
-
-  // Disable tracking of async stack traces
-  if (!disable_async_hook_function_.IsEmpty()) {
-    Local<Function> disable_fn = disable_async_hook_function_.Get(isolate);
-    auto result = disable_fn->Call(parent_env_->context(),
-      Undefined(parent_env_->isolate()), 0, nullptr);
-    if (result.IsEmpty()) {
-      FatalError(
-        "node::InspectorAgent::Stop",
-        "Cannot disable Inspector's AsyncHook, please report this.");
-    }
-  }
 }
 
 void Agent::Connect(InspectorSessionDelegate* delegate) {
-  if (!enabled_) {
-    // Enable tracking of async stack traces
-    v8::Isolate* isolate = parent_env_->isolate();
-    HandleScope handle_scope(isolate);
-    auto context = parent_env_->context();
-    Local<Function> enable_fn = enable_async_hook_function_.Get(isolate);
-    auto result = enable_fn->Call(context, Undefined(isolate), 0, nullptr);
-    if (result.IsEmpty()) {
-      FatalError(
-        "node::InspectorAgent::Connect",
-        "Cannot enable Inspector's AsyncHook, please report this.");
-    }
-  }
-
   enabled_ = true;
   client_->connectFrontend(delegate);
 }
@@ -626,6 +596,50 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
                               v8::Local<v8::Function> disable_function) {
   enable_async_hook_function_.Reset(isolate, enable_function);
   disable_async_hook_function_.Reset(isolate, disable_function);
+  if (pending_enable_async_hook_) {
+    CHECK(!pending_disable_async_hook_);
+    pending_enable_async_hook_ = false;
+    EnableAsyncHook();
+  } else if (pending_disable_async_hook_) {
+    CHECK(!pending_enable_async_hook_);
+    pending_disable_async_hook_ = false;
+    DisableAsyncHook();
+  }
+}
+
+void Agent::EnableAsyncHook() {
+  if (!enable_async_hook_function_.IsEmpty()) {
+    Isolate* isolate = parent_env_->isolate();
+    ToggleAsyncHook(isolate, enable_async_hook_function_.Get(isolate));
+  } else if (pending_disable_async_hook_) {
+    CHECK(!pending_enable_async_hook_);
+    pending_disable_async_hook_ = false;
+  } else {
+    pending_enable_async_hook_ = true;
+  }
+}
+
+void Agent::DisableAsyncHook() {
+  if (!disable_async_hook_function_.IsEmpty()) {
+    Isolate* isolate = parent_env_->isolate();
+    ToggleAsyncHook(isolate, disable_async_hook_function_.Get(isolate));
+  } else if (pending_enable_async_hook_) {
+    CHECK(!pending_disable_async_hook_);
+    pending_enable_async_hook_ = false;
+  } else {
+    pending_disable_async_hook_ = true;
+  }
+}
+
+void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
+  HandleScope handle_scope(isolate);
+  auto context = parent_env_->context();
+  auto result = fn->Call(context, Undefined(isolate), 0, nullptr);
+  if (result.IsEmpty()) {
+    FatalError(
+        "node::inspector::Agent::ToggleAsyncHook",
+        "Cannot toggle Inspector's AsyncHook, please report this.");
+  }
 }
 
 void Agent::AsyncTaskScheduled(const StringView& task_name, void* task,
