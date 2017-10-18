@@ -29,7 +29,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 
-const fs = require('fs');
 const net = require('net');
 
 const options = {
