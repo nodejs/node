@@ -18,10 +18,6 @@ Document.prototype.getSymbolValue = function() {
 const context = new Document();
 vm.createContext(context);
 
-assert.strictEqual(context.getSymbolValue(), 'foo',
-                   `should return symbol-keyed value from the outside.
-                   Received: ${context.getSymbolValue()}`);
+assert.strictEqual(context.getSymbolValue(), 'foo');
 
-assert.strictEqual(vm.runInContext('this.getSymbolValue()', context), 'foo',
-                   `should return symbol-keyed value from the inside.
-                   Received: ${vm.runInContext('this.getSymbolValue()', context)}`);
+assert.strictEqual(vm.runInContext('this.getSymbolValue()', context), 'foo');
