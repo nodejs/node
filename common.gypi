@@ -118,6 +118,9 @@
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
+            'AdditionalOptions': [
+              '/bigobj', # prevent error C1128 in VS2015
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': 2, # enable incremental linking
