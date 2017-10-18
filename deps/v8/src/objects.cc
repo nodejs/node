@@ -6713,17 +6713,6 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
     it.Next();
   }
 
-  // Handle interceptor
-  if (it.state() == LookupIterator::INTERCEPTOR) {
-    if (it.HolderIsReceiverOrHiddenPrototype()) {
-      Maybe<bool> result = DefinePropertyWithInterceptorInternal(
-          &it, it.GetInterceptor(), should_throw, *desc);
-      if (result.IsNothing() || result.FromJust()) {
-        return result;
-      }
-    }
-  }
-
   return OrdinaryDefineOwnProperty(&it, desc, should_throw);
 }
 
@@ -6738,6 +6727,20 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
   // 2. ReturnIfAbrupt(current).
   PropertyDescriptor current;
   MAYBE_RETURN(GetOwnPropertyDescriptor(it, &current), Nothing<bool>());
+
+  it->Restart();
+  // Handle interceptor
+  for (; it->IsFound(); it->Next()) {
+    if (it->state() == LookupIterator::INTERCEPTOR) {
+      if (it->HolderIsReceiverOrHiddenPrototype()) {
+        Maybe<bool> result = DefinePropertyWithInterceptorInternal(
+            it, it->GetInterceptor(), should_throw, *desc);
+        if (result.IsNothing() || result.FromJust()) {
+          return result;
+        }
+      }
+    }
+  }
 
   // TODO(jkummerow/verwaest): It would be nice if we didn't have to reset
   // the iterator every time. Currently, the reasons why we need it are:
