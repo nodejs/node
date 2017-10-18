@@ -6,7 +6,7 @@ const PORT = common.PORT;
 const bench = common.createBenchmark(main, {
   n: [1e3],
   nheaders: [0, 10, 100, 1000],
-}, { flags: ['--expose-http2', '--no-warnings'] });
+}, { flags: ['--no-warnings'] });
 
 function main(conf) {
   const n = +conf.n;
