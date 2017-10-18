@@ -213,14 +213,25 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) doc-only
+	$(MAKE) lint
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_ASYNC_HOOKS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES) \
 		doctool known_issues
-	$(MAKE) lint
 endif
+
+# For a quick test, does not run linter or build doc
+test-only: all
+	$(MAKE) build-addons
+	$(MAKE) build-addons-napi
+	$(MAKE) cctest
+	$(PYTHON) tools/test.py --mode=release -J \
+		$(CI_ASYNC_HOOKS) \
+		$(CI_JS_SUITES) \
+		$(CI_NATIVE_SUITES) \
+		known_issues
 
 test-cov: all
 	$(MAKE) build-addons
@@ -1107,6 +1118,7 @@ endif
   test-gc \
   test-gc-clean \
   test-hash-seed \
+  test-only \
   test-v8 \
   test-v8-all \
   test-v8-benchmarks \
