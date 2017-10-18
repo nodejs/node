@@ -12,6 +12,8 @@ namespace http2 {
 
 #define FREELIST_MAX 10240
 
+// Instances of Nghttp2Stream are created and pooled in order to speed
+// allocation under load.
 extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 #ifdef NODE_DEBUG_HTTP2
@@ -66,6 +68,9 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
       frame->push_promise.promised_stream_id :
       frame->hd.stream_id;
   Nghttp2Stream* stream = handle->FindStream(id);
+  // The header name and value are stored in a reference counted buffer
+  // provided to us by nghttp2. We need to increment the reference counter
+  // here, then decrement it when we're done using it later.
   nghttp2_rcbuf_incref(name);
   nghttp2_rcbuf_incref(value);
   nghttp2_header header;
@@ -91,6 +96,7 @@ inline int Nghttp2Session::OnFrameReceive(nghttp2_session* session,
       handle->HandleDataFrame(frame);
       break;
     case NGHTTP2_PUSH_PROMISE:
+      // Intentional fall-through, handled just like headers frames
     case NGHTTP2_HEADERS:
       handle->HandleHeadersFrame(frame);
       break;
@@ -110,6 +116,9 @@ inline int Nghttp2Session::OnFrameReceive(nghttp2_session* session,
   return 0;
 }
 
+// nghttp2 will call this if an error occurs attempting to send a frame.
+// Unless the stream or session is closed, this really should not happen
+// unless there is a serious flaw in our implementation.
 inline int Nghttp2Session::OnFrameNotSent(nghttp2_session* session,
                                          const nghttp2_frame* frame,
                                          int error_code,
@@ -120,8 +129,11 @@ inline int Nghttp2Session::OnFrameNotSent(nghttp2_session* session,
   // Do not report if the frame was not sent due to the session closing
   if (error_code != NGHTTP2_ERR_SESSION_CLOSING &&
       error_code != NGHTTP2_ERR_STREAM_CLOSED &&
-      error_code != NGHTTP2_ERR_STREAM_CLOSING)
-    handle->OnFrameError(frame->hd.stream_id, frame->hd.type, error_code);
+      error_code != NGHTTP2_ERR_STREAM_CLOSING) {
+    handle->OnFrameError(frame->hd.stream_id,
+                         frame->hd.type,
+                         error_code);
+  }
   return 0;
 }
 
@@ -301,7 +313,10 @@ inline ssize_t Nghttp2Session::OnSelectPadding(nghttp2_session* session,
   return padding;
 }
 
-// Called by nghttp2 multiple times while processing a DATA frame
+// While nghttp2 is processing a DATA frame, it will call the
+// OnDataChunkReceived callback multiple times, passing along individual
+// chunks of data from the DATA frame payload. These *must* be memcpy'd
+// out because the pointer to the data will quickly become invalid.
 inline int Nghttp2Session::OnDataChunkReceived(nghttp2_session* session,
                                                uint8_t flags,
                                                int32_t id,
@@ -312,6 +327,8 @@ inline int Nghttp2Session::OnDataChunkReceived(nghttp2_session* session,
   DEBUG_HTTP2("Nghttp2Session %s: buffering data chunk for stream %d, size: "
               "%d, flags: %d\n", handle->TypeName(),
               id, len, flags);
+  // We should never actually get a 0-length chunk so this check is
+  // only a precaution at this point.
   if (len > 0) {
     nghttp2_session_consume_connection(session, len);
     Nghttp2Stream* stream = handle->FindStream(id);
@@ -322,20 +339,21 @@ inline int Nghttp2Session::OnDataChunkReceived(nghttp2_session* session,
   return 0;
 }
 
+// Only when we are done sending the last chunk of data do we check for
+// any trailing headers that are to be sent. This is the only opportunity
+// we have to make this check. If there are trailers, then the
+// NGHTTP2_DATA_FLAG_NO_END_STREAM flag must be set.
 inline void Nghttp2Session::GetTrailers(nghttp2_session* session,
                                         Nghttp2Session* handle,
                                         Nghttp2Stream* stream,
                                         uint32_t* flags) {
   if (stream->GetTrailers()) {
-    // Only when we are done sending the last chunk of data do we check for
-    // any trailing headers that are to be sent. This is the only opportunity
-    // we have to make this check. If there are trailers, then the
-    // NGHTTP2_DATA_FLAG_NO_END_STREAM flag must be set.
     SubmitTrailers submit_trailers{handle, stream, flags};
     handle->OnTrailers(stream, submit_trailers);
   }
 }
 
+// Submits any trailing header fields that have been collected
 inline void Nghttp2Session::SubmitTrailers::Submit(nghttp2_nv* trailers,
                                                    size_t length) const {
   if (length == 0)
@@ -350,6 +368,7 @@ inline void Nghttp2Session::SubmitTrailers::Submit(nghttp2_nv* trailers,
                          length);
 }
 
+// Submits a graceful shutdown notice to nghttp
 // See: https://nghttp2.org/documentation/nghttp2_submit_shutdown_notice.html
 inline void Nghttp2Session::SubmitShutdownNotice() {
   DEBUG_HTTP2("Nghttp2Session %s: submitting shutdown notice\n",
@@ -394,9 +413,9 @@ inline void Nghttp2Stream::FlushDataChunks() {
   }
 }
 
-// Passes all of the the chunks for a data frame out to the JS layer
-// The chunks are collected as the frame is being processed and sent out
-// to the JS side only when the frame is fully processed.
+// Called when a DATA frame has been completely processed. Will check to
+// see if the END_STREAM flag is set, and will flush the queued data chunks
+// to JS if the stream is flowing
 inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
   int32_t id = frame->hd.stream_id;
   DEBUG_HTTP2("Nghttp2Session %s: handling data frame for stream %d\n",
@@ -437,13 +456,17 @@ inline void Nghttp2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
   int32_t id = frame->hd.stream_id;
   DEBUG_HTTP2("Nghttp2Session %s: handling priority frame for stream %d\n",
               TypeName(), id);
-  // Ignore the priority frame if stream ID is <= 0
-  // This actually should never happen because nghttp2 should treat this as
-  // an error condition that terminates the session.
-  if (id > 0) {
-    nghttp2_priority_spec spec = priority_frame.pri_spec;
-    OnPriority(id, spec.stream_id, spec.weight, spec.exclusive);
-  }
+
+  // Priority frame stream ID should never be <= 0. nghttp2 handles this
+  // as an error condition that terminates the session, so we should be
+  // good here
+
+#if defined(DEBUG) && DEBUG
+  CHECK_GT(id, 0)
+#endif
+
+  nghttp2_priority_spec spec = priority_frame.pri_spec;
+  OnPriority(id, spec.stream_id, spec.weight, spec.exclusive);
 }
 
 // Notifies the JS layer that a GOAWAY frame has been received
@@ -566,7 +589,6 @@ inline int Nghttp2Session::Init(uv_loop_t* loop,
     Nghttp2Session* session = ContainerOf(&Nghttp2Session::prep_, t);
     session->SendPendingData();
   });
-//  uv_unref(reinterpret_cast<uv_handle_t*>(&prep_));
   return ret;
 }
 
