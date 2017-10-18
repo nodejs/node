@@ -59,7 +59,7 @@ exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
 
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
-exports.projectDir = path.join(__dirname, '..', '..');
+exports.projectDir = path.resolve(__dirname, '..', '..');
 
 exports.buildType = process.config.target_defaults.default_configuration;
 
