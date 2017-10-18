@@ -9,26 +9,33 @@ const async_hooks = require('async_hooks');
 
 const seenEvents = [];
 
+let asyncId;
 const p = new Promise((resolve) => resolve(1));
-p.then(() => seenEvents.push('then'));
+p.then((res) => {
+  asyncId = async_hooks.executionAsyncId();
+  seenEvents.push('then');
+});
 
 const hooks = async_hooks.createHook({
   init: common.mustNotCall(),
 
-  before: common.mustCall((id) => {
+  before: (id) => {
     assert.ok(id > 1);
-    seenEvents.push('before');
-  }),
+    seenEvents.push(`before${id}`);
+  },
 
-  after: common.mustCall((id) => {
+  after: (id) => {
     assert.ok(id > 1);
-    seenEvents.push('after');
-    hooks.disable();
-  })
+    if (id === asyncId) {
+      seenEvents.push(`after${id}`);
+      hooks.disable();
+    }
+  }
 });
 
 setImmediate(() => {
-  assert.deepStrictEqual(seenEvents, ['before', 'then', 'after']);
+  assert.deepStrictEqual(seenEvents.slice(-3),
+                         [`before${asyncId}`, 'then', `after${asyncId}`]);
 });
 
 hooks.enable(); // After `setImmediate` in order to not catch its init event.

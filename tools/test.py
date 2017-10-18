@@ -772,7 +772,7 @@ def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_fil
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
     preexec_fn = disableCoreFiles
 
-  if sys.platform != 'win32':
+  if sys.platform != 'win32' and not 'async-hooks' in args[-1]:
     from fcntl import fcntl, F_SETFD, FD_CLOEXEC
     (pipe_read, pipe_write) = os.pipe()
     fcntl(pipe_write, F_SETFD, FD_CLOEXEC)

@@ -462,7 +462,7 @@ if (process.env.TEST_RUNNER_READ_PIPE) {
   pipe_read.unref();
   pipe_read.on('data', (d) => {
     data += d;
-    if (data.includes('timeout')) {
+    if (data === 'timeout') {
       process.exit(0);
     }
   });
