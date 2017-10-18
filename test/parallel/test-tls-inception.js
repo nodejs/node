@@ -33,8 +33,8 @@ const fs = require('fs');
 const net = require('net');
 
 const options = {
-  key: fs.readFileSync(fixtures.path('test_key.pem')),
-  cert: fs.readFileSync(fixtures.path('test_cert.pem'))
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const body = 'A'.repeat(40000);
