@@ -4,6 +4,9 @@
 #include "node_http2.h"
 #include "node_http2_state.h"
 
+#include <list>
+#include <queue>
+
 namespace node {
 
 using v8::Boolean;
@@ -19,8 +22,6 @@ using v8::Undefined;
 namespace http2 {
 
 Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
-
-Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
 
 Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
     Callbacks(false),
@@ -872,10 +873,11 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
   }
 }
 
-void Http2Session::OnHeaders(Nghttp2Stream* stream,
-                             nghttp2_header_list* headers,
-                             nghttp2_headers_category cat,
-                             uint8_t flags) {
+void Http2Session::OnHeaders(
+    Nghttp2Stream* stream,
+    std::queue<nghttp2_header, std::list<nghttp2_header>>* headers,
+    nghttp2_headers_category cat,
+    uint8_t flags) {
   Local<Context> context = env()->context();
   Isolate* isolate = env()->isolate();
   Context::Scope context_scope(context);
@@ -891,8 +893,8 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
   CHECK_LE(cat, NGHTTP2_HCAT_HEADERS);
 #endif
 
-  // The headers are passed in above as a linked list of nghttp2_header_list
-  // structs. The following converts that into a JS array with the structure:
+  // The headers are passed in above as a queue of nghttp2_header structs.
+  // The following converts that into a JS array with the structure:
   // [name1, value1, name2, value2, name3, value3, name3, value4] and so on.
   // That array is passed up to the JS layer and converted into an Object form
   // like {name1: value1, name2: value2, name3: [value3, value4]}. We do it
@@ -900,16 +902,16 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
   // array than it is to generate and pass the object).
   do {
     size_t j = 0;
-    while (headers != nullptr && j < arraysize(argv) / 2) {
-      nghttp2_header_list* item = headers;
+    while (!headers->empty() && j < arraysize(argv) / 2) {
+      nghttp2_header item = headers->front();
       // The header name and value are passed as external one-byte strings
       name_str =
-          ExternalHeader::New<true>(env(), item->name).ToLocalChecked();
+          ExternalHeader::New<true>(env(), item.name).ToLocalChecked();
       value_str =
-          ExternalHeader::New<false>(env(), item->value).ToLocalChecked();
+          ExternalHeader::New<false>(env(), item.value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
-      headers = item->next;
+      headers->pop();
       j++;
     }
     // For performance, we pass name and value pairs to array.protototype.push
@@ -918,7 +920,7 @@ void Http2Session::OnHeaders(Nghttp2Stream* stream,
     if (j > 0) {
       fn->Call(env()->context(), holder, j * 2, argv).ToLocalChecked();
     }
-  } while (headers != nullptr);
+  } while (!headers->empty());
 
   Local<Value> args[4] = {
     Integer::New(isolate, stream->id()),

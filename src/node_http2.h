@@ -8,6 +8,9 @@
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
+#include <list>
+#include <queue>
+
 namespace node {
 namespace http2 {
 
@@ -393,10 +396,11 @@ class Http2Session : public AsyncWrap,
     return OnCallbackPadding(frameLength, maxPayloadLen);
   }
 
-  void OnHeaders(Nghttp2Stream* stream,
-                 nghttp2_header_list* headers,
-                 nghttp2_headers_category cat,
-                 uint8_t flags) override;
+  void OnHeaders(
+      Nghttp2Stream* stream,
+      std::queue<nghttp2_header, std::list<nghttp2_header>>* headers,
+      nghttp2_headers_category cat,
+      uint8_t flags) override;
   void OnStreamClose(int32_t id, uint32_t code) override;
   void Send(uv_buf_t* bufs, size_t total) override;
   void OnDataChunk(Nghttp2Stream* stream, uv_buf_t* chunk) override;

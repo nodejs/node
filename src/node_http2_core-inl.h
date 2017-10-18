@@ -12,20 +12,7 @@ namespace http2 {
 
 #define FREELIST_MAX 1024
 
-#define LINKED_LIST_ADD(list, item)                                           \
-  do {                                                                        \
-    if (list ## _tail_ == nullptr) {                                          \
-      list ## _head_ = item;                                                  \
-      list ## _tail_ = item;                                                  \
-    } else {                                                                  \
-      list ## _tail_->next = item;                                            \
-      list ## _tail_ = item;                                                  \
-    }                                                                         \
-  } while (0);
-
 extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
-
-extern Freelist<nghttp2_header_list, FREELIST_MAX> header_free_list;
 
 #ifdef NODE_DEBUG_HTTP2
 inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
@@ -79,12 +66,12 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
       frame->push_promise.promised_stream_id :
       frame->hd.stream_id;
   Nghttp2Stream* stream = handle->FindStream(id);
-  nghttp2_header_list* header = header_free_list.pop();
-  header->name = name;
-  header->value = value;
   nghttp2_rcbuf_incref(name);
   nghttp2_rcbuf_incref(value);
-  LINKED_LIST_ADD(stream->current_headers, header);
+  nghttp2_header header;
+  header.name = name;
+  header.value = value;
+  stream->headers()->emplace(header);
   return 0;
 }
 
@@ -665,8 +652,8 @@ inline void Nghttp2Stream::ResetState(
   queue_tail_ = nullptr;
   while (!data_chunks_.empty())
     data_chunks_.pop();
-  current_headers_head_ = nullptr;
-  current_headers_tail_ = nullptr;
+  while (!current_headers_.empty())
+    current_headers_.pop();
   current_headers_category_ = category;
   flags_ = NGHTTP2_STREAM_FLAG_NONE;
   id_ = id;
@@ -714,13 +701,8 @@ inline void Nghttp2Stream::Destroy() {
 
 inline void Nghttp2Stream::FreeHeaders() {
   DEBUG_HTTP2("Nghttp2Stream %d: freeing headers\n", id_);
-  while (current_headers_head_ != nullptr) {
-    DEBUG_HTTP2("Nghttp2Stream %d: freeing header item\n", id_);
-    nghttp2_header_list* item = current_headers_head_;
-    current_headers_head_ = item->next;
-    header_free_list.push(item);
-  }
-  current_headers_tail_ = nullptr;
+  while (!current_headers_.empty())
+    current_headers_.pop();
 }
 
 // Submit informational headers for a stream.

@@ -86,10 +86,9 @@ struct nghttp2_stream_write_queue {
   MaybeStackBuffer<uv_buf_t, MAX_BUFFER_COUNT> bufs;
 };
 
-struct nghttp2_header_list {
+struct nghttp2_header {
   nghttp2_rcbuf* name = nullptr;
   nghttp2_rcbuf* value = nullptr;
-  nghttp2_header_list* next = nullptr;
 };
 
 // Handle Types
@@ -158,10 +157,11 @@ class Nghttp2Session {
   inline void RemoveStream(int32_t id);
 
   virtual void Send(uv_buf_t* buf, size_t length) {}
-  virtual void OnHeaders(Nghttp2Stream* stream,
-                         nghttp2_header_list* headers,
-                         nghttp2_headers_category cat,
-                         uint8_t flags) {}
+  virtual void OnHeaders(
+      Nghttp2Stream* stream,
+      std::queue<nghttp2_header, std::list<nghttp2_header>>* headers,
+      nghttp2_headers_category cat,
+      uint8_t flags) {}
   virtual void OnStreamClose(int32_t id, uint32_t code) {}
   virtual void OnDataChunk(Nghttp2Stream* stream,
                            uv_buf_t* chunk) {}
@@ -437,8 +437,9 @@ class Nghttp2Stream {
     return id_;
   }
 
-  inline nghttp2_header_list* headers() const {
-    return current_headers_head_;
+  inline std::queue<nghttp2_header,
+                    std::list<nghttp2_header>>* headers() {
+    return &current_headers_;
   }
 
   inline nghttp2_headers_category headers_category() const {
@@ -481,9 +482,8 @@ class Nghttp2Stream {
   // The Current Headers block... As headers are received for this stream,
   // they are temporarily stored here until the OnFrameReceived is called
   // signalling the end of the HEADERS frame
-  nghttp2_header_list* current_headers_head_ = nullptr;
-  nghttp2_header_list* current_headers_tail_ = nullptr;
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
+  std::queue<nghttp2_header, std::list<nghttp2_header>> current_headers_;
 
   // Inbound Data... This is the data received via DATA frames for this stream.
   std::queue<uv_buf_t, std::list<uv_buf_t>> data_chunks_;
