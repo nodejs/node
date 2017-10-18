@@ -299,6 +299,10 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     utils->Set(ToV8String(isolate, "setLogConsoleApiMessageCalls"),
                v8::FunctionTemplate::New(
                    isolate, &UtilsExtension::SetLogConsoleApiMessageCalls));
+    utils->Set(
+        ToV8String(isolate, "setLogMaxAsyncCallStackDepthChanged"),
+        v8::FunctionTemplate::New(
+            isolate, &UtilsExtension::SetLogMaxAsyncCallStackDepthChanged));
     utils->Set(ToV8String(isolate, "createContextGroup"),
                v8::FunctionTemplate::New(isolate,
                                          &UtilsExtension::CreateContextGroup));
@@ -483,6 +487,17 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       Exit();
     }
     backend_runner_->data()->SetLogConsoleApiMessageCalls(
+        args[0].As<v8::Boolean>()->Value());
+  }
+
+  static void SetLogMaxAsyncCallStackDepthChanged(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      fprintf(stderr,
+              "Internal error: setLogMaxAsyncCallStackDepthChanged(bool).");
+      Exit();
+    }
+    backend_runner_->data()->SetLogMaxAsyncCallStackDepthChanged(
         args[0].As<v8::Boolean>()->Value());
   }
 
