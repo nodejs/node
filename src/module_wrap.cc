@@ -218,7 +218,8 @@ void ModuleWrap::Namespace(const FunctionCallbackInfo<Value>& args) {
 
   switch (module->GetStatus()) {
     default:
-      return env->ThrowError("cannot get namespace, Module has not been instantiated");
+      return env->ThrowError(
+          "cannot get namespace, Module has not been instantiated");
     case v8::Module::Status::kInstantiated:
     case v8::Module::Status::kEvaluating:
     case v8::Module::Status::kEvaluated:
