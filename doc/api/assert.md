@@ -7,6 +7,17 @@
 The `assert` module provides a simple set of assertion tests that can be used to
 test invariants.
 
+## assert.alwaysUseStrict
+<!-- YAML
+added: REPLACEME
+-->
+
+A boolean that, if set to true, indicates if `assert.equal`, `assert.notEqual`,
+`assert.deepEqual` and `assert.notDeepEqual` use strict comparison or not.
+
+*Note*: Using this flag is only meant for end users and not for userland
+libraries!
+
 ## assert(value[, message])
 <!-- YAML
 added: v0.5.9
