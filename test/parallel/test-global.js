@@ -24,6 +24,7 @@
 
 /* eslint-disable strict */
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const path = require('path');
@@ -40,7 +41,7 @@ assert.strictEqual(baseBar, // eslint-disable-line no-undef
                    'bar',
                    'global.x -> x in base level not working');
 
-const mod = require(path.join(common.fixturesDir, 'global', 'plain'));
+const mod = require(path.join(fixtures.fixturesDir, 'global', 'plain'));
 const fooBar = mod.fooBar;
 
 assert.strictEqual(fooBar.foo, 'foo', 'x -> global.x in sub level not working');
