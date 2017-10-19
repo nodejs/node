@@ -752,3 +752,14 @@ common.expectsError(
     message: /^'Error: foo' === 'Error: foobar'$/
   }
 );
+
+// Test `alwaysUseStrict`
+assert.alwaysUseStrict = true;
+/* eslint-disable no-restricted-properties */
+assert.throws(() => assert.equal(1, true), assert.AssertionError);
+assert.notEqual(0, false);
+assert.throws(() => assert.deepEqual(1, true), assert.AssertionError);
+assert.notDeepEqual(0, false);
+assert.alwaysUseStrict = false;
+assert.equal(1, true);
+/* eslint-enable no-restricted-properties */
