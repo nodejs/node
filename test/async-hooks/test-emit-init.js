@@ -2,12 +2,9 @@
 
 const common = require('../common');
 const assert = require('assert');
+const spawnSync = require('child_process').spawnSync;
 const async_hooks = require('async_hooks');
 const initHooks = require('./init-hooks');
-
-// Verify that if there is no registered hook, then those invalid parameters
-// won't be checked.
-assert.doesNotThrow(() => async_hooks.emitInit());
 
 const expectedId = async_hooks.newUid();
 const expectedTriggerId = async_hooks.newUid();
@@ -25,24 +22,40 @@ const hooks1 = initHooks({
 
 hooks1.enable();
 
-assert.throws(() => {
-  async_hooks.emitInit();
-}, common.expectsError({
-  code: 'ERR_INVALID_ASYNC_ID',
-  type: RangeError,
-}));
-assert.throws(() => {
-  async_hooks.emitInit(expectedId);
-}, common.expectsError({
-  code: 'ERR_INVALID_ASYNC_ID',
-  type: RangeError,
-}));
-assert.throws(() => {
-  async_hooks.emitInit(expectedId, expectedType, -2);
-}, common.expectsError({
-  code: 'ERR_INVALID_ASYNC_ID',
-  type: RangeError,
-}));
+switch (process.argv[2]) {
+  case 'test_invalid_async_id':
+    async_hooks.emitInit();
+    return;
+  case 'test_invalid_trigger_id':
+    async_hooks.emitInit(expectedId);
+    return;
+  case 'test_invalid_trigger_id_negative':
+    async_hooks.emitInit(expectedId, expectedType, -2);
+    return;
+}
+assert.ok(!process.argv[2]);
+
+
+const c1 = spawnSync(process.execPath, [__filename, 'test_invalid_async_id']);
+assert.strictEqual(
+  c1.stderr.toString().split(/[\r\n]+/g)[0],
+  'RangeError [ERR_INVALID_ASYNC_ID]: Invalid asyncId value: undefined');
+assert.strictEqual(c1.status, 1);
+
+const c2 = spawnSync(process.execPath, [__filename, 'test_invalid_trigger_id']);
+assert.strictEqual(
+  c2.stderr.toString().split(/[\r\n]+/g)[0],
+  'RangeError [ERR_INVALID_ASYNC_ID]: Invalid triggerAsyncId value: undefined');
+assert.strictEqual(c2.status, 1);
+
+const c3 = spawnSync(process.execPath, [
+  __filename, 'test_invalid_trigger_id_negative'
+]);
+assert.strictEqual(
+  c3.stderr.toString().split(/[\r\n]+/g)[0],
+  'RangeError [ERR_INVALID_ASYNC_ID]: Invalid triggerAsyncId value: -2');
+assert.strictEqual(c3.status, 1);
+
 
 async_hooks.emitInit(expectedId, expectedType, expectedTriggerId,
                      expectedResource);

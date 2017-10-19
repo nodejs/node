@@ -526,6 +526,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kDestroy);
   SET_HOOKS_CONSTANT(kPromiseResolve);
   SET_HOOKS_CONSTANT(kTotals);
+  SET_HOOKS_CONSTANT(kCheck);
   SET_HOOKS_CONSTANT(kExecutionAsyncId);
   SET_HOOKS_CONSTANT(kTriggerAsyncId);
   SET_HOOKS_CONSTANT(kAsyncIdCounter);

@@ -7,23 +7,12 @@ const spawn = require('child_process').spawn;
 
 const script = `
 const assert = require('assert');
+const async_wrap = process.binding('async_wrap');
+const { kTotals } = async_wrap.constants;
 
-// Verify that inspector-async-hook is registered
-// by checking that emitInit with invalid arguments
-// throw an error.
-// See test/async-hooks/test-emit-init.js
-assert.throws(
-  () => async_hooks.emitInit(),
-  'inspector async hook should have been enabled initially');
-
+assert.strictEqual(async_wrap.async_hook_fields[kTotals], 4);
 process._debugEnd();
-
-// Verify that inspector-async-hook is no longer registered,
-// thus emitInit() ignores invalid arguments
-// See test/async-hooks/test-emit-init.js
-assert.doesNotThrow(
-  () => async_hooks.emitInit(),
-  'inspector async hook should have beend disabled by _debugEnd()');
+assert.strictEqual(async_wrap.async_hook_fields[kTotals], 0);
 `;
 
 const args = ['--inspect', '-e', script];
