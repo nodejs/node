@@ -57,6 +57,9 @@ rules:
       property: deepEqual
       message: Use assert.deepStrictEqual().
     - object: assert
+      property: notDeepEqual
+      message: Use assert.notDeepStrictEqual().
+    - object: assert
       property: equal
       message: Use assert.strictEqual() rather than assert.equal().
     - object: assert
