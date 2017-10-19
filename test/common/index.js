@@ -63,6 +63,17 @@ exports.projectDir = path.resolve(__dirname, '..', '..');
 
 exports.buildType = process.config.target_defaults.default_configuration;
 
+// Always enable async_hooks checks in tests
+{
+  const async_wrap = process.binding('async_wrap');
+  const { kCheck } = async_wrap.constants;
+  async_wrap.async_hook_fields[kCheck] += 1;
+
+  exports.revert_force_async_hooks_checks = function() {
+    async_wrap.async_hook_fields[kCheck] -= 1;
+  };
+}
+
 // If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   const destroydIdsList = {};

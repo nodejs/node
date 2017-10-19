@@ -129,10 +129,19 @@ inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(isolate_);
 }
 
+inline void Environment::AsyncHooks::force_checks() {
+  // fields_ does not have the += operator defined
+  fields_[kCheck] = fields_[kCheck] + 1;
+}
+
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
                                               double trigger_async_id) {
-  CHECK_GE(async_id, -1);
-  CHECK_GE(trigger_async_id, -1);
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0) {
+    CHECK_GE(async_id, -1);
+    CHECK_GE(trigger_async_id, -1);
+  }
 
   async_ids_stack_.push({ async_id_fields_[kExecutionAsyncId],
                     async_id_fields_[kTriggerAsyncId] });
@@ -145,9 +154,11 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
   // stack was multiple MakeCallback()'s deep.
   if (async_ids_stack_.empty()) return false;
 
-  // Ask for the async_id to be restored as a sanity check that the stack
+  // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
-  if (async_id_fields_[kExecutionAsyncId] != async_id) {
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0 && async_id_fields_[kExecutionAsyncId] != async_id) {
     fprintf(stderr,
             "Error: async hook stack has become corrupted ("
             "actual: %.f, expected: %.f)\n",
@@ -185,7 +196,9 @@ inline Environment::AsyncHooks::InitScope::InitScope(
     Environment* env, double init_trigger_async_id)
         : env_(env),
           async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
-  CHECK_GE(init_trigger_async_id, -1);
+  if (env_->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(init_trigger_async_id, -1);
+  }
   env->async_hooks()->push_async_ids(
     async_id_fields_ref_[AsyncHooks::kExecutionAsyncId],
     init_trigger_async_id);

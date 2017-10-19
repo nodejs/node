@@ -169,6 +169,7 @@ static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
+static bool force_async_hooks_checks = false;
 static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static std::vector<std::string> preload_modules;
@@ -1448,8 +1449,10 @@ void InternalCallbackScope::Close() {
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env_->execution_async_id(), 0);
-  CHECK_EQ(env_->trigger_async_id(), 0);
+  if (env_->async_hooks()->fields()[AsyncHooks::kTotals]) {
+    CHECK_EQ(env_->execution_async_id(), 0);
+    CHECK_EQ(env_->trigger_async_id(), 0);
+  }
 
   Local<Object> process = env_->process_object();
 
@@ -1458,8 +1461,10 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  CHECK_EQ(env_->execution_async_id(), 0);
-  CHECK_EQ(env_->trigger_async_id(), 0);
+  if (env_->async_hooks()->fields()[AsyncHooks::kTotals]) {
+    CHECK_EQ(env_->execution_async_id(), 0);
+    CHECK_EQ(env_->trigger_async_id(), 0);
+  }
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
@@ -3853,6 +3858,8 @@ static void PrintHelp() {
          "                             stderr\n"
          "  --trace-sync-io            show stack trace when use of sync IO\n"
          "                             is detected after the first tick\n"
+         "  --force-async-hooks-checks\n"
+         "                             enables checks for async_hooks\n"
          "  --trace-events-enabled     track trace events\n"
          "  --trace-event-categories   comma separated list of trace event\n"
          "                             categories to record\n"
@@ -3979,6 +3986,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
+    "--force-async-hooks-checks",
     "--trace-events-enabled",
     "--trace-events-categories",
     "--track-heap-objects",
@@ -4117,6 +4125,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--force-async-hooks-checks") == 0) {
+      force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
       trace_enabled = true;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
@@ -4753,6 +4763,10 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     return 12;  // Signal internal error.
 
   env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+
+  if (force_async_hooks_checks) {
+    env.async_hooks()->force_checks();
+  }
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
