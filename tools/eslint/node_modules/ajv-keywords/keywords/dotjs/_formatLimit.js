@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate__formatLimit(it, $keyword) {
+module.exports = function generate__formatLimit(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -16,7 +16,7 @@ module.exports = function generate__formatLimit(it, $keyword) {
     return out;
   }
   var $schemaFormat = it.schema.format,
-    $isDataFormat = it.opts.v5 && $schemaFormat.$data,
+    $isDataFormat = it.opts.$data && $schemaFormat.$data,
     $closingBraces = '';
   if ($isDataFormat) {
     var $schemaValueFormat = it.util.getData($schemaFormat.$data, $dataLvl, it.dataPathArr),
@@ -34,7 +34,7 @@ module.exports = function generate__formatLimit(it, $keyword) {
   var $isMax = $keyword == 'formatMaximum',
     $exclusiveKeyword = 'formatExclusive' + ($isMax ? 'Maximum' : 'Minimum'),
     $schemaExcl = it.schema[$exclusiveKeyword],
-    $isDataExcl = it.opts.v5 && $schemaExcl && $schemaExcl.$data,
+    $isDataExcl = it.opts.$data && $schemaExcl && $schemaExcl.$data,
     $op = $isMax ? '<' : '>',
     $result = 'result' + $lvl;
   var $isData = it.opts.$data && $schema && $schema.$data,

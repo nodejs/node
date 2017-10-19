@@ -277,6 +277,15 @@ module.exports = {
         }
 
         /**
+         * Determines if a given expression node is an IIFE
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} `true` if the given node is an IIFE
+         */
+        function isIIFE(node) {
+            return node.type === "CallExpression" && node.callee.type === "FunctionExpression";
+        }
+
+        /**
          * Report the node
          * @param {ASTNode} node node to evaluate
          * @returns {void}
@@ -286,8 +295,14 @@ module.exports = {
             const leftParenToken = sourceCode.getTokenBefore(node);
             const rightParenToken = sourceCode.getTokenAfter(node);
 
-            if (tokensToIgnore.has(sourceCode.getFirstToken(node)) && !isParenthesisedTwice(node)) {
-                return;
+            if (!isParenthesisedTwice(node)) {
+                if (tokensToIgnore.has(sourceCode.getFirstToken(node))) {
+                    return;
+                }
+
+                if (isIIFE(node) && !isParenthesised(node.callee)) {
+                    return;
+                }
             }
 
             context.report({
@@ -322,32 +337,55 @@ module.exports = {
         }
 
         /**
+         * Check if a member expression contains a call expression
+         * @param {ASTNode} node MemberExpression node to evaluate
+         * @returns {boolean} true if found, false if not
+         */
+        function doesMemberExpressionContainCallExpression(node) {
+            let currentNode = node.object;
+            let currentNodeType = node.object.type;
+
+            while (currentNodeType === "MemberExpression") {
+                currentNode = currentNode.object;
+                currentNodeType = currentNode.type;
+            }
+
+            return currentNodeType === "CallExpression";
+        }
+
+        /**
          * Evaluate a new call
          * @param {ASTNode} node node to evaluate
          * @returns {void}
          * @private
          */
         function checkCallNew(node) {
-            if (hasExcessParens(node.callee) && precedence(node.callee) >= precedence(node) && !(
-                node.type === "CallExpression" &&
-                (node.callee.type === "FunctionExpression" ||
-                  node.callee.type === "NewExpression" && !isNewExpressionWithParens(node.callee)) &&
+            const callee = node.callee;
 
-                // One set of parentheses are allowed for a function expression
-                !hasDoubleExcessParens(node.callee)
-            )) {
-                report(node.callee);
+            if (hasExcessParens(callee) && precedence(callee) >= precedence(node)) {
+                const hasNewParensException = callee.type === "NewExpression" && !isNewExpressionWithParens(callee);
+
+                if (
+                    hasDoubleExcessParens(callee) ||
+                    !isIIFE(node) && !hasNewParensException && !(
+
+                        // Allow extra parens around a new expression if
+                        // there are intervening parentheses.
+                        callee.type === "MemberExpression" &&
+                        doesMemberExpressionContainCallExpression(callee)
+                    )
+                ) {
+                    report(node.callee);
+                }
             }
             if (node.arguments.length === 1) {
                 if (hasDoubleExcessParens(node.arguments[0]) && precedence(node.arguments[0]) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
                     report(node.arguments[0]);
                 }
             } else {
-                [].forEach.call(node.arguments, arg => {
-                    if (hasExcessParens(arg) && precedence(arg) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(arg);
-                    }
-                });
+                node.arguments
+                    .filter(arg => hasExcessParens(arg) && precedence(arg) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .forEach(report);
             }
         }
 
@@ -418,6 +456,7 @@ module.exports = {
         function checkExpressionOrExportStatement(node) {
             const firstToken = isParenthesised(node) ? sourceCode.getTokenBefore(node) : sourceCode.getFirstToken(node);
             const secondToken = sourceCode.getTokenAfter(firstToken, astUtils.isNotOpeningParenToken);
+            const thirdToken = secondToken ? sourceCode.getTokenAfter(secondToken) : null;
 
             if (
                 astUtils.isOpeningParenToken(firstToken) &&
@@ -427,7 +466,8 @@ module.exports = {
                         secondToken.value === "function" ||
                         secondToken.value === "class" ||
                         secondToken.value === "let" && astUtils.isOpeningBracketToken(sourceCode.getTokenAfter(secondToken, astUtils.isNotClosingParenToken))
-                    )
+                    ) ||
+                    secondToken && secondToken.type === "Identifier" && secondToken.value === "async" && thirdToken && thirdToken.type === "Keyword" && thirdToken.value === "function"
                 )
             ) {
                 tokensToIgnore.add(secondToken);
@@ -440,11 +480,9 @@ module.exports = {
 
         return {
             ArrayExpression(node) {
-                [].forEach.call(node.elements, e => {
-                    if (e && hasExcessParens(e) && precedence(e) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(e);
-                    }
-                });
+                node.elements
+                    .filter(e => e && hasExcessParens(e) && precedence(e) >= PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                    .forEach(report);
             },
 
             ArrowFunctionExpression(node) {
@@ -564,8 +602,10 @@ module.exports = {
             LogicalExpression: checkBinaryLogical,
 
             MemberExpression(node) {
+                const nodeObjHasExcessParens = hasExcessParens(node.object);
+
                 if (
-                    hasExcessParens(node.object) &&
+                    nodeObjHasExcessParens &&
                     precedence(node.object) >= precedence(node) &&
                     (
                         node.computed ||
@@ -579,6 +619,13 @@ module.exports = {
                 ) {
                     report(node.object);
                 }
+
+                if (nodeObjHasExcessParens &&
+                  node.object.type === "CallExpression" &&
+                  node.parent.type !== "NewExpression") {
+                    report(node.object);
+                }
+
                 if (node.computed && hasExcessParens(node.property)) {
                     report(node.property);
                 }
@@ -587,13 +634,12 @@ module.exports = {
             NewExpression: checkCallNew,
 
             ObjectExpression(node) {
-                [].forEach.call(node.properties, e => {
-                    const v = e.value;
+                node.properties
+                    .filter(property => {
+                        const value = property.value;
 
-                    if (v && hasExcessParens(v) && precedence(v) >= PRECEDENCE_OF_ASSIGNMENT_EXPR) {
-                        report(v);
-                    }
-                });
+                        return value && hasExcessParens(value) && precedence(value) >= PRECEDENCE_OF_ASSIGNMENT_EXPR;
+                    }).forEach(property => report(property.value));
             },
 
             ReturnStatement(node) {
@@ -613,11 +659,9 @@ module.exports = {
             },
 
             SequenceExpression(node) {
-                [].forEach.call(node.expressions, e => {
-                    if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
-                        report(e);
-                    }
-                });
+                node.expressions
+                    .filter(e => hasExcessParens(e) && precedence(e) >= precedence(node))
+                    .forEach(report);
             },
 
             SwitchCase(node) {

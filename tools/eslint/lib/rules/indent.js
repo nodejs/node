@@ -578,8 +578,18 @@ module.exports = {
                     },
                     ArrayExpression: ELEMENT_LIST_SCHEMA,
                     ObjectExpression: ELEMENT_LIST_SCHEMA,
+                    ImportDeclaration: ELEMENT_LIST_SCHEMA,
                     flatTernaryExpressions: {
                         type: "boolean"
+                    },
+                    ignoredNodes: {
+                        type: "array",
+                        items: {
+                            type: "string",
+                            not: {
+                                pattern: ":exit$"
+                            }
+                        }
                     }
                 },
                 additionalProperties: false
@@ -616,7 +626,9 @@ module.exports = {
             MemberExpression: 1,
             ArrayExpression: 1,
             ObjectExpression: 1,
-            flatTernaryExpressions: false
+            ImportDeclaration: 1,
+            flatTernaryExpressions: false,
+            ignoredNodes: []
         };
 
         if (context.options.length) {
@@ -781,7 +793,7 @@ module.exports = {
             offsets.setDesiredOffsets(
                 [startToken.range[1], endToken.range[0]],
                 startToken,
-                offset === "first" ? 1 : offset
+                typeof offset === "number" ? offset : 1
             );
             offsets.setDesiredOffset(endToken, startToken, 0);
 
@@ -790,10 +802,19 @@ module.exports = {
                 return;
             }
             elements.forEach((element, index) => {
+                if (!element) {
+
+                    // Skip holes in arrays
+                    return;
+                }
                 if (offset === "off") {
+
+                    // Ignore the first token of every element if the "off" option is used
                     offsets.ignoreToken(getFirstToken(element));
                 }
-                if (index === 0 || !element) {
+
+                // Offset the following elements correctly relative to the first element
+                if (index === 0) {
                     return;
                 }
                 if (offset === "first" && tokenInfo.isFirstTokenOfLine(getFirstToken(element))) {
@@ -912,7 +933,7 @@ module.exports = {
         * @param {ASTNode} node Unknown Node
         * @returns {void}
         */
-        function ignoreUnknownNode(node) {
+        function ignoreNode(node) {
             const unknownNodeTokens = new Set(sourceCode.getTokens(node, { includeComments: true }));
 
             unknownNodeTokens.forEach(token => {
@@ -929,25 +950,12 @@ module.exports = {
         }
 
         /**
-        * Ignore node if it is unknown
-        * @param {ASTNode} node Node
-        * @returns {void}
-        */
-        function checkForUnknownNode(node) {
-            const isNodeUnknown = !(KNOWN_NODES.has(node.type));
-
-            if (isNodeUnknown) {
-                ignoreUnknownNode(node);
-            }
-        }
-
-        /**
-         * Check whether the given token is the first token of a statement.
+         * Check whether the given token is on the first line of a statement.
          * @param {Token} token The token to check.
          * @param {ASTNode} leafNode The expression node that the token belongs directly.
-         * @returns {boolean} `true` if the token is the first token of a statement.
+         * @returns {boolean} `true` if the token is on the first line of a statement.
          */
-        function isFirstTokenOfStatement(token, leafNode) {
+        function isOnFirstLineOfStatement(token, leafNode) {
             let node = leafNode;
 
             while (node.parent && !node.parent.type.endsWith("Statement") && !node.parent.type.endsWith("Declaration")) {
@@ -955,16 +963,25 @@ module.exports = {
             }
             node = node.parent;
 
-            return !node || node.range[0] === token.range[0];
+            return !node || node.loc.start.line === token.loc.start.line;
         }
 
-        return {
+        const baseOffsetListeners = {
             "ArrayExpression, ArrayPattern"(node) {
-                addElementListIndent(node.elements, sourceCode.getFirstToken(node), sourceCode.getLastToken(node), options.ArrayExpression);
+                const openingBracket = sourceCode.getFirstToken(node);
+                const closingBracket = sourceCode.getTokenAfter(lodash.findLast(node.elements) || openingBracket, astUtils.isClosingBracketToken);
+
+                addElementListIndent(node.elements, openingBracket, closingBracket, options.ArrayExpression);
             },
 
             "ObjectExpression, ObjectPattern"(node) {
-                addElementListIndent(node.properties, sourceCode.getFirstToken(node), sourceCode.getLastToken(node), options.ObjectExpression);
+                const openingCurly = sourceCode.getFirstToken(node);
+                const closingCurly = sourceCode.getTokenAfter(
+                    node.properties.length ? node.properties[node.properties.length - 1] : openingCurly,
+                    astUtils.isClosingBraceToken
+                );
+
+                addElementListIndent(node.properties, openingCurly, closingCurly, options.ObjectExpression);
             },
 
             ArrowFunctionExpression(node) {
@@ -1059,7 +1076,7 @@ module.exports = {
                 //     /*else*/ qiz ;
                 if (!options.flatTernaryExpressions ||
                     !astUtils.isTokenOnSameLine(node.test, node.consequent) ||
-                    isFirstTokenOfStatement(firstToken, node)
+                    isOnFirstLineOfStatement(firstToken, node)
                 ) {
                     const questionMarkToken = sourceCode.getFirstTokenBetween(node.test, node.consequent, token => token.type === "Punctuator" && token.value === "?");
                     const colonToken = sourceCode.getFirstTokenBetween(node.consequent, node.alternate, token => token.type === "Punctuator" && token.value === ":");
@@ -1157,7 +1174,7 @@ module.exports = {
                     const openingCurly = sourceCode.getFirstToken(node, astUtils.isOpeningBraceToken);
                     const closingCurly = sourceCode.getLastToken(node, astUtils.isClosingBraceToken);
 
-                    addElementListIndent(node.specifiers.filter(specifier => specifier.type === "ImportSpecifier"), openingCurly, closingCurly, 1);
+                    addElementListIndent(node.specifiers.filter(specifier => specifier.type === "ImportSpecifier"), openingCurly, closingCurly, options.ImportDeclaration);
                 }
 
                 const fromToken = sourceCode.getLastToken(node, token => token.type === "Identifier" && token.value === "from");
@@ -1167,14 +1184,15 @@ module.exports = {
                 }
             },
 
-            "MemberExpression, JSXMemberExpression"(node) {
-                const firstNonObjectToken = sourceCode.getFirstTokenBetween(node.object, node.property, astUtils.isNotClosingParenToken);
+            "MemberExpression, JSXMemberExpression, MetaProperty"(node) {
+                const object = node.type === "MetaProperty" ? node.meta : node.object;
+                const firstNonObjectToken = sourceCode.getFirstTokenBetween(object, node.property, astUtils.isNotClosingParenToken);
                 const secondNonObjectToken = sourceCode.getTokenAfter(firstNonObjectToken);
 
-                const objectParenCount = sourceCode.getTokensBetween(node.object, node.property, { filter: astUtils.isClosingParenToken }).length;
+                const objectParenCount = sourceCode.getTokensBetween(object, node.property, { filter: astUtils.isClosingParenToken }).length;
                 const firstObjectToken = objectParenCount
-                    ? sourceCode.getTokenBefore(node.object, { skip: objectParenCount - 1 })
-                    : sourceCode.getFirstToken(node.object);
+                    ? sourceCode.getTokenBefore(object, { skip: objectParenCount - 1 })
+                    : sourceCode.getFirstToken(object);
                 const lastObjectToken = sourceCode.getTokenBefore(firstNonObjectToken);
                 const firstPropertyToken = node.computed ? firstNonObjectToken : secondNonObjectToken;
 
@@ -1229,7 +1247,7 @@ module.exports = {
             },
 
             Property(node) {
-                if (!node.computed && !node.shorthand && !node.method && node.kind === "init") {
+                if (!node.shorthand && !node.method && node.kind === "init") {
                     const colon = sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isColonToken);
 
                     offsets.ignoreToken(sourceCode.getTokenAfter(colon));
@@ -1322,8 +1340,6 @@ module.exports = {
                 }
             },
 
-            "*:exit": checkForUnknownNode,
-
             "JSXAttribute[value]"(node) {
                 const equalsToken = sourceCode.getFirstTokenBetween(node.name, node.value, token => token.type === "Punctuator" && token.value === "=");
 
@@ -1367,62 +1383,130 @@ module.exports = {
                     1
                 );
                 offsets.setDesiredOffset(closingCurly, openingCurly, 0);
-            },
-
-            "Program:exit"() {
-                addParensIndent(sourceCode.ast.tokens);
-
-                /*
-                 * Create a Map from (tokenOrComment) => (precedingToken).
-                 * This is necessary because sourceCode.getTokenBefore does not handle a comment as an argument correctly.
-                 */
-                const precedingTokens = sourceCode.ast.comments.reduce((commentMap, comment) => {
-                    const tokenOrCommentBefore = sourceCode.getTokenBefore(comment, { includeComments: true });
-
-                    return commentMap.set(comment, commentMap.has(tokenOrCommentBefore) ? commentMap.get(tokenOrCommentBefore) : tokenOrCommentBefore);
-                }, new WeakMap());
-
-                sourceCode.lines.forEach((line, lineIndex) => {
-                    const lineNumber = lineIndex + 1;
-
-                    if (!tokenInfo.firstTokensByLineNumber.has(lineNumber)) {
-
-                        // Don't check indentation on blank lines
-                        return;
-                    }
-
-                    const firstTokenOfLine = tokenInfo.firstTokensByLineNumber.get(lineNumber);
-
-                    if (firstTokenOfLine.loc.start.line !== lineNumber) {
-
-                        // Don't check the indentation of multi-line tokens (e.g. template literals or block comments) twice.
-                        return;
-                    }
-
-                    // If the token matches the expected expected indentation, don't report it.
-                    if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
-                        return;
-                    }
-
-                    if (astUtils.isCommentToken(firstTokenOfLine)) {
-                        const tokenBefore = precedingTokens.get(firstTokenOfLine);
-                        const tokenAfter = tokenBefore ? sourceCode.getTokenAfter(tokenBefore) : sourceCode.ast.tokens[0];
-
-                        // If a comment matches the expected indentation of the token immediately before or after, don't report it.
-                        if (
-                            tokenBefore && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenBefore)) ||
-                            tokenAfter && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenAfter))
-                        ) {
-                            return;
-                        }
-                    }
-
-                    // Otherwise, report the token/comment.
-                    report(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine));
-                });
             }
-
         };
 
+        const listenerCallQueue = [];
+
+        /*
+         * To ignore the indentation of a node:
+         * 1. Don't call the node's listener when entering it (if it has a listener)
+         * 2. Call `ignoreNode` on the node sometime after exiting it and before validating offsets.
+         */
+        const offsetListeners = lodash.mapValues(
+            baseOffsetListeners,
+
+            /*
+             * Offset listener calls are deferred until traversal is finished, and are called as
+             * part of the final `Program:exit` listener. This is necessary because a node might
+             * be matched by multiple selectors.
+             *
+             * Example: Suppose there is an offset listener for `Identifier`, and the user has
+             * specified in configuration that `MemberExpression > Identifier` should be ignored.
+             * Due to selector specificity rules, the `Identifier` listener will get called first. However,
+             * if a given Identifier node is supposed to be ignored, then the `Identifier` offset listener
+             * should not have been called at all. Without doing extra selector matching, we don't know
+             * whether the Identifier matches the `MemberExpression > Identifier` selector until the
+             * `MemberExpression > Identifier` listener is called.
+             *
+             * To avoid this, the `Identifier` listener isn't called until traversal finishes and all
+             * ignored nodes are known.
+             */
+            listener =>
+                node =>
+                    listenerCallQueue.push({ listener, node })
+        );
+
+        // For each ignored node selector, set up a listener to collect it into the `ignoredNodes` set.
+        const ignoredNodes = new Set();
+        const addToIgnoredNodes = ignoredNodes.add.bind(ignoredNodes);
+
+        const ignoredNodeListeners = options.ignoredNodes.reduce(
+            (listeners, ignoredSelector) => Object.assign(listeners, { [ignoredSelector]: addToIgnoredNodes }),
+            {}
+        );
+
+        /*
+         * Join the listeners, and add a listener to verify that all tokens actually have the correct indentation
+         * at the end.
+         *
+         * Using Object.assign will cause some offset listeners to be overwritten if the same selector also appears
+         * in `ignoredNodeListeners`. This isn't a problem because all of the matching nodes will be ignored,
+         * so those listeners wouldn't be called anyway.
+         */
+        return Object.assign(
+            offsetListeners,
+            ignoredNodeListeners,
+            {
+                "*:exit"(node) {
+
+                    // If a node's type is nonstandard, we can't tell how its children should be offset, so ignore it.
+                    if (!KNOWN_NODES.has(node.type)) {
+                        ignoredNodes.add(node);
+                    }
+                },
+                "Program:exit"() {
+
+                    // Invoke the queued offset listeners for the nodes that aren't ignored.
+                    listenerCallQueue
+                        .filter(nodeInfo => !ignoredNodes.has(nodeInfo.node))
+                        .forEach(nodeInfo => nodeInfo.listener(nodeInfo.node));
+
+                    // Update the offsets for ignored nodes to prevent their child tokens from being reported.
+                    ignoredNodes.forEach(ignoreNode);
+
+                    addParensIndent(sourceCode.ast.tokens);
+
+                    /*
+                     * Create a Map from (tokenOrComment) => (precedingToken).
+                     * This is necessary because sourceCode.getTokenBefore does not handle a comment as an argument correctly.
+                     */
+                    const precedingTokens = sourceCode.ast.comments.reduce((commentMap, comment) => {
+                        const tokenOrCommentBefore = sourceCode.getTokenBefore(comment, { includeComments: true });
+
+                        return commentMap.set(comment, commentMap.has(tokenOrCommentBefore) ? commentMap.get(tokenOrCommentBefore) : tokenOrCommentBefore);
+                    }, new WeakMap());
+
+                    sourceCode.lines.forEach((line, lineIndex) => {
+                        const lineNumber = lineIndex + 1;
+
+                        if (!tokenInfo.firstTokensByLineNumber.has(lineNumber)) {
+
+                            // Don't check indentation on blank lines
+                            return;
+                        }
+
+                        const firstTokenOfLine = tokenInfo.firstTokensByLineNumber.get(lineNumber);
+
+                        if (firstTokenOfLine.loc.start.line !== lineNumber) {
+
+                            // Don't check the indentation of multi-line tokens (e.g. template literals or block comments) twice.
+                            return;
+                        }
+
+                        // If the token matches the expected expected indentation, don't report it.
+                        if (validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine))) {
+                            return;
+                        }
+
+                        if (astUtils.isCommentToken(firstTokenOfLine)) {
+                            const tokenBefore = precedingTokens.get(firstTokenOfLine);
+                            const tokenAfter = tokenBefore ? sourceCode.getTokenAfter(tokenBefore) : sourceCode.ast.tokens[0];
+
+                            // If a comment matches the expected indentation of the token immediately before or after, don't report it.
+                            if (
+                                tokenBefore && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenBefore)) ||
+                                tokenAfter && validateTokenIndent(firstTokenOfLine, offsets.getDesiredIndent(tokenAfter))
+                            ) {
+                                return;
+                            }
+                        }
+
+                        // Otherwise, report the token/comment.
+                        report(firstTokenOfLine, offsets.getDesiredIndent(firstTokenOfLine));
+                    });
+                }
+            }
+        );
     }
 };

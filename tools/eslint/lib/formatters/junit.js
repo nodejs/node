@@ -39,10 +39,7 @@ module.exports = function(results) {
 
         const messages = result.messages;
 
-        if (messages.length) {
-            output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
-        }
-
+        output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
         messages.forEach(message => {
             const type = message.fatal ? "error" : "failure";
 
@@ -57,10 +54,7 @@ module.exports = function(results) {
             output += `</${type}>`;
             output += "</testcase>\n";
         });
-
-        if (messages.length) {
-            output += "</testsuite>\n";
-        }
+        output += "</testsuite>\n";
 
     });
 

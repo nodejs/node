@@ -27,14 +27,18 @@ module.exports = {
     create(context) {
         return {
             Program(node) {
-                context.getSourceLines().forEach((line, index) => {
+                context.getSourceCode().getLines().forEach((line, index) => {
                     const match = regex.exec(line);
 
                     if (match) {
-                        context.report({ node, loc: {
-                            line: index + 1,
-                            column: match.index + 1
-                        }, message: "Unexpected tab character." });
+                        context.report({
+                            node,
+                            loc: {
+                                line: index + 1,
+                                column: match.index + 1
+                            },
+                            message: "Unexpected tab character."
+                        });
                     }
                 });
             }

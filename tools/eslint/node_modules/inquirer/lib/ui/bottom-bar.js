@@ -51,10 +51,11 @@ Prompt.prototype.clean = function () {
  */
 
 Prompt.prototype.updateBottomBar = function (bottomBar) {
-  this.bottomBar = bottomBar;
   rlUtils.clearLine(this.rl, 1);
   this.rl.output.unmute();
-  this.clean().render();
+  this.clean();
+  this.bottomBar = bottomBar;
+  this.render();
   this.rl.output.mute();
   return this;
 };

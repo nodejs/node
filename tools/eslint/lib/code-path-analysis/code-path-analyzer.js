@@ -154,7 +154,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentEnd",
                     currentSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -175,7 +176,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentStart",
                     headSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -202,7 +204,8 @@ function leaveFromCurrentSegment(analyzer, node) {
             analyzer.emitter.emit(
                 "onCodePathSegmentEnd",
                 currentSegment,
-                node);
+                node
+            );
         }
     }
 
@@ -369,7 +372,8 @@ function processCodePathToEnter(analyzer, node) {
         case "SwitchStatement":
             state.pushSwitchContext(
                 node.cases.some(isCaseNode),
-                astUtils.getLabel(node));
+                astUtils.getLabel(node)
+            );
             break;
 
         case "TryStatement":
