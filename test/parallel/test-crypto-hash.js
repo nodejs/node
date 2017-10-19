@@ -49,13 +49,16 @@ if (!common.hasFipsCrypto) {
     `${cryptoType} with ${digest} digest failed to evaluate to expected hash value.`
   );
 }
-cryptoType = 'md5'; digest = 'hex';
+cryptoType = 'md5';
+digest = 'hex';
 assert.strictEqual(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2',
                    `${cryptoType} with ${digest} digest failed to evaluate to expected hash value.`);
-cryptoType = 'sha256';digest = 'base64';
+cryptoType = 'sha256';
+digest = 'base64';
 assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
                    `${cryptoType} with ${digest} digest failed to evaluate to expected hash value.`);
-cryptoType = 'sha512'; digest = 'latin1';
+cryptoType = 'sha512';
+digest = 'latin1';
 assert.deepStrictEqual(
   a3,
   Buffer.from(
@@ -66,7 +69,8 @@ assert.deepStrictEqual(
     '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
     'latin1'),
   `${cryptoType} with ${digest} digest failed to evaluate to expected hash value.`);
-cryptoType = 'sha1'; digest = 'hex';
+cryptoType = 'sha1';
+digest = 'hex';
 assert.deepStrictEqual(
   a4,
   Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
