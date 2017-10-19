@@ -88,6 +88,13 @@ inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
       async_id_fields_(isolate, kUidFieldsCount) {
   v8::HandleScope handle_scope(isolate_);
 
+  // Always perform async_hooks checks, not just when async_hooks is enabled.
+  // TODO(AndreasMadsen): Consider removing this for LTS releases.
+  // See discussion in https://github.com/nodejs/node/pull/15454
+  // When removing this, do it by reverting the commit. Otherwise the test
+  // and flag changes won't be included.
+  fields_[kCheck] = 1;
+
   // kAsyncIdCounter should start at 1 because that'll be the id the execution
   // context during bootstrap (code that runs before entering uv_run()).
   async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
@@ -129,9 +136,9 @@ inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(isolate_);
 }
 
-inline void Environment::AsyncHooks::force_checks() {
-  // fields_ does not have the += operator defined
-  fields_[kCheck] = fields_[kCheck] + 1;
+inline void Environment::AsyncHooks::no_force_checks() {
+  // fields_ does not have the -= operator defined
+  fields_[kCheck] = fields_[kCheck] - 1;
 }
 
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
