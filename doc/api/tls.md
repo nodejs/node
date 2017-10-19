@@ -1273,6 +1273,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`server.listen()`]: net.html#net_server_listen

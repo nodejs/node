@@ -1888,6 +1888,7 @@ const req = http.request(options, (res) => {
 [`net.Server.listen(path)`]: net.html#net_server_listen_path_backlog_callback
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_host_backlog_callback
 [`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`removeHeader(name)`]: #http_request_removeheader_name

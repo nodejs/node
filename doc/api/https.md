@@ -250,6 +250,8 @@ const req = https.request(options, (res) => {
 
 [`Agent`]: #https_class_https_agent
 [`URL`]: url.html#url_the_whatwg_url_api
+[`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.Server#keepAliveTimeout`]: http.html#http_server_keepalivetimeout
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
