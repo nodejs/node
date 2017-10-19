@@ -1,5 +1,7 @@
 @echo off
 
+setlocal EnableExtensions
+
 cd %~dp0
 
 if /i "%1"=="help" goto help
