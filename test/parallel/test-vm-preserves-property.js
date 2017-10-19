@@ -18,8 +18,8 @@ const code = 'Object.getOwnPropertyDescriptor(this, "prop")';
 const res = vm.runInContext(code, o, 'test');
 
 assert(res);
-assert.strictEqual(typeof res, 'object');
-assert.strictEqual(res.value, 'val');
-assert.strictEqual(res.configurable, false, 'should not be configurable');
-assert.strictEqual(res.enumerable, false, 'should not be enumerable');
-assert.strictEqual(res.writable, false, 'should not be writable');
+assert.strictEqual(typeof res, 'object', `Expected vm.runInContext() to return an object not a(n) ${typeof res}.`);
+assert.strictEqual(res.value, 'val', `Expected res.value to equal 'val', got '${res.value}' instead.`);
+assert.strictEqual(res.configurable, false, `Expected res.configurable to equal false, got ${res.configurable} instead.`);
+assert.strictEqual(res.enumerable, false, `Expected res.enumerable to equal false, got ${res.enumerable} instead.`);
+assert.strictEqual(res.writable, false, `Expected res.writable to equal false, got ${res.writable} instead.`);
