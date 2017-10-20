@@ -11,7 +11,7 @@ const CLIENT_VARIANTS = 12;
 
 // Test connect(path)
 {
-  const prefix = `${common.PIPE}-net-connect-options-path`;
+  const prefix = `${common.PIPE}`;
   const serverPath = `${prefix}-server`;
   let counter = 0;
   const server = net.createServer()

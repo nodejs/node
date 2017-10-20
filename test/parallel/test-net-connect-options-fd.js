@@ -7,6 +7,7 @@ const assert = require('assert');
 const net = require('net');
 const path = require('path');
 const Pipe = process.binding('pipe_wrap').Pipe;
+const { errname } = process.binding('uv');
 
 common.refreshTmpDir();
 
@@ -33,7 +34,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 {
   // Use relative path to avoid hitting 108-char length limit
   // for socket paths in libuv.
-  const prefix = path.relative('.', `${common.PIPE}-net-connect-options-fd`);
+  const prefix = path.relative('.', `${common.PIPE}`);
   const serverPath = `${prefix}-server`;
   let counter = 0;
   let socketCounter = 0;
@@ -67,13 +68,16 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
   })
   .on('error', function(err) {
     console.error(err);
-    assert.fail(null, null, `[Pipe server]${err}`);
+    assert.fail(`[Pipe server]${err}`);
   })
   .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
     const getSocketOpt = (index) => {
       const handle = new Pipe();
-      const err = handle.bind(`${prefix}-client-${socketCounter++}`);
-      assert(err >= 0, String(err));
+      const handleName = `${prefix}-client-${socketCounter++}`;
+      const err = handle.bind(handleName);
+      if (err < 0) {
+        assert.faill(`${errname(err)} binding ${handleName}`);
+      }
       assert.notStrictEqual(handle.fd, -1);
       handleMap.set(index, handle);
       console.error(`[Pipe]Bound handle with Pipe ${handle.fd}`);
@@ -92,7 +96,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
       console.error(`[Pipe]Sending data through fd ${oldHandle.fd}`);
       client.on('error', function(err) {
         console.error(err);
-        assert.fail(null, null, `[Pipe Client]${err}`);
+        assert.fail(`[Pipe Client]${err}`);
       });
     });
 
