@@ -75,6 +75,10 @@ Create a branch and start hacking:
 ```text
 $ git checkout -b my-branch -t origin/master
 ```
+Please make sure this local email is also added to your
+[GitHub email list](https://github.com/settings/emails) so that your commits
+will be properly associated with your account and you will be promoted
+to Contributor once your first commit is landed.
 
 Any text you write should follow the [Style Guide](doc/STYLE_GUIDE.md),
 including comments and API documentation.
