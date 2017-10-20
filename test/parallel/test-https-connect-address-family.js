@@ -33,7 +33,7 @@ function runTest() {
 
 dns.lookup('localhost', {family: 6, all: true}, (err, addresses) => {
   if (err) {
-    if (err.code === 'ENOTFOUND')
+    if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')
       common.skip('localhost does not resolve to ::1');
 
     throw err;
