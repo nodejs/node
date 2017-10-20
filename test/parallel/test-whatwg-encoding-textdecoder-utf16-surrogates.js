@@ -1,8 +1,12 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/master/encoding/textdecoder-utf16-surrogates.html
+// From: https://github.com/w3c/web-platform-tests/blob/39a67e2fff617c5c0bc114f9bf19e40ec07791eb/encoding/textdecoder-utf16-surrogates.html
 
 const common = require('../common');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
+
 const assert = require('assert');
 const {
   TextDecoder

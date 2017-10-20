@@ -1,8 +1,12 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/master/encoding/textdecoder-ignorebom.html
+// From: https://github.com/w3c/web-platform-tests/blob/7f567fa29c6805c92f5b63590338ccb041aacf67/encoding/textdecoder-ignorebom.html
 
-require('../common');
+const common = require('../common');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
+
 const assert = require('assert');
 const {
   TextDecoder

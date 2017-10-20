@@ -1,7 +1,11 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
+
 const assert = require('assert');
 const { getEncodingFromLabel } = require('internal/encoding');
 

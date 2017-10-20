@@ -1,8 +1,12 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/master/encoding/textdecoder-fatal-streaming.html
+// From: https://github.com/w3c/web-platform-tests/blob/d74324b53ca6ebf9ffd51333c216cadfa6ea2303/encoding/textdecoder-fatal-streaming.html
 
 const common = require('../common');
+
+if (!common.hasIntl)
+  common.skip('missing Intl');
+
 const assert = require('assert');
 const {
   TextDecoder
