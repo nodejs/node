@@ -1,3 +1,5 @@
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
@@ -5,6 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const { kSocket } = require('internal/http2/util');
 
 {
   const server = h2.createServer();
@@ -13,7 +16,7 @@ const h2 = require('http2');
     common.mustCall(() => {
       const destroyCallbacks = [
         (client) => client.destroy(),
-        (client) => client.socket.destroy()
+        (client) => client[kSocket].destroy()
       ];
 
       let remaining = destroyCallbacks.length;
@@ -23,9 +26,9 @@ const h2 = require('http2');
         client.on(
           'connect',
           common.mustCall(() => {
-            const socket = client.socket;
+            const socket = client[kSocket];
 
-            assert(client.socket, 'client session has associated socket');
+            assert(socket, 'client session has associated socket');
             assert(
               !client.destroyed,
               'client has not been destroyed before destroy is called'
@@ -41,7 +44,7 @@ const h2 = require('http2');
             destroyCallback(client);
 
             assert(
-              !client.socket,
+              !client[kSocket],
               'client.socket undefined after destroy is called'
             );
 
