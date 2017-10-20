@@ -33,8 +33,8 @@ const sent = 'hello world';
 let received = '';
 
 const options = {
-  key: fixtures.readKey('/keys/agent1-key.pem'),
-  cert: fixtures.readKey('/keys/agent1-cert.pem')
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 const server = net.createServer(function(c) {
