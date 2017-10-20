@@ -1,4 +1,5 @@
-//
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
@@ -6,6 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const { kSocket } = require('internal/http2/util');
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
@@ -20,12 +22,12 @@ server.on('session', common.mustCall((session) => {
       type: Error,
       message: 'test'
     })(error);
-    assert.strictEqual(socket, session.socket);
+    assert.strictEqual(socket, session[kSocket]);
   });
   const isNotCalled = common.mustNotCall();
   session.on('socketError', handler);
   server.on('socketError', isNotCalled);
-  session.socket.emit('error', new Error('test'));
+  session[kSocket].emit('error', new Error('test'));
   session.removeListener('socketError', handler);
   server.removeListener('socketError', isNotCalled);
 
@@ -36,10 +38,10 @@ server.on('session', common.mustCall((session) => {
       type: Error,
       message: 'test'
     })(error);
-    assert.strictEqual(socket, session.socket);
+    assert.strictEqual(socket, session[kSocket]);
     assert.strictEqual(session, session);
   }));
-  session.socket.emit('error', new Error('test'));
+  session[kSocket].emit('error', new Error('test'));
 }));
 
 server.listen(0, common.mustCall(() => {

@@ -1,11 +1,13 @@
-//
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const h2 = require('http2');
 const assert = require('assert');
+const h2 = require('http2');
+const { kSocket } = require('internal/http2/util');
 
 const {
   HTTP2_HEADER_METHOD,
@@ -25,7 +27,7 @@ function onStream(stream) {
   });
   stream.write('test');
 
-  const socket = stream.session.socket;
+  const socket = stream.session[kSocket];
 
   // When the socket is destroyed, the close events must be triggered
   // on the socket, server and session.
