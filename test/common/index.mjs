@@ -98,7 +98,7 @@ export function leakedGlobals() {
 }
 
 // Turn this off if the test should not check for global leaks.
-export let globalCheck = true;
+export let globalCheck = true;  // eslint-disable-line
 
 process.on('exit', function() {
   if (!globalCheck) return;
