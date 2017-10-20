@@ -646,8 +646,8 @@ spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 parent and child processes, and the child is a Node.js process, the child
 is launched with the IPC channel unreferenced (using `unref()`) until the
 child registers an event handler for the [`process.on('disconnect')`][] event
-or the [`process.on('message')`][] event.This allows the child to exit normally
-without the process being held open by the open IPC channel.*
+or the [`process.on('message')`][] event. This allows the child to exit
+normally without the process being held open by the open IPC channel.*
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][]
 
