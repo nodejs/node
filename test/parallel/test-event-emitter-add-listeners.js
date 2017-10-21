@@ -28,17 +28,19 @@ const EventEmitter = require('events');
   const ee = new EventEmitter();
   const events_new_listener_emitted = [];
   const listeners_new_listener_emitted = [];
+  const is_once_new_listener_emitted = [];
 
   // Sanity check
   assert.strictEqual(ee.addListener, ee.on);
 
-  ee.on('newListener', function(event, listener) {
+  ee.on('newListener', function(event, listener, isOnce) {
     // Don't track newListener listeners.
     if (event === 'newListener')
       return;
 
     events_new_listener_emitted.push(event);
     listeners_new_listener_emitted.push(listener);
+    is_once_new_listener_emitted.push(isOnce);
   });
 
   const hello = common.mustCall(function(a, b) {
@@ -56,6 +58,7 @@ const EventEmitter = require('events');
   ee.once('foo', assert.fail);
   assert.deepStrictEqual(['hello', 'foo'], events_new_listener_emitted);
   assert.deepStrictEqual([hello, assert.fail], listeners_new_listener_emitted);
+  assert.deepStrictEqual([false, true], is_once_new_listener_emitted);
 
   ee.emit('hello', 'a', 'b');
 }

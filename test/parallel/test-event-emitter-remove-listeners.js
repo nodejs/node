@@ -30,9 +30,10 @@ function listener2() {}
 {
   const ee = new EventEmitter();
   ee.on('hello', listener1);
-  ee.on('removeListener', common.mustCall((name, cb) => {
+  ee.on('removeListener', common.mustCall((name, cb, isOnce) => {
     assert.strictEqual(name, 'hello');
     assert.strictEqual(cb, listener1);
+    assert.strictEqual(isOnce, false);
   }));
   ee.removeListener('hello', listener1);
   assert.deepStrictEqual([], ee.listeners('hello'));
@@ -50,16 +51,18 @@ function listener2() {}
   const ee = new EventEmitter();
   ee.on('hello', listener1);
   ee.on('hello', listener2);
-  ee.once('removeListener', common.mustCall((name, cb) => {
+  ee.once('removeListener', common.mustCall((name, cb, isOnce) => {
     assert.strictEqual(name, 'hello');
     assert.strictEqual(cb, listener1);
+    assert.strictEqual(isOnce, false);
     assert.deepStrictEqual([listener2], ee.listeners('hello'));
   }));
   ee.removeListener('hello', listener1);
   assert.deepStrictEqual([listener2], ee.listeners('hello'));
-  ee.once('removeListener', common.mustCall((name, cb) => {
+  ee.once('removeListener', common.mustCall((name, cb, isOnce) => {
     assert.strictEqual(name, 'hello');
     assert.strictEqual(cb, listener2);
+    assert.strictEqual(isOnce, false);
     assert.deepStrictEqual([], ee.listeners('hello'));
   }));
   ee.removeListener('hello', listener2);
@@ -91,13 +94,15 @@ function listener2() {}
   const ee = new EventEmitter();
   ee.on('hello', listener1);
   ee.on('hello', listener2);
-  ee.once('removeListener', common.mustCall((name, cb) => {
+  ee.once('removeListener', common.mustCall((name, cb, isOnce) => {
     assert.strictEqual(name, 'hello');
     assert.strictEqual(cb, listener1);
+    assert.strictEqual(isOnce, false);
     assert.deepStrictEqual([listener2], ee.listeners('hello'));
-    ee.once('removeListener', common.mustCall((name, cb) => {
+    ee.once('removeListener', common.mustCall((name, cb, isOnce) => {
       assert.strictEqual(name, 'hello');
       assert.strictEqual(cb, listener2);
+      assert.strictEqual(isOnce, false);
       assert.deepStrictEqual([], ee.listeners('hello'));
     }));
     ee.removeListener('hello', listener2);
@@ -129,10 +134,25 @@ function listener2() {}
 {
   const ee = new EventEmitter();
 
-  ee.once('hello', listener1);
-  ee.on('removeListener', common.mustCall((eventName, listener) => {
+  const listener = common.mustCall((eventName, listener, isOnce) => {
     assert.strictEqual(eventName, 'hello');
     assert.strictEqual(listener, listener1);
+    assert.strictEqual(isOnce, true);
+  });
+
+  ee.on('removeListener', listener);
+  ee.once('hello', listener1);
+  ee.removeListener('hello', listener1);
+}
+
+{
+  const ee = new EventEmitter();
+
+  ee.once('hello', listener1);
+  ee.on('removeListener', common.mustCall((eventName, listener, isOnce) => {
+    assert.strictEqual(eventName, 'hello');
+    assert.strictEqual(listener, listener1);
+    assert.strictEqual(isOnce, true);
   }));
   ee.emit('hello');
 }

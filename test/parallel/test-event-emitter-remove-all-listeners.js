@@ -87,15 +87,28 @@ function expect(expected) {
 {
   const ee = new events.EventEmitter();
   let expectLength = 2;
-  ee.on('removeListener', function(name, noop) {
+  ee.on('removeListener', function(name, noop, isOnce) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
+    assert.strictEqual(isOnce, expectLength === 1);
   });
   ee.on('baz', common.mustNotCall());
   ee.on('baz', common.mustNotCall());
-  ee.on('baz', common.mustNotCall());
+  ee.once('baz', common.mustNotCall());
   assert.strictEqual(ee.listeners('baz').length, expectLength + 1);
   ee.removeAllListeners('baz');
   assert.strictEqual(ee.listeners('baz').length, 0);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('removeListener', common.mustCall(function(name, noop, isOnce) {
+    assert.strictEqual(name, 'baz');
+    assert.strictEqual(isOnce, true);
+    assert.strictEqual(ee.listeners('baz').length, 0);
+  }));
+
+  ee.once('baz', common.mustNotCall());
+  ee.removeAllListeners('baz');
 }
 
 {
