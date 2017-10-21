@@ -1224,7 +1224,7 @@ Example
 const Socket = require('net').Socket;
 const instance = new Socket();
 
-instance.setEncoding('utf-8');
+instance.setEncoding('utf8');
 ```
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
