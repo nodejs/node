@@ -1,0 +1,10 @@
+prefix addons
+
+# https://github.com/nodejs/node/issues/16354 - known flaky after the upgrade
+# to V8 6.2 in https://github.com/nodejs/node/pull/15362.  Most likely reason
+# is the increase of the maximum string length from 256 to 1024 MB, pushing
+# their execution times over the time limit.
+[$system==freebsd]
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-binary: FLAKY,PASS
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max-by-1-hex: FLAKY,PASS
+stringbytes-external-exceed-max/test-stringbytes-external-exceed-max: FLAKY,PASS
