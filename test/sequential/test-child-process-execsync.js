@@ -113,7 +113,15 @@ assert.strictEqual(ret, `${msg}\n`);
 {
   const args = ['-e', 'process.exit(1)'];
   const spawnSyncResult = spawnSync(process.execPath, args);
-  const spawnSyncKeys = Object.keys(spawnSyncResult);
+  const spawnSyncKeys = Object.keys(spawnSyncResult).sort();
+  assert.deepStrictEqual(spawnSyncKeys, [
+    'output',
+    'pid',
+    'signal',
+    'status',
+    'stderr',
+    'stdout'
+  ]);
 
   assert.throws(() => {
     execFileSync(process.execPath, args);
