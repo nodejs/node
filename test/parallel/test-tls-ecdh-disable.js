@@ -31,6 +31,11 @@ if (!common.hasCrypto)
 if (!common.opensslCli)
   common.skip('missing openssl-cli');
 
+const OPENSSL_VERSION_NUMBER =
+  require('crypto').constants.OPENSSL_VERSION_NUMBER;
+if (OPENSSL_VERSION_NUMBER >= 0x10100000)
+  common.skip('false ecdhCurve not supported in OpenSSL 1.1.0');
+
 const assert = require('assert');
 const tls = require('tls');
 const exec = require('child_process').exec;
@@ -41,6 +46,9 @@ const options = {
   ciphers: 'ECDHE-RSA-AES128-SHA',
   ecdhCurve: false
 };
+
+common.expectWarning('DeprecationWarning',
+                     '{ ecdhCurve: false } is deprecated.');
 
 const server = tls.createServer(options, common.mustNotCall());
 
