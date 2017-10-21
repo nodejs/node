@@ -1351,7 +1351,9 @@ def configure_inspector(o):
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
 
-def get_bin_override():
+def make_bin_override():
+  if sys.platform == 'win32':
+    raise Exception('make_bin_override should not be called on win32.')
   # If the system python is not the python we are running (which should be
   # python 2), then create a directory with a symlink called `python` to our
   # sys.executable. This directory will be prefixed to the PATH, so that
@@ -1460,7 +1462,8 @@ if options.prefix:
 
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
-bin_override = get_bin_override()
+# On Windows there's no reason to search for a different python binary.
+bin_override = None if sys.platform == 'win32' else make_bin_override()
 if bin_override:
   config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
 
