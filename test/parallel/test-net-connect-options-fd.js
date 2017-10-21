@@ -76,7 +76,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
       const handleName = `${prefix}-client-${socketCounter++}`;
       const err = handle.bind(handleName);
       if (err < 0) {
-        assert.faill(`${errname(err)} binding ${handleName}`);
+        assert.fail(`${errname(err)} binding ${handleName}`);
       }
       assert.notStrictEqual(handle.fd, -1);
       handleMap.set(index, handle);
