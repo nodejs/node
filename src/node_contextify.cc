@@ -25,6 +25,9 @@
 #include "base-object-inl.h"
 #include "v8-debug.h"
 
+#include <sstream>
+#include <string>
+
 namespace node {
 
 using v8::Array;
@@ -39,6 +42,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -64,6 +68,11 @@ using v8::Value;
 using v8::WeakCallbackInfo;
 
 namespace {
+
+std::ostream& operator<<(std::ostream& os, Local<Value> value) {
+  String::Utf8Value utf8(value);
+  return os << *utf8;
+}
 
 class ContextifyContext {
  protected:
@@ -229,9 +238,10 @@ class ContextifyContext {
 
     NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
                                              GlobalPropertySetterCallback,
-                                             GlobalPropertyQueryCallback,
+                                             GlobalPropertyDescriptorCallback,
                                              GlobalPropertyDeleterCallback,
                                              GlobalPropertyEnumeratorCallback,
+                                             GlobalPropertyDefinerCallback,
                                              CreateDataWrapper(env));
     object_template->SetHandler(config);
 
@@ -408,22 +418,42 @@ class ContextifyContext {
       const PropertyCallbackInfo<Value>& args) {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+    Environment* env = ctx->env();
+    Isolate* isolate = env->isolate();
 
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
 
+    Local<Context> context = ctx->context();
+
     auto attributes = PropertyAttribute::None;
     bool is_declared =
-        ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
-                                                            property)
+        ctx->sandbox()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                       property)
         .To(&attributes);
     bool read_only =
         static_cast<int>(attributes) &
         static_cast<int>(PropertyAttribute::ReadOnly);
 
-    if (is_declared && read_only)
+    if (is_declared && read_only) {
+      if (args.ShouldThrowOnError()) {
+        std::ostringstream error_message;
+        error_message << "Cannot assign to read only property '";
+        Local<String> property_name =
+            property->ToDetailString(context).ToLocalChecked();
+        error_message << property_name;
+        error_message <<  "' of ";
+        error_message << ctx->sandbox()->TypeOf(isolate);
+        error_message << " '";
+        Local<String> sandbox_name =
+            ctx->sandbox()->ToDetailString(context).ToLocalChecked();
+        error_message << sandbox_name;
+        error_message << "'";
+        env->ThrowTypeError(error_message.str().c_str());
+      }
       return;
+    }
 
     // true for x = 5
     // false for this.x = 5
@@ -448,9 +478,9 @@ class ContextifyContext {
   }
 
 
-  static void GlobalPropertyQueryCallback(
+  static void GlobalPropertyDescriptorCallback(
       Local<Name> property,
-      const PropertyCallbackInfo<Integer>& args) {
+      const PropertyCallbackInfo<Value>& args) {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
@@ -459,18 +489,14 @@ class ContextifyContext {
       return;
 
     Local<Context> context = ctx->context();
-    Maybe<PropertyAttribute> maybe_prop_attr =
-        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
+    MaybeLocal<Value> maybe_prop_desc =
+        ctx->sandbox()->GetOwnPropertyDescriptor(context, property);
 
-    if (maybe_prop_attr.IsNothing()) {
-      maybe_prop_attr =
-          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-                                                              property);
-    }
-
-    if (maybe_prop_attr.IsJust()) {
-      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
-      args.GetReturnValue().Set(prop_attr);
+    if (!maybe_prop_desc.IsEmpty()) {
+      Local<Value> prop_desc = maybe_prop_desc.ToLocalChecked();
+      if (!prop_desc->IsUndefined()) {
+        args.GetReturnValue().Set(prop_desc);
+      }
     }
   }
 
@@ -506,6 +532,74 @@ class ContextifyContext {
       return;
 
     args.GetReturnValue().Set(ctx->sandbox()->GetPropertyNames());
+  }
+
+
+  static void GlobalPropertyDefinerCallback(
+      Local<Name> property,
+      const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+    Environment* env = ctx->env();
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    Local<Context> context = ctx->context();
+
+    auto attributes = PropertyAttribute::None;
+    bool is_declared =
+        ctx->sandbox()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                       property)
+        .To(&attributes);
+    bool non_enumerable =
+        static_cast<int>(attributes) &
+        static_cast<int>(PropertyAttribute::DontDelete);
+
+    if (is_declared && non_enumerable) {
+      if (args.ShouldThrowOnError()) {
+        std::string error_message("Cannot redefine property: ");
+        Local<String> property_name =
+            property->ToDetailString(context).ToLocalChecked();
+        String::Utf8Value utf8_name(property_name);
+        error_message += *utf8_name;
+        env->ThrowTypeError(error_message.c_str());
+      }
+      return;
+    }
+
+    auto add_desc_copy_to_sandbox =
+        [&] (PropertyDescriptor* desc_copy) {
+          if (desc.has_enumerable()) {
+            desc_copy->set_enumerable(desc.enumerable());
+          }
+          if (desc.has_configurable()) {
+            desc_copy->set_configurable(desc.configurable());
+          }
+          Maybe<bool> result =
+              ctx->sandbox()->DefineProperty(context, property, *desc_copy);
+          if (result.IsJust()) {
+            args.GetReturnValue().Set(result.FromJust());
+          }
+        };
+
+    Isolate* isolate = context->GetIsolate();
+    if (desc.has_get() || desc.has_set()) {
+      Local<Value> get =
+          desc.has_get() ? desc.get() : Undefined(isolate).As<Value>();
+      Local<Value> set =
+          desc.has_set() ? desc.set() : Undefined(isolate).As<Value>();
+      PropertyDescriptor desc_copy(get, set);
+      add_desc_copy_to_sandbox(&desc_copy);
+    } else {
+      bool writable = desc.has_writable() ? desc.writable() : false;
+      Local<Value> value =
+          desc.has_value() ? desc.value() :  Undefined(isolate).As<Value>();
+      PropertyDescriptor desc_copy(value, writable);
+      add_desc_copy_to_sandbox(&desc_copy);
+    }
   }
 };
 
