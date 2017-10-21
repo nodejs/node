@@ -305,7 +305,9 @@ Platform normalizes timeout.
 ### PIPE
 * return [&lt;String>]
 
-Path to the test sock.
+Path to a process-unique named pipe (FIFO), either an FS node on POSIX,
+or a `\\.\pipe\` prefixed path on Windows, which is random each time
+`common` is required.
 
 ### PORT
 * return [&lt;Number>] default = `12346`

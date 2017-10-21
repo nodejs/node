@@ -30,7 +30,7 @@ let counter = 0;
 
 // Avoid conflict with listen-path
 function randomPipePath() {
-  return `${common.PIPE}-listen-handle-${counter++}`;
+  return `${common.PIPE}.${counter++}`;
 }
 
 function randomHandle(type) {

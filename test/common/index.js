@@ -271,9 +271,17 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 });
 
 {
-  const localRelative = path.relative(process.cwd(), `${exports.tmpDir}/`);
-  const pipePrefix = exports.isWindows ? '\\\\.\\pipe\\' : localRelative;
-  const pipeName = `node-test.${process.pid}.sock`;
+  let pipePrefix;
+  if (exports.isWindows) {
+    pipePrefix = '\\\\.\\pipe\\';
+  } else {
+    const localRelative = path.relative(process.cwd(), `${exports.tmpDir}`);
+    pipePrefix = localRelative + path.sep;
+  }
+
+  const randHex = Math.random().toString(16).slice(2);
+  const pipeName = `node-test.${randHex}.sock`;
+
   exports.PIPE = pipePrefix + pipeName;
 }
 
