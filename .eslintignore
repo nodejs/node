@@ -2,7 +2,6 @@ lib/internal/v8_prof_polyfill.js
 lib/punycode.js
 test/addons/??_*
 test/fixtures
-test/tmp*
 tools/eslint
 tools/icu
 node_modules
