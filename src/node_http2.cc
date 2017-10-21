@@ -138,42 +138,45 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
     DEBUG_HTTP2("Setting header table size: %d\n",
-                buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_HEADER_TABLE_SIZE,
                        buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_CONCURRENT_STREAMS)) {
     DEBUG_HTTP2("Setting max concurrent streams: %d\n",
-                buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS,
                        buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_FRAME_SIZE)) {
     DEBUG_HTTP2("Setting max frame size: %d\n",
-                buffer[IDX_SETTINGS_MAX_FRAME_SIZE]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_MAX_FRAME_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_FRAME_SIZE,
                        buffer[IDX_SETTINGS_MAX_FRAME_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE)) {
     DEBUG_HTTP2("Setting initial window size: %d\n",
-                buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE,
                        buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE)) {
     DEBUG_HTTP2("Setting max header list size: %d\n",
-                buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE,
                        buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_ENABLE_PUSH)) {
     DEBUG_HTTP2("Setting enable push: %d\n",
-                buffer[IDX_SETTINGS_ENABLE_PUSH]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_ENABLE_PUSH]));
     entries.push_back({NGHTTP2_SETTINGS_ENABLE_PUSH,
                        buffer[IDX_SETTINGS_ENABLE_PUSH]});
   }
@@ -403,42 +406,45 @@ void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
 
   if (flags & (1 << IDX_SETTINGS_HEADER_TABLE_SIZE)) {
     DEBUG_HTTP2("Setting header table size: %d\n",
-                buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_HEADER_TABLE_SIZE,
                        buffer[IDX_SETTINGS_HEADER_TABLE_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_CONCURRENT_STREAMS)) {
     DEBUG_HTTP2("Setting max concurrent streams: %d\n",
-                buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS,
                        buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_FRAME_SIZE)) {
     DEBUG_HTTP2("Setting max frame size: %d\n",
-                buffer[IDX_SETTINGS_MAX_FRAME_SIZE]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_MAX_FRAME_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_FRAME_SIZE,
                        buffer[IDX_SETTINGS_MAX_FRAME_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE)) {
     DEBUG_HTTP2("Setting initial window size: %d\n",
-                buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE,
                        buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE)) {
     DEBUG_HTTP2("Setting max header list size: %d\n",
-                buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]);
+                static_cast<uint32_t>(
+                    buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]));
     entries.push_back({NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE,
                        buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE]});
   }
 
   if (flags & (1 << IDX_SETTINGS_ENABLE_PUSH)) {
     DEBUG_HTTP2("Setting enable push: %d\n",
-                buffer[IDX_SETTINGS_ENABLE_PUSH]);
+                static_cast<uint32_t>(buffer[IDX_SETTINGS_ENABLE_PUSH]));
     entries.push_back({NGHTTP2_SETTINGS_ENABLE_PUSH,
                        buffer[IDX_SETTINGS_ENABLE_PUSH]});
   }
