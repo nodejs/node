@@ -30,8 +30,8 @@ const http2 = require('http2');
 const fs = require('fs');
 
 const server = http2.createSecureServer({
-  key: fs.readFileSync("test/fixtures/keys/agent2-key.pem"),
-  cert: fs.readFileSync("test/fixtures/keys/agent2-cert.pem"),
+  key: fs.readFileSync("localhost-privkey.pem"),
+  cert: fs.readFileSync("localhost-cert.pem")
 });
 server.on('error', (err) => console.error(err));
 server.on('socketError', (err) => console.error(err));
@@ -48,13 +48,22 @@ server.on('stream', (stream, headers) => {
 server.listen(8443);
 ```
 
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -x509 -keyout localhost-privkey.pem -out localhost-cert.pem
+```
+
 ### Client-side example
 
 The following illustrates an HTTP/2 client:
 
 ```js
 var http2 = require('http2');
-const client = http2.connect('https://localhost');
+var fs = require('fs');
+const client = http2.connect('https://localhost:8443', {
+  ca: fs.readFileSync("localhost-cert.pem")
+});
 client.on('socketError', (err) => console.error(err))
 client.on('error', (err) => console.error(err))
 
