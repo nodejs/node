@@ -38,7 +38,9 @@ const noop = () => {};
 
 exports.fixturesDir = fixturesDir;
 
-exports.tmpDirName = 'tmp';
+// Using a `.` prefixed name, which is the convention for "hidden" on POSIX,
+// gets tools to ignore it by default or by simple rules, especially eslint.
+exports.tmpDirName = '.tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
