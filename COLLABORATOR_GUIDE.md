@@ -452,6 +452,15 @@ Check number of commits and commit messages
 $ git log upstream/master...master
 ```
 
+If you land somebody else's PR (especially a first-time contributor's PR),
+please make sure that a username and an email in the log match the ones
+in the author's GitHub account. Otherwise, the commits will not be properly
+associated with the author's account, and the first-time contributor
+will not be promoted to Contributor once their first commit is landed.
+If in doubt, please contact the author before landing, then abort and reapply
+the patch if the author has changed their username and email
+and amended the PR commit.
+
 If there are multiple commits that relate to the same feature or
 one with a feature and separate with a test for that feature,
 you'll need to use `squash` or `fixup`:
