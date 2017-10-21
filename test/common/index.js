@@ -274,7 +274,7 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
   const localRelative = path.relative(process.cwd(), `${exports.tmpDir}/`);
   const pipePrefix = exports.isWindows ? '\\\\.\\pipe\\' : localRelative;
   const pipeName = `node-test.${process.pid}.sock`;
-  exports.PIPE = pipePrefix + pipeName;
+  exports.PIPE = path.join(pipePrefix, pipeName);
 }
 
 {
