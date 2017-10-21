@@ -16,14 +16,25 @@ support for HTTP/2 protocol features. It is specifically *not* designed for
 compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
+The `http2` Core API is much more symmetric between client and server than the
+`http` API. For instance, most events, like `error` and `socketError`, can be
+emitted either by client-side code or server-side code.
+
+### Server-side example
+
 The following illustrates a simple, plain-text HTTP/2 server using the
 Core API:
 
 ```js
 const http2 = require('http2');
+const fs = require('fs');
 
-// Create a plain-text HTTP/2 server
-const server = http2.createServer();
+const server = http2.createSecureServer({
+  key: fs.readFileSync("test/fixtures/keys/agent2-key.pem"),
+  cert: fs.readFileSync("test/fixtures/keys/agent2-cert.pem"),
+});
+server.on('error', (err) => console.error(err));
+server.on('socketError', (err) => console.error(err));
 
 server.on('stream', (stream, headers) => {
   // stream is a Duplex
@@ -34,34 +45,34 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8443);
 ```
 
-Note that the above example is an HTTP/2 server that does not support SSL.
-This is significant as most browsers support HTTP/2 only with SSL.
-To make the above server be able to serve content to browsers,
-replace `http2.createServer()` with
-`http2.createSecureServer({key: /* your SSL key */, cert: /* your SSL cert */})`.
+### Client-side example
 
 The following illustrates an HTTP/2 client:
 
 ```js
-const http2 = require('http2');
+var http2 = require('http2');
+const client = http2.connect('https://localhost');
+client.on('socketError', (err) => console.error(err))
+client.on('error', (err) => console.error(err))
 
-const client = http2.connect('http://localhost:80');
-
-// req is a Duplex
 const req = client.request({ ':path': '/' });
 
-req.on('response', (headers) => {
-  console.log(headers[':status']);
-  console.log(headers['date']);
+req.on('response', (headers, flags) => {
+  for (var name in headers) {
+    console.log(name + ": " + headers[name]);
+  }
 });
 
-let data = '';
-req.setEncoding('utf8');
-req.on('data', (d) => data += d);
-req.on('end', () => client.destroy());
+let data = []
+req.on('data', (d) => data.push(d));
+req.on('end', () => {
+  console.log();
+  console.log(Buffer.concat(data).toString('utf8'));
+  client.destroy()
+});
 req.end();
 ```
 
