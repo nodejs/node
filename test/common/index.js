@@ -32,7 +32,7 @@ exports.isFreeBSD = process.platform === 'freebsd';
 exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
-exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
+exports.enoughTestMem = os.totalmem() > 0x70000000; /* 1.75 Gb */
 
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
