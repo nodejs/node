@@ -41,17 +41,15 @@ if (cluster.isMaster) {
     worker.on('disconnect', common.mustCall());
     worker.on('exit', common.mustCall());
   });
-} else {
-  if (cluster.worker.id === 1) {
-    // Call destroy when worker is disconnected
-    cluster.worker.process.on('disconnect', function() {
-      cluster.worker.destroy();
-    });
-
-    const w = cluster.worker.disconnect();
-    assert.strictEqual(w, cluster.worker, 'did not return a reference');
-  } else {
-    // Call destroy when worker is not disconnected yet
+} else if (cluster.worker.id === 1) {
+  // Call destroy when worker is disconnected
+  cluster.worker.process.on('disconnect', function() {
     cluster.worker.destroy();
-  }
+  });
+
+  const w = cluster.worker.disconnect();
+  assert.strictEqual(w, cluster.worker);
+} else {
+  // Call destroy when worker is not disconnected yet
+  cluster.worker.destroy();
 }

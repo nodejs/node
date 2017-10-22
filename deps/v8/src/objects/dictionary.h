@@ -112,7 +112,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static const int kPrefixSize = 1;
+  static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
   static const bool kNeedsHoleCheck = false;
@@ -125,6 +125,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
  public:
   static const int kNextEnumerationIndexIndex =
       HashTableBase::kPrefixStartIndex;
+  static const int kObjectHashIndex = kNextEnumerationIndexIndex + 1;
   static const int kEntryValueIndex = 1;
 
   // Accessors for next enumeration index.
@@ -135,6 +136,16 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
 
   int NextEnumerationIndex() {
     return Smi::ToInt(this->get(kNextEnumerationIndexIndex));
+  }
+
+  void SetHash(int masked_hash) {
+    DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+    this->set(kObjectHashIndex, Smi::FromInt(masked_hash));
+  }
+
+  int Hash() const {
+    Object* hash_obj = this->get(kObjectHashIndex);
+    return Smi::ToInt(hash_obj);
   }
 
   // Creates a new dictionary.
@@ -171,7 +182,10 @@ class NameDictionary
 
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
+
   inline Name* NameAt(int entry);
+  inline void set_hash(int hash);
+  inline int hash() const;
 };
 
 class GlobalDictionaryShape : public NameDictionaryShape {

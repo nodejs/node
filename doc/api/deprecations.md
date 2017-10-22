@@ -719,6 +719,24 @@ The internal `path._makeLong()` was not intended for public use. However,
 userland modules have found it useful. The internal API has been deprecated
 and replaced with an identical, public `path.toNamespacedPath()` method.
 
+<a id="DEP0081"></a>
+### DEP0081: fs.truncate() using a file descriptor
+
+Type: Runtime
+
+`fs.truncate()` `fs.truncateSync()` usage with a file descriptor has been
+deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
+file descriptors.
+
+<a id="DEP0082"></a>
+### DEP0082: REPLServer.prototype.memory()
+
+Type: Runtime
+
+`REPLServer.prototype.memory()` is a function only necessary for the
+internal mechanics of the `REPLServer` itself, and is therefore not
+necessary in user space.
+
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

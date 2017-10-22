@@ -802,6 +802,12 @@ SETTINGS. By default, a maximum number of un-acknowledged `SETTINGS` frame may
 be sent at any given time. This error code is used when that limit has been
 reached.
 
+<a id="ERR_HTTP2_NO_SOCKET_MANIPULATION"></a>
+### ERR_HTTP2_NO_SOCKET_MANIPULATION
+
+Used when attempting to read, write, pause, and/or resume a socket attached to
+an `Http2Session`.
+
 <a id="ERR_HTTP2_OUT_OF_STREAMS"></a>
 ### ERR_HTTP2_OUT_OF_STREAMS
 
@@ -879,6 +885,31 @@ Used when `http2.connect()` is passed a URL that uses any protocol other than
 
 Used when a given index is out of the accepted range (e.g. negative offsets).
 
+<a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
+### ERR_INSPECTOR_ALREADY_CONNECTED
+
+When using the `inspector` module, the `ERR_INSPECTOR_ALREADY_CONNECTED` error
+code is used when an attempt is made to connect when the inspector is already
+connected.
+
+<a id="ERR_INSPECTOR_CLOSED"></a>
+### ERR_INSPECTOR_CLOSED
+
+When using the `inspector` module, the `ERR_INSPECTOR_CLOSED` error code is
+used when an attempt is made to use the inspector after the session has
+already closed.
+
+<a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
+### ERR_INSPECTOR_NOT_AVAILABLE
+
+Used to identify when the `inspector` module is not available for use.
+
+<a id="ERR_INSPECTOR_NOT_CONNECTED"></a>
+### ERR_INSPECTOR_NOT_CONNECTED
+
+When using the `inspector` module, the `ERR_INSPECTOR_NOT_CONNECTED` error code
+is used when an attempt is made to use the inspector before it is connected.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
@@ -933,6 +964,11 @@ Used when `hostname` can not be parsed from a provided URL.
 ### ERR_INVALID_FD
 
 Used when a file descriptor ('fd') is not valid (e.g. it has a negative value).
+
+<a id="ERR_INVALID_FD_TYPE"></a>
+### ERR_INVALID_FD_TYPE
+
+Used when a file descriptor ('fd') type is not valid.
 
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
@@ -1188,7 +1224,7 @@ Example
 const Socket = require('net').Socket;
 const instance = new Socket();
 
-instance.setEncoding('utf-8');
+instance.setEncoding('utf8');
 ```
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
@@ -1244,6 +1280,12 @@ buffer.
 ### ERR_UNESCAPED_CHARACTERS
 
 Used when a string that contains unescaped characters was received.
+
+<a id="ERR_UNHANDLED_ERROR"></a>
+### ERR_UNHANDLED_ERROR
+
+Used when an unhandled "error" occurs (for instance, when an `'error'` event
+is emitted by an `EventEmitter` but an `'error'` handler is not registered).
 
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING

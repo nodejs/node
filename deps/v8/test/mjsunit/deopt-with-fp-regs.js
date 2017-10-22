@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt --no-stress-fullcodegen
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 deopt_trigger = 0;
 side_effect = 0;

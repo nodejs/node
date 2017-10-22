@@ -10,7 +10,7 @@
 namespace node {
 
 template <typename WrapType, typename UVType>
-class ConnectionWrap : public StreamWrap {
+class ConnectionWrap : public LibuvStreamWrap {
  public:
   UVType* UVHandle() {
     return &handle_;

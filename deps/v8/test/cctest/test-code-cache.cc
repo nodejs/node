@@ -6,7 +6,6 @@
 
 #include "src/factory.h"
 #include "src/isolate.h"
-#include "src/list.h"
 #include "src/objects.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/factory.h -> src/objects-inl.h
@@ -52,11 +51,13 @@ TEST(CodeCache) {
   static const int kEntries = 150;
 
   // Prepare name/code pairs.
-  List<Handle<Name>> names(kEntries);
-  List<Handle<Code>> codes(kEntries);
+  std::vector<Handle<Name>> names;
+  std::vector<Handle<Code>> codes;
+  names.reserve(kEntries);
+  codes.reserve(kEntries);
   for (int i = 0; i < kEntries; i++) {
-    names.Add(isolate->factory()->NewSymbol());
-    codes.Add(GetDummyCode(isolate));
+    names.push_back(isolate->factory()->NewSymbol());
+    codes.push_back(GetDummyCode(isolate));
   }
   Handle<Name> bad_name = isolate->factory()->NewSymbol();
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState);

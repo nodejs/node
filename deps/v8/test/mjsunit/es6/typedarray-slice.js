@@ -124,7 +124,7 @@ function testCustomSubclass(superClass, speciesClass) {
   // Custom constructor with shared buffer.
   exampleArray =  new Array(64).fill(0).map((v,i) => i);
   let filledBuffer = new Uint8Array(exampleArray).buffer;
-  // Create a view for the begining of the buffer.
+  // Create a view for the beginning of the buffer.
   let customArray2 = new superClass(filledBuffer, 0, 3);
   customArray2.constructor = {
     [Symbol.species]: function(length) {

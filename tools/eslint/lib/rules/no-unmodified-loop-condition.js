@@ -213,13 +213,13 @@ function getEncloseFunctionDeclaration(reference) {
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
-    let funcNode, funcVar;
 
     for (let i = 0; i < conditions.length; ++i) {
         const condition = conditions[i];
 
         for (let j = 0; !condition.modified && j < modifiers.length; ++j) {
             const modifier = modifiers[j];
+            let funcNode, funcVar;
 
             /*
              * Besides checking for the condition being in the loop, we want to

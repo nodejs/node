@@ -15,7 +15,7 @@ var d;
 function baz() { return 'baz'; }
 
 function test(arg) {
-  // All operands are constant folded by native context
+  // All add operations are constant folded by native context
   // specialization / inlining.
   a = '"' + foo + '-' + bar + '"';
   b = '"' + foo + '-' + baz() + '"';
@@ -23,7 +23,7 @@ function test(arg) {
   // Reduce down to a JSAdd of folded constant + arg.
   c = foo + bar + arg;
 
-  // Reduces to a StringConcat with three operands.
+  // Reduces to two JSAdds with other arguments constant folded.
   d = '"' + foo + arg + bar + '"';
 }
 

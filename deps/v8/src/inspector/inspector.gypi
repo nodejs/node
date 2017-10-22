@@ -27,21 +27,16 @@
 
     'inspector_injected_script_source': 'injected-script-source.js',
     'inspector_generated_injected_script': '<(SHARED_INTERMEDIATE_DIR)/src/inspector/injected-script-source.h',
-    'inspector_debugger_script_source': 'debugger-script.js',
-    'inspector_generated_debugger_script': '<(SHARED_INTERMEDIATE_DIR)/src/inspector/debugger-script.h',
 
     'inspector_all_sources': [
       '<@(inspector_generated_sources)',
       '<(inspector_generated_injected_script)',
-      '<(inspector_generated_debugger_script)',
       '../../include/v8-inspector.h',
       '../../include/v8-inspector-protocol.h',
       'inspector/injected-script.cc',
       'inspector/injected-script.h',
       'inspector/inspected-context.cc',
       'inspector/inspected-context.h',
-      'inspector/java-script-call-frame.cc',
-      'inspector/java-script-call-frame.h',
       'inspector/remote-object-id.cc',
       'inspector/remote-object-id.h',
       'inspector/script-breakpoint.h',
@@ -87,8 +82,8 @@
       'inspector/v8-schema-agent-impl.h',
       'inspector/v8-stack-trace-impl.cc',
       'inspector/v8-stack-trace-impl.h',
-      'inspector/v8-value-copier.cc',
-      'inspector/v8-value-copier.h',
+      'inspector/v8-value-utils.cc',
+      'inspector/v8-value-utils.h',
       'inspector/wasm-translation.cc',
       'inspector/wasm-translation.h',
     ]

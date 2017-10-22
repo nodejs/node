@@ -66,13 +66,12 @@ V8InspectorImpl::~V8InspectorImpl() {
   v8::debug::SetConsoleDelegate(m_isolate, nullptr);
 }
 
-int V8InspectorImpl::contextGroupId(v8::Local<v8::Context> context) {
+int V8InspectorImpl::contextGroupId(v8::Local<v8::Context> context) const {
   return contextGroupId(InspectedContext::contextId(context));
 }
 
-int V8InspectorImpl::contextGroupId(int contextId) {
-  protocol::HashMap<int, int>::iterator it =
-      m_contextIdToGroupIdMap.find(contextId);
+int V8InspectorImpl::contextGroupId(int contextId) const {
+  auto it = m_contextIdToGroupIdMap.find(contextId);
   return it != m_contextIdToGroupIdMap.end() ? it->second : 0;
 }
 
@@ -176,6 +175,10 @@ InspectedContext* V8InspectorImpl::getContext(int groupId,
   if (contextIt == contextGroupIt->second->end()) return nullptr;
 
   return contextIt->second.get();
+}
+
+InspectedContext* V8InspectorImpl::getContext(int contextId) const {
+  return getContext(contextGroupId(contextId), contextId);
 }
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
@@ -286,18 +289,22 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::captureStackTrace(
 
 void V8InspectorImpl::asyncTaskScheduled(const StringView& taskName, void* task,
                                          bool recurring) {
+  if (!task) return;
   m_debugger->asyncTaskScheduled(taskName, task, recurring);
 }
 
 void V8InspectorImpl::asyncTaskCanceled(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskCanceled(task);
 }
 
 void V8InspectorImpl::asyncTaskStarted(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskStarted(task);
 }
 
 void V8InspectorImpl::asyncTaskFinished(void* task) {
+  if (!task) return;
   m_debugger->asyncTaskFinished(task);
 }
 

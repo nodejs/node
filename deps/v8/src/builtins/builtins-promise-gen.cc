@@ -28,8 +28,7 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
 }
 
 void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kStatusOffset,
-                                 SmiConstant(v8::Promise::kPending));
+  STATIC_ASSERT(v8::Promise::kPending == 0);
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
                                  SmiConstant(0));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
@@ -56,17 +55,14 @@ Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context,
   return instance;
 }
 
-Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(Node* context,
-                                                        Node* status,
-                                                        Node* result) {
-  CSA_ASSERT(this, TaggedIsSmi(status));
-
+Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
+    Node* context, v8::Promise::PromiseState status, Node* result) {
   Node* const instance = AllocateJSPromise(context);
 
-  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kStatusOffset, status);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kResultOffset, result);
+  STATIC_ASSERT(JSPromise::kStatusShift == 0);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
-                                 SmiConstant(0));
+                                 SmiConstant(status));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
     int offset = JSPromise::kSize + i * kPointerSize;
     StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(0));
@@ -281,6 +277,29 @@ void PromiseBuiltinsAssembler::PromiseSetHasHandler(Node* promise) {
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
+Node* PromiseBuiltinsAssembler::IsPromiseStatus(
+    Node* actual, v8::Promise::PromiseState expected) {
+  return Word32Equal(actual, Int32Constant(expected));
+}
+
+Node* PromiseBuiltinsAssembler::PromiseStatus(Node* promise) {
+  STATIC_ASSERT(JSPromise::kStatusShift == 0);
+  Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
+  return Word32And(SmiToWord32(flags), Int32Constant(JSPromise::kStatusMask));
+}
+
+void PromiseBuiltinsAssembler::PromiseSetStatus(
+    Node* promise, v8::Promise::PromiseState const status) {
+  CSA_ASSERT(this,
+             IsPromiseStatus(PromiseStatus(promise), v8::Promise::kPending));
+  CHECK(status != v8::Promise::kPending);
+
+  Node* mask = SmiConstant(status);
+  Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
+                                 SmiOr(flags, mask));
+}
+
 void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
   Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
   Node* const new_flags =
@@ -461,9 +480,8 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
   BIND(&append_callbacks);
   {
     Label fulfilled_check(this);
-    Node* const status = LoadObjectField(promise, JSPromise::kStatusOffset);
-    GotoIfNot(SmiEqual(status, SmiConstant(v8::Promise::kPending)),
-              &fulfilled_check);
+    Node* const status = PromiseStatus(promise);
+    GotoIfNot(IsPromiseStatus(status, v8::Promise::kPending), &fulfilled_check);
 
     Node* const existing_deferred_promise =
         LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
@@ -566,8 +584,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     {
       Label reject(this);
       Node* const result = LoadObjectField(promise, JSPromise::kResultOffset);
-      GotoIfNot(WordEqual(status, SmiConstant(v8::Promise::kFulfilled)),
-                &reject);
+      GotoIfNot(IsPromiseStatus(status, v8::Promise::kFulfilled), &reject);
 
       Node* info = AllocatePromiseReactionJobInfo(
           result, var_on_resolve.value(), deferred_promise, deferred_on_resolve,
@@ -578,6 +595,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 
       BIND(&reject);
       {
+        CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
         Node* const has_handler = PromiseHasHandler(promise);
         Label enqueue(this);
 
@@ -639,7 +657,7 @@ void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(LoadMapPrototype(map));
+  Node* const proto_map = LoadMap(CAST(LoadMapPrototype(map)));
   Node* const proto_has_initialmap =
       WordEqual(proto_map, initial_proto_initial_map);
 
@@ -700,13 +718,12 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   // reusing the value from the promise.
   BIND(&if_nativepromise);
   {
-    Node* const thenable_status =
-        LoadObjectField(result, JSPromise::kStatusOffset);
+    Node* const thenable_status = PromiseStatus(result);
     Node* const thenable_value =
         LoadObjectField(result, JSPromise::kResultOffset);
 
     Label if_isnotpending(this);
-    GotoIfNot(SmiEqual(SmiConstant(v8::Promise::kPending), thenable_status),
+    GotoIfNot(IsPromiseStatus(thenable_status, v8::Promise::kPending),
               &if_isnotpending);
 
     // TODO(gsathya): Use a marker here instead of the actual then
@@ -720,7 +737,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     BIND(&if_isnotpending);
     {
       Label if_fulfilled(this), if_rejected(this);
-      Branch(SmiEqual(SmiConstant(v8::Promise::kFulfilled), thenable_status),
+      Branch(IsPromiseStatus(thenable_status, v8::Promise::kFulfilled),
              &if_fulfilled, &if_rejected);
 
       BIND(&if_fulfilled);
@@ -837,7 +854,6 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
     v8::Promise::PromiseState status) {
   Label do_promisereset(this), debug_async_event_enqueue_recurring(this);
 
-  Node* const status_smi = SmiConstant(static_cast<int>(status));
   Node* const deferred_promise =
       LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
 
@@ -864,13 +880,13 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
   {
     GotoIfNot(IsDebugActive(), &do_promisereset);
     CallRuntime(Runtime::kDebugAsyncEventEnqueueRecurring, context, promise,
-                status_smi);
+                SmiConstant(status));
     Goto(&do_promisereset);
   }
 
   BIND(&do_promisereset);
   {
-    StoreObjectField(promise, JSPromise::kStatusOffset, status_smi);
+    PromiseSetStatus(promise, status);
     StoreObjectField(promise, JSPromise::kResultOffset, result);
     StoreObjectFieldRoot(promise, JSPromise::kDeferredPromiseOffset,
                          Heap::kUndefinedValueRootIndex);
@@ -1517,8 +1533,8 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
   BIND(&if_nativepromise);
   {
-    Node* const promise = AllocateAndSetJSPromise(
-        context, SmiConstant(v8::Promise::kRejected), reason);
+    Node* const promise =
+        AllocateAndSetJSPromise(context, v8::Promise::kRejected, reason);
     CallRuntime(Runtime::kPromiseRejectEventFromStack, context, promise,
                 reason);
     Return(promise);
@@ -1552,18 +1568,12 @@ TF_BUILTIN(InternalPromiseReject, PromiseBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
-Node* PromiseBuiltinsAssembler::CreatePromiseFinallyContext(
-    Node* on_finally, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, on_finally);
-  return context;
-}
-
 std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
     Node* on_finally, Node* native_context) {
   Node* const promise_context =
-      CreatePromiseFinallyContext(on_finally, native_context);
+      CreatePromiseContext(native_context, kPromiseFinallyContextLength);
+  StoreContextElementNoWriteBarrier(promise_context, kOnFinallySlot,
+                                    on_finally);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const then_finally_info = LoadContextElement(
@@ -1580,22 +1590,15 @@ std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
 TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const value = LoadContextElement(context, kOnFinallySlot);
+  Node* const value = LoadContextElement(context, kValueSlot);
   Return(value);
-}
-
-Node* PromiseBuiltinsAssembler::CreateValueThunkFunctionContext(
-    Node* value, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, value);
-  return context;
 }
 
 Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
                                                          Node* native_context) {
-  Node* const value_thunk_context =
-      CreateValueThunkFunctionContext(value, native_context);
+  Node* const value_thunk_context = CreatePromiseContext(
+      native_context, kPromiseValueThunkOrReasonContextLength);
+  StoreContextElementNoWriteBarrier(value_thunk_context, kValueSlot, value);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const value_thunk_info = LoadContextElement(
@@ -1640,23 +1643,16 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const reason = LoadContextElement(context, kOnFinallySlot);
+  Node* const reason = LoadContextElement(context, kValueSlot);
   CallRuntime(Runtime::kThrow, context, reason);
   Unreachable();
 }
 
-Node* PromiseBuiltinsAssembler::CreateThrowerFunctionContext(
-    Node* reason, Node* native_context) {
-  Node* const context =
-      CreatePromiseContext(native_context, kOnFinallyContextLength);
-  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, reason);
-  return context;
-}
-
 Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
                                                       Node* native_context) {
-  Node* const thrower_context =
-      CreateThrowerFunctionContext(reason, native_context);
+  Node* const thrower_context = CreatePromiseContext(
+      native_context, kPromiseValueThunkOrReasonContextLength);
+  StoreContextElementNoWriteBarrier(thrower_context, kValueSlot, reason);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const thrower_info = LoadContextElement(

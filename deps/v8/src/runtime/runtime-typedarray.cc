@@ -110,6 +110,123 @@ enum TypedArraySetResultCodes {
   TYPED_ARRAY_SET_NON_TYPED_ARRAY = 3
 };
 
+// TypedArraySetFromArrayLike(target, source, source_length, offset);
+RUNTIME_FUNCTION(Runtime_TypedArraySetFromArrayLike) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
+
+  CONVERT_INT32_ARG_CHECKED(source_length, 2);
+  DCHECK_GE(source_length, 0);
+
+  CONVERT_INT32_ARG_CHECKED(offset, 3);
+  DCHECK_GE(offset, 0);
+
+  for (int i = 0; i < source_length; i++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::GetElement(isolate, source, i));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + i, value,
+                           LanguageMode::STRICT));
+  }
+
+  return *target;
+}
+
+// TypedArraySetFromOverlappingTypedArray(target, source, offset);
+RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
+
+  CONVERT_INT32_ARG_CHECKED(offset, 2);
+  DCHECK_GE(offset, 0);
+
+  size_t sourceElementSize = source->element_size();
+  size_t targetElementSize = target->element_size();
+
+  uint32_t source_length = source->length_value();
+  if (source_length == 0) return *target;
+
+  // Copy left part.
+
+  // First un-mutated byte after the next write
+  uint32_t target_ptr = 0;
+  CHECK(target->byte_offset()->ToUint32(&target_ptr));
+  target_ptr += (offset + 1) * targetElementSize;
+
+  // Next read at sourcePtr. We do not care for memory changing before
+  // sourcePtr - we have already copied it.
+  uint32_t source_ptr = 0;
+  CHECK(source->byte_offset()->ToUint32(&source_ptr));
+
+  uint32_t left_index;
+  for (left_index = 0; left_index < source_length && target_ptr <= source_ptr;
+       left_index++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value, Object::GetElement(isolate, source, left_index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + left_index, value,
+                           LanguageMode::STRICT));
+
+    target_ptr += targetElementSize;
+    source_ptr += sourceElementSize;
+  }
+
+  // Copy right part;
+  // First unmutated byte before the next write
+  CHECK(target->byte_offset()->ToUint32(&target_ptr));
+  target_ptr += (offset + source_length - 1) * targetElementSize;
+
+  // Next read before sourcePtr. We do not care for memory changing after
+  // sourcePtr - we have already copied it.
+  CHECK(target->byte_offset()->ToUint32(&source_ptr));
+  source_ptr += source_length * sourceElementSize;
+
+  uint32_t right_index;
+  DCHECK_GE(source_length, 1);
+  for (right_index = source_length - 1;
+       right_index > left_index && target_ptr >= source_ptr; right_index--) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value, Object::GetElement(isolate, source, right_index));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + right_index, value,
+                           LanguageMode::STRICT));
+
+    target_ptr -= targetElementSize;
+    source_ptr -= sourceElementSize;
+  }
+
+  std::vector<Handle<Object>> temp(right_index + 1 - left_index);
+
+  for (uint32_t i = left_index; i <= right_index; i++) {
+    Handle<Object> value;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                       Object::GetElement(isolate, source, i));
+    temp[i - left_index] = value;
+  }
+
+  for (uint32_t i = left_index; i <= right_index; i++) {
+    Handle<Object> value;
+
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        Object::SetElement(isolate, target, offset + i, temp[i - left_index],
+                           LanguageMode::STRICT));
+  }
+
+  return *target;
+}
 
 RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
@@ -123,12 +240,10 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
     return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
   }
 
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target_obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source_obj, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 2);
 
-  Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
-  Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
   size_t offset = 0;
   CHECK(TryNumberToSize(*offset_obj, &offset));
   size_t target_length = target->length_value();

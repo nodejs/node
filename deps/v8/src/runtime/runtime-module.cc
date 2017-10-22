@@ -18,8 +18,17 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   CONVERT_ARG_HANDLE_CHECKED(Object, specifier, 1);
 
   Handle<Script> script(Script::cast(function->shared()->script()));
-  Handle<String> source_url(String::cast(script->name()));
 
+  while (script->eval_from_shared()->IsSharedFunctionInfo()) {
+    script = handle(
+        Script::cast(
+            SharedFunctionInfo::cast(script->eval_from_shared())->script()),
+        isolate);
+  }
+
+  // TODO(gsathya): Check if script name is a string before casting
+  // and return undefined if not.
+  Handle<String> source_url(String::cast(script->name()));
   RETURN_RESULT_OR_FAILURE(
       isolate,
       isolate->RunHostImportModuleDynamicallyCallback(source_url, specifier));

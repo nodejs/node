@@ -1437,9 +1437,12 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} An error.
-* `callback` {Function} A callback function that takes an optional error argument
-  which is invoked when the writable is destroyed.
+* `err` {Error} A possible error.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
+It can be overriden by child classes but it **must not** be called directly.
 
 #### writable.\_final(callback)
 <!-- YAML
@@ -1606,9 +1609,12 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} An error.
+* `err` {Error} A possible error.
 * `callback` {Function} A callback function that takes an optional error
-  argument which is invoked when the readable is destroyed.
+  argument.
+
+The `_destroy()` method is called by [`readable.destroy()`][readable-destroy].
+It can be overriden by child classes but it **must not** be called directly.
 
 #### readable.push(chunk[, encoding])
 <!-- YAML
@@ -2232,4 +2238,6 @@ contain multi-byte characters.
 [stream-resume]: #stream_readable_resume
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [readable-_destroy]: #stream_readable_destroy_err_callback
+[readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
+[writable-destroy]: #stream_writable_destroy_error

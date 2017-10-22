@@ -73,22 +73,6 @@ class BytecodeRegisterAllocator final {
     return reg;
   }
 
-  // Releases the last register in |reg_list|, decreasing it's count by one and
-  // returning the register released.
-  //
-  // Note: no other new registers must be currently allocated since the register
-  // list was originally allocated or grown.
-  Register ShrinkRegisterList(RegisterList* reg_list) {
-    // If the following CHECK fails then a register was allocated (and not
-    // freed) between the creation of the RegisterList and this call to release
-    // the Register.
-    Register last_reg = reg_list->last_register();
-    CHECK_EQ(last_reg.index(), next_register_index_ - 1);
-    reg_list->DecrementRegisterCount();
-    ReleaseRegisters(next_register_index_ - 1);
-    return last_reg;
-  }
-
   // Release all registers above |register_index|.
   void ReleaseRegisters(int register_index) {
     int count = next_register_index_ - register_index;

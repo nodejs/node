@@ -21,7 +21,6 @@
 namespace v8 {
 namespace internal {
 
-
 // -----------------------------------------------------------------------------
 // Registers.
 // clang-format off
@@ -70,6 +69,23 @@ namespace internal {
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
+const int kNumRegs = kNumberOfRegisters;
+// Registers x0-x17 are caller-saved.
+const int kNumJSCallerSaved = 18;
+const RegList kJSCallerSaved = 0x3ffff;
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of eight.
+// TODO(all): Refine this number.
+const int kNumSafepointRegisters = 32;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+#define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
+#define kNumSafepointSavedRegisters \
+  CPURegList::GetSafepointSavedRegisters().Count();
+
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
 struct Register;
@@ -110,7 +126,7 @@ struct CPURegister {
 
   int code() const;
   RegisterType type() const;
-  RegList Bit() const;
+  RegList bit() const;
   int SizeInBits() const;
   int SizeInBytes() const;
   bool Is8Bits() const;
@@ -485,12 +501,11 @@ typedef VRegister Simd128Register;
 // Lists of registers.
 class CPURegList {
  public:
-  explicit CPURegList(CPURegister reg1,
-                      CPURegister reg2 = NoCPUReg,
-                      CPURegister reg3 = NoCPUReg,
-                      CPURegister reg4 = NoCPUReg)
-      : list_(reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit()),
-        size_(reg1.SizeInBits()), type_(reg1.type()) {
+  explicit CPURegList(CPURegister reg1, CPURegister reg2 = NoCPUReg,
+                      CPURegister reg3 = NoCPUReg, CPURegister reg4 = NoCPUReg)
+      : list_(reg1.bit() | reg2.bit() | reg3.bit() | reg4.bit()),
+        size_(reg1.SizeInBits()),
+        type_(reg1.type()) {
     DCHECK(AreSameSizeAndType(reg1, reg2, reg3, reg4));
     DCHECK(IsValid());
   }
@@ -581,10 +596,10 @@ class CPURegList {
                        const CPURegister& other4 = NoCPUReg) const {
     DCHECK(IsValid());
     RegList list = 0;
-    if (!other1.IsNone() && (other1.type() == type_)) list |= other1.Bit();
-    if (!other2.IsNone() && (other2.type() == type_)) list |= other2.Bit();
-    if (!other3.IsNone() && (other3.type() == type_)) list |= other3.Bit();
-    if (!other4.IsNone() && (other4.type() == type_)) list |= other4.Bit();
+    if (!other1.IsNone() && (other1.type() == type_)) list |= other1.bit();
+    if (!other2.IsNone() && (other2.type() == type_)) list |= other2.bit();
+    if (!other3.IsNone() && (other3.type() == type_)) list |= other3.bit();
+    if (!other4.IsNone() && (other4.type() == type_)) list |= other4.bit();
     return (list_ & list) != 0;
   }
 
@@ -1003,13 +1018,6 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 0;
-
-  // Number of instructions necessary to be able to later patch it to a call.
-  static constexpr int kDebugBreakSlotInstructions = 5;
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstructionSize;
-
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
   // number of calls to EndBlockConstpool.
@@ -1057,9 +1065,6 @@ class Assembler : public AssemblerBase {
                          int id);
 
   int buffer_space() const;
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record the emission of a constant pool.
   //

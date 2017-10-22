@@ -10,13 +10,6 @@
 #endif
 
 #include "node_debug_options.h"
-
-// Forward declaration to break recursive dependency chain with src/env.h.
-namespace node {
-class Environment;
-class NodePlatform;
-}  // namespace node
-
 #include "v8.h"
 
 namespace v8_inspector {
@@ -24,6 +17,10 @@ class StringView;
 }  // namespace v8_inspector
 
 namespace node {
+// Forward declaration to break recursive dependency chain with src/env.h.
+class Environment;
+class NodePlatform;
+
 namespace inspector {
 
 class InspectorSessionDelegate {
@@ -52,7 +49,7 @@ class Agent {
 
   // IO thread started, and client connected
   bool IsConnected();
-
+  bool IsWaitingForConnect();
 
   void WaitForDisconnect();
   void FatalException(v8::Local<v8::Value> error,
@@ -81,12 +78,6 @@ class Agent {
   void RunMessageLoop();
   bool enabled() { return enabled_; }
   void PauseOnNextJavascriptStatement(const std::string& reason);
-
-  // Initialize 'inspector' module bindings
-  static void InitInspector(v8::Local<v8::Object> target,
-                            v8::Local<v8::Value> unused,
-                            v8::Local<v8::Context> context,
-                            void* priv);
 
   InspectorIo* io() {
     return io_.get();

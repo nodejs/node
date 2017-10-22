@@ -89,6 +89,6 @@ function next(er, input) {
       break;
 
     default:
-      throw new Error('Invalid format: ' + format);
+      throw new Error(`Invalid format: ${format}`);
   }
 }

@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
@@ -62,7 +63,7 @@ if (common.isWindows) {
   // Test resolving the current Windows drive letter from a spawned process.
   // See https://github.com/nodejs/node/issues/7215
   const currentDriveLetter = path.parse(process.cwd()).root.substring(0, 2);
-  const resolveFixture = path.join(common.fixturesDir, 'path-resolve.js');
+  const resolveFixture = fixtures.path('path-resolve.js');
   const spawnResult = child.spawnSync(
     process.argv[0], [resolveFixture, currentDriveLetter]);
   const resolvedPath = spawnResult.stdout.toString().trim();

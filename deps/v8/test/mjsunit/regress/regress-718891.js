@@ -20,7 +20,7 @@ function TestDontSelfHealWithDeoptedCode(run_unoptimized, ClosureFactory) {
     unoptimized_closure();
   }
 
-  // Run and optimize the code (do this in a seperate function
+  // Run and optimize the code (do this in a separate function
   // so that the closure doesn't leak in a dead register).
   (() => {
     var optimized_closure = ClosureFactory();

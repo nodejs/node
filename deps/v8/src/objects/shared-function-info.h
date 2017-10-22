@@ -201,9 +201,6 @@ class SharedFunctionInfo : public HeapObject {
   bool HasCoverageInfo() const;
   CoverageInfo* GetCoverageInfo() const;
 
-  // A function has debug code if the compiled code has debug break slots.
-  inline bool HasDebugCode() const;
-
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
 
@@ -253,7 +250,7 @@ class SharedFunctionInfo : public HeapObject {
   // The function cannot cause any side effects.
   bool HasNoSideEffect();
 
-  // Used for flags such as --hydrogen-filter.
+  // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
 
   // Position of the 'function' token in the script source.
@@ -278,22 +275,8 @@ class SharedFunctionInfo : public HeapObject {
   // drive optimization.
   DECL_INT_ACCESSORS(compiler_hints)
 
-  DECL_INT_ACCESSORS(ast_node_count)
-
-  DECL_INT_ACCESSORS(profiler_ticks)
-
-  // Inline cache age is used to infer whether the function survived a context
-  // disposal or not. In the former case we reset the opt_count.
-  DECL_INT_ACCESSORS(ic_age)
-
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
-
-  // Indicates whether optimizations have been disabled for this
-  // shared function info. If a function is repeatedly optimized or if
-  // we cannot optimize the function we disable optimization to avoid
-  // spending time attempting to optimize it again.
-  DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates the language mode.
   inline LanguageMode language_mode();
@@ -314,9 +297,6 @@ class SharedFunctionInfo : public HeapObject {
   // Indicate that this function should always be inlined in optimized code.
   DECL_BOOLEAN_ACCESSORS(force_inline)
 
-  // Indicates that this function is an asm function.
-  DECL_BOOLEAN_ACCESSORS(asm_function)
-
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
@@ -329,8 +309,20 @@ class SharedFunctionInfo : public HeapObject {
   // this shared function info.
   DECL_INT_ACCESSORS(function_map_index)
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic.
+  inline void clear_padding();
+
   // Recalculates the |map_index| value after modifications of this shared info.
   inline void UpdateFunctionMapIndex();
+
+  // Indicates whether optimizations have been disabled for this shared function
+  // info. If we cannot optimize the function we disable optimization to avoid
+  // spending time attempting to optimize it again.
+  inline bool optimization_disabled() const;
+
+  // The reason why optimization was disabled.
+  inline BailoutReason disable_optimization_reason() const;
 
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
@@ -340,29 +332,6 @@ class SharedFunctionInfo : public HeapObject {
   bool HasSourceCode() const;
   Handle<Object> GetSourceCode();
   Handle<Object> GetSourceCodeHarmony();
-
-  // Number of times the function was optimized.
-  DECL_INT_ACCESSORS(opt_count)
-
-  // Number of times the function was deoptimized.
-  DECL_INT_ACCESSORS(deopt_count)
-  inline void increment_deopt_count();
-
-  // Number of time we tried to re-enable optimization after it
-  // was disabled due to high number of deoptimizations.
-  DECL_INT_ACCESSORS(opt_reenable_tries)
-
-  inline void TryReenableOptimization();
-
-  // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
-  inline void set_counters(int value);
-  inline int counters() const;
-
-  // Stores opt_count and bailout_reason as bit-fields.
-  DECL_INT_ACCESSORS(opt_count_and_bailout_reason)
-
-  inline BailoutReason disable_optimization_reason() const;
-  inline void set_disable_optimization_reason(BailoutReason reason);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();
@@ -391,8 +360,9 @@ class SharedFunctionInfo : public HeapObject {
   // Dispatched behavior.
   DECL_PRINTER(SharedFunctionInfo)
   DECL_VERIFIER(SharedFunctionInfo)
-
-  void ResetForNewContext(int new_ic_age);
+#ifdef OBJECT_PRINT
+  void PrintSourceCode(std::ostream& os);
+#endif
 
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {
@@ -438,36 +408,32 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
 // Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)           \
-  /* Pointer fields. */                          \
-  V(kCodeOffset, kPointerSize)                   \
-  V(kNameOffset, kPointerSize)                   \
-  V(kScopeInfoOffset, kPointerSize)              \
-  V(kOuterScopeInfoOffset, kPointerSize)         \
-  V(kConstructStubOffset, kPointerSize)          \
-  V(kInstanceClassNameOffset, kPointerSize)      \
-  V(kFunctionDataOffset, kPointerSize)           \
-  V(kScriptOffset, kPointerSize)                 \
-  V(kDebugInfoOffset, kPointerSize)              \
-  V(kFunctionIdentifierOffset, kPointerSize)     \
-  V(kFeedbackMetadataOffset, kPointerSize)       \
-  V(kPreParsedScopeDataOffset, kPointerSize)     \
-  V(kEndOfPointerFieldsOffset, 0)                \
-  /* Raw data fields. */                         \
-  V(kFunctionLiteralIdOffset, kInt32Size)        \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)         \
-  V(kLengthOffset, kInt32Size)                   \
-  V(kFormalParameterCountOffset, kInt32Size)     \
-  V(kExpectedNofPropertiesOffset, kInt32Size)    \
-  V(kStartPositionAndTypeOffset, kInt32Size)     \
-  V(kEndPositionOffset, kInt32Size)              \
-  V(kFunctionTokenPositionOffset, kInt32Size)    \
-  V(kCompilerHintsOffset, kInt32Size)            \
-  V(kOptCountAndBailoutReasonOffset, kInt32Size) \
-  V(kCountersOffset, kInt32Size)                 \
-  V(kAstNodeCountOffset, kInt32Size)             \
-  V(kProfilerTicksOffset, kInt32Size)            \
-  /* Total size. */                              \
+#define SHARED_FUNCTION_INFO_FIELDS(V)        \
+  /* Pointer fields. */                       \
+  V(kCodeOffset, kPointerSize)                \
+  V(kNameOffset, kPointerSize)                \
+  V(kScopeInfoOffset, kPointerSize)           \
+  V(kOuterScopeInfoOffset, kPointerSize)      \
+  V(kConstructStubOffset, kPointerSize)       \
+  V(kInstanceClassNameOffset, kPointerSize)   \
+  V(kFunctionDataOffset, kPointerSize)        \
+  V(kScriptOffset, kPointerSize)              \
+  V(kDebugInfoOffset, kPointerSize)           \
+  V(kFunctionIdentifierOffset, kPointerSize)  \
+  V(kFeedbackMetadataOffset, kPointerSize)    \
+  V(kPreParsedScopeDataOffset, kPointerSize)  \
+  V(kEndOfPointerFieldsOffset, 0)             \
+  /* Raw data fields. */                      \
+  V(kFunctionLiteralIdOffset, kInt32Size)     \
+  V(kUniqueIdOffset, kUniqueIdFieldSize)      \
+  V(kLengthOffset, kInt32Size)                \
+  V(kFormalParameterCountOffset, kInt32Size)  \
+  V(kExpectedNofPropertiesOffset, kInt32Size) \
+  V(kStartPositionAndTypeOffset, kInt32Size)  \
+  V(kEndPositionOffset, kInt32Size)           \
+  V(kFunctionTokenPositionOffset, kInt32Size) \
+  V(kCompilerHintsOffset, kInt32Size)         \
+  /* Total size. */                           \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -496,18 +462,19 @@ class SharedFunctionInfo : public HeapObject {
   V(FunctionKindBits, FunctionKind, 10, _) \
   V(HasDuplicateParametersBit, bool, 1, _) \
   V(AllowLazyCompilationBit, bool, 1, _)   \
-  V(OptimizationDisabledBit, bool, 1, _)   \
   V(UsesArgumentsBit, bool, 1, _)          \
   V(NeedsHomeObjectBit, bool, 1, _)        \
   V(ForceInlineBit, bool, 1, _)            \
-  V(IsAsmFunctionBit, bool, 1, _)          \
   V(IsDeclarationBit, bool, 1, _)          \
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
   V(FunctionMapIndexBits, int, 5, _)       \
-  /* Bits 26-31 are unused. */
+  V(DisabledOptimizationReasonBits, BailoutReason, 7, _)
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
+
+  // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
+  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
 
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
@@ -529,23 +496,6 @@ class SharedFunctionInfo : public HeapObject {
 
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
 #undef DEBUGGER_HINTS_BIT_FIELDS
-
-// Bit fields in |counters|.
-#define COUNTERS_BIT_FIELDS(V, _)     \
-  V(DeoptCountBits, int, 4, _)        \
-  V(OptReenableTriesBits, int, 18, _) \
-  V(ICAgeBits, int, 8, _)
-
-  DEFINE_BIT_FIELDS(COUNTERS_BIT_FIELDS)
-#undef COUNTERS_BIT_FIELDS
-
-// Bit fields in |opt_count_and_bailout_reason|.
-#define OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS(V, _) \
-  V(OptCountBits, int, 22, _)                         \
-  V(DisabledOptimizationReasonBits, BailoutReason, 8, _)
-
-  DEFINE_BIT_FIELDS(OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS)
-#undef OPT_COUNT_AND_BAILOUT_REASON_BIT_FIELDS
 
  private:
   // [raw_name]: Function name string or kNoSharedNameSentinel.

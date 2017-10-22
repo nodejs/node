@@ -21,18 +21,16 @@
 
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
 // test creating and reading symbolic link
-const linkData = path.join(common.fixturesDir, 'cycles/');
+const linkData = fixtures.path('cycles/');
 const linkPath = path.join(common.tmpDir, 'cycles_link');
 
 common.refreshTmpDir();
-
-console.log(`linkData: ${linkData}`);
-console.log(`linkPath: ${linkPath}`);
 
 fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
   assert.ifError(err);

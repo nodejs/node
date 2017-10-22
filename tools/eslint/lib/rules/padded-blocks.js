@@ -111,7 +111,7 @@ module.exports = {
          * @returns {boolean} Whether or not the token is followed by a blank line.
          */
         function getFirstBlockToken(token) {
-            let prev = token,
+            let prev,
                 first = token;
 
             do {
@@ -129,7 +129,7 @@ module.exports = {
          */
         function getLastBlockToken(token) {
             let last = token,
-                next = token;
+                next;
 
             do {
                 next = last;
@@ -202,7 +202,7 @@ module.exports = {
                         node,
                         loc: { line: tokenBeforeFirst.loc.start.line, column: tokenBeforeFirst.loc.start.column },
                         fix(fixer) {
-                            return fixer.replaceTextRange([tokenBeforeFirst.end, firstBlockToken.start - firstBlockToken.loc.start.column], "\n");
+                            return fixer.replaceTextRange([tokenBeforeFirst.range[1], firstBlockToken.range[0] - firstBlockToken.loc.start.column], "\n");
                         },
                         message: NEVER_MESSAGE
                     });
@@ -215,7 +215,7 @@ module.exports = {
                         loc: { line: tokenAfterLast.loc.end.line, column: tokenAfterLast.loc.end.column - 1 },
                         message: NEVER_MESSAGE,
                         fix(fixer) {
-                            return fixer.replaceTextRange([lastBlockToken.end, tokenAfterLast.start - tokenAfterLast.loc.start.column], "\n");
+                            return fixer.replaceTextRange([lastBlockToken.range[1], tokenAfterLast.range[0] - tokenAfterLast.loc.start.column], "\n");
                         }
                     });
                 }

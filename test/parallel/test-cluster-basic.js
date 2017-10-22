@@ -26,7 +26,8 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 assert.strictEqual('NODE_UNIQUE_ID' in process.env, false,
-                   'NODE_UNIQUE_ID should be removed on startup');
+                   `NODE_UNIQUE_ID (${process.env.NODE_UNIQUE_ID}) ` +
+                   'should be removed on startup');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach((name, index) => {

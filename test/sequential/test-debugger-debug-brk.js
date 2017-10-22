@@ -1,10 +1,17 @@
 'use strict';
 const common = require('../common');
 common.skipIfInspectorDisabled();
+
+// This test ensures that the debug-brk flag will spin up a new process and
+// wait, rather than exit.
+
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const spawn = require('child_process').spawn;
 
-const script = `${common.fixturesDir}/empty.js`;
+// file name here doesn't actually matter since
+// debugger will connect regardless of file name arg
+const script = fixtures.path('empty.js');
 
 function test(arg) {
   const child = spawn(process.execPath, ['--inspect', arg, script]);

@@ -29,11 +29,12 @@
 #include <stdlib.h>
 
 #include "src/assembler-inl.h"
+#include "src/boxed-float.h"
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/double.h"
-#include "src/float.h"
+#include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

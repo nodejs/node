@@ -232,12 +232,6 @@ TEST_F(AsmTypeTest, Names) {
               StrEq("(floatish, floatish...) -> float"));
   EXPECT_THAT(Type::MinMaxType(zone(), Type::Double(), Type::DoubleQ())->Name(),
               StrEq("(double?, double?...) -> double"));
-
-  EXPECT_THAT(Type::FFIType(zone())->Name(), StrEq("Function"));
-
-  auto* ft =
-      Type::FunctionTableType(zone(), 15, Function(Type::Double)(Type::Int));
-  EXPECT_THAT(ft->Name(), StrEq("((int) -> double)[15]"));
 }
 
 TEST_F(AsmTypeTest, IsExactly) {
@@ -252,8 +246,6 @@ TEST_F(AsmTypeTest, IsExactly) {
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float),
       Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -288,8 +280,6 @@ TEST_F(AsmTypeTest, IsA) {
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float),
       Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
@@ -425,188 +415,6 @@ TEST_F(AsmTypeTest, CanBeInvokedWith) {
       i2d->AsFunctionType()->ReturnType(), i2d->AsFunctionType()->Arguments()));
   EXPECT_FALSE(i2f->AsCallableType()->CanBeInvokedWith(
       i2d->AsFunctionType()->ReturnType(), i2d->AsFunctionType()->Arguments()));
-
-  auto* ffi = Type::FFIType(zone());
-  AsmType* (*kReturnTypes[])() = {
-      Type::Void, Type::Double, Type::Signed,
-  };
-  AsmType* (*kParameterTypes[])() = {
-      Type::Double, Type::Signed, Type::FixNum,
-  };
-  for (size_t ii = 0; ii < arraysize(kReturnTypes); ++ii) {
-    for (size_t jj = 0; jj < arraysize(kParameterTypes); ++jj) {
-      auto* f = Function(kReturnTypes[ii])(kParameterTypes[jj]);
-      EXPECT_TRUE(ffi->AsCallableType()->CanBeInvokedWith(
-          f->AsFunctionType()->ReturnType(), f->AsFunctionType()->Arguments()))
-          << kReturnTypes[ii]()->Name();
-
-      // Call with non-parameter type type should fail.
-      f = Function(kReturnTypes[ii])(kParameterTypes[jj], Type::Int);
-      EXPECT_FALSE(ffi->AsCallableType()->CanBeInvokedWith(
-          f->AsFunctionType()->ReturnType(), f->AsFunctionType()->Arguments()))
-          << kReturnTypes[ii]()->Name();
-    }
-  }
-
-  auto* ft0 = Type::FunctionTableType(zone(), 10, fi2d);
-  EXPECT_TRUE(ft0->AsCallableType()->CanBeInvokedWith(
-      fi2d->AsFunctionType()->ReturnType(),
-      fi2d->AsFunctionType()->Arguments()));
-  EXPECT_FALSE(ft0->AsCallableType()->CanBeInvokedWith(
-      i2d->AsFunctionType()->ReturnType(), i2d->AsFunctionType()->Arguments()));
-}
-
-TEST_F(AsmTypeTest, ToReturnType) {
-  std::unordered_map<AsmType*, AsmType*> kToReturnType = {
-      {Type::Signed(), Type::Signed()}, {Type::FixNum(), Type::Signed()},
-      {Type::Double(), Type::Double()}, {Type::Float(), Type::Float()},
-      {Type::Void(), Type::Void()},
-  };
-
-  Type* test_types[] = {
-#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
-      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
-#undef CREATE
-          Function(Type::Int)(Type::Double),
-      Function(Type::Int)(Type::DoubleQ),
-      Overload(Function(Type::Int)(Type::Double)),
-      Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float),
-      Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
-  };
-
-  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
-    auto* return_type = Type::None();
-    auto to_return_type_iter = kToReturnType.find(test_types[ii]);
-    if (to_return_type_iter != kToReturnType.end()) {
-      return_type = to_return_type_iter->second;
-    }
-    EXPECT_EQ(return_type, test_types[ii]->ToReturnType())
-        << return_type->Name() << " != " << test_types[ii]->ToReturnType();
-  }
-}
-
-TEST_F(AsmTypeTest, IsReturnType) {
-  Type* test_types[] = {
-#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
-      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
-#undef CREATE
-          Function(Type::Int)(Type::Double),
-      Function(Type::Int)(Type::DoubleQ),
-      Overload(Function(Type::Int)(Type::Double)),
-      Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float),
-      Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
-  };
-
-  std::unordered_set<Type*> return_types{
-      Type::Double(), Type::Signed(), Type::Float(), Type::Void(),
-  };
-
-  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
-    const bool IsReturnType = return_types.count(test_types[ii]);
-    EXPECT_EQ(IsReturnType, test_types[ii]->IsReturnType())
-        << test_types[ii]->Name()
-        << (IsReturnType ? " is not a return type" : " is a return type");
-  }
-}
-
-TEST_F(AsmTypeTest, ToParameterType) {
-  std::unordered_map<AsmType*, AsmType*> kToParameterType = {
-      {Type::Int(), Type::Int()},       {Type::Signed(), Type::Int()},
-      {Type::Unsigned(), Type::Int()},  {Type::FixNum(), Type::Int()},
-      {Type::Double(), Type::Double()}, {Type::Float(), Type::Float()},
-  };
-
-  Type* test_types[] = {
-#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
-      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
-#undef CREATE
-          Function(Type::Int)(Type::Double),
-      Function(Type::Int)(Type::DoubleQ),
-      Overload(Function(Type::Int)(Type::Double)),
-      Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float),
-      Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
-  };
-
-  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
-    auto* parameter_type = Type::None();
-    auto to_parameter_type_iter = kToParameterType.find(test_types[ii]);
-    if (to_parameter_type_iter != kToParameterType.end()) {
-      parameter_type = to_parameter_type_iter->second;
-    }
-    EXPECT_EQ(parameter_type, test_types[ii]->ToParameterType())
-        << parameter_type->Name()
-        << " != " << test_types[ii]->ToParameterType();
-  }
-}
-
-TEST_F(AsmTypeTest, IsParameterType) {
-  Type* test_types[] = {
-#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
-      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
-#undef CREATE
-          Function(Type::Int)(Type::Double),
-      Function(Type::Int)(Type::DoubleQ),
-      Overload(Function(Type::Int)(Type::Double)),
-      Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float),
-      Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
-  };
-
-  std::unordered_set<Type*> parameter_types{
-      Type::Double(), Type::Int(), Type::Float(),
-  };
-
-  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
-    const bool IsParameterType = parameter_types.count(test_types[ii]);
-    EXPECT_EQ(IsParameterType, test_types[ii]->IsParameterType())
-        << test_types[ii]->Name()
-        << (IsParameterType ? " is not a parameter type"
-                            : " is a parameter type");
-  }
-}
-
-TEST_F(AsmTypeTest, IsComparableType) {
-  Type* test_types[] = {
-#define CREATE(CamelName, string_name, number, parent_types) Type::CamelName(),
-      FOR_EACH_ASM_VALUE_TYPE_LIST(CREATE)
-#undef CREATE
-          Function(Type::Int)(Type::Double),
-      Function(Type::Int)(Type::DoubleQ),
-      Overload(Function(Type::Int)(Type::Double)),
-      Function(Type::Int)(Type::Int, Type::Int),
-      Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
-      Function(Type::Int)(Type::Float),
-      Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
-  };
-
-  std::unordered_set<Type*> comparable_types{
-      Type::Double(), Type::Signed(), Type::Unsigned(), Type::Float(),
-  };
-
-  for (size_t ii = 0; ii < arraysize(test_types); ++ii) {
-    const bool IsComparableType = comparable_types.count(test_types[ii]);
-    EXPECT_EQ(IsComparableType, test_types[ii]->IsComparableType())
-        << test_types[ii]->Name()
-        << (IsComparableType ? " is not a comparable type"
-                             : " is a comparable type");
-  }
 }
 
 TEST_F(AsmTypeTest, ElementSizeInBytes) {
@@ -621,8 +429,6 @@ TEST_F(AsmTypeTest, ElementSizeInBytes) {
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float),
       Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto ElementSizeInBytesForType = [](Type* type) -> int32_t {
@@ -660,8 +466,6 @@ TEST_F(AsmTypeTest, LoadType) {
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float),
       Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto LoadTypeForType = [](Type* type) -> Type* {
@@ -699,8 +503,6 @@ TEST_F(AsmTypeTest, StoreType) {
       Type::MinMaxType(zone(), Type::Signed(), Type::Int()),
       Function(Type::Int)(Type::Float),
       Type::FroundType(zone()),
-      Type::FFIType(zone()),
-      Type::FunctionTableType(zone(), 10, Function(Type::Void)()),
   };
 
   auto StoreTypeForType = [](Type* type) -> Type* {

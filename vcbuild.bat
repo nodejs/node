@@ -1,7 +1,5 @@
 @echo off
 
-setlocal EnableExtensions
-
 cd %~dp0
 
 if /i "%1"=="help" goto help
@@ -81,7 +79,6 @@ if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-gc"       set test_args=%test_args% gc&set build_testgc_addon=1&goto arg-ok
-if /i "%1"=="test-inspector" set test_args=%test_args% inspector&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
@@ -90,6 +87,7 @@ if /i "%1"=="test-async-hooks"  set test_args=%test_args% async-hooks&goto arg-o
 if /i "%1"=="test-all"      set test_args=%test_args% gc internet pummel %common_test_suites%&set build_testgc_addon=1&set lint_cpp=1&set lint_js=1&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="test-check-deopts" set test_check_deopts=1&goto arg-ok
+if /i "%1"=="test-npm"      set test_npm=1&goto arg-ok
 if /i "%1"=="test-v8"       set test_v8=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="test-v8-intl"  set test_v8_intl=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
@@ -128,6 +126,10 @@ shift
 goto next-arg
 
 :args-done
+
+if "%*"=="lint" (
+  goto lint-cpp
+)
 
 if defined build_release (
   set config=Release
@@ -451,6 +453,13 @@ set USE_EMBEDDED_NODE_INSPECT=1
 goto node-tests
 
 :node-tests
+if not defined test_npm goto no-test-npm
+set npm_test_cmd="%node_exe%" tools\test-npm-package.js --install --logfile=test-npm.tap deps\npm test-node
+echo %npm_test_cmd%
+%npm_test_cmd%
+if errorlevel 1 goto exit
+:no-test-npm
+
 if "%test_args%"=="" goto test-v8
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
@@ -468,7 +477,7 @@ goto lint-cpp
 
 :lint-cpp
 if not defined lint_cpp goto lint-js
-call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h test\gc\binding.cc tools\icu\*.cc tools\icu\*.h
+call :run-lint-cpp src\*.c src\*.cc src\*.h test\addons\*.cc test\addons\*.h test\addons-napi\*.cc test\addons-napi\*.h test\cctest\*.cc test\cctest\*.h test\gc\binding.cc tools\icu\*.cc tools\icu\*.h
 call :run-python tools/check-imports.py
 goto lint-js
 
@@ -480,12 +489,12 @@ setlocal enabledelayedexpansion
 for /f "tokens=*" %%G in ('dir /b /s /a %*') do (
   set relpath=%%G
   set relpath=!relpath:*%~dp0=!
-  call :add-to-list !relpath!
+  call :add-to-list !relpath! > nul
 )
 ( endlocal
   set cppfilelist=%localcppfilelist%
 )
-call :run-python tools/cpplint.py %cppfilelist%
+call :run-python tools/cpplint.py %cppfilelist% > nul
 goto exit
 
 :add-to-list
@@ -500,6 +509,9 @@ echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h"
 if %errorlevel% equ 0 goto exit
 
 echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /c:"test\\addons-napi\\common.h"
 if %errorlevel% equ 0 goto exit
 
 set "localcppfilelist=%localcppfilelist% %1"
@@ -529,7 +541,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS] [link-module path-to-module]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS] [link-module path-to-module]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
@@ -538,6 +550,7 @@ echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
+echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
 goto exit
 
 :run-python

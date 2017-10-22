@@ -7,6 +7,7 @@
 #include "node_url.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_internals.h"
 
 namespace node {
 namespace loader {
@@ -441,6 +442,11 @@ URL resolve_directory(const URL& search, bool read_pkg_json) {
 URL Resolve(std::string specifier, const URL* base, bool read_pkg_json) {
   URL pure_url(specifier);
   if (!(pure_url.flags() & URL_FLAGS_FAILED)) {
+    // just check existence, without altering
+    auto check = check_file(pure_url, true);
+    if (check.failed) {
+      return URL("");
+    }
     return pure_url;
   }
   if (specifier.length() == 0) {
@@ -492,9 +498,8 @@ void ModuleWrap::Resolve(const FunctionCallbackInfo<Value>& args) {
 
   URL result = node::loader::Resolve(*specifier_utf, &url, true);
   if (result.flags() & URL_FLAGS_FAILED) {
-    std::string msg = "module ";
+    std::string msg = "Cannot find module ";
     msg += *specifier_utf;
-    msg += " not found";
     env->ThrowError(msg.c_str());
     return;
   }
@@ -523,5 +528,5 @@ void ModuleWrap::Initialize(Local<Object> target,
 }  // namespace loader
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(module_wrap,
-                                  node::loader::ModuleWrap::Initialize)
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(module_wrap,
+                                   node::loader::ModuleWrap::Initialize)

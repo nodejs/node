@@ -92,10 +92,10 @@ operation.
 The callbacks `init()`/`before()`/`after()`/`destroy()` are called for the
 respective asynchronous event during a resource's lifetime.
 
-All callbacks are optional. So, for example, if only resource cleanup needs to
-be tracked then only the `destroy` callback needs to be passed. The
-specifics of all functions that can be passed to `callbacks` is in the section
-[`Hook Callbacks`][].
+All callbacks are optional. For example, if only resource cleanup needs to
+be tracked, then only the `destroy` callback needs to be passed. The
+specifics of all functions that can be passed to `callbacks` is in the
+[Hook Callbacks][] section.
 
 ```js
 const async_hooks = require('async_hooks');
@@ -125,7 +125,7 @@ const asyncHook = async_hooks.createHook(new MyAddedCallbacks());
 ##### Error Handling
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
-and exit. The exit path does follow that of an uncaught exception but
+and exit. The exit path does follow that of an uncaught exception, but
 all `uncaughtException` listeners are removed, thus forcing the process to
 exit. The `'exit'` callbacks will still be called unless the application is run
 with `--abort-on-uncaught-exception`, in which case a stack trace will be
@@ -173,7 +173,7 @@ doing this the otherwise infinite recursion is broken.
 Enable the callbacks for a given `AsyncHook` instance. If no callbacks are
 provided enabling is a noop.
 
-The `AsyncHook` instance is by default disabled. If the `AsyncHook` instance
+The `AsyncHook` instance is disabled by default. If the `AsyncHook` instance
 should be enabled immediately after creation, the following pattern can be used.
 
 ```js
@@ -196,7 +196,7 @@ For API consistency `disable()` also returns the `AsyncHook` instance.
 
 Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
-instance is destructed.
+instance is destroyed.
 
 ##### `init(asyncId, type, triggerAsyncId, resource)`
 
@@ -283,7 +283,7 @@ The second `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
 happens outside of any JavaScript stack (side note: a `executionAsyncId()` of `0`
 means it's being executed from C++, with no JavaScript stack above it).
-With only that information it would be impossible to link resources together in
+With only that information, it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerAsyncId` is given the task of
 propagating what resource is responsible for the new resource's existence.
 
@@ -295,8 +295,8 @@ the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
 `resource` provides the hostname used when looking up the IP address for the
 hostname in `net.Server.listen()`. The API for accessing this information is
 currently not considered public, but using the Embedder API, users can provide
-and document their own resource objects. Such a resource object could for
-example contain the SQL query being executed.
+and document their own resource objects. For example, such a resource object
+could contain the SQL query being executed.
 
 In the case of Promises, the `resource` object will have `promise` property
 that refers to the Promise that is being initialized, and a `parentId` property
@@ -385,7 +385,7 @@ Only using `execution` to graph resource allocation results in the following:
 TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
 ```
 
-The `TCPWRAP` is not part of this graph; even though it was the reason for
+The `TCPWRAP` is not part of this graph, even though it was the reason for
 `console.log()` being called. This is because binding to a port without a
 hostname is a *synchronous* operation, but to maintain a completely asynchronous
 API the user's callback is placed in a `process.nextTick()`.
@@ -408,7 +408,7 @@ The `before` callback will be called 0 to N times. The `before` callback
 will typically be called 0 times if the asynchronous operation was cancelled
 or, for example, if no connections are received by a TCP server. Persistent
 asynchronous resources like a TCP server will typically call the `before`
-callback multiple times, while other operations like `fs.open()` will only call
+callback multiple times, while other operations like `fs.open()` will call
 it only once.
 
 
@@ -418,7 +418,7 @@ it only once.
 
 Called immediately after the callback specified in `before` is completed.
 
-*Note:* If an uncaught exception occurs during execution of the callback then
+*Note:* If an uncaught exception occurs during execution of the callback, then
 `after` will run *after* the `'uncaughtException'` event is emitted or a
 `domain`'s handler runs.
 
@@ -568,10 +568,9 @@ asyncResource.triggerAsyncId();
 
 #### `AsyncResource(type[, triggerAsyncId])`
 
-* arguments
-  * `type` {string} The type of async event.
-  * `triggerAsyncId` {number} The ID of the execution context that created this
-    async event.
+* `type` {string} The type of async event.
+* `triggerAsyncId` {number} The ID of the execution context that created this
+  async event.
 
 Example usage:
 
@@ -636,6 +635,6 @@ constructor.
 
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
-[`destroy` callback]: #async_hooks_before_asyncid
-[`Hook Callbacks`]: #async_hooks_hook_callbacks
+[`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
+[Hook Callbacks]: #async_hooks_hook_callbacks

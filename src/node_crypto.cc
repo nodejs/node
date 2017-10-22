@@ -5816,13 +5816,7 @@ bool VerifySpkac(const char* data, unsigned int len) {
 
 
 void VerifySpkac(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   bool i = false;
-
-  if (args.Length() < 1)
-    return env->ThrowTypeError("Data argument is mandatory");
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Data");
 
   size_t length = Buffer::Length(args[0]);
   if (length == 0)
@@ -5881,11 +5875,6 @@ char* ExportPublicKey(const char* data, int len, size_t* size) {
 void ExportPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return env->ThrowTypeError("Public key argument is mandatory");
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
-
   size_t length = Buffer::Length(args[0]);
   if (length == 0)
     return args.GetReturnValue().SetEmptyString();
@@ -5921,11 +5910,6 @@ const char* ExportChallenge(const char* data, int len) {
 
 void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 1)
-    return env->ThrowTypeError("Challenge argument is mandatory");
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Challenge");
 
   size_t len = Buffer::Length(args[0]);
   if (len == 0)

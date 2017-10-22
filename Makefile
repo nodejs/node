@@ -13,6 +13,7 @@ OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test-cov
 GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
+GCOV ?= gcov
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -32,6 +33,10 @@ V8_TEST_OPTIONS = $(V8_EXTRA_TEST_OPTIONS)
 ifdef DISABLE_V8_I18N
   V8_TEST_OPTIONS += --noi18n
   V8_BUILD_OPTIONS += i18nsupport=off
+endif
+
+ifeq ($(OSTYPE), darwin)
+  GCOV = xcrun llvm-cov gcov
 endif
 
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
@@ -124,10 +129,12 @@ coverage-clean:
 	$(RM) -r gcovr testing
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp coverage
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcno
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/cctest/src/*.gcno
+	$(RM) out/$(BUILDTYPE)/obj.target/cctest/test/cctest/*.gcno
 
 # Build and test with code coverage reporting.  Leave the lib directory
 # instrumented for any additional runs the user may want to make.
@@ -157,7 +164,7 @@ coverage-build: all
 coverage-test: coverage-build
 	$(RM) -r out/$(BUILDTYPE)/.coverage
 	$(RM) -r .cov_tmp
-	$(RM) out/$(BUILDTYPE)/obj.target/node/src/*.gcda
+	$(RM) out/$(BUILDTYPE)/obj.target/node/{src,gen}/*.gcda
 	$(RM) out/$(BUILDTYPE)/obj.target/node/src/tracing/*.gcda
 	-$(MAKE) $(COVTESTS)
 	mv lib lib__
@@ -170,7 +177,8 @@ coverage-test: coverage-build
 		--report-dir "../coverage")
 	-(cd out && "../gcovr/scripts/gcovr" --gcov-exclude='.*deps' \
 		--gcov-exclude='.*usr' -v -r Release/obj.target/node \
-		--html --html-detail -o ../coverage/cxxcoverage.html)
+		--html --html-detail -o ../coverage/cxxcoverage.html \
+		--gcov-executable="$(GCOV)")
 	mv lib lib_
 	mv lib__ lib
 	@echo -n "Javascript coverage %: "
@@ -200,12 +208,13 @@ else
 test: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
+	$(MAKE) doc-only
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_ASYNC_HOOKS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES) \
-		known_issues
+		doctool known_issues
 	$(MAKE) lint
 endif
 
@@ -226,6 +235,14 @@ test-valgrind: all
 
 test-check-deopts: all
 	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
+
+benchmark/misc/function_call/build/Release/binding.node: all \
+		benchmark/misc/function_call/binding.cc \
+		benchmark/misc/function_call/binding.gyp
+	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--python="$(PYTHON)" \
+		--directory="$(shell pwd)/benchmark/misc/function_call" \
+		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
@@ -267,7 +284,10 @@ test/addons/.buildstamp: config.gypi \
 	test/addons/.docbuildstamp
 #	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
+#	Ignore folders without binding.gyp (#14843)
 	@for dirname in test/addons/*/; do \
+		if [ ! -f "$$PWD/$${dirname}binding.gyp" ]; then \
+			continue; fi ; \
 		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
 		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
 		        --loglevel=$(LOGLEVEL) rebuild \
@@ -344,7 +364,7 @@ test-all: test-build test/gc/build/Release/binding.node
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
-CI_NATIVE_SUITES := addons addons-napi
+CI_NATIVE_SUITES ?= addons addons-napi
 CI_ASYNC_HOOKS := async-hooks
 CI_JS_SUITES ?= default
 
@@ -359,7 +379,7 @@ test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) known_issues
+		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) $(CI_JS_SUITES) known_issues
 	# Clean up any leftover processes, error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -368,11 +388,11 @@ test-ci-js: | clear-stalled
 	fi
 
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi
+test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) $(CI_JS_SUITES) known_issues
+		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) doctool known_issues
 	# Clean up any leftover processes, error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -398,9 +418,6 @@ test-pummel: all
 test-internet: all
 	$(PYTHON) tools/test.py internet
 
-test-inspector: all
-	$(PYTHON) tools/test.py inspector
-
 test-node-inspect: $(NODE_EXE)
 	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
 		--install deps/node-inspect test
@@ -415,7 +432,7 @@ test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
 test-npm: $(NODE_EXE)
-	NODE=$(NODE) tools/test-npm.sh
+	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test-node
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
@@ -507,7 +524,7 @@ doc: $(NODE_EXE) doc-only
 $(apidoc_dirs):
 	mkdir -p $@
 
-out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
+out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	cp $< $@
 
 out/doc/%: doc/%
@@ -901,8 +918,7 @@ bench-http: all
 bench-fs: all
 	@$(NODE) benchmark/run.js fs
 
-bench-misc: all
-	@$(MAKE) -C benchmark/misc/function_call/
+bench-misc: benchmark/misc/function_call/build/Release/binding.node
 	@$(NODE) benchmark/run.js misc
 
 bench-array: all
@@ -955,6 +971,7 @@ LINT_CPP_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
+	benchmark/misc/function_call/binding.cc \
 	src/*.c \
 	src/*.cc \
 	src/*.h \

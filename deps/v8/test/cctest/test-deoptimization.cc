@@ -466,7 +466,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
     v8::Local<v8::Value> result =
         env->Global()->Get(env.local(), v8_str("result")).ToLocalChecked();
     CHECK(result->IsString());
-    v8::String::Utf8Value utf8(result);
+    v8::String::Utf8Value utf8(isolate, result);
     CHECK_EQ(0, strcmp("a+an X", *utf8));
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate));
   }

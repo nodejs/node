@@ -1,12 +1,11 @@
 'use strict';
 
-module.exports = function defFunc(ajv) {
-  if (ajv.RULES.keywords.switch)
-    return console.warn('Keyword switch is already defined');
+var util = require('./_util');
 
-  var metaSchemaUri = ajv._opts.v5
-                      ? 'https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/json-schema-v5.json#'
-                      : 'http://json-schema.org/draft-04/schema#';
+module.exports = function defFunc(ajv) {
+  if (ajv.RULES.keywords.switch && ajv.RULES.keywords.if) return;
+
+  var metaSchemaRef = util.metaSchemaRef(ajv);
 
   defFunc.definition = {
     inline: require('./dotjs/switch'),
@@ -17,11 +16,11 @@ module.exports = function defFunc(ajv) {
       items: {
         required: [ 'then' ],
         properties: {
-          'if': { $ref: metaSchemaUri },
+          'if': metaSchemaRef,
           'then': {
             anyOf: [
               { type: 'boolean' },
-              { $ref: metaSchemaUri }
+              metaSchemaRef
             ]
           },
           'continue': { type: 'boolean' }

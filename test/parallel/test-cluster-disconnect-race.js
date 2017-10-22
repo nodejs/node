@@ -24,7 +24,7 @@ if (cluster.isMaster) {
   }));
 
   cluster.on('exit', common.mustCall(function(worker, code) {
-    assert.strictEqual(code, 0, 'worker exited with error');
+    assert.strictEqual(code, 0, `worker exited with error code ${code}`);
   }, 2));
 
   return;

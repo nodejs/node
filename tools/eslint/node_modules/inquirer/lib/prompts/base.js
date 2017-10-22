@@ -26,7 +26,9 @@ var Prompt = module.exports = function (question, rl, answers) {
     },
     when: function () {
       return true;
-    }
+    },
+    suffix: '',
+    prefix: chalk.green('?')
   });
 
   // Check to make sure prompt requirements are there
@@ -126,7 +128,7 @@ Prompt.prototype.handleSubmitEvents = function (submit) {
  */
 
 Prompt.prototype.getQuestion = function () {
-  var message = chalk.green('?') + ' ' + chalk.bold(this.opt.message) + chalk.reset(' ');
+  var message = this.opt.prefix + ' ' + chalk.bold(this.opt.message) + this.opt.suffix + chalk.reset(' ');
 
   // Append the default if available, and if question isn't answered
   if (this.opt.default != null && this.status !== 'answered') {

@@ -3,17 +3,14 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-
-const path = require('path');
-const fs = require('fs');
+const fixtures = require('../common/fixtures');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
-
 const tls = require('tls');
 
 const options = {
   secureOptions: SSL_OP_NO_TICKET,
-  key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
-  cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const server = tls.createServer(options, function(c) {

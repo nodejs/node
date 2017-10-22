@@ -32,6 +32,7 @@
 .project
 .pydevproject
 .settings
+.vscode
 /_*
 /build
 /buildtools

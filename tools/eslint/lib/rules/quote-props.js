@@ -135,13 +135,14 @@ module.exports = {
          */
         function checkUnnecessaryQuotes(node) {
             const key = node.key;
-            let tokens;
 
             if (node.method || node.computed || node.shorthand) {
                 return;
             }
 
             if (key.type === "Literal" && typeof key.value === "string") {
+                let tokens;
+
                 try {
                     tokens = espree.tokenize(key.value);
                 } catch (e) {
@@ -215,7 +216,6 @@ module.exports = {
 
             node.properties.forEach(property => {
                 const key = property.key;
-                let tokens;
 
                 if (!key || property.method || property.computed || property.shorthand) {
                     return;
@@ -226,6 +226,8 @@ module.exports = {
                     quotedProps.push(property);
 
                     if (checkQuotesRedundancy) {
+                        let tokens;
+
                         try {
                             tokens = espree.tokenize(key.value);
                         } catch (e) {

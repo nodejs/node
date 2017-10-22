@@ -103,7 +103,7 @@
       'lib/internal/loader/ModuleMap.js',
       'lib/internal/loader/ModuleJob.js',
       'lib/internal/loader/ModuleWrap.js',
-      'lib/internal/loader/resolveRequestUrl.js',
+      'lib/internal/loader/ModuleRequest.js',
       'lib/internal/loader/search.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
@@ -133,6 +133,7 @@
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/legacy.js',
       'lib/internal/streams/destroy.js',
+      'lib/internal/wrap_js_stream.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
@@ -448,7 +449,7 @@
               'inputs': [ 'src/nolttng_macros.py' ]
             }],
             [ 'node_use_perfctr=="false"', {
-              'inputs': [ 'src/perfctr_macros.py' ]
+              'inputs': [ 'src/noperfctr_macros.py' ]
             }]
           ],
           'action': [

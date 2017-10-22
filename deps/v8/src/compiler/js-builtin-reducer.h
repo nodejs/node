@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_BUILTIN_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/globals.h"
 
@@ -30,14 +29,7 @@ class TypeCache;
 class V8_EXPORT_PRIVATE JSBuiltinReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
-  };
-  typedef base::Flags<Flag> Flags;
-
-  JSBuiltinReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
+  JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
                    CompilationDependencies* dependencies,
                    Handle<Context> native_context);
   ~JSBuiltinReducer() final {}
@@ -132,7 +124,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Node* ToNumber(Node* value);
   Node* ToUint32(Node* value);
 
-  Flags flags() const { return flags_; }
   Graph* graph() const;
   Factory* factory() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -144,13 +135,10 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   CompilationDependencies* const dependencies_;
-  Flags const flags_;
   JSGraph* const jsgraph_;
   Handle<Context> const native_context_;
   TypeCache const& type_cache_;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(JSBuiltinReducer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

@@ -20,7 +20,7 @@ class WasmInstanceObject;
 namespace wasm {
 
 // forward declarations.
-struct ModuleBytesEnv;
+struct ModuleWireBytes;
 struct WasmFunction;
 struct WasmModule;
 class WasmInterpreterInternals;
@@ -171,7 +171,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     uint32_t ActivationFrameBase(uint32_t activation_id);
   };
 
-  WasmInterpreter(Isolate* isolate, const ModuleBytesEnv& env);
+  WasmInterpreter(Isolate* isolate, const WasmModule* module,
+                  const ModuleWireBytes& wire_bytes, byte* globals_start,
+                  byte* mem_start, uint32_t mem_size);
   ~WasmInterpreter();
 
   //==========================================================================
@@ -197,12 +199,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   Thread* GetThread(int id);
 
   //==========================================================================
-  // Memory access.
+  // Update the cached module env memory parameters after a grow memory event.
   //==========================================================================
-  size_t GetMemorySize();
-  WasmValue ReadMemory(size_t offset);
-  void WriteMemory(size_t offset, WasmValue val);
-  // Update the memory region, e.g. after external GrowMemory.
   void UpdateMemory(byte* mem_start, uint32_t mem_size);
 
   //==========================================================================
@@ -222,7 +220,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 
  private:
   Zone zone_;
-  WasmInterpreterInternals* internals_;
+  WasmInterpreterInternals* const internals_;
 };
 
 }  // namespace wasm

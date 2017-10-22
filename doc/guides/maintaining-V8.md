@@ -167,7 +167,8 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
 * For each abandoned V8 branch corresponding to an LTS branch that is affected by the bug:
     * Open a cherry-pick PR on nodejs/node targeting the appropriate *vY.x-staging* branch (e.g. *v6.x-staging* to fix an issue in V8-5.1).
-    * Increase the patch level version in v8-version.h. This will not cause any problems with versioning because V8 will not publish other patches for this branch, so Node.js can effectively bump the patch version.
+    * On Node.js < 9.0.0: Increase the patch level version in v8-version.h. This will not cause any problems with versioning because V8 will not publish other patches for this branch, so Node.js can effectively bump the patch version.
+    * On Node.js >= 9.0.0: Increase the `v8_embedder_string` number in `common.gypi`.
     * In some cases the patch may require extra effort to merge in case V8 has changed substantially. For important issues we may be able to lean on the V8 team to get help with reimplementing the patch.
     * Run the Node.js [V8-CI](https://ci.nodejs.org/job/node-test-commit-v8-linux/) in addition to the [Node.js CI](https://ci.nodejs.org/job/node-test-pull-request/).
 
@@ -196,7 +197,8 @@ Original commit message:
   Review-Url: https://codereview.chromium.org/2159683002
   Cr-Commit-Position: refs/heads/master@{#37833}
 
-PR-URL: <pr link>
+Refs: https://github.com/v8/v8/commit/a51f429772d1e796744244128c9feeab4c26a854
+PR-URL: https://github.com/nodejs/node/pull/7833
 ```
 * Open a PR against the `v6.x-staging` branch in the Node.js repo. Launch the normal and [V8-CI](https://ci.nodejs.org/job/node-test-commit-v8-linux/) using the Node.js CI system. We only needed to backport to `v6.x` as the other LTS branches weren't affected by this bug.
 
@@ -264,6 +266,7 @@ above. A better strategy is to
 
 1. Audit the current master branch and look at the patches that have been floated since the last major V8 update.
 1. Replace the copy of V8 in Node.js with a fresh checkout of the latest stable V8 branch. Special care must be taken to recursively update the DEPS that V8 has a compile time dependency on (at the moment of this writing, these are only trace_event and gtest_prod.h)
+1. Reset the `v8_embedder_string` variable to "-node.0" in `common.gypi`.
 1. Refloat (cherry-pick) all the patches from list computed in 1) as necessary. Some of the patches may no longer be necessary.
 
 To audit for floating patches:

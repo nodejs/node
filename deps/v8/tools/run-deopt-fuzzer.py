@@ -404,6 +404,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "predictable": False,
     "byteorder": sys.byteorder,
     "no_harness": False,
+    "ubsan_vptr": False,
   }
   all_tests = []
   num_tests = 0

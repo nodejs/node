@@ -6,7 +6,6 @@
 
 #include "src/accessors.h"
 #include "src/assembler.h"
-#include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
@@ -46,37 +45,16 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
-  // API references must be added last.
-  AddApiReferences(isolate);
 }
 
-ExternalReferenceTable::~ExternalReferenceTable() {
+const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #ifdef SYMBOLIZE_FUNCTION
-  for (char** table : symbol_tables_) {
-    free(table);
-  }
-#endif
-}
-
-#ifdef DEBUG
-void ExternalReferenceTable::ResetCount() {
-  for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
-}
-
-void ExternalReferenceTable::PrintCount() {
-  for (int i = 0; i < refs_.length(); i++) {
-    v8::base::OS::Print("index=%5d count=%5d  %-60s\n", i, refs_[i].count,
-                        refs_[i].name);
-  }
-}
-#endif  // DEBUG
-
-const char* ExternalReferenceTable::ResolveSymbol(void* address,
-                                                  std::vector<char**>* tables) {
-#ifdef SYMBOLIZE_FUNCTION
-  char** table = backtrace_symbols(&address, 1);
-  if (tables) tables->push_back(table);
-  return table[0];
+  char** names = backtrace_symbols(&address, 1);
+  const char* name = names[0];
+  // The array of names is malloc'ed. However, each name string is static
+  // and do not need to be freed.
+  free(names);
+  return name;
 #else
   return "<unresolved>";
 #endif  // SYMBOLIZE_FUNCTION
@@ -113,6 +91,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
+  Add(ExternalReference::bytecode_size_table_address(isolate).address(),
+      "Bytecodes::bytecode_size_table_address");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
@@ -159,6 +139,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "base::ieee754::tanh");
   Add(ExternalReference::store_buffer_top(isolate).address(),
       "store_buffer_top");
+  Add(ExternalReference::heap_is_marking_flag_address(isolate).address(),
+      "heap_is_marking_flag_address");
   Add(ExternalReference::address_of_the_hole_nan().address(), "the_hole_nan");
   Add(ExternalReference::get_date_field_function(isolate).address(),
       "JSDate::GetField");
@@ -166,8 +148,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "date_cache_stamp");
   Add(ExternalReference::address_of_pending_message_obj(isolate).address(),
       "address_of_pending_message_obj");
-  Add(ExternalReference::get_make_code_young_function(isolate).address(),
-      "Code::MakeCodeYoung");
   Add(ExternalReference::cpu_features().address(), "cpu_features");
   Add(ExternalReference::old_space_allocation_top_address(isolate).address(),
       "Heap::OldSpaceAllocationTopAddress");
@@ -176,8 +156,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::address_of_uint32_bias().address(), "uint32_bias");
-  Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
-      "Code::MarkCodeAsExecuted");
   Add(ExternalReference::is_profiling_address(isolate).address(),
       "Isolate::is_profiling");
   Add(ExternalReference::scheduled_exception_address(isolate).address(),
@@ -252,6 +230,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "libc_memset");
   Add(ExternalReference::try_internalize_string_function(isolate).address(),
       "try_internalize_string_function");
+  Add(ExternalReference::check_object_type(isolate).address(),
+      "check_object_type");
 #ifdef V8_INTL_SUPPORT
   Add(ExternalReference::intl_convert_one_byte_to_lower(isolate).address(),
       "intl_convert_one_byte_to_lower");
@@ -273,12 +253,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "search_string_raw<1-byte, 2-byte>");
   Add(ExternalReference::orderedhashmap_gethash_raw(isolate).address(),
       "orderedhashmap_gethash_raw");
-  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashMap, 2>(isolate)
-          .address(),
-      "orderedhashtable_has_raw<OrderedHashMap, 2>");
-  Add(ExternalReference::orderedhashtable_has_raw<OrderedHashSet, 1>(isolate)
-          .address(),
-      "orderedhashtable_has_raw<OrderedHashSet, 1>");
+  Add(ExternalReference::get_or_create_hash_raw(isolate).address(),
+      "get_or_create_hash_raw");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -342,10 +318,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::incremental_marking_record_write_function(isolate)
           .address(),
       "IncrementalMarking::RecordWrite");
-  Add(ExternalReference::incremental_marking_record_write_code_entry_function(
-          isolate)
-          .address(),
-      "IncrementalMarking::RecordWriteOfCodeEntryFromCode");
   Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
       "StoreBuffer::StoreBufferOverflow");
 }
@@ -363,24 +335,6 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
   for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
     Add(ExternalReference(c_builtins[i].address, isolate).address(),
         c_builtins[i].name);
-  }
-
-  struct BuiltinEntry {
-    Builtins::Name id;
-    const char* name;
-  };
-  static const BuiltinEntry builtins[] = {
-#define BUILTIN_LIST_EXTERNAL_REFS(DEF) \
-  BUILTIN_LIST_C(DEF)                   \
-  BUILTIN_LIST_A(DEF)                   \
-  DEF(CallProxy)
-#define DEF_ENTRY(Name, ...) {Builtins::k##Name, "Builtin_" #Name},
-      BUILTIN_LIST_EXTERNAL_REFS(DEF_ENTRY)
-#undef DEF_ENTRY
-#undef BUILTIN_LIST_EXTERNAL_REFS
-  };
-  for (unsigned i = 0; i < arraysize(builtins); ++i) {
-    Add(isolate->builtins()->builtin_address(builtins[i].id), builtins[i].name);
   }
 }
 
@@ -477,24 +431,6 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
       "Store StubCache::secondary_->value");
   Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
       "Store StubCache::secondary_->map");
-}
-
-void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
-  // Add external references provided by the embedder (a null-terminated
-  // array).
-  api_refs_start_ = size();
-  intptr_t* api_external_references = isolate->api_external_references();
-  if (api_external_references != nullptr) {
-    while (*api_external_references != 0) {
-      Address address = reinterpret_cast<Address>(*api_external_references);
-#ifdef SYMBOLIZE_FUNCTION
-      Add(address, ResolveSymbol(address, &symbol_tables_));
-#else
-      Add(address, ResolveSymbol(address));
-#endif
-      api_external_references++;
-    }
-  }
 }
 
 }  // namespace internal

@@ -286,6 +286,7 @@ class ModuleWrap;
   V(verify_error_string, "verifyError")                                       \
   V(version_string, "version")                                                \
   V(weight_string, "weight")                                                  \
+  V(windows_hide_string, "windowsHide")                                       \
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
   V(wrap_string, "wrap")                                                      \
   V(writable_string, "writable")                                              \
@@ -302,6 +303,7 @@ class ModuleWrap;
   V(async_hooks_after_function, v8::Function)                                 \
   V(async_hooks_promise_resolve_function, v8::Function)                       \
   V(binding_cache_object, v8::Object)                                         \
+  V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
   V(domain_array, v8::Array)                                                  \
@@ -385,6 +387,7 @@ class Environment {
       kDestroy,
       kPromiseResolve,
       kTotals,
+      kCheck,
       kFieldsCount,
     };
 
@@ -405,6 +408,8 @@ class Environment {
     inline int async_id_fields_count() const;
 
     inline v8::Local<v8::String> provider_string(int idx);
+
+    inline void force_checks();
 
     inline void push_async_ids(double async_id, double trigger_async_id);
     inline bool pop_async_id(double async_id);

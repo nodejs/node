@@ -25,8 +25,6 @@ class HeapProfiler {
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler();
 
-  size_t GetMemorySizeUsedByProfiler();
-
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
@@ -77,6 +75,10 @@ class HeapProfiler {
   void ClearHeapObjectMap();
 
   Isolate* isolate() const { return heap()->isolate(); }
+
+  void QueryObjects(Handle<Context> context,
+                    debug::QueryObjectPredicate* predicate,
+                    v8::PersistentValueVector<v8::Object>* objects);
 
  private:
   Heap* heap() const;

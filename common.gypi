@@ -25,11 +25,19 @@
     # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
+    # Reset this number to 0 on major V8 upgrades.
+    # Increment by one for each non-official patch applied to deps/v8.
+    'v8_embedder_string': '-node.3',
+
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
     # Don't bake anything extra into the snapshot.
     'v8_use_external_startup_data%': 0,
+
+    # Some STL containers (e.g. std::vector) do not preserve ABI compatibility
+    # between debug and non-debug mode.
+    'disable_glibcxx_debug': 1,
 
     # Don't use ICU data file (icudtl.dat) from V8, we use our own.
     'icu_use_data_file_flag%': 0,
@@ -110,6 +118,9 @@
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
+            'AdditionalOptions': [
+              '/bigobj', # prevent error C1128 in VS2015
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': 2, # enable incremental linking
@@ -164,9 +175,6 @@
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
-            'AdditionalOptions': [
-              '/MP', # compile across multiple CPUs
-            ],
           },
           'VCLibrarianTool': {
             'AdditionalOptions': [
@@ -199,6 +207,9 @@
         # and their sheer number drowns out other, more legitimate warnings.
         'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
+        'AdditionalOptions': [
+          '/MP', # compile across multiple CPUs
+        ],
       },
       'VCLibrarianTool': {
       },

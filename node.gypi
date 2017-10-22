@@ -82,6 +82,7 @@
       'sources': [
         'src/inspector_agent.cc',
         'src/inspector_io.cc',
+        'src/inspector_js_api.cc',
         'src/inspector_socket.cc',
         'src/inspector_socket_server.cc',
         'src/inspector_agent.h',
@@ -331,6 +332,18 @@
                    '-g',
                    '-O0' ],
        'cflags!': [ '-O3' ]
+    }],
+    [ 'OS=="mac" and node_shared=="false" and coverage=="true"', {
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '--coverage',
+        ],
+        'OTHER_CFLAGS+': [
+          '--coverage',
+          '-g',
+          '-O0'
+        ],
+      }
     }],
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],

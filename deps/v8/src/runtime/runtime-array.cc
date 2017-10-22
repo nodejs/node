@@ -17,26 +17,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(FixedArray, object, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  return object->get(index);
-}
-
-
-RUNTIME_FUNCTION(Runtime_FixedArraySet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_CHECKED(FixedArray, object, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_ARG_CHECKED(Object, value, 2);
-  object->set(index, value);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -51,8 +31,7 @@ namespace {
 // As PrepareElementsForSort, but only on objects where elements is
 // a dictionary, and it will stay a dictionary.  Collates undefined and
 // unexisting elements below limit from position zero of the elements.
-Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
-                                          uint32_t limit) {
+Object* PrepareSlowElementsForSort(Handle<JSObject> object, uint32_t limit) {
   DCHECK(object->HasDictionaryElements());
   Isolate* isolate = object->GetIsolate();
   // Must stay in dictionary mode, either because of requires_slow_elements,
@@ -66,10 +45,9 @@ Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
   uint32_t undefs = 0;
   uint32_t max_key = 0;
   int capacity = dict->Capacity();
-  Handle<Smi> bailout(Smi::FromInt(-1), isolate);
+  Smi* bailout = Smi::FromInt(-1);
   // Entry to the new dictionary does not cause it to grow, as we have
   // allocated one that is large enough for all entries.
-  DisallowHeapAllocation no_gc;
   for (int i = 0; i < capacity; i++) {
     Object* k;
     if (!dict->ToKey(isolate, i, &k)) continue;
@@ -90,24 +68,18 @@ Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
     if (key < limit) {
       if (value->IsUndefined(isolate)) {
         undefs++;
-      } else if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
-        // Adding an entry with the key beyond smi-range requires
-        // allocation. Bailout.
-        return bailout;
       } else {
         Handle<Object> result =
             SeededNumberDictionary::Add(new_dict, pos, value, details);
+        // Add should not grow the dictionary since we allocated the right size.
         DCHECK(result.is_identical_to(new_dict));
         USE(result);
         pos++;
       }
-    } else if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
-      // Adding an entry with the key beyond smi-range requires
-      // allocation. Bailout.
-      return bailout;
     } else {
       Handle<Object> result =
           SeededNumberDictionary::Add(new_dict, key, value, details);
+      // Add should not grow the dictionary since we allocated the right size.
       DCHECK(result.is_identical_to(new_dict));
       USE(result);
       max_key = Max(max_key, key);
@@ -125,6 +97,7 @@ Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
     HandleScope scope(isolate);
     Handle<Object> result = SeededNumberDictionary::Add(
         new_dict, pos, isolate->factory()->undefined_value(), no_details);
+    // Add should not grow the dictionary since we allocated the right size.
     DCHECK(result.is_identical_to(new_dict));
     USE(result);
     pos++;
@@ -136,23 +109,21 @@ Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
   new_dict->UpdateMaxNumberKey(max_key, object);
   JSObject::ValidateElements(*object);
 
-  AllowHeapAllocation allocate_return_value;
-  return isolate->factory()->NewNumberFromUint(result);
+  return *isolate->factory()->NewNumberFromUint(result);
 }
 
 // Collects all defined (non-hole) and non-undefined (array) elements at the
 // start of the elements array.  If the object is in dictionary mode, it is
 // converted to fast elements mode.  Undefined values are placed after
 // non-undefined values.  Returns the number of non-undefined values.
-Handle<Object> PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
+Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
   Isolate* isolate = object->GetIsolate();
   if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
-    return handle(Smi::FromInt(-1), isolate);
+    return Smi::FromInt(-1);
   }
-
   if (object->HasStringWrapperElements()) {
     int len = String::cast(Handle<JSValue>::cast(object)->value())->length();
-    return handle(Smi::FromInt(len), isolate);
+    return Smi::FromInt(len);
   }
 
   JSObject::ValidateElements(*object);
@@ -178,9 +149,7 @@ Handle<Object> PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     JSObject::ValidateElements(*object);
   } else if (object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
-    return handle(
-        Smi::FromInt(FixedArrayBase::cast(object->elements())->length()),
-        isolate);
+    return Smi::FromInt(FixedArrayBase::cast(object->elements())->length());
   } else if (!object->HasDoubleElements()) {
     JSObject::EnsureWritableFastElements(object);
   }
@@ -195,7 +164,7 @@ Handle<Object> PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     limit = elements_length;
   }
   if (limit == 0) {
-    return handle(Smi::kZero, isolate);
+    return Smi::kZero;
   }
 
   uint32_t result = 0;
@@ -272,7 +241,7 @@ Handle<Object> PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     }
   }
 
-  return isolate->factory()->NewNumberFromUint(result);
+  return *isolate->factory()->NewNumberFromUint(result);
 }
 
 }  // namespace
@@ -289,7 +258,7 @@ RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
   if (object->IsJSProxy()) return Smi::FromInt(-1);
-  return *PrepareElementsForSort(Handle<JSObject>::cast(object), limit);
+  return PrepareElementsForSort(Handle<JSObject>::cast(object), limit);
 }
 
 
