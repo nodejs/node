@@ -48,6 +48,7 @@ const data = Buffer.from([
 //
 // At least, that's what is supposed to happen.
 
+let client;
 const server = h2.createServer({ settings: { initialWindowSize: 18 } });
 server.on('stream', (stream) => {
 
@@ -60,6 +61,7 @@ server.on('stream', (stream) => {
       message: 'Stream closed with error code 3'
     })(err);
     server.close();
+    client.destroy();
   }));
 
   stream.respond();
@@ -67,7 +69,7 @@ server.on('stream', (stream) => {
 });
 
 server.listen(0, () => {
-  const client = net.connect(server.address().port, () => {
+  client = net.connect(server.address().port, () => {
     client.on('error', console.log);
 
     client.write(preamble);
@@ -75,7 +77,5 @@ server.listen(0, () => {
     client.write(data);
     client.write(data);
     client.write(data);
-
-    client.destroy();
   });
 });

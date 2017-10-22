@@ -52,8 +52,9 @@ const data = Buffer.from([
 //
 // At least, that's what is supposed to happen.
 
-const server = h2.createServer({ settings: { initialWindowSize: 36 } });
+let client;
 
+const server = h2.createServer({ settings: { initialWindowSize: 36 } });
 server.on('stream', (stream) => {
 
   // Not reading causes the flow control window to get backed up.
@@ -66,6 +67,7 @@ server.on('stream', (stream) => {
       message: 'Stream closed with error code 3'
     })(err);
     server.close();
+    client.destroy();
   }));
 
   stream.on('end', common.mustNotCall());
@@ -75,7 +77,7 @@ server.on('stream', (stream) => {
 });
 
 server.listen(0, () => {
-  const client = net.connect(server.address().port, () => {
+  client = net.connect(server.address().port, () => {
     client.on('error', console.log);
 
     client.write(preamble);
@@ -83,7 +85,5 @@ server.listen(0, () => {
     client.write(data);
     client.write(data);
     client.write(data);
-
-    client.destroy();
   });
 });
