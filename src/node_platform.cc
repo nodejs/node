@@ -4,6 +4,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
+#include <algorithm>
 
 namespace node {
 
@@ -45,13 +46,17 @@ void PerIsolatePlatformData::CallOnForegroundThread(Task* task) {
 
 void PerIsolatePlatformData::CallDelayedOnForegroundThread(
     Task* task, double delay_in_seconds) {
-  auto pair = new std::pair<Task*, double>(task, delay_in_seconds);
-  foreground_delayed_tasks_.Push(pair);
+  auto delayed = new DelayedTask();
+  delayed->task = task;
+  delayed->platform_data = this;
+  delayed->timeout = delay_in_seconds;
+  foreground_delayed_tasks_.Push(delayed);
   uv_async_send(flush_tasks_);
 }
 
 PerIsolatePlatformData::~PerIsolatePlatformData() {
   FlushForegroundTasksInternal();
+  CancelPendingDelayedTasks();
 
   uv_close(reinterpret_cast<uv_handle_t*>(flush_tasks_),
            [](uv_handle_t* handle) {
@@ -120,7 +125,7 @@ size_t NodePlatform::NumberOfAvailableBackgroundThreads() {
   return threads_.size();
 }
 
-static void RunForegroundTask(Task* task) {
+void PerIsolatePlatformData::RunForegroundTask(Task* task) {
   Isolate* isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
@@ -130,12 +135,27 @@ static void RunForegroundTask(Task* task) {
   delete task;
 }
 
-static void RunForegroundTask(uv_timer_t* handle) {
-  Task* task = static_cast<Task*>(handle->data);
-  RunForegroundTask(task);
-  uv_close(reinterpret_cast<uv_handle_t*>(handle), [](uv_handle_t* handle) {
-    delete reinterpret_cast<uv_timer_t*>(handle);
+void PerIsolatePlatformData::RunForegroundTask(uv_timer_t* handle) {
+  DelayedTask* delayed = static_cast<DelayedTask*>(handle->data);
+  auto& tasklist = delayed->platform_data->scheduled_delayed_tasks_;
+  auto it = std::find(tasklist.begin(), tasklist.end(), delayed);
+  CHECK_NE(it, tasklist.end());
+  tasklist.erase(it);
+  RunForegroundTask(delayed->task);
+  uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
+           [](uv_handle_t* handle) {
+    delete static_cast<DelayedTask*>(handle->data);
   });
+}
+
+void PerIsolatePlatformData::CancelPendingDelayedTasks() {
+  for (auto delayed : scheduled_delayed_tasks_) {
+    uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
+             [](uv_handle_t* handle) {
+      delete static_cast<DelayedTask*>(handle->data);
+    });
+  }
+  scheduled_delayed_tasks_.clear();
 }
 
 void NodePlatform::DrainBackgroundTasks(Isolate* isolate) {
@@ -152,18 +172,18 @@ void NodePlatform::DrainBackgroundTasks(Isolate* isolate) {
 
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   bool did_work = false;
+
   while (auto delayed = foreground_delayed_tasks_.Pop()) {
     did_work = true;
     uint64_t delay_millis =
-        static_cast<uint64_t>(delayed->second + 0.5) * 1000;
-    uv_timer_t* handle = new uv_timer_t();
-    handle->data = static_cast<void*>(delayed->first);
-    uv_timer_init(loop_, handle);
+        static_cast<uint64_t>(delayed->timeout + 0.5) * 1000;
+    delayed->timer.data = static_cast<void*>(delayed);
+    uv_timer_init(loop_, &delayed->timer);
     // Timers may not guarantee queue ordering of events with the same delay if
     // the delay is non-zero. This should not be a problem in practice.
-    uv_timer_start(handle, RunForegroundTask, delay_millis, 0);
-    uv_unref(reinterpret_cast<uv_handle_t*>(handle));
-    delete delayed;
+    uv_timer_start(&delayed->timer, RunForegroundTask, delay_millis, 0);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
+    scheduled_delayed_tasks_.push_back(delayed);
   }
   while (Task* task = foreground_tasks_.Pop()) {
     did_work = true;
@@ -197,6 +217,10 @@ void NodePlatform::CallDelayedOnForegroundThread(Isolate* isolate,
 
 void NodePlatform::FlushForegroundTasks(v8::Isolate* isolate) {
   ForIsolate(isolate)->FlushForegroundTasksInternal();
+}
+
+void NodePlatform::CancelPendingDelayedTasks(v8::Isolate* isolate) {
+  ForIsolate(isolate)->CancelPendingDelayedTasks();
 }
 
 bool NodePlatform::IdleTasksEnabled(Isolate* isolate) { return false; }

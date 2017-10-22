@@ -2,7 +2,6 @@
 #include "async_wrap.h"
 #include "v8-profiler.h"
 #include "node_buffer.h"
-#include "req-wrap-inl.h"
 #include "node_platform.h"
 
 #if defined(_MSC_VER)
