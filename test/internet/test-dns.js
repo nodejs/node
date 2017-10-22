@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -74,7 +75,9 @@ TEST(function test_reverse_bogus(done) {
 });
 
 TEST(function test_resolve4_ttl(done) {
-  const req = dns.resolve4('google.com', { ttl: true }, function(err, result) {
+  const req = dns.resolve4(addresses.INET4_HOST, {
+    ttl: true
+  }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -95,7 +98,9 @@ TEST(function test_resolve4_ttl(done) {
 });
 
 TEST(function test_resolve6_ttl(done) {
-  const req = dns.resolve6('google.com', { ttl: true }, function(err, result) {
+  const req = dns.resolve6(addresses.INET6_HOST, {
+    ttl: true
+  }, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -116,7 +121,7 @@ TEST(function test_resolve6_ttl(done) {
 });
 
 TEST(function test_resolveMx(done) {
-  const req = dns.resolveMx('gmail.com', function(err, result) {
+  const req = dns.resolveMx(addresses.MX_HOST, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -138,7 +143,7 @@ TEST(function test_resolveMx(done) {
 });
 
 TEST(function test_resolveMx_failure(done) {
-  const req = dns.resolveMx('something.invalid', function(err, result) {
+  const req = dns.resolveMx(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -151,7 +156,7 @@ TEST(function test_resolveMx_failure(done) {
 });
 
 TEST(function test_resolveNs(done) {
-  const req = dns.resolveNs('rackspace.com', function(err, names) {
+  const req = dns.resolveNs(addresses.NS_HOST, function(err, names) {
     assert.ifError(err);
     assert.ok(names.length > 0);
 
@@ -168,7 +173,7 @@ TEST(function test_resolveNs(done) {
 });
 
 TEST(function test_resolveNs_failure(done) {
-  const req = dns.resolveNs('something.invalid', function(err, result) {
+  const req = dns.resolveNs(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -181,7 +186,7 @@ TEST(function test_resolveNs_failure(done) {
 });
 
 TEST(function test_resolveSrv(done) {
-  const req = dns.resolveSrv('_jabber._tcp.google.com', function(err, result) {
+  const req = dns.resolveSrv(addresses.SRV_HOST, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -205,7 +210,7 @@ TEST(function test_resolveSrv(done) {
 });
 
 TEST(function test_resolveSrv_failure(done) {
-  const req = dns.resolveSrv('something.invalid', function(err, result) {
+  const req = dns.resolveSrv(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -218,7 +223,7 @@ TEST(function test_resolveSrv_failure(done) {
 });
 
 TEST(function test_resolvePtr(done) {
-  const req = dns.resolvePtr('8.8.8.8.in-addr.arpa', function(err, result) {
+  const req = dns.resolvePtr(addresses.PTR_HOST, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -235,7 +240,7 @@ TEST(function test_resolvePtr(done) {
 });
 
 TEST(function test_resolvePtr_failure(done) {
-  const req = dns.resolvePtr('something.invalid', function(err, result) {
+  const req = dns.resolvePtr(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -248,7 +253,7 @@ TEST(function test_resolvePtr_failure(done) {
 });
 
 TEST(function test_resolveNaptr(done) {
-  const req = dns.resolveNaptr('sip2sip.info', function(err, result) {
+  const req = dns.resolveNaptr(addresses.NAPTR_HOST, function(err, result) {
     assert.ifError(err);
     assert.ok(result.length > 0);
 
@@ -272,7 +277,7 @@ TEST(function test_resolveNaptr(done) {
 });
 
 TEST(function test_resolveNaptr_failure(done) {
-  const req = dns.resolveNaptr('something.invalid', function(err, result) {
+  const req = dns.resolveNaptr(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -285,7 +290,7 @@ TEST(function test_resolveNaptr_failure(done) {
 });
 
 TEST(function test_resolveSoa(done) {
-  const req = dns.resolveSoa('nodejs.org', function(err, result) {
+  const req = dns.resolveSoa(addresses.SOA_HOST, function(err, result) {
     assert.ifError(err);
     assert.ok(result);
     assert.strictEqual(typeof result, 'object');
@@ -318,7 +323,7 @@ TEST(function test_resolveSoa(done) {
 });
 
 TEST(function test_resolveSoa_failure(done) {
-  const req = dns.resolveSoa('something.invalid', function(err, result) {
+  const req = dns.resolveSoa(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -331,7 +336,7 @@ TEST(function test_resolveSoa_failure(done) {
 });
 
 TEST(function test_resolveCname(done) {
-  const req = dns.resolveCname('www.microsoft.com', function(err, names) {
+  const req = dns.resolveCname(addresses.CNAME_HOST, function(err, names) {
     assert.ifError(err);
     assert.ok(names.length > 0);
 
@@ -348,7 +353,7 @@ TEST(function test_resolveCname(done) {
 });
 
 TEST(function test_resolveCname_failure(done) {
-  const req = dns.resolveCname('something.invalid', function(err, result) {
+  const req = dns.resolveCname(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -362,7 +367,7 @@ TEST(function test_resolveCname_failure(done) {
 
 
 TEST(function test_resolveTxt(done) {
-  const req = dns.resolveTxt('google.com', function(err, records) {
+  const req = dns.resolveTxt(addresses.TXT_HOST, function(err, records) {
     assert.ifError(err);
     assert.strictEqual(records.length, 1);
     assert.ok(util.isArray(records[0]));
@@ -374,7 +379,7 @@ TEST(function test_resolveTxt(done) {
 });
 
 TEST(function test_resolveTxt_failure(done) {
-  const req = dns.resolveTxt('something.invalid', function(err, result) {
+  const req = dns.resolveTxt(addresses.INVALID_HOST, function(err, result) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, 'ENOTFOUND');
 
@@ -388,12 +393,12 @@ TEST(function test_resolveTxt_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  const req = dns.lookup('does.not.exist', 4, function(err, ip, family) {
+  const req = dns.lookup(addresses.INVALID_HOST, 4, (err, ip, family) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
     assert.strictEqual(err.errno, 'ENOTFOUND');
     assert.ok(!/ENOENT/.test(err.message));
-    assert.ok(/does\.not\.exist/.test(err.message));
+    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -458,7 +463,9 @@ TEST(function test_lookup_null_all(done) {
 
 
 TEST(function test_lookup_all_mixed(done) {
-  const req = dns.lookup('www.google.com', { all: true }, function(err, ips) {
+  const req = dns.lookup(addresses.INET_HOST, {
+    all: true
+  }, function(err, ips) {
     assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);
@@ -508,11 +515,11 @@ TEST(function test_reverse_failure(done) {
 
 
 TEST(function test_lookup_failure(done) {
-  const req = dns.lookup('nosuchhostimsure', function(err) {
+  const req = dns.lookup(addresses.INVALID_HOST, (err) => {
     assert(err instanceof Error);
     assert.strictEqual(err.code, 'ENOTFOUND');  // Silly error code...
-    assert.strictEqual(err.hostname, 'nosuchhostimsure');
-    assert.ok(/nosuchhostimsure/.test(err.message));
+    assert.strictEqual(err.hostname, addresses.INVALID_HOST);
+    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -522,7 +529,7 @@ TEST(function test_lookup_failure(done) {
 
 
 TEST(function test_resolve_failure(done) {
-  const req = dns.resolve4('nosuchhostimsure', function(err) {
+  const req = dns.resolve4(addresses.INVALID_HOST, (err) => {
     assert(err instanceof Error);
 
     switch (err.code) {
@@ -534,8 +541,8 @@ TEST(function test_resolve_failure(done) {
         break;
     }
 
-    assert.strictEqual(err.hostname, 'nosuchhostimsure');
-    assert.ok(/nosuchhostimsure/.test(err.message));
+    assert.strictEqual(err.hostname, addresses.INVALID_HOST);
+    assert.ok(err.message.includes(addresses.INVALID_HOST));
 
     done();
   });
@@ -546,15 +553,16 @@ TEST(function test_resolve_failure(done) {
 
 let getaddrinfoCallbackCalled = false;
 
-console.log('looking up nodejs.org...');
+console.log(`looking up ${addresses.INET4_HOST}..`);
 
 const cares = process.binding('cares_wrap');
 const req = new cares.GetAddrInfoReqWrap();
-cares.getaddrinfo(req, 'nodejs.org', 4, /* hints */ 0, /* verbatim */ true);
+cares.getaddrinfo(req, addresses.INET4_HOST, 4,
+  /* hints */ 0, /* verbatim */ true);
 
 req.oncomplete = function(err, domains) {
   assert.strictEqual(err, 0);
-  console.log('nodejs.org = ', domains);
+  console.log(`${addresses.INET4_HOST} = ${domains}`);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);
   assert.strictEqual(typeof domains[0], 'string');
@@ -569,10 +577,14 @@ process.on('exit', function() {
 });
 
 
-assert.doesNotThrow(() => dns.lookup('nodejs.org', 6, common.mustCall()));
+assert.doesNotThrow(() =>
+  dns.lookup(addresses.INET6_HOST, 6, common.mustCall()));
 
-assert.doesNotThrow(() => dns.lookup('nodejs.org', {}, common.mustCall()));
+assert.doesNotThrow(() =>
+  dns.lookup(addresses.INET_HOST, {}, common.mustCall()));
 
-assert.doesNotThrow(() => dns.lookupService('0.0.0.0', '0', common.mustCall()));
+assert.doesNotThrow(() =>
+  dns.lookupService('0.0.0.0', '0', common.mustCall()));
 
-assert.doesNotThrow(() => dns.lookupService('0.0.0.0', 0, common.mustCall()));
+assert.doesNotThrow(() =>
+  dns.lookupService('0.0.0.0', 0, common.mustCall()));
