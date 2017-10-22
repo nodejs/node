@@ -219,7 +219,8 @@ test: all
 		$(CI_ASYNC_HOOKS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES) \
-		doctool known_issues
+		$(CI_DOC) \
+		known_issues
 endif
 
 # For a quick test, does not run linter or build doc
@@ -268,7 +269,6 @@ test/gc/build/Release/binding.node: test/gc/binding.cc test/gc/binding.gyp
 		--directory="$(shell pwd)/test/gc" \
 		--nodedir="$(shell pwd)"
 
-# Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
@@ -277,7 +277,7 @@ endif
 
 test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
 	$(RM) -r test/addons/??_*/
-	$(NODE) $<
+	[ -x $(NODE) ] && $(NODE) $< || node $<
 	touch $@
 
 ADDONS_BINDING_GYPS := \
@@ -313,10 +313,10 @@ test/addons/.buildstamp: config.gypi \
 	done
 	touch $@
 
-# .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
+# .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
-# .buildstamp and .docbuildstamp are out of date and need a rebuild.
+# .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: $(NODE_EXE) test/addons/.buildstamp
@@ -352,10 +352,10 @@ test/addons-napi/.buildstamp: config.gypi \
 	done
 	touch $@
 
-# .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
+# .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
-# .buildstamp and .docbuildstamp are out of date and need a rebuild.
+# .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
 build-addons-napi: $(NODE_EXE) test/addons-napi/.buildstamp
@@ -387,6 +387,7 @@ test-all-valgrind: test-build
 CI_NATIVE_SUITES ?= addons addons-napi
 CI_ASYNC_HOOKS := async-hooks
 CI_JS_SUITES ?= default
+CI_DOC := doctool
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
@@ -412,7 +413,8 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) doctool known_issues
+		$(TEST_CI_ARGS) $(CI_ASYNC_HOOKS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) \
+		$(CI_DOC) known_issues
 	# Clean up any leftover processes, error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -447,6 +449,10 @@ test-tick-processor: all
 
 test-hash-seed: all
 	$(NODE) test/pummel/test-hash-seed.js
+
+test-doc: doc-only
+	$(MAKE) lint
+	$(PYTHON) tools/test.py $(CI_DOC)
 
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
@@ -981,26 +987,38 @@ lint-md: lint-md-build
 		./*.md doc src lib benchmark tools/doc/ tools/icu/
 
 LINT_JS_TARGETS = benchmark doc lib test tools
+LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
+	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md \
+	$(LINT_JS_TARGETS)
 
 lint-js:
 	@echo "Running JS linter..."
-	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules --ext=.js,.mjs,.md \
-	  $(LINT_JS_TARGETS)
+	@if [ -x $(NODE) ]; then \
+		$(NODE) $(LINT_JS_CMD); \
+	else \
+		node $(LINT_JS_CMD); \
+	fi
 
 jslint: lint-js
 	@echo "Please use lint-js instead of jslint"
 
 lint-js-ci:
 	@echo "Running JS linter..."
-	$(NODE) tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		$(LINT_JS_TARGETS)
+	@if [ -x $(NODE) ]; then \
+		$(NODE) tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
+		$(LINT_JS_TARGETS); \
+	else \
+		node tools/lint-js.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
+		$(LINT_JS_TARGETS); \
+	fi
 
 jslint-ci: lint-js-ci
 	@echo "Please use lint-js-ci instead of jslint-ci"
 
+LINT_CPP_ADDON_DOC_FILES = $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
-LINT_CPP_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
+LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 LINT_CPP_EXCLUDE += $(wildcard test/addons-napi/??_*/*.cc test/addons-napi/??_*/*.h)
 # These files were copied more or less verbatim from V8.
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
@@ -1024,10 +1042,18 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	tools/icu/*.h \
 	))
 
+# Code blocks don't have newline at the end,
+# and the actual filename is generated so it won't match header guards
+ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
+
 lint-cpp:
 	@echo "Running C++ linter..."
 	@$(PYTHON) tools/cpplint.py $(LINT_CPP_FILES)
 	@$(PYTHON) tools/check-imports.py
+
+lint-addon-docs: test/addons/.docbuildstamp
+	@echo "Running C++ linter on addon docs..."
+	@$(PYTHON) tools/cpplint.py --filter=$(ADDON_DOC_LINT_FLAGS) $(LINT_CPP_ADDON_DOC_FILES)
 
 cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
@@ -1038,9 +1064,10 @@ lint:
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
-lint-ci: lint-js-ci lint-cpp lint-md
+lint-ci: lint-js-ci lint-cpp lint-md lint-addon-docs
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
@@ -1120,6 +1147,7 @@ endif
   test-ci \
   test-ci-js \
   test-ci-native \
+  test-doc \
   test-gc \
   test-gc-clean \
   test-hash-seed \
