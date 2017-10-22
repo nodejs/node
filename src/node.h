@@ -214,6 +214,7 @@ class MultiIsolatePlatform : public v8::Platform {
  public:
   virtual ~MultiIsolatePlatform() { }
   virtual void DrainBackgroundTasks(v8::Isolate* isolate) = 0;
+  virtual void CancelPendingDelayedTasks(v8::Isolate* isolate) = 0;
 
   // These will be called by the `IsolateData` creation/destruction functions.
   virtual void RegisterIsolate(IsolateData* isolate_data,
