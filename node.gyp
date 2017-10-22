@@ -798,6 +798,7 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
+        'test/cctest/node_module_reg.cc',
         'test/cctest/node_test_fixture.cc',
         'test/cctest/test_aliased_buffer.cc',
         'test/cctest/test_base64.cc',

@@ -729,8 +729,7 @@ void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::AsyncWrap::Initialize)
-
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(async_wrap, node::AsyncWrap::Initialize)
 
 // Only legacy public API below this line.
 

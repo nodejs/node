@@ -1518,4 +1518,4 @@ void InitFs(Local<Object> target,
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs, node::InitFs)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::InitFs)
