@@ -95,6 +95,26 @@ Tells the kernel to join a multicast group at the given `multicastAddress` and
 one interface and will add membership to it. To add membership to every
 available interface, call `addMembership` multiple times, once per interface.
 
+UDP works as a bit special with cluster. When `dgram` creates a socket in the
+master process, each worker gets a copy as in `dup(2)``, except the actual
+mechanism is `sendmsg(2)`` with a SCM_RIGHTS vector. Therefor, `.addMembership`
+needs to be managed to be called only once.
+
+```js
+const cluster = require('cluster');
+const dgram = require('dgram');
+
+if (cluster.isMaster) {
+   cluster.fork(); // ok
+   cluster.fork(); // EADDRINUSE
+} else {
+  const s = dgram.createSocket('udp4');
+  s.bind(1234, () => {
+    s.addMembership('224.0.0.114');
+  });
+}
+```
+
 ### socket.address()
 <!-- YAML
 added: v0.1.99
