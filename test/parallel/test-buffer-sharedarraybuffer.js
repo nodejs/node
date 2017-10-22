@@ -1,6 +1,5 @@
 /*global SharedArrayBuffer*/
 'use strict';
-// Flags: --harmony-sharedarraybuffer
 
 require('../common');
 const assert = require('assert');
