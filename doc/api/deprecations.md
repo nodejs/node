@@ -703,7 +703,7 @@ Type: Runtime
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
 
-Type: Documentation-only
+Type: Runtime
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
