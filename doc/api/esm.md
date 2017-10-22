@@ -128,10 +128,18 @@ argument to the resolver for easy compatibility workflows.
 
 In addition to returning the resolved file URL value, the resolve hook also
 returns a `format` property specifying the module format of the resolved
-module. This can be one of `"esm"`, `"cjs"`, `"json"`, `"builtin"` or
-`"addon"`.
+module. This can be one of the following:
 
-For example a dummy loader to load JavaScript restricted to browser resolution
+| `format` | Description |
+| --- | --- |
+| `"esm"` | Load a standard JavaScript module |
+| `"cjs"` | Load a node-style CommonJS module |
+| `"builtin"` | Load a node builtin CommonJS module |
+| `"json"` | Load a JSON file |
+| `"addon"` | Load a [C++ Addon][addons] |
+| `"dynamic"` | Use a [dynamic instantiate hook][] |
+
+For example, a dummy loader to load JavaScript restricted to browser resolution
 rules with only JS file extension and Node builtin modules support could
 be written:
 
@@ -205,3 +213,5 @@ then be called at the exact point of module evalutation order for that module
 in the import tree.
 
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
+[addons]: addons.html
+[dynamic instantiate hook]: #esm_dynamic_instantiate_hook
