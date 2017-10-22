@@ -76,11 +76,12 @@ req.on('response', (headers, flags) => {
   }
 });
 
-let data = []
-req.on('data', (d) => data.push(d));
+req.setEncoding('utf8');
+let rawData = '';
+req.on('data', (chunk) => { rawData += chunk; });
 req.on('end', () => {
   console.log();
-  console.log(Buffer.concat(data).toString('utf8'));
+  console.log(rawData);
   client.destroy()
 });
 req.end();
