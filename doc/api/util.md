@@ -112,6 +112,7 @@ environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 added: v0.8.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16393
     description: Deprecation warnings are only emitted once for each code.
 -->
 

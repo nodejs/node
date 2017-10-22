@@ -1150,3 +1150,9 @@ if (typeof Symbol !== 'undefined') {
 }
 
 assert.doesNotThrow(() => util.inspect(process));
+
+// Setting custom inspect property to a non-function should do nothing.
+{
+  const obj = { inspect: 'fhqwhgads' };
+  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+}
