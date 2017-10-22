@@ -1359,7 +1359,6 @@ unavailable.
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
 [`subprocess.kill()`]: #child_process_subprocess_kill_signal
