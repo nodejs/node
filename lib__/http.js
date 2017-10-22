@@ -1,0 +1,21 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';var cov_jhnq6l7ss=function(){var path='http.js',hash='bb1e801e444e85ea38edd083dd2d1ed9bf9f3226',global=new Function('return this')(),gcv='__coverage__',coverageData={path:'http.js',statementMap:{'0':{start:{line:24,column:14},end:{line:24,column:36}},'1':{start:{line:25,column:15},end:{line:25,column:38}},'2':{start:{line:26,column:15},end:{line:26,column:38}},'3':{start:{line:27,column:17},end:{line:27,column:42}},'4':{start:{line:28,column:17},end:{line:28,column:42}},'5':{start:{line:29,column:15},end:{line:29,column:38}},'6':{start:{line:31,column:15},end:{line:31,column:28}},'7':{start:{line:32,column:22},end:{line:32,column:42}},'8':{start:{line:35,column:2},end:{line:35,column:37}},'9':{start:{line:39,column:2},end:{line:39,column:40}},'10':{start:{line:43,column:12},end:{line:43,column:32}},'11':{start:{line:44,column:2},end:{line:44,column:12}},'12':{start:{line:45,column:2},end:{line:45,column:13}},'13':{start:{line:48,column:0},end:{line:62,column:2}}},fnMap:{'0':{name:'createServer',decl:{start:{line:34,column:9},end:{line:34,column:21}},loc:{start:{line:34,column:39},end:{line:36,column:1}},line:34},'1':{name:'request',decl:{start:{line:38,column:9},end:{line:38,column:16}},loc:{start:{line:38,column:30},end:{line:40,column:1}},line:38},'2':{name:'get',decl:{start:{line:42,column:9},end:{line:42,column:12}},loc:{start:{line:42,column:26},end:{line:46,column:1}},line:42}},branchMap:{},s:{'0':0,'1':0,'2':0,'3':0,'4':0,'5':0,'6':0,'7':0,'8':0,'9':0,'10':0,'11':0,'12':0,'13':0},f:{'0':0,'1':0,'2':0},b:{},_coverageSchema:'332fd63041d2c1bcb487cc26dd0d5f7d97098a6c'},coverage=global[gcv]||(global[gcv]={});if(coverage[path]&&coverage[path].hash===hash){return coverage[path];}coverageData.hash=hash;return coverage[path]=coverageData;}();const agent=(cov_jhnq6l7ss.s[0]++,require('_http_agent'));const client=(cov_jhnq6l7ss.s[1]++,require('_http_client'));const common=(cov_jhnq6l7ss.s[2]++,require('_http_common'));const incoming=(cov_jhnq6l7ss.s[3]++,require('_http_incoming'));const outgoing=(cov_jhnq6l7ss.s[4]++,require('_http_outgoing'));const server=(cov_jhnq6l7ss.s[5]++,require('_http_server'));const Server=(cov_jhnq6l7ss.s[6]++,server.Server);const ClientRequest=(cov_jhnq6l7ss.s[7]++,client.ClientRequest);function createServer(requestListener){cov_jhnq6l7ss.f[0]++;cov_jhnq6l7ss.s[8]++;return new Server(requestListener);}function request(options,cb){cov_jhnq6l7ss.f[1]++;cov_jhnq6l7ss.s[9]++;return new ClientRequest(options,cb);}function get(options,cb){cov_jhnq6l7ss.f[2]++;var req=(cov_jhnq6l7ss.s[10]++,request(options,cb));cov_jhnq6l7ss.s[11]++;req.end();cov_jhnq6l7ss.s[12]++;return req;}cov_jhnq6l7ss.s[13]++;module.exports={_connectionListener:server._connectionListener,METHODS:common.methods.slice().sort(),STATUS_CODES:server.STATUS_CODES,Agent:agent.Agent,ClientRequest,globalAgent:agent.globalAgent,IncomingMessage:incoming.IncomingMessage,OutgoingMessage:outgoing.OutgoingMessage,Server,ServerResponse:server.ServerResponse,createServer,get,request};

@@ -1,0 +1,3 @@
+'use strict';// This module exists entirely for regression testing purposes.
+// See `test/parallel/test-internal-unicode.js`.
+var cov_1skvsrquxx=function(){var path='internal/test/unicode.js',hash='a80d366c37ec8b8a19f8028b2ffb7d6008c4d1bb',global=new Function('return this')(),gcv='__coverage__',coverageData={path:'internal/test/unicode.js',statementMap:{'0':{start:{line:6,column:0},end:{line:6,column:21}}},fnMap:{},branchMap:{},s:{'0':0},f:{},b:{},_coverageSchema:'332fd63041d2c1bcb487cc26dd0d5f7d97098a6c'},coverage=global[gcv]||(global[gcv]={});if(coverage[path]&&coverage[path].hash===hash){return coverage[path];}coverageData.hash=hash;return coverage[path]=coverageData;}();cov_1skvsrquxx.s[0]++;module.exports='✓';

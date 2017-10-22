@@ -1,0 +1,6 @@
+# Handlebars-template fixtures in test cases need deterministic eol
+*.handlebars text eol=lf
+*.hbs text eol=lf
+
+# Lexer files as well
+*.l text eol=lf
