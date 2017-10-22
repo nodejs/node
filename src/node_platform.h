@@ -14,6 +14,7 @@ namespace node {
 
 class NodePlatform;
 class IsolateData;
+class PerIsolatePlatformData;
 
 template <class T>
 class TaskQueue {
@@ -37,6 +38,13 @@ class TaskQueue {
   std::queue<T*> task_queue_;
 };
 
+struct DelayedTask {
+  v8::Task* task;
+  uv_timer_t timer;
+  double timeout;
+  PerIsolatePlatformData* platform_data;
+};
+
 class PerIsolatePlatformData {
  public:
   PerIsolatePlatformData(v8::Isolate* isolate, uv_loop_t* loop);
@@ -52,15 +60,20 @@ class PerIsolatePlatformData {
 
   // Returns true iff work was dispatched or executed.
   bool FlushForegroundTasksInternal();
+  void CancelPendingDelayedTasks();
+
  private:
   static void FlushTasks(uv_async_t* handle);
+  static void RunForegroundTask(v8::Task* task);
+  static void RunForegroundTask(uv_timer_t* timer);
 
   int ref_count_ = 1;
   v8::Isolate* isolate_;
   uv_loop_t* const loop_;
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
-  TaskQueue<std::pair<v8::Task*, double>> foreground_delayed_tasks_;
+  TaskQueue<DelayedTask> foreground_delayed_tasks_;
+  std::vector<DelayedTask*> scheduled_delayed_tasks_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
@@ -69,6 +82,7 @@ class NodePlatform : public MultiIsolatePlatform {
   virtual ~NodePlatform() {}
 
   void DrainBackgroundTasks(v8::Isolate* isolate) override;
+  void CancelPendingDelayedTasks(v8::Isolate* isolate) override;
   void Shutdown();
 
   // v8::Platform implementation.
