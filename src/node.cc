@@ -301,6 +301,10 @@ static struct {
     platform_->DrainBackgroundTasks(isolate);
   }
 
+  void CancelVMTasks(Isolate* isolate) {
+    platform_->CancelPendingDelayedTasks(isolate);
+  }
+
 #if HAVE_INSPECTOR
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
@@ -333,6 +337,7 @@ static struct {
   void Initialize(int thread_pool_size) {}
   void Dispose() {}
   void DrainVMTasks(Isolate* isolate) {}
+  void CancelVMTasks(Isolate* isolate) {}
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
@@ -4839,6 +4844,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   uv_key_delete(&thread_local_env);
 
   v8_platform.DrainVMTasks(isolate);
+  v8_platform.CancelVMTasks(isolate);
   WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
