@@ -810,4 +810,4 @@ void InitHttpParser(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(http_parser, node::InitHttpParser)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(http_parser, node::InitHttpParser)

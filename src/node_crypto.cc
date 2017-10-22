@@ -6195,4 +6195,4 @@ void InitCrypto(Local<Object> target,
 }  // namespace crypto
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(crypto, node::crypto::InitCrypto)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(crypto, node::crypto::InitCrypto)

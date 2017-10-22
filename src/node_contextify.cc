@@ -1085,4 +1085,4 @@ void InitContextify(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::InitContextify)

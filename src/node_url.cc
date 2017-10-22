@@ -2220,4 +2220,4 @@ static void Init(Local<Object> target,
 }  // namespace url
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(url, node::url::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(url, node::url::Init)

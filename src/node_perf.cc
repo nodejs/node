@@ -390,4 +390,4 @@ void Init(Local<Object> target,
 }  // namespace performance
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(performance, node::performance::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(performance, node::performance::Init)
