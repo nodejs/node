@@ -457,7 +457,7 @@ new Promise((resolve) => resolve(true)).then((a) => {});
 
 calls the following callbacks:
 
-```
+```text
 init for PROMISE with id 5, trigger id: 1
   promise resolve 5      # corresponds to resolve(true)
 init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
