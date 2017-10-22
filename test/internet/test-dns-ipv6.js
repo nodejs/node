@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const { addresses } = require('../common/internet');
 if (!common.hasIPv6)
   common.skip('this test, no IPv6 support');
 
@@ -38,53 +39,57 @@ function checkWrap(req) {
 }
 
 TEST(function test_resolve6(done) {
-  const req = dns.resolve6('ipv6.google.com',
-                           common.mustCall((err, ips) => {
-                             assert.ifError(err);
+  const req = dns.resolve6(
+    addresses.INET6_HOST,
+    common.mustCall((err, ips) => {
+      assert.ifError(err);
 
-                             assert.ok(ips.length > 0);
+      assert.ok(ips.length > 0);
 
-                             for (let i = 0; i < ips.length; i++)
-                               assert.ok(isIPv6(ips[i]));
+      for (let i = 0; i < ips.length; i++)
+        assert.ok(isIPv6(ips[i]));
 
-                             done();
-                           }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_reverse_ipv6(done) {
-  const req = dns.reverse('2001:4860:4860::8888',
-                          common.mustCall((err, domains) => {
-                            assert.ifError(err);
+  const req = dns.reverse(
+    addresses.INET6_IP,
+    common.mustCall((err, domains) => {
+      assert.ifError(err);
 
-                            assert.ok(domains.length > 0);
+      assert.ok(domains.length > 0);
 
-                            for (let i = 0; i < domains.length; i++)
-                              assert.ok(typeof domains[i] === 'string');
+      for (let i = 0; i < domains.length; i++)
+        assert.ok(typeof domains[i] === 'string');
 
-                            done();
-                          }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv6_explicit(done) {
-  const req = dns.lookup('ipv6.google.com', 6,
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
-                           assert.ok(isIPv6(ip));
-                           assert.strictEqual(family, 6);
+  const req = dns.lookup(
+    addresses.INET6_HOST,
+    6,
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
+      assert.ok(isIPv6(ip));
+      assert.strictEqual(family, 6);
 
-                           done();
-                         }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 /* This ends up just being too problematic to test
 TEST(function test_lookup_ipv6_implicit(done) {
-  var req = dns.lookup('ipv6.google.com', function(err, ip, family) {
+  var req = dns.lookup(addresses.INET6_HOST, function(err, ip, family) {
     assert.ifError(err);
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
@@ -97,7 +102,7 @@ TEST(function test_lookup_ipv6_implicit(done) {
 */
 
 TEST(function test_lookup_ipv6_explicit_object(done) {
-  const req = dns.lookup('ipv6.google.com', {
+  const req = dns.lookup(addresses.INET6_HOST, {
     family: 6
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
@@ -111,7 +116,7 @@ TEST(function test_lookup_ipv6_explicit_object(done) {
 });
 
 TEST(function test_lookup_ipv6_hint(done) {
-  const req = dns.lookup('www.google.com', {
+  const req = dns.lookup(addresses.INET6_HOST, {
     family: 6,
     hints: dns.V4MAPPED
   }, common.mustCall((err, ip, family) => {
@@ -120,7 +125,7 @@ TEST(function test_lookup_ipv6_hint(done) {
       if (common.isFreeBSD) {
         assert(err instanceof Error);
         assert.strictEqual(err.code, 'EAI_BADFLAGS');
-        assert.strictEqual(err.hostname, 'www.google.com');
+        assert.strictEqual(err.hostname, addresses.INET_HOST);
         assert.ok(/getaddrinfo EAI_BADFLAGS/.test(err.message));
         done();
         return;
@@ -139,21 +144,22 @@ TEST(function test_lookup_ipv6_hint(done) {
 });
 
 TEST(function test_lookup_ip_ipv6(done) {
-  const req = dns.lookup('::1',
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
-                           assert.ok(isIPv6(ip));
-                           assert.strictEqual(family, 6);
+  const req = dns.lookup(
+    '::1',
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
+      assert.ok(isIPv6(ip));
+      assert.strictEqual(family, 6);
 
-                           done();
-                         }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_all_ipv6(done) {
   const req = dns.lookup(
-    'www.google.com',
+    addresses.INET6_HOST,
     { all: true, family: 6 },
     common.mustCall((err, ips) => {
       assert.ifError(err);
