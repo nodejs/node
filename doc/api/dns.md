@@ -671,4 +671,3 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [Implementation considerations section]: #dns_implementation_considerations
 [rfc5952]: https://tools.ietf.org/html/rfc5952#section-6
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
-[the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
