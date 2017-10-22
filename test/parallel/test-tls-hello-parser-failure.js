@@ -31,7 +31,6 @@ const assert = require('assert');
 const tls = require('tls');
 
 const net = require('net');
-const fs = require('fs');
 
 const options = {
   key: fixtures.readKey('test_key.pem'),
