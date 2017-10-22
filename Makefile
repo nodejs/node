@@ -102,11 +102,15 @@ uninstall:
 
 clean:
 	$(RM) -r out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
-                out/$(BUILDTYPE)/node.exp
+		out/$(BUILDTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
 	$(RM) -r node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; $(RM) -r deps/icu; fi
 	$(RM) test.tap
+	# Next one is legacy remove this at some point
+	$(RM) -r test/tmp*
+	$(RM) -r test/.tmp*
+	$(MAKE) test-addons-clean
 
 distclean:
 	$(RM) -r out
