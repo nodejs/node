@@ -5,6 +5,7 @@ This directory contains modules used to test the Node.js implementation.
 ## Table of Contents
 
 * [Common module API](#common-module-api)
+* [Duplex pair helper](#duplex-pair-helper)
 * [WPT module](#wpt-module)
 
 ## Common Module API
@@ -317,6 +318,14 @@ Decrements the `Countdown` counter.
 
 Specifies the remaining number of times `Countdown.prototype.dec()` must be
 called before the callback is invoked.
+
+## Duplex pair helper
+
+The `common/duplexpair` module exports a single function `makeDuplexPair`,
+which returns an object `{ clientSide, serverSide }` where each side is a
+`Duplex` stream connected to the other side.
+
+There is no difference between client or server side beyond their names.
 
 ## Fixtures Module
 
