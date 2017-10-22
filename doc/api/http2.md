@@ -51,7 +51,8 @@ server.listen(8443);
 To generate the certificate and key for this example, run:
 
 ```bash
-openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -x509 -keyout localhost-privkey.pem -out localhost-cert.pem
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout localhost-privkey.pem -out localhost-cert.pem
 ```
 
 ### Client-side example
@@ -59,8 +60,8 @@ openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' -x509 -keyout 
 The following illustrates an HTTP/2 client:
 
 ```js
-var http2 = require('http2');
-var fs = require('fs');
+const http2 = require('http2');
+const fs = require('fs');
 const client = http2.connect('https://localhost:8443', {
   ca: fs.readFileSync("localhost-cert.pem")
 });
@@ -70,7 +71,7 @@ client.on('error', (err) => console.error(err))
 const req = client.request({ ':path': '/' });
 
 req.on('response', (headers, flags) => {
-  for (var name in headers) {
+  for (const name in headers) {
     console.log(name + ": " + headers[name]);
   }
 });
