@@ -398,5 +398,5 @@ void LibuvStreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(stream_wrap,
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(stream_wrap,
                                   node::LibuvStreamWrap::Initialize)
