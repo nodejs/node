@@ -175,7 +175,7 @@ export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
 
 With this loader, running:
 
-```
+```console
 NODE_OPTIONS='--experimental-modules --loader ./custom-loader.mjs' node x.js
 ```
 

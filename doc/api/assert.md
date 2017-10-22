@@ -716,7 +716,6 @@ assert(Object.is(str1 / 1, str2 / 1));
 For more information, see
 [MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
-[`Error`]: errors.html#errors_class_error
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
