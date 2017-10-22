@@ -21,6 +21,7 @@
 
 #include "uv.h"
 #include "node.h"
+#include "node_internals.h"
 #include "env-inl.h"
 
 namespace node {
@@ -58,4 +59,4 @@ void InitializeUV(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(uv, node::InitializeUV)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(uv, node::InitializeUV)

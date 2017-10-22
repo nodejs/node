@@ -230,4 +230,4 @@ void Initialize(Local<Object> target,
 }  // namespace util
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(util, node::util::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(util, node::util::Initialize)
