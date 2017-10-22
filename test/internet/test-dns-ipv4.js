@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -38,68 +39,72 @@ function checkWrap(req) {
 }
 
 TEST(function test_resolve4(done) {
-  const req = dns.resolve4('www.google.com',
-                           common.mustCall((err, ips) => {
-                             assert.ifError(err);
+  const req = dns.resolve4(
+    addresses.INET4_HOST,
+    common.mustCall((err, ips) => {
+      assert.ifError(err);
 
-                             assert.ok(ips.length > 0);
+      assert.ok(ips.length > 0);
 
-                             for (let i = 0; i < ips.length; i++) {
-                               assert.ok(isIPv4(ips[i]));
-                             }
+      for (let i = 0; i < ips.length; i++) {
+        assert.ok(isIPv4(ips[i]));
+      }
 
-                             done();
-                           }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_reverse_ipv4(done) {
-  const req = dns.reverse('8.8.8.8',
-                          common.mustCall((err, domains) => {
-                            assert.ifError(err);
+  const req = dns.reverse(
+    addresses.INET4_IP,
+    common.mustCall((err, domains) => {
+      assert.ifError(err);
 
-                            assert.ok(domains.length > 0);
+      assert.ok(domains.length > 0);
 
-                            for (let i = 0; i < domains.length; i++) {
-                              assert.ok(domains[i]);
-                              assert.ok(typeof domains[i] === 'string');
-                            }
+      for (let i = 0; i < domains.length; i++) {
+        assert.ok(domains[i]);
+        assert.ok(typeof domains[i] === 'string');
+      }
 
-                            done();
-                          }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv4_explicit(done) {
-  const req = dns.lookup('www.google.com', 4,
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
-                           assert.ok(net.isIPv4(ip));
-                           assert.strictEqual(family, 4);
+  const req = dns.lookup(
+    addresses.INET4_HOST, 4,
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
+      assert.ok(net.isIPv4(ip));
+      assert.strictEqual(family, 4);
 
-                           done();
-                         }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv4_implicit(done) {
-  const req = dns.lookup('www.google.com',
-                         common.mustCall((err, ip, family) => {
-                           assert.ifError(err);
-                           assert.ok(net.isIPv4(ip));
-                           assert.strictEqual(family, 4);
+  const req = dns.lookup(
+    addresses.INET4_HOST,
+    common.mustCall((err, ip, family) => {
+      assert.ifError(err);
+      assert.ok(net.isIPv4(ip));
+      assert.strictEqual(family, 4);
 
-                           done();
-                         }));
+      done();
+    }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv4_explicit_object(done) {
-  const req = dns.lookup('www.google.com', {
+  const req = dns.lookup(addresses.INET4_HOST, {
     family: 4
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
@@ -113,7 +118,7 @@ TEST(function test_lookup_ipv4_explicit_object(done) {
 });
 
 TEST(function test_lookup_ipv4_hint_addrconfig(done) {
-  const req = dns.lookup('www.google.com', {
+  const req = dns.lookup(addresses.INET4_HOST, {
     hints: dns.ADDRCONFIG
   }, common.mustCall((err, ip, family) => {
     assert.ifError(err);
@@ -154,7 +159,7 @@ TEST(function test_lookup_localhost_ipv4(done) {
 
 TEST(function test_lookup_all_ipv4(done) {
   const req = dns.lookup(
-    'www.google.com',
+    addresses.INET4_HOST,
     { all: true, family: 4 },
     common.mustCall((err, ips) => {
       assert.ifError(err);
