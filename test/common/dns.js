@@ -287,4 +287,6 @@ function writeDNSPacket(parsed) {
   }));
 }
 
-module.exports = { types, classes, writeDNSPacket, parseDNSPacket };
+module.exports = {
+  types, classes, writeDNSPacket, parseDNSPacket
+};
