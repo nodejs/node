@@ -58,7 +58,7 @@ if (cluster.isWorker) {
   // Disconnect worker when it is ready
   worker.once('listening', common.mustCall(() => {
     const w = worker.disconnect();
-    assert.strictEqual(worker, w, '${worker.id} did not return a reference');
+    assert.strictEqual(worker, w, `${worker.id} did not return a reference`);
   }));
 
   // Check cluster events
