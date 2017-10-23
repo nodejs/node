@@ -156,8 +156,6 @@ template("v8_isolate_run") {
         "--config-variable",
         "icu_use_data_file_flag=$icu_use_data_file_flag",
         "--config-variable",
-        "is_gn=1",
-        "--config-variable",
         "msan=$msan",
         "--config-variable",
         "tsan=$tsan",
