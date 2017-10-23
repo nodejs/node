@@ -862,7 +862,7 @@ By making a contribution to this project, I certify that:
 [benchmark results]: ./doc/guides/writing-and-running-benchmarks.md
 [Building guide]: ./BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Node.js help repository]: https://github.com/nodejs/help/issues
