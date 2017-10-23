@@ -5,9 +5,9 @@
 A `node::io::Source` holds data that is to be read. It exposes a single
 `Pull()` method that can be called to either peek at or extract a chunk
 of data. The caller passes in a buffer. The `Source` chooses to either
-copy it's data into that buffer, or return it's own buffer. Whatever it
+copy its data into that buffer, or return its own buffer. Whatever it
 chooses, the data is returned to the caller by invoking the pull_cb.
-The `Source` may provide it's own callback (the push_cb) at that point
+The `Source` may provide its own callback (the push_cb) at that point
 to be notified when the caller is done processing the data.
 
 The Pull operation may be sync or async. The caller can require sync.
@@ -28,7 +28,7 @@ The source will return an error if it is not able to meet these restrictions.
 ```c
 Source* mySource = GetSourceSomehow();
 io_buf_t buffer;
-buffer.base = Malloc<uint8_t*>(100);
+buffer.base = Malloc<uint8_t>(100);
 buffer.len = 100;
 
 io_pull_t pull;
@@ -67,7 +67,7 @@ if (status & IO_PULL_STATUS_ERROR) {
 }
 
 io_buf_t buffer;
-buffer.base = Malloc<uint8_t*>(length);
+buffer.base = Malloc<uint8_t>(length);
 buffer.len = length;
 
 status = mySource->Pull(&pull, &length, &buffer, 1, IO_PULL_FLAG_SYNC);
@@ -88,7 +88,7 @@ if (status & IO_PULL_STATUS_ERROR) {
 Source* mySource = GetSourceSomehow();
 
 io_buf_t buffer;
-buffer.base = Malloc<uint8_t*>(100);
+buffer.base = Malloc<uint8_t>(100);
 buffer.len = length;
 
 auto AfterPull = [](io_pull_t* handle,
@@ -120,7 +120,7 @@ CHECK(!(status & IO_PULL_STATUS_SYNC));
 Source* mySource = GetSourceSomehow();
 
 io_buf_t buffer;
-buffer.base = Malloc<uint8_t*>(100);
+buffer.base = Malloc<uint8_t>(100);
 buffer.len = length;
 
 auto AfterPull = [](io_pull_t* handle,
