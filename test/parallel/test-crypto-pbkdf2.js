@@ -6,6 +6,8 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
+const { INT_MAX } = process.binding('constants').crypto;
+
 //
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
@@ -63,7 +65,7 @@ common.expectsError(
   }
 );
 
-[Infinity, -Infinity, NaN, -1, 4073741824].forEach((i) => {
+[Infinity, -Infinity, NaN, -1, 4073741824, INT_MAX + 1].forEach((i) => {
   common.expectsError(
     () => {
       crypto.pbkdf2('password', 'salt', 1, i, 'sha256',

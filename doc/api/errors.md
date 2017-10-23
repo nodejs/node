@@ -640,7 +640,7 @@ Used when an invalid value for the `format` argument has been passed to the
 <a id="ERR_CRYPTO_INVALID_DIGEST"></a>
 ### ERR_CRYPTO_INVALID_DIGEST
 
-Used when an invalid crypto digest algorithm is specified.
+Used when an invalid [crypto digest algorithm][] is specified.
 
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
@@ -1360,6 +1360,7 @@ closed.
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
+[crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
