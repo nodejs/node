@@ -1208,6 +1208,17 @@ console.log(process.getgroups());         // [ 27, 30, 46, 1000 ]
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
 or Android).
 
+## process.isExiting
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+This read-only boolean indicates if the process is currently exiting. That is,
+when the `exit` event has been fired and no further scheduled asynchronous code
+will run.
+
 ## process.kill(pid[, signal])
 <!-- YAML
 added: v0.0.6

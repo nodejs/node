@@ -90,6 +90,7 @@ class ModuleWrap;
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
+  V(is_exiting_private_symbol, "node:isExiting")                              \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(domain_private_symbol, "node:domain")                                     \
@@ -145,7 +146,6 @@ class ModuleWrap;
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
   V(events_string, "_events")                                                 \
-  V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \
   V(expire_string, "expire")                                                  \
