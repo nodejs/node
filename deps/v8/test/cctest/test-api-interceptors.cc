@@ -1609,6 +1609,8 @@ THREADED_TEST(NamedPropertyHandlerGetter) {
 }
 
 namespace {
+int definer_was_called;
+
 void NotInterceptingPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1619,6 +1621,7 @@ void InterceptingPropertyDefineCallback(
     Local<Name> name, const v8::PropertyDescriptor& desc,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Intercept the callback by setting a non-empty handle
+  definer_was_called++;
   info.GetReturnValue().Set(name);
 }
 
@@ -1850,6 +1853,44 @@ THREADED_TEST(PropertyDefinerCallbackForFreeze) {
             .ToLocalChecked()
             ->BooleanValue(env.local())
             .FromJust());
+}
+
+// Check that the define interceptor is not triggered for DefineProperty
+// with the SKIP_INTERCEPTORS flag.
+THREADED_TEST(DefinePropertyWithoutInterceptors) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> templ = ObjectTemplate::New(isolate);
+
+  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, nullptr, nullptr, nullptr,
+      InterceptingPropertyDefineCallback));
+
+  LocalContext context;
+  v8::Local<v8::Name> p;
+
+  v8::Local<v8::Object> obj =
+      templ->NewInstance(context.local()).ToLocalChecked();
+
+  definer_was_called = 0;
+
+  // Use a generic descriptor.
+  v8::PropertyDescriptor desc_generic;
+
+  p = v8_str("foo");
+
+  // DONT_SKIP_INTERCEPTORS (default) triggers the interceptors when setting
+  // own property of an object.
+  CHECK(obj->DefineProperty(context.local(), p, desc_generic).FromJust());
+  CHECK_EQ(1, definer_was_called);
+
+  definer_was_called = 0;
+
+  // SKIP_INTERCEPTORS does not trigger the interceptors.
+  CHECK(obj->DefineProperty(context.local(), p, desc_generic,
+                            v8::SKIP_INTERCEPTORS)
+            .FromJust());
+  CHECK_EQ(0, definer_was_called);
 }
 
 // Check that the descriptor passed to the callback is enumerable.

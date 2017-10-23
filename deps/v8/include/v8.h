@@ -3049,6 +3049,14 @@ enum class IndexFilter { kIncludeIndices, kSkipIndices };
 enum class IntegrityLevel { kFrozen, kSealed };
 
 /**
+ * DONT_SKIP_INTERCEPTORS is the default behaviour and triggers the definer
+ * interceptor when setting an own property on an object using
+ * DefineProperty, while SKIP_INTERCEPTORS bypasses the interceptors.
+ */
+enum CallInterceptors { DONT_SKIP_INTERCEPTORS, SKIP_INTERCEPTORS };
+
+
+/**
  * A JavaScript object (ECMA-262, 4.3.3)
  */
 class V8_EXPORT Object : public Value {
@@ -3085,7 +3093,8 @@ class V8_EXPORT Object : public Value {
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
       Local<Context> context, Local<Name> key, Local<Value> value,
-      PropertyAttribute attributes = None);
+      PropertyAttribute attributes = None,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   // Implements Object.DefineProperty(O, P, Attributes), see Ecma-262 19.1.2.4.
   //
@@ -3099,9 +3108,13 @@ class V8_EXPORT Object : public Value {
   //
   // The PropertyDescriptor can change when redefining a property.
   //
+  // CallInterceptors call_interceptors = SKIP_INTERCEPTORS
+  //  bypasses interceptors when setting property on an object.
+  //
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
-      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.

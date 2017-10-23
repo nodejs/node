@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const ctx = vm.createContext();
 vm.runInContext('Object.defineProperty(this, "x", { value: 42 })', ctx);
-assert.strictEqual(ctx.x, undefined);  // Not copied out by cloneProperty().
+assert.strictEqual(ctx.x, 42);
 assert.strictEqual(vm.runInContext('x', ctx), 42);
 vm.runInContext('x = 0', ctx);                      // Does not throw but x...
 assert.strictEqual(vm.runInContext('x', ctx), 42);  // ...should be unaltered.

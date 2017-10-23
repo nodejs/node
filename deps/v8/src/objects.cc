@@ -6557,7 +6557,8 @@ Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
 // static
 Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
                                    Handle<Object> key,
-                                   Handle<Object> attributes) {
+                                   Handle<Object> attributes,
+                                   CallInterceptors call_interceptors) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
   if (!object->IsJSReceiver()) {
     Handle<String> fun_name =
@@ -6576,7 +6577,8 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
   Maybe<bool> success = DefineOwnProperty(
-      isolate, Handle<JSReceiver>::cast(object), key, &desc, THROW_ON_ERROR);
+      isolate, Handle<JSReceiver>::cast(object), key, &desc, THROW_ON_ERROR,
+      call_interceptors);
   // 7. ReturnIfAbrupt(success).
   MAYBE_RETURN(success, isolate->heap()->exception());
   CHECK(success.FromJust());
@@ -6668,18 +6670,20 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
                                           Handle<JSReceiver> object,
                                           Handle<Object> key,
                                           PropertyDescriptor* desc,
-                                          ShouldThrow should_throw) {
+                                          ShouldThrow should_throw,
+                                          CallInterceptors call_interceptors) {
   if (object->IsJSArray()) {
     return JSArray::DefineOwnProperty(isolate, Handle<JSArray>::cast(object),
-                                      key, desc, should_throw);
+                                   key, desc, should_throw, call_interceptors);
   }
   if (object->IsJSProxy()) {
     return JSProxy::DefineOwnProperty(isolate, Handle<JSProxy>::cast(object),
-                                      key, desc, should_throw);
+                                   key, desc, should_throw, call_interceptors);
   }
   if (object->IsJSTypedArray()) {
     return JSTypedArray::DefineOwnProperty(
-        isolate, Handle<JSTypedArray>::cast(object), key, desc, should_throw);
+        isolate, Handle<JSTypedArray>::cast(object), key, desc, should_throw,
+        call_interceptors);
   }
   // TODO(neis): Special case for JSModuleNamespace?
 
@@ -6687,20 +6691,28 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
   // DefineOwnPropertyIgnoreAttributes, can handle arguments
   // (ES#sec-arguments-exotic-objects-defineownproperty-p-desc).
   return OrdinaryDefineOwnProperty(isolate, Handle<JSObject>::cast(object), key,
-                                   desc, should_throw);
+                                   desc, should_throw, call_interceptors);
 }
 
 
 // static
 Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
-                                                  Handle<JSObject> object,
-                                                  Handle<Object> key,
-                                                  PropertyDescriptor* desc,
-                                                  ShouldThrow should_throw) {
+                                          Handle<JSObject> object,
+                                          Handle<Object> key,
+                                          PropertyDescriptor* desc,
+                                          ShouldThrow should_throw,
+                                          CallInterceptors call_interceptors) {
   bool success = false;
   DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
+
+  LookupIterator::Configuration iterator_config = LookupIterator::OWN;
+  if (call_interceptors == CallInterceptors::SKIP_INTERCEPTORS) {
+    iterator_config = LookupIterator::OWN_SKIP_INTERCEPTOR;
+  }
+
   LookupIterator it = LookupIterator::PropertyOrElement(
-      isolate, object, key, &success, LookupIterator::OWN);
+      isolate, object, key, &success, iterator_config);
+
   DCHECK(success);  // ...so creating a LookupIterator can't fail.
 
   // Deal with access checks first.
@@ -7099,13 +7111,14 @@ bool PropertyKeyToArrayIndex(Handle<Object> index_obj, uint32_t* output) {
 Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
                                        Handle<Object> name,
                                        PropertyDescriptor* desc,
-                                       ShouldThrow should_throw) {
+                                       ShouldThrow should_throw,
+                                       CallInterceptors call_interceptors) {
   // 1. Assert: IsPropertyKey(P) is true. ("P" is |name|.)
   // 2. If P is "length", then:
   // TODO(jkummerow): Check if we need slow string comparison.
   if (*name == isolate->heap()->length_string()) {
     // 2a. Return ArraySetLength(A, Desc).
-    return ArraySetLength(isolate, o, desc, should_throw);
+    return ArraySetLength(isolate, o, desc, should_throw, call_interceptors);
   }
   // 3. Else if P is an array index, then:
   uint32_t index = 0;
@@ -7132,7 +7145,8 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
     }
     // 3g. Let succeeded be OrdinaryDefineOwnProperty(A, P, Desc).
     Maybe<bool> succeeded =
-        OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
+        OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw,
+        call_interceptors);
     // 3h. Assert: succeeded is not an abrupt completion.
     //     In our case, if should_throw == THROW_ON_ERROR, it can be!
     // 3i. If succeeded is false, return false.
@@ -7145,7 +7159,7 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
       //        OrdinaryDefineOwnProperty(A, "length", oldLenDesc).
       succeeded = OrdinaryDefineOwnProperty(isolate, o,
                                             isolate->factory()->length_string(),
-                                            &old_len_desc, should_throw);
+                                            &old_len_desc, should_throw, call_interceptors);
       // 3j iii. Assert: succeeded is true.
       DCHECK(succeeded.FromJust());
       USE(succeeded);
@@ -7155,7 +7169,8 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
   }
 
   // 4. Return OrdinaryDefineOwnProperty(A, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw,
+                                   call_interceptors);
 }
 
 
@@ -7200,12 +7215,13 @@ bool JSArray::AnythingToArrayLength(Isolate* isolate,
 // static
 Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
                                     PropertyDescriptor* desc,
-                                    ShouldThrow should_throw) {
+                                    ShouldThrow should_throw,
+                                    CallInterceptors call_interceptors) {
   // 1. If the [[Value]] field of Desc is absent, then
   if (!desc->has_value()) {
     // 1a. Return OrdinaryDefineOwnProperty(A, "length", Desc).
     return OrdinaryDefineOwnProperty(
-        isolate, a, isolate->factory()->length_string(), desc, should_throw);
+        isolate, a, isolate->factory()->length_string(), desc, should_throw, call_interceptors);
   }
   // 2. Let newLenDesc be a copy of Desc.
   // (Actual copying is not necessary.)
@@ -7235,7 +7251,8 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
     new_len_desc->set_value(isolate->factory()->NewNumberFromUint(new_len));
     return OrdinaryDefineOwnProperty(isolate, a,
                                      isolate->factory()->length_string(),
-                                     new_len_desc, should_throw);
+                                     new_len_desc, should_throw,
+                                     call_interceptors);
   }
   // 13. If oldLenDesc.[[Writable]] is false, return false.
   if (!old_len_desc.writable()) {
@@ -7264,7 +7281,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
     readonly.set_writable(false);
     Maybe<bool> success = OrdinaryDefineOwnProperty(
         isolate, a, isolate->factory()->length_string(), &readonly,
-        should_throw);
+        should_throw, call_interceptors);
     DCHECK(success.FromJust());
     USE(success);
   }
@@ -7288,7 +7305,8 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
 Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                        Handle<Object> key,
                                        PropertyDescriptor* desc,
-                                       ShouldThrow should_throw) {
+                                       ShouldThrow should_throw,
+                                       CallInterceptors call_interceptors) {
   STACK_CHECK(isolate, Nothing<bool>());
   if (key->IsSymbol() && Handle<Symbol>::cast(key)->IsPrivate()) {
     return SetPrivateProperty(isolate, proxy, Handle<Symbol>::cast(key), desc,
@@ -7318,7 +7336,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   if (trap->IsUndefined(isolate)) {
     // 7a. Return target.[[DefineOwnProperty]](P, Desc).
     return JSReceiver::DefineOwnProperty(isolate, target, key, desc,
-                                         should_throw);
+                                         should_throw, call_interceptors);
   }
   // 8. Let descObj be FromPropertyDescriptor(Desc).
   Handle<Object> desc_obj = desc->ToObject(isolate);
@@ -16612,10 +16630,11 @@ bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
 // ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
-                                            Handle<JSTypedArray> o,
-                                            Handle<Object> key,
-                                            PropertyDescriptor* desc,
-                                            ShouldThrow should_throw) {
+                                          Handle<JSTypedArray> o,
+                                          Handle<Object> key,
+                                          PropertyDescriptor* desc,
+                                          ShouldThrow should_throw,
+                                          CallInterceptors call_interceptors) {
   // 1. Assert: IsPropertyKey(P) is true.
   DCHECK(key->IsName() || key->IsNumber());
   // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
@@ -16676,7 +16695,8 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
     }
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw,
+                                   call_interceptors);
 }
 
 ExternalArrayType JSTypedArray::type() {
