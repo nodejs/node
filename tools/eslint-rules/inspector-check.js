@@ -14,12 +14,12 @@ const msg = 'Please add a skipIfInspectorDisabled() call to allow this ' +
             'test to be skippped when Node is built \'--without-inspector\'.';
 
 module.exports = function(context) {
-  var usesInspector = false;
+  const missingCheckNodes = [];
   var hasInspectorCheck = false;
 
   function testInspectorUsage(context, node) {
     if (utils.isRequired(node, ['inspector'])) {
-      usesInspector = true;
+      missingCheckNodes.push(node);
     }
   }
 
@@ -30,8 +30,10 @@ module.exports = function(context) {
   }
 
   function reportIfMissing(context, node) {
-    if (usesInspector && !hasInspectorCheck) {
-      context.report(node, msg);
+    if (!hasInspectorCheck) {
+      missingCheckNodes.forEach((node) => {
+        context.report(node, msg);
+      });
     }
   }
 
