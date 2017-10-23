@@ -440,7 +440,8 @@ class ContextifyContext {
             desc_for_sandbox->set_configurable(desc.configurable());
           }
           // Set the property on the sandbox.
-          sandbox->DefineProperty(context, property, *desc_for_sandbox);
+          sandbox->DefineProperty(context, property, *desc_for_sandbox)
+              .FromJust();
         };
 
     if (desc.has_get() || desc.has_set()) {
