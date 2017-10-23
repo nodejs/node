@@ -1,9 +1,9 @@
 // Flags: --expose-internals
 'use strict';
-
 const common = require('../common');
-const errors = require('internal/errors');
+
 const assert = require('assert');
+const errors = require('internal/errors');
 
 function invalidKey(key) {
   return new RegExp(`^An invalid error message key was used: ${key}\\.$`);
@@ -235,3 +235,59 @@ assert.throws(
     code: 'ERR_ASSERTION',
     message: /^At least one arg needs to be specified$/
   }));
+
+
+// Test that `code` property is mutable and that changing it does not change the
+// name.
+{
+  const myError = new errors.Error('ERR_MISSING_ARGS', ['Sterrance']);
+  assert.strictEqual(myError.code, 'ERR_MISSING_ARGS');
+  assert.strictEqual(myError.hasOwnProperty('code'), false);
+  assert.strictEqual(myError.hasOwnProperty('name'), false);
+  assert.deepStrictEqual(Object.keys(myError), []);
+  const initialName = myError.name;
+  myError.code = 'FHQWHGADS';
+  assert.strictEqual(myError.code, 'FHQWHGADS');
+  assert.strictEqual(myError.name, initialName);
+  assert.deepStrictEqual(Object.keys(myError), ['code']);
+  assert.ok(myError.name.includes('ERR_MISSING_ARGS'));
+  assert.ok(!myError.name.includes('FHQWHGADS'));
+}
+
+// Test that `name` is mutable and that changing it alters `toString()` but not
+// `console.log()` results, which is the behavior of `Error` objects in the
+// browser. Note that `name` becomes enumerable after being assigned.
+{
+  const myError = new errors.Error('ERR_MISSING_ARGS', ['Sterrance']);
+  assert.deepStrictEqual(Object.keys(myError), []);
+  const initialToString = myError.toString();
+
+  myError.name = 'Fhqwhgads';
+  assert.deepStrictEqual(Object.keys(myError), ['name']);
+  assert.notStrictEqual(myError.toString(), initialToString);
+}
+
+// Test that `message` is mutable and that changing it alters `toString()` but
+// not `console.log()` results, which is the behavior of `Error` objects in the
+// browser. Note that `message` remains non-enumerable after being assigned.
+{
+  let initialConsoleLog = '';
+  common.hijackStdout((data) => { initialConsoleLog += data; });
+  const myError = new errors.Error('ERR_MISSING_ARGS', ['Sterrance']);
+  assert.deepStrictEqual(Object.keys(myError), []);
+  const initialToString = myError.toString();
+  console.log(myError);
+  assert.notStrictEqual(initialConsoleLog, '');
+
+  common.restoreStdout();
+
+  let subsequentConsoleLog = '';
+  common.hijackStdout((data) => { subsequentConsoleLog += data; });
+  myError.message = 'Fhqwhgads';
+  assert.deepStrictEqual(Object.keys(myError), []);
+  assert.notStrictEqual(myError.toString(), initialToString);
+  console.log(myError);
+  assert.strictEqual(subsequentConsoleLog, initialConsoleLog);
+
+  common.restoreStdout();
+}
