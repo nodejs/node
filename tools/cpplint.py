@@ -3021,7 +3021,7 @@ def CheckComment(line, filename, linenum, next_line_start, error):
       # If the comment contains an alphanumeric character, there
       # should be a space somewhere between it and the // unless
       # it's a /// or //! Doxygen comment.
-      if (Match(r'//[^ ]*\w', comment) and
+      if (Match(r'(?://[^ ]*\w)|(?:////\s*$)', comment) and
           not Match(r'(///|//\!)(\s+|$)', comment)):
         error(filename, linenum, 'whitespace/comments', 4,
               'Should have a space between // and comment')
