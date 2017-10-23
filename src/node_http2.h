@@ -333,7 +333,6 @@ class Http2Options {
 
 static const size_t kAllocBufferSize = 64 * 1024;
 
-////
 typedef uint32_t(*get_setting)(nghttp2_session* session,
                                nghttp2_settings_id id);
 
