@@ -8,7 +8,7 @@ const expected = common.isWindows ? '%foo%' : '$foo';
 if (process.argv[2] === undefined) {
   const child = cp.fork(__filename, [expected], {
     shell: true,
-    env: { foo: 'bar' }
+    env: Object.assign({}, process.env, { foo: 'bar' })
   });
 
   child.on('exit', common.mustCall((code, signal) => {

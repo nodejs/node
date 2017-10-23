@@ -311,11 +311,11 @@ function workerProcessMain() {
 function spawnMaster({ execArgv, workers, clusterSettings = {} }) {
   return new Promise((resolve) => {
     childProcess.fork(__filename, {
-      env: {
+      env: Object.assign({}, process.env, {
         workers: JSON.stringify(workers),
         clusterSettings: JSON.stringify(clusterSettings),
         testProcess: true
-      },
+      }),
       execArgv
     }).on('exit', common.mustCall((code, signal) => {
       checkExitCode(code, signal);
