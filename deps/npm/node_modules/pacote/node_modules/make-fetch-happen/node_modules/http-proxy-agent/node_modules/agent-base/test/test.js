@@ -443,6 +443,17 @@ describe('"https" module', function() {
     done();
   });
 
+  it('should work with a String URL', function(done) {
+    var endpoint = 'https://127.0.0.1:' + port;
+    var req = https.get(endpoint);
+
+    // it's gonna error out since `rejectUnauthorized` is not being passed in
+    req.on('error', function(err) {
+      assert.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT');
+      done();
+    });
+  });
+
   it('should work for basic HTTPS requests', function(done) {
     var called = false;
     var agent = new Agent(function(req, opts, fn) {

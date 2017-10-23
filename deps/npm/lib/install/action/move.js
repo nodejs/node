@@ -7,7 +7,6 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var rmStuff = require('../../unbuild.js').rmStuff
 var lifecycle = require('../../utils/lifecycle.js')
-var updatePackageJson = require('../update-package-json.js')
 var move = require('../../utils/move.js')
 
 /*
@@ -19,14 +18,13 @@ var move = require('../../utils/move.js')
 module.exports = function (staging, pkg, log, next) {
   log.silly('move', pkg.fromPath, pkg.path)
   chain([
-    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, false, true],
-    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, false, true],
+    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, { failOk: true }],
+    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, { failOk: true }],
     [rmStuff, pkg.package, pkg.fromPath],
-    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, false, true],
+    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, { failOk: true }],
     [moveModuleOnly, pkg.fromPath, pkg.path, log],
-    [lifecycle, pkg.package, 'preinstall', pkg.path, false, true],
-    [removeEmptyParents, path.resolve(pkg.fromPath, '..')],
-    [updatePackageJson, pkg, pkg.path]
+    [lifecycle, pkg.package, 'preinstall', pkg.path, { failOk: true }],
+    [removeEmptyParents, path.resolve(pkg.fromPath, '..')]
   ], next)
 }
 
