@@ -1,5 +1,18 @@
 # Node.js ChangeLog
 
+## 2017-10-24, Version 4.8.5 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/oct-2017-dos/ for details on patched vulnerabilities.
+
+### Notable Changes
+
+* **zlib**:
+  - CVE-2017-14919 - In zlib v1.2.9, a change was made that causes an error to be raised when a raw deflate stream is initialized with windowBits set to 8. On some versions this crashes Node and you cannot recover from it, while on some versions it throws an exception. Node.js will now gracefully set windowBits to 9 replicating the legacy behavior to avoid a DOS vector. [nodejs-private/node-private#95](https://github.com/nodejs-private/node-private/pull/95)
+
+### Commits
+
+* [[`f5defa2a7c`](https://github.com/nodejs/node/commit/733578bb2e)] - **zlib**: gracefully set windowBits from 8 to 9 (Myles Borins) [nodejs-private/node-private#95](https://github.com/nodejs-private/node-private/pull/95)
+
 ## 2017-07-11, Version 4.8.4 'Argon' (Maintenance), @MylesBorins
 
 This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/july-2017-security-releases/ for details on patched vulnerabilities.
