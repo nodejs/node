@@ -178,6 +178,6 @@ onboarding session.
     accommodation, transportation, visa fees etc. if needed. Check out the
     [summit](https://github.com/nodejs/summit) repository for details.
 
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
