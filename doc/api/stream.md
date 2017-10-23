@@ -1510,6 +1510,39 @@ class MyWritable extends Writable {
 }
 ```
 
+#### Decoding buffers in a Writable Stream
+
+Decoding buffers is a common task, for instance, when using transformers whose
+input is a string. This is not a trivial process when using multi-byte
+characters encoding. Implement it within [Writable][] implies some performance
+regressions. The following is an example of how to achieve that extending
+[Writable][].
+
+```js
+const { Writable } = require('stream')
+const { StringDecoder } = require('string_decoder')
+
+class StringWritable extends Writable {
+  constructor (options) {
+    super(options)
+    const state = this._writableState
+    this._decoder = new StringDecoder(state.defaultEncoding)
+    this._data = ''
+  }
+  _write (chunk, encoding, callback) {
+    if (encoding === 'buffer') {
+      chunk = this._decoder.write(chunk)
+    }
+    this._data += chunk
+    callback()
+  }
+  _final (callback) {
+    this._data += this._decoder.end()
+    callback()
+  }
+}
+```
+
 ### Implementing a Readable Stream
 
 The `stream.Readable` class is extended to implement a [Readable][] stream.
