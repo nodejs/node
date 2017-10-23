@@ -140,8 +140,6 @@ class ContextifyContext {
         context->Global()->GetPrototype()->ToObject(env()->isolate());
     Local<Object> sandbox_obj = sandbox();
 
-    Local<Function> clone_property_method;
-
     Local<Array> names = global->GetOwnPropertyNames();
     int length = names->Length();
     for (int i = 0; i < length; i++) {
@@ -153,9 +151,16 @@ class ContextifyContext {
         return;
 
       if (!has.FromJust()) {
+        TryCatch try_catch(env()->isolate());
+        MaybeLocal<Value> maybe_desc_vm_context =
+            global->GetOwnPropertyDescriptor(context, key);
+
+        if (maybe_desc_vm_context.IsEmpty()) {
+          continue;
+        }
+
         Local<Object> desc_vm_context =
-            global->GetOwnPropertyDescriptor(context, key)
-            .ToLocalChecked().As<Object>();
+            maybe_desc_vm_context.ToLocalChecked().As<Object>();
 
         bool is_accessor =
             desc_vm_context->Has(context, env()->get_string()).FromJust() ||
