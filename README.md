@@ -590,7 +590,7 @@ Previous releases may also have been signed with one of the following GPG keys:
 * [Working Groups][]
 
 [npm]: https://www.npmjs.com
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Help]: https://github.com/nodejs/help
 [Node.js Website]: https://nodejs.org/en/
