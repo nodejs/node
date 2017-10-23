@@ -217,7 +217,7 @@ of the event loop.
 
 ### `--force-async-hooks-checks`
 <!-- YAML
-added: REPLACEME
+added: v8.8.0
 -->
 
 Enables runtime checks for `async_hooks`. These can also be enabled dynamically
@@ -442,7 +442,7 @@ When set to `1`, process warnings are silenced.
 
 ### `NODE_NO_HTTP2=1`
 <!-- YAML
-added: REPLACEME
+added: v8.8.0
 -->
 
 When set to `1`, the `http2` module is suppressed.
