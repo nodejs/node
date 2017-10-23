@@ -27,6 +27,11 @@ const vm = require('vm');
 const { spawn } = require('child_process');
 const fixtures = require('../common/fixtures');
 
+const msg = 'DebugContext has been deprecated and will be removed in ' +
+            'a future version.';
+common.expectWarning('DeprecationWarning', msg);
+vm.runInDebugContext();
+
 assert.throws(function() {
   vm.runInDebugContext('*');
 }, /SyntaxError/);
