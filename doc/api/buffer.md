@@ -2408,12 +2408,12 @@ Examples:
 ```js
 const buf = Buffer.allocUnsafe(6);
 
-buf.writeUIntBE(0x1234567890ab, 0, 6);
+buf.writeIntBE(0x1234567890ab, 0, 6);
 
 // Prints: <Buffer 12 34 56 78 90 ab>
 console.log(buf);
 
-buf.writeUIntLE(0x1234567890ab, 0, 6);
+buf.writeIntLE(0x1234567890ab, 0, 6);
 
 // Prints: <Buffer ab 90 78 56 34 12>
 console.log(buf);
