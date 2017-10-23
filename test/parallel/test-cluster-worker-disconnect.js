@@ -97,10 +97,8 @@ if (cluster.isWorker) {
     assert.ok(c.emitExit, 'Exit event did not emit');
 
     // flags
-    assert.strictEqual(w.state, 'disconnected',
-                       'The state property was not set, current state is ${w.state}');
-    assert.strictEqual(w.voluntaryMode, true,
-                       'Voluntary exit mode was not set, current voluntary mode is ${w.voluntaryMode}');
+    assert.strictEqual(w.state, 'disconnected');
+    assert.strictEqual(w.voluntaryMode, true);
 
     // is process alive
     assert.ok(w.died, 'The worker did not die');
