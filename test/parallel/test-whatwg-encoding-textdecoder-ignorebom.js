@@ -4,9 +4,6 @@
 
 const common = require('../common');
 
-if (!common.hasIntl)
-  common.skip('missing Intl');
-
 const assert = require('assert');
 const {
   TextDecoder
@@ -15,19 +12,26 @@ const {
 const cases = [
   {
     encoding: 'utf-8',
-    bytes: [0xEF, 0xBB, 0xBF, 0x61, 0x62, 0x63]
+    bytes: [0xEF, 0xBB, 0xBF, 0x61, 0x62, 0x63],
+    skipNoIntl: false
   },
   {
     encoding: 'utf-16le',
-    bytes: [0xFF, 0xFE, 0x61, 0x00, 0x62, 0x00, 0x63, 0x00]
+    bytes: [0xFF, 0xFE, 0x61, 0x00, 0x62, 0x00, 0x63, 0x00],
+    skipNoIntl: false
   },
   {
     encoding: 'utf-16be',
-    bytes: [0xFE, 0xFF, 0x00, 0x61, 0x00, 0x62, 0x00, 0x63]
+    bytes: [0xFE, 0xFF, 0x00, 0x61, 0x00, 0x62, 0x00, 0x63],
+    skipNoIntl: true
   }
 ];
 
 cases.forEach((testCase) => {
+  if (testCase.skipNoIntl && !common.hasIntl) {
+    console.log(`skipping ${testCase.encoding} because missing Intl`);
+    return; // skipping
+  }
   const BOM = '\uFEFF';
   let decoder = new TextDecoder(testCase.encoding, { ignoreBOM: true });
   const bytes = new Uint8Array(testCase.bytes);

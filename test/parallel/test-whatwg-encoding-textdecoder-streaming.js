@@ -4,9 +4,6 @@
 
 const common = require('../common');
 
-if (!common.hasIntl)
-  common.skip('missing Intl');
-
 const assert = require('assert');
 const {
   TextDecoder
@@ -32,6 +29,10 @@ const octets = {
 };
 
 Object.keys(octets).forEach((encoding) => {
+  if (encoding === 'utf-16be' && !common.hasIntl) {
+    console.log('skipping utf-16be because missing Intl');
+    return;
+  }
   for (let len = 1; len <= 5; ++len) {
     const encoded = octets[encoding];
     const decoder = new TextDecoder(encoding);

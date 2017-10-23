@@ -3,9 +3,6 @@
 
 const common = require('../common');
 
-if (!common.hasIntl)
-  common.skip('missing Intl');
-
 const assert = require('assert');
 const { TextDecoder, TextEncoder } = require('util');
 const { customInspectSymbol: inspect } = require('internal/util');

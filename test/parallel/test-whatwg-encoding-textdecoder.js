@@ -3,9 +3,6 @@
 
 const common = require('../common');
 
-if (!common.hasIntl)
-  common.skip('missing Intl');
-
 const assert = require('assert');
 const { TextDecoder, TextEncoder } = require('util');
 const { customInspectSymbol: inspect } = require('internal/util');
@@ -152,15 +149,17 @@ testDecodeSample(
   ]
 );
 
-testDecodeSample(
-  'utf-16be',
-  sample,
-  [
-    0x00, 0x7A, 0x00, 0xA2, 0x6C, 0x34,
-    0xD8, 0x34, 0xDD, 0x1E, 0xF8, 0xFF,
-    0xDB, 0xFF, 0xDF, 0xFD, 0xFF, 0xFE
-  ]
-);
+if (common.hasIntl) {
+  testDecodeSample(
+    'utf-16be',
+    sample,
+    [
+      0x00, 0x7A, 0x00, 0xA2, 0x6C, 0x34,
+      0xD8, 0x34, 0xDD, 0x1E, 0xF8, 0xFF,
+      0xDB, 0xFF, 0xDF, 0xFD, 0xFF, 0xFE
+    ]
+  );
+}
 
 testDecodeSample(
   'utf-16',
