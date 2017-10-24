@@ -154,6 +154,18 @@ const {
   );
 }
 
+{
+  // Arrays containing a single set-cookie value are handled correctly
+  // (https://github.com/nodejs/node/issues/16452)
+  const headers = {
+    'set-cookie': 'foo=bar'
+  };
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ [ 'set-cookie', 'foo=bar', '' ].join('\0'), 1 ]
+  );
+}
+
 // The following are not allowed to have multiple values
 [
   HTTP2_HEADER_STATUS,
