@@ -331,7 +331,8 @@ class Http2Options {
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
 };
 
-static const size_t kAllocBufferSize = 64 * 1024;
+// This allows for 4 default-sized frames with their frame headers
+static const size_t kAllocBufferSize = 4 * (16384 + 9);
 
 typedef uint32_t(*get_setting)(nghttp2_session* session,
                                nghttp2_settings_id id);
@@ -414,7 +415,7 @@ class Http2Session : public AsyncWrap,
   void OnFrameError(int32_t id, uint8_t type, int error_code) override;
   void OnTrailers(Nghttp2Stream* stream,
                   const SubmitTrailers& submit_trailers) override;
-  void AllocateSend(size_t recommended, uv_buf_t* buf) override;
+  void AllocateSend(uv_buf_t* buf) override;
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
