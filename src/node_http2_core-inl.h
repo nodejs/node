@@ -587,16 +587,18 @@ inline void Nghttp2Session::MarkDestroying() {
   destroying_ = true;
 }
 
-inline int Nghttp2Session::Free() {
-#if defined(DEBUG) && DEBUG
-  CHECK(session_ != nullptr);
-#endif
+inline Nghttp2Session::~Nghttp2Session() {
+  Close();
+}
+
+inline void Nghttp2Session::Close() {
+  if (IsClosed())
+    return;
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
   nghttp2_session_terminate_session(session_, NGHTTP2_NO_ERROR);
   nghttp2_session_del(session_);
   session_ = nullptr;
   DEBUG_HTTP2("Nghttp2Session %s: session freed\n", TypeName());
-  return 1;
 }
 
 // Write data received from the socket to the underlying nghttp2_session.
