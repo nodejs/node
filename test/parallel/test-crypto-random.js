@@ -33,12 +33,26 @@ crypto.DEFAULT_ENCODING = 'buffer';
 // bump, we register a lot of exit listeners
 process.setMaxListeners(256);
 
-const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 [crypto.randomBytes, crypto.pseudoRandomBytes].forEach(function(f) {
   [-1, undefined, null, false, true, {}, []].forEach(function(value) {
-    assert.throws(function() { f(value); }, expectedErrorRegexp);
-    assert.throws(function() { f(value, common.mustNotCall()); },
-                  expectedErrorRegexp);
+
+    common.expectsError(
+      () => f(value),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: /^The "size" argument must be of type (number|uint32)$/
+      }
+    );
+
+    common.expectsError(
+      () => f(value, common.mustNotCall()),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: /^The "size" argument must be of type (number|uint32)$/
+      }
+    );
   });
 
   [0, 1, 2, 4, 16, 256, 1024, 101.2].forEach(function(len) {
@@ -464,9 +478,14 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 
 // #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
 // length exceeds max acceptable value"
-assert.throws(function() {
-  crypto.randomBytes((-1 >>> 0) + 1);
-}, /^TypeError: size must be a uint32$/);
+common.expectsError(
+  () => crypto.randomBytes((-1 >>> 0) + 1),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "size" argument must be of type uint32'
+  }
+);
 
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
   common.expectsError(
