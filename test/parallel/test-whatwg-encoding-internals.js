@@ -1,7 +1,8 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
+
 const assert = require('assert');
 const { getEncodingFromLabel } = require('internal/encoding');
 
