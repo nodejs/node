@@ -2,20 +2,20 @@
 
 const common = require('../common');
 if (!common.hasCrypto)
-common.skip('missing crypto');
+  common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
 
-const expectedWeight = 256;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers, flags) => {
+  const expectedWeight = 256;
   const options = { weight: expectedWeight };
   stream.pushStream({}, options, common.mustCall((stream, headers, flags) => {
     // The priority of push streams is changed silently by nghttp2,
     // without emitting a PRIORITY frame. Flags are ignored.
     assert.strictEqual(stream.state.weight, expectedWeight);
-    // assert.ok(flags & http2.constants.NGHTTP2_FLAG_PRIORITY);
+    assert.strictEqual(flags & http2.constants.NGHTTP2_FLAG_PRIORITY, 0);
   }));
   stream.respond({
     'content-type': 'text/html',
@@ -33,8 +33,9 @@ server.listen(0, common.mustCall(() => {
 
   client.on('stream', common.mustCall((stream, headers, flags) => {
     // Since the push priority is set silently, the client is not informed.
-    // assert.strictEqual(stream.state.weight, expectedWeight);
-    // assert.ok(flags & http2.constants.NGHTTP2_FLAG_PRIORITY);
+    const expectedWeight = http2.constants.NGHTTP2_DEFAULT_WEIGHT;
+    assert.strictEqual(stream.state.weight, expectedWeight);
+    assert.strictEqual(flags & http2.constants.NGHTTP2_FLAG_PRIORITY, 0);
   }));
 
   req.on('data', common.mustCall(() => {}));
