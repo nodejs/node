@@ -1,6 +1,6 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/7f567fa29c6805c92f5b63590338ccb041aacf67/encoding/textdecoder-ignorebom.html
+// From: https://github.com/w3c/web-platform-tests/blob/7f567fa29c/encoding/textdecoder-ignorebom.html
 
 const common = require('../common');
 
