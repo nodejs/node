@@ -1373,6 +1373,12 @@ CallbackScope::~CallbackScope() {
   delete private_;
 }
 
+InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap)
+    : InternalCallbackScope(async_wrap->env(),
+                            async_wrap->object(),
+                            { async_wrap->get_async_id(),
+                              async_wrap->get_trigger_async_id() }) {}
+
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
                                              const async_context& asyncContext,
