@@ -643,10 +643,35 @@ Used when an invalid value for the `format` argument has been passed to the
 Used when an invalid crypto engine identifier is passed to
 [`require('crypto').setEngine()`][].
 
+<a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
+### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
+
+Used when the UTF-16 encoding is used with [`hash.digest()`][]. While the
+`hash.digest()` method does allow an `encoding` argument to be passed in,
+causing the method to return a string rather than a `Buffer`, the UTF-16
+encoding (e.g. `ucs` or `utf16le`) is not supported.
+
+<a id="ERR_CRYPTO_HASH_FINALIZED"></a>
+### ERR_CRYPTO_HASH_FINALIZED
+
+Used when [`hash.digest()`][] is called multiple times. The `hash.digest()`
+method must be called no more than one time per instance of a `Hash` object.
+
+<a id="ERR_CRYPTO_HASH_UPDATE_FAILED"></a>
+### ERR_CRYPTO_HASH_UPDATE_FAILED
+
+Used when [`hash.update()`][] fails for any reason. This should rarely, if
+ever, happen.
+
 <a id="ERR_CRYPTO_INVALID_DIGEST"></a>
 ### ERR_CRYPTO_INVALID_DIGEST
 
 Used when an invalid [crypto digest algorithm][] is specified.
+
+<a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
+### ERR_CRYPTO_SIGN_KEY_REQUIRED
+
+Used when a signing `key` is not provided to the [`sign.sign()`][] method.
 
 <a id="ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH"></a>
 ### ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH
@@ -1137,6 +1162,20 @@ for strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_MODULE"></a>
+### ERR_MISSING_MODULE
+
+> Stability: 1 - Experimental
+
+Used when an [ES6 module][] cannot be resolved.
+
+<a id="ERR_MODULE_RESOLUTION_LEGACY"></a>
+### ERR_MODULE_RESOLUTION_LEGACY
+
+> Stability: 1 - Experimental
+
+Used when a failure occurs resolving imports in an [ES6 module][].
+
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 ### ERR_MULTIPLE_CALLBACK
 
@@ -1181,15 +1220,41 @@ For example: `Buffer.write(string, encoding, offset[, length])`
 Used generically to identify that an operation caused an out of memory
 condition.
 
+<a id="ERR_OUT_OF_RANGE"></a>
+### ERR_OUT_OF_RANGE
+
+Used generically when an input argument value values outside an acceptable
+range.
+
 <a id="ERR_PARSE_HISTORY_DATA"></a>
 ### ERR_PARSE_HISTORY_DATA
 
 Used by the `REPL` module when it cannot parse data from the REPL history file.
 
+<a id="ERR_REQUIRE_ESM"></a>
+### ERR_REQUIRE_ESM
+
+> Stability: 1 - Experimental
+
+Used when an attempt is made to `require()` an [ES6 module][].
+
+<a id="ERR_SERVER_ALREADY_LISTEN"></a>
+### ERR_SERVER_ALREADY_LISTEN
+
+Used when the [`server.listen()`][] method is called while a `net.Server` is
+already listening. This applies to all instances of `net.Server`, including
+HTTP, HTTPS, and HTTP/2 Server instances.
+
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 
 Used when an attempt is made to bind a socket that has already been bound.
+
+<a id="ERR_SOCKET_BAD_BUFFER_SIZE"></a>
+### ERR_SOCKET_BAD_BUFFER_SIZE
+
+Used when an invalid (negative) size is passed for either the `recvBufferSize`
+or `sendBufferSize` options in [`dgram.createSocket()`][].
 
 <a id="ERR_SOCKET_BAD_PORT"></a>
 ### ERR_SOCKET_BAD_PORT
@@ -1202,6 +1267,12 @@ value.
 
 Used when an API function expecting a socket type (`udp4` or `udp6`) receives an
 invalid value.
+
+<a id="ERR_SOCKET_BUFFER_SIZE"></a>
+### ERR_SOCKET_BUFFER_SIZE
+
+Used when using [`dgram.createSocket()`][] and the size of the receive or send
+`Buffer` cannot be determined.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 ### ERR_SOCKET_CANNOT_SEND
@@ -1309,6 +1380,21 @@ is emitted by an `EventEmitter` but an `'error'` handler is not registered).
 
 Used when an invalid or unknown encoding option is passed to an API.
 
+<a id="ERR_UNKNOWN_FILE_EXTENSION"></a>
+### ERR_UNKNOWN_FILE_EXTENSION
+
+> Stability: 1 - Experimental
+
+Used when attempting to load a module with an unknown or unsupported file
+extension.
+
+<a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
+### ERR_UNKNOWN_MODULE_FORMAT
+
+> Stability: 1 - Experimental
+
+Used when attempting to load a module with an unknown or unsupported format.
+
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
 
@@ -1355,7 +1441,11 @@ Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
+[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
+[`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
+[`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
+[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
@@ -1371,6 +1461,8 @@ closed.
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
+[`server.listen()`]: net.html#net_server_listen
+[ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
