@@ -42,7 +42,6 @@ class Nghttp2Stream;
 struct nghttp2_stream_write_t;
 
 #define MAX_BUFFER_COUNT 16
-#define SEND_BUFFER_RECOMMENDED_SIZE 4096
 
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
@@ -178,7 +177,7 @@ class Nghttp2Session {
   virtual ssize_t GetPadding(size_t frameLength,
                              size_t maxFrameLength) { return 0; }
   virtual void OnFreeSession() {}
-  virtual void AllocateSend(size_t suggested_size, uv_buf_t* buf) = 0;
+  virtual void AllocateSend(uv_buf_t* buf) = 0;
 
   virtual bool HasGetPaddingCallback() { return false; }
 

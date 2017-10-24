@@ -490,7 +490,7 @@ inline void Nghttp2Session::SendPendingData() {
     return;
 
   uv_buf_t dest;
-  AllocateSend(SEND_BUFFER_RECOMMENDED_SIZE, &dest);
+  AllocateSend(&dest);
   size_t destLength = 0;             // amount of data stored in dest
   size_t destRemaining = dest.len;   // amount space remaining in dest
   size_t destOffset = 0;             // current write offset of dest

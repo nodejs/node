@@ -824,7 +824,7 @@ int Http2Session::DoWrite(WriteWrap* req_wrap,
   return 0;
 }
 
-void Http2Session::AllocateSend(size_t recommended, uv_buf_t* buf) {
+void Http2Session::AllocateSend(uv_buf_t* buf) {
   buf->base = stream_alloc();
   buf->len = kAllocBufferSize;
 }
