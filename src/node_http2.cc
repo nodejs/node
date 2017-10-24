@@ -91,6 +91,12 @@ Http2Session::Http2Session(Environment* env,
   prep_->data = static_cast<void*>(this);
   uv_prepare_start(prep_, [](uv_prepare_t* t) {
     Http2Session* session = static_cast<Http2Session*>(t->data);
+    HandleScope scope(session->env()->isolate());
+    Context::Scope context_scope(session->env()->context());
+
+    // Sending data may call arbitrary JS code, so keep track of
+    // async context.
+    InternalCallbackScope callback_scope(session);
     session->SendPendingData();
   });
 }
