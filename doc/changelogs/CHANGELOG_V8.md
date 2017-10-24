@@ -42,7 +42,7 @@
 * **crypto**:
   - expose ECDH class [#8188](https://github.com/nodejs/node/pull/8188)
 * **http2**:
-  - http2 is now exposed by defualt without the need for a flag [#15685](https://github.com/nodejs/node/pull/15685)
+  - http2 is now exposed by default without the need for a flag [#15685](https://github.com/nodejs/node/pull/15685)
   - a new environment varible NODE\_NO\_HTTP2 has been added to allow userland http2 to be required [#15685](https://github.com/nodejs/node/pull/15685)
   - support has been added for generic `Duplex` streams [#16269](https://github.com/nodejs/node/pull/16269)
 * **module**:
