@@ -75,7 +75,7 @@ Http2Session::Http2Session(Environment* env,
                            nghttp2_session_type type)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
       StreamBase(env) {
-  Wrap(object(), this);
+  MakeWeak<Http2Session>(this);
 
   Http2Options opts(env);
 
@@ -102,11 +102,16 @@ Http2Session::Http2Session(Environment* env,
 }
 
 Http2Session::~Http2Session() {
-  CHECK_EQ(false, persistent().IsEmpty());
-  ClearWrap(object());
-  persistent().Reset();
-  CHECK_EQ(true, persistent().IsEmpty());
+  CHECK(persistent().IsEmpty());
+  Close();
+}
 
+void Http2Session::Close() {
+  if (!object().IsEmpty())
+    ClearWrap(object());
+  persistent().Reset();
+
+  this->Nghttp2Session::Close();
   // Stop the loop
   CHECK_EQ(uv_prepare_stop(prep_), 0);
   auto prep_close = [](uv_handle_t* handle) {
@@ -407,7 +412,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
 
   if (!skipUnconsume)
     session->Unconsume();
-  session->Free();
+  session->Close();
 }
 
 void Http2Session::Destroying(const FunctionCallbackInfo<Value>& args) {

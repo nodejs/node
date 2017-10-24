@@ -97,7 +97,7 @@ class Nghttp2Session {
       nghttp2_mem* mem = nullptr);
 
   // Frees this session instance
-  inline int Free();
+  inline ~Nghttp2Session();
   inline void MarkDestroying();
   bool IsDestroying() {
     return destroying_;
@@ -139,6 +139,8 @@ class Nghttp2Session {
 
   // Returns the nghttp2 library session
   inline nghttp2_session* session() const { return session_; }
+
+  inline bool IsClosed() const { return session_ == nullptr; }
 
   nghttp2_session_type type() const {
     return session_type_;
@@ -200,6 +202,8 @@ class Nghttp2Session {
   inline void SendPendingData();
 
   virtual uv_loop_t* event_loop() const = 0;
+
+  virtual void Close();
 
  private:
   inline void HandleHeadersFrame(const nghttp2_frame* frame);
