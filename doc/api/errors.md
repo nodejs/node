@@ -643,6 +643,17 @@ Used when an invalid value for the `format` argument has been passed to the
 Used when an invalid crypto engine identifier is passed to
 [`require('crypto').setEngine()`][].
 
+<a id="ERR_CRYPTO_FIPS_FORCED"></a>
+### ERR_CRYPTO_FIPS_FORCED
+
+Used when trying to enable or disable FIPS mode in the crypto module and
+the [`--force-fips`][] command-line argument is used.
+
+<a id="ERR_CRYPTO_FIPS_UNAVAILABLE"></a>
+### ERR_CRYPTO_FIPS_UNAVAILABLE
+
+Used when trying to enable or disable FIPS mode when FIPS is not available.
+
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
 ### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
 
@@ -1440,6 +1451,7 @@ Used when a given value is out of the accepted range.
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+[`--force-fips`]: cli.html#cli_force_fips
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
