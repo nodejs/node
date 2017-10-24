@@ -1519,26 +1519,26 @@ regressions. The following is an example of how to achieve that extending
 [Writable][].
 
 ```js
-const { Writable } = require('stream')
-const { StringDecoder } = require('string_decoder')
+const { Writable } = require('stream');
+const { StringDecoder } = require('string_decoder');
 
 class StringWritable extends Writable {
-  constructor (options) {
-    super(options)
-    const state = this._writableState
-    this._decoder = new StringDecoder(state.defaultEncoding)
-    this._data = ''
+  constructor(options) {
+    super(options);
+    const state = this._writableState;
+    this._decoder = new StringDecoder(state.defaultEncoding);
+    this._data = '';
   }
-  _write (chunk, encoding, callback) {
+  _write(chunk, encoding, callback) {
     if (encoding === 'buffer') {
-      chunk = this._decoder.write(chunk)
+      chunk = this._decoder.write(chunk);
     }
-    this._data += chunk
-    callback()
+    this._data += chunk;
+    callback();
   }
-  _final (callback) {
-    this._data += this._decoder.end()
-    callback()
+  _final(callback) {
+    this._data += this._decoder.end();
+    callback();
   }
 }
 ```
