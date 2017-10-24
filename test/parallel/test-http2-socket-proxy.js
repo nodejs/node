@@ -12,8 +12,8 @@ const net = require('net');
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
   type: Error,
-  message: 'HTTP/2 sockets should not be directly read from, written to, ' +
-           'paused and/or resumed.'
+  message: 'HTTP/2 sockets should not be directly manipulated ' +
+           '(e.g. read and written)'
 };
 
 const server = h2.createServer();
@@ -34,8 +34,6 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => socket.destroy, errMsg);
   common.expectsError(() => socket.emit, errMsg);
   common.expectsError(() => socket.end, errMsg);
-  common.expectsError(() => socket.once, errMsg);
-  common.expectsError(() => socket.on, errMsg);
   common.expectsError(() => socket.pause, errMsg);
   common.expectsError(() => socket.read, errMsg);
   common.expectsError(() => socket.resume, errMsg);
@@ -44,12 +42,13 @@ server.on('stream', common.mustCall(function(stream, headers) {
   common.expectsError(() => (socket.destroy = undefined), errMsg);
   common.expectsError(() => (socket.emit = undefined), errMsg);
   common.expectsError(() => (socket.end = undefined), errMsg);
-  common.expectsError(() => (socket.once = undefined), errMsg);
-  common.expectsError(() => (socket.on = undefined), errMsg);
   common.expectsError(() => (socket.pause = undefined), errMsg);
   common.expectsError(() => (socket.read = undefined), errMsg);
   common.expectsError(() => (socket.resume = undefined), errMsg);
   common.expectsError(() => (socket.write = undefined), errMsg);
+
+  assert.doesNotThrow(() => (socket.on = socket.on));
+  assert.doesNotThrow(() => (socket.once = socket.once));
 
   stream.respond();
 
