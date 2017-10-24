@@ -5946,19 +5946,17 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 
   if (engine == nullptr) {
     int err = ERR_get_error();
-    if (err == 0) {
-      char tmp[1024];
-      snprintf(tmp, sizeof(tmp), "Engine \"%s\" was not found", *engine_id);
-      return env->ThrowError(tmp);
-    } else {
-      return ThrowCryptoError(env, err);
-    }
+    if (err == 0)
+      return args.GetReturnValue().Set(false);
+    return ThrowCryptoError(env, err);
   }
 
   int r = ENGINE_set_default(engine, flags);
   ENGINE_free(engine);
   if (r == 0)
     return ThrowCryptoError(env, ERR_get_error());
+
+  args.GetReturnValue().Set(true);
 }
 #endif  // !OPENSSL_NO_ENGINE
 

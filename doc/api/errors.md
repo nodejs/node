@@ -637,6 +637,12 @@ Used when the native call from `process.cpuUsage` cannot be processed properly.
 Used when an invalid value for the `format` argument has been passed to the
 `crypto.ECDH()` class `getPublicKey()` method.
 
+<a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
+### ERR_CRYPTO_ENGINE_UNKNOWN
+
+Used when an invalid crypto engine identifier is passed to
+[`require('crypto').setEngine()`][].
+
 <a id="ERR_CRYPTO_INVALID_DIGEST"></a>
 ### ERR_CRYPTO_INVALID_DIGEST
 
@@ -1357,6 +1363,7 @@ closed.
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
+[`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
