@@ -125,6 +125,22 @@ if (!common.isWindows) {
 }
 
 {
+  // Validate the windowsHide option
+  const err = /^TypeError: "windowsHide" must be a boolean$/;
+
+  pass('windowsHide', undefined);
+  pass('windowsHide', null);
+  pass('windowsHide', true);
+  pass('windowsHide', false);
+  fail('windowsHide', 0, err);
+  fail('windowsHide', 1, err);
+  fail('windowsHide', __dirname, err);
+  fail('windowsHide', [], err);
+  fail('windowsHide', {}, err);
+  fail('windowsHide', common.mustNotCall(), err);
+}
+
+{
   // Validate the windowsVerbatimArguments option
   const err = /^TypeError: "windowsVerbatimArguments" must be a boolean$/;
 

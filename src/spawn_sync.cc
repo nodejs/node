@@ -777,6 +777,11 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (js_options->Get(env()->detached_string())->BooleanValue())
     uv_process_options_.flags |= UV_PROCESS_DETACHED;
 
+  Local<String> win_hide = env()->windows_hide_string();
+
+  if (js_options->Get(win_hide)->BooleanValue())
+    uv_process_options_.flags |= UV_PROCESS_WINDOWS_HIDE;
+
   Local<String> wba = env()->windows_verbatim_arguments_string();
 
   if (js_options->Get(wba)->BooleanValue())
