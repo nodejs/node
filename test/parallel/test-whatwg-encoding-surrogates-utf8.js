@@ -1,6 +1,6 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/fa9436d12c5edb21704c3382e299aaac31683b24/encoding/api-surrogates-utf8.html
+// From: https://github.com/w3c/web-platform-tests/blob/fa9436d12c/encoding/api-surrogates-utf8.html
 
 const common = require('../common');
 
