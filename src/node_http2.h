@@ -474,6 +474,8 @@ class Http2Session : public AsyncWrap,
     return stream_buf_;
   }
 
+  void Close() override;
+
  private:
   StreamBase* stream_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
