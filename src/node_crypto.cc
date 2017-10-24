@@ -5946,32 +5946,24 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
+#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  if (FIPS_mode()) {
-    args.GetReturnValue().Set(1);
-  } else {
-    args.GetReturnValue().Set(0);
-  }
+  args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  CHECK(!force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
-#ifdef NODE_FIPS_MODE
   const bool enabled = FIPS_mode();
   const bool enable = args[0]->BooleanValue();
   if (enable == enabled)
     return;  // No action needed.
-  if (force_fips_crypto) {
-    return env->ThrowError(
-        "Cannot set FIPS mode, it was forced with --force-fips at startup.");
-  } else if (!FIPS_mode_set(enable)) {
+  if (!FIPS_mode_set(enable)) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     return ThrowCryptoError(env, err);
   }
-#else
-  return env->ThrowError("Cannot set FIPS mode in a non-FIPS build.");
-#endif /* NODE_FIPS_MODE */
 }
+#endif /* NODE_FIPS_MODE */
 
 void InitCrypto(Local<Object> target,
                 Local<Value> unused,
@@ -5997,8 +5989,12 @@ void InitCrypto(Local<Object> target,
 #ifndef OPENSSL_NO_ENGINE
   env->SetMethod(target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
+
+#ifdef NODE_FIPS_MODE
   env->SetMethod(target, "getFipsCrypto", GetFipsCrypto);
   env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
+#endif
+
   env->SetMethod(target, "PBKDF2", PBKDF2);
   env->SetMethod(target, "randomBytes", RandomBytes);
   env->SetMethod(target, "randomFill", RandomBytesBuffer);
