@@ -794,7 +794,6 @@ inline int Nghttp2Stream::SubmitFile(int fd,
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider prov;
-  prov.source.ptr = this;
   prov.source.fd = fd;
   prov.read_callback = Nghttp2Session::OnStreamReadFD;
 
