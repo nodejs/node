@@ -462,7 +462,7 @@ inline void Nghttp2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
   // good here
 
 #if defined(DEBUG) && DEBUG
-  CHECK_GT(id, 0)
+  CHECK_GT(id, 0);
 #endif
 
   nghttp2_priority_spec spec = priority_frame.pri_spec;

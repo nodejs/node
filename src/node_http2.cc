@@ -89,7 +89,7 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   Context::Scope context_scope(context);
 
 #if defined(DEBUG) && DEBUG
-  CHECK(object->Has(context, env()->ongetpadding_string()).FromJust());
+  CHECK(object()->Has(context, env()->ongetpadding_string()).FromJust());
 #endif
 
   AliasedBuffer<uint32_t, v8::Uint32Array>& buffer =
