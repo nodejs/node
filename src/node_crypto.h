@@ -82,6 +82,22 @@ enum CheckResult {
   CHECK_OK = 1
 };
 
+enum CryptoErrorCodes {
+  ECDH_FAILED_TO_ALLOCATE_EC_POINT,
+  ECDH_FAILED_TO_COMPUTE_ECDH_KEY,
+  ECDH_FAILED_TO_CONVERT_BUFFER_TO_BN,
+  ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT,
+  ECDH_FAILED_TO_CONVERT_CN_TO_PRIVATEKEY,
+  ECDH_FAILED_TO_GENERATE_PUBLIC_KEY,
+  ECDH_FAILED_TO_SET_GENERATED_PUBLIC_KEY,
+  ECDH_FAILED_TO_SET_POINT_AS_PUBLIC_KEY,
+  ECDH_INVALID_PRIVATE_KEY,
+  ECDH_INVALID_KEY_PAIR,
+  DH_INVALID_KEY,
+  DH_INVALID_KEY_TOO_LARGE,
+  DH_INVALID_KEY_TOO_SMALL
+};
+
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern void UseExtraCaCerts(const std::string& file);
@@ -668,6 +684,7 @@ class DiffieHellman : public BaseObject {
   static void DiffieHellmanGroup(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetInitialized(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GenerateKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetPrime(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetGenerator(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -689,10 +706,10 @@ class DiffieHellman : public BaseObject {
   }
 
  private:
-  static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
-                       BIGNUM* (DH::*field), const char* err_if_null);
+  static inline void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
+                              BIGNUM* (DH::*field));
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                     BIGNUM* (DH::*field), const char* what);
+                     BIGNUM* (DH::*field));
   bool VerifyContext();
 
   bool initialised_;
@@ -728,7 +745,7 @@ class ECDH : public BaseObject {
   static void GetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  EC_POINT* BufferToPoint(char* data, size_t len);
+  EC_POINT* BufferToPoint(char* data, size_t len, int* status);
 
   bool IsKeyPairValid();
   bool IsKeyValidForCurve(const BIGNUM* private_key);
