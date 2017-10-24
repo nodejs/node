@@ -44,6 +44,12 @@ static void InitConfig(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
 
+#ifdef NODE_FIPS_MODE
+  READONLY_BOOLEAN_PROPERTY("fipsMode");
+  if (force_fips_crypto)
+    READONLY_BOOLEAN_PROPERTY("fipsForced");
+#endif
+
 #ifdef NODE_HAVE_I18N_SUPPORT
 
   READONLY_BOOLEAN_PROPERTY("hasIntl");
