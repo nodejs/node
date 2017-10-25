@@ -10,7 +10,9 @@
     'component%': 'static_library',   # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'python%': 'python',
-
+    'gas_version%': 0,
+    'llvm_version%': 0,
+    
     'node_shared%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
@@ -211,6 +213,9 @@
         # and their sheer number drowns out other, more legitimate warnings.
         'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
+        'AdditionalOptions': [ 
+          '/std:c++14'
+        ],
       },
       'VCLibrarianTool': {
       },
@@ -293,7 +298,7 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android aix"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
+        'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           # The 1990s toolchain on SmartOS can't handle thin archives.
@@ -409,7 +414,6 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
@@ -431,7 +435,12 @@
         'ldflags': [
           '-Wl,--export-dynamic',
         ],
-      }]
+      }],
+      ['llvm_version != 0', {
+        'cflags': [ '-std=c++14' ],
+      }, {
+        'cflags': [ '-std=gnu++11' ],
+      }],
     ],
   }
 }
