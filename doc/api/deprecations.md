@@ -372,7 +372,7 @@ instead.
 <a id="DEP0041"></a>
 ### DEP0041: NODE\_REPL\_HISTORY\_FILE environment variable
 
-Type: Documentation-only
+Type: Runtime
 
 The `NODE_REPL_HISTORY_FILE` environment variable has been deprecated.
 
