@@ -113,12 +113,12 @@ void UDPWrap::Initialize(Local<Object> target,
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     UDPWrap::GetFD,
-                                     nullptr,
-                                     env->as_external(),
-                                     v8::DEFAULT,
-                                     attributes);
+  t->PrototypeTemplate()->SetAccessor(env->fd_string(),
+                                      UDPWrap::GetFD,
+                                      nullptr,
+                                      env->as_external(),
+                                      v8::DEFAULT,
+                                      attributes);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "send", Send);
@@ -169,7 +169,7 @@ void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
 void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   int fd = UV_EBADF;
 #if !defined(_WIN32)
-  UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
+  UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
   if (wrap != nullptr)
     uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
 #endif
