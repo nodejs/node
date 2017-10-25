@@ -14,6 +14,7 @@
     'node_module_version%': '',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
+    'node_shared_nghttp2%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
     'node_use_openssl%': 'true',
@@ -170,8 +171,7 @@
       'type': '<(node_target_type)',
 
       'dependencies': [
-        'node_js2c#host',
-        'deps/nghttp2/nghttp2.gyp:nghttp2'
+        'node_js2c#host'
       ],
 
       'includes': [
@@ -182,8 +182,7 @@
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
-        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
-        'deps/nghttp2/lib/includes'
+        '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
 
       'sources': [
@@ -302,7 +301,7 @@
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
         # Warn when using deprecated V8 APIs.
-        'V8_DEPRECATION_WARNINGS=1',
+        'V8_DEPRECATION_WARNINGS=1'
       ],
     },
     {
@@ -715,6 +714,15 @@
             [ 'node_shared_http_parser=="false"', {
               'dependencies': [
                 'deps/http_parser/http_parser.gyp:http_parser'
+              ]
+            }],
+            [ 'node_shared_nghttp2=="false"', {
+              'dependencies': [
+                'deps/nghttp2/nghttp2.gyp:nghttp2'
+              ],
+              'defines': [
+                # We're using the nghttp2 static lib
+                'NGHTTP2_STATICLIB'
               ]
             }],
             [ 'node_shared_libuv=="false"', {
