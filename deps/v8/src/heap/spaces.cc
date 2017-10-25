@@ -408,6 +408,15 @@ void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
   }
 }
 
+int MemoryAllocator::Unmapper::NumberOfChunks() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  size_t result = 0;
+  for (int i = 0; i < kNumberOfChunkQueues; i++) {
+    result += chunks_[i].size();
+  }
+  return static_cast<int>(result);
+}
+
 bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
   MarkCompactCollector* mc = isolate_->heap()->mark_compact_collector();
   // We cannot free a memory chunk in new space while the sweeper is running
