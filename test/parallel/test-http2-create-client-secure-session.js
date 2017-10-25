@@ -1,3 +1,5 @@
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
@@ -8,6 +10,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const h2 = require('http2');
+const { kSocket } = require('internal/http2/util');
 const tls = require('tls');
 
 function loadKey(keyname) {
@@ -15,7 +18,7 @@ function loadKey(keyname) {
 }
 
 function onStream(stream, headers) {
-  const socket = stream.session.socket;
+  const socket = stream.session[kSocket];
   assert(headers[':authority'].startsWith(socket.servername));
   stream.respond({
     'content-type': 'text/html',
@@ -55,7 +58,7 @@ function verifySecureSession(key, cert, ca, opts) {
         assert.strictEqual(jsonData.servername, opts.servername || 'localhost');
         assert.strictEqual(jsonData.alpnProtocol, 'h2');
         server.close();
-        client.socket.destroy();
+        client[kSocket].destroy();
       }));
       req.end();
     });
