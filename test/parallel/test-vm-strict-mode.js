@@ -7,11 +7,8 @@ const vm = require('vm');
 
 const ctx = vm.createContext({ x: 42 });
 
-// The following line wrongly throws an
-// error because GlobalPropertySetterCallback()
-// does not check if the property exists
-// on the sandbox. It should just set x to 1
-// instead of throwing an error.
+// This might look as if x has not been declared, but x is defined on the
+// sandbox and the assignment should not throw.
 vm.runInContext('"use strict"; x = 1', ctx);
 
 assert.strictEqual(ctx.x, 1);
