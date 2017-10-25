@@ -423,7 +423,6 @@ function error_test() {
       expect: `{ x: 42 }\n${prompt_unix}`
     },
 
-
     // Newline within template string maintains whitespace.
     { client: client_unix, send: '`foo \n`',
       expect: `${prompt_multiline}'foo \\n'\n${prompt_unix}` },
