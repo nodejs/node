@@ -576,7 +576,7 @@
 * [[`94c6296d83`](https://github.com/nodejs/node/commit/94c6296d83)] - **tools**: use template literals (Sarah Meyer) [#15956](https://github.com/nodejs/node/pull/15956)
 * [[`eebb2d775a`](https://github.com/nodejs/node/commit/eebb2d775a)] - **(SEMVER-MINOR)** **tools, build**: refactor macOS installer (JP Wesselink) [#15179](https://github.com/nodejs/node/pull/15179)
 * [[`f68f572d7f`](https://github.com/nodejs/node/commit/f68f572d7f)] - **tty**: require readline at top of file (Bryan English) [#15647](https://github.com/nodejs/node/pull/15647)
-* [[`d181147b2c`](https://genericithub.com/nodejs/node/commit/d181147b2c)] - **url**: const-ify APIs, and pass URL by ref (Sam Roberts) [#15615](https://github.com/nodejs/node/pull/15615)
+* [[`d181147b2c`](https://github.com/nodejs/node/commit/d181147b2c)] - **url**: const-ify APIs, and pass URL by ref (Sam Roberts) [#15615](https://github.com/nodejs/node/pull/15615)
 * [[`1cc4245bfb`](https://github.com/nodejs/node/commit/1cc4245bfb)] - **url**: fix remaining calculation (Rimas Misevičius) [#15637](https://github.com/nodejs/node/pull/15637)
 * [[`34b4180d7d`](https://github.com/nodejs/node/commit/34b4180d7d)] - **url**: change variable name to be more descriptive (Yang-Kichang) [#15551](https://github.com/nodejs/node/pull/15551)
 * [[`58c68c2fcb`](https://github.com/nodejs/node/commit/58c68c2fcb)] - **util**: use faster -0 check (Brian White) [#15726](https://github.com/nodejs/node/pull/15726)
