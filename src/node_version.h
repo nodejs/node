@@ -76,11 +76,11 @@
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
- * 
+ *
  * Node.js will not change the module version during a Major release line
  * We will at times update the version of V8 shipped in the release line
  * if it can be made ABI compatible with the previous version.
- * 
+ *
  * Module version by Node.js version:
  * Node.js v0.10.x: 11
  * Node.js v0.12.x: 14
