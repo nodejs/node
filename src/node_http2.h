@@ -475,6 +475,7 @@ class Http2Session : public AsyncWrap,
   static void SubmitGoaway(const FunctionCallbackInfo<Value>& args);
   static void DestroyStream(const FunctionCallbackInfo<Value>& args);
   static void FlushData(const FunctionCallbackInfo<Value>& args);
+  static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);
@@ -492,6 +493,9 @@ class Http2Session : public AsyncWrap,
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
+
+  // use this to allow timeout tracking during long-lasting writes
+  uint32_t chunks_sent_since_last_write_ = 0;
 
   char stream_buf_[kAllocBufferSize];
 };
