@@ -156,9 +156,10 @@ const {
 
 {
   // Arrays containing a single set-cookie value are handled correctly
-  // (issue #16452)
-  const headers = Object.create({});
-  headers['set-cookie'] = ['foo=bar'];
+  // (https://github.com/nodejs/node/issues/16452)
+  const headers = {
+    'set-cookie': 'foo=bar'
+  };
   assert.deepStrictEqual(
     mapToHeaders(headers),
     [ [ 'set-cookie', 'foo=bar', '' ].join('\0'), 1 ]
