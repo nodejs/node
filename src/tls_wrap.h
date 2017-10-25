@@ -107,6 +107,7 @@ class TLSWrap : public AsyncWrap,
 
   AsyncWrap* GetAsyncWrap() override;
   bool IsIPCPipe() override;
+  uint32_t UpdateWriteQueueSize(uint32_t write_queue_size = 0);
 
   // Resource implementation
   static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
@@ -163,6 +164,10 @@ class TLSWrap : public AsyncWrap,
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
   bool eof_;
+
+ private:
+  static void UpdateWriteQueueSize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 }  // namespace node
