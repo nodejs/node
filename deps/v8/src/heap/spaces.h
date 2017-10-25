@@ -1204,6 +1204,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
       return static_cast<int>(delayed_regular_chunks_.size());
     }
 
+    int NumberOfChunks();
+
    private:
     static const int kReservedQueueingSlots = 64;
     static const int kMaxUnmapperTasks = 24;
