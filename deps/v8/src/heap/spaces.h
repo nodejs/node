@@ -1199,6 +1199,11 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     bool has_delayed_chunks() { return delayed_regular_chunks_.size() > 0; }
 
+    int NumberOfDelayedChunks() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      return static_cast<int>(delayed_regular_chunks_.size());
+    }
+
    private:
     static const int kReservedQueueingSlots = 64;
     static const int kMaxUnmapperTasks = 24;
