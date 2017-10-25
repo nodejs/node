@@ -413,6 +413,17 @@ function error_test() {
       expect: `${prompt_multiline}${prompt_multiline}undefined\n${prompt_unix}`
     },
 
+    // https://github.com/nodejs/node/issues/16483
+    {
+      client: client_unix, send: 'new Proxy({x:42}, {get(){throw null}});',
+      expect: `Proxy [ { x: 42 }, { get: [Function: get] } ]\n${prompt_unix}`
+    },
+    {
+      client: client_unix,
+      send: 'repl.writer.options.showProxy = false, new Proxy({x:42}, {});',
+      expect: `{ x: 42 }\n${prompt_unix}`
+    },
+
     // Newline within template string maintains whitespace.
     { client: client_unix, send: '`foo \n`',
       expect: `${prompt_multiline}'foo \\n'\n${prompt_unix}` },
