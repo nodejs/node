@@ -437,9 +437,9 @@
         ],
       }],
       ['llvm_version != 0', {
-        'cflags': [ '-std=c++14' ],
+        'cflags_cc': [ '-std=c++14' ],
       }, {
-        'cflags': [ '-std=gnu++11' ],
+        'cflags_cc': [ '-std=gnu++11' ],
       }],
     ],
   }
