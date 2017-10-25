@@ -4004,6 +4004,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     // V8 options (define with '_', which allows '-' or '_')
     "--abort_on_uncaught_exception",
     "--max_old_space_size",
+    "--stack_trace_limit",
   };
 
   for (unsigned i = 0; i < arraysize(whitelist); i++) {

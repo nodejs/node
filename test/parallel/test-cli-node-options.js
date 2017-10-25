@@ -34,16 +34,26 @@ if (common.hasCrypto) {
 // V8 options
 expect('--abort_on-uncaught_exception', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
+expect('--stack-trace-limit=100',
+       /(\s*at f \(\[eval\]:1:\d*\)\n){100}/,
+       '(function f() { f(); })();',
+       true);
 
-function expect(opt, want) {
-  const argv = ['-e', 'console.log("B")'];
+function expect(opt, want, command = 'console.log("B")', wantsError = false) {
+  const argv = ['-e', command];
   const opts = {
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
     maxBuffer: 1e6,
   };
-  exec(process.execPath, argv, opts, common.mustCall((err, stdout) => {
-    assert.ifError(err);
-    if (stdout.includes(want)) return;
+  if (typeof want === 'string')
+    want = new RegExp(want);
+  exec(process.execPath, argv, opts, common.mustCall((err, stdout, stderr) => {
+    if (wantsError) {
+      stdout = stderr;
+    } else {
+      assert.ifError(err);
+    }
+    if (want.test(stdout)) return;
 
     const o = JSON.stringify(opt);
     assert.fail(`For ${o}, failed to find ${want} in: <\n${stdout}\n>`);
