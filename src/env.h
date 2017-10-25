@@ -667,8 +667,8 @@ class Environment {
 #undef V
 
 #if HAVE_INSPECTOR
-  inline inspector::Agent* inspector_agent() {
-    return &inspector_agent_;
+  inline inspector::Agent* inspector_agent() const {
+    return inspector_agent_;
   }
 #endif
 
@@ -713,7 +713,7 @@ class Environment {
   std::map<std::string, uint64_t> performance_marks_;
 
 #if HAVE_INSPECTOR
-  inspector::Agent inspector_agent_;
+  inspector::Agent* const inspector_agent_;
 #endif
 
   HandleWrapQueue handle_wrap_queue_;
