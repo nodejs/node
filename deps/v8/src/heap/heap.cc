@@ -1887,7 +1887,7 @@ void Heap::Scavenge() {
 
   if (mark_compact_collector()->sweeper().sweeping_in_progress() &&
       memory_allocator_->unmapper()->NumberOfDelayedChunks() >
-          kMaxSemiSpaceSizeInKB / Page::kPageSize) {
+          static_cast<int>(new_space_->MaximumCapacity() / Page::kPageSize)) {
     mark_compact_collector()->EnsureSweepingCompleted();
   }
 
