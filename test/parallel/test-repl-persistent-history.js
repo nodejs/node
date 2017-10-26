@@ -122,6 +122,7 @@ const tests = [
     expected: [prompt, replDisabled, prompt]
   },
   {
+    deprecated: true,
     env: { NODE_REPL_HISTORY_FILE: emptyHistoryPath },
     test: [UP],
     expected: [prompt, convertMsg, prompt]
@@ -154,6 +155,7 @@ const tests = [
     expected: [prompt]
   },
   {
+    deprecated: true,
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
     expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt, '\'',
@@ -173,6 +175,7 @@ const tests = [
     expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
+    deprecated: true,
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, UP, CLEAR],
@@ -258,8 +261,22 @@ function runTest(assertCleaned) {
   const expected = opts.expected;
   const clean = opts.clean;
   const before = opts.before;
+  const deprecated = !!opts.deprecated;
+
+  const depMsg = /NODE_REPL_HISTORY_FILE is deprecated. Use the plaintext format instead./;
 
   if (before) before();
+
+  // TODO: Fix this. There is a bug where env variables/state are shared
+  // between tests. That is why the `if deprecated` is needed, or else tests
+  // will be failing all over the place for no reason. It would better to not
+  // have the guard, because otherwise what if tests that don't have deprecated
+  // set being to have deprecation warnings printed? :(
+  if (deprecated) {
+    common.hijackStderr(function(data) {
+      assert.ok(deprecated && depMsg.test(data));
+    });
+  }
 
   REPL.createInternalRepl(env, {
     input: new ActionStream(),
