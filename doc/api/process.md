@@ -1300,6 +1300,19 @@ event loop **before** additional I/O is processed.  As a result,
 recursively setting nextTick callbacks will block any I/O from
 happening, just like a `while(true);` loop.
 
+## process.noDeprecation
+<!-- YAML
+added: v0.8.0
+-->
+
+* {boolean}
+
+The `process.noDeprecation` property indicates whether the `--no-deprecation`
+flag is set on the current Node.js process. See the documentation for
+the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
+
 ## process.pid
 <!-- YAML
 added: v0.1.15
@@ -1648,6 +1661,19 @@ false
 
 See the [TTY][] documentation for more information.
 
+## process.throwDeprecation
+<!-- YAML
+added: v0.9.12
+-->
+
+* {boolean}
+
+The `process.throwDeprecation` property indicates whether the
+`--throw-deprecation` flag is set on the current Node.js process. See the
+documentation for the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
+
 ## process.title
 <!-- YAML
 added: v0.1.104
@@ -1667,6 +1693,19 @@ setting the `process.title` overwrites the `argv` memory of the process.
 Node.js v0.8 allowed for longer process title strings by also overwriting the
 `environ` memory but that was potentially insecure and confusing in some
 (rather obscure) cases.
+
+## process.traceDeprecation
+<!-- YAML
+added: v0.8.0
+-->
+
+* {boolean}
+
+The `process.traceDeprecation` property indicates whether the
+`--trace-deprecation` flag is set on the current Node.js process. See the
+documentation for the [`warning` event][process_warning] and the
+[`emitWarning` method][process_emit_warning] for more information about this
+flag's behavior.
 
 ## process.umask([mask])
 <!-- YAML
