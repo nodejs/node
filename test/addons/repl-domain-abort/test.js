@@ -25,8 +25,7 @@ const assert = require('assert');
 const repl = require('repl');
 const stream = require('stream');
 const path = require('path');
-const buildType = process.config.target_defaults.default_configuration;
-let buildPath = path.join(__dirname, 'build', buildType, 'binding');
+let buildPath = path.join(__dirname, 'build', common.buildType, 'binding');
 // On Windows, escape backslashes in the path before passing it to REPL.
 if (common.isWindows)
   buildPath = buildPath.replace(/\\/g, '/');
