@@ -25,7 +25,6 @@ function processIncludes(inputFile, input, cb) {
   const includes = input.match(includeExpr);
   if (includes === null) return cb(null, input);
   var errState = null;
-  console.error(includes);
   var incCount = includes.length;
   if (incCount === 0) cb(null, input);
   includes.forEach(function(include) {
