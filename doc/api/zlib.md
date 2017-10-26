@@ -459,12 +459,11 @@ added: v0.5.8
 Creates and returns a new [DeflateRaw][] object with the given [options][].
 
 *Note*: An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
-is set to 8 for raw deflate streams. zlib does not have a working implementation
-of an 8-bit Window for raw deflate streams and would automatically set windowBit
-to 9 if initially set to 8. Newer versions of zlib will throw an exception.
-This creates a potential DOS vector, and as such the behavior has been reverted
-in Node.js 8, 6, and 4. Node.js version 9 and higher will throw when windowBits
-is set to 8.
+is set to 8 for raw deflate streams. zlib would automatically set windowBits
+to 9 if was initially set to 8. Newer versions of zlib will throw an exception,
+so Node.js restored the original behavior of upgrading a value of 8 to 9,
+since passing `windowBits = 9` to zlib actually results in a compressed stream
+that effectively uses an 8-bit window only.
 
 ## zlib.createGunzip([options])
 <!-- YAML
