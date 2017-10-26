@@ -134,6 +134,9 @@ The new entry should take the following form:
 
 The release type should be either Current, LTS, or Maintenance, depending on the type of release being produced.
 
+Be sure that the `<a>` tag, as well as the two headings, are not
+indented at all.
+
 At the top of each `CHANGELOG_*.md` file, and in the root `CHANGELOG.md` file,
 there is a table indexing all releases in each major release line. A link to
 the new release needs to be added to each. Follow the existing examples and be
