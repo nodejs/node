@@ -250,28 +250,7 @@ static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
 
-
-void ThrowCryptoError(Environment* env,
-                      unsigned long err,  // NOLINT(runtime/int)
-                      const char* default_message = nullptr) {
-  HandleScope scope(env->isolate());
-  Local<String> message;
-
-  if (err != 0 || default_message == nullptr) {
-    char errmsg[128] = { 0 };
-    ERR_error_string_n(err, errmsg, sizeof(errmsg));
-    message = String::NewFromUtf8(env->isolate(), errmsg,
-                                  v8::NewStringType::kNormal)
-                                      .ToLocalChecked();
-  } else {
-    message = String::NewFromUtf8(env->isolate(), default_message,
-                                  v8::NewStringType::kNormal)
-                                      .ToLocalChecked();
-  }
-
-  Local<Value> exception_v = Exception::Error(message);
-  CHECK(!exception_v.IsEmpty());
-  Local<Object> exception = exception_v.As<Object>();
+inline void CaptureOpensslStack(Environment* env, Local<Object> context) {
   ERR_STATE* es = ERR_get_state();
 
   if (es->bottom != es->top) {
@@ -309,9 +288,65 @@ void ThrowCryptoError(Environment* env,
     // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
     // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
     // ]
-    exception->Set(env->context(), env->openssl_error_stack(), error_stack)
+    context->Set(env->context(), env->openssl_error_stack(), error_stack)
         .FromJust();
   }
+}
+
+inline void CaptureCryptoStatus(Environment* env,
+                                Local<Value> ctx,
+                                unsigned long err = 0,  // NOLINT(runtime/int)
+                                const char* default_message = nullptr) {
+  if (err == 0 ||
+      ctx.IsEmpty() ||
+      !ctx->IsObject()) return;
+
+  Local<Object> context = ctx.As<Object>();
+
+  HandleScope scope(env->isolate());
+  Local<String> message;
+
+  if (default_message == nullptr) {
+    char errmsg[128] = { 0 };
+    ERR_error_string_n(err, errmsg, sizeof(errmsg));
+    message = String::NewFromUtf8(env->isolate(), errmsg,
+                                  v8::NewStringType::kNormal)
+                                      .ToLocalChecked();
+  } else {
+    message = String::NewFromUtf8(env->isolate(),
+                                  default_message,
+                                  v8::NewStringType::kNormal).ToLocalChecked();
+  }
+  context->Set(env->context(), env->message_string(), message).FromJust();
+  context->Set(env->context(),
+               env->code_string(),
+               Integer::NewFromUnsigned(env->isolate(), err)).FromJust();
+
+  CaptureOpensslStack(env, context);
+}
+
+void ThrowCryptoError(Environment* env,
+                      unsigned long err,  // NOLINT(runtime/int)
+                      const char* default_message = nullptr) {
+  HandleScope scope(env->isolate());
+  Local<String> message;
+
+  if (err != 0 || default_message == nullptr) {
+    char errmsg[128] = { 0 };
+    ERR_error_string_n(err, errmsg, sizeof(errmsg));
+    message = String::NewFromUtf8(env->isolate(), errmsg,
+                                  v8::NewStringType::kNormal)
+                                      .ToLocalChecked();
+  } else {
+    message = String::NewFromUtf8(env->isolate(), default_message,
+                                  v8::NewStringType::kNormal)
+                                      .ToLocalChecked();
+  }
+
+  Local<Value> exception_v = Exception::Error(message);
+  CHECK(!exception_v.IsEmpty());
+  Local<Object> exception = exception_v.As<Object>();
+  CaptureOpensslStack(env, exception);
 
   env->isolate()->ThrowException(exception);
 }
@@ -5931,16 +5966,16 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (engine == nullptr) {
-    int err = ERR_get_error();
-    if (err == 0)
-      return args.GetReturnValue().Set(false);
-    return ThrowCryptoError(env, err);
+    CaptureCryptoStatus(env, args[2], ERR_get_error());
+    return args.GetReturnValue().Set(false);
   }
 
   int r = ENGINE_set_default(engine, flags);
   ENGINE_free(engine);
-  if (r == 0)
-    return ThrowCryptoError(env, ERR_get_error());
+  if (r == 0) {
+    CaptureCryptoStatus(env, args[2], ERR_get_error());
+    return args.GetReturnValue().Set(false);
+  }
 
   args.GetReturnValue().Set(true);
 }

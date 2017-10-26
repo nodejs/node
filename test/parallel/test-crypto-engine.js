@@ -1,9 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
+const { CryptoError } = require('internal/errors');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const crypto = require('crypto');
 
 common.expectsError(
@@ -21,3 +24,21 @@ common.expectsError(
     type: TypeError,
     message: 'The "flags" argument must be of type number'
   });
+
+common.expectsError(
+  () => crypto.setEngine('not a known engine', 1),
+  {
+    code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
+    type: CryptoError,
+    message: 'Engine "not a known engine" was not found',
+    additional(err) {
+      assert(err.info, 'does not have info property');
+      assert(Array.isArray(err.opensslErrorStack),
+             'opensslErrorStack must be an array');
+      assert.strictEqual(err.info.code, 621174887);
+      assert.strictEqual(err.info.message,
+                         'error:25066067:DSO support routines:DLFCN_LOAD:' +
+                         'could not load the shared library');
+    }
+  }
+);
