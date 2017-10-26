@@ -631,11 +631,98 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_CRYPTO_DH_GENERATE_KEYS_FAILED"></a>
+### ERR_CRYPTO_DH_GENERATE_KEYS_FAILED
+
+Used when `diffieHellman.generateKeys()` fails for any reason.
+
+<a id="ERR_CRYPTO_DH_INITIALIZATION_FAILED"></a>
+### ERR_CRYPTO_DH_INITIALIZATION_FAILED
+
+Used when creation of a [`DiffieHellman`][], [`ECDH`][], or
+[`DiffieHellmanGroup`][] instance fails for any reason.
+
+<a id="ERR_CRYPTO_DH_INVALID_KEY"></a>
+### ERR_CRYPTO_DH_INVALID_KEY
+
+Used when [`ecdh.computeSecret()`][] fails because of an invalid input key.
+
+<a id="ERR_CRYPTO_DH_INVALID_KEY_TOO_LARGE"></a>
+### ERR_CRYPTO_DH_INVALID_KEY_TOO_LARGE
+
+Used when [`ecdh.computeSecret()`][] fails because the input key is too large.
+
+<a id="ERR_CRYPTO_DH_INVALID_KEY_TOO_SMALL"></a>
+### ERR_CRYPTO_DH_INVALID_KEY_TOO_SMALL
+
+Used when [`ecdh.computeSecret()`][] fails because the input key is too small.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_ALLOCATE_EC_POINT"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_ALLOCATE_EC_POINT
+
+Used when either [`ecdh.setPublicKey()`][] or [`ecdh.computeSecret()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_COMPUTE_ECDH_KEY"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_COMPUTE_ECDH_KEY
+
+Used when [`ecdh.computeSecret()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_BN"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_BN
+
+Used when [`ecdh.setPrivateKey()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT
+
+Used when either [`ecdh.setPublicKey()`][] or [`ecdh.computeSecret()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_CN_TO_PRIVATEKEY"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_CN_TO_PRIVATEKEY
+
+Used when [`ecdh.setPrivateKey()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_GENERATE_PUBLIC_KEY"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_GENERATE_PUBLIC_KEY
+
+Used when [`ecdh.setPrivateKey()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_SET_GENERATED_PUBLIC_KEY"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_SET_GENERATED_PUBLIC_KEY
+
+Used when [`ecdh.setPrivateKey()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_FAILED_TO_SET_POINT_AS_PUBLIC_KEY"></a>
+### ERR_CRYPTO_ECDH_FAILED_TO_SET_POINT_AS_PUBLIC_KEY
+
+Used when [`ecdh.setPublicKey()`][] fails.
+
+<a id="ERR_CRYPTO_ECDH_GENERATE_KEYS_FAILED"></a>
+### ERR_CRYPTO_ECDH_GENERATE_KEYS_FAILED
+
+Used when [`ecdh.generateKeys()`][] fails.
+
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 ### ERR_CRYPTO_ECDH_INVALID_FORMAT
 
 Used when an invalid value for the `format` argument has been passed to the
-`crypto.ECDH()` class `getPublicKey()` method.
+[`ECDH`][] class `getPublicKey()` method.
+
+<a id="ERR_CRYPTO_ECDH_INVALID_KEY_PAIR"></a>
+### ERR_CRYPTO_ECDH_INVALID_KEY_PAIR
+
+Used when calling [`diffieHellman.computeSecret()`][] with an invalid key pair.
+
+<a id="ERR_CRYPTO_ECDH_INVALID_PRIVATE_KEY"></a>
+### ERR_CRYPTO_ECDH_INVALID_PRIVATE_KEY
+
+Used when attempt to set an invalid key using
+[`diffieHellman.setPrivateKey()`][] and `ecdh.setPrivateKey()`.
+
+<a id="ERR_CRYPTO_ECDH_UNKNOWN_CURVE"></a>
+### ERR_CRYPTO_ECDH_UNKNOWN_CURVE
+
+Used when creating an [`ECDH`][] instance with an invalid curve name.
 
 <a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
 ### ERR_CRYPTO_ENGINE_UNKNOWN
@@ -1348,6 +1435,16 @@ Used when a given value is out of the accepted range.
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+[`DiffieHellman`]: crypto.html#crypto_class_diffiehellman
+[`DiffieHellmanGroup`]: crypto.html#crypto_class_diffiehellmangroup
+[`diffieHellman.computeSecret()`]: crypto.html#crypto_diffiehellman_computesecret_otherpublickey_inputencoding_outputencoding
+[`diffieHellman.generateKeys()`]: crypto.html#crypto_diffiehellman_generatekeys_encoding
+[`diffieHellman.setPrivateKey()`]: crypto.html#crypto_diffiehellman_setprivatekey_privatekey_encoding
+[`ECDH`]: crypto.html#crypto_class_ecdh
+[`ecdh.computeSecret()`]: crypto.html#crypto_ecdh_computesecret_otherpublickey_inputencoding_outputencoding
+[`ecdh.generateKeys()`]: crypto.html#crypto_ecdh_generatekeys_encoding_format
+[`ecdh.setPrivateKey()`]: crypto.html#crypto_ecdh_setprivatekey_privatekey_encoding
+[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback

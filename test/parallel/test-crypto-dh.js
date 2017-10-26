@@ -74,9 +74,13 @@ const wrongBlockLength =
   }, wrongBlockLength);
 }
 
-assert.throws(() => {
+common.expectsError(() => {
   dh3.computeSecret('');
-}, /^Error: Supplied key is too small$/);
+}, {
+  code: 'ERR_CRYPTO_DH_INVALID_KEY_TOO_SMALL',
+  type: Error,
+  message: 'Supplied key is too small'
+});
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');
@@ -209,9 +213,13 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const ecdh3 = crypto.createECDH('secp256k1');
   const key3 = ecdh3.generateKeys();
 
-  assert.throws(() => {
+  common.expectsError(() => {
     ecdh2.computeSecret(key3, 'latin1', 'buffer');
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  }, {
+    code: 'ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT',
+    type: Error,
+    message: 'Failed to convert Buffer to EC_POINT'
+  });
 
   // ECDH should allow .setPrivateKey()/.setPublicKey()
   const ecdh4 = crypto.createECDH('prime256v1');
@@ -219,21 +227,19 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   ecdh4.setPrivateKey(ecdh1.getPrivateKey());
   ecdh4.setPublicKey(ecdh1.getPublicKey());
 
-  assert.throws(() => {
+  common.expectsError(() => {
     ecdh4.setPublicKey(ecdh3.getPublicKey());
-  }, /^Error: Failed to convert Buffer to EC_POINT$/);
+  }, {
+    code: 'ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT',
+    type: Error,
+    message: 'Failed to convert Buffer to EC_POINT'
+  });
 
   // Verify that we can use ECDH without having to use newly generated keys.
   const ecdh5 = crypto.createECDH('secp256k1');
 
-  // Verify errors are thrown when retrieving keys from an uninitialized object.
-  assert.throws(() => {
-    ecdh5.getPublicKey();
-  }, /^Error: Failed to get ECDH public key$/);
-
-  assert.throws(() => {
-    ecdh5.getPrivateKey();
-  }, /^Error: Failed to get ECDH private key$/);
+  assert.doesNotThrow(() => ecdh5.getPublicKey());
+  assert.doesNotThrow(() => ecdh5.getPrivateKey());
 
   // A valid private key for the secp256k1 curve.
   const cafebabeKey = 'cafebabe'.repeat(8);
@@ -288,24 +294,31 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   // does not make sense.
   ecdh5.setPublicKey(peerPubPtComp, 'hex');
   assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
-  assert.throws(() => {
+  common.expectsError(() => {
     // Error because the public key does not match the private key anymore.
     ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-  }, /^Error: Invalid key pair$/);
+  }, {
+    code: 'ERR_CRYPTO_ECDH_INVALID_KEY_PAIR',
+    type: Error,
+    message: 'Invalid ECDH key pair'
+  });
 
   // Set to a valid key to show that later attempts to set an invalid key are
   // rejected.
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
 
   // Some invalid private keys for the secp256k1 curve.
-  const errMessage = /^Error: Private key is not valid for specified curve\.$/;
   ['0000000000000000000000000000000000000000000000000000000000000000',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
   ].forEach((element) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       ecdh5.setPrivateKey(element, 'hex');
-    }, errMessage);
+    }, {
+      code: 'ERR_CRYPTO_ECDH_INVALID_PRIVATE_KEY',
+      type: Error,
+      message: 'Private key is not valid for specified curve.'
+    });
     // Verify object state did not change.
     assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   });
@@ -318,9 +331,15 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
   curve.generateKeys();
-  assert.throws(() => {
+
+  common.expectsError(() => {
     curve.computeSecret(invalidKey);
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  }, {
+    code: 'ERR_CRYPTO_ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT',
+    type: Error,
+    message: 'Failed to convert Buffer to EC_POINT'
+  });
+
   // Check that signing operations are not impacted by the above error.
   const ecPrivateKey =
     '-----BEGIN EC PRIVATE KEY-----\n' +
@@ -341,3 +360,69 @@ common.expectsError(
     type: TypeError,
     message: 'The "curve" argument must be of type string'
   });
+
+common.expectsError(
+  () => crypto.createDiffieHellman('', '', false, ''),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "generator" argument must be one of type number, string, ' +
+             'Buffer, TypedArray, or DataView'
+  }
+);
+
+common.expectsError(
+  () => crypto.createDiffieHellman('', '', new Date(), ''),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "generator" argument must be one of type number, string, ' +
+             'Buffer, TypedArray, or DataView'
+  }
+);
+
+{
+  const dh = crypto.createDiffieHellman('');
+  assert.doesNotThrow(() => dh.getPrime());
+  assert.doesNotThrow(() => dh.getPrivateKey());
+  assert.doesNotThrow(() => dh.getPublicKey());
+  assert.doesNotThrow(() => dh.getPrivateKey('utf8'));
+  assert.doesNotThrow(() => dh.getPublicKey('utf8'));
+  assert.doesNotThrow(() => dh.getGenerator());
+  assert.deepStrictEqual(dh.getPrime(), Buffer.alloc(0));
+  assert.strictEqual(dh.getPrivateKey(), undefined);
+  assert.strictEqual(dh.getPublicKey(), undefined);
+  assert.strictEqual(dh.getPrivateKey('utf8'), undefined);
+  assert.strictEqual(dh.getPublicKey('utf8'), undefined);
+  assert.deepStrictEqual(dh.getGenerator(), Buffer.from([0x2]));
+
+  common.expectsError(
+    () => dh.computeSecret(),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "key" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    }
+  );
+
+  common.expectsError(
+    () => dh.computeSecret(false),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "key" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    }
+  );
+
+  common.expectsError(
+    () => dh.computeSecret(new Date()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "key" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    }
+  );
+}

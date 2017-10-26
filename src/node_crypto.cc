@@ -250,6 +250,49 @@ static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
 
+void CaptureOpenSSLErrorStack(Environment* env, Local<Object> obj) {
+  ERR_STATE* es = ERR_get_state();
+
+  if (es->bottom != es->top) {
+    Local<Array> error_stack = Array::New(env->isolate());
+    int top = es->top;
+
+    // Build the error_stack array to be added to opensslErrorStack property.
+    for (unsigned int i = 0; es->bottom != es->top;) {
+      unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
+      // Only add error string if there is valid err_buffer.
+      if (err_buf) {
+        char tmp_str[256];
+        ERR_error_string_n(err_buf, tmp_str, sizeof(tmp_str));
+        error_stack->Set(env->context(), i,
+                        String::NewFromUtf8(env->isolate(), tmp_str,
+                                            v8::NewStringType::kNormal)
+                                                .ToLocalChecked()).FromJust();
+        // Only increment if we added to error_stack.
+        i++;
+      }
+
+      // Since the ERR_STATE is a ring buffer, we need to use modular
+      // arithmetic to loop back around in the case where bottom is after top.
+      // Using ERR_NUM_ERRORS  macro defined in openssl.
+      es->top = (((es->top - 1) % ERR_NUM_ERRORS) + ERR_NUM_ERRORS) %
+          ERR_NUM_ERRORS;
+    }
+
+    // Restore top.
+    es->top = top;
+
+    // Add the opensslErrorStack property to the exception object.
+    // The new property will look like the following:
+    // opensslErrorStack: [
+    // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
+    // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
+    // ]
+    obj->Set(env->context(),
+             env->openssl_error_stack(),
+             error_stack) .FromJust();
+  }
+}
 
 void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
@@ -272,46 +315,8 @@ void ThrowCryptoError(Environment* env,
   Local<Value> exception_v = Exception::Error(message);
   CHECK(!exception_v.IsEmpty());
   Local<Object> exception = exception_v.As<Object>();
-  ERR_STATE* es = ERR_get_state();
 
-  if (es->bottom != es->top) {
-    Local<Array> error_stack = Array::New(env->isolate());
-    int top = es->top;
-
-    // Build the error_stack array to be added to opensslErrorStack property.
-    for (unsigned int i = 0; es->bottom != es->top;) {
-      unsigned long err_buf = es->err_buffer[es->top];  // NOLINT(runtime/int)
-      // Only add error string if there is valid err_buffer.
-      if (err_buf) {
-        char tmp_str[256];
-        ERR_error_string_n(err_buf, tmp_str, sizeof(tmp_str));
-        error_stack->Set(env->context(), i,
-                        String::NewFromUtf8(env->isolate(), tmp_str,
-                                              v8::NewStringType::kNormal)
-                                                  .ToLocalChecked()).FromJust();
-        // Only increment if we added to error_stack.
-        i++;
-      }
-
-      // Since the ERR_STATE is a ring buffer, we need to use modular
-      // arithmetic to loop back around in the case where bottom is after top.
-      // Using ERR_NUM_ERRORS  macro defined in openssl.
-      es->top = (((es->top - 1) % ERR_NUM_ERRORS) + ERR_NUM_ERRORS) %
-          ERR_NUM_ERRORS;
-    }
-
-    // Restore top.
-    es->top = top;
-
-    // Add the opensslErrorStack property to the exception object.
-    // The new property will look like the following:
-    // opensslErrorStack: [
-    // 'error:0906700D:PEM routines:PEM_ASN1_read_bio:ASN1 lib',
-    // 'error:0D07803A:asn1 encoding routines:ASN1_ITEM_EX_D2I:nested asn1 err'
-    // ]
-    exception->Set(env->context(), env->openssl_error_stack(), error_stack)
-        .FromJust();
-  }
+  CaptureOpenSSLErrorStack(env, exception);
 
   env->isolate()->ThrowException(exception);
 }
@@ -4549,6 +4554,10 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
 void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
 
+  NODE_DEFINE_HIDDEN_CONSTANT(target, DH_INVALID_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, DH_INVALID_KEY_TOO_LARGE);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, DH_INVALID_KEY_TOO_SMALL);
+
   const PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
 
@@ -4562,6 +4571,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "getPrivateKey", GetPrivateKey);
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
+  env->SetProtoMethod(t, "getInitialized", GetInitialized);
 
   t->InstanceTemplate()->SetAccessor(
       env->verify_error_string(),
@@ -4584,6 +4594,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t2, "getGenerator", GetGenerator);
   env->SetProtoMethod(t2, "getPublicKey", GetPublicKey);
   env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
+  env->SetProtoMethod(t2, "getInitialized", GetInitialized);
 
   t2->InstanceTemplate()->SetAccessor(
       env->verify_error_string(),
@@ -4593,6 +4604,18 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
       DEFAULT,
       attributes,
       AccessorSignature::New(env->isolate(), t2));
+
+  Local<Array> dhGroupNames = Array::New(env->isolate(),
+                                         arraysize(modp_groups));
+  for (size_t i = 0; i < arraysize(modp_groups); ++i) {
+    const modp_group* it = modp_groups + i;
+    dhGroupNames->Set(
+        env->context(), i,
+        OneByteString(env->isolate(), it->name)).FromJust();
+  }
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "dhGroupNames"),
+              dhGroupNames).FromJust();
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
               t2->GetFunction());
@@ -4636,37 +4659,27 @@ bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   return true;
 }
 
+const modp_group* GetDHGroup(const char* name) {
+  for (size_t i = 0; i < arraysize(modp_groups); ++i) {
+    const modp_group* it = modp_groups + i;
+    if (StringEqualNoCase(name, it->name))
+      return it;
+  }
+  return nullptr;
+}
 
 void DiffieHellman::DiffieHellmanGroup(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
 
-  if (args.Length() != 1) {
-    return env->ThrowError("Group name argument is mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Group name");
-
-  bool initialized = false;
+  CHECK(args[0]->IsString());
 
   const node::Utf8Value group_name(env->isolate(), args[0]);
-  for (size_t i = 0; i < arraysize(modp_groups); ++i) {
-    const modp_group* it = modp_groups + i;
+  const modp_group* it = GetDHGroup(*group_name);
+  CHECK_NE(it, nullptr);
 
-    if (!StringEqualNoCase(*group_name, it->name))
-      continue;
-
-    initialized = diffieHellman->Init(it->prime,
-                                      it->prime_size,
-                                      it->gen,
-                                      it->gen_size);
-    if (!initialized)
-      env->ThrowError("Initialization failed");
-    return;
-  }
-
-  env->ThrowError("Unknown group");
+  diffieHellman->Init(it->prime, it->prime_size, it->gen, it->gen_size);
 }
 
 
@@ -4696,11 +4709,15 @@ void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  if (!initialized) {
-    return ThrowCryptoError(env, ERR_get_error(), "Initialization failed");
-  }
+  if (!initialized)
+    CaptureOpenSSLErrorStack(env, diffieHellman->object());
 }
 
+void DiffieHellman::GetInitialized(const FunctionCallbackInfo<Value>& args) {
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  args.GetReturnValue().Set(diffieHellman->initialised_);
+}
 
 void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -4708,12 +4725,11 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
 
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  CHECK(diffieHellman->initialised_);
 
   if (!DH_generate_key(diffieHellman->dh)) {
-    return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
+    CaptureOpenSSLErrorStack(env, diffieHellman->object());
+    return args.GetReturnValue().SetUndefined();
   }
 
   size_t size = BN_num_bytes(diffieHellman->dh->pub_key);
@@ -4722,17 +4738,17 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Buffer::New(env, data, size).ToLocalChecked());
 }
 
-
-void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
-                             BIGNUM* (DH::*field), const char* err_if_null) {
+inline void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
+                                    BIGNUM* (DH::*field)) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
-  if (!dh->initialised_) return env->ThrowError("Not initialized");
+  CHECK(dh->initialised_);
 
   const BIGNUM* num = (dh->dh)->*field;
-  if (num == nullptr) return env->ThrowError(err_if_null);
+  if (num == nullptr)
+    return args.GetReturnValue().SetUndefined();
 
   size_t size = BN_num_bytes(num);
   char* data = Malloc(size);
@@ -4741,24 +4757,22 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
 }
 
 void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::p, "p is null");
+  GetField(args, &DH::p);
 }
 
 
 void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::g, "g is null");
+  GetField(args, &DH::g);
 }
 
 
 void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::pub_key,
-           "No public key - did you forget to generate one?");
+  GetField(args, &DH::pub_key);
 }
 
 
 void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, &DH::priv_key,
-           "No private key - did you forget to generate one?");
+  GetField(args, &DH::priv_key);
 }
 
 
@@ -4768,22 +4782,15 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
 
-  if (!diffieHellman->initialised_) {
-    return ThrowCryptoError(env, ERR_get_error(), "Not initialized");
-  }
+  CHECK(diffieHellman->initialised_);
+  CHECK(Buffer::HasInstance(args[0]));
 
   ClearErrorOnReturn clear_error_on_return;
-  BIGNUM* key = nullptr;
 
-  if (args.Length() == 0) {
-    return env->ThrowError("Other party's public key argument is mandatory");
-  } else {
-    THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Other party's public key");
-    key = BN_bin2bn(
-        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]),
-        0);
-  }
+  BIGNUM* key = BN_bin2bn(
+      reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+      Buffer::Length(args[0]),
+      0);
 
   int dataSize = DH_size(diffieHellman->dh);
   char* data = Malloc(dataSize);
@@ -4801,17 +4808,17 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     free(data);
 
     if (!checked) {
-      return ThrowCryptoError(env, ERR_get_error(), "Invalid Key");
+      return args.GetReturnValue().Set(DH_INVALID_KEY);
     } else if (checkResult) {
       if (checkResult & DH_CHECK_PUBKEY_TOO_SMALL) {
-        return env->ThrowError("Supplied key is too small");
+        return args.GetReturnValue().Set(DH_INVALID_KEY_TOO_SMALL);
       } else if (checkResult & DH_CHECK_PUBKEY_TOO_LARGE) {
-        return env->ThrowError("Supplied key is too large");
+        return args.GetReturnValue().Set(DH_INVALID_KEY_TOO_LARGE);
       } else {
-        return env->ThrowError("Invalid key");
+        return args.GetReturnValue().Set(DH_INVALID_KEY);
       }
     } else {
-      return env->ThrowError("Invalid key");
+      return args.GetReturnValue().Set(DH_INVALID_KEY);
     }
 
     UNREACHABLE();
@@ -4836,25 +4843,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
 
 void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                           BIGNUM* (DH::*field), const char* what) {
-  Environment* env = Environment::GetCurrent(args);
-
+                           BIGNUM* (DH::*field)) {
   DiffieHellman* dh;
   ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
-  if (!dh->initialised_) return env->ThrowError("Not initialized");
+
+  CHECK(dh->initialised_);
+  CHECK(Buffer::HasInstance(args[0]));
 
   BIGNUM** num = &((dh->dh)->*field);
-  char errmsg[64];
-
-  if (args.Length() == 0) {
-    snprintf(errmsg, sizeof(errmsg), "%s argument is mandatory", what);
-    return env->ThrowError(errmsg);
-  }
-
-  if (!Buffer::HasInstance(args[0])) {
-    snprintf(errmsg, sizeof(errmsg), "%s must be a buffer", what);
-    return env->ThrowTypeError(errmsg);
-  }
 
   *num = BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
                    Buffer::Length(args[0]), *num);
@@ -4863,12 +4859,12 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
 
 
 void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args, &DH::pub_key, "Public key");
+  SetKey(args, &DH::pub_key);
 }
 
 
 void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args, &DH::priv_key, "Private key");
+  SetKey(args, &DH::priv_key);
 }
 
 
@@ -4879,9 +4875,7 @@ void DiffieHellman::VerifyErrorGetter(Local<String> property,
   DiffieHellman* diffieHellman;
   ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
 
-  if (!diffieHellman->initialised_)
-    return ThrowCryptoError(diffieHellman->env(), ERR_get_error(),
-                            "Not initialized");
+  CHECK(diffieHellman->initialised_);
 
   args.GetReturnValue().Set(diffieHellman->verifyError_);
 }
@@ -4912,6 +4906,19 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"),
               t->GetFunction());
+
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_COMPUTE_ECDH_KEY);
+
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_ALLOCATE_EC_POINT);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_COMPUTE_ECDH_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_CONVERT_BUFFER_TO_BN);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_CONVERT_CN_TO_PRIVATEKEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_GENERATE_PUBLIC_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_SET_GENERATED_PUBLIC_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_FAILED_TO_SET_POINT_AS_PUBLIC_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_INVALID_PRIVATE_KEY);
+  NODE_DEFINE_HIDDEN_CONSTANT(target, ECDH_INVALID_KEY_PAIR);
 }
 
 
@@ -4925,35 +4932,31 @@ void ECDH::New(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value curve(env->isolate(), args[0]);
 
   int nid = OBJ_sn2nid(*curve);
-  if (nid == NID_undef)
-    return env->ThrowTypeError("First argument should be a valid curve name");
+  CHECK_NE(nid, NID_undef);
 
   EC_KEY* key = EC_KEY_new_by_curve_name(nid);
-  if (key == nullptr)
-    return env->ThrowError("Failed to create EC_KEY using curve name");
+  CHECK_NE(key, nullptr);
 
   new ECDH(env, args.This(), key);
 }
 
 
 void ECDH::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  if (!EC_KEY_generate_key(ecdh->key_))
-    return env->ThrowError("Failed to generate EC_KEY");
+  args.GetReturnValue().Set(EC_KEY_generate_key(ecdh->key_) != 0);
 }
 
 
-EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
+EC_POINT* ECDH::BufferToPoint(char* data, size_t len, int* status) {
   EC_POINT* pub;
   int r;
 
   pub = EC_POINT_new(group_);
+  CHECK_NE(pub, nullptr);
   if (pub == nullptr) {
-    env()->ThrowError("Failed to allocate EC_POINT for a public key");
+    *status = ECDH_FAILED_TO_ALLOCATE_EC_POINT;
     return nullptr;
   }
 
@@ -4964,7 +4967,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
       len,
       nullptr);
   if (!r) {
-    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
+    *status = ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT;
     goto fatal;
   }
 
@@ -4979,7 +4982,7 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
 void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Data");
+  CHECK(Buffer::HasInstance(args[0]));
 
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
@@ -4987,10 +4990,15 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   if (!ecdh->IsKeyPairValid())
-    return env->ThrowError("Invalid key pair");
+    return args.GetReturnValue().Set(ECDH_INVALID_KEY_PAIR);
 
+  int status = 0;
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
-                                      Buffer::Length(args[0]));
+                                      Buffer::Length(args[0]),
+                                      &status);
+  if (status != 0)
+    return args.GetReturnValue().Set(status);
+
   if (pub == nullptr)
     return;
 
@@ -5003,7 +5011,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   EC_POINT_free(pub);
   if (!r) {
     free(out);
-    return env->ThrowError("Failed to compute ECDH key");
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_COMPUTE_ECDH_KEY);
   }
 
   Local<Object> buf = Buffer::New(env, out, out_len).ToLocalChecked();
@@ -5022,7 +5030,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   const EC_POINT* pub = EC_KEY_get0_public_key(ecdh->key_);
   if (pub == nullptr)
-    return env->ThrowError("Failed to get ECDH public key");
+    return args.GetReturnValue().SetUndefined();
 
   int size;
   point_conversion_form_t form =
@@ -5030,14 +5038,14 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
 
   size = EC_POINT_point2oct(ecdh->group_, pub, form, nullptr, 0, nullptr);
   if (size == 0)
-    return env->ThrowError("Failed to get public key length");
+    return args.GetReturnValue().SetUndefined();
 
   unsigned char* out = node::Malloc<unsigned char>(size);
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
     free(out);
-    return env->ThrowError("Failed to get public key");
+    return args.GetReturnValue().SetUndefined();
   }
 
   Local<Object> buf =
@@ -5054,14 +5062,14 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* b = EC_KEY_get0_private_key(ecdh->key_);
   if (b == nullptr)
-    return env->ThrowError("Failed to get ECDH private key");
+    return args.GetReturnValue().SetUndefined();
 
   int size = BN_num_bytes(b);
   unsigned char* out = node::Malloc<unsigned char>(size);
 
   if (size != BN_bn2bin(b, out)) {
     free(out);
-    return env->ThrowError("Failed to convert ECDH private key to Buffer");
+    return args.GetReturnValue().SetUndefined();
   }
 
   Local<Object> buf =
@@ -5071,31 +5079,28 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Private key");
+  CHECK(Buffer::HasInstance(args[0]));
 
   BIGNUM* priv = BN_bin2bn(
       reinterpret_cast<unsigned char*>(Buffer::Data(args[0].As<Object>())),
       Buffer::Length(args[0].As<Object>()),
       nullptr);
   if (priv == nullptr)
-    return env->ThrowError("Failed to convert Buffer to BN");
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_CONVERT_BUFFER_TO_BN);
 
   if (!ecdh->IsKeyValidForCurve(priv)) {
     BN_free(priv);
-    return env->ThrowError("Private key is not valid for specified curve.");
+    return args.GetReturnValue().Set(ECDH_INVALID_PRIVATE_KEY);
   }
 
   int result = EC_KEY_set_private_key(ecdh->key_, priv);
   BN_free(priv);
 
-  if (!result) {
-    return env->ThrowError("Failed to convert BN to a private key");
-  }
+  if (!result)
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_CONVERT_CN_TO_PRIVATEKEY);
 
   // To avoid inconsistency, clear the current public key in-case computing
   // the new one fails for some reason.
@@ -5112,12 +5117,12 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
   if (!EC_POINT_mul(ecdh->group_, pub, priv_key, nullptr, nullptr, nullptr)) {
     EC_POINT_free(pub);
-    return env->ThrowError("Failed to generate ECDH public key");
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_GENERATE_PUBLIC_KEY);
   }
 
   if (!EC_KEY_set_public_key(ecdh->key_, pub)) {
     EC_POINT_free(pub);
-    return env->ThrowError("Failed to set generated public key");
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_SET_GENERATED_PUBLIC_KEY);
   }
 
   EC_POINT_free(pub);
@@ -5125,24 +5130,27 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 
 
 void ECDH::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   ECDH* ecdh;
   ASSIGN_OR_RETURN_UNWRAP(&ecdh, args.Holder());
 
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Public key");
+  CHECK(Buffer::HasInstance(args[0]));
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  int status = 0;
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0].As<Object>()),
-                                      Buffer::Length(args[0].As<Object>()));
+                                      Buffer::Length(args[0].As<Object>()),
+                                      &status);
+  if (status != 0)
+    return args.GetReturnValue().Set(status);
+
   if (pub == nullptr)
-    return env->ThrowError("Failed to convert Buffer to EC_POINT");
+    return args.GetReturnValue().Set(ECDH_FAILED_TO_CONVERT_BUFFER_TO_POINT);
 
   int r = EC_KEY_set_public_key(ecdh->key_, pub);
   EC_POINT_free(pub);
   if (!r)
-    return env->ThrowError("Failed to set EC_POINT as the public key");
+    args.GetReturnValue().Set(ECDH_FAILED_TO_SET_POINT_AS_PUBLIC_KEY);
 }
 
 
