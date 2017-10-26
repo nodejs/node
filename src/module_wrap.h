@@ -12,8 +12,10 @@
 namespace node {
 namespace loader {
 
-node::url::URL Resolve(std::string specifier, const node::url::URL* base,
-                       bool read_pkg_json = false);
+v8::Maybe<url::URL> Resolve(Environment* env,
+                            const std::string& specifier,
+                            const url::URL& base,
+                            bool read_pkg_json = false);
 
 class ModuleWrap : public BaseObject {
  public:
@@ -23,7 +25,7 @@ class ModuleWrap : public BaseObject {
                          v8::Local<v8::Context> context);
 
  private:
-  ModuleWrap(node::Environment* env,
+  ModuleWrap(Environment* env,
              v8::Local<v8::Object> object,
              v8::Local<v8::Module> module,
              v8::Local<v8::String> url);
