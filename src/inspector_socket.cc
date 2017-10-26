@@ -513,7 +513,7 @@ static int message_complete_cb(http_parser* parser) {
   return 0;
 }
 
-static void data_received_cb(uv_stream_s* tcp, ssize_t nread,
+static void data_received_cb(uv_stream_t* tcp, ssize_t nread,
                              const uv_buf_t* buf) {
 #if DUMP_READS
   if (nread >= 0) {
