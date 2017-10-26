@@ -276,7 +276,7 @@ exports.spawnSyncPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
-  if (process.config.target_defaults.default_configuration === 'Debug')
+  if (process.features.debug)
     ms = 2 * ms;
 
   if (exports.isAix)
