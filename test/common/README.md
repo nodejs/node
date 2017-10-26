@@ -93,6 +93,8 @@ Check if there is more than 1gb of total memory.
   * `operator` &lt;any>
     (`AssertionError` only) expected error must have this value for its
     `operator` property.
+  * `additional` [&lt;Function>] A callback function that may be provided to
+    perform additional checks on the error object.
 * `exact` [&lt;Number>] default = 1
 * return [&lt;Function>]
 
