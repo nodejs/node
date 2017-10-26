@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_crypto_clienthello.h"
 #include "util.h"
 #include "util-inl.h"
 
