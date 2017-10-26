@@ -35,29 +35,29 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-  <a id="8.8.1"></a>
-  ## 2017-10-25, Version 8.8.1 (Current), @cjihrig
+<a id="8.8.1"></a>
+## 2017-10-25, Version 8.8.1 (Current), @cjihrig
 
-  ### Notable Changes
+### Notable Changes
 
-  * **net**:
-    - Fix timeout with null handle issue. This is a regression in Node 8.8.0 [#16489](https://github.com/nodejs/node/pull/16489)
+* **net**:
+  - Fix timeout with null handle issue. This is a regression in Node 8.8.0 [#16489](https://github.com/nodejs/node/pull/16489)
 
-  ### Commits
+### Commits
 
-  * [[`db8c92fb42`](https://github.com/nodejs/node/commit/db8c92fb42)] - **doc**: fix spelling in v8.8.0 changelog (Myles Borins) [#16477](https://github.com/nodejs/node/pull/16477)
-  * [[`c8396b8370`](https://github.com/nodejs/node/commit/c8396b8370)] - **doc**: remove loader hooks from unsupported features (Teppei Sato) [#16465](https://github.com/nodejs/node/pull/16465)
-  * [[`2b0bb57055`](https://github.com/nodejs/node/commit/2b0bb57055)] - **doc**: fix wrong URL (Jon Moss) [#16470](https://github.com/nodejs/node/pull/16470)
-  * [[`9ffc32974e`](https://github.com/nodejs/node/commit/9ffc32974e)] - **doc**: fix typo in changelog for 8.8.0 (Alec Perkins) [#16462](https://github.com/nodejs/node/pull/16462)
-  * [[`7facaa5031`](https://github.com/nodejs/node/commit/7facaa5031)] - **doc**: fix missing newline character (Daijiro Wachi) [#16447](https://github.com/nodejs/node/pull/16447)
-  * [[`16eb7d3a5f`](https://github.com/nodejs/node/commit/16eb7d3a5f)] - **doc**: fix doc styles (Daijiro Wachi) [#16385](https://github.com/nodejs/node/pull/16385)
-  * [[`99fdc1d04f`](https://github.com/nodejs/node/commit/99fdc1d04f)] - **doc**: add recommendations for first timers (Refael Ackermann) [#16350](https://github.com/nodejs/node/pull/16350)
-  * [[`6fbef7f350`](https://github.com/nodejs/node/commit/6fbef7f350)] - **doc**: fix typo in zlib.md (Luigi Pinca) [#16480](https://github.com/nodejs/node/pull/16480)
-  * [[`655e017e40`](https://github.com/nodejs/node/commit/655e017e40)] - **net**: fix timeout with null handle (Anatoli Papirovski) [#16489](https://github.com/nodejs/node/pull/16489)
-  * [[`7fad10cc7e`](https://github.com/nodejs/node/commit/7fad10cc7e)] - **test**: make test-v8-serdes work without stdin (Anna Henningsen)
-  * [[`12dc06e3e1`](https://github.com/nodejs/node/commit/12dc06e3e1)] - **test**: call toLowerCase on the resolved module (Daniel Bevenius) [#16486](https://github.com/nodejs/node/pull/16486)
-  * [[`10894c3835`](https://github.com/nodejs/node/commit/10894c3835)] - **test**: allow for different nsswitch.conf settings (Daniel Bevenius) [#16378](https://github.com/nodejs/node/pull/16378)
-  * [[`2a53165aa0`](https://github.com/nodejs/node/commit/2a53165aa0)] - **test**: add missing assertion (cjihrig) [#15519](https://github.com/nodejs/node/pull/15519)
+* [[`db8c92fb42`](https://github.com/nodejs/node/commit/db8c92fb42)] - **doc**: fix spelling in v8.8.0 changelog (Myles Borins) [#16477](https://github.com/nodejs/node/pull/16477)
+* [[`c8396b8370`](https://github.com/nodejs/node/commit/c8396b8370)] - **doc**: remove loader hooks from unsupported features (Teppei Sato) [#16465](https://github.com/nodejs/node/pull/16465)
+* [[`2b0bb57055`](https://github.com/nodejs/node/commit/2b0bb57055)] - **doc**: fix wrong URL (Jon Moss) [#16470](https://github.com/nodejs/node/pull/16470)
+* [[`9ffc32974e`](https://github.com/nodejs/node/commit/9ffc32974e)] - **doc**: fix typo in changelog for 8.8.0 (Alec Perkins) [#16462](https://github.com/nodejs/node/pull/16462)
+* [[`7facaa5031`](https://github.com/nodejs/node/commit/7facaa5031)] - **doc**: fix missing newline character (Daijiro Wachi) [#16447](https://github.com/nodejs/node/pull/16447)
+* [[`16eb7d3a5f`](https://github.com/nodejs/node/commit/16eb7d3a5f)] - **doc**: fix doc styles (Daijiro Wachi) [#16385](https://github.com/nodejs/node/pull/16385)
+* [[`99fdc1d04f`](https://github.com/nodejs/node/commit/99fdc1d04f)] - **doc**: add recommendations for first timers (Refael Ackermann) [#16350](https://github.com/nodejs/node/pull/16350)
+* [[`6fbef7f350`](https://github.com/nodejs/node/commit/6fbef7f350)] - **doc**: fix typo in zlib.md (Luigi Pinca) [#16480](https://github.com/nodejs/node/pull/16480)
+* [[`655e017e40`](https://github.com/nodejs/node/commit/655e017e40)] - **net**: fix timeout with null handle (Anatoli Papirovski) [#16489](https://github.com/nodejs/node/pull/16489)
+* [[`7fad10cc7e`](https://github.com/nodejs/node/commit/7fad10cc7e)] - **test**: make test-v8-serdes work without stdin (Anna Henningsen)
+* [[`12dc06e3e1`](https://github.com/nodejs/node/commit/12dc06e3e1)] - **test**: call toLowerCase on the resolved module (Daniel Bevenius) [#16486](https://github.com/nodejs/node/pull/16486)
+* [[`10894c3835`](https://github.com/nodejs/node/commit/10894c3835)] - **test**: allow for different nsswitch.conf settings (Daniel Bevenius) [#16378](https://github.com/nodejs/node/pull/16378)
+* [[`2a53165aa0`](https://github.com/nodejs/node/commit/2a53165aa0)] - **test**: add missing assertion (cjihrig) [#15519](https://github.com/nodejs/node/pull/15519)
 
 <a id="8.8.0"></a>
 ## 2017-10-24, Version 8.8.0 (Current), @MylesBorins
