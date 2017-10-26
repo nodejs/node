@@ -162,9 +162,14 @@ testCipher2(Buffer.from('0123456789abcdef'));
   cipher.setAAD(aadbuf);
   cipher.setAutoPadding();
 
-  assert.throws(() => {
-    cipher.getAuthTag();
-  }, /^Error: Attempting to get auth tag in unsupported state$/);
+  common.expectsError(
+    () => cipher.getAuthTag(),
+    {
+      code: 'ERR_CRYPTO_INVALID_STATE',
+      type: Error,
+      message: 'Invalid state for operation getAuthTag'
+    }
+  );
 
   const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
 
@@ -175,15 +180,28 @@ testCipher2(Buffer.from('0123456789abcdef'));
   decipher.update(encrypted);
   decipher.final();
 
-  assert.throws(() => {
-    decipher.setAAD(aadbuf);
-  }, /^Error: Attempting to set AAD in unsupported state$/);
+  common.expectsError(
+    () => decipher.setAAD(aadbuf),
+    {
+      code: 'ERR_CRYPTO_INVALID_STATE',
+      type: Error,
+      message: 'Invalid state for operation setAAD'
+    });
 
-  assert.throws(() => {
-    decipher.setAuthTag(cipher.getAuthTag());
-  }, /^Error: Attempting to set auth tag in unsupported state$/);
+  common.expectsError(
+    () => decipher.setAuthTag(cipher.getAuthTag()),
+    {
+      code: 'ERR_CRYPTO_INVALID_STATE',
+      type: Error,
+      message: 'Invalid state for operation setAuthTag'
+    });
 
-  assert.throws(() => {
-    decipher.setAutoPadding();
-  }, /^Error: Attempting to set auto padding in unsupported state$/);
+  common.expectsError(
+    () => decipher.setAutoPadding(),
+    {
+      code: 'ERR_CRYPTO_INVALID_STATE',
+      type: Error,
+      message: 'Invalid state for operation setAutoPadding'
+    }
+  );
 }
