@@ -542,13 +542,13 @@ doc-only: $(apidocs_html) $(apidocs_json)
 doc: $(NODE_EXE) doc-only
 
 $(apidoc_dirs):
-	mkdir -p $@
+	@mkdir -p $@
 
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
-	cp $< $@
+	@cp $< $@
 
 out/doc/%: doc/%
-	cp -r $< $@
+	@cp -r $< $@
 
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
@@ -566,11 +566,11 @@ gen-doc =	\
 	[ -x $(NODE) ] && $(NODE) $(1) || node $(1)
 
 out/doc/api/%.json: doc/api/%.md
-	$(call gen-doc, $(gen-json))
+	@$(call gen-doc, $(gen-json))
 
 # check if ./node is actually set, else use user pre-installed binary
 out/doc/api/%.html: doc/api/%.md
-	$(call gen-doc, $(gen-html))
+	@$(call gen-doc, $(gen-html))
 
 docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
