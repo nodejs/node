@@ -200,6 +200,7 @@
     # simply not feasible to squelch all warnings, never mind that the
     # libraries in deps/ are not under our control.
     'cflags!': ['-Werror'],
+    'cflags_cc': [ '-std=gnu++11' ],
     'msvs_settings': {
       'VCCLCompilerTool': {
         'StringPooling': 'true', # pool string literals
@@ -414,6 +415,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
+              'CLANG_CXX_LANGUAGE_STANDARD': 'c++14',  # -std=c++14
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
@@ -435,11 +437,6 @@
         'ldflags': [
           '-Wl,--export-dynamic',
         ],
-      }],
-      ['llvm_version != 0', {
-        'cflags_cc': [ '-std=c++14' ],
-      }, {
-        'cflags_cc': [ '-std=gnu++11' ],
       }],
     ],
   }
