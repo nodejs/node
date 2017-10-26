@@ -827,7 +827,6 @@ action("v8_dump_build_config") {
   is_gcov_coverage = v8_code_coverage && !is_clang
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
-    "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
@@ -838,7 +837,6 @@ action("v8_dump_build_config") {
     "is_tsan=$is_tsan",
     "is_ubsan_vptr=$is_ubsan_vptr",
     "target_cpu=\"$target_cpu\"",
-    "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
