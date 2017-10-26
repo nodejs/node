@@ -679,6 +679,13 @@ ever, happen.
 
 Used when an invalid [crypto digest algorithm][] is specified.
 
+<a id="ERR_CRYPTO_INVALID_STATE"></a>
+### ERR_CRYPTO_INVALID_STATE
+
+Used generically when a crypto method is used on an object that is in an
+invalid state. For instance, calling [`cipher.getAuthTag()`][] before calling
+`cipher.final()`.
+
 <a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
 ### ERR_CRYPTO_SIGN_KEY_REQUIRED
 
@@ -1498,6 +1505,7 @@ closed.
 Used when creation of a [`zlib`][] object fails due to incorrect configuration.
 
 [`--force-fips`]: cli.html#cli_force_fips
+[`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE

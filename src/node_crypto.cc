@@ -48,13 +48,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val, prefix)                  \
-  do {                                                                         \
-    if (!Buffer::HasInstance(val) && !val->IsString()) {                       \
-      return env->ThrowTypeError(prefix " must be a string or a buffer");      \
-    }                                                                          \
-  } while (0)
-
 #define THROW_AND_RETURN_IF_NOT_BUFFER(val, prefix)           \
   do {                                                        \
     if (!Buffer::HasInstance(val)) {                          \
@@ -3407,14 +3400,8 @@ void CipherBase::Init(const char* cipher_type,
 void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-  Environment* env = cipher->env();
 
-  if (args.Length() < 2) {
-    return env->ThrowError("Cipher type and key arguments are mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher type");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
+  CHECK_GE(args.Length(), 2);
 
   const node::Utf8Value cipher_type(args.GetIsolate(), args[0]);
   const char* key_buf = Buffer::Data(args[1]);
@@ -3477,13 +3464,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
   Environment* env = cipher->env();
 
-  if (args.Length() < 3) {
-    return env->ThrowError("Cipher type, key, and IV arguments are mandatory");
-  }
-
-  THROW_AND_RETURN_IF_NOT_STRING(args[0], "Cipher type");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Key");
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[2], "IV");
+  CHECK_GE(args.Length(), 3);
 
   const node::Utf8Value cipher_type(env->isolate(), args[0]);
   ssize_t key_len = Buffer::Length(args[1]);
@@ -3512,7 +3493,7 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   if (cipher->initialised_ ||
       cipher->kind_ != kCipher ||
       cipher->auth_tag_len_ == 0) {
-    return env->ThrowError("Attempting to get auth tag in unsupported state");
+    return args.GetReturnValue().SetUndefined();
   }
 
   Local<Object> buf =
@@ -3523,17 +3504,13 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
 
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Auth tag");
-
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
   if (!cipher->initialised_ ||
       !cipher->IsAuthenticatedMode() ||
       cipher->kind_ != kDecipher) {
-    return env->ThrowError("Attempting to set auth tag in unsupported state");
+    return args.GetReturnValue().Set(false);
   }
 
   // FIXME(bnoordhuis) Throw when buffer length is not a valid tag size.
@@ -3563,15 +3540,11 @@ bool CipherBase::SetAAD(const char* data, unsigned int len) {
 
 
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "AAD");
-
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
   if (!cipher->SetAAD(Buffer::Data(args[0]), Buffer::Length(args[0])))
-    env->ThrowError("Attempting to set AAD in unsupported state");
+    args.GetReturnValue().Set(false);  // Report invalid state failure
 }
 
 
@@ -3606,8 +3579,6 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-
-  THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Cipher data");
 
   unsigned char* out = nullptr;
   bool r;
@@ -3648,13 +3619,11 @@ bool CipherBase::SetAutoPadding(bool auto_padding) {
 
 
 void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
   if (!cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue()))
-    env->ThrowError("Attempting to set auto padding in unsupported state");
+    args.GetReturnValue().Set(false);  // Report invalid state failure
 }
 
 
