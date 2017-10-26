@@ -603,6 +603,8 @@ void Http2Session::SubmitFile(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
   }
 
+  session->chunks_sent_since_last_write_ = 0;
+
   Headers list(isolate, context, headers);
 
   args.GetReturnValue().Set(stream->SubmitFile(fd, *list, list.length(),
@@ -757,6 +759,23 @@ void Http2Session::FlushData(const FunctionCallbackInfo<Value>& args) {
   stream->FlushDataChunks();
 }
 
+void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+
+  HandleScope scope(isolate);
+
+  uint32_t length = session->chunks_sent_since_last_write_;
+
+  session->object()->Set(env->context(),
+                         env->chunks_sent_since_last_write_string(),
+                         Integer::NewFromUnsigned(isolate, length)).FromJust();
+
+  args.GetReturnValue().Set(length);
+}
+
 void Http2Session::SubmitPushPromise(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   Environment* env = Environment::GetCurrent(args);
@@ -811,6 +830,8 @@ int Http2Session::DoWrite(WriteWrap* req_wrap,
     }
   }
 
+  chunks_sent_since_last_write_ = 0;
+
   nghttp2_stream_write_t* req = new nghttp2_stream_write_t;
   req->data = req_wrap;
 
@@ -846,6 +867,7 @@ void Http2Session::Send(uv_buf_t* buf, size_t length) {
                                         this,
                                         AfterWrite);
 
+  chunks_sent_since_last_write_++;
   uv_buf_t actual = uv_buf_init(buf->base, length);
   if (stream_->DoWrite(write_req, &actual, 1, nullptr)) {
     write_req->Dispose();
@@ -1255,6 +1277,8 @@ void Initialize(Local<Object> target,
                       Http2Session::DestroyStream);
   env->SetProtoMethod(session, "flushData",
                       Http2Session::FlushData);
+  env->SetProtoMethod(session, "updateChunksSent",
+                      Http2Session::UpdateChunksSent);
   StreamBase::AddMethods<Http2Session>(env, session,
                                         StreamBase::kFlagHasWritev |
                                         StreamBase::kFlagNoShutdown);
