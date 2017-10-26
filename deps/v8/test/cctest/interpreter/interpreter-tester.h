@@ -110,7 +110,7 @@ class InterpreterTester {
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
       function->ReplaceCode(
-          *isolate_->builtins()->InterpreterEntryTrampoline());
+          *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline));
     }
 
     if (!bytecode_.is_null()) {

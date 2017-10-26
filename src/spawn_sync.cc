@@ -663,39 +663,47 @@ void SyncProcessRunner::SetPipeError(int pipe_error) {
 
 Local<Object> SyncProcessRunner::BuildResultObject() {
   EscapableHandleScope scope(env()->isolate());
+  Local<Context> context = env()->context();
 
   Local<Object> js_result = Object::New(env()->isolate());
 
   if (GetError() != 0) {
-    js_result->Set(env()->error_string(),
-                   Integer::New(env()->isolate(), GetError()));
+    js_result->Set(context, env()->error_string(),
+                   Integer::New(env()->isolate(), GetError())).FromJust();
   }
 
   if (exit_status_ >= 0) {
     if (term_signal_ > 0) {
-      js_result->Set(env()->status_string(), Null(env()->isolate()));
+      js_result->Set(context, env()->status_string(),
+                     Null(env()->isolate())).FromJust();
     } else {
-      js_result->Set(env()->status_string(),
-          Number::New(env()->isolate(), static_cast<double>(exit_status_)));
+      js_result->Set(context, env()->status_string(),
+                     Number::New(env()->isolate(),
+                                 static_cast<double>(exit_status_))).FromJust();
     }
   } else {
     // If exit_status_ < 0 the process was never started because of some error.
-    js_result->Set(env()->status_string(), Null(env()->isolate()));
+    js_result->Set(context, env()->status_string(),
+                   Null(env()->isolate())).FromJust();
   }
 
   if (term_signal_ > 0)
-    js_result->Set(env()->signal_string(),
-        String::NewFromUtf8(env()->isolate(), signo_string(term_signal_)));
+    js_result->Set(context, env()->signal_string(),
+                   String::NewFromUtf8(env()->isolate(),
+                                       signo_string(term_signal_))).FromJust();
   else
-    js_result->Set(env()->signal_string(), Null(env()->isolate()));
+    js_result->Set(context, env()->signal_string(),
+                   Null(env()->isolate())).FromJust();
 
   if (exit_status_ >= 0)
-    js_result->Set(env()->output_string(), BuildOutputArray());
+    js_result->Set(context, env()->output_string(),
+                   BuildOutputArray()).FromJust();
   else
-    js_result->Set(env()->output_string(), Null(env()->isolate()));
+    js_result->Set(context, env()->output_string(),
+                   Null(env()->isolate())).FromJust();
 
-  js_result->Set(env()->pid_string(),
-                 Number::New(env()->isolate(), uv_process_.pid));
+  js_result->Set(context, env()->pid_string(),
+                 Number::New(env()->isolate(), uv_process_.pid)).FromJust();
 
   return scope.Escape(js_result);
 }
@@ -706,14 +714,15 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   CHECK_NE(stdio_pipes_, nullptr);
 
   EscapableHandleScope scope(env()->isolate());
+  Local<Context> context = env()->context();
   Local<Array> js_output = Array::New(env()->isolate(), stdio_count_);
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
     if (h != nullptr && h->writable())
-      js_output->Set(i, h->GetOutputAsBuffer(env()));
+      js_output->Set(context, i, h->GetOutputAsBuffer(env())).FromJust();
     else
-      js_output->Set(i, Null(env()->isolate()));
+      js_output->Set(context, i, Null(env()->isolate())).FromJust();
   }
 
   return scope.Escape(js_output);
@@ -727,22 +736,25 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   if (!js_value->IsObject())
     return UV_EINVAL;
 
+  Local<Context> context = env()->context();
   Local<Object> js_options = js_value.As<Object>();
 
-  Local<Value> js_file = js_options->Get(env()->file_string());
+  Local<Value> js_file =
+      js_options->Get(context, env()->file_string()).ToLocalChecked();
   r = CopyJsString(js_file, &file_buffer_);
   if (r < 0)
     return r;
   uv_process_options_.file = file_buffer_;
 
-  Local<Value> js_args = js_options->Get(env()->args_string());
+  Local<Value> js_args =
+      js_options->Get(context, env()->args_string()).ToLocalChecked();
   r = CopyJsStringArray(js_args, &args_buffer_);
   if (r < 0)
     return r;
   uv_process_options_.args = reinterpret_cast<char**>(args_buffer_);
 
-
-  Local<Value> js_cwd = js_options->Get(env()->cwd_string());
+  Local<Value> js_cwd =
+      js_options->Get(context, env()->cwd_string()).ToLocalChecked();
   if (IsSet(js_cwd)) {
     r = CopyJsString(js_cwd, &cwd_buffer_);
     if (r < 0)
@@ -750,7 +762,8 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
     uv_process_options_.cwd = cwd_buffer_;
   }
 
-  Local<Value> js_env_pairs = js_options->Get(env()->env_pairs_string());
+  Local<Value> js_env_pairs =
+      js_options->Get(context, env()->env_pairs_string()).ToLocalChecked();
   if (IsSet(js_env_pairs)) {
     r = CopyJsStringArray(js_env_pairs, &env_buffer_);
     if (r < 0)
@@ -758,50 +771,65 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
     uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
   }
-  Local<Value> js_uid = js_options->Get(env()->uid_string());
+  Local<Value> js_uid =
+      js_options->Get(context, env()->uid_string()).ToLocalChecked();
   if (IsSet(js_uid)) {
     CHECK(js_uid->IsInt32());
-    const int32_t uid = js_uid->Int32Value(env()->context()).FromJust();
+    const int32_t uid = js_uid->Int32Value(context).FromJust();
     uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
 
-  Local<Value> js_gid = js_options->Get(env()->gid_string());
+  Local<Value> js_gid =
+      js_options->Get(context, env()->gid_string()).ToLocalChecked();
   if (IsSet(js_gid)) {
     CHECK(js_gid->IsInt32());
-    const int32_t gid = js_gid->Int32Value(env()->context()).FromJust();
+    const int32_t gid = js_gid->Int32Value(context).FromJust();
     uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
 
-  if (js_options->Get(env()->detached_string())->BooleanValue())
+  Local<Value> js_detached =
+      js_options->Get(context, env()->detached_string()).ToLocalChecked();
+  if (js_detached->BooleanValue(context).FromJust())
     uv_process_options_.flags |= UV_PROCESS_DETACHED;
 
-  Local<String> wba = env()->windows_verbatim_arguments_string();
+  Local<Value> js_win_hide =
+      js_options->Get(context, env()->windows_hide_string()).ToLocalChecked();
+  if (js_win_hide->BooleanValue(context).FromJust())
+    uv_process_options_.flags |= UV_PROCESS_WINDOWS_HIDE;
 
-  if (js_options->Get(wba)->BooleanValue())
+  Local<Value> js_wva =
+      js_options->Get(context, env()->windows_verbatim_arguments_string())
+          .ToLocalChecked();
+
+  if (js_wva->BooleanValue(context).FromJust())
     uv_process_options_.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 
-  Local<Value> js_timeout = js_options->Get(env()->timeout_string());
+  Local<Value> js_timeout =
+      js_options->Get(context, env()->timeout_string()).ToLocalChecked();
   if (IsSet(js_timeout)) {
     CHECK(js_timeout->IsNumber());
-    int64_t timeout = js_timeout->IntegerValue();
+    int64_t timeout = js_timeout->IntegerValue(context).FromJust();
     timeout_ = static_cast<uint64_t>(timeout);
   }
 
-  Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
+  Local<Value> js_max_buffer =
+      js_options->Get(context, env()->max_buffer_string()).ToLocalChecked();
   if (IsSet(js_max_buffer)) {
     CHECK(js_max_buffer->IsNumber());
-    max_buffer_ = js_max_buffer->NumberValue();
+    max_buffer_ = js_max_buffer->NumberValue(context).FromJust();
   }
 
-  Local<Value> js_kill_signal = js_options->Get(env()->kill_signal_string());
+  Local<Value> js_kill_signal =
+      js_options->Get(context, env()->kill_signal_string()).ToLocalChecked();
   if (IsSet(js_kill_signal)) {
     CHECK(js_kill_signal->IsInt32());
-    kill_signal_ = js_kill_signal->Int32Value();
+    kill_signal_ = js_kill_signal->Int32Value(context).FromJust();
   }
 
-  Local<Value> js_stdio = js_options->Get(env()->stdio_string());
+  Local<Value> js_stdio =
+      js_options->Get(context, env()->stdio_string()).ToLocalChecked();
   r = ParseStdioOptions(js_stdio);
   if (r < 0)
     return r;
@@ -817,6 +845,7 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   if (!js_value->IsArray())
     return UV_EINVAL;
 
+  Local<Context> context = env()->context();
   js_stdio_options = js_value.As<Array>();
 
   stdio_count_ = js_stdio_options->Length();
@@ -826,7 +855,8 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   stdio_pipes_initialized_ = true;
 
   for (uint32_t i = 0; i < stdio_count_; i++) {
-    Local<Value> js_stdio_option = js_stdio_options->Get(i);
+    Local<Value> js_stdio_option =
+        js_stdio_options->Get(context, i).ToLocalChecked();
 
     if (!js_stdio_option->IsObject())
       return UV_EINVAL;
@@ -845,7 +875,9 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
 
 int SyncProcessRunner::ParseStdioOption(int child_fd,
                                         Local<Object> js_stdio_option) {
-  Local<Value> js_type = js_stdio_option->Get(env()->type_string());
+  Local<Context> context = env()->context();
+  Local<Value> js_type =
+      js_stdio_option->Get(context, env()->type_string()).ToLocalChecked();
 
   if (js_type->StrictEquals(env()->ignore_string())) {
     return AddStdioIgnore(child_fd);
@@ -854,13 +886,17 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
     Local<String> rs = env()->readable_string();
     Local<String> ws = env()->writable_string();
 
-    bool readable = js_stdio_option->Get(rs)->BooleanValue();
-    bool writable = js_stdio_option->Get(ws)->BooleanValue();
+    bool readable = js_stdio_option->Get(context, rs)
+        .ToLocalChecked()->BooleanValue(context).FromJust();
+    bool writable =
+        js_stdio_option->Get(context, ws)
+        .ToLocalChecked()->BooleanValue(context).FromJust();
 
     uv_buf_t buf = uv_buf_init(nullptr, 0);
 
     if (readable) {
-      Local<Value> input = js_stdio_option->Get(env()->input_string());
+      Local<Value> input =
+          js_stdio_option->Get(context, env()->input_string()).ToLocalChecked();
       if (Buffer::HasInstance(input)) {
         buf = uv_buf_init(Buffer::Data(input),
                           static_cast<unsigned int>(Buffer::Length(input)));
@@ -876,7 +912,8 @@ int SyncProcessRunner::ParseStdioOption(int child_fd,
 
   } else if (js_type->StrictEquals(env()->inherit_string()) ||
              js_type->StrictEquals(env()->fd_string())) {
-    int inherit_fd = js_stdio_option->Get(env()->fd_string())->Int32Value();
+    int inherit_fd = js_stdio_option->Get(context, env()->fd_string())
+        .ToLocalChecked()->Int32Value(context).FromJust();
     return AddStdioInheritFD(child_fd, inherit_fd);
 
   } else {
@@ -976,25 +1013,26 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   if (!js_value->IsArray())
     return UV_EINVAL;
 
+  Local<Context> context = env()->context();
   js_array = js_value.As<Array>()->Clone().As<Array>();
   length = js_array->Length();
-
-  // Convert all array elements to string. Modify the js object itself if
-  // needed - it's okay since we cloned the original object.
-  for (uint32_t i = 0; i < length; i++) {
-    if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
-  }
+  data_size = 0;
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
   list_size = (length + 1) * sizeof *list;
 
-  // Compute the length of all strings. Include room for null terminator
-  // after every string. Align strings to cache lines.
-  data_size = 0;
+  // Convert all array elements to string. Modify the js object itself if
+  // needed - it's okay since we cloned the original object. Also compute the
+  // length of all strings, including room for a null terminator after every
+  // string. Align strings to cache lines.
   for (uint32_t i = 0; i < length; i++) {
-    data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
+    auto value = js_array->Get(context, i).ToLocalChecked();
+
+    if (!value->IsString())
+      js_array->Set(context, i, value->ToString(env()->isolate())).FromJust();
+
+    data_size += StringBytes::StorageSize(isolate, value, UTF8) + 1;
     data_size = ROUND_UP(data_size, sizeof(void*));
   }
 
@@ -1005,10 +1043,11 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
 
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
+    auto value = js_array->Get(context, i).ToLocalChecked();
     data_offset += StringBytes::Write(isolate,
                                       buffer + data_offset,
                                       -1,
-                                      js_array->Get(i),
+                                      value,
                                       UTF8);
     buffer[data_offset++] = '\0';
     data_offset = ROUND_UP(data_offset, sizeof(void*));

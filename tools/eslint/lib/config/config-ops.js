@@ -193,25 +193,25 @@ module.exports = {
     },
 
     /**
-     * Converts new-style severity settings (off, warn, error) into old-style
-     * severity settings (0, 1, 2) for all rules. Assumption is that severity
-     * values have already been validated as correct.
-     * @param {Object} config The config object to normalize.
-     * @returns {void}
+     * Normalizes the severity value of a rule's configuration to a number
+     * @param {(number|string|[number, ...*]|[string, ...*])} ruleConfig A rule's configuration value, generally
+     * received from the user. A valid config value is either 0, 1, 2, the string "off" (treated the same as 0),
+     * the string "warn" (treated the same as 1), the string "error" (treated the same as 2), or an array
+     * whose first element is one of the above values. Strings are matched case-insensitively.
+     * @returns {(0|1|2)} The numeric severity value if the config value was valid, otherwise 0.
      */
-    normalize(config) {
+    getRuleSeverity(ruleConfig) {
+        const severityValue = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
-        if (config.rules) {
-            Object.keys(config.rules).forEach(ruleId => {
-                const ruleConfig = config.rules[ruleId];
-
-                if (typeof ruleConfig === "string") {
-                    config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
-                } else if (Array.isArray(ruleConfig) && typeof ruleConfig[0] === "string") {
-                    ruleConfig[0] = RULE_SEVERITY[ruleConfig[0].toLowerCase()] || 0;
-                }
-            });
+        if (severityValue === 0 || severityValue === 1 || severityValue === 2) {
+            return severityValue;
         }
+
+        if (typeof severityValue === "string") {
+            return RULE_SEVERITY[severityValue.toLowerCase()] || 0;
+        }
+
+        return 0;
     },
 
     /**

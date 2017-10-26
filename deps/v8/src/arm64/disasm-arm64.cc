@@ -823,37 +823,46 @@ void DisassemblingDecoder::VisitLoadStoreRegisterOffset(Instruction* instr) {
   Format(instr, mnemonic, form);
 }
 
+#define LOAD_STORE_UNSCALED_LIST(V) \
+  V(STURB_w, "sturb", "'Wt")        \
+  V(STURH_w, "sturh", "'Wt")        \
+  V(STUR_w, "stur", "'Wt")          \
+  V(STUR_x, "stur", "'Xt")          \
+  V(LDURB_w, "ldurb", "'Wt")        \
+  V(LDURH_w, "ldurh", "'Wt")        \
+  V(LDUR_w, "ldur", "'Wt")          \
+  V(LDUR_x, "ldur", "'Xt")          \
+  V(LDURSB_x, "ldursb", "'Xt")      \
+  V(LDURSH_x, "ldursh", "'Xt")      \
+  V(LDURSW_x, "ldursw", "'Xt")      \
+  V(LDURSB_w, "ldursb", "'Wt")      \
+  V(LDURSH_w, "ldursh", "'Wt")      \
+  V(STUR_b, "stur", "'Bt")          \
+  V(STUR_h, "stur", "'Ht")          \
+  V(STUR_s, "stur", "'St")          \
+  V(STUR_d, "stur", "'Dt")          \
+  V(LDUR_b, "ldur", "'Bt")          \
+  V(LDUR_h, "ldur", "'Ht")          \
+  V(LDUR_s, "ldur", "'St")          \
+  V(LDUR_d, "ldur", "'Dt")          \
+  V(STUR_q, "stur", "'Qt")          \
+  V(LDUR_q, "ldur", "'Qt")
 
 void DisassemblingDecoder::VisitLoadStoreUnscaledOffset(Instruction* instr) {
-  const char *mnemonic = "unimplemented";
-  const char *form = "'Wt, ['Xns'ILS]";
-  const char *form_x = "'Xt, ['Xns'ILS]";
-  const char *form_s = "'St, ['Xns'ILS]";
-  const char *form_d = "'Dt, ['Xns'ILS]";
+  const char* mnemonic = "unimplemented";
+  const char* form = "(LoadStoreUnscaledOffset)";
 
   switch (instr->Mask(LoadStoreUnscaledOffsetMask)) {
-    case STURB_w:  mnemonic = "sturb"; break;
-    case STURH_w:  mnemonic = "sturh"; break;
-    case STUR_w:   mnemonic = "stur"; break;
-    case STUR_x:   mnemonic = "stur"; form = form_x; break;
-    case STUR_s:   mnemonic = "stur"; form = form_s; break;
-    case STUR_d:   mnemonic = "stur"; form = form_d; break;
-    case LDURB_w:  mnemonic = "ldurb"; break;
-    case LDURH_w:  mnemonic = "ldurh"; break;
-    case LDUR_w:   mnemonic = "ldur"; break;
-    case LDUR_x:   mnemonic = "ldur"; form = form_x; break;
-    case LDUR_s:   mnemonic = "ldur"; form = form_s; break;
-    case LDUR_d:   mnemonic = "ldur"; form = form_d; break;
-    case LDURSB_x: form = form_x;  // Fall through.
-    case LDURSB_w: mnemonic = "ldursb"; break;
-    case LDURSH_x: form = form_x;  // Fall through.
-    case LDURSH_w: mnemonic = "ldursh"; break;
-    case LDURSW_x: mnemonic = "ldursw"; form = form_x; break;
-    default: form = "(LoadStoreUnscaledOffset)";
+#define LS_UNSCALEDOFFSET(A, B, C) \
+  case A:                          \
+    mnemonic = B;                  \
+    form = C ", ['Xns'ILS]";       \
+    break;
+    LOAD_STORE_UNSCALED_LIST(LS_UNSCALEDOFFSET)
+#undef LS_UNSCALEDOFFSET
   }
   Format(instr, mnemonic, form);
 }
-
 
 void DisassemblingDecoder::VisitLoadLiteral(Instruction* instr) {
   const char *mnemonic = "ldr";

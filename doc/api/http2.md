@@ -16,14 +16,25 @@ support for HTTP/2 protocol features. It is specifically *not* designed for
 compatibility with the existing [HTTP/1][] module API. However,
 the [Compatibility API][] is.
 
+The `http2` Core API is much more symmetric between client and server than the
+`http` API. For instance, most events, like `error` and `socketError`, can be
+emitted either by client-side code or server-side code.
+
+### Server-side example
+
 The following illustrates a simple, plain-text HTTP/2 server using the
 Core API:
 
 ```js
 const http2 = require('http2');
+const fs = require('fs');
 
-// Create a plain-text HTTP/2 server
-const server = http2.createServer();
+const server = http2.createSecureServer({
+  key: fs.readFileSync('localhost-privkey.pem'),
+  cert: fs.readFileSync('localhost-cert.pem')
+});
+server.on('error', (err) => console.error(err));
+server.on('socketError', (err) => console.error(err));
 
 server.on('stream', (stream, headers) => {
   // stream is a Duplex
@@ -34,34 +45,44 @@ server.on('stream', (stream, headers) => {
   stream.end('<h1>Hello World</h1>');
 });
 
-server.listen(80);
+server.listen(8443);
 ```
 
-Note that the above example is an HTTP/2 server that does not support SSL.
-This is significant as most browsers support HTTP/2 only with SSL.
-To make the above server be able to serve content to browsers,
-replace `http2.createServer()` with
-`http2.createSecureServer({key: /* your SSL key */, cert: /* your SSL cert */})`.
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout localhost-privkey.pem -out localhost-cert.pem
+```
+
+### Client-side example
 
 The following illustrates an HTTP/2 client:
 
 ```js
 const http2 = require('http2');
+const fs = require('fs');
+const client = http2.connect('https://localhost:8443', {
+  ca: fs.readFileSync('localhost-cert.pem')
+});
+client.on('socketError', (err) => console.error(err));
+client.on('error', (err) => console.error(err));
 
-const client = http2.connect('http://localhost:80');
-
-// req is a Duplex
 const req = client.request({ ':path': '/' });
 
-req.on('response', (headers) => {
-  console.log(headers[':status']);
-  console.log(headers['date']);
+req.on('response', (headers, flags) => {
+  for (const name in headers) {
+    console.log(`${name}: ${headers[name]}`);
+  }
 });
 
-let data = '';
 req.setEncoding('utf8');
-req.on('data', (d) => data += d);
-req.on('end', () => client.destroy());
+let data = '';
+req.on('data', (chunk) => { data += chunk; });
+req.on('end', () => {
+  console.log(`\n${data}`);
+  client.destroy();
+});
 req.end();
 ```
 
@@ -463,12 +484,16 @@ added: v8.4.0
 
 * Value: {net.Socket|tls.TLSSocket}
 
-A reference to the [`net.Socket`][] or [`tls.TLSSocket`][] to which this
-`Http2Session` instance is bound.
+Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+limits available methods to ones safe to use with HTTP/2.
 
-*Note*: It is not recommended for user code to interact directly with a
-`Socket` bound to an `Http2Session`. See [Http2Session and Sockets][] for
-details.
+`destroy`, `emit`, `end`, `pause`, `read`, `resume`, and `write` will throw
+an error with code `ERR_HTTP2_NO_SOCKET_MANIPULATION`. See
+[Http2Session and Sockets][] for more information.
+
+`setTimeout` method will be called on this `Http2Session`.
+
+All other interactions will be routed directly to the socket.
 
 #### http2session.state
 <!-- YAML
@@ -817,7 +842,7 @@ const client = http2.connect('http://example.org:8000');
 const req = client.request({ ':path': '/' });
 
 // Cancel the stream if there's no activity after 5 seconds
-req.setTimeout(5000, () => req.rstStreamWithCancel());
+req.setTimeout(5000, () => req.rstWithCancel());
 ```
 
 #### http2stream.state
@@ -1322,7 +1347,7 @@ added: v8.5.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-If a [`'request'`][] listener is registered or [`'http2.createServer()'`][] is
+If a [`'request'`][] listener is registered or [`http2.createServer()`][] is
 supplied a callback function, the `'checkContinue'` event is emitted each time
 a request with an HTTP `Expect: 100-continue` is received. If this event is
 not listened for, the server will automatically respond with a status
@@ -1427,7 +1452,7 @@ added: v8.5.0
 * `request` {http2.Http2ServerRequest}
 * `response` {http2.Http2ServerResponse}
 
-If a [`'request'`][] listener is registered or [`'http2.createSecureServer()'`][]
+If a [`'request'`][] listener is registered or [`http2.createSecureServer()`][]
 is supplied a callback function, the `'checkContinue'` event is emitted each
 time a request with an HTTP `Expect: 100-continue` is received. If this event
 is not listened for, the server will automatically respond with a status
@@ -1598,6 +1623,9 @@ added: v8.4.0
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `createConnection` {Function} An optional callback that receives the `URL`
+    instance passed to `connect` and the `options` object, and returns any
+    [`Duplex`][] stream that is to be used as the connection for this session.
 * `listener` {Function}
 * Returns {Http2Session}
 
@@ -1899,7 +1927,9 @@ const req = client.request({
   ':authority': `localhost:${port}`
 });
 
-req.on('response', common.mustCall());
+req.on('response', (headers) => {
+  console.log(headers[http2.constants.HTTP2_HEADER_STATUS]);
+});
 let data = '';
 req.setEncoding('utf8');
 req.on('data', (chunk) => data += chunk);
@@ -2133,10 +2163,10 @@ Returns `request`.
 added: v8.4.0
 -->
 
-* {net.Socket}
+* {net.Socket|tls.TLSSocket}
 
-Returns a Proxy object that acts as a `net.Socket` but applies getters,
-setters and methods based on HTTP/2 logic.
+Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+applies getters, setters and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
 set on `request.stream`.
@@ -2147,7 +2177,7 @@ set on `request.stream`.
 `setTimeout` method will be called on `request.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket. With TLS support,
@@ -2288,7 +2318,7 @@ will result in a [`TypeError`][] being thrown.
 added: v8.4.0
 -->
 
-* {net.Socket}
+* {net.Socket|tls.TLSSocket}
 
 See [`response.socket`][].
 
@@ -2505,10 +2535,10 @@ Returns `response`.
 added: v8.4.0
 -->
 
-* {net.Socket}
+* {net.Socket|tls.TLSSocket}
 
-Returns a Proxy object that acts as a `net.Socket` but applies getters,
-setters and methods based on HTTP/2 logic.
+Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
+applies getters, setters and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
 set on `response.stream`.
@@ -2519,7 +2549,7 @@ set on `response.stream`.
 `setTimeout` method will be called on `response.stream.session`.
 
 `pause`, `read`, `resume`, and `write` will throw an error with code
-`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [`Http2Session and Sockets`][] for
+`ERR_HTTP2_NO_SOCKET_MANIPULATION`. See [Http2Session and Sockets][] for
 more information.
 
 All other interactions will be routed directly to the socket.
@@ -2710,9 +2740,9 @@ if the stream is closed.
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror
 [`http2.SecureServer`]: #http2_class_http2secureserver
-[`http2.createSecureServer()`]: #http2_createsecureserver_options_onrequesthandler
+[`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler
 [`http2.Server`]: #http2_class_http2server
-[`http2.createServer()`]: #http2_createserver_options_onrequesthandler
+[`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed

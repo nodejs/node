@@ -23,8 +23,7 @@ class HeapObject;
 class SequentialMarkingDeque {
  public:
   explicit SequentialMarkingDeque(Heap* heap)
-      : backing_store_(nullptr),
-        backing_store_committed_size_(0),
+      : backing_store_committed_size_(0),
         array_(nullptr),
         top_(0),
         bottom_(0),
@@ -132,7 +131,7 @@ class SequentialMarkingDeque {
 
   base::Mutex mutex_;
 
-  base::VirtualMemory* backing_store_;
+  base::VirtualMemory backing_store_;
   size_t backing_store_committed_size_;
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is

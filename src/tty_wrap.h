@@ -25,12 +25,12 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
-#include "handle_wrap.h"
+#include "uv.h"
 #include "stream_wrap.h"
 
 namespace node {
 
-class TTYWrap : public StreamWrap {
+class TTYWrap : public LibuvStreamWrap {
  public:
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,

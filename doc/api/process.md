@@ -1676,7 +1676,7 @@ important ways:
    respectively.
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
-4. Writes may be synchronous depending on the what the stream is connected to
+4. Writes may be synchronous depending on what the stream is connected to
    and whether the system is Windows or POSIX:
    - Files: *synchronous* on Windows and POSIX
    - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
@@ -1790,6 +1790,9 @@ changes:
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3102
     description: The `icu` property is now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15785
+    description: The `v8` property now includes a Node.js specific suffix.
 -->
 
 * {Object}
@@ -1810,7 +1813,7 @@ Will generate an object similar to:
 {
   http_parser: '2.3.0',
   node: '1.1.1',
-  v8: '4.1.0.14',
+  v8: '6.1.534.42-node.0',
   uv: '1.3.0',
   zlib: '1.2.8',
   ares: '1.10.0-DEV',
@@ -1882,7 +1885,6 @@ cases:
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
@@ -1897,7 +1899,7 @@ cases:
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
-[`require.resolve()`]: modules.html#modules_require_resolve
+[`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.html
 [Cluster]: cluster.html

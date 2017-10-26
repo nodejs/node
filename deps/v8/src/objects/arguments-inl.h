@@ -15,11 +15,7 @@ namespace internal {
 
 CAST_ACCESSOR(AliasedArgumentsEntry)
 CAST_ACCESSOR(JSArgumentsObject)
-CAST_ACCESSOR(JSSloppyArgumentsObject)
 CAST_ACCESSOR(SloppyArgumentsElements)
-
-ACCESSORS(JSArgumentsObject, length, Object, kLengthOffset);
-ACCESSORS(JSSloppyArgumentsObject, callee, Object, kCalleeOffset);
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 

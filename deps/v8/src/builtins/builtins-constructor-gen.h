@@ -26,11 +26,14 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                   Node* context, Label* call_runtime,
                                   AllocationSiteMode allocation_site_mode);
 
+  Node* EmitCreateEmptyArrayLiteral(Node* closure, Node* iteral_index,
+                                    Node* context);
   void CreateFastCloneShallowArrayBuiltin(
       AllocationSiteMode allocation_site_mode);
 
   Node* EmitFastCloneShallowObject(Label* call_runtime, Node* closure,
                                    Node* literals_index);
+  Node* EmitCreateEmptyObjectLiteral(Node* context);
 
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
 
@@ -43,7 +46,6 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                              Node* capacity, ElementsKind kind);
   Node* CopyFixedArrayBase(Node* elements);
 
-  Node* LoadFeedbackVectorSlot(Node* closure, Node* literal_index);
   Node* NotHasBoilerplate(Node* literal_site);
   Node* LoadAllocationSiteBoilerplate(Node* allocation_site);
 };

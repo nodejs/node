@@ -24,8 +24,9 @@ understand the project governance model as outlined in
 
 ## Issues and Pull Requests
 
-Courtesy should always be shown to individuals submitting issues and
-pull requests to the Node.js project.
+Courtesy should **always** be shown to individuals submitting issues and pull
+requests to the Node.js project. Be welcoming to first time contributors,
+identified by the GitHub ![badge](./doc/first_timer_badge.png) badge.
 
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
@@ -64,7 +65,12 @@ from other Collaborators. Leave at least 48 hours during the week and
 72 hours over weekends to account for international time differences
 and work schedules. Trivial changes (e.g. those which fix minor bugs
 or improve performance without affecting API or causing other
-wide-reaching impact) may be landed after a shorter delay.
+wide-reaching impact), and focused changes that affect only documentation
+and/or the test suite, may be landed after a shorter delay if they have
+multiple approvals.
+
+For first time contributors, ask the author if they have configured their git
+username and email to their liking as per [this guide][git-username].
 
 For non-breaking changes, if there is no disagreement amongst
 Collaborators, a pull request may be landed given appropriate review.
@@ -360,10 +366,8 @@ The TSC should serve as the final arbiter where required.
   * If you do, please force-push removing the merge.
   * Reasons for not using the web interface button:
     * The merge method will add an unnecessary merge commit.
-    * The rebase & merge method adds metadata to the commit title.
-    * The rebase method changes the author.
     * The squash & merge method has been known to add metadata to the
-    commit title.
+    commit title (the PR #).
     * If more than one author has contributed to the PR, keep the most recent
       author when squashing.
 
@@ -514,6 +518,13 @@ commit logs, ensure that they are properly formatted, and add
 Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
 successful continuous integration run, other changes may have landed on master
 since then, so running the tests one last time locally is a good practice.
+
+Validate that the commit message is properly formatted using
+[core-validate-commit](https://github.com/evanlucas/core-validate-commit).
+
+```text
+$ git rev-list upstream/master...HEAD | xargs core-validate-commit
+```
 
 Time to push it:
 
@@ -666,3 +677,4 @@ LTS working group and the Release team.
 [backporting guide]: doc/guides/backporting-to-release-lines.md
 [Stability Index]: doc/api/documentation.md#stability-index
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
+[git-username]: https://help.github.com/articles/setting-your-username-in-git/

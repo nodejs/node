@@ -130,6 +130,11 @@ Node* GraphAssembler::StoreElement(ElementAccess const& access, Node* object,
                               value, current_effect_, current_control_);
 }
 
+Node* GraphAssembler::DebugBreak() {
+  return current_effect_ = graph()->NewNode(machine()->DebugBreak(),
+                                            current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return current_effect_ =
@@ -167,23 +172,22 @@ Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
              frame_state, current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeUnless(DeoptimizeKind kind,
-                                       DeoptimizeReason reason, Node* condition,
-                                       Node* frame_state) {
+Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
+                                      DeoptimizeReason reason, Node* condition,
+                                      Node* frame_state) {
   return current_control_ = current_effect_ = graph()->NewNode(
              common()->DeoptimizeUnless(kind, reason), condition, frame_state,
              current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
-                                       Node* frame_state) {
-  return DeoptimizeUnless(DeoptimizeKind::kEager, reason, condition,
-                          frame_state);
+Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
+                                      Node* frame_state) {
+  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, condition,
+                         frame_state);
 }
 
-void GraphAssembler::Branch(Node* condition,
-                            GraphAssemblerStaticLabel<1>* if_true,
-                            GraphAssemblerStaticLabel<1>* if_false) {
+void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
+                            GraphAssemblerLabel<0u>* if_false) {
   DCHECK_NOT_NULL(current_control_);
 
   BranchHint hint = BranchHint::kNone;
@@ -234,66 +238,6 @@ Operator const* GraphAssembler::ToNumberOperator() {
   }
   return to_number_operator_.get();
 }
-
-Node* GraphAssemblerLabel::PhiAt(size_t index) {
-  DCHECK(IsBound());
-  return GetBindingsPtrFor(index)[0];
-}
-
-GraphAssemblerLabel::GraphAssemblerLabel(GraphAssemblerLabelType is_deferred,
-                                         size_t merge_count, size_t var_count,
-                                         MachineRepresentation* representations,
-                                         Zone* zone)
-    : is_deferred_(is_deferred == GraphAssemblerLabelType::kDeferred),
-      max_merge_count_(merge_count),
-      var_count_(var_count) {
-  effects_ = zone->NewArray<Node*>(MaxMergeCount() + 1);
-  for (size_t i = 0; i < MaxMergeCount() + 1; i++) {
-    effects_[i] = nullptr;
-  }
-
-  controls_ = zone->NewArray<Node*>(MaxMergeCount());
-  for (size_t i = 0; i < MaxMergeCount(); i++) {
-    controls_[i] = nullptr;
-  }
-
-  size_t num_bindings = (MaxMergeCount() + 1) * PhiCount() + 1;
-  bindings_ = zone->NewArray<Node*>(num_bindings);
-  for (size_t i = 0; i < num_bindings; i++) {
-    bindings_[i] = nullptr;
-  }
-
-  representations_ = zone->NewArray<MachineRepresentation>(PhiCount() + 1);
-  for (size_t i = 0; i < PhiCount(); i++) {
-    representations_[i] = representations[i];
-  }
-}
-
-GraphAssemblerLabel::~GraphAssemblerLabel() {
-  DCHECK(IsBound() || MergedCount() == 0);
-}
-
-Node** GraphAssemblerLabel::GetBindingsPtrFor(size_t phi_index) {
-  DCHECK_LT(phi_index, PhiCount());
-  return &bindings_[phi_index * (MaxMergeCount() + 1)];
-}
-
-void GraphAssemblerLabel::SetBinding(size_t phi_index, size_t merge_index,
-                                     Node* binding) {
-  DCHECK_LT(phi_index, PhiCount());
-  DCHECK_LT(merge_index, MaxMergeCount());
-  bindings_[phi_index * (MaxMergeCount() + 1) + merge_index] = binding;
-}
-
-MachineRepresentation GraphAssemblerLabel::GetRepresentationFor(
-    size_t phi_index) {
-  DCHECK_LT(phi_index, PhiCount());
-  return representations_[phi_index];
-}
-
-Node** GraphAssemblerLabel::GetControlsPtr() { return controls_; }
-
-Node** GraphAssemblerLabel::GetEffectsPtr() { return effects_; }
 
 }  // namespace compiler
 }  // namespace internal

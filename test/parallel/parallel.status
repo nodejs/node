@@ -19,3 +19,4 @@ test-npm-install:      PASS,FLAKY
 
 [$system==freebsd]
 
+[$system==aix]

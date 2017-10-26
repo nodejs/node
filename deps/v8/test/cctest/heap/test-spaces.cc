@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "src/base/platform/platform.h"
+#include "src/factory.h"
 #include "src/heap/spaces-inl.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
 // (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
@@ -40,72 +41,7 @@
 
 namespace v8 {
 namespace internal {
-
-#if 0
-static void VerifyRegionMarking(Address page_start) {
-#ifdef ENABLE_CARDMARKING_WRITE_BARRIER
-  Page* p = Page::FromAddress(page_start);
-
-  p->SetRegionMarks(Page::kAllRegionsCleanMarks);
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    CHECK(!Page::FromAddress(addr)->IsRegionDirty(addr));
-  }
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    Page::FromAddress(addr)->MarkRegionDirty(addr);
-  }
-
-  for (Address addr = p->ObjectAreaStart();
-       addr < p->ObjectAreaEnd();
-       addr += kPointerSize) {
-    CHECK(Page::FromAddress(addr)->IsRegionDirty(addr));
-  }
-#endif
-}
-#endif
-
-
-// TODO(gc) you can no longer allocate pages like this. Details are hidden.
-#if 0
-TEST(Page) {
-  byte* mem = NewArray<byte>(2*Page::kPageSize);
-  CHECK(mem != NULL);
-
-  Address start = reinterpret_cast<Address>(mem);
-  Address page_start = RoundUp(start, Page::kPageSize);
-
-  Page* p = Page::FromAddress(page_start);
-  // Initialized Page has heap pointer, normally set by memory_allocator.
-  p->heap_ = CcTest::heap();
-  CHECK(p->address() == page_start);
-  CHECK(p->is_valid());
-
-  p->opaque_header = 0;
-  p->SetIsLargeObjectPage(false);
-  CHECK(!p->next_page()->is_valid());
-
-  CHECK(p->ObjectAreaStart() == page_start + Page::kObjectStartOffset);
-  CHECK(p->ObjectAreaEnd() == page_start + Page::kPageSize);
-
-  CHECK(p->Offset(page_start + Page::kObjectStartOffset) ==
-        Page::kObjectStartOffset);
-  CHECK(p->Offset(page_start + Page::kPageSize) == Page::kPageSize);
-
-  CHECK(p->OffsetToAddress(Page::kObjectStartOffset) == p->ObjectAreaStart());
-  CHECK(p->OffsetToAddress(Page::kPageSize) == p->ObjectAreaEnd());
-
-  // test region marking
-  VerifyRegionMarking(page_start);
-
-  DeleteArray(mem);
-}
-#endif
-
+namespace heap {
 
 // Temporarily sets a given allocator in an isolate.
 class TestMemoryAllocatorScope {
@@ -434,6 +370,12 @@ TEST(LargeObjectSpace) {
   CHECK(lo->AllocateRaw(lo_size, NOT_EXECUTABLE).IsRetry());
 }
 
+#ifndef DEBUG
+// The test verifies that committed size of a space is less then some threshold.
+// Debug builds pull in all sorts of additional instrumentation that increases
+// heap sizes. E.g. CSA_ASSERT creates on-heap strings for error messages. These
+// messages are also not stable if files are moved and modified during the build
+// process (jumbo builds).
 TEST(SizeOfInitialHeap) {
   if (i::FLAG_always_opt) return;
   // Bootstrapping without a snapshot causes more allocations.
@@ -488,6 +430,7 @@ TEST(SizeOfInitialHeap) {
   CHECK_EQ(initial_lo_space,
            static_cast<size_t>(isolate->heap()->lo_space()->Size()));
 }
+#endif  // DEBUG
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRawUnaligned(size);
@@ -673,17 +616,18 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   Page* page = Page::FromAddress(array->address());
 
   // Reset space so high water mark is consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK(filler->IsFreeSpace());
-  size_t shrinked = page->ShrinkToHighWaterMark();
-  size_t should_have_shrinked =
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
+  size_t should_have_shrunk =
       RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
                 base::OS::CommitPageSize());
-  CHECK_EQ(should_have_shrinked, shrinked);
+  CHECK_EQ(should_have_shrunk, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkNoFiller) {
@@ -700,11 +644,12 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
+  CHECK_EQ(0u, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
@@ -722,15 +667,16 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
+  CHECK_EQ(0u, shrunk);
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
@@ -748,16 +694,18 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
-  CcTest::heap()->old_space()->ResetFreeList();
-  CcTest::heap()->old_space()->EmptyAllocationInfo();
+  PagedSpace* old_space = CcTest::heap()->old_space();
+  old_space->ResetFreeList();
+  old_space->EmptyAllocationInfo();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
-  const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0u, shrinked);
+  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
+  CHECK_EQ(0u, shrunk);
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

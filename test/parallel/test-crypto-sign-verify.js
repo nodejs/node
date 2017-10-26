@@ -277,3 +277,106 @@ const modSize = 1024;
     assert(stdout.includes('Verified OK'));
   }));
 }
+
+[1, [], {}, undefined, null, true, Infinity].forEach((i) => {
+  common.expectsError(
+    () => crypto.createSign(),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "algorithm" argument must be of type string'
+    }
+  );
+  common.expectsError(
+    () => crypto.createVerify(),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "algorithm" argument must be of type string'
+    }
+  );
+});
+
+{
+  const sign = crypto.createSign('SHA1');
+  const verify = crypto.createVerify('SHA1');
+
+  [1, [], {}, undefined, null, true, Infinity].forEach((i) => {
+    common.expectsError(
+      () => sign.update(i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "data" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+    common.expectsError(
+      () => verify.update(i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "data" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+    common.expectsError(
+      () => sign._write(i, 'utf8', () => {}),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "data" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+    common.expectsError(
+      () => verify._write(i, 'utf8', () => {}),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "data" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+  });
+
+  [
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+  ].forEach((i) => {
+    // These should all just work
+    sign.update(new i());
+    verify.update(new i());
+  });
+
+  [1, {}, [], Infinity].forEach((i) => {
+    common.expectsError(
+      () => sign.sign(i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "key" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+
+    common.expectsError(
+      () => verify.verify(i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "key" argument must be one of type string, Buffer, ' +
+                 'TypedArray, or DataView'
+      }
+    );
+
+    common.expectsError(
+      () => verify.verify('test', i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "signature" argument must be one of type string, ' +
+                 'Buffer, TypedArray, or DataView'
+      }
+    );
+  });
+}

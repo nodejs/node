@@ -161,15 +161,27 @@ void PagedSpace::UnlinkFreeListCategories(Page* page) {
   });
 }
 
-intptr_t PagedSpace::RelinkFreeListCategories(Page* page) {
+size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
-  intptr_t added = 0;
+  size_t added = 0;
   page->ForAllFreeListCategories([&added](FreeListCategory* category) {
     added += category->available();
     category->Relink();
   });
-  DCHECK_EQ(page->AvailableInFreeList(), page->available_in_free_list());
+  DCHECK_EQ(page->AvailableInFreeList(),
+            page->AvailableInFreeListFromAllocatedBytes());
   return added;
+}
+
+bool PagedSpace::TryFreeLast(HeapObject* object, int object_size) {
+  if (allocation_info_.top() != nullptr) {
+    const Address object_address = object->address();
+    if ((allocation_info_.top() - object_size) == object_address) {
+      allocation_info_.set_top(object_address);
+      return true;
+    }
+  }
+  return false;
 }
 
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
@@ -347,13 +359,6 @@ AllocationResult PagedSpace::AllocateRawUnaligned(
 }
 
 
-AllocationResult PagedSpace::AllocateRawUnalignedSynchronized(
-    int size_in_bytes) {
-  base::LockGuard<base::Mutex> lock_guard(&space_mutex_);
-  return AllocateRawUnaligned(size_in_bytes);
-}
-
-
 // Raw allocation.
 AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
                                                 AllocationAlignment alignment) {
@@ -515,6 +520,17 @@ bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
     allocation_info_.set_top(other->allocation_info_.top());
     other->allocation_info_.Reset(nullptr, nullptr);
     return true;
+  }
+  return false;
+}
+
+bool LocalAllocationBuffer::TryFreeLast(HeapObject* object, int object_size) {
+  if (IsValid()) {
+    const Address object_address = object->address();
+    if ((allocation_info_.top() - object_size) == object_address) {
+      allocation_info_.set_top(object_address);
+      return true;
+    }
   }
   return false;
 }

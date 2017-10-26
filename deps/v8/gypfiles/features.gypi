@@ -29,6 +29,13 @@
 
 {
   'variables': {
+    'variables': {
+      'v8_target_arch%': '<(target_arch)',
+    },
+
+    # Allows the embedder to add a custom suffix to the version string.
+    'v8_embedder_string%': '',
+
     'v8_enable_disassembler%': 0,
 
     'v8_promise_internal_field_count%': 0,
@@ -76,9 +83,15 @@
 
     # Temporary flag to allow embedders to update their microtasks scopes.
     'v8_check_microtasks_scopes_consistency%': 'false',
+
+    # Enable concurrent marking.
+    'v8_enable_concurrent_marking%': 0,
   },
   'target_defaults': {
     'conditions': [
+      ['v8_embedder_string!=""', {
+        'defines': ['V8_EMBEDDER_STRING="<(v8_embedder_string)"',],
+      }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
       }],
@@ -123,6 +136,9 @@
       }],
       ['v8_check_microtasks_scopes_consistency=="true"', {
         'defines': ['V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY',],
+      }],
+      ['v8_enable_concurrent_marking==1', {
+        'defines': ['V8_CONCURRENT_MARKING',],
       }],
     ],  # conditions
     'configurations': {

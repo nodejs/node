@@ -1,3 +1,5 @@
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
@@ -6,18 +8,17 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
-const tls = require('tls');
+const fixtures = require('../common/fixtures');
 const h2 = require('http2');
+const { kSocket } = require('internal/http2/util');
+const tls = require('tls');
 
 function loadKey(keyname) {
-  return fs.readFileSync(
-    path.join(common.fixturesDir, 'keys', keyname), 'binary');
+  return fixtures.readKey(keyname, 'binary');
 }
 
 function onStream(stream, headers) {
-  const socket = stream.session.socket;
+  const socket = stream.session[kSocket];
   assert(headers[':authority'].startsWith(socket.servername));
   stream.respond({
     'content-type': 'text/html',
@@ -57,7 +58,7 @@ function verifySecureSession(key, cert, ca, opts) {
         assert.strictEqual(jsonData.servername, opts.servername || 'localhost');
         assert.strictEqual(jsonData.alpnProtocol, 'h2');
         server.close();
-        client.socket.destroy();
+        client[kSocket].destroy();
       }));
       req.end();
     });

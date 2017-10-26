@@ -6,7 +6,6 @@
 #define V8_V8_H_
 
 #include "include/v8.h"
-#include "src/allocation.h"
 #include "src/globals.h"
 
 namespace v8 {

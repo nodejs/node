@@ -139,14 +139,14 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
   // Unaligned memory operations
-  Node* UnalignedLoad(MachineType rep, Node* base) {
-    return UnalignedLoad(rep, base, IntPtrConstant(0));
+  Node* UnalignedLoad(MachineType type, Node* base) {
+    return UnalignedLoad(type, base, IntPtrConstant(0));
   }
-  Node* UnalignedLoad(MachineType rep, Node* base, Node* index) {
-    if (machine()->UnalignedLoadSupported(rep, 1)) {
-      return AddNode(machine()->Load(rep), base, index);
+  Node* UnalignedLoad(MachineType type, Node* base, Node* index) {
+    if (machine()->UnalignedLoadSupported(type.representation())) {
+      return AddNode(machine()->Load(type), base, index);
     } else {
-      return AddNode(machine()->UnalignedLoad(rep), base, index);
+      return AddNode(machine()->UnalignedLoad(type), base, index);
     }
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* value) {
@@ -154,8 +154,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* UnalignedStore(MachineRepresentation rep, Node* base, Node* index,
                        Node* value) {
-    MachineType t = MachineType::TypeForRepresentation(rep);
-    if (machine()->UnalignedStoreSupported(t, 1)) {
+    if (machine()->UnalignedStoreSupported(rep)) {
       return AddNode(machine()->Store(StoreRepresentation(
                          rep, WriteBarrierKind::kNoWriteBarrier)),
                      base, index, value);
@@ -167,8 +166,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Atomic memory operations.
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index) {
-    return AddNode(machine()->AtomicLoad(rep), base, index);
+  Node* AtomicLoad(MachineType type, Node* base, Node* index) {
+    return AddNode(machine()->AtomicLoad(type), base, index);
   }
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
@@ -765,6 +764,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Call to a C function with one parameter.
   Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
                        Node* function, Node* arg0);
+  // Call to a C function with one argument, while saving/restoring caller
+  // registers.
+  Node* CallCFunction1WithCallerSavedRegisters(MachineType return_type,
+                                               MachineType arg0_type,
+                                               Node* function, Node* arg0);
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
@@ -773,6 +777,14 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
                        Node* function, Node* arg0, Node* arg1, Node* arg2);
+  // Call to a C function with three arguments, while saving/restoring caller
+  // registers.
+  Node* CallCFunction3WithCallerSavedRegisters(MachineType return_type,
+                                               MachineType arg0_type,
+                                               MachineType arg1_type,
+                                               MachineType arg2_type,
+                                               Node* function, Node* arg0,
+                                               Node* arg1, Node* arg2);
   // Call to a C function with six arguments.
   Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, MachineType arg2_type,
@@ -817,6 +829,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
+  void DebugAbort(Node* message);
   void DebugBreak();
   void Unreachable();
   void Comment(const char* msg);

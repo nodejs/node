@@ -332,8 +332,6 @@
   'intl402/NumberFormat/prototype/formatToParts/*': ['--harmony-number-format-to-parts'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5327
-  'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
@@ -367,14 +365,12 @@
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
   # Module-related tests
-  # v8:5487
-  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
   # https://github.com/tc39/ecma262/pull/858
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
-  'intl402/PluralRules/*': [SKIP],
+  'intl402/PluralRules/*': ['--harmony-plural-rules'],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],
@@ -485,7 +481,7 @@
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   # We do not expose Array.prototype.values due to webcompat issues.
-  # Most recent incompatability: https://crbug.com/615873
+  # Most recent incompatibility: https://crbug.com/615873
   # https://code.google.com/p/v8/issues/detail?id=4247
   'built-ins/Array/prototype/Symbol.iterator': [FAIL],
   'built-ins/Array/prototype/values/returns-iterator': [FAIL],
@@ -505,59 +501,6 @@
   'built-ins/Array/prototype/reverse/length-exceeding-integer-limit-with-proxy': [FAIL],
   'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
   'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6539
-  'built-ins/Number/prototype/toFixed/range': [FAIL],
-  'built-ins/Number/prototype/toPrecision/range': [FAIL],
-  'built-ins/Number/prototype/toExponential/range': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6540
-  'language/statements/for/decl-async-fun': [FAIL],
-  'language/statements/for/decl-async-gen': [FAIL],
-  'language/statements/for-in/decl-async-fun': [FAIL],
-  'language/statements/for-in/decl-async-gen': [FAIL],
-  'language/statements/for-of/decl-async-fun': [FAIL],
-  'language/statements/for-of/decl-async-gen': [FAIL],
-  'language/statements/if/if-async-fun-no-else': [FAIL],
-  'language/statements/if/if-async-gen-no-else': [FAIL],
-  'language/statements/if/if-stmt-else-async-fun': [FAIL],
-  'language/statements/if/if-stmt-else-async-gen': [FAIL],
-  'language/statements/labeled/decl-async-function': [FAIL],
-  'language/statements/labeled/decl-async-generator': [FAIL],
-  'language/statements/while/decl-async-fun': [FAIL],
-  'language/statements/while/decl-async-gen': [FAIL],
-  'language/statements/with/decl-async-fun': [FAIL],
-  'language/statements/with/decl-async-gen': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5855
-  'language/expressions/async-generator/named-yield-promise-reject-next': [FAIL],
-  'language/expressions/async-generator/named-yield-promise-reject-next-catch': [FAIL],
-  'language/expressions/async-generator/yield-promise-reject-next': [FAIL],
-  'language/expressions/async-generator/yield-promise-reject-next-catch': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-promise-reject-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-promise-reject-next-catch': [FAIL],
-  'language/expressions/class/async-gen-method-yield-promise-reject-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-promise-reject-next-catch': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-promise-reject-next': [FAIL],
-  'language/expressions/object/method-definition/async-gen-yield-promise-reject-next-catch': [FAIL],
-  'language/statements/async-generator/yield-promise-reject-next': [FAIL],
-  'language/statements/async-generator/yield-promise-reject-next-catch': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-promise-reject-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-promise-reject-next-catch': [FAIL],
-  'language/statements/class/async-gen-method-yield-promise-reject-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-promise-reject-next-catch': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-array-elem-init-let': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-array-elem-put-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-init-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-put-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-elision-iter-abpt': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-get-err': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-nrml-close-null': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-err': [PASS, FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6541
   'language/export/escaped-as-export-specifier': [FAIL],
@@ -658,6 +601,20 @@
   'language/statements/for-await-of/async-gen-dstr-const-obj-ptrn-rest-nested-obj': [FAIL],
   'language/statements/for-await-of/async-func-dstr-const-obj-ptrn-rest-obj-own-property': [FAIL],
 
+  # Async Iteration https://github.com/tc39/test262/issues/1154
+  'language/statements/for-await-of/async-func-decl-dstr-array-elem-init-let': [FAIL],
+  'language/statements/for-await-of/async-func-decl-dstr-array-elem-put-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-init-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-put-let': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-elision-iter-abpt': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-get-err': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-nrml-close-null': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-err': [PASS, FAIL],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
@@ -750,11 +707,6 @@
   # asan's --omit-quit flag.
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
 }],  # asan == True
-
-['asan and variant == fullcode', {
-  # Demands too many resources to test the old pipeline with asan.
-  '*': [SKIP],
-}],  # asan and variant == fullcode
 
 ['asan == True or msan == True or tsan == True', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639

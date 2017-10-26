@@ -30,6 +30,7 @@
 | `test/*` | @nodejs/testing |
 | `tools/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott |
 | async_hooks | @nodejs/async_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
+| build | @nodejs/build |
 | performance | @nodejs/performance |
 | platform specific | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows} |
 | python code | @nodejs/python |
@@ -66,7 +67,7 @@ Please use these when possible / appropriate
 * `confirmed-bug` - Bugs you have verified exist
 * `discuss` - Things that need larger discussion
 * `feature request` - Any issue that requests a new feature (usually not PRs)
-* `good first contribution` - Issues suitable for newcomers to process
+* `good first issue` - Issues suitable for newcomers to process
 
 --
 

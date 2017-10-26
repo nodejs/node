@@ -173,6 +173,7 @@ static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
+static bool force_async_hooks_checks = false;
 static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static std::vector<std::string> preload_modules;
@@ -183,6 +184,7 @@ static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
 static node_module* modpending;
 static node_module* modlist_builtin;
+static node_module* modlist_internal;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
@@ -230,6 +232,11 @@ bool config_preserve_symlinks = false;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 bool config_experimental_modules = false;
+
+// Set in node.cc by ParseArgs when --loader is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/internal/bootstrap_node.js
+std::string config_userland_loader;  // NOLINT(runtime/string)
 
 // Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
 // is used.
@@ -1434,8 +1441,10 @@ void InternalCallbackScope::Close() {
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env_->execution_async_id(), 0);
-  CHECK_EQ(env_->trigger_async_id(), 0);
+  if (env_->async_hooks()->fields()[AsyncHooks::kTotals]) {
+    CHECK_EQ(env_->execution_async_id(), 0);
+    CHECK_EQ(env_->trigger_async_id(), 0);
+  }
 
   Local<Object> process = env_->process_object();
 
@@ -1444,8 +1453,10 @@ void InternalCallbackScope::Close() {
     return;
   }
 
-  CHECK_EQ(env_->execution_async_id(), 0);
-  CHECK_EQ(env_->trigger_async_id(), 0);
+  if (env_->async_hooks()->fields()[AsyncHooks::kTotals]) {
+    CHECK_EQ(env_->execution_async_id(), 0);
+    CHECK_EQ(env_->trigger_async_id(), 0);
+  }
 
   if (env_->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     failed_ = true;
@@ -2569,6 +2580,9 @@ extern "C" void node_module_register(void* m) {
   if (mp->nm_flags & NM_F_BUILTIN) {
     mp->nm_link = modlist_builtin;
     modlist_builtin = mp;
+  } else if (mp->nm_flags & NM_F_INTERNAL) {
+    mp->nm_link = modlist_internal;
+    modlist_internal = mp;
   } else if (!node_is_initialized) {
     // "Linked" modules are included as part of the node project.
     // Like builtins they are registered *before* node::Init runs.
@@ -2580,28 +2594,28 @@ extern "C" void node_module_register(void* m) {
   }
 }
 
-struct node_module* get_builtin_module(const char* name) {
+inline struct node_module* FindModule(struct node_module* list,
+                                      const char* name,
+                                      int flag) {
   struct node_module* mp;
 
-  for (mp = modlist_builtin; mp != nullptr; mp = mp->nm_link) {
+  for (mp = list; mp != nullptr; mp = mp->nm_link) {
     if (strcmp(mp->nm_modname, name) == 0)
       break;
   }
 
-  CHECK(mp == nullptr || (mp->nm_flags & NM_F_BUILTIN) != 0);
-  return (mp);
+  CHECK(mp == nullptr || (mp->nm_flags & flag) != 0);
+  return mp;
 }
 
-struct node_module* get_linked_module(const char* name) {
-  struct node_module* mp;
-
-  for (mp = modlist_linked; mp != nullptr; mp = mp->nm_link) {
-    if (strcmp(mp->nm_modname, name) == 0)
-      break;
-  }
-
-  CHECK(mp == nullptr || (mp->nm_flags & NM_F_LINKED) != 0);
-  return mp;
+node_module* get_builtin_module(const char* name) {
+  return FindModule(modlist_builtin, name, NM_F_BUILTIN);
+}
+node_module* get_internal_module(const char* name) {
+  return FindModule(modlist_internal, name, NM_F_INTERNAL);
+}
+node_module* get_linked_module(const char* name) {
+  return FindModule(modlist_linked, name, NM_F_LINKED);
 }
 
 struct DLib {
@@ -2875,24 +2889,60 @@ void ProcessEmitWarning(Environment* env, const char* fmt, ...) {
   f.As<v8::Function>()->Call(process, 1, &arg);
 }
 
+static bool PullFromCache(Environment* env,
+                          const FunctionCallbackInfo<Value>& args,
+                          Local<String> module,
+                          Local<Object> cache) {
+  Local<Context> context = env->context();
+  Local<Value> exports_v;
+  Local<Object> exports;
+  if (cache->Get(context, module).ToLocal(&exports_v) &&
+      exports_v->IsObject() &&
+      exports_v->ToObject(context).ToLocal(&exports)) {
+    args.GetReturnValue().Set(exports);
+    return true;
+  }
+  return false;
+}
+
+static Local<Object> InitModule(Environment* env,
+                                 node_module* mod,
+                                 Local<String> module) {
+  Local<Object> exports = Object::New(env->isolate());
+  // Internal bindings don't have a "module" object, only exports.
+  CHECK_EQ(mod->nm_register_func, nullptr);
+  CHECK_NE(mod->nm_context_register_func, nullptr);
+  Local<Value> unused = Undefined(env->isolate());
+  mod->nm_context_register_func(exports,
+                                unused,
+                                env->context(),
+                                mod->nm_priv);
+  return exports;
+}
+
+static void ThrowIfNoSuchModule(Environment* env, const char* module_v) {
+  char errmsg[1024];
+  snprintf(errmsg,
+           sizeof(errmsg),
+           "No such module: %s",
+           module_v);
+  env->ThrowError(errmsg);
+}
 
 static void Binding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<String> module = args[0]->ToString(env->isolate());
-  node::Utf8Value module_v(env->isolate(), module);
+  Local<String> module;
+  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
 
   Local<Object> cache = env->binding_cache_object();
-  Local<Object> exports;
 
-  if (cache->Has(env->context(), module).FromJust()) {
-    exports = cache->Get(module)->ToObject(env->isolate());
-    args.GetReturnValue().Set(exports);
+  if (PullFromCache(env, args, module, cache))
     return;
-  }
 
   // Append a string to process.moduleLoadList
   char buf[1024];
+  node::Utf8Value module_v(env->isolate(), module);
   snprintf(buf, sizeof(buf), "Binding %s", *module_v);
 
   Local<Array> modules = env->module_load_list_array();
@@ -2900,33 +2950,49 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   modules->Set(l, OneByteString(env->isolate(), buf));
 
   node_module* mod = get_builtin_module(*module_v);
+  Local<Object> exports;
   if (mod != nullptr) {
-    exports = Object::New(env->isolate());
-    // Internal bindings don't have a "module" object, only exports.
-    CHECK_EQ(mod->nm_register_func, nullptr);
-    CHECK_NE(mod->nm_context_register_func, nullptr);
-    Local<Value> unused = Undefined(env->isolate());
-    mod->nm_context_register_func(exports, unused,
-      env->context(), mod->nm_priv);
-    cache->Set(module, exports);
+    exports = InitModule(env, mod, module);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
     CHECK(exports->SetPrototype(env->context(),
                                 Null(env->isolate())).FromJust());
     DefineConstants(env->isolate(), exports);
-    cache->Set(module, exports);
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New(env->isolate());
     DefineJavaScript(env, exports);
-    cache->Set(module, exports);
   } else {
-    char errmsg[1024];
-    snprintf(errmsg,
-             sizeof(errmsg),
-             "No such module: %s",
-             *module_v);
-    return env->ThrowError(errmsg);
+    return ThrowIfNoSuchModule(env, *module_v);
   }
+  cache->Set(module, exports);
+
+  args.GetReturnValue().Set(exports);
+}
+
+static void InternalBinding(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<String> module;
+  if (!args[0]->ToString(env->context()).ToLocal(&module)) return;
+
+  Local<Object> cache = env->internal_binding_cache_object();
+
+  if (PullFromCache(env, args, module, cache))
+    return;
+
+  // Append a string to process.moduleLoadList
+  char buf[1024];
+  node::Utf8Value module_v(env->isolate(), module);
+  snprintf(buf, sizeof(buf), "Internal Binding %s", *module_v);
+
+  Local<Array> modules = env->module_load_list_array();
+  uint32_t l = modules->Length();
+  modules->Set(l, OneByteString(env->isolate(), buf));
+
+  node_module* mod = get_internal_module(*module_v);
+  if (mod == nullptr) return ThrowIfNoSuchModule(env, *module_v);
+  Local<Object> exports = InitModule(env, mod, module);
+  cache->Set(module, exports);
 
   args.GetReturnValue().Set(exports);
 }
@@ -2934,7 +3000,8 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
-  Local<String> module_name = args[0]->ToString(env->isolate());
+  Local<String> module_name;
+  if (!args[0]->ToString(env->context()).ToLocal(&module_name)) return;
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module_name);
@@ -3669,6 +3736,7 @@ void SetupProcessObject(Environment* env,
 
   env->SetMethod(process, "binding", Binding);
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
+  env->SetMethod(process, "_internalBinding", InternalBinding);
 
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
@@ -3714,7 +3782,6 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
@@ -3737,6 +3804,7 @@ void LoadEnvironment(Environment* env) {
   }
   // The bootstrap_node.js file returns a function 'f'
   CHECK(f_value->IsFunction());
+
   Local<Function> f = Local<Function>::Cast(f_value);
 
   // Add a reference to the global object
@@ -3776,6 +3844,7 @@ void LoadEnvironment(Environment* env) {
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
   Local<Value> arg = env->process_object();
+
   auto ret = f->Call(env->context(), Null(env->isolate()), 1, &arg);
   // If there was an error during bootstrap then it was either handled by the
   // FatalException handler or it's unrecoverable (e.g. max call stack
@@ -3830,6 +3899,8 @@ static void PrintHelp() {
          "                             stderr\n"
          "  --trace-sync-io            show stack trace when use of sync IO\n"
          "                             is detected after the first tick\n"
+         "  --force-async-hooks-checks\n"
+         "                             enables checks for async_hooks\n"
          "  --trace-events-enabled     track trace events\n"
          "  --trace-event-categories   comma separated list of trace event\n"
          "                             categories to record\n"
@@ -3950,9 +4021,12 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--no-warnings",
     "--napi-modules",
     "--expose-http2",   // keep as a non-op through v9.x
+    "--experimental-modules",
+    "--loader",
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
+    "--force-async-hooks-checks",
     "--trace-events-enabled",
     "--trace-events-categories",
     "--track-heap-objects",
@@ -4091,6 +4165,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--force-async-hooks-checks") == 0) {
+      force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
       trace_enabled = true;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
@@ -4112,6 +4188,19 @@ static void ParseArgs(int* argc,
       config_preserve_symlinks = true;
     } else if (strcmp(arg, "--experimental-modules") == 0) {
       config_experimental_modules = true;
+    }  else if (strcmp(arg, "--loader") == 0) {
+      const char* module = argv[index + 1];
+      if (!config_experimental_modules) {
+        fprintf(stderr, "%s: %s requires --experimental-modules be enabled\n",
+            argv[0], arg);
+        exit(9);
+      }
+      if (module == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      config_userland_loader = module;
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;
@@ -4698,9 +4787,9 @@ Local<Context> NewContext(Isolate* isolate,
   auto intl_key = FIXED_ONE_BYTE_STRING(isolate, "Intl");
   auto break_iter_key = FIXED_ONE_BYTE_STRING(isolate, "v8BreakIterator");
   Local<Value> intl_v;
-  Local<Object> intl;
   if (context->Global()->Get(context, intl_key).ToLocal(&intl_v) &&
-      intl_v->ToObject(context).ToLocal(&intl)) {
+      intl_v->IsObject()) {
+    Local<Object> intl = intl_v.As<Object>();
     intl->Delete(context, break_iter_key).FromJust();
   }
   return context;
@@ -4725,6 +4814,10 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     return 12;  // Signal internal error.
 
   env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+
+  if (force_async_hooks_checks) {
+    env.async_hooks()->force_checks();
+  }
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);

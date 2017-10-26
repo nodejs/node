@@ -20,20 +20,20 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
-const fixturesDir = common.fixturesDir;
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const path = require('path');
 
 assert.strictEqual(
-  path.join(__dirname, '../fixtures/a.js').toLowerCase(),
-  require.resolve('../fixtures/a').toLowerCase());
+  fixtures.path('a.js').toLowerCase(),
+  require.resolve(fixtures.path('a')).toLowerCase());
 assert.strictEqual(
-  path.join(fixturesDir, 'a.js').toLowerCase(),
-  require.resolve(path.join(fixturesDir, 'a')).toLowerCase());
+  fixtures.path('a.js').toLowerCase(),
+  require.resolve(fixtures.path('a')).toLowerCase());
 assert.strictEqual(
-  path.join(fixturesDir, 'nested-index', 'one', 'index.js').toLowerCase(),
-  require.resolve('../fixtures/nested-index/one').toLowerCase());
+  fixtures.path('nested-index', 'one', 'index.js').toLowerCase(),
+  require.resolve(fixtures.path('nested-index', 'one')).toLowerCase());
 assert.strictEqual('path', require.resolve('path'));
 
-console.log('ok');
+// Test configurable resolve() paths.
+require(fixtures.path('require-resolve.js'));

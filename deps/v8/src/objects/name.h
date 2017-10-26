@@ -34,6 +34,13 @@ class Name : public HeapObject {
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
 
+  // An "interesting symbol" is a well-known symbol, like @@toStringTag,
+  // that's often looked up on random objects but is usually not present.
+  // We optimize this by setting a flag on the object's map when such
+  // symbol properties are added, so we can optimize lookups on objects
+  // that don't have the flag.
+  inline bool IsInterestingSymbol() const;
+
   // If the name is private, it can only name own properties.
   inline bool IsPrivate();
 
@@ -145,6 +152,12 @@ class Symbol : public Name {
   // a load.
   DECL_BOOLEAN_ACCESSORS(is_well_known_symbol)
 
+  // [is_interesting_symbol]: Whether this is an "interesting symbol", which
+  // is a well-known symbol like @@toStringTag that's often looked up on
+  // random objects but is usually not present. See Name::IsInterestingSymbol()
+  // for a detailed description.
+  DECL_BOOLEAN_ACCESSORS(is_interesting_symbol)
+
   // [is_public]: Whether this is a symbol created by Symbol.for. Calling
   // Symbol.keyFor on such a symbol simply needs to return the attached name.
   DECL_BOOLEAN_ACCESSORS(is_public)
@@ -164,6 +177,7 @@ class Symbol : public Name {
   static const int kPrivateBit = 0;
   static const int kWellKnownSymbolBit = 1;
   static const int kPublicBit = 2;
+  static const int kInterestingSymbolBit = 3;
 
   typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
   // No weak fields.

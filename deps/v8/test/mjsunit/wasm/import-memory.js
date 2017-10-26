@@ -149,7 +149,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestGrowMemoryZeroInitialMemory() {
   print("ZeroInitialMemory");
-  let kV8MaxPages = 32767;
   let memory = new WebAssembly.Memory({initial: 0});
   assertEquals(0, memory.buffer.byteLength);
   let i32 = new Int32Array(memory.buffer);
@@ -326,9 +325,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function TestExportImportedMemoryGrowMultipleInstances() {
-  // TODO(gdeepti):Exported memory objects currently do not take max_size
-  // into account so this can grow past the maximum specified in the exported
-  // memory object. Assert that growing past maximum for exported objects fails.
   print("TestExportImportedMemoryGrowMultipleInstances");
   var instance;
   {
@@ -364,6 +360,40 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     assertEquals(current_mem_size, instances[i].exports.grow(1));
     verify_mem_size(++current_mem_size);
   }
+  for (var i = 0; i < 10; i++) {
+    assertEquals(-1, instances[i].exports.grow(1));
+    verify_mem_size(current_mem_size);
+  }
+})();
+
+(function TestExportImportedMemoryGrowPastV8Maximum() {
+  // The spec maximum is higher than the internal V8 maximum. This test only
+  // checks that grow_memory does not grow past the internally defined maximum
+  // to reflect the current implementation even when the memory is exported.
+  print("TestExportImportedMemoryGrowPastV8Maximum");
+  var instance_1, instance_2;
+  {
+    let builder = new WasmModuleBuilder();
+    builder.addMemory(1, kSpecMaxPages, true);
+    builder.exportMemoryAs("exported_mem");
+    builder.addFunction("grow", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .exportFunc();
+    instance_1 = builder.instantiate();
+  }
+  {
+    let builder = new WasmModuleBuilder();
+    builder.addImportedMemory("doo", "imported_mem");
+    builder.addFunction("grow", kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprGrowMemory, kMemoryZero])
+      .exportFunc();
+    instance_2 = builder.instantiate({
+      doo: {imported_mem: instance_1.exports.exported_mem}});
+  }
+  assertEquals(1, instance_1.exports.grow(20));
+  assertEquals(21, instance_2.exports.grow(20));
+  assertEquals(-1, instance_1.exports.grow(kV8MaxPages - 40));
+  assertEquals(-1, instance_2.exports.grow(kV8MaxPages - 40));
 })();
 
 (function TestExportGrow() {

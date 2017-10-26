@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
-#include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 
@@ -127,7 +127,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   // Interface for V8InspectorImpl
   void didPause(int contextId, v8::Local<v8::Value> exception,
-                const std::vector<String16>& hitBreakpoints,
+                const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
                 bool isPromiseRejection, bool isUncaught, bool isOOMBreak,
                 bool isAssert);
   void didContinue();
@@ -167,9 +167,10 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   using ScriptsMap =
       protocol::HashMap<String16, std::unique_ptr<V8DebuggerScript>>;
   using BreakpointIdToDebuggerBreakpointIdsMap =
-      protocol::HashMap<String16, std::vector<String16>>;
+      protocol::HashMap<String16, std::vector<v8::debug::BreakpointId>>;
   using DebugServerBreakpointToBreakpointIdAndSourceMap =
-      protocol::HashMap<String16, std::pair<String16, BreakpointSource>>;
+      protocol::HashMap<v8::debug::BreakpointId,
+                        std::pair<String16, BreakpointSource>>;
   using MuteBreakpoins = protocol::HashMap<String16, std::pair<String16, int>>;
 
   V8InspectorImpl* m_inspector;
@@ -179,7 +180,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Debugger::Frontend m_frontend;
   v8::Isolate* m_isolate;
-  JavaScriptCallFrames m_pausedCallFrames;
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebugServerBreakpointToBreakpointIdAndSourceMap m_serverBreakpoints;
@@ -202,6 +202,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };
+
+String16 scopeType(v8::debug::ScopeIterator::ScopeType type);
 
 }  // namespace v8_inspector
 

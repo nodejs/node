@@ -1555,6 +1555,7 @@ def PrintCrashed(code):
 IGNORED_SUITES = [
   'addons',
   'addons-napi',
+  'doctool',
   'gc',
   'internet',
   'pummel',
@@ -1661,7 +1662,7 @@ def Main():
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
-        (cases, unused_rules, all_outcomes) = (
+        (cases, unused_rules, _) = (
             config.ClassifyTests(test_list, env))
         if globally_unused_rules is None:
           globally_unused_rules = set(unused_rules)

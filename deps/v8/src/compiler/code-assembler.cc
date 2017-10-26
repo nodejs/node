@@ -154,9 +154,23 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
   Schedule* schedule = rasm->Export();
+
+  JumpOptimizationInfo jump_opt;
+  bool should_optimize_jumps =
+      rasm->isolate()->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
+
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_);
+      state->flags_, state->name_, should_optimize_jumps ? &jump_opt : nullptr);
+
+  if (jump_opt.is_optimizable()) {
+    jump_opt.set_optimizing();
+
+    // Regenerate machine code
+    code = Pipeline::GenerateCodeForCodeStub(
+        rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+        state->flags_, state->name_, &jump_opt);
+  }
 
   state->code_generated_ = true;
   return code;
@@ -193,52 +207,57 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
-Node* CodeAssembler::Int32Constant(int32_t value) {
-  return raw_assembler()->Int32Constant(value);
+TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
+  return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
 }
 
-Node* CodeAssembler::Int64Constant(int64_t value) {
-  return raw_assembler()->Int64Constant(value);
+TNode<Int64T> CodeAssembler::Int64Constant(int64_t value) {
+  return UncheckedCast<Int64T>(raw_assembler()->Int64Constant(value));
 }
 
-Node* CodeAssembler::IntPtrConstant(intptr_t value) {
-  return raw_assembler()->IntPtrConstant(value);
+TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
+  return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrConstant(value));
 }
 
-Node* CodeAssembler::NumberConstant(double value) {
-  return raw_assembler()->NumberConstant(value);
+TNode<Object> CodeAssembler::NumberConstant(double value) {
+  return UncheckedCast<Object>(raw_assembler()->NumberConstant(value));
 }
 
-Node* CodeAssembler::SmiConstant(Smi* value) {
-  return BitcastWordToTaggedSigned(IntPtrConstant(bit_cast<intptr_t>(value)));
+TNode<Smi> CodeAssembler::SmiConstant(Smi* value) {
+  return UncheckedCast<Smi>(
+      BitcastWordToTaggedSigned(IntPtrConstant(bit_cast<intptr_t>(value))));
 }
 
-Node* CodeAssembler::SmiConstant(int value) {
+TNode<Smi> CodeAssembler::SmiConstant(int value) {
   return SmiConstant(Smi::FromInt(value));
 }
 
-Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
-  return raw_assembler()->HeapConstant(object);
+TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
+    Handle<HeapObject> object) {
+  return UncheckedCast<HeapObject>(raw_assembler()->HeapConstant(object));
 }
 
-Node* CodeAssembler::StringConstant(const char* str) {
-  return HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED));
+TNode<String> CodeAssembler::StringConstant(const char* str) {
+  return UncheckedCast<String>(
+      HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED)));
 }
 
-Node* CodeAssembler::BooleanConstant(bool value) {
-  return raw_assembler()->BooleanConstant(value);
+TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
+  return UncheckedCast<Oddball>(raw_assembler()->BooleanConstant(value));
 }
 
-Node* CodeAssembler::ExternalConstant(ExternalReference address) {
-  return raw_assembler()->ExternalConstant(address);
+TNode<ExternalReference> CodeAssembler::ExternalConstant(
+    ExternalReference address) {
+  return UncheckedCast<ExternalReference>(
+      raw_assembler()->ExternalConstant(address));
 }
 
-Node* CodeAssembler::Float64Constant(double value) {
-  return raw_assembler()->Float64Constant(value);
+TNode<Float64T> CodeAssembler::Float64Constant(double value) {
+  return UncheckedCast<Float64T>(raw_assembler()->Float64Constant(value));
 }
 
-Node* CodeAssembler::NaNConstant() {
-  return LoadRoot(Heap::kNanValueRootIndex);
+TNode<HeapNumber> CodeAssembler::NaNConstant() {
+  return UncheckedCast<HeapNumber>(LoadRoot(Heap::kNanValueRootIndex));
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
@@ -287,22 +306,25 @@ Node* CodeAssembler::Parameter(int value) {
   return raw_assembler()->Parameter(value);
 }
 
-Node* CodeAssembler::GetJSContextParameter() {
+TNode<Context> CodeAssembler::GetJSContextParameter() {
   CallDescriptor* desc = raw_assembler()->call_descriptor();
   DCHECK(desc->IsJSFunctionCall());
-  return Parameter(Linkage::GetJSCallContextParamIndex(
-      static_cast<int>(desc->JSParameterCount())));
+  return CAST(Parameter(Linkage::GetJSCallContextParamIndex(
+      static_cast<int>(desc->JSParameterCount()))));
 }
 
-void CodeAssembler::Return(Node* value) {
+void CodeAssembler::Return(SloppyTNode<Object> value) {
   return raw_assembler()->Return(value);
 }
 
-void CodeAssembler::Return(Node* value1, Node* value2) {
+void CodeAssembler::Return(SloppyTNode<Object> value1,
+                           SloppyTNode<Object> value2) {
   return raw_assembler()->Return(value1, value2);
 }
 
-void CodeAssembler::Return(Node* value1, Node* value2, Node* value3) {
+void CodeAssembler::Return(SloppyTNode<Object> value1,
+                           SloppyTNode<Object> value2,
+                           SloppyTNode<Object> value3) {
   return raw_assembler()->Return(value1, value2, value3);
 }
 
@@ -316,6 +338,10 @@ void CodeAssembler::ReturnIf(Node* condition, Node* value) {
   Bind(&if_return);
   Return(value);
   Bind(&if_continue);
+}
+
+void CodeAssembler::DebugAbort(Node* message) {
+  raw_assembler()->DebugAbort(message);
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
@@ -365,14 +391,16 @@ Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
 }
 
-#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name)   \
-  Node* CodeAssembler::name(Node* a, Node* b) { \
-    return raw_assembler()->name(a, b);         \
+#define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
+  TNode<ResType> CodeAssembler::name(SloppyTNode<Arg1Type> a,              \
+                                     SloppyTNode<Arg2Type> b) {            \
+    return UncheckedCast<ResType>(raw_assembler()->name(a, b));            \
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
 
-Node* CodeAssembler::IntPtrAdd(Node* left, Node* right) {
+TNode<WordT> CodeAssembler::IntPtrAdd(SloppyTNode<WordT> left,
+                                      SloppyTNode<WordT> right) {
   intptr_t left_constant;
   bool is_left_constant = ToIntPtrConstant(left, left_constant);
   intptr_t right_constant;
@@ -389,10 +417,11 @@ Node* CodeAssembler::IntPtrAdd(Node* left, Node* right) {
       return left;
     }
   }
-  return raw_assembler()->IntPtrAdd(left, right);
+  return UncheckedCast<WordT>(raw_assembler()->IntPtrAdd(left, right));
 }
 
-Node* CodeAssembler::IntPtrSub(Node* left, Node* right) {
+TNode<WordT> CodeAssembler::IntPtrSub(SloppyTNode<WordT> left,
+                                      SloppyTNode<WordT> right) {
   intptr_t left_constant;
   bool is_left_constant = ToIntPtrConstant(left, left_constant);
   intptr_t right_constant;
@@ -406,36 +435,34 @@ Node* CodeAssembler::IntPtrSub(Node* left, Node* right) {
       return left;
     }
   }
-  return raw_assembler()->IntPtrSub(left, right);
+  return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrSub(left, right));
 }
 
-Node* CodeAssembler::WordShl(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->WordShl(value, IntPtrConstant(shift))
-                      : value;
+TNode<WordT> CodeAssembler::WordShl(SloppyTNode<WordT> value, int shift) {
+  return (shift != 0) ? WordShl(value, IntPtrConstant(shift)) : value;
 }
 
-Node* CodeAssembler::WordShr(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->WordShr(value, IntPtrConstant(shift))
-                      : value;
+TNode<WordT> CodeAssembler::WordShr(SloppyTNode<WordT> value, int shift) {
+  return (shift != 0) ? WordShr(value, IntPtrConstant(shift)) : value;
 }
 
-Node* CodeAssembler::Word32Shr(Node* value, int shift) {
-  return (shift != 0) ? raw_assembler()->Word32Shr(value, Int32Constant(shift))
-                      : value;
+TNode<Word32T> CodeAssembler::Word32Shr(SloppyTNode<Word32T> value, int shift) {
+  return (shift != 0) ? Word32Shr(value, Int32Constant(shift)) : value;
 }
 
-Node* CodeAssembler::ChangeUint32ToWord(Node* value) {
+TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    value = raw_assembler()->ChangeUint32ToUint64(value);
+    return UncheckedCast<UintPtrT>(
+        raw_assembler()->ChangeUint32ToUint64(value));
   }
-  return value;
+  return UncheckedCast<UintPtrT>(value);
 }
 
-Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
+TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    value = raw_assembler()->ChangeInt32ToInt64(value);
+    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
-  return value;
+  return UncheckedCast<IntPtrT>(value);
 }
 
 Node* CodeAssembler::ChangeFloat64ToUintPtr(Node* value) {
@@ -452,8 +479,10 @@ Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   return raw_assembler()->ChangeInt32ToFloat64(value);
 }
 
-#define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
-  Node* CodeAssembler::name(Node* a) { return raw_assembler()->name(a); }
+#define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
+  TNode<ResType> CodeAssembler::name(SloppyTNode<ArgType> a) { \
+    return UncheckedCast<ResType>(raw_assembler()->name(a));   \
+  }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
@@ -469,7 +498,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
 
-Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
+TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
@@ -481,8 +510,8 @@ Node* CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
 
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
-  return Load(MachineType::AnyTagged(), roots_array_start,
-              IntPtrConstant(root_index * kPointerSize));
+  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,
+                                    IntPtrConstant(root_index * kPointerSize)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -579,8 +608,9 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
 }
 
 template <class... TArgs>
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
-                                 TArgs... args) {
+TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
+                                             SloppyTNode<Object> context,
+                                             TArgs... args) {
   int argc = static_cast<int>(sizeof...(args));
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
@@ -597,19 +627,20 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
   CallPrologue();
   Node* return_value = raw_assembler()->CallN(desc, arraysize(nodes), nodes);
   CallEpilogue();
-  return return_value;
+  return UncheckedCast<Object>(return_value);
 }
 
 // Instantiate CallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                       \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallRuntime( \
+#define INSTANTIATE(...)                                                   \
+  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::CallRuntimeImpl( \
       Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, Node*)
+REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
 #undef INSTANTIATE
 
 template <class... TArgs>
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
-                                     Node* context, TArgs... args) {
+TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
+                                                 SloppyTNode<Object> context,
+                                                 TArgs... args) {
   int argc = static_cast<int>(sizeof...(args));
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
@@ -623,30 +654,15 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
 
   Node* nodes[] = {centry, args..., ref, arity, context};
 
-  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
-}
-
-Node* CodeAssembler::TailCallRuntimeN(Runtime::FunctionId function,
-                                      Node* context, Node* argc) {
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 0, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry =
-      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
-
-  Node* nodes[] = {centry, ref, argc, context};
-
-  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
+  return UncheckedCast<Object>(
+      raw_assembler()->TailCallN(desc, arraysize(nodes), nodes));
 }
 
 // Instantiate TailCallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                           \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallRuntime( \
+#define INSTANTIATE(...)                                                       \
+  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::TailCallRuntimeImpl( \
       Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, Node*)
+REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
 #undef INSTANTIATE
 
 template <class... TArgs>
@@ -686,8 +702,9 @@ Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
 }
 
 template <class... TArgs>
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, TArgs... args) {
+Node* CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
+                                      Node* target, Node* context,
+                                      TArgs... args) {
   DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
   size_t result_size = 1;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -701,10 +718,37 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
 }
 
 // Instantiate TailCallStub() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                        \
-  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStub( \
+#define INSTANTIATE(...)                                            \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStubImpl( \
       const CallInterfaceDescriptor& descriptor, Node*, __VA_ARGS__);
 REPEAT_1_TO_12(INSTANTIATE, Node*)
+#undef INSTANTIATE
+
+template <class... TArgs>
+Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
+    TArgs... args) {
+  DCHECK_LE(descriptor.GetParameterCount(), sizeof...(args));
+  // Extra arguments not mentioned in the descriptor are passed on the stack.
+  int stack_parameter_count =
+      sizeof...(args) - descriptor.GetRegisterParameterCount();
+  DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, stack_parameter_count,
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), 0);
+
+  Node* nodes[] = {target, args..., context};
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
+}
+
+// Instantiate TailCallJSAndBytecodeDispatch() for argument counts used by
+// CSA-generated code
+#define INSTANTIATE(...)                           \
+  template V8_EXPORT_PRIVATE Node*                 \
+  CodeAssembler::TailCallStubThenBytecodeDispatch( \
+      const CallInterfaceDescriptor&, Node*, Node*, Node*, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 template <class... TArgs>
@@ -738,6 +782,14 @@ Node* CodeAssembler::CallCFunction1(MachineType return_type,
                                          arg0);
 }
 
+Node* CodeAssembler::CallCFunction1WithCallerSavedRegisters(
+    MachineType return_type, MachineType arg0_type, Node* function,
+    Node* arg0) {
+  DCHECK(return_type.LessThanOrEqualPointerSize());
+  return raw_assembler()->CallCFunction1WithCallerSavedRegisters(
+      return_type, arg0_type, function, arg0);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,
@@ -753,6 +805,14 @@ Node* CodeAssembler::CallCFunction3(MachineType return_type,
                                     Node* arg0, Node* arg1, Node* arg2) {
   return raw_assembler()->CallCFunction3(return_type, arg0_type, arg1_type,
                                          arg2_type, function, arg0, arg1, arg2);
+}
+
+Node* CodeAssembler::CallCFunction3WithCallerSavedRegisters(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2) {
+  DCHECK(return_type.LessThanOrEqualPointerSize());
+  return raw_assembler()->CallCFunction3WithCallerSavedRegisters(
+      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2);
 }
 
 Node* CodeAssembler::CallCFunction6(
@@ -782,19 +842,21 @@ void CodeAssembler::Goto(Label* label) {
   raw_assembler()->Goto(label->label_);
 }
 
-void CodeAssembler::GotoIf(Node* condition, Label* true_label) {
+void CodeAssembler::GotoIf(SloppyTNode<IntegralT> condition,
+                           Label* true_label) {
   Label false_label(this);
   Branch(condition, true_label, &false_label);
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoIfNot(Node* condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(SloppyTNode<IntegralT> condition,
+                              Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);
 }
 
-void CodeAssembler::Branch(Node* condition, Label* true_label,
+void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
   true_label->MergeVariables();
   false_label->MergeVariables();
@@ -817,15 +879,11 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
                                  labels, case_count);
 }
 
-bool CodeAssembler::UnalignedLoadSupported(const MachineType& machineType,
-                                           uint8_t alignment) const {
-  return raw_assembler()->machine()->UnalignedLoadSupported(machineType,
-                                                            alignment);
+bool CodeAssembler::UnalignedLoadSupported(MachineRepresentation rep) const {
+  return raw_assembler()->machine()->UnalignedLoadSupported(rep);
 }
-bool CodeAssembler::UnalignedStoreSupported(const MachineType& machineType,
-                                            uint8_t alignment) const {
-  return raw_assembler()->machine()->UnalignedStoreSupported(machineType,
-                                                             alignment);
+bool CodeAssembler::UnalignedStoreSupported(MachineRepresentation rep) const {
+  return raw_assembler()->machine()->UnalignedStoreSupported(rep);
 }
 
 // RawMachineAssembler delegate helpers:
@@ -1103,5 +1161,39 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
 }
 
 }  // namespace compiler
+
+Smi* CheckObjectType(Object* value, Smi* type, String* location) {
+#ifdef DEBUG
+  const char* expected;
+  switch (static_cast<ObjectType>(type->value())) {
+#define TYPE_CASE(Name)                            \
+  case ObjectType::k##Name:                        \
+    if (value->Is##Name()) return Smi::FromInt(0); \
+    expected = #Name;                              \
+    break;
+#define TYPE_STRUCT_CASE(NAME, Name, name)         \
+  case ObjectType::k##Name:                        \
+    if (value->Is##Name()) return Smi::FromInt(0); \
+    expected = #Name;                              \
+    break;
+
+    TYPE_CASE(Object)
+    OBJECT_TYPE_LIST(TYPE_CASE)
+    HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
+    STRUCT_LIST(TYPE_STRUCT_CASE)
+#undef TYPE_CASE
+#undef TYPE_STRUCT_CASE
+  }
+  std::stringstream value_description;
+  value->Print(value_description);
+  V8_Fatal(__FILE__, __LINE__,
+           "Type cast failed in %s\n"
+           "  Expected %s but found %s",
+           location->ToAsciiArray(), expected, value_description.str().c_str());
+#else
+  UNREACHABLE();
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8

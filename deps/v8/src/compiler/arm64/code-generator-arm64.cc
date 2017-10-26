@@ -5,13 +5,13 @@
 #include "src/compiler/code-generator.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/frame-constants.h"
 #include "src/heap/heap-inl.h"
 
 namespace v8 {
@@ -670,7 +670,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       internal::Assembler::BlockCodeTargetSharingScope scope;
       if (info()->IsWasm()) scope.Open(tasm());
 
-      EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
@@ -727,7 +726,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -737,7 +735,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, temp);
         __ Assert(eq, kWrongFunctionContext);
       }
-      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Add(x10, x10, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(x10);
       RecordCallPosition(instr);
       // TODO(titzer): this is ugly. JSSP should be a caller-save register
@@ -755,25 +754,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallJSFunctionFromJSFunction: {
-      Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
-        // Check the function's context matches the context argument.
-        UseScratchRegisterScope scope(tasm());
-        Register temp = scope.AcquireX();
-        __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ cmp(cp, temp);
-        __ Assert(eq, kWrongFunctionContext);
-      }
-      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                       i.TempRegister(0), i.TempRegister(1),
-                                       i.TempRegister(2));
-      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Jump(x10);
-      frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
-      break;
-    }
     case kArchPrepareCallCFunction:
       // We don't need kArchPrepareCallCFunction on arm64 as the instruction
       // selector has already performed a Claim to reserve space on the stack.
@@ -783,6 +763,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // via the stack pointer.
       UNREACHABLE();
       break;
+    case kArchSaveCallerRegisters: {
+      // kReturnRegister0 should have been saved before entering the stub.
+      __ PushCallerSaved(kSaveFPRegs, kReturnRegister0);
+      break;
+    }
+    case kArchRestoreCallerRegisters: {
+      // Don't overwrite the returned value.
+      __ PopCallerSaved(kSaveFPRegs, kReturnRegister0);
+      break;
+    }
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
@@ -807,6 +797,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchLookupSwitch:
       AssembleArchLookupSwitch(instr);
+      break;
+    case kArchDebugAbort:
+      DCHECK(i.InputRegister(0).is(x1));
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      }
+      __ Debug("kArchDebugAbort", 0, BREAK);
       break;
     case kArchDebugBreak:
       __ Debug("kArchDebugBreak", 0, BREAK);
@@ -2072,6 +2076,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64S128Or, Orr, 16B);
       SIMD_BINOP_CASE(kArm64S128Xor, Eor, 16B);
       SIMD_UNOP_CASE(kArm64S128Not, Mvn, 16B);
+    case kArm64S128Dup: {
+      VRegister dst = i.OutputSimd128Register(),
+                src = i.InputSimd128Register(0);
+      int lanes = i.InputInt32(1);
+      int index = i.InputInt32(2);
+      switch (lanes) {
+        case 4:
+          __ Dup(dst.V4S(), src.V4S(), index);
+          break;
+        case 8:
+          __ Dup(dst.V8H(), src.V8H(), index);
+          break;
+        case 16:
+          __ Dup(dst.V16B(), src.V16B(), index);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      break;
+    }
     case kArm64S128Select: {
       VRegister dst = i.OutputSimd128Register().V16B();
       DCHECK(dst.is(i.InputSimd128Register(0).V16B()));
@@ -2360,24 +2385,6 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ EndBlockPools();
 }
 
-CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, SourcePosition pos) {
-  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
-  Deoptimizer::BailoutType bailout_type =
-      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
-                                                   : Deoptimizer::EAGER;
-  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      __ isolate(), deoptimization_id, bailout_type);
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (info()->is_source_positions_enabled()) {
-    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
-  }
-  __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-  return kSuccess;
-}
-
 void CodeGenerator::FinishFrame(Frame* frame) {
   frame->AlignFrame(16);
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
@@ -2420,14 +2427,12 @@ void CodeGenerator::AssembleConstructFrame() {
     // Link the frame
     if (descriptor->IsJSFunctionCall()) {
       DCHECK(!descriptor->UseNativeStack());
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
     } else {
       __ Push(lr, fp);
       __ Mov(fp, __ StackPointer());
     }
-    if (!info()->GeneratePreagedPrologue()) {
-      unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
-    }
+    unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
 
     // Create OSR entry if applicable
     if (info()->is_osr()) {
@@ -2675,7 +2680,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     VRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
       VRegister dst = g.ToDoubleRegister(destination);
-      __ Fmov(dst, src);
+      if (destination->IsSimd128Register()) {
+        __ Mov(dst.Q(), src.Q());
+      } else {
+        __ Mov(dst, src);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, tasm());
@@ -2758,18 +2767,24 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     VRegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
       VRegister dst = g.ToDoubleRegister(destination);
-      __ Fmov(temp, src);
-      __ Fmov(src, dst);
-      __ Fmov(dst, temp);
+      if (source->IsSimd128Register()) {
+        __ Mov(temp.Q(), src.Q());
+        __ Mov(src.Q(), dst.Q());
+        __ Mov(dst.Q(), temp.Q());
+      } else {
+        __ Mov(temp, src);
+        __ Mov(src, dst);
+        __ Mov(dst, temp);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination, tasm());
       if (source->IsSimd128Register()) {
-        __ Fmov(temp.Q(), src.Q());
+        __ Mov(temp.Q(), src.Q());
         __ Ldr(src.Q(), dst);
         __ Str(temp.Q(), dst);
       } else {
-        __ Fmov(temp, src);
+        __ Mov(temp, src);
         __ Ldr(src, dst);
         __ Str(temp, dst);
       }
@@ -2786,29 +2801,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   UNREACHABLE();
 }
 
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  intptr_t current_pc = tasm()->pc_offset();
-
-  if (current_pc < (last_lazy_deopt_pc_ + space_needed)) {
-    intptr_t padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    DCHECK((padding_size % kInstructionSize) == 0);
-    InstructionAccurateScope instruction_accurate(
-        tasm(), padding_size / kInstructionSize);
-
-    while (padding_size > 0) {
-      __ nop();
-      padding_size -= kInstructionSize;
-    }
-  }
-}
 
 #undef __
 

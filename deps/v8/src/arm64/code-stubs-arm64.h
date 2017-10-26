@@ -9,9 +9,6 @@ namespace v8 {
 namespace internal {
 
 
-void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
-
-
 class StringHelper : public AllStatic {
  public:
   // Compares two flat one-byte strings and returns result in x0.
@@ -32,34 +29,6 @@ class StringHelper : public AllStatic {
       Register scratch1, Register scratch2, Label* chars_not_equal);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-class StoreRegistersStateStub: public PlatformCodeStub {
- public:
-  explicit StoreRegistersStateStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  static Register to_be_pushed_lr() { return ip0; }
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(StoreRegistersState, PlatformCodeStub);
-};
-
-
-class RestoreRegistersStateStub: public PlatformCodeStub {
- public:
-  explicit RestoreRegistersStateStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  static void GenerateAheadOfTime(Isolate* isolate);
-
- private:
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
 };
 
 

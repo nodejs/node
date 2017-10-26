@@ -8,6 +8,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Common module API](#common-module-api)
 * [Countdown module](#countdown-module)
 * [DNS module](#dns-module)
+* [Duplex pair helper](#duplex-pair-helper)
 * [Fixtures module](#fixtures-module)
 * [WPT module](#wpt-module)
 
@@ -317,10 +318,10 @@ Port tests are running on.
 
 Logs '1..0 # Skipped: ' + `msg`
 
-### refreshTmpDir
+### refreshTmpDir()
 * return [&lt;String>]
 
-Deletes the 'tmp' dir and recreates it
+Deletes the testing 'tmp' directory and recreates it.
 
 ### restoreStderr()
 
@@ -336,6 +337,11 @@ original state after calling [`common.hijackStdOut()`][].
 * return [&lt;String>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
+
+### projectDir
+* return [&lt;String>]
+
+Path to the project directory.
 
 ### skip(msg)
 * `msg` [&lt;String>]
@@ -452,6 +458,14 @@ Reads a Domain String and returns a Buffer containing the domain.
 
 Takes in a parsed Object and writes its fields to a DNS packet as a Buffer
 object.
+
+## Duplex pair helper
+
+The `common/duplexpair` module exports a single function `makeDuplexPair`,
+which returns an object `{ clientSide, serverSide }` where each side is a
+`Duplex` stream connected to the other side.
+
+There is no difference between client or server side beyond their names.
 
 ## Fixtures Module
 

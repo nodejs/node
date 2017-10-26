@@ -272,4 +272,8 @@ function assertTableIsValid(table, length) {
     {element: "anyfunc", initial: 0, maximum: kV8MaxWasmTableSize});
   table.grow(kV8MaxWasmTableSize);
   assertThrows(() => table.grow(1), RangeError);
+
+  table = new WebAssembly.Table({element: "anyfunc", initial: 0});
+  table.grow({valueOf: () => {table.grow(2); return 1;}});
+  assertEquals(3, table.length);
 })();

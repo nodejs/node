@@ -216,6 +216,10 @@ assert.strictEqual(
   errors.message('ERR_INVALID_ARG_TYPE', [['a', 'b', 'c'], 'not d']),
   'The "a", "b", "c" arguments must not be of type d');
 
+// Test ERR_INVALID_FD_TYPE
+assert.strictEqual(errors.message('ERR_INVALID_FD_TYPE', ['a']),
+                   'Unsupported fd type: a');
+
 // Test ERR_INVALID_URL_SCHEME
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
                    'The URL must be of scheme file');
@@ -246,6 +250,10 @@ assert.throws(
     message: /^At least one arg needs to be specified$/
   }));
 
+// Test ERR_SOCKET_BAD_PORT
+assert.strictEqual(
+  errors.message('ERR_SOCKET_BAD_PORT', [0]),
+  'Port should be > 0 and < 65536. Received 0.');
 
 // Test ERR_TLS_CERT_ALTNAME_INVALID
 assert.strictEqual(
@@ -296,6 +304,14 @@ assert.strictEqual(
 assert.strictEqual(
   errors.message('ERR_HTTP2_HEADER_REQUIRED', ['test']),
   'The test header is required');
+
+// Test ERR_HTTP2_FRAME_ERROR
+assert.strictEqual(
+  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar', 'baz']),
+  'Error sending frame type foo for stream baz with code bar');
+assert.strictEqual(
+  errors.message('ERR_HTTP2_FRAME_ERROR', ['foo', 'bar']),
+  'Error sending frame type foo with code bar');
 
 // Test error messages for async_hooks
 assert.strictEqual(

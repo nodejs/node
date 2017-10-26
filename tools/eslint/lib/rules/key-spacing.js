@@ -420,7 +420,6 @@ module.exports = {
                 isExtra = diff > 0,
                 diffAbs = Math.abs(diff),
                 spaces = Array(diffAbs + 1).join(" ");
-            let fix;
 
             if ((
                 diff && mode === "strict" ||
@@ -428,14 +427,16 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
+                let fix;
+
                 if (isExtra) {
                     let range;
 
                     // Remove whitespace
                     if (isKeySide) {
-                        range = [tokenBeforeColon.end, tokenBeforeColon.end + diffAbs];
+                        range = [tokenBeforeColon.range[1], tokenBeforeColon.range[1] + diffAbs];
                     } else {
-                        range = [tokenAfterColon.start - diffAbs, tokenAfterColon.start];
+                        range = [tokenAfterColon.range[0] - diffAbs, tokenAfterColon.range[0]];
                     }
                     fix = function(fixer) {
                         return fixer.removeRange(range);

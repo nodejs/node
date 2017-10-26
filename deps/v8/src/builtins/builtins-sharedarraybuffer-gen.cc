@@ -57,8 +57,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   GotoIfNot(IsSetWord32<JSArrayBuffer::IsShared>(bitfield), &invalid);
 
   // Fail if the array's element type is float32, float64 or clamped.
-  Node* elements_instance_type =
-      LoadInstanceType(LoadObjectField(tagged, JSObject::kElementsOffset));
+  Node* elements_instance_type = LoadInstanceType(LoadElements(tagged));
   STATIC_ASSERT(FIXED_INT8_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
   STATIC_ASSERT(FIXED_INT16_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);
   STATIC_ASSERT(FIXED_INT32_ARRAY_TYPE < FIXED_FLOAT32_ARRAY_TYPE);

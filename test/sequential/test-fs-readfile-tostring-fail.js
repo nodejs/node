@@ -8,7 +8,10 @@ if (!common.enoughTestMem)
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const cp = require('child_process');
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
+if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
+  common.skip('intensive toString tests due to file size confinements');
 
 common.refreshTmpDir();
 
@@ -29,7 +32,8 @@ stream.on('finish', common.mustCall(function() {
   // make sure that the toString does not throw an error
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
-    assert.strictEqual('"toString()" failed', err.message);
+    assert(/^(Array buffer allocation failed|"toString\(\)" failed)$/
+             .test(err.message));
     assert.strictEqual(buf, undefined);
   }));
 }));

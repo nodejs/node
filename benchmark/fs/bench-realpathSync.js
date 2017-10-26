@@ -10,21 +10,21 @@ const relative_path = path.relative(__dirname, '../../lib/');
 
 const bench = common.createBenchmark(main, {
   n: [1e4],
-  type: ['relative', 'resolved'],
+  pathType: ['relative', 'resolved'],
 });
 
 
 function main(conf) {
   const n = conf.n >>> 0;
-  const type = conf.type;
+  const pathType = conf.pathType;
 
   bench.start();
-  if (type === 'relative')
+  if (pathType === 'relative')
     relativePath(n);
-  else if (type === 'resolved')
+  else if (pathType === 'resolved')
     resolvedPath(n);
   else
-    throw new Error(`unknown "type": ${type}`);
+    throw new Error(`unknown "pathType": ${pathType}`);
   bench.end(n);
 }
 

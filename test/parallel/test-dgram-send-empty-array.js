@@ -14,7 +14,7 @@ let interval;
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.alloc(0);
-  assert.ok(buf.equals(expected), 'message was received correctly');
+  assert.ok(buf.equals(expected), `Expected empty message but got ${buf}`);
   clearInterval(interval);
   client.close();
 }));

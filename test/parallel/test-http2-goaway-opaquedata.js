@@ -29,6 +29,8 @@ server.listen(0, () => {
     assert.deepStrictEqual(code, 1);
     assert.deepStrictEqual(lastStreamID, 0);
     assert.deepStrictEqual(data, buf);
+    // Call shutdown() here so that emitGoaway calls destroy()
+    client.shutdown();
     server.close();
   }));
   const req = client.request({ ':path': '/' });

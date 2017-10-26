@@ -1180,6 +1180,7 @@ void DefineCryptoConstants(Local<Object> target) {
                               "defaultCipherList",
                               default_cipher_list);
 #endif
+  NODE_DEFINE_CONSTANT(target, INT_MAX);
 }
 
 void DefineZlibConstants(Local<Object> target) {

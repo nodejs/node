@@ -45,5 +45,6 @@ child.stdout.on('data', function(chunk) {
 
 process.on('exit', function() {
   assert.ok(response.includes('HELLO=WORLD'),
-            'spawn did not use process.env as default');
+            'spawn did not use process.env as default ' +
+            `(process.env.HELLO = ${process.env.HELLO})`);
 });

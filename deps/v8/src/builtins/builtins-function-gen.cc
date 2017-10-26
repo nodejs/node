@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -103,7 +104,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   Label empty_arguments(this);
   Label arguments_done(this, &argument_array);
   GotoIf(Uint32LessThanOrEqual(argc, Int32Constant(1)), &empty_arguments);
-  Node* elements_length = ChangeUint32ToWord(Int32Sub(argc, Int32Constant(1)));
+  Node* elements_length =
+      ChangeUint32ToWord(Unsigned(Int32Sub(argc, Int32Constant(1))));
   Node* elements =
       AllocateFixedArray(PACKED_ELEMENTS, elements_length, INTPTR_PARAMETERS,
                          kAllowLargeObjectAllocation);
@@ -113,7 +115,7 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   args.ForEach(foreach_vars,
                [this, elements, &index](Node* arg) {
                  StoreFixedArrayElement(elements, index.value(), arg);
-                 Increment(index);
+                 Increment(&index);
                },
                IntPtrConstant(1));
   argument_array.Bind(elements);

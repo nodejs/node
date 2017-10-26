@@ -45,8 +45,8 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
+#include "src/boxed-float.h"
 #include "src/double.h"
-#include "src/float.h"
 
 namespace v8 {
 namespace internal {
@@ -85,6 +85,60 @@ namespace internal {
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15)               \
 // clang-format on
+
+// The ARM ABI does not specify the usage of register r9, which may be reserved
+// as the static base or thread register on some platforms, in which case we
+// leave it alone. Adjust the value of kR9Available accordingly:
+const int kR9Available = 1;  // 1 if available to us, 0 if reserved
+
+// Register list in load/store instructions
+// Note that the bit values must match those used in actual instruction encoding
+const int kNumRegs = 16;
+
+// Caller-saved/arguments registers
+const RegList kJSCallerSaved =
+  1 << 0 |  // r0 a1
+  1 << 1 |  // r1 a2
+  1 << 2 |  // r2 a3
+  1 << 3;   // r3 a4
+
+const int kNumJSCallerSaved = 4;
+
+// Callee-saved registers preserved when switching from C to JavaScript
+const RegList kCalleeSaved =
+  1 <<  4 |  //  r4 v1
+  1 <<  5 |  //  r5 v2
+  1 <<  6 |  //  r6 v3
+  1 <<  7 |  //  r7 v4 (cp in JavaScript code)
+  1 <<  8 |  //  r8 v5 (pp in JavaScript code)
+  kR9Available <<  9 |  //  r9 v6
+  1 << 10 |  // r10 v7
+  1 << 11;   // r11 v8 (fp in JavaScript code)
+
+// When calling into C++ (only for C++ calls that can't cause a GC).
+// The call code will take care of lr, fp, etc.
+const RegList kCallerSaved =
+  1 <<  0 |  // r0
+  1 <<  1 |  // r1
+  1 <<  2 |  // r2
+  1 <<  3 |  // r3
+  1 <<  9;   // r9
+
+const int kNumCalleeSaved = 7 + kR9Available;
+
+// Double registers d8 to d15 are callee-saved.
+const int kNumDoubleCalleeSaved = 8;
+
+// Number of registers for which space is reserved in safepoints. Must be a
+// multiple of 8.
+// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
+const int kNumSafepointRegisters = 16;
+
+// Define the list of registers actually saved at safepoints.
+// Note that the number of saved registers may be smaller than the reserved
+// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // CPU Registers.
 //
@@ -491,7 +545,6 @@ enum Coprocessor {
   p15 = 15
 };
 
-
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
@@ -810,21 +863,9 @@ class Assembler : public AssemblerBase {
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);
 
-  // Distance between start of patched debug break slot and the emitted address
-  // to jump to.
-  // Patched debug break slot code is:
-  //  ldr  ip, [pc, #0]   @ emited address and start
-  //  blx  ip
-  static constexpr int kPatchDebugBreakSlotAddressOffset = 2 * kInstrSize;
-
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 8;
-
-  static constexpr int kDebugBreakSlotInstructions = 4;
-  static constexpr int kDebugBreakSlotLength =
-      kDebugBreakSlotInstructions * kInstrSize;
-
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
   // ---------------------------------------------------------------------------
@@ -1558,11 +1599,6 @@ class Assembler : public AssemblerBase {
 
     DISALLOW_COPY_AND_ASSIGN(BlockCodeTargetSharingScope);
   };
-
-  // Debugging
-
-  // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.

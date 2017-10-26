@@ -461,6 +461,7 @@ added: v8.0.0
 -->
 
 * `original` {Function}
+* Returns: {Function}
 
 Takes a function following the common Node.js callback style, i.e. taking a
 `(err, value) => ...` callback as the last argument, and returns a version
@@ -525,6 +526,16 @@ console.log(promisified === doSomething[util.promisify.custom]);
 This can be useful for cases where the original function does not follow the
 standard format of taking an error-first callback as the last argument.
 
+For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
+
+```js
+doSomething[util.promisify.custom] = function(foo) {
+  return new Promise(function(resolve, reject) {
+    doSomething(foo, resolve, reject);
+  });
+};
+```
+
 ### util.promisify.custom
 <!-- YAML
 added: v8.0.0
@@ -539,8 +550,6 @@ see [Custom promisified functions][].
 <!-- YAML
 added: v8.3.0
 -->
-
-> Stability: 1 - Experimental
 
 An implementation of the [WHATWG Encoding Standard][] `TextDecoder` API.
 
@@ -678,8 +687,6 @@ mark.
 <!-- YAML
 added: v8.3.0
 -->
-
-> Stability: 1 - Experimental
 
 An implementation of the [WHATWG Encoding Standard][] `TextEncoder` API. All
 instances of `TextEncoder` only support UTF-8 encoding.

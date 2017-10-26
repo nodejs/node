@@ -23,29 +23,27 @@ static size_t CountTotalHolesSize(Heap* heap) {
   return holes_size;
 }
 
+RuntimeCallStats::CounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
+  return RuntimeCallStats::counters[kFirstGCIndexInRuntimeCallStats +
+                                    static_cast<int>(id)];
+}
 
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
-  // All accesses to incremental_marking_scope assume that incremental marking
-  // scopes come first.
-  STATIC_ASSERT(FIRST_INCREMENTAL_SCOPE == 0);
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Enter(
-        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_,
-        &RuntimeCallStats::GC);
-  }
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
+  RuntimeCallStats::Enter(runtime_stats_, &timer_,
+                          GCTracer::RCSCounterFromScope(scope));
 }
 
 GCTracer::Scope::~Scope() {
   tracer_->AddScopeSample(
       scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Leave(
-        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_);
-  }
+  if (V8_LIKELY(runtime_stats_ == nullptr)) return;
+  RuntimeCallStats::Leave(runtime_stats_, &timer_);
 }
 
 const char* GCTracer::Scope::Name(ScopeId id) {
@@ -115,6 +113,14 @@ GCTracer::GCTracer(Heap* heap)
       old_generation_allocation_in_bytes_since_gc_(0),
       combined_mark_compact_speed_cache_(0.0),
       start_counter_(0) {
+  // All accesses to incremental_marking_scope assume that incremental marking
+  // scopes come first.
+  STATIC_ASSERT(0 == Scope::FIRST_INCREMENTAL_SCOPE);
+  // We assume that MC_INCREMENTAL is the first scope so that we can properly
+  // map it to RuntimeCallStats.
+  STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
+  CHECK(&RuntimeCallStats::GC_MC_INCREMENTAL ==
+        RuntimeCallStats::counters[GCTracer::kFirstGCIndexInRuntimeCallStats]);
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
 }
 
@@ -205,14 +211,13 @@ void GCTracer::Start(GarbageCollector collector,
   counters->aggregated_memory_heap_committed()->AddSample(start_time,
                                                           committed_memory);
   counters->aggregated_memory_heap_used()->AddSample(start_time, used_memory);
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Enter(heap_->isolate()->counters()->runtime_call_stats(),
-                            &timer_, &RuntimeCallStats::GC);
-  }
 }
 
 void GCTracer::ResetIncrementalMarkingCounters() {
+  if (incremental_marking_duration_ > 0) {
+    heap_->isolate()->counters()->incremental_marking_sum()->AddSample(
+        static_cast<int>(incremental_marking_duration_));
+  }
   incremental_marking_bytes_ = 0;
   incremental_marking_duration_ = 0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
@@ -303,12 +308,6 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   if (FLAG_trace_gc) {
     heap_->PrintShortHeapStatistics();
-  }
-
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Leave(heap_->isolate()->counters()->runtime_call_stats(),
-                            &timer_);
   }
 }
 
@@ -459,14 +458,15 @@ void GCTracer::PrintNVP() const {
           "heap.external.prologue=%.2f "
           "heap.external.epilogue=%.2f "
           "heap.external_weak_global_handles=%.2f "
+          "fast_promote=%.2f "
           "scavenge=%.2f "
-          "evacuate=%.2f "
-          "old_new=%.2f "
-          "weak=%.2f "
-          "roots=%.2f "
-          "semispace=%.2f "
-          "steps_count=%d "
-          "steps_took=%.1f "
+          "scavenge.roots=%.2f "
+          "scavenge.weak=%.2f "
+          "scavenge.weak_global_handles.identify=%.2f"
+          "scavenge.weak_global_handles.process=%.2f"
+          "scavenge.parallel=%.2f "
+          "incremental.steps_count=%d "
+          "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
           "total_size_before=%" PRIuS
           " "
@@ -498,12 +498,15 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE],
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
+          current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
-          current_.scopes[Scope::SCAVENGER_EVACUATE],
-          current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
-          current_.scopes[Scope::SCAVENGER_WEAK],
-          current_.scopes[Scope::SCAVENGER_ROOTS],
-          current_.scopes[Scope::SCAVENGER_SEMISPACE],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
+          current_
+              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY],
+          current_
+              .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
           current_.scopes[Scope::MC_INCREMENTAL],
@@ -594,7 +597,8 @@ void GCTracer::PrintNVP() const {
           "evacuate.rebalance=%.1f "
           "evacuate.update_pointers=%.1f "
           "evacuate.update_pointers.to_new_roots=%.1f "
-          "evacuate.update_pointers.slots=%.1f "
+          "evacuate.update_pointers.slots.main=%.1f "
+          "evacuate.update_pointers.slots.map_space=%.1f "
           "evacuate.update_pointers.weak=%.1f "
           "finish=%.1f "
           "mark=%.1f "
@@ -678,7 +682,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_REBALANCE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS],
-          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS],
+          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN],
+          current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],

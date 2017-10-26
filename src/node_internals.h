@@ -91,6 +91,11 @@ extern bool config_preserve_symlinks;
 // that is used by lib/module.js
 extern bool config_experimental_modules;
 
+// Set in node.cc by ParseArgs when --loader is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/internal/bootstrap_node.js
+extern std::string config_userland_loader;
+
 // Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
 // used.
 // Used in node_config.cc to set a constant on process.binding('config')
@@ -318,6 +323,9 @@ class InternalCallbackScope {
   bool pushed_ids_ = false;
   bool closed_ = false;
 };
+
+#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)          \
+  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_INTERNAL)  \
 
 }  // namespace node
 

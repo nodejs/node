@@ -50,7 +50,7 @@ TEST(StrictUndeclaredGlobalVariable) {
   global->SetPrototype(context.local(), proto).FromJust();
   CHECK(script->Run(context.local()).IsEmpty());
   CHECK(try_catch.HasCaught());
-  v8::String::Utf8Value exception(try_catch.Exception());
+  v8::String::Utf8Value exception(CcTest::isolate(), try_catch.Exception());
   CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
 }
 

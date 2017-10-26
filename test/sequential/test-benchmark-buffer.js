@@ -20,5 +20,5 @@ runBenchmark('buffers',
                'source=array',
                'type=',
                'withTotalLength=0'
-
-             ]);
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });

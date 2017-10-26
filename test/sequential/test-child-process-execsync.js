@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const { execFileSync, execSync } = require('child_process');
+const { execFileSync, execSync, spawnSync } = require('child_process');
 
 const TIMER = 200;
 const SLEEP = 2000;
@@ -112,6 +112,16 @@ assert.strictEqual(ret, `${msg}\n`);
 // Verify the execFileSync() behavior when the child exits with a non-zero code.
 {
   const args = ['-e', 'process.exit(1)'];
+  const spawnSyncResult = spawnSync(process.execPath, args);
+  const spawnSyncKeys = Object.keys(spawnSyncResult).sort();
+  assert.deepStrictEqual(spawnSyncKeys, [
+    'output',
+    'pid',
+    'signal',
+    'status',
+    'stderr',
+    'stdout'
+  ]);
 
   assert.throws(() => {
     execFileSync(process.execPath, args);
@@ -121,6 +131,11 @@ assert.strictEqual(ret, `${msg}\n`);
     assert(err instanceof Error);
     assert.strictEqual(err.message, msg);
     assert.strictEqual(err.status, 1);
+    assert.strictEqual(typeof err.pid, 'number');
+    spawnSyncKeys.forEach((key) => {
+      if (key === 'pid') return;
+      assert.deepStrictEqual(err[key], spawnSyncResult[key]);
+    });
     return true;
   });
 }

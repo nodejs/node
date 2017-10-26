@@ -25,10 +25,6 @@ injected_script_source_name = path.join(v8_inspector_path,
   'injected-script-source.js')
 injected_script_externs_file = path.join(v8_inspector_path,
   'injected_script_externs.js')
-debugger_script_source_name = path.join(v8_inspector_path,
-  'debugger-script.js')
-debugger_script_externs_file = path.join(v8_inspector_path,
-  'debugger_script_externs.js')
 
 generate_protocol_externs.generate_protocol_externs(protocol_externs_file,
   path.join(v8_inspector_path, 'js_protocol.json'))
@@ -129,16 +125,6 @@ command = spawned_compiler_command + [
 
 injected_script_compile_proc = popen(command)
 
-print 'Compiling debugger-script.js...'
-
-command = spawned_compiler_command + [
-  '--externs', debugger_script_externs_file,
-  '--js', debugger_script_source_name,
-  '--new_type_inf'
-]
-
-debugger_script_compile_proc = popen(command)
-
 print 'Validating injected-script-source.js...'
 injectedscript_check_script_path = path.join(v8_inspector_path, 'build',
   'check_injected_script_source.py')
@@ -151,11 +137,6 @@ print
 print 'injected-script-source.js compilation output:%s' % os.linesep
 print injected_script_compile_out
 errors_found |= has_errors(injected_script_compile_out)
-
-(debugger_script_compiler_out, _) = debugger_script_compile_proc.communicate()
-print 'debugger-script.js compilation output:%s' % os.linesep
-print debugger_script_compiler_out
-errors_found |= has_errors(debugger_script_compiler_out)
 
 (validate_injected_script_out, _) = validate_injected_script_proc.communicate()
 print 'Validate injected-script-source.js output:%s' % os.linesep

@@ -14,7 +14,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -70,21 +71,17 @@ TEST(VectorStructure) {
 
     int index = vector->GetIndex(helper.slot(0));
 
-    CHECK_EQ(FeedbackVector::kReservedIndexCount, index);
     CHECK_EQ(helper.slot(0), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3, index);
     CHECK_EQ(helper.slot(3), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(7));
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3 +
-                 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
+    CHECK_EQ(3 + 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              index);
     CHECK_EQ(helper.slot(7), vector->ToSlot(index));
 
-    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3 +
-                 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
+    CHECK_EQ(3 + 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              vector->length());
   }
 
@@ -224,7 +221,7 @@ TEST(VectorCallICStates) {
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
 }
 
-TEST(VectorCallFeedbackForArray) {
+TEST(VectorCallFeedback) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
@@ -233,7 +230,32 @@ TEST(VectorCallFeedbackForArray) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function foo() { return 17; }"
-      "function f(a) { a(); } f(Array);");
+      "function f(a) { a(); } f(foo);");
+  Handle<JSFunction> f = GetFunction("f");
+  Handle<JSFunction> foo = GetFunction("foo");
+  // There should be one IC.
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
+  FeedbackSlot slot(0);
+  CallICNexus nexus(feedback_vector, slot);
+
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK(nexus.GetFeedback()->IsWeakCell());
+  CHECK(*foo == WeakCell::cast(nexus.GetFeedback())->value());
+
+  CcTest::CollectAllGarbage();
+  // It should stay monomorphic even after a GC.
+  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+}
+
+TEST(VectorCallFeedbackForArray) {
+  if (i::FLAG_always_opt) return;
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  // Make sure function f has a call that uses a type feedback slot.
+  CompileRun("function f(a) { a(); } f(Array);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<FeedbackVector> feedback_vector =
@@ -241,9 +263,10 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
 
-  // A call to Array is special, it contains an AllocationSite as feedback.
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
+  CHECK(nexus.GetFeedback()->IsWeakCell());
+  CHECK(*isolate->array_function() ==
+        WeakCell::cast(nexus.GetFeedback())->value());
 
   CcTest::CollectAllGarbage();
   // It should stay monomorphic even after a GC.
@@ -646,3 +669,6 @@ TEST(StoreOwnIC) {
 }
 
 }  // namespace
+
+}  // namespace internal
+}  // namespace v8

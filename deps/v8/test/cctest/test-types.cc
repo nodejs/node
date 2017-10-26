@@ -18,8 +18,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/types-fuzz.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 
@@ -1131,3 +1132,7 @@ TEST(Intersect) { Tests().Intersect(); }
 TEST(Distributivity) { Tests().Distributivity(); }
 
 TEST(GetRange) { Tests().GetRange(); }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

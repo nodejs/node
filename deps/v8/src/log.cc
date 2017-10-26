@@ -850,7 +850,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                         ? static_cast<int>(timer_.Elapsed().InMicroseconds())
                         : -1;
   msg.Append("code-deopt,%d,%d,", since_epoch, code->CodeSize());
-  msg.AppendAddress(code->address());
+  msg.AppendAddress(code->instruction_start());
 
   // Deoptimization position.
   std::ostringstream deopt_location;
@@ -884,7 +884,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
 
 void Logger::CurrentTimeEvent() {
   if (!log_->IsEnabled()) return;
-  DCHECK(FLAG_log_timer_events || FLAG_prof_cpp);
+  DCHECK(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("current-time,%d", since_epoch);
@@ -1053,8 +1053,8 @@ void AppendCodeCreateHeader(Log::MessageBuilder* msg,
                       ? static_cast<int>(timer->Elapsed().InMicroseconds())
                       : -1;
   msg->Append("%d,", timestamp);
-  msg->AppendAddress(code->address());
-  msg->Append(",%d,", code->ExecutableSize());
+  msg->AppendAddress(code->instruction_start());
+  msg->Append(",%d,", code->instruction_size());
 }
 
 }  // namespace
@@ -1119,22 +1119,141 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                              Name* source, int line, int column) {
   if (!is_logging_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
-  Log::MessageBuilder msg(log_);
-  AppendCodeCreateHeader(&msg, tag, code, &timer_);
-  std::unique_ptr<char[]> name =
-      shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("\"%s ", name.get());
-  if (source->IsString()) {
-    std::unique_ptr<char[]> sourcestr = String::cast(source)->ToCString(
-        DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    msg.Append("%s", sourcestr.get());
-  } else {
-    msg.AppendSymbolName(Symbol::cast(source));
+
+  {
+    Log::MessageBuilder msg(log_);
+    AppendCodeCreateHeader(&msg, tag, code, &timer_);
+    std::unique_ptr<char[]> name =
+        shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+    msg.Append("\"%s ", name.get());
+    if (source->IsString()) {
+      std::unique_ptr<char[]> sourcestr = String::cast(source)->ToCString(
+          DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+      msg.Append("%s", sourcestr.get());
+    } else {
+      msg.AppendSymbolName(Symbol::cast(source));
+    }
+    msg.Append(":%d:%d\",", line, column);
+    msg.AppendAddress(shared->address());
+    msg.Append(",%s", ComputeMarker(shared, code));
+    msg.WriteToLogFile();
   }
-  msg.Append(":%d:%d\",", line, column);
-  msg.AppendAddress(shared->address());
-  msg.Append(",%s", ComputeMarker(shared, code));
-  msg.WriteToLogFile();
+
+  if (FLAG_log_source_code) {
+    Object* script_object = shared->script();
+    if (script_object->IsScript()) {
+      // Make sure the script is written to the log file.
+      std::ostringstream os;
+      Script* script = Script::cast(script_object);
+      int script_id = script->id();
+      if (logged_source_code_.find(script_id) == logged_source_code_.end()) {
+        // This script has not been logged yet.
+        logged_source_code_.insert(script_id);
+        Object* source_object = script->source();
+        if (source_object->IsString()) {
+          Log::MessageBuilder msg(log_);
+          String* source_code = String::cast(source_object);
+          os << "script," << script_id << ",\"";
+          msg.AppendUnbufferedCString(os.str().c_str());
+
+          // Log the script name.
+          if (script->name()->IsString()) {
+            msg.AppendUnbufferedHeapString(String::cast(script->name()));
+            msg.AppendUnbufferedCString("\",\"");
+          } else {
+            msg.AppendUnbufferedCString("<unknown>\",\"");
+          }
+
+          // Log the source code.
+          msg.AppendUnbufferedHeapString(source_code);
+          os.str("");
+          os << "\"" << std::endl;
+          msg.AppendUnbufferedCString(os.str().c_str());
+          os.str("");
+        }
+      }
+
+      // We log source code information in the form:
+      //
+      // code-source-info <addr>,<script>,<start>,<end>,<pos>,<inline-pos>,<fns>
+      //
+      // where
+      //   <addr> is code object address
+      //   <script> is script id
+      //   <start> is the starting position inside the script
+      //   <end> is the end position inside the script
+      //   <pos> is source position table encoded in the string,
+      //      it is a sequence of C<code-offset>O<script-offset>[I<inlining-id>]
+      //      where
+      //        <code-offset> is the offset within the code object
+      //        <script-offset> is the position within the script
+      //        <inlining-id> is the offset in the <inlining> table
+      //   <inlining> table is a sequence of strings of the form
+      //      F<function-id>O<script-offset>[I<inlining-id>
+      //      where
+      //         <function-id> is an index into the <fns> function table
+      //   <fns> is the function table encoded as a sequence of strings
+      //      S<shared-function-info-address>
+      os << "code-source-info," << static_cast<void*>(code->instruction_start())
+         << "," << script_id << "," << shared->start_position() << ","
+         << shared->end_position() << ",";
+
+      SourcePositionTableIterator iterator(code->source_position_table());
+      bool is_first = true;
+      bool hasInlined = false;
+      for (; !iterator.done(); iterator.Advance()) {
+        if (is_first) {
+          is_first = false;
+        }
+        SourcePosition pos = iterator.source_position();
+        os << "C" << iterator.code_offset();
+        os << "O" << pos.ScriptOffset();
+        if (pos.isInlined()) {
+          os << "I" << pos.InliningId();
+          hasInlined = true;
+        }
+      }
+      os << ",";
+      int maxInlinedId = -1;
+      if (hasInlined) {
+        PodArray<InliningPosition>* inlining_positions =
+            DeoptimizationInputData::cast(
+                Code::cast(code)->deoptimization_data())
+                ->InliningPositions();
+        for (int i = 0; i < inlining_positions->length(); i++) {
+          InliningPosition inlining_pos = inlining_positions->get(i);
+          os << "F";
+          if (inlining_pos.inlined_function_id != -1) {
+            os << inlining_pos.inlined_function_id;
+            if (inlining_pos.inlined_function_id > maxInlinedId) {
+              maxInlinedId = inlining_pos.inlined_function_id;
+            }
+          }
+          SourcePosition pos = inlining_pos.position;
+          os << "O" << pos.ScriptOffset();
+          if (pos.isInlined()) {
+            os << "I" << pos.InliningId();
+          }
+        }
+      }
+      os << ",";
+      if (hasInlined) {
+        DeoptimizationInputData* deopt_data = DeoptimizationInputData::cast(
+            Code::cast(code)->deoptimization_data());
+
+        os << std::hex;
+        for (int i = 0; i <= maxInlinedId; i++) {
+          os << "S"
+             << static_cast<void*>(
+                    deopt_data->GetInlinedFunction(i)->address());
+        }
+        os << std::dec;
+      }
+      os << std::endl;
+      Log::MessageBuilder msg(log_);
+      msg.AppendUnbufferedCString(os.str().c_str());
+    }
+  }
 }
 
 void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
@@ -1362,34 +1481,6 @@ void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
   msg.WriteToLogFile();
 }
 
-void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
-                       const char* op, const char* old_left,
-                       const char* old_right, const char* old_state,
-                       const char* new_left, const char* new_right,
-                       const char* new_state) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("CompareIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",%d,%d,", line, column);
-  msg.AppendAddress(reinterpret_cast<Address>(stub));
-  msg.Append(",%s,%s,%s,%s,%s,%s,%s", op, old_left, old_right, old_state,
-             new_left, new_right, new_state);
-  msg.WriteToLogFile();
-}
-
-void Logger::PatchIC(const Address pc, const Address test, int delta) {
-  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("PatchIC,");
-  msg.AppendAddress(pc);
-  msg.Append(",");
-  msg.AppendAddress(test);
-  msg.Append(",");
-  msg.Append("%d,", delta);
-  msg.WriteToLogFile();
-}
-
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
   if (profiler_ != NULL) {
@@ -1496,8 +1587,6 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case AbstractCode::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
-    case AbstractCode::COMPARE_IC:      // fall through
-
     case AbstractCode::STUB:
       description =
           CodeStub::MajorName(CodeStub::GetMajorKey(code_object->GetCode()));
@@ -1556,6 +1645,10 @@ void Logger::LogCodeObject(Object* object) {
       break;
     case AbstractCode::WASM_INTERPRETER_ENTRY:
       description = "A Wasm to Interpreter adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
+    case AbstractCode::C_WASM_ENTRY:
+      description = "A C to Wasm entry stub";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::NUMBER_OF_KINDS:
@@ -1660,7 +1753,7 @@ void Logger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
-    if (code_objects[i].is_identical_to(isolate_->builtins()->CompileLazy()))
+    if (code_objects[i].is_identical_to(BUILTIN_CODE(isolate_, CompileLazy)))
       continue;
     LogExistingFunction(sfis[i], code_objects[i]);
   }
@@ -1750,6 +1843,7 @@ bool Logger::SetUp(Isolate* isolate) {
   is_initialized_ = true;
 
   std::ostringstream log_file_name;
+  std::ostringstream source_log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
   log_->Initialize(log_file_name.str().c_str());
 

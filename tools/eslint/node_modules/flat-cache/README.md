@@ -24,6 +24,9 @@ cache.setKey('key', { foo: 'var' });
 // get a key from the cache
 cache.getKey('key') // { foo: 'var' }
 
+// fetch the entire persisted object
+cache.all() // { 'key': { foo: 'var' } }
+
 // remove a key
 cache.removeKey('key'); // removes a key from the cache
 
@@ -68,4 +71,3 @@ MIT
 ## Changelog
 
 [changelog](./changelog.md)
-

@@ -242,6 +242,10 @@ who you are:
 $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
+Please make sure this local email is also added to your
+[GitHub email list](https://github.com/settings/emails) so that your commits
+will be properly associated with your account and you will be promoted
+to Contributor once your first commit is landed.
 
 #### Step 1: Fork
 
@@ -281,6 +285,9 @@ Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](doc/STYLE_GUIDE.md). Code samples included
 in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows).
+
+For contributing C++ code, you may want to look at the
+[C++ Style Guide](CPP_STYLE_GUIDE.md).
 
 #### Step 4: Commit
 
@@ -847,11 +854,8 @@ By making a contribution to this project, I certify that:
 [Building guide]: ./BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
-[guide for writing tests in Node.js]: ./doc/guides/writing-tests.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Node.js help repository]: https://github.com/nodejs/help/issues
-[notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
 [Onboarding guide]: ./doc/onboarding.md
-[on GitHub]: https://github.com/nodejs/node
 [Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues
