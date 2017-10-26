@@ -455,6 +455,21 @@ util.inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
+## util.isDeepStrictEqual(val1, val2)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `val1` {any}
+* `val2` {any}
+* Returns: {string}
+
+Returns `true` if there is deep strict equality between `val` and `val2`.
+Otherwise, returns `false`.
+
+See [`assert.deepStrictEqual()`][] for more information about deep strict
+equality.
+
 ## util.promisify(original)
 <!-- YAML
 added: v8.0.0
@@ -1187,6 +1202,7 @@ Deprecated predecessor of `console.log`.
 [`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
 [`Error`]: errors.html#errors_class_error
 [`Object.assign()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
+[`assert.deepStrictEqual()`]: assert.html#assert_assert_deepstrictequal_actual_expected_message
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
 [`util.inspect()`]: #util_util_inspect_object_options
