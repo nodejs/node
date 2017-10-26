@@ -1,9 +1,16 @@
 #include <node.h>
 #include <v8.h>
 
-void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  v8::HandleScope scope(isolate);
+using v8::Isolate;
+using v8::HandleScope;
+using v8::Local;
+using v8::Object;
+using v8::FunctionCallbackInfo;
+using v8::Value;
+
+void Method(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
   args.GetReturnValue().Set(node::ErrnoException(isolate,
                                                 10,
                                                 "syscall",
@@ -11,7 +18,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                                 "päth"));
 }
 
-void init(v8::Local<v8::Object> exports) {
+void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "errno", Method);
 }
 

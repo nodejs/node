@@ -6,7 +6,6 @@ using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
 using v8::Value;
-
 void GetExecutionAsyncId(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
     node::AsyncHooksGetExecutionAsyncId(args.GetIsolate()));

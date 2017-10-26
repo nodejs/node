@@ -8,13 +8,24 @@
 #include <unistd.h>
 #endif
 
+using v8::Isolate;
+using v8::Persistent;
+using v8::Function;
+using v8::Local;
+using v8::HandleScope;
+using v8::Value;
+using v8::Null;
+using v8::Integer;
+using v8::Object;
+using v8::TryCatch;
+
 
 struct async_req {
   uv_work_t req;
   int input;
   int output;
-  v8::Isolate* isolate;
-  v8::Persistent<v8::Function> callback;
+  Isolate* isolate;
+  Persistent<Function> callback;
 };
 
 void DoAsync(uv_work_t* r) {
@@ -31,22 +42,22 @@ void DoAsync(uv_work_t* r) {
 template <bool use_makecallback>
 void AfterAsync(uv_work_t* r) {
   async_req* req = reinterpret_cast<async_req*>(r->data);
-  v8::Isolate* isolate = req->isolate;
-  v8::HandleScope scope(isolate);
+  Isolate* isolate = req->isolate;
+  HandleScope scope(isolate);
 
-  v8::Local<v8::Value> argv[2] = {
-    v8::Null(isolate),
-    v8::Integer::New(isolate, req->output)
+  Local<Value> argv[2] = {
+    Null(isolate),
+    Integer::New(isolate, req->output)
   };
 
-  v8::TryCatch try_catch(isolate);
+  TryCatch try_catch(isolate);
 
-  v8::Local<v8::Object> global = isolate->GetCurrentContext()->Global();
-  v8::Local<v8::Function> callback =
-      v8::Local<v8::Function>::New(isolate, req->callback);
+  Local<Object> global = isolate->GetCurrentContext()->Global();
+  Local<Function> callback =
+      Local<Function>::New(isolate, req->callback);
 
   if (use_makecallback) {
-    v8::Local<v8::Value> ret =
+    Local<Value> ret =
         node::MakeCallback(isolate, global, callback, 2, argv);
     // This should be changed to an empty handle.
     assert(!ret.IsEmpty());
@@ -64,8 +75,8 @@ void AfterAsync(uv_work_t* r) {
 }
 
 template <bool use_makecallback>
-void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void Method(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
 
   async_req* req = new async_req;
   req->req.data = req;
@@ -74,7 +85,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   req->output = 0;
   req->isolate = isolate;
 
-  v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[1]);
+  Local<Function> callback = Local<Function>::Cast(args[1]);
   req->callback.Reset(isolate, callback);
 
   uv_queue_work(node::GetCurrentEventLoop(isolate),
@@ -83,7 +94,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
                 (uv_after_work_cb)AfterAsync<use_makecallback>);
 }
 
-void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
+void init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(exports, "runCall", Method<false>);
   NODE_SET_METHOD(exports, "runMakeCallback", Method<true>);
 }

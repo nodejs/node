@@ -1,12 +1,19 @@
 #include <node.h>
 #include <v8.h>
 
-void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  args.GetReturnValue().Set(v8::String::NewFromUtf8(isolate, "world"));
+using v8::FunctionCallbackInfo;
+using v8::Isolate;
+using v8::Object;
+using v8::String;
+using v8::Value;
+using v8::Local;
+
+void Method(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, "world"));
 }
 
-void init(v8::Local<v8::Object> exports, v8::Local<v8::Object> module) {
+void init(Local<Object> exports, Local<Object> module) {
   NODE_SET_METHOD(module, "exports", Method);
 }
 
