@@ -4,7 +4,8 @@ var supportedNode = [
   {ver: '4', min: '4.7.0'},
   {ver: '6', min: '6.0.0'},
   {ver: '7', min: '7.0.0'},
-  {ver: '8', min: '8.0.0'}
+  {ver: '8', min: '8.0.0'},
+  {ver: '9', min: '9.0.0'}
 ]
 var knownBroken = '<4.7.0'
 
