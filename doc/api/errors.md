@@ -648,6 +648,12 @@ Used when an invalid crypto engine identifier is passed to
 
 Used when an invalid [crypto digest algorithm][] is specified.
 
+<a id="ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH"></a>
+### ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH
+
+Used when calling [`crypto.timingSafeEqual()`][] with `Buffer`, `TypedArray`,
+or `DataView` arguments of different lengths.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
 
@@ -1348,6 +1354,7 @@ Used when a given value is out of the accepted range.
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+[`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
