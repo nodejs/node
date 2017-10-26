@@ -54,7 +54,6 @@ if (!inputFile) {
   throw new Error('No input file specified');
 }
 
-console.error('Input file = %s', inputFile);
 fs.readFile(inputFile, 'utf8', function(er, input) {
   if (er) throw er;
   // process the input for @include lines
