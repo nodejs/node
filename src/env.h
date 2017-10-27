@@ -617,6 +617,19 @@ class Environment {
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
 
+  void CollectExceptionInfo(v8::Local<v8::Value> context,
+                            int errorno,
+                            const char* syscall = nullptr,
+                            const char* message = nullptr,
+                            const char* path = nullptr);
+
+  void CollectUVExceptionInfo(v8::Local<v8::Value> context,
+                              int errorno,
+                              const char* syscall = nullptr,
+                              const char* message = nullptr,
+                              const char* path = nullptr,
+                              const char* dest = nullptr);
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);

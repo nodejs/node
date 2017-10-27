@@ -1,6 +1,7 @@
 #include "node_internals.h"
 #include "async-wrap.h"
 #include "v8-profiler.h"
+#include "node_buffer.h"
 
 #if defined(_MSC_VER)
 #define getpid GetCurrentProcessId
@@ -226,6 +227,83 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
+}
+
+void CollectExceptionInfo(Environment* env,
+                          v8::Local<v8::Object> obj,
+                          int errorno,
+                          const char* err_string,
+                          const char* syscall,
+                          const char* message,
+                          const char* path,
+                          const char* dest) {
+  obj->Set(env->errno_string(), v8::Integer::New(env->isolate(), errorno));
+
+  obj->Set(env->context(), env->code_string(),
+           OneByteString(env->isolate(), err_string)).FromJust();
+
+  if (message != nullptr) {
+    obj->Set(env->context(), env->message_string(),
+             OneByteString(env->isolate(), message)).FromJust();
+  }
+
+  v8::Local<v8::Value> path_buffer;
+  if (path != nullptr) {
+    path_buffer =
+      Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
+    obj->Set(env->context(), env->path_string(), path_buffer).FromJust();
+  }
+
+  v8::Local<v8::Value> dest_buffer;
+  if (dest != nullptr) {
+    dest_buffer =
+      Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
+    obj->Set(env->context(), env->dest_string(), dest_buffer).FromJust();
+  }
+
+  if (syscall != nullptr) {
+    obj->Set(env->context(), env->syscall_string(),
+             OneByteString(env->isolate(), syscall));
+  }
+}
+
+void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
+                                       int errorno,
+                                       const char* syscall,
+                                       const char* message,
+                                       const char* path) {
+  if (!object->IsObject() || errorno == 0)
+    return;
+
+  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  const char* err_string = node::errno_string(errorno);
+
+  if (message == nullptr || message[0] == '\0') {
+    message = strerror(errorno);
+  }
+
+  node::CollectExceptionInfo(this, obj, errorno, err_string,
+                             syscall, message, path, nullptr);
+}
+
+void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
+                                         int errorno,
+                                         const char* syscall,
+                                         const char* message,
+                                         const char* path,
+                                         const char* dest) {
+  if (!object->IsObject() || errorno == 0)
+    return;
+
+  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  const char* err_string = uv_err_name(errorno);
+
+  if (message == nullptr || message[0] == '\0') {
+    message = uv_strerror(errorno);
+  }
+
+  node::CollectExceptionInfo(this, obj, errorno, err_string,
+                             syscall, message, path, dest);
 }
 
 }  // namespace node
