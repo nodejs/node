@@ -25,15 +25,13 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "node_crypto_clienthello.h"  // ClientHelloParser
+// ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
 
 #include "node_buffer.h"
 
 #include "env.h"
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "base-object.h"
 #include "base-object-inl.h"
 
 #include "v8.h"

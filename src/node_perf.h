@@ -6,7 +6,6 @@
 #include "node.h"
 #include "node_perf_common.h"
 #include "env.h"
-#include "base-object.h"
 #include "base-object-inl.h"
 
 #include "v8.h"
