@@ -1475,6 +1475,7 @@ closed.
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [`server.listen()`]: net.html#net_server_listen
 [ES6 module]: esm.html
+[`require('crypto').fips`]: crypto.html#crypto_crypto_fips
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
