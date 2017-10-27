@@ -6,58 +6,6 @@ fi
 set -o errexit
 set -o pipefail
 
-if ! [ -x node_modules/.bin/marked-man ]; then
-  ps=0
-  if [ -f .building_marked-man ]; then
-    pid=$(cat .building_marked-man)
-    ps=$(ps -p $pid | grep $pid | wc -l) || true
-  fi
-
-  if [ -f .building_marked-man ] && [ $ps != 0 ]; then
-    while [ -f .building_marked-man ]; do
-      sleep 1
-    done
-  else
-    # a race to see which make process will be the one to install marked-man
-    echo $$ > .building_marked-man
-    sleep 1
-    if [ $(cat .building_marked-man) == $$ ]; then
-      make node_modules/.bin/marked-man
-      rm .building_marked-man
-    else
-      while [ -f .building_marked-man ]; do
-        sleep 1
-      done
-    fi
-  fi
-fi
-
-if ! [ -x node_modules/.bin/marked ]; then
-  ps=0
-  if [ -f .building_marked ]; then
-    pid=$(cat .building_marked)
-    ps=$(ps -p $pid | grep $pid | wc -l) || true
-  fi
-
-  if [ -f .building_marked ] && [ $ps != 0 ]; then
-    while [ -f .building_marked ]; do
-      sleep 1
-    done
-  else
-    # a race to see which make process will be the one to install marked
-    echo $$ > .building_marked
-    sleep 1
-    if [ $(cat .building_marked) == $$ ]; then
-      make node_modules/.bin/marked
-      rm .building_marked
-    else
-      while [ -f .building_marked ]; do
-        sleep 1
-      done
-    fi
-  fi
-fi
-
 src=$1
 dest=$2
 name=$(basename ${src%.*})

@@ -9,19 +9,20 @@ module.exports = {
   toHash: toHash,
   getProperty: getProperty,
   escapeQuotes: escapeQuotes,
+  equal: require('fast-deep-equal'),
   ucs2length: require('./ucs2length'),
   varOccurences: varOccurences,
   varReplace: varReplace,
   cleanUpCode: cleanUpCode,
-  cleanUpVarErrors: cleanUpVarErrors,
+  finalCleanUpCode: finalCleanUpCode,
   schemaHasRules: schemaHasRules,
   schemaHasRulesExcept: schemaHasRulesExcept,
-  stableStringify: require('json-stable-stringify'),
   toQuotedString: toQuotedString,
   getPathExpr: getPathExpr,
   getPath: getPath,
   getData: getData,
   unescapeFragment: unescapeFragment,
+  unescapeJsonPointer: unescapeJsonPointer,
   escapeFragment: escapeFragment,
   escapeJsonPointer: escapeJsonPointer
 };
@@ -144,31 +145,40 @@ function cleanUpCode(out) {
 }
 
 
-var ERRORS_REGEXP = /[^v\.]errors/g
+var ERRORS_REGEXP = /[^v.]errors/g
   , REMOVE_ERRORS = /var errors = 0;|var vErrors = null;|validate.errors = vErrors;/g
   , REMOVE_ERRORS_ASYNC = /var errors = 0;|var vErrors = null;/g
   , RETURN_VALID = 'return errors === 0;'
   , RETURN_TRUE = 'validate.errors = null; return true;'
-  , RETURN_ASYNC = /if \(errors === 0\) return true;\s*else throw new ValidationError\(vErrors\);/
-  , RETURN_TRUE_ASYNC = 'return true;';
+  , RETURN_ASYNC = /if \(errors === 0\) return data;\s*else throw new ValidationError\(vErrors\);/
+  , RETURN_DATA_ASYNC = 'return data;'
+  , ROOTDATA_REGEXP = /[^A-Za-z_$]rootData[^A-Za-z0-9_$]/g
+  , REMOVE_ROOTDATA = /if \(rootData === undefined\) rootData = data;/;
 
-function cleanUpVarErrors(out, async) {
+function finalCleanUpCode(out, async) {
   var matches = out.match(ERRORS_REGEXP);
-  if (!matches || matches.length !== 2) return out;
-  return async
+  if (matches && matches.length == 2) {
+    out = async
           ? out.replace(REMOVE_ERRORS_ASYNC, '')
-               .replace(RETURN_ASYNC, RETURN_TRUE_ASYNC)
+               .replace(RETURN_ASYNC, RETURN_DATA_ASYNC)
           : out.replace(REMOVE_ERRORS, '')
                .replace(RETURN_VALID, RETURN_TRUE);
+  }
+
+  matches = out.match(ROOTDATA_REGEXP);
+  if (!matches || matches.length !== 3) return out;
+  return out.replace(REMOVE_ROOTDATA, '');
 }
 
 
 function schemaHasRules(schema, rules) {
+  if (typeof schema == 'boolean') return !schema;
   for (var key in schema) if (rules[key]) return true;
 }
 
 
 function schemaHasRulesExcept(schema, rules, exceptKeyword) {
+  if (typeof schema == 'boolean') return !schema && exceptKeyword != 'not';
   for (var key in schema) if (key != exceptKeyword && rules[key]) return true;
 }
 

@@ -2,10 +2,53 @@
 
 HTTP-friendly error objects
 
-[![Build Status](https://secure.travis-ci.org/hapijs/boom.png)](http://travis-ci.org/hapijs/boom)
+[![Build Status](https://secure.travis-ci.org/hapijs/boom.svg)](http://travis-ci.org/hapijs/boom)
 [![Current Version](https://img.shields.io/npm/v/boom.svg)](https://www.npmjs.com/package/boom)
 
 Lead Maintainer: [Adam Bretz](https://github.com/arb)
+
+<!-- toc -->
+
+- [Boom](#boom)
+  - [Helper Methods](#helper-methods)
+    - [`wrap(error, [statusCode], [message])`](#wraperror-statuscode-message)
+    - [`create(statusCode, [message], [data])`](#createstatuscode-message-data)
+  - [HTTP 4xx Errors](#http-4xx-errors)
+    - [`Boom.badRequest([message], [data])`](#boombadrequestmessage-data)
+    - [`Boom.unauthorized([message], [scheme], [attributes])`](#boomunauthorizedmessage-scheme-attributes)
+    - [`Boom.paymentRequired([message], [data])`](#boompaymentrequiredmessage-data)
+    - [`Boom.forbidden([message], [data])`](#boomforbiddenmessage-data)
+    - [`Boom.notFound([message], [data])`](#boomnotfoundmessage-data)
+    - [`Boom.methodNotAllowed([message], [data], [allow])`](#boommethodnotallowedmessage-data-allow)
+    - [`Boom.notAcceptable([message], [data])`](#boomnotacceptablemessage-data)
+    - [`Boom.proxyAuthRequired([message], [data])`](#boomproxyauthrequiredmessage-data)
+    - [`Boom.clientTimeout([message], [data])`](#boomclienttimeoutmessage-data)
+    - [`Boom.conflict([message], [data])`](#boomconflictmessage-data)
+    - [`Boom.resourceGone([message], [data])`](#boomresourcegonemessage-data)
+    - [`Boom.lengthRequired([message], [data])`](#boomlengthrequiredmessage-data)
+    - [`Boom.preconditionFailed([message], [data])`](#boompreconditionfailedmessage-data)
+    - [`Boom.entityTooLarge([message], [data])`](#boomentitytoolargemessage-data)
+    - [`Boom.uriTooLong([message], [data])`](#boomuritoolongmessage-data)
+    - [`Boom.unsupportedMediaType([message], [data])`](#boomunsupportedmediatypemessage-data)
+    - [`Boom.rangeNotSatisfiable([message], [data])`](#boomrangenotsatisfiablemessage-data)
+    - [`Boom.expectationFailed([message], [data])`](#boomexpectationfailedmessage-data)
+    - [`Boom.teapot([message], [data])`](#boomteapotmessage-data)
+    - [`Boom.badData([message], [data])`](#boombaddatamessage-data)
+    - [`Boom.locked([message], [data])`](#boomlockedmessage-data)
+    - [`Boom.preconditionRequired([message], [data])`](#boompreconditionrequiredmessage-data)
+    - [`Boom.tooManyRequests([message], [data])`](#boomtoomanyrequestsmessage-data)
+    - [`Boom.illegal([message], [data])`](#boomillegalmessage-data)
+  - [HTTP 5xx Errors](#http-5xx-errors)
+    - [`Boom.badImplementation([message], [data])` - (*alias: `internal`*)](#boombadimplementationmessage-data---alias-internal)
+    - [`Boom.notImplemented([message], [data])`](#boomnotimplementedmessage-data)
+    - [`Boom.badGateway([message], [data])`](#boombadgatewaymessage-data)
+    - [`Boom.serverUnavailable([message], [data])`](#boomserverunavailablemessage-data)
+    - [`Boom.gatewayTimeout([message], [data])`](#boomgatewaytimeoutmessage-data)
+  - [F.A.Q.](#faq)
+
+<!-- tocstop -->
+
+# Boom
 
 **boom** provides a set of utilities for returning HTTP errors. Each utility returns a `Boom` error response
 object (instance of `Error`) which includes the following properties:
@@ -26,41 +69,6 @@ object (instance of `Error`) which includes the following properties:
 
 The `Boom` object also supports the following method:
 - `reformat()` - rebuilds `error.output` using the other object properties.
-
-## Overview
-
-- Helper methods
-  - [`wrap(error, [statusCode], [message])`](#wraperror-statuscode-message)
-  - [`create(statusCode, [message], [data])`](#createstatuscode-message-data)
-- HTTP 4xx Errors
-  - 400: [`Boom.badRequest([message], [data])`](#boombadrequestmessage-data)
-  - 401: [`Boom.unauthorized([message], [scheme], [attributes])`](#boomunauthorizedmessage-scheme-attributes)
-  - 403: [`Boom.forbidden([message], [data])`](#boomforbiddenmessage-data)
-  - 404: [`Boom.notFound([message], [data])`](#boomnotfoundmessage-data)
-  - 405: [`Boom.methodNotAllowed([message], [data])`](#boommethodnotallowedmessage-data)
-  - 406: [`Boom.notAcceptable([message], [data])`](#boomnotacceptablemessage-data)
-  - 407: [`Boom.proxyAuthRequired([message], [data])`](#boomproxyauthrequiredmessage-data)
-  - 408: [`Boom.clientTimeout([message], [data])`](#boomclienttimeoutmessage-data)
-  - 409: [`Boom.conflict([message], [data])`](#boomconflictmessage-data)
-  - 410: [`Boom.resourceGone([message], [data])`](#boomresourcegonemessage-data)
-  - 411: [`Boom.lengthRequired([message], [data])`](#boomlengthrequiredmessage-data)
-  - 412: [`Boom.preconditionFailed([message], [data])`](#boompreconditionfailedmessage-data)
-  - 413: [`Boom.entityTooLarge([message], [data])`](#boomentitytoolargemessage-data)
-  - 414: [`Boom.uriTooLong([message], [data])`](#boomuritoolongmessage-data)
-  - 415: [`Boom.unsupportedMediaType([message], [data])`](#boomunsupportedmediatypemessage-data)
-  - 416: [`Boom.rangeNotSatisfiable([message], [data])`](#boomrangenotsatisfiablemessage-data)
-  - 417: [`Boom.expectationFailed([message], [data])`](#boomexpectationfailedmessage-data)
-  - 422: [`Boom.badData([message], [data])`](#boombaddatamessage-data)
-  - 428: [`Boom.preconditionRequired([message], [data])`](#boompreconditionrequiredmessage-data)
-  - 429: [`Boom.tooManyRequests([message], [data])`](#boomtoomanyrequestsmessage-data)
-- HTTP 5xx Errors
-  - 500: [`Boom.badImplementation([message], [data])`](#boombadimplementationmessage-data)
-  - 501: [`Boom.notImplemented([message], [data])`](#boomnotimplementedmessage-data)
-  - 502: [`Boom.badGateway([message], [data])`](#boombadgatewaymessage-data)
-  - 503: [`Boom.serverTimeout([message], [data])`](#boomservertimeoutmessage-data)
-  - 504: [`Boom.gatewayTimeout([message], [data])`](#boomgatewaytimeoutmessage-data)
-- [FAQ](#faq)
-
 
 ## Helper Methods
 
@@ -118,8 +126,8 @@ Returns a 401 Unauthorized error where:
   - an authentication scheme name
   - an array of string values. These values will be separated by ', ' and set to the 'WWW-Authenticate' header.
 - `attributes` - an object of values to use while setting the 'WWW-Authenticate' header. This value is only used
-  when `schema` is a string, otherwise it is ignored. Every key/value pair will be included in the
-  'WWW-Authenticate' in the format of 'key="value"' as well as in the response payload under the `attributes` key.
+  when `scheme` is a string, otherwise it is ignored. Every key/value pair will be included in the
+  'WWW-Authenticate' in the format of 'key="value"' as well as in the response payload under the `attributes` key.  Alternatively value can be a string which is use to set the value of the scheme, for example setting the token value for negotiate header.  If string is used message parameter must be null.
   `null` and `undefined` will be replaced with an empty string. If `attributes` is set, `message` will be used as
   the 'error' segment of the 'WWW-Authenticate' header. If `message` is unset, the 'error' segment of the header
   will not be present and `isMissing` will be true on the error object.
@@ -162,6 +170,23 @@ Generates the following response:
 ```
 
 ```js
+Boom.unauthorized(null, 'Negotiate', 'VGhpcyBpcyBhIHRlc3QgdG9rZW4=');
+```
+
+Generates the following response:
+
+```json
+"payload": {
+    "statusCode": 401,
+    "error": "Unauthorized",
+    "attributes": "VGhpcyBpcyBhIHRlc3QgdG9rZW4="
+},
+"headers" {
+  "WWW-Authenticate": "Negotiate VGhpcyBpcyBhIHRlc3QgdG9rZW4="
+}
+```
+
+```js
 Boom.unauthorized('invalid password', 'sample', { ttl: 0, cache: null, foo: 'bar' });
 ```
 
@@ -181,6 +206,26 @@ Generates the following response:
 },
 "headers" {
   "WWW-Authenticate": "sample ttl=\"0\", cache=\"\", foo=\"bar\", error=\"invalid password\""
+}
+```
+
+### `Boom.paymentRequired([message], [data])`
+
+Returns a 402 Payment Required error where:
+- `message` - optional message.
+- `data` - optional additional error data.
+
+```js
+Boom.paymentRequired('bandwidth used');
+```
+
+Generates the following response payload:
+
+```json
+{
+    "statusCode": 402,
+    "error": "Payment Required",
+    "message": "bandwidth used"
 }
 ```
 
@@ -224,11 +269,12 @@ Generates the following response payload:
 }
 ```
 
-### `Boom.methodNotAllowed([message], [data])`
+### `Boom.methodNotAllowed([message], [data], [allow])`
 
 Returns a 405 Method Not Allowed error where:
 - `message` - optional message.
 - `data` - optional additional error data.
+- `allow` - optional string or array of strings (to be combined and separated by ', ') which is set to the 'Allow' header.
 
 ```js
 Boom.methodNotAllowed('that method is not allowed');
@@ -482,6 +528,26 @@ Generates the following response payload:
 }
 ```
 
+### `Boom.teapot([message], [data])`
+
+Returns a 418 I'm a Teapot error where:
+- `message` - optional message.
+- `data` - optional additional error data.
+
+```js
+Boom.teapot('sorry, no coffee...');
+```
+
+Generates the following response payload:
+
+```json
+{
+    "statusCode": 418,
+    "error": "I'm a Teapot",
+    "message": "Sorry, no coffee..."
+}
+```
+
 ### `Boom.badData([message], [data])`
 
 Returns a 422 Unprocessable Entity error where:
@@ -499,6 +565,26 @@ Generates the following response payload:
     "statusCode": 422,
     "error": "Unprocessable Entity",
     "message": "your data is bad and you should feel bad"
+}
+```
+
+### `Boom.locked([message], [data])`
+
+Returns a 423 Locked error where:
+- `message` - optional message.
+- `data` - optional additional error data.
+
+```js
+Boom.locked('this resource has been locked');
+```
+
+Generates the following response payload:
+
+```json
+{
+    "statusCode": 423,
+    "error": "Locked",
+    "message": "this resource has been locked"
 }
 ```
 
@@ -542,11 +628,31 @@ Generates the following response payload:
 }
 ```
 
+### `Boom.illegal([message], [data])`
+
+Returns a 451 Unavailable For Legal Reasons error where:
+- `message` - optional message.
+- `data` - optional additional error data.
+
+```js
+Boom.illegal('you are not permitted to view this resource for legal reasons');
+```
+
+Generates the following response payload:
+
+```json
+{
+    "statusCode": 451,
+    "error": "Unavailable For Legal Reasons",
+    "message": "you are not permitted to view this resource for legal reasons"
+}
+```
+
 ## HTTP 5xx Errors
 
 All 500 errors hide your message from the end user. Your message is recorded in the server log.
 
-### `Boom.badImplementation([message], [data])`
+### `Boom.badImplementation([message], [data])` - (*alias: `internal`*)
 
 Returns a 500 Internal Server Error error where:
 - `message` - optional message.
@@ -606,14 +712,14 @@ Generates the following response payload:
 }
 ```
 
-### `Boom.serverTimeout([message], [data])`
+### `Boom.serverUnavailable([message], [data])`
 
 Returns a 503 Service Unavailable error where:
 - `message` - optional message.
 - `data` - optional additional error data.
 
 ```js
-Boom.serverTimeout('unavailable');
+Boom.serverUnavailable('unavailable');
 ```
 
 Generates the following response payload:
@@ -647,6 +753,8 @@ Generates the following response payload:
 
 ## F.A.Q.
 
-###### How do I include extra information in my responses? `output.payload` is missing `data`, what gives?
+**Q** How do I include extra information in my responses? `output.payload` is missing `data`, what gives?
 
-There is a reason the values passed back in the response payloads are pretty locked down. It's mostly for security and to not leak any important information back to the client. This means you will need to put in a little more effort to include extra information about your custom error. Check out the ["Error transformation"](https://github.com/hapijs/hapi/blob/master/API.md#error-transformation) section in the hapi documentation.
+**A** There is a reason the values passed back in the response payloads are pretty locked down. It's mostly for security and to not leak any important information back to the client. This means you will need to put in a little more effort to include extra information about your custom error. Check out the ["Error transformation"](https://github.com/hapijs/hapi/blob/master/API.md#error-transformation) section in the hapi documentation.
+
+---

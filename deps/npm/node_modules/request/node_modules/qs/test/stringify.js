@@ -2,6 +2,7 @@
 
 var test = require('tape');
 var qs = require('../');
+var utils = require('../lib/utils');
 var iconv = require('iconv-lite');
 
 test('stringify()', function (t) {
@@ -14,6 +15,16 @@ test('stringify()', function (t) {
         st.equal(qs.stringify({ a: '' }), 'a=%EE%80%80');
         st.equal(qs.stringify({ a: 'א' }), 'a=%D7%90');
         st.equal(qs.stringify({ a: '𐐷' }), 'a=%F0%90%90%B7');
+        st.end();
+    });
+
+    t.test('adds query prefix', function (st) {
+        st.equal(qs.stringify({ a: 'b' }, { addQueryPrefix: true }), '?a=b');
+        st.end();
+    });
+
+    t.test('with query prefix, outputs blank string given an empty object', function (st) {
+        st.equal(qs.stringify({}, { addQueryPrefix: true }), '');
         st.end();
     });
 
@@ -452,8 +463,18 @@ test('stringify()', function (t) {
         st.end();
     });
 
+    t.test('receives the default encoder as a second argument', function (st) {
+        st.plan(2);
+        qs.stringify({ a: 1 }, {
+            encoder: function (str, defaultEncoder) {
+                st.equal(defaultEncoder, utils.encode);
+            }
+        });
+        st.end();
+    });
+
     t.test('throws error with wrong encoder', function (st) {
-        st.throws(function () {
+        st['throws'](function () {
             qs.stringify({}, { encoder: 'string' });
         }, new TypeError('Encoder has to be a function.'));
         st.end();
@@ -483,7 +504,7 @@ test('stringify()', function (t) {
         mutatedDate.toISOString = function () {
             throw new SyntaxError();
         };
-        st.throws(function () {
+        st['throws'](function () {
             mutatedDate.toISOString();
         }, SyntaxError);
         st.equal(
@@ -525,7 +546,7 @@ test('stringify()', function (t) {
     t.test('Edge cases and unknown formats', function (st) {
         ['UFO1234', false, 1234, null, {}, []].forEach(
             function (format) {
-                st.throws(
+                st['throws'](
                     function () {
                         qs.stringify({ a: 'b c' }, { format: format });
                     },
@@ -564,4 +585,12 @@ test('stringify()', function (t) {
         st.end();
     });
 
+    t.test('does not mutate the options argument', function (st) {
+        var options = {};
+        qs.stringify({}, options);
+        st.deepEqual(options, {});
+        st.end();
+    });
+
+    t.end();
 });
