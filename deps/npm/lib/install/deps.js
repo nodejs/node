@@ -62,8 +62,9 @@ function doesChildVersionMatch (child, requested, requestor) {
     // In those cases _from, will be preserved and we can compare that to ensure that they
     // really came from the same sources.
     // You'll see this scenario happen with at least tags and git dependencies.
+    // Some buggy clients will write spaces into the module name part of a _from.
     if (child.package._from) {
-      var fromReq = npa.resolve(moduleName(child), child.package._from.replace(new RegExp('^' + moduleName(child) + '@'), ''))
+      var fromReq = npa.resolve(moduleName(child), child.package._from.replace(new RegExp('^\s*' + moduleName(child) + '\s*@'), ''))
       if (fromReq.rawSpec === requested.rawSpec) return true
       if (fromReq.type === requested.type && fromReq.saveSpec && fromReq.saveSpec === requested.saveSpec) return true
     }
@@ -197,18 +198,31 @@ function matchingDep (tree, name) {
 
 exports.getAllMetadata = function (args, tree, where, next) {
   asyncMap(args, function (arg, done) {
-    var spec = npa(arg)
+    let spec
+    try {
+      spec = npa(arg)
+    } catch (e) {
+      return done(e)
+    }
     if (spec.type !== 'file' && spec.type !== 'directory' && (spec.name == null || spec.rawSpec === '')) {
       return fs.stat(path.join(arg, 'package.json'), (err) => {
         if (err) {
           var version = matchingDep(tree, spec.name)
           if (version) {
-            return fetchPackageMetadata(npa.resolve(spec.name, version), where, done)
+            try {
+              return fetchPackageMetadata(npa.resolve(spec.name, version), where, done)
+            } catch (e) {
+              return done(e)
+            }
           } else {
             return fetchPackageMetadata(spec, where, done)
           }
         } else {
-          return fetchPackageMetadata(npa('file:' + arg), where, done)
+          try {
+            return fetchPackageMetadata(npa('file:' + arg), where, done)
+          } catch (e) {
+            return done(e)
+          }
         }
       })
     } else {

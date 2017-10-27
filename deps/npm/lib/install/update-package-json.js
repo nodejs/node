@@ -4,6 +4,7 @@ var writeFileAtomic = require('write-file-atomic')
 var moduleName = require('../utils/module-name.js')
 var deepSortObject = require('../utils/deep-sort-object.js')
 var sortedObject = require('sorted-object')
+var isWindows = require('../utils/is-windows.js')
 
 var sortKeys = [
   'dependencies', 'devDependencies', 'bundleDependencies',
@@ -47,7 +48,9 @@ module.exports = function (mod, buildpath, next) {
   var data = JSON.stringify(sortedObject(pkg), null, 2) + '\n'
 
   writeFileAtomic(path.resolve(buildpath, 'package.json'), data, {
-    // We really don't need this guarantee, and fsyncing here is super slow.
-    fsync: false
+    // We really don't need this guarantee, and fsyncing here is super slow. Except on
+    // Windows where there isn't a big performance difference and it prevents errors when
+    // rolling back optional packages (#17671)
+    fsync: isWindows
   }, next)
 }

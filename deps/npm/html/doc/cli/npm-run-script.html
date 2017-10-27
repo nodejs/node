@@ -29,7 +29,7 @@ all the arguments after the <code>--</code> directly to your script:</p>
 and not to any pre or post script.</p>
 <p>The <code>env</code> script is a special built-in command that can be used to list
 environment variables that will be available to the script at runtime. If an
-&quot;env&quot; command is defined in your package it will take precedence over the
+&quot;env&quot; command is defined in your package, it will take precedence over the
 built-in.</p>
 <p>In addition to the shell&#39;s pre-existing <code>PATH</code>, <code>npm run</code> adds
 <code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries provided by
@@ -37,7 +37,14 @@ locally-installed dependencies can be used without the <code>node_modules/.bin</
 prefix. For example, if there is a <code>devDependency</code> on <code>tap</code> in your package,
 you should write:</p>
 <pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;tap test/\*.js&quot;}
-</code></pre><p>instead of <code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}</code> to run your tests.</p>
+</code></pre><p>instead of</p>
+<pre><code>&quot;scripts&quot;: {&quot;test&quot;: &quot;node_modules/.bin/tap test/\*.js&quot;}
+</code></pre><p>to run your tests.</p>
+<p>Scripts are run from the root of the module, regardless of what your current
+working directory is when you call <code>npm run</code>. If you want your script to
+use different behavior based on what subdirectory you&#39;re in, you can use the
+<code>INIT_CWD</code> environment variable, which holds the full path you were in when
+you ran <code>npm run</code>.</p>
 <p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable with
 which <code>npm</code> is executed. Also, if the <code>--scripts-prepend-node-path</code> is passed,
 the directory within which <code>node</code> resides is added to the
@@ -67,5 +74,5 @@ you will be given a warning to run <code>npm install</code>, just in case you&#3
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-run-script &mdash; npm@5.3.0</p>
+<p id="footer">npm-run-script &mdash; npm@5.5.1</p>
 

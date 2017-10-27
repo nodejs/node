@@ -387,7 +387,9 @@ module.exports = {
       assert.notStrictEqual(signature, '', 'empty signature produced');
     }
 
-    request.setHeader('Authorization', sprintf(AUTHZ_FMT,
+    var authzHeaderName = options.authorizationHeaderName || 'Authorization';
+
+    request.setHeader(authzHeaderName, sprintf(AUTHZ_FMT,
                                                options.keyId,
                                                options.algorithm,
                                                options.headers.join(' '),

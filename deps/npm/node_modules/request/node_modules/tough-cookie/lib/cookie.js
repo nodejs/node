@@ -53,16 +53,20 @@ var COOKIE_OCTETS = new RegExp('^'+COOKIE_OCTET.source+'+$');
 
 var CONTROL_CHARS = /[\x00-\x1F]/;
 
+// For COOKIE_PAIR and LOOSE_COOKIE_PAIR below, the number of spaces has been
+// restricted to 256 to side-step a ReDoS issue reported here:
+// https://github.com/salesforce/tough-cookie/issues/92
+
 // Double quotes are part of the value (see: S4.1.1).
 // '\r', '\n' and '\0' should be treated as a terminator in the "relaxed" mode
 // (see: https://github.com/ChromiumWebApps/chromium/blob/b3d3b4da8bb94c1b2e061600df106d590fda3620/net/cookies/parsed_cookie.cc#L60)
 // '=' and ';' are attribute/values separators
 // (see: https://github.com/ChromiumWebApps/chromium/blob/b3d3b4da8bb94c1b2e061600df106d590fda3620/net/cookies/parsed_cookie.cc#L64)
-var COOKIE_PAIR = /^(([^=;]+))\s*=\s*([^\n\r\0]*)/;
+var COOKIE_PAIR = /^(([^=;]+))\s{0,256}=\s*([^\n\r\0]*)/;
 
 // Used to parse non-RFC-compliant cookies like '=abc' when given the `loose`
 // option in Cookie.parse:
-var LOOSE_COOKIE_PAIR = /^((?:=)?([^=;]*)\s*=\s*)?([^\n\r\0]*)/;
+var LOOSE_COOKIE_PAIR = /^((?:=)?([^=;]*)\s{0,256}=\s*)?([^\n\r\0]*)/;
 
 // RFC6265 S4.1.1 defines path value as 'any CHAR except CTLs or ";"'
 // Note ';' is \x3B
@@ -1206,6 +1210,7 @@ CookieJar.prototype._importCookies = function(serialized, cb) {
   if (!cookies || !Array.isArray(cookies)) {
     return cb(new Error('serialized jar has no cookies array'));
   }
+  cookies = cookies.slice(); // do not modify the original
 
   function putNext(err) {
     if (err) {
