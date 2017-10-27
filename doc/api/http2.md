@@ -1655,6 +1655,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
                  128 header pairs.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/15752
+    description: Added the `Http1IncomingMessage` and `Http1ServerResponse`
+                 option.
 -->
 
 * `options` {Object}
@@ -1698,12 +1702,18 @@ changes:
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a SETTINGS frame had been received. Will
     be overridden if the remote peer sets its own value for.
-    `maxConcurrentStreams`. **Default** `100`
+    `maxConcurrentStreams`. **Default:** `100`
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {HTTP2 Settings Object} The initial settings to send to the
     remote peer upon connection.
+  * `Http1IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage
+    class to used for HTTP/1 fallback. Useful for extending the original
+    `http.IncomingMessage`. **Default:** `http.IncomingMessage`
+  * `Http1ServerResponse` {http.ServerResponse} Specifies the ServerResponse
+    class to used for HTTP/1 fallback. Useful for extending the original
+    `http.ServerResponse`. **Default:** `http.ServerResponse`
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
 
