@@ -458,7 +458,7 @@ checks or `abort()` calls in the C++ layer.
 
 ## System Errors
 
-System errors are generated when exceptions occur within the program's
+System errors are generated when exceptions occur within the Node.js
 runtime environment. Typically, these are operational errors that occur
 when an application violates an operating system constraint such as attempting
 to read a file that does not exist or when the user does not have sufficient
@@ -471,7 +471,24 @@ of error codes and their meanings is available by running `man 2 intro` or
 In Node.js, system errors are represented as augmented `Error` objects with
 added properties.
 
-### Class: System Error
+### Class: SystemError
+
+### error.info
+
+`SystemError` instances may have an additional `info` property whose
+value is an object with additional details about the error conditions.
+
+The following properties are provided:
+
+* `code` {string} The string error code
+* `errno` {number} The system-provided error number
+* `message` {string} A system-provided human readable description of the error
+* `syscall` {string} The name of the system call that triggered the error
+* `path` {Buffer} When reporting a file system error, the `path` will identify
+  the file path.
+* `dest` {Buffer} When reporting a file system error, the `dest` will identify
+  the file path destination (if any).
+
 
 #### error.code
 
@@ -1378,6 +1395,13 @@ instance.setEncoding('utf8');
 
 Used when an attempt is made to call [`stream.write()`][] after
 `stream.end()` has been called.
+
+<a id="ERR_SYSTEM_ERROR"></a>
+### ERR_SYSTEM_ERROR
+
+The `ERR_SYSTEM_ERROR` code is used when an unspecified or non-specific system
+error has occurred within the Node.js process. The error object will have an
+`err.info` object property with additional details.
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### ERR_TLS_CERT_ALTNAME_INVALID
