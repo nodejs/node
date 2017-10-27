@@ -1,7 +1,6 @@
 #include "inspector_io.h"
 
 #include "inspector_socket_server.h"
-#include "env.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_crypto.h"

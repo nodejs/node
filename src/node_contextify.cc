@@ -21,7 +21,6 @@
 
 #include "node_internals.h"
 #include "node_watchdog.h"
-#include "base-object.h"
 #include "base-object-inl.h"
 #include "v8-debug.h"
 
