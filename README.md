@@ -99,7 +99,7 @@ Binaries, installers, and source tarballs are available at
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest LTS release from an LTS
 line is available in the form: latest-_codename_. For example:
-<https://nodejs.org/download/release/latest-argon>
+<https://nodejs.org/download/release/latest-argon>.
 
 #### Nightly Releases
 **Nightly** builds are available at
