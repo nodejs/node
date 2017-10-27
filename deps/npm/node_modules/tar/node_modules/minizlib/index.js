@@ -52,6 +52,7 @@ const _offset = Symbol('offset')
 const _level = Symbol('level')
 const _strategy = Symbol('strategy')
 const _ended = Symbol('ended')
+const _writeState = Symbol('writeState')
 
 class Zlib extends MiniPass {
   constructor (opts, mode) {
@@ -127,11 +128,27 @@ class Zlib extends MiniPass {
     var strategy = typeof opts.strategy === 'number' ? opts.strategy
                  : constants.Z_DEFAULT_STRATEGY
 
-    this[_handle].init(opts.windowBits || constants.Z_DEFAULT_WINDOWBITS,
-                       level,
-                       opts.memLevel || constants.Z_DEFAULT_MEMLEVEL,
-                       strategy,
-                       opts.dictionary)
+    this[_writeState] = new Uint32Array(2);
+    const window = opts.windowBits || constants.Z_DEFAULT_WINDOWBITS
+    const memLevel = opts.memLevel || constants.Z_DEFAULT_MEMLEVEL
+
+    // API changed in node v9
+    /* istanbul ignore next */
+    if (/^v[0-8]\./.test(process.version)) {
+      this[_handle].init(window,
+                         level,
+                         memLevel,
+                         strategy,
+                         opts.dictionary)
+    } else {
+      this[_handle].init(window,
+                         level,
+                         memLevel,
+                         strategy,
+                         this[_writeState],
+                         () => {},
+                         opts.dictionary)
+    }
 
     this[_buffer] = Buffer.allocUnsafe(this[_chunkSize])
     this[_offset] = 0
@@ -234,11 +251,15 @@ class Zlib extends MiniPass {
         this[_offset], //out_off
         availOutBefore // out_len
       )
+
       if (this[_hadError])
         break
 
-      let availInAfter = res[0]
-      let availOutAfter = res[1]
+      // API changed in v9
+      /* istanbul ignore next */
+      let availInAfter = res ? res[0] : this[_writeState][1]
+      /* istanbul ignore next */
+      let availOutAfter = res ? res[1] : this[_writeState][0]
 
       const have = availOutBefore - availOutAfter
       assert(have >= 0, 'have should not go down')
