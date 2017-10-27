@@ -740,8 +740,8 @@ changes:
 
 * {Object}
   * `execArgv` {Array} List of string arguments passed to the Node.js
-    executable. (Default=`process.execArgv`)
-  * `exec` {string} File path to worker file.  (Default=`process.argv[1]`)
+    executable. **Default:** `process.execArgv`
+  * `exec` {string} File path to worker file. **Default:** `process.argv[1]`
   * `args` {Array} String arguments passed to worker.
     **Default:** `process.argv.slice(2)`
   * `silent` {boolean} Whether or not to send output to parent's stdio.
