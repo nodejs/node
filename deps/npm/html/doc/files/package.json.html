@@ -129,13 +129,21 @@ is an object with a &quot;name&quot; field and optionally &quot;url&quot; and &q
 </code></pre><p>Both email and url are optional either way.</p>
 <p>npm also sets a top-level &quot;maintainers&quot; field with your npm user info.</p>
 <h2 id="files">files</h2>
-<p>The &quot;files&quot; field is an array of files to include in your project.  If
-you name a folder in the array, then it will also include the files
-inside that folder. (Unless they would be ignored by another rule.)</p>
-<p>You can also provide a &quot;.npmignore&quot; file in the root of your package or
-in subdirectories, which will keep files from being included, even
-if they would be picked up by the files array.  The <code>.npmignore</code> file
-works just like a <code>.gitignore</code>.</p>
+<p>The optional &quot;files&quot; field is an array of file patterns that describes
+the entries to be included when your package is installed as a
+dependency. If the files array is omitted, everything except
+automatically-excluded files will be included in your publish. If you
+name a folder in the array, then it will also include the files inside
+that folder (unless they would be ignored by another rule in this
+section.).</p>
+<p>You can also provide a <code>.npmignore</code> file in the root of your package or
+in subdirectories, which will keep files from being included. At the
+root of your package it will not override the &quot;files&quot; field, but in
+subdirectories it will. The <code>.npmignore</code> file works just like a
+<code>.gitignore</code>. If there is a <code>.gitignore</code> file, and <code>.npmignore</code> is
+missing, <code>.gitignore</code>&#39;s contents will be used instead.</p>
+<p>Files included with the &quot;package.json#files&quot; field <em>cannot</em> be excluded
+through <code>.npmignore</code> or <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
@@ -593,5 +601,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@5.3.0</p>
+<p id="footer">package.json &mdash; npm@5.5.1</p>
 

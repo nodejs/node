@@ -35,10 +35,7 @@ function fetch (uri, params, cb) {
         var er
         var statusCode = res && res.statusCode
         if (statusCode === 200) {
-          // Work around bug in node v0.10.0 where the CryptoStream
-          // gets stuck and never starts reading again.
           res.resume()
-          if (process.version === 'v0.10.0') unstick(res)
 
           req.once('error', function (er) {
             res.emit('error', er)
@@ -60,16 +57,6 @@ function fetch (uri, params, cb) {
       })
     })
   })
-}
-
-function unstick (response) {
-  response.resume = (function (orig) {
-    return function () {
-      var ret = orig.apply(response, arguments)
-      if (response.socket.encrypted) response.socket.encrypted.read(0)
-      return ret
-    }
-  })(response.resume)
 }
 
 function makeRequest (remote, params, cb) {

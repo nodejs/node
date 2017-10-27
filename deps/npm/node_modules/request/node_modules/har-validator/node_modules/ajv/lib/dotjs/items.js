@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_items(it, $keyword) {
+module.exports = function generate_items(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -130,11 +130,7 @@ module.exports = function generate_items(it, $keyword) {
     if ($breakOnError) {
       out += ' if (!' + ($nextValid) + ') break; ';
     }
-    out += ' }  ';
-    if ($breakOnError) {
-      out += ' if (' + ($nextValid) + ') { ';
-      $closingBraces += '}';
-    }
+    out += ' }';
   }
   if ($breakOnError) {
     out += ' ' + ($closingBraces) + ' if (' + ($errs) + ' == errors) {';

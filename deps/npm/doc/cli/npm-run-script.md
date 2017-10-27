@@ -27,7 +27,7 @@ and not to any pre or post script.
 
 The `env` script is a special built-in command that can be used to list
 environment variables that will be available to the script at runtime. If an
-"env" command is defined in your package it will take precedence over the
+"env" command is defined in your package, it will take precedence over the
 built-in.
 
 In addition to the shell's pre-existing `PATH`, `npm run` adds
@@ -38,7 +38,17 @@ you should write:
 
     "scripts": {"test": "tap test/\*.js"}
 
-instead of `"scripts": {"test": "node_modules/.bin/tap test/\*.js"}` to run your tests.
+instead of
+
+	"scripts": {"test": "node_modules/.bin/tap test/\*.js"}
+
+to run your tests.
+
+Scripts are run from the root of the module, regardless of what your current
+working directory is when you call `npm run`. If you want your script to
+use different behavior based on what subdirectory you're in, you can use the
+`INIT_CWD` environment variable, which holds the full path you were in when
+you ran `npm run`.
 
 `npm run` sets the `NODE` environment variable to the `node` executable with
 which `npm` is executed. Also, if the `--scripts-prepend-node-path` is passed,
