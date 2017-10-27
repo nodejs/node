@@ -1941,19 +1941,19 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   char address_buffer[sizeof(struct in6_addr)];
   char canonical_ip[INET6_ADDRSTRLEN];
 
-  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
-    int err = uv_inet_ntop(AF_INET, address_buffer, canonical_ip,
-                           sizeof(canonical_ip));
-    CHECK_EQ(err, 0);
+  int af;
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
+    af = AF_INET;
+  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
+    af = AF_INET6;
+  else
+    return;
 
-    args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
-  } else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
-    int err = uv_inet_ntop(AF_INET6, address_buffer, canonical_ip,
-                           sizeof(canonical_ip));
-    CHECK_EQ(err, 0);
+  int err = uv_inet_ntop(af, address_buffer, canonical_ip,
+                         sizeof(canonical_ip));
+  CHECK_EQ(err, 0);
 
-    args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
-  }
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {

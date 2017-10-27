@@ -6,7 +6,7 @@ require('../common');
 // of a TLS certificate
 
 const assert = require('assert');
-const canonicalizeIP = process.binding('cares_wrap').canonicalizeIP;
+const { canonicalizeIP } = process.binding('cares_wrap');
 
 assert.strictEqual(canonicalizeIP('127.0.0.1'), '127.0.0.1');
 assert.strictEqual(canonicalizeIP('10.1.0.1'), '10.1.0.1');
