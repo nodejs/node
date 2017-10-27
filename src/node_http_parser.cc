@@ -22,14 +22,10 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "env.h"
 #include "env-inl.h"
 #include "http_parser.h"
-#include "stream_base.h"
 #include "stream_base-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
