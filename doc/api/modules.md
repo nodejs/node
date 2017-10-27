@@ -817,6 +817,32 @@ The `module.require` method provides a way to load a module as if
 `module` is typically *only* available within a specific module's code, it must
 be explicitly exported in order to be used.
 
+## Listing and Identifying Core Modules
+
+The current set of the core modules may be identified using the
+`Module.isCoreModule()` and `Module.listCoreModules()` methods.
+
+```js
+const {
+  isCoreModule,
+  listCoreModules
+} = require('module');
+
+console.log(isCoreModule('http2'));  // true
+console.log(isCoreModule('foo'));    // false
+
+listCoreModules().forEach(console.log);
+```
+
+### Module.isCoreModule(id)
+
+* `id` {string} A module name
+* Returns `true` if `id` identifies a core module, false otherwise
+
+### Module.getCoreModules()
+
+* Returns: An array of core module names
+
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename
 [`Error`]: errors.html#errors_class_error
