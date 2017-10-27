@@ -1,0 +1,61 @@
+{
+  "_from": "colors@^1.1.2",
+  "_id": "colors@1.1.2",
+  "_inBundle": false,
+  "_integrity": "sha1-FopHAXVran9RoSzgyXv6KMCE7WM=",
+  "_location": "/cli-table2/colors",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "colors@^1.1.2",
+    "name": "colors",
+    "escapedName": "colors",
+    "rawSpec": "^1.1.2",
+    "saveSpec": null,
+    "fetchSpec": "^1.1.2"
+  },
+  "_requiredBy": [
+    "/cli-table2"
+  ],
+  "_resolved": "https://registry.npmjs.org/colors/-/colors-1.1.2.tgz",
+  "_shasum": "168a4701756b6a7f51a12ce0c97bfa28c084ed63",
+  "_spec": "colors@^1.1.2",
+  "_where": "/Users/rebecca/code/npm/node_modules/cli-table2",
+  "author": {
+    "name": "Marak Squires"
+  },
+  "bugs": {
+    "url": "https://github.com/Marak/colors.js/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "get colors in your node.js console",
+  "engines": {
+    "node": ">=0.1.90"
+  },
+  "files": [
+    "examples",
+    "lib",
+    "LICENSE",
+    "safe.js",
+    "themes"
+  ],
+  "homepage": "https://github.com/Marak/colors.js",
+  "keywords": [
+    "ansi",
+    "terminal",
+    "colors"
+  ],
+  "license": "MIT",
+  "main": "lib",
+  "name": "colors",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Marak/colors.js.git"
+  },
+  "scripts": {
+    "test": "node tests/basic-test.js && node tests/safe-test.js"
+  },
+  "version": "1.1.2"
+}

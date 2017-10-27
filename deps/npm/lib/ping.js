@@ -15,7 +15,13 @@ function ping (args, silent, cb) {
   var auth = npm.config.getCredentialsByURI(registry)
 
   npm.registry.ping(registry, {auth: auth}, function (er, pong, data, res) {
-    if (!silent) output(JSON.stringify(pong))
+    if (!silent) {
+      if (er) {
+        output('Ping error: ' + er)
+      } else {
+        output('Ping success: ' + JSON.stringify(pong))
+      }
+    }
     cb(er, er ? null : pong, data, res)
   })
 }

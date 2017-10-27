@@ -6,7 +6,8 @@
 {{
   var $rule = this
     , $definition = 'definition' + $lvl
-    , $rDef = $rule.definition;
+    , $rDef = $rule.definition
+    , $closingBraces = '';
   var $validate = $rDef.validate;
   var $compile, $inline, $macro, $ruleValidate, $validateCode;
 }}
@@ -21,6 +22,7 @@
 {{??}}
   {{
     $ruleValidate = it.useCustomRule($rule, $schema, it.schema, it);
+    if (!$ruleValidate) return;
     $schemaValue = 'validate.schema' + $schemaPath;
     $validateCode = $ruleValidate.code;
     $compile = $rDef.compile;
@@ -76,9 +78,16 @@ var {{=$valid}};
 #}}
 
 
-{{? $validateSchema }}
-  {{=$valid}} = {{=$definition}}.validateSchema({{=$schemaValue}});
-  if ({{=$valid}}) {
+{{? $isData && $rDef.$data }}
+  {{ $closingBraces += '}'; }}
+  if ({{=$schemaValue}} === undefined) {
+    {{=$valid}} = true;
+  } else {
+  {{? $validateSchema }}
+    {{ $closingBraces += '}'; }}
+    {{=$valid}} = {{=$definition}}.validateSchema({{=$schemaValue}});
+    if ({{=$valid}}) {
+  {{?}}
 {{?}}
 
 {{? $inline }}
@@ -123,12 +132,10 @@ var {{=$valid}};
 {{?}}
 
 {{? $rDef.modifying }}
-  {{=$data}} = {{=$parentData}}[{{=$parentDataProperty}}];
+  if ({{=$parentData}}) {{=$data}} = {{=$parentData}}[{{=$parentDataProperty}}];
 {{?}}
 
-{{? $validateSchema }}
-  }
-{{?}}
+{{= $closingBraces }}
 
 {{## def.notValidationResult:
   {{? $rDef.valid === undefined }}
