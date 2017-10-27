@@ -976,9 +976,11 @@ lint-md-clean:
 	$(RM) -r tools/remark-preset-lint-node/node_modules
 
 lint-md-build:
-	if [ ! -d tools/remark-cli/node_modules ]; then \
+	@if [ ! -d tools/remark-cli/node_modules ]; then \
+		echo "Markdown linter: installing remark-cli into tools/"; \
 		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
-	if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
+	@if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
+		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
 		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
 
 lint-md: lint-md-build
