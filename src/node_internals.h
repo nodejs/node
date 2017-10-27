@@ -25,9 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "util.h"
 #include "util-inl.h"
-#include "env.h"
 #include "env-inl.h"
 #include "uv.h"
 #include "v8.h"

@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "nghttp2/nghttp2.h"

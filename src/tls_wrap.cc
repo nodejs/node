@@ -20,16 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tls_wrap.h"
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_bio.h"  // NodeBIO
-#include "node_crypto_clienthello.h"  // ClientHelloParser
+// ClientHelloParser
 #include "node_crypto_clienthello-inl.h"
 #include "node_counters.h"
 #include "node_internals.h"
-#include "stream_base.h"
 #include "stream_base-inl.h"
 
 namespace node {
