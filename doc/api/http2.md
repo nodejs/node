@@ -1726,6 +1726,12 @@ changes:
     used to determine the padding. See [Using options.selectPadding][].
   * `settings` {[Settings Object][]} The initial settings to send to the
     remote peer upon connection.
+  * `Http1IncomingMessage` {http.IncomingMessage} Specifies the IncomingMessage class to
+    used for HTTP/1 fallback. Useful for extending the original `http.IncomingMessage`.
+    Defaults to: `http.IncomingMessage`
+  * `Http1ServerResponse` {http.ServerResponse} Specifies the ServerResponse class to
+    used for HTTP/1 fallback. Useful for extending the original `http.ServerResponse`.
+    Defaults to: `http.ServerResponse`
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
 
