@@ -615,6 +615,11 @@ Used when attempting to perform an operation outside the bounds of a `Buffer`.
 Used when an attempt has been made to create a `Buffer` larger than the
 maximum allowed size.
 
+<a id="ERR_CANNOT_WATCH_SIGINT"></a>
+### ERR_CANNOT_WATCH_SIGINT
+
+Used when Node.js is unable to watch for the `SIGINT` signal.
+
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 ### ERR_CHILD_CLOSED_BEFORE_REPLY
 
