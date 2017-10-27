@@ -11,9 +11,13 @@ const zlib = require('zlib');
 // no such rejection which is the reason for the version check below
 // (http://zlib.net/ChangeLog.txt).
 if (!/^1\.2\.[0-8]$/.test(process.versions.zlib)) {
-  assert.throws(() => {
-    zlib.createDeflateRaw({ windowBits: 8 });
-  }, /^Error: Init error$/);
+  common.expectsError(
+    () => zlib.createDeflateRaw({ windowBits: 8 }),
+    {
+      code: 'ERR_ZLIB_INITIALIZATION_FAILED',
+      type: Error,
+      message: 'Initialization failed'
+    });
 }
 
 // Regression tests for bugs in the validation logic.
