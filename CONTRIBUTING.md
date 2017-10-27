@@ -310,7 +310,7 @@ A good commit message should describe what changed and why.
 
 1. The first line should:
    - contain a short description of the change (preferably 50 characters or less,
-     and absolutely no more than 72 characters)
+     and no more than 72 characters)
    - be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
    - be prefixed with the name of the changed subsystem and start with an
