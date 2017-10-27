@@ -250,10 +250,10 @@ added: v0.11.14
   * `path` {string} Will be ignored if `port` is specified. See
     [Identifying paths for IPC connections][].
   * `backlog` {number} Common parameter of [`server.listen()`][]
-    functions
-  * `exclusive` {boolean} Default to `false`
+    functions.
+  * `exclusive` {boolean} **Default:** `false`
 * `callback` {Function} Common parameter of [`server.listen()`][]
-  functions
+  functions.
 * Returns: {net.Server}
 
 If `port` is specified, it behaves the same as
@@ -283,8 +283,8 @@ added: v0.1.90
 
 * `path` {String} Path the server should listen to. See
   [Identifying paths for IPC connections][].
-* `backlog` {number} Common parameter of [`server.listen()`][] functions
-* `callback` {Function} Common parameter of [`server.listen()`][] functions
+* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function} Common parameter of [`server.listen()`][] functions.
 * Returns: {net.Server}
 
 Start a [IPC][] server listening for connections on the given `path`.
@@ -295,8 +295,8 @@ added: v0.1.90
 -->
 * `port` {number}
 * `host` {string}
-* `backlog` {number} Common parameter of [`server.listen()`][] functions
-* `callback` {Function} Common parameter of [`server.listen()`][] functions
+* `backlog` {number} Common parameter of [`server.listen()`][] functions.
+* `callback` {Function} Common parameter of [`server.listen()`][] functions.
 * Returns: {net.Server}
 
 Start a TCP server listening for connections on the given `port` and `host`.
@@ -385,11 +385,11 @@ Creates a new socket object.
     the given file descriptor, otherwise a new socket will be created.
   * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
     are allowed. See [`net.createServer()`][] and the [`'end'`][] event
-    for details. Defaults to `false`.
+    for details. **Default:** `false`
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
-    otherwise ignored. Defaults to `false`.
+    otherwise ignored. **Default:** `false`
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
-    otherwise ignored. Defaults to `false`.
+    otherwise ignored. **Default:** `false`
 * Returns: {net.Socket}
 
 The newly created socket can be either a TCP socket or a streaming [IPC][]
@@ -581,12 +581,12 @@ this only when implementing a custom Socket.
 For TCP connections, available `options` are:
 
 * `port` {number} Required. Port the socket should connect to.
-* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
+* `host` {string} Host the socket should connect to. **Default:** `'localhost'`
 * `localAddress` {string} Local address the socket should connect from.
 * `localPort` {number} Local port the socket should connect from.
-* `family` {number}: Version of IP stack, can be either 4 or 6. Defaults to 4.
+* `family` {number}: Version of IP stack, can be either 4 or 6. **Default:** `4`
 * `hints` {number} Optional [`dns.lookup()` hints][].
-* `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+* `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][]
 
 For [IPC][] connections, available `options` are:
 
@@ -965,9 +965,9 @@ added: v0.1.90
 
 * `port` {number} Port the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
-* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
-  Will be passed to
+* `host` {string} Host the socket should connect to. Will be passed to
   [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
+   **Default:** `'localhost'`
 * `connectListener` {Function} Common parameter of the
   [`net.createConnection()`][] functions, an "once" listener for the
   `'connect'` event on the initiating socket. Will be passed to
@@ -989,12 +989,12 @@ added: v0.5.0
 Creates a new TCP or [IPC][] server.
 
 * `options` {Object}
-  * `allowHalfOpen` {boolean} Default to `false`. Indicates whether half-opened
-    TCP connections are allowed.
-  * `pauseOnConnect` {boolean} Default to `false`. Indicates whether the socket
-    should be paused on incoming connections.
+  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP
+    connections are allowed. **Default:** `false`
+  * `pauseOnConnect` {boolean} Indicates whether the socket should be
+    paused on incoming connections. **Default:** `false`
 * `connectionListener` {Function} Automatically set as a listener for the
-  [`'connection'`][] event
+  [`'connection'`][] event.
 * Returns: {net.Server}
 
 If `allowHalfOpen` is set to `true`, when the other end of the socket
