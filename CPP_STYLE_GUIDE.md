@@ -127,6 +127,21 @@ class FancyContainer {
 
 What it says in the title.
 
+## Do not include `*.h` if `*-inl.h` has already been included
+
+Do
+
+```cpp
+#include "util-inl.h"  // already includes util.h
+```
+
+instead of
+
+```cpp
+#include "util.h"
+#include "util-inl.h"
+```
+
 ## Avoid throwing JavaScript errors in nested C++ methods
 
 If you need to throw JavaScript errors from a C++ binding method, try to do it
