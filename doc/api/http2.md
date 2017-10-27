@@ -365,7 +365,7 @@ added: v8.4.0
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
     the created stream is made the sole direct dependency of the parent, with
     all other existing dependents made a dependent of the newly created stream.
-    Defaults to `false`.
+    **Default:** `false`
   * `parent` {number} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
   * `weight` {number} Specifies the relative dependency of a stream in relation
@@ -415,7 +415,7 @@ added: v8.4.0
 -->
 
 * stream {Http2Stream}
-* code {number} Unsigned 32-bit integer identifying the error code. Defaults to
+* code {number} Unsigned 32-bit integer identifying the error code. **Default:**
   `http2.constant.NGHTTP2_NO_ERROR` (`0x00`)
 * Returns: {undefined}
 
@@ -444,7 +444,7 @@ added: v8.4.0
   * `graceful` {boolean} `true` to attempt a polite shutdown of the
     `Http2Session`.
   * `errorCode` {number} The HTTP/2 [error code][] to return. Note that this is
-    *not* the same thing as an HTTP Response Status Code. Defaults to `0x00`
+    *not* the same thing as an HTTP Response Status Code. **Default:** `0x00`
     (No Error).
   * `lastStreamID` {number} The Stream ID of the last successfully processed
     `Http2Stream` on this `Http2Session`.
@@ -522,8 +522,8 @@ added: v8.4.0
 * `options` {Object}
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
     the given stream is made the sole direct dependency of the parent, with
-    all other existing dependents made a dependent of the given stream. Defaults
-    to `false`.
+    all other existing dependents made a dependent of the given stream. **Default:**
+    `false`
   * `parent` {number} Specifies the numeric identifier of a stream the given
     stream is dependent on.
   * `weight` {number} Specifies the relative dependency of a stream in relation
@@ -734,8 +734,8 @@ added: v8.4.0
 * `options` {Object}
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
     this stream is made the sole direct dependency of the parent, with
-    all other existing dependents made a dependent of this stream. Defaults
-    to `false`.
+    all other existing dependents made a dependent of this stream. **Default:**
+    `false`
   * `parent` {number} Specifies the numeric identifier of a stream this stream
     is dependent on.
   * `weight` {number} Specifies the relative dependency of a stream in relation
@@ -764,7 +764,7 @@ calling `http2stream.rstStream()`, or `http2stream.destroy()`. Will be
 added: v8.4.0
 -->
 
-* code {number} Unsigned 32-bit integer identifying the error code. Defaults to
+* code {number} Unsigned 32-bit integer identifying the error code. **Default:**
   `http2.constant.NGHTTP2_NO_ERROR` (`0x00`)
 * Returns: {undefined}
 
@@ -986,7 +986,7 @@ added: v8.4.0
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
     the created stream is made the sole direct dependency of the parent, with
     all other existing dependents made a dependent of the newly created stream.
-    Defaults to `false`.
+    **Default:** `false`
   * `parent` {number} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
 * `callback` {Function} Callback that is called once the push stream has been
@@ -1063,14 +1063,14 @@ fields.
 added: v8.4.0
 -->
 
-* `fd` {number} A readable file descriptor
+* `fd` {number} A readable file descriptor.
 * `headers` {[Headers Object][]}
 * `options` {Object}
   * `statCheck` {Function}
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
-  * `offset` {number} The offset position at which to begin reading
-  * `length` {number} The amount of data from the fd to send
+  * `offset` {number} The offset position at which to begin reading.
+  * `length` {number} The amount of data from the fd to send.
 
 Initiates a response whose data is read from the given file descriptor. No
 validation is performed on the given file descriptor. If an error occurs while
@@ -1152,11 +1152,11 @@ added: v8.4.0
 * `options` {Object}
   * `statCheck` {Function}
   * `onError` {Function} Callback function invoked in the case of an
-    Error before send
+    Error before send.
   * `getTrailers` {Function} Callback function invoked to collect trailer
     headers.
-  * `offset` {number} The offset position at which to begin reading
-  * `length` {number} The amount of data from the fd to send
+  * `offset` {number} The offset position at which to begin reading.
+  * `length` {number} The amount of data from the fd to send.
 
 Sends a regular file as the response. The `path` must specify a regular file
 or an `'error'` event will be emitted on the `Http2Stream` object.
@@ -1474,13 +1474,13 @@ added: v8.4.0
 
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
-    for deflating header fields. Defaults to 4Kib.
+    for deflating header fields. **Default:** `4Kib`
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. Defaults to
+     amount of padding to use for HEADERS and DATA frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1492,8 +1492,8 @@ added: v8.4.0
        amount of padding.
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a SETTINGS frame had been received. Will
-    be overridden if the remote peer sets its own value for
-    `maxConcurrentStreams`. Defaults to 100.
+    be overridden if the remote peer sets its own value for.
+    `maxConcurrentStreams`. **Default** `100`
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
@@ -1529,16 +1529,16 @@ added: v8.4.0
 
 * `options` {Object}
   * `allowHTTP1` {boolean} Incoming client connections that do not support
-    HTTP/2 will be downgraded to HTTP/1.x when set to `true`. The default value
-    is `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
+    HTTP/2 will be downgraded to HTTP/1.x when set to `true`. **Default:**
+    `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
-    for deflating header fields. Defaults to 4Kib.
+    for deflating header fields. **Default:** `4Kib`
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. Defaults to
+     amount of padding to use for HEADERS and DATA frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1551,7 +1551,7 @@ added: v8.4.0
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a SETTINGS frame had been received. Will
     be overridden if the remote peer sets its own value for
-    `maxConcurrentStreams`. Defaults to 100.
+    `maxConcurrentStreams`. **Default:** `100`
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
@@ -1595,7 +1595,7 @@ added: v8.4.0
 * `authority` {string|URL}
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
-    for deflating header fields. Defaults to 4Kib.
+    for deflating header fields. **Default:** `4Kib`
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
@@ -1605,7 +1605,7 @@ added: v8.4.0
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
   * `paddingStrategy` {number} Identifies the strategy used for determining the
-     amount of padding to use for HEADERS and DATA frames. Defaults to
+     amount of padding to use for HEADERS and DATA frames. **Default:**
      `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
      * `http2.constants.PADDING_STRATEGY_NONE` - Specifies that no padding is
        to be applied.
@@ -1618,7 +1618,7 @@ added: v8.4.0
   * `peerMaxConcurrentStreams` {number} Sets the maximum number of concurrent
     streams for the remote peer as if a SETTINGS frame had been received. Will
     be overridden if the remote peer sets its own value for
-    `maxConcurrentStreams`. Defaults to 100.
+    `maxConcurrentStreams`. **Default:** `100`
   * `selectPadding` {Function} When `options.paddingStrategy` is equal to
     `http2.constants.PADDING_STRATEGY_CALLBACK`, provides the callback function
     used to determine the padding. See [Using options.selectPadding][].
@@ -1707,7 +1707,7 @@ console.log(packed.toString('base64'));
 added: v8.4.0
 -->
 
-* `buf` {Buffer|Uint8Array} The packed settings
+* `buf` {Buffer|Uint8Array} The packed settings.
 * Returns: {[Settings Object][]}
 
 Returns a [Settings Object][] containing the deserialized settings from the
@@ -1757,15 +1757,15 @@ These objects are ordinary JavaScript objects containing the following
 properties.
 
 * `headerTableSize` {number} Specifies the maximum number of bytes used for
-  header compression. The default value is 4,096 octets. The minimum allowed
+  header compression. **Default:** `4,096 octets`. The minimum allowed
   value is 0. The maximum allowed value is 2<sup>32</sup>-1.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances.
 * `initialWindowSize` {number} Specifies the *senders* initial window size
-  for stream-level flow control. The default value is 65,535 bytes. The minimum
+  for stream-level flow control. **Default:** `65,535 bytes`. The minimum
   allowed value is 0. The maximum allowed value is 2<sup>32</sup>-1.
 * `maxFrameSize` {number} Specifies the size of the largest frame payload.
-  The default and the minimum allowed value is 16,384 bytes. The maximum
+  **Default:** `16,384 bytes`. The minimum allowed value is 16,384. The maximum
   allowed value is 2<sup>24</sup>-1.
 * `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
@@ -2478,7 +2478,7 @@ added: v8.4.0
 -->
 
 * `name` {string}
-* `value` {string | string[]}
+* `value` {string|string[]}
 
 Sets a single header value for implicit headers.  If this header already exists
 in the to-be-sent headers, its value will be replaced.  Use an array of strings
