@@ -1240,7 +1240,13 @@ Will generate:
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 `external` refers to the memory usage of C++ objects bound to JavaScript
-objects managed by V8.
+objects managed by V8. `rss`, Resident Set Size, is the amount of space
+occupied in the main memory device (that is a subset of the total allocated
+memory) for the process, which includes the _heap_, _code segment_ and _stack_.
+
+The _heap_ is where objects, strings and closures are stored. Variables are
+stored in the _stack_ and the actual JavaScript code resides in the
+_code segment_.
 
 ## process.nextTick(callback[, ...args])
 <!-- YAML
