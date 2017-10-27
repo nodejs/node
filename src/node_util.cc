@@ -135,10 +135,7 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 
 void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   int ret = SigintWatchdogHelper::GetInstance()->Start();
-  if (ret != 0) {
-    Environment* env = Environment::GetCurrent(args);
-    env->ThrowErrnoException(ret, "StartSigintWatchdog");
-  }
+  args.GetReturnValue().Set(ret == 0);
 }
 
 
