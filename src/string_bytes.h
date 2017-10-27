@@ -28,7 +28,6 @@
 
 #include "v8.h"
 #include "node.h"
-#include "env.h"
 #include "env-inl.h"
 #include "util.h"
 

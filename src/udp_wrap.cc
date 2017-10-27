@@ -20,13 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
-#include "env.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "handle_wrap.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <stdlib.h>
