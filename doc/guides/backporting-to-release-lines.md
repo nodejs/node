@@ -31,15 +31,18 @@ release line. All commands will use the `v6.x-staging` branch as the target
 branch. In order to submit a backport pull request to another branch, simply
 replace that with the staging branch for the targeted release line.
 
-1. Checkout the staging branch for the targeted release line
-2. Make sure that the local staging branch is up to date with the remote
-3. Create a new branch off of the staging branch
+1. Update the tree if needed to have the backport source
+2. Checkout the staging branch for the targeted release line
+3. Make sure that the local staging branch is up to date with the remote
+4. Create a new branch off of the staging branch
 
 ```shell
 # Assuming your fork of Node.js is checked out in $NODE_DIR,
 # the origin remote points to your fork, and the upstream remote points
 # to git://github.com/nodejs/node
 cd $NODE_DIR
+# Update the tree if needed
+git checkout master && git fetch upstream && git merge --ff-only upstream/master
 # If v6.x-staging is checked out `pull` should be used instead of `fetch`
 git fetch upstream v6.x-staging:v6.x-staging -f
 # Assume we want to backport PR #10157
@@ -51,7 +54,7 @@ git checkout -b backport-10157-to-v6.x v6.x-staging
 git clean -xfd ./test/
 ```
 
-4. After creating the branch, apply the changes to the branch. The cherry-pick
+5. After creating the branch, apply the changes to the branch. The cherry-pick
    will likely fail due to conflicts. In that case, you will see something
    like this:
 
@@ -64,14 +67,14 @@ hint: with 'git add <paths>' or 'git rm <paths>'
 hint: and commit the result with 'git commit'
 ```
 
-5. Make the required changes to remove the conflicts, add the files to the index
+6. Make the required changes to remove the conflicts, add the files to the index
    using `git add`, and then commit the changes. That can be done with
    `git cherry-pick --continue`.
-6. Leave the commit message as is. If you think it should be modified, comment
+7. Leave the commit message as is. If you think it should be modified, comment
    in the Pull Request.
-7. Make sure `make -j4 test` passes.
-8. Push the changes to your fork
-9. Open a pull request:
+8. Make sure `make -j4 test` passes.
+9. Push the changes to your fork
+10. Open a pull request:
    1. Be sure to target the `v6.x-staging` branch in the pull request.
    2. Include the backport target in the pull request title in the following
       format — `[v6.x backport] <commit title>`.
@@ -80,7 +83,7 @@ hint: and commit the result with 'git commit'
    4. In the description add a reference to the original PR
    5. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
       default `<pr base branch>`)
-10. If during the review process conflicts arise, use the following to rebase:
+11. If during the review process conflicts arise, use the following to rebase:
     `git pull --rebase upstream v6.x-staging`
 
 After the PR lands replace the `backport-requested-v6.x` label on the original
