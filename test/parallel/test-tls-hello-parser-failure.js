@@ -57,6 +57,6 @@ const server = tls.createServer(options, function(c) {
   }));
 
   client.on('close', common.mustCall(function(hadError) {
-    assert.strictEqual(hadError, true, 'Client never errored');
+    assert.strictEqual(hadError, true, `Client error may have occurred. See details below:\n${JSON.stringify(hadError)}`);
   }));
 }));
