@@ -41,7 +41,7 @@ const assert = require('assert');
 const invalidPidArgument = common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "pid" argument must be of type Number'
+  message: 'The "pid" argument must be of type number'
 }, 6);
 
 assert.throws(function() { process.kill('SIGTERM'); },

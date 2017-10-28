@@ -1136,7 +1136,7 @@ if (typeof Symbol !== 'undefined') {
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
+    message: 'The "options" argument must be of type Object'
   })
   );
 
@@ -1145,7 +1145,7 @@ if (typeof Symbol !== 'undefined') {
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
+    message: 'The "options" argument must be of type Object'
   })
   );
 }

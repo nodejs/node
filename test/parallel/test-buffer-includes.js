@@ -282,7 +282,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "value" argument must be one of type string, ' +
-               `buffer, or uint8Array. Received type ${typeof val}`
+               `Buffer, or Uint8Array. Received type ${typeof val}`
     }
   );
 });

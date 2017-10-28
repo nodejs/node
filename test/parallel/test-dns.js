@@ -123,7 +123,7 @@ assert.throws(() => {
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "hostname" argument must be one of type string or falsey/
+    message: /^The "hostname" argument must be one of type string or falsy/
   }, 5);
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
