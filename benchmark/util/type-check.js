@@ -35,6 +35,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
+  // For testing, if supplied with an empty type, default to ArrayBufferView.
+  conf.type = conf.type || 'ArrayBufferView';
+
   const util = process.binding('util');
   const types = require('internal/util/types');
 
