@@ -234,8 +234,10 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
                                        "uv_send_buffer_size";
 
-  if (!args[0]->IsInt32())
-    return env->ThrowUVException(UV_EINVAL, uv_func_name);
+  if (!args[0]->IsInt32()) {
+    env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name);
+    return args.GetReturnValue().SetUndefined();
+  }
 
   uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
   int size = static_cast<int>(args[0].As<Uint32>()->Value());
@@ -246,8 +248,10 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   else
     err = uv_send_buffer_size(handle, &size);
 
-  if (err != 0)
-    return env->ThrowUVException(err, uv_func_name);
+  if (err != 0) {
+    env->CollectUVExceptionInfo(args[2], err, uv_func_name);
+    return args.GetReturnValue().SetUndefined();
+  }
 
   args.GetReturnValue().Set(size);
 }
