@@ -1312,6 +1312,24 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
+<a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
+### ERR_STREAM_PUSH_AFTER_EOF
+
+Used when an attempt is made to call [`stream.push()`][] after a `null`(EOF)
+has been pushed to the stream.
+
+<a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
+### ERR_STREAM_READ_NOT_IMPLEMENTED
+
+Used when an attempt is made to use a readable stream that has not implemented
+[`readable._read()`][].
+
+<a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
+### ERR_STREAM_UNSHIFT_AFTER_END_EVENT
+
+Used when an attempt is made to call [`stream.unshift()`][] after the
+`end` event has been emitted.
+
 <a id="ERR_STREAM_WRAP"></a>
 ### ERR_STREAM_WRAP
 
@@ -1457,7 +1475,10 @@ closed.
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
+[`readable._read()`]: stream.html#stream_readable_read_size_1
 [`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
+[`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
+[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
