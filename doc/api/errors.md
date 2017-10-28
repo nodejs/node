@@ -1178,6 +1178,14 @@ for strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
+### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
+
+> Stability: 1 - Experimental
+
+Used when an [ES6 module][] loader hook specifies `format: 'dynamic` but does
+not provide a `dynamicInstantiate` hook.
+
 <a id="ERR_MISSING_MODULE"></a>
 ### ERR_MISSING_MODULE
 
