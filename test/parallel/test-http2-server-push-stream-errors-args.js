@@ -32,7 +32,7 @@ server.on('stream', common.mustCall((stream, headers) => {
     () => stream.pushStream({ 'connection': 'test' }, {}, () => {}),
     {
       code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-      message: 'HTTP/1 Connection specific headers are forbidden'
+      message: 'HTTP/1 Connection specific headers are forbidden: "connection"'
     }
   );
 
