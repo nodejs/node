@@ -6,6 +6,7 @@ const assert = require('assert');
 const readable = new stream.Readable();
 
 assert.throws(() => readable.read(), common.expectsError({
+  code: 'ERR_STREAM_READ_NOT_IMPLEMENTED',
   type: Error,
-  message: 'ERR_STREAM_READ_NOT_IMPLEMENTED'
+  message: '_read() is not implemented'
 }));
