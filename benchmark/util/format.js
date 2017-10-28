@@ -21,6 +21,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, type }) {
+  // For testing, if supplied with an empty type, default to string.
+  type = type || 'string';
+
   const [first, second] = inputs[type];
 
   bench.start();
