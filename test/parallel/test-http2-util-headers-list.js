@@ -158,12 +158,26 @@ const {
   // Arrays containing a single set-cookie value are handled correctly
   // (https://github.com/nodejs/node/issues/16452)
   const headers = {
-    'set-cookie': 'foo=bar'
+    'set-cookie': ['foo=bar']
   };
   assert.deepStrictEqual(
     mapToHeaders(headers),
     [ [ 'set-cookie', 'foo=bar', '' ].join('\0'), 1 ]
   );
+}
+
+{
+  // pseudo-headers are only allowed a single value
+  const headers = {
+    ':status': 200,
+    ':statuS': 204,
+  };
+
+  common.expectsError({
+    code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
+    type: Error,
+    message: 'Header field ":status" must have only a single value'
+  })(mapToHeaders(headers));
 }
 
 // The following are not allowed to have multiple values
@@ -248,8 +262,6 @@ const {
   assert(!(mapToHeaders({ [name]: [1, 2, 3] }) instanceof Error), name);
 });
 
-const regex =
-  /^HTTP\/1 Connection specific headers are forbidden$/;
 [
   HTTP2_HEADER_CONNECTION,
   HTTP2_HEADER_UPGRADE,
@@ -269,18 +281,21 @@ const regex =
 ].forEach((name) => {
   common.expectsError({
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-    message: regex
+    message: 'HTTP/1 Connection specific headers are forbidden: ' +
+             `"${name.toLowerCase()}"`
   })(mapToHeaders({ [name]: 'abc' }));
 });
 
 common.expectsError({
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-  message: regex
+  message: 'HTTP/1 Connection specific headers are forbidden: ' +
+           `"${HTTP2_HEADER_TE}"`
 })(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }));
 
 common.expectsError({
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
-  message: regex
+  message: 'HTTP/1 Connection specific headers are forbidden: ' +
+           `"${HTTP2_HEADER_TE}"`
 })(mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }));
 
 assert(!(mapToHeaders({ te: 'trailers' }) instanceof Error));
