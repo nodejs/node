@@ -1627,6 +1627,7 @@ added: v8.4.0
   * `createConnection` {Function} An optional callback that receives the `URL`
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
+  * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
 * `listener` {Function}
 * Returns {Http2Session}
 
@@ -2746,6 +2747,7 @@ if the stream is closed.
 [`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
+[`net.connect()`]: net.html#net_net_connect
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
 [`response.setHeader()`]: #http2_response_setheader_name_value
@@ -2755,5 +2757,6 @@ if the stream is closed.
 [`response.writeContinue()`]: #http2_response_writecontinue
 [`response.writeHead()`]: #http2_response_writehead_statuscode_statusmessage_headers
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
+[`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [error code]: #error_codes
