@@ -10,7 +10,7 @@ const invalidOptions = [() => {}, 1, 'test', null, undefined];
 const invalidArgTypeError = {
   type: TypeError,
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "options" argument must be of type object'
+  message: 'The "options" argument must be of type Object'
 };
 
 // Error if options are not passed to createSecureServer

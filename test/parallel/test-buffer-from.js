@@ -46,8 +46,8 @@ deepStrictEqual(
   const err = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The first argument must be one of type string, buffer, ' +
-             'arrayBuffer, array, or array-like object. Received ' +
+    message: 'The first argument must be one of type string, Buffer, ' +
+             'ArrayBuffer, Array, or Array-like Object. Received ' +
              `type ${actualType}`
   });
   throws(() => Buffer.from(input), err);

@@ -66,7 +66,7 @@ common.expectsError(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The "callback" argument must be of type function'
+  message: 'The "callback" argument must be of type Function'
 });
 
 // Throws if the source path is not a string.

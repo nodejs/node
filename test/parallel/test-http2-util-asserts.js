@@ -15,7 +15,7 @@ const {
   new Date(),
   new (class Foo {})()
 ].forEach((i) => {
-  assert.doesNotThrow(() => assertIsObject(i, 'foo', 'object'));
+  assert.doesNotThrow(() => assertIsObject(i, 'foo', 'Object'));
 });
 
 [
@@ -27,10 +27,10 @@ const {
   [],
   [{}]
 ].forEach((i) => {
-  assert.throws(() => assertIsObject(i, 'foo', 'object'),
+  assert.throws(() => assertIsObject(i, 'foo', 'Object'),
                 common.expectsError({
                   code: 'ERR_INVALID_ARG_TYPE',
-                  message: /^The "foo" argument must be of type object$/
+                  message: /^The "foo" argument must be of type Object$/
                 }));
 });
 

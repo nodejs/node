@@ -58,7 +58,7 @@ function assertWrongList(value) {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "list" argument must be one of type ' +
-             'array, buffer, or uint8Array'
+             'Array, Buffer, or Uint8Array'
   }));
 }
 

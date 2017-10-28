@@ -84,7 +84,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or buffer'
+  message: 'The first argument must be one of type string or Buffer'
 }));
 
 assert.throws(() => {
@@ -93,7 +93,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or buffer'
+  message: 'The first argument must be one of type string or Buffer'
 }));
 
 // addTrailers()
