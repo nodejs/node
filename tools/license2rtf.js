@@ -216,6 +216,27 @@ class Unwrapper extends Stream {
   }
 }
 
+function rtfEscape(string) {
+  function toHex(number, length) {
+    return (~~number).toString(16).padStart(length, '0');
+  }
+
+  return string
+    .replace(/[\\{}]/g, function(m) {
+      return `\\${m}`;
+    })
+    .replace(/\t/g, function() {
+      return '\\tab ';
+    })
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
+      return `\\'${toHex(m.charCodeAt(0), 2)}`;
+    })
+    .replace(/\ufeff/g, '')
+    .replace(/[\u0100-\uffff]/g, function(m) {
+      return `\\u${toHex(m.charCodeAt(0), 4)}?`;
+    });
+}
 
 /*
  * This filter generates an rtf document from a stream of paragraph objects.
@@ -247,7 +268,7 @@ class RtfGenerator extends Stream {
       rtf += '\\b';
     if (li)
       rtf += ` ${li}\\tab`;
-    rtf += ` ${lines.map(this.rtfEscape).join('\\line ')}`;
+    rtf += ` ${lines.map(rtfEscape).join('\\line ')}`;
     if (!lic)
       rtf += '\\b0';
     rtf += '\\par\n';
@@ -261,28 +282,6 @@ class RtfGenerator extends Stream {
     if (this.didWriteAnything)
       this.emitFooter();
     this.emit('end');
-  }
-
-  rtfEscape(string) {
-    function toHex(number, length) {
-      return (~~number).toString(16).padStart(length, '0');
-    }
-
-    return string
-      .replace(/[\\{}]/g, function(m) {
-        return `\\${m}`;
-      })
-      .replace(/\t/g, function() {
-        return '\\tab ';
-      })
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x00-\x1f\x7f-\xff]/g, function(m) {
-        return `\\'${toHex(m.charCodeAt(0), 2)}`;
-      })
-      .replace(/\ufeff/g, '')
-      .replace(/[\u0100-\uffff]/g, function(m) {
-        return `\\u${toHex(m.charCodeAt(0), 4)}?`;
-      });
   }
 
   emitHeader() {
