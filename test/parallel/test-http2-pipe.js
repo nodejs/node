@@ -20,7 +20,7 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   const dest = stream.pipe(fs.createWriteStream(fn));
   dest.on('finish', common.mustCall(() => {
-    assert.deepStrictEqual(fs.readFileSync(loc), fs.readFileSync(fn));
+    assert.strictEqual(fs.readFileSync(loc).length, fs.readFileSync(fn).length);
     fs.unlinkSync(fn);
     stream.respond();
     stream.end();
