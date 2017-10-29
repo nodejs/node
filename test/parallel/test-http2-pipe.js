@@ -11,9 +11,9 @@ const path = require('path');
 
 // piping should work as expected with createWriteStream
 
+common.refreshTmpDir();
 const loc = fixtures.path('url-tests.js');
 const fn = path.join(common.tmpDir, 'http2-url-tests.js');
-common.refreshTmpDir();
 
 const server = http2.createServer();
 
