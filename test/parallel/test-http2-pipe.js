@@ -17,13 +17,13 @@ const fn = path.join(common.tmpDir, 'http2-url-tests.js');
 
 const server = http2.createServer();
 
-server.on('request', common.mustCall((req, res) => {
-  const dest = req.pipe(fs.createWriteStream(fn));
+server.on('stream', common.mustCall((stream) => {
+  const dest = stream.pipe(fs.createWriteStream(fn));
   dest.on('finish', common.mustCall(() => {
-    assert.strictEqual(req.complete, true);
     assert.strictEqual(fs.readFileSync(loc).length, fs.readFileSync(fn).length);
     fs.unlinkSync(fn);
-    res.end();
+    stream.respond();
+    stream.end();
   }));
 }));
 

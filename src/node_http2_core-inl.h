@@ -510,7 +510,7 @@ inline void Nghttp2Session::SendPendingData() {
     // the proceed with the rest.
     while (srcRemaining > destRemaining) {
       DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
-                  TypeName(), destRemaining);
+                  TypeName(), destLength + destRemaining);
       memcpy(dest.base + destOffset, src + srcOffset, destRemaining);
       destLength += destRemaining;
       Send(&dest, destLength);
@@ -890,6 +890,14 @@ inline void Nghttp2Stream::ReadStart() {
     return;
   DEBUG_HTTP2("Nghttp2Stream %d: start reading\n", id_);
   flags_ |= NGHTTP2_STREAM_FLAG_READ_START;
+  flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
+
+  // Flush any queued data chunks immediately out to the JS layer
+  FlushDataChunks();
+}
+
+inline void Nghttp2Stream::ReadResume() {
+  DEBUG_HTTP2("Nghttp2Stream %d: resume reading\n", id_);
   flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
 
   // Flush any queued data chunks immediately out to the JS layer
