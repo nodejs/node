@@ -384,6 +384,9 @@ class Nghttp2Stream {
   // the session to be emitted at the JS side
   inline void ReadStart();
 
+  // Resume Reading
+  inline void ReadResume();
+
   // Stop/Pause Reading.
   inline void ReadStop();
 

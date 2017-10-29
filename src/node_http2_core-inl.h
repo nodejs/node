@@ -896,6 +896,14 @@ inline void Nghttp2Stream::ReadStart() {
   FlushDataChunks();
 }
 
+inline void Nghttp2Stream::ReadResume() {
+  DEBUG_HTTP2("Nghttp2Stream %d: resume reading\n", id_);
+  flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
+
+  // Flush any queued data chunks immediately out to the JS layer
+  FlushDataChunks();
+}
+
 inline void Nghttp2Stream::ReadStop() {
   DEBUG_HTTP2("Nghttp2Stream %d: stop reading\n", id_);
   if (!IsReading())
