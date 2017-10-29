@@ -458,9 +458,12 @@ added: v0.5.8
 
 Creates and returns a new [DeflateRaw][] object with the given [options][].
 
-*Note*: The zlib library rejects requests for 256-byte windows (i.e.,
-`{ windowBits: 8 }` in `options`). An `Error` will be thrown when creating
-a [DeflateRaw][] object with this specific value of the `windowBits` option.
+*Note*: An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
+is set to 8 for raw deflate streams. zlib would automatically set windowBits
+to 9 if was initially set to 8. Newer versions of zlib will throw an exception,
+so Node.js restored the original behavior of upgrading a value of 8 to 9,
+since passing `windowBits = 9` to zlib actually results in a compressed stream
+that effectively uses an 8-bit window only.
 
 ## zlib.createGunzip([options])
 <!-- YAML
