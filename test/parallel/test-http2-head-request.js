@@ -8,6 +8,7 @@ const http2 = require('http2');
 
 const errCheck = common.expectsError({
   type: Error,
+  code: 'ERR_STREAM_WRITE_AFTER_END',
   message: 'write after end'
 }, 2);
 

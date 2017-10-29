@@ -1317,6 +1317,18 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
+<a id="ERR_STREAM_CANNOT_PIPE"></a>
+### ERR_STREAM_CANNOT_PIPE
+
+Used when an attempt is made to call [`stream.pipe()`][] on a
+[`Writable`][] stream.
+
+<a id="ERR_STREAM_NULL_VALUES"></a>
+### ERR_STREAM_NULL_VALUES
+
+Used when an attempt is made to call [`stream.write()`][] with a `null`
+chunk.
+
 <a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
 ### ERR_STREAM_PUSH_AFTER_EOF
 
@@ -1348,6 +1360,12 @@ const instance = new Socket();
 
 instance.setEncoding('utf8');
 ```
+
+<a id="ERR_STREAM_WRITE_AFTER_END"></a>
+### ERR_STREAM_WRITE_AFTER_END
+
+Used when an attempt is made to call [`stream.write()`][] after
+`stream.end()` has been called.
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### ERR_TLS_CERT_ALTNAME_INVALID
@@ -1484,6 +1502,8 @@ closed.
 [`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
 [`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
+[`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
+[`Writable`]: stream.html#stream_class_stream_writable
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
