@@ -363,6 +363,13 @@ added: v0.5.8
 Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
 
+### zlib.close([callback])
+<!-- YAML
+added: v0.9.4
+-->
+
+Close the underlying handle.
+
 ### zlib.flush([kind], callback)
 <!-- YAML
 added: v0.5.8
