@@ -974,6 +974,7 @@ bench-ci: bench
 lint-md-clean:
 	$(RM) -r tools/remark-cli/node_modules
 	$(RM) -r tools/remark-preset-lint-node/node_modules
+	$(RM) tools/.*mdlintstamp
 
 lint-md-build:
 	@if [ ! -d tools/remark-cli/node_modules ]; then \
@@ -983,10 +984,25 @@ lint-md-build:
 		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
 		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
 
-lint-md: lint-md-build
-	@echo "Running Markdown linter..."
-	$(NODE) tools/remark-cli/cli.js -q -f \
-		./*.md doc src lib benchmark tools/doc/ tools/icu/
+LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
+LINT_MD_ROOT_DOCS := $(wildcard *.md)
+LINT_MD_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
+  -not -path '*node_modules*' -name '*.md') $(LINT_MD_ROOT_DOCS)
+LINT_DOC_MD_FILES = $(shell ls doc/**/*.md)
+
+tools/.docmdlintstamp: $(LINT_DOC_MD_FILES)
+	@echo "Running Markdown linter on docs..."
+	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_DOC_MD_FILES)
+	@touch $@
+
+tools/.miscmdlintstamp: $(LINT_MD_FILES)
+	@echo "Running Markdown linter on misc docs..."
+	@$(NODE) tools/remark-cli/cli.js -q -f $(LINT_MD_FILES)
+	@touch $@
+
+tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
+
+lint-md: | lint-md-build tools/.mdlintstamp
 
 LINT_JS_TARGETS = benchmark doc lib test tools
 LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
@@ -1048,10 +1064,13 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 # and the actual filename is generated so it won't match header guards
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
-lint-cpp:
+lint-cpp: tools/.cpplintstamp
+
+tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@echo "Running C++ linter..."
-	@$(PYTHON) tools/cpplint.py $(LINT_CPP_FILES)
+	@$(PYTHON) tools/cpplint.py $?
 	@$(PYTHON) tools/check-imports.py
+	@touch $@
 
 lint-addon-docs: test/addons/.docbuildstamp
 	@echo "Running C++ linter on addon docs..."
@@ -1086,6 +1105,10 @@ lint:
 
 lint-ci: lint
 endif
+
+lint-clean:
+	$(RM) tools/.*lintstamp
+	$(RM) .eslintcache
 
 .PHONY: $(TARBALL)-headers \
   all \
@@ -1127,6 +1150,7 @@ endif
   install-bin \
   install-includes \
   lint \
+  lint-clean \
   lint-ci \
   lint-cpp \
   lint-js \
