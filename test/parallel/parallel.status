@@ -18,5 +18,7 @@ test-npm-install:      PASS,FLAKY
 [$system==solaris] # Also applies to SmartOS
 
 [$system==freebsd]
+test-http2-compat-serverrequest-pipe: PASS,FLAKY
+test-http2-pipe:                      PASS,FLAKY
 
 [$system==aix]
