@@ -24,6 +24,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
+const hasInspector = process.config.variables.v8_enable_inspector === 1;
 
 // We have to change the directory to ../fixtures before requiring repl
 // in order to make the tests for completion of node_modules work properly
@@ -529,3 +530,23 @@ editorStream.run(['.editor']);
 editor.completer('var log = console.l', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.l']);
 }));
+
+{
+  // tab completion of lexically scoped variables
+  const stream = new common.ArrayStream();
+  const testRepl = repl.start({ stream });
+
+  stream.run([`
+    let lexicalLet = true;
+    const lexicalConst = true;
+    class lexicalKlass {}
+  `]);
+
+  ['Let', 'Const', 'Klass'].forEach((type) => {
+    const query = `lexical${type[0]}`;
+    const expected = hasInspector ? [[`lexical${type}`], query] : [];
+    testRepl.complete(query, common.mustCall((error, data) => {
+      assert.deepStrictEqual(data, expected);
+    }));
+  });
+}
