@@ -406,6 +406,13 @@ The `zlib.bytesRead` property specifies the number of bytes read by the engine
 before the bytes are processed (compressed or decompressed, as appropriate for
 the derived class).
 
+### zlib.close([callback])
+<!-- YAML
+added: v0.9.4
+-->
+
+Close the underlying handle.
+
 ### zlib.flush([kind], callback)
 <!-- YAML
 added: v0.5.8
