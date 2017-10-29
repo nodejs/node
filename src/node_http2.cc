@@ -756,7 +756,7 @@ void Http2Session::FlushData(const FunctionCallbackInfo<Value>& args) {
   if (!(stream = session->FindStream(id))) {
     return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
   }
-  stream->FlushDataChunks();
+  stream->ReadResume();
 }
 
 void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
