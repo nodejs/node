@@ -148,3 +148,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
   assert.strictEqual(decipher.setAuthTag(tagbuf), decipher);
   assert.strictEqual(decipher.setAAD(aadbuf), decipher);
 }
+
+// https://github.com/nodejs/node/issues/13801
+common.expectWarning('Warning', 'Use Cipheriv for counter mode of aes-256-gcm');
+crypto.createCipher('aes-256-gcm', '0123456789');
