@@ -48,6 +48,8 @@ struct nghttp2_rcbuf;
 
 namespace node {
 
+const size_t FS_INO_STRING_OFFSET = 32;
+
 namespace performance {
 struct performance_state;
 }
@@ -615,6 +617,8 @@ class Environment {
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
 
+  inline char* fs_ino_array() const;
+
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
 
@@ -744,6 +748,7 @@ class Environment {
   http2::http2_state* http2_state_ = nullptr;
 
   double* fs_stats_field_array_;
+  char* fs_ino_array_;
 
   struct AtExitCallback {
     void (*cb_)(void* arg);

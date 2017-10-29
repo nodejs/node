@@ -90,6 +90,8 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
   FillStatsArray(env->fs_stats_field_array(), curr);
   FillStatsArray(env->fs_stats_field_array() + 14, prev);
+  SetStatsIno(env->fs_ino_array(), curr);
+  SetStatsIno(env->fs_ino_array() + FS_INO_STRING_OFFSET, prev);
   Local<Value> arg = Integer::New(env->isolate(), status);
   wrap->MakeCallback(env->onchange_string(), 1, &arg);
 }
