@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include "node_url.h"
-#include "base-object.h"
 #include "base-object-inl.h"
 
 namespace node {

@@ -23,7 +23,6 @@
 #include "node_internals.h"
 #include "node_stat_watcher.h"
 
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
 
