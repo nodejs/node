@@ -1082,8 +1082,10 @@ added: v0.5.0
 -->
 
 * `value` {string|Buffer|integer} The value to fill `buf` with.
-* `offset` {integer} Number of bytes to skip before starting to fill `buf`. **Default:** `0`
-* `end` {integer} Where to stop filling `buf` (not inclusive). **Default:** [`buf.length`]
+* `offset` {integer} Number of bytes to skip before starting to fill `buf`.
+  **Default:** `0`
+* `end` {integer} Where to stop filling `buf` (not inclusive).
+  **Default:** [`buf.length`]
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Buffer} A reference to `buf`.
@@ -1431,7 +1433,8 @@ console.log(buf.length);
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 8`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 8`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {number}
 
@@ -1467,7 +1470,8 @@ console.log(buf.readDoubleLE(1, true));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {number}
 
@@ -1502,7 +1506,8 @@ console.log(buf.readFloatLE(1, true));
 added: v0.5.0
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 1`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 1`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
@@ -1534,7 +1539,8 @@ console.log(buf.readInt8(2));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 2`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
@@ -1568,7 +1574,8 @@ console.log(buf.readInt16LE(1));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
@@ -1602,9 +1609,12 @@ console.log(buf.readInt32LE(1));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to read. Must satisfy:
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` and `byteLength` validation?
+  **Default:** `false`.
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -1664,7 +1674,8 @@ console.log(buf.readUInt8(2));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 2`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 2`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
@@ -1702,7 +1713,8 @@ console.log(buf.readUInt16LE(2).toString(16));
 added: v0.5.5
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {integer}
 
@@ -1734,9 +1746,12 @@ console.log(buf.readUInt32LE(1).toString(16));
 added: v0.11.15
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy: `0 < byteLength <= 6`.
-* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* `offset` {integer} Number of bytes to skip before starting to read.
+  Must satisfy: `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to read. Must satisfy:
+  `0 < byteLength <= 6`.
+* `noAssert` {boolean} Skip `offset` and `byteLength` validation?
+  **Default:** `false`
 * Returns: {integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -2029,7 +2044,8 @@ added: v0.1.90
 -->
 
 * `string` {string} String to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`. **Default:** `0`
+* `offset` {integer} Number of bytes to skip before starting to write `string`.
+  **Default:** `0`
 * `length` {integer} Number of bytes to write. **Default:** `buf.length - offset`
 * `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`
 * Returns: {integer} Number of bytes written.
@@ -2057,7 +2073,8 @@ added: v0.11.15
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 8`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 8`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2092,7 +2109,8 @@ added: v0.11.15
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2126,7 +2144,8 @@ added: v0.5.0
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 1`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2158,7 +2177,8 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 2`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2191,7 +2211,8 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2224,7 +2245,8 @@ added: v0.11.15
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - byteLength`.
 * `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
 * `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
   **Default:** `false`
@@ -2259,7 +2281,8 @@ added: v0.5.0
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 1`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 1`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2291,7 +2314,8 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 2`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 2`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2328,7 +2352,8 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - 4`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - 4`.
 * `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.
 
@@ -2363,8 +2388,10 @@ added: v0.5.5
 -->
 
 * `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must satisfy: `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy: `0 < byteLength <= 6`.
+* `offset` {integer} Number of bytes to skip before starting to write.
+  Must satisfy: `0 <= offset <= buf.length - byteLength`.
+* `byteLength` {integer} Number of bytes to write. Must satisfy:
+  `0 < byteLength <= 6`.
 * `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
   **Default:** `false`
 * Returns: {integer} `offset` plus the number of bytes written.

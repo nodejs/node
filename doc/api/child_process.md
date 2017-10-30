@@ -217,7 +217,8 @@ added: v0.1.91
   * `encoding` {string} **Default:** `'utf8'`
   * `timeout` {number} **Default:** `0`
   * [`maxBuffer`][] {number} Largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed. **Default:**: `200*1024`
+    stdout or stderr - if exceeded child process is killed.
+    **Default:**: `200*1024`
   * `killSignal` {string|integer} **Default:** `'SIGTERM'`
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
@@ -601,7 +602,8 @@ added: v0.11.12
     process will be killed. **Default:** `'SIGTERM'`
   * [`maxBuffer`][] {number} Largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed.
-  * `encoding` {string} The encoding used for all stdio inputs and outputs. **Default:** `'buffer'`
+  * `encoding` {string} The encoding used for all stdio inputs and outputs.
+    **Default:** `'buffer'`
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
