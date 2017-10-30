@@ -1,6 +1,5 @@
 #include "uv.h"
 #include "node.h"
-#include "env.h"
 #include "env-inl.h"
 
 namespace node {
