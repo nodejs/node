@@ -1,4 +1,3 @@
-//
 'use strict';
 
 // Response splitting is no longer an issue with HTTP/2. The underlying

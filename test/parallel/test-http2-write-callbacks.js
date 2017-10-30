@@ -1,4 +1,3 @@
-//
 'use strict';
 
 // Verifies that write callbacks are called
