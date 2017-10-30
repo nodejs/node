@@ -27,9 +27,7 @@
 // Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
 #include "v8.h"
-#include "node.h"
-#include "env-inl.h"
-#include "util.h"
+#include "env.h"
 
 namespace node {
 
