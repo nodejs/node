@@ -1514,9 +1514,8 @@ class MyWritable extends Writable {
 
 Decoding buffers is a common task, for instance, when using transformers whose
 input is a string. This is not a trivial process when using multi-byte
-characters encoding. Implement it within [Writable][] implies some performance
-regressions. The following is an example of how to achieve that extending
-[Writable][].
+characters encoding, such as UTF-8. The following example shows how to decode
+multi-byte strings using `StringDecoder` and [Writable][].
 
 ```js
 const { Writable } = require('stream');
@@ -1541,6 +1540,15 @@ class StringWritable extends Writable {
     callback();
   }
 }
+
+const euro = [[0xE2, 0x82], [0xAC]].map(Buffer.from);
+const w = new StringWritable();
+
+w.write('currency: ');
+w.write(euro[0]);
+w.end(euro[1]);
+
+console.log(w._data); // currency: €
 ```
 
 ### Implementing a Readable Stream
