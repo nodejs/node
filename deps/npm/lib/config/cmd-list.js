@@ -74,6 +74,8 @@ var cmdList = [
   'team',
   'deprecate',
   'shrinkwrap',
+  'token',
+  'profile',
 
   'help',
   'help-search',

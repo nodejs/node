@@ -100,6 +100,6 @@ function moreThanOneError (schema) {
 function newException (code, msg) {
   var e = new Error(msg)
   e.code = code
-  Error.captureStackTrace(e, validate)
+  if (Error.captureStackTrace) Error.captureStackTrace(e, validate)
   return e
 }
