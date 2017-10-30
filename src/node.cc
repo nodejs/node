@@ -2950,6 +2950,12 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 }
 
 
+static void GetParentProcessId(Local<Name> property,
+                               const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
+}
+
+
 static Local<Object> GetFeatures(Environment* env) {
   EscapableHandleScope scope(env->isolate());
 
@@ -3304,6 +3310,9 @@ void SetupProcessObject(Environment* env,
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
+
+  process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                       GetParentProcessId);
 
   auto need_immediate_callback_string =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_needImmediateCallback");
