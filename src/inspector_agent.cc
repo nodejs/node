@@ -186,55 +186,6 @@ static int StartDebugSignalHandler() {
 const int NANOS_PER_MSEC = 1000000;
 const int CONTEXT_GROUP_ID = 1;
 
-class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
- public:
-  explicit ChannelImpl(V8Inspector* inspector,
-                       InspectorSessionDelegate* delegate)
-                       : delegate_(delegate) {
-    session_ = inspector->connect(1, this, StringView());
-  }
-
-  virtual ~ChannelImpl() {}
-
-  void dispatchProtocolMessage(const StringView& message) {
-    session_->dispatchProtocolMessage(message);
-  }
-
-  bool waitForFrontendMessage() {
-    return delegate_->WaitForFrontendMessageWhilePaused();
-  }
-
-  void schedulePauseOnNextStatement(const std::string& reason) {
-    std::unique_ptr<StringBuffer> buffer = Utf8ToStringView(reason);
-    session_->schedulePauseOnNextStatement(buffer->string(), buffer->string());
-  }
-
-  InspectorSessionDelegate* delegate() {
-    return delegate_;
-  }
-
- private:
-  void sendResponse(
-      int callId,
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    sendMessageToFrontend(message->string());
-  }
-
-  void sendNotification(
-      std::unique_ptr<v8_inspector::StringBuffer> message) override {
-    sendMessageToFrontend(message->string());
-  }
-
-  void flushProtocolNotifications() override { }
-
-  void sendMessageToFrontend(const StringView& message) {
-    delegate_->SendMessageToFrontend(message);
-  }
-
-  InspectorSessionDelegate* const delegate_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
-};
-
 class InspectorTimer {
  public:
   InspectorTimer(uv_loop_t* loop,
@@ -296,6 +247,74 @@ class InspectorTimerHandle {
 };
 }  // namespace
 
+class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
+ public:
+  ChannelImpl(V8Inspector* inspector, InspectorSessionDelegate* delegate)
+              : delegate_(delegate), dispatcher_factory_(nullptr) {
+    session_ = inspector->connect(1, this, StringView());
+  }
+
+  ~ChannelImpl() override {
+    resetDispatcher();
+  }
+
+  void dispatchProtocolMessage(const StringView& message) {
+    if (v8_inspector::V8InspectorSession::canDispatchMethod(message) ||
+        !dispatchToNodeDispatcher(message)) {
+      session_->dispatchProtocolMessage(message);
+    }
+  }
+
+  bool waitForFrontendMessage() {
+    return delegate_->WaitForFrontendMessageWhilePaused();
+  }
+
+  void schedulePauseOnNextStatement(const std::string& reason) {
+    std::unique_ptr<StringBuffer> buffer = Utf8ToStringView(reason);
+    session_->schedulePauseOnNextStatement(buffer->string(), buffer->string());
+  }
+
+  void setDispatcherFactory(MessageDispatcherFactory* factory) {
+    resetDispatcher();
+    dispatcher_factory_ = factory;
+  }
+
+  void resetDispatcher() {
+    dispatcher_.reset();
+  }
+
+  void sendMessageToFrontend(const StringView& message) {
+    delegate_->SendMessageToFrontend(message);
+  }
+
+ private:
+  bool dispatchToNodeDispatcher(const StringView& message) {
+    if (dispatcher_ == nullptr && dispatcher_factory_ != nullptr) {
+      dispatcher_ = dispatcher_factory_->Create(
+          std::unique_ptr<DispatcherSession>(new DispatcherSession(this)));
+    }
+    return dispatcher_ != nullptr && dispatcher_->HandleMessage(message);
+  }
+
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    sendMessageToFrontend(message->string());
+  }
+
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    sendMessageToFrontend(message->string());
+  }
+
+  void flushProtocolNotifications() override { }
+
+  InspectorSessionDelegate* const delegate_;
+  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
+  std::unique_ptr<MessageDispatcher> dispatcher_;
+  MessageDispatcherFactory* dispatcher_factory_;
+};
+
 class NodeInspectorClient : public V8InspectorClient {
  public:
   NodeInspectorClient(node::Environment* env, node::NodePlatform* platform)
@@ -346,20 +365,21 @@ class NodeInspectorClient : public V8InspectorClient {
     terminated_ = true;
   }
 
-  void connectFrontend(InspectorSessionDelegate* delegate) {
-    CHECK_EQ(channel_, nullptr);
-    channel_ = std::unique_ptr<ChannelImpl>(
-        new ChannelImpl(client_.get(), delegate));
+  std::unique_ptr<InspectorSession> connectFrontend(
+      InspectorSessionDelegate* delegate) {
+    if (channel_)
+      return nullptr;
+    channel_.reset(new ChannelImpl(client_.get(), delegate));
+    channel_->setDispatcherFactory(dispatcher_factory_.get());
+    return std::unique_ptr<InspectorSession>(
+        new InspectorSession(this, channel_.get()));
   }
 
-  void disconnectFrontend() {
+  void disconnectFrontend(ChannelImpl* channel) {
+    if (channel_.get() != channel)
+      return;
     quitMessageLoopOnPause();
     channel_.reset();
-  }
-
-  void dispatchMessageFromFrontend(const StringView& message) {
-    CHECK_NE(channel_, nullptr);
-    channel_->dispatchProtocolMessage(message);
   }
 
   Local<Context> ensureDefaultContextInGroup(int contextGroupId) override {
@@ -447,6 +467,13 @@ class NodeInspectorClient : public V8InspectorClient {
     client_->allAsyncTasksCanceled();
   }
 
+  void RegisterDispatcherFactory(
+      std::unique_ptr<MessageDispatcherFactory> factory) {
+    dispatcher_factory_ = std::move(factory);
+    if (channel_)
+      channel_->setDispatcherFactory(dispatcher_factory_.get());
+  }
+
  private:
   node::Environment* env_;
   node::NodePlatform* platform_;
@@ -455,7 +482,25 @@ class NodeInspectorClient : public V8InspectorClient {
   std::unique_ptr<V8Inspector> client_;
   std::unique_ptr<ChannelImpl> channel_;
   std::unordered_map<void*, InspectorTimerHandle> timers_;
+  std::unique_ptr<MessageDispatcherFactory> dispatcher_factory_;
 };
+
+InspectorSession::~InspectorSession() {
+  client_->disconnectFrontend(channel_);
+}
+
+void InspectorSession::Dispatch(const v8_inspector::StringView& message) {
+  channel_->dispatchProtocolMessage(message);
+}
+
+DispatcherSession::~DispatcherSession() {
+  channel_->resetDispatcher();
+}
+
+void DispatcherSession::SendMessageToFrontend(
+    const v8_inspector::StringView& message) {
+  channel_->sendMessageToFrontend(message);
+}
 
 Agent::Agent(Environment* env) : parent_env_(env),
                                  client_(nullptr),
@@ -542,9 +587,10 @@ void Agent::Stop() {
   }
 }
 
-void Agent::Connect(InspectorSessionDelegate* delegate) {
+std::unique_ptr<InspectorSession> Agent::Connect(
+    InspectorSessionDelegate* delegate) {
   enabled_ = true;
-  client_->connectFrontend(delegate);
+  return client_->connectFrontend(delegate);
 }
 
 bool Agent::IsConnected() {
@@ -566,27 +612,9 @@ void Agent::FatalException(Local<Value> error, Local<v8::Message> message) {
   WaitForDisconnect();
 }
 
-void Agent::Dispatch(const StringView& message) {
-  CHECK_NE(client_, nullptr);
-  client_->dispatchMessageFromFrontend(message);
-}
-
-void Agent::Disconnect() {
-  CHECK_NE(client_, nullptr);
-  client_->disconnectFrontend();
-}
-
 void Agent::RunMessageLoop() {
   CHECK_NE(client_, nullptr);
   client_->runMessageLoopOnPause(CONTEXT_GROUP_ID);
-}
-
-InspectorSessionDelegate* Agent::delegate() {
-  CHECK_NE(client_, nullptr);
-  ChannelImpl* channel = client_->channel();
-  if (channel == nullptr)
-    return nullptr;
-  return channel->delegate();
 }
 
 void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
@@ -688,6 +716,11 @@ void Agent::ContextCreated(Local<Context> context) {
 
 bool Agent::IsWaitingForConnect() {
   return debug_options_.wait_for_connect();
+}
+
+void Agent::RegisterDispatcherFactory(
+    std::unique_ptr<MessageDispatcherFactory> factory) {
+  client_->RegisterDispatcherFactory(std::move(factory));
 }
 
 }  // namespace inspector

@@ -285,7 +285,14 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 
 if (process.config.variables.v8_enable_inspector !== 0) {
   const binding = process.binding('inspector');
+  let dispatcherHandle = null;
+  binding.registerDispatcherFactory((dh) => {
+    dispatcherHandle = dh;
+    return () => {};
+  });
   const handle = new binding.Connection(() => {});
+  handle.dispatch(JSON.stringify({ id: 1, method: 'FakeDomain.method' }));
   testInitialized(handle, 'Connection');
+  testInitialized(dispatcherHandle, 'InspectorDispatcherConnection');
   handle.disconnect();
 }

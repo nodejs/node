@@ -47,6 +47,8 @@ enum class TransportAction {
   kStop
 };
 
+class IoSessionDelegate;
+
 class InspectorIo {
  public:
   InspectorIo(node::Environment* env, v8::Platform* platform,
@@ -143,7 +145,7 @@ class InspectorIo {
   // Note that this will live while the async is being closed - likely, past
   // the parent object lifespan
   std::pair<uv_async_t, Agent*>* main_thread_req_;
-  std::unique_ptr<InspectorSessionDelegate> session_delegate_;
+  std::unique_ptr<IoSessionDelegate> session_delegate_;
   v8::Platform* platform_;
 
   // Message queues

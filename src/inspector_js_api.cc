@@ -32,6 +32,162 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
   return StringBuffer::create(StringView(*buffer, buffer.length()));
 }
 
+class JSDispatcher;
+
+class JSDispatcherInterface : private AsyncWrap {
+ public:
+  JSDispatcherInterface(Environment* env, Local<Object> object)
+                      : AsyncWrap(env, object, PROVIDER_INSPECTORJSDISPATCHER),
+                        env_(env),
+                        dispatcher_(nullptr) {
+    Wrap(object, this);
+    env->SetMethod(object, "sendMessageToFrontend",
+                   JSDispatcherInterface::SendMessageToFrontend);
+  }
+
+  ~JSDispatcherInterface() override;
+
+  bool HandleMessage(const v8_inspector::StringView& message) {
+    Isolate* isolate = env_->isolate();
+    HandleScope handle_scope(isolate);
+    if (env_->context().IsEmpty()) {
+      // Post-shutdown cleanup, should not be any real remaining messages
+      CHECK_EQ(message.length(), 0);
+      return false;
+    }
+    Context::Scope context_scope(env_->context());
+    Local<Value> argument;
+    if (message.length() > 0) {
+      MaybeLocal<String> v8string =
+          String::NewFromTwoByte(isolate, message.characters16(),
+                                 NewStringType::kNormal, message.length());
+      argument = v8string.ToLocalChecked().As<Value>();
+    } else {
+      argument = Null(isolate);
+    }
+    MaybeLocal<Value> result =
+        MakeCallback(callback_.Get(env()->isolate()), 1, &argument);
+    Local<Value> r;
+    return result.ToLocal(&r) && r->IsTrue();
+  }
+
+  void SetCallback(Local<Function> callback) {
+    callback_.Reset(env_->isolate(), callback);
+  }
+
+  void SetDispatcher(JSDispatcher* dispatcher) {
+    if (dispatcher == nullptr && dispatcher_ != nullptr) {
+      HandleMessage(v8_inspector::StringView());
+    }
+    dispatcher_ = dispatcher;
+  }
+
+  size_t self_size() const override {
+    return sizeof(*this);
+  }
+
+  static void SendMessageToFrontend(const FunctionCallbackInfo<Value>& info);
+
+ private:
+  Environment* env_;
+  JSDispatcher* dispatcher_;
+  Persistent<Function> callback_;
+};
+
+class JSDispatcher : public MessageDispatcher {
+ public:
+  JSDispatcher(std::unique_ptr<DispatcherSession>&& session,
+               JSDispatcherInterface* interface)
+               : js_interface_(interface), session_(std::move(session)) {
+    interface->SetDispatcher(this);
+  }
+
+  ~JSDispatcher() override {
+    if (js_interface_ != nullptr) {
+      js_interface_->SetDispatcher(nullptr);
+    }
+  }
+
+  bool HandleMessage(const v8_inspector::StringView& message) override {
+    return js_interface_ != nullptr && js_interface_->HandleMessage(message);
+  }
+
+  void ResetInterface() {
+    js_interface_ = nullptr;
+  }
+
+  void SendMessageToFrontend(const StringView& message) {
+    session_->SendMessageToFrontend(message);
+  }
+
+ private:
+  JSDispatcherInterface* js_interface_;
+  std::unique_ptr<DispatcherSession> session_;
+};
+
+JSDispatcherInterface::~JSDispatcherInterface() {
+  callback_.Reset();
+  if (dispatcher_ != nullptr) {
+    dispatcher_->ResetInterface();
+  }
+}
+
+void JSDispatcherInterface::SendMessageToFrontend(
+    const FunctionCallbackInfo<Value>& info) {
+  JSDispatcherInterface* interface;
+  ASSIGN_OR_RETURN_UNWRAP(&interface, info.Holder());
+  Environment* env = interface->env_;
+  JSDispatcher* dispatcher = interface->dispatcher_;
+  if (info.Length() != 1 || !info[0]->IsString()) {
+    env->ThrowTypeError("Protocol message should be a string");
+    return;
+  }
+  if (dispatcher == nullptr) {
+    return;
+  }
+  dispatcher->SendMessageToFrontend(
+      ToProtocolString(env->isolate(), info[0])->string());
+}
+
+class JSDispatcherFactory : public MessageDispatcherFactory {
+ public:
+  JSDispatcherFactory(Environment* env, Local<Function> js_factory)
+                      : env_(env), js_factory_(env->isolate(), js_factory) {}
+
+  std::unique_ptr<MessageDispatcher> Create(
+      std::unique_ptr<DispatcherSession> session)
+      override {
+    Isolate* isolate = env_->isolate();
+    Local<Context> context = env_->context();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(context);
+
+    Local<FunctionTemplate> tmpl = env_->NewFunctionTemplate(nullptr);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(1);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(env_->isolate(),
+                              "InspectorDispatcherConnection"));
+    AsyncWrap::AddWrapMethods(env_, tmpl);
+    Local<Object> object =
+        tmpl->GetFunction()->NewInstance(context).ToLocalChecked();
+    JSDispatcherInterface* dispatcher = new JSDispatcherInterface(env_, object);
+    Local<Value> arg = object.As<Value>();
+    // Note that this code is meant to be internal so it is ok to assume
+    // correct arguments
+    Local<Value> callback =
+        js_factory_.Get(isolate)->Call(context, Null(isolate), 1, &arg)
+            .ToLocalChecked();
+    CHECK(callback->IsFunction());
+    dispatcher->SetCallback(callback.As<Function>());
+    return std::unique_ptr<JSDispatcher>(
+        new JSDispatcher(std::move(session), dispatcher));
+  }
+
+ private:
+  Environment* env_;
+  Persistent<Function> js_factory_;
+};
+
 class JSBindingsConnection : public AsyncWrap {
  public:
   class JSBindingsSessionDelegate : public InspectorSessionDelegate {
@@ -58,12 +214,6 @@ class JSBindingsConnection : public AsyncWrap {
       connection_->OnMessage(argument);
     }
 
-    void Disconnect() {
-      Agent* agent = env_->inspector_agent();
-      if (agent->delegate() == this)
-        agent->Disconnect();
-    }
-
    private:
     Environment* env_;
     JSBindingsConnection* connection_;
@@ -78,11 +228,11 @@ class JSBindingsConnection : public AsyncWrap {
     Wrap(wrap, this);
 
     Agent* inspector = env->inspector_agent();
-    if (inspector->delegate() != nullptr) {
+    session_ = inspector->Connect(&delegate_);
+    if (!session_) {
       env->ThrowTypeError("Session is already attached");
       return;
     }
-    inspector->Connect(&delegate_);
   }
 
   ~JSBindingsConnection() override {
@@ -91,11 +241,6 @@ class JSBindingsConnection : public AsyncWrap {
 
   void OnMessage(Local<Value> value) {
     MakeCallback(callback_.Get(env()->isolate()), 1, &value);
-  }
-
-  void CheckIsCurrent() {
-    Agent* inspector = env()->inspector_agent();
-    CHECK_EQ(&delegate_, inspector->delegate());
   }
 
   static void New(const FunctionCallbackInfo<Value>& info) {
@@ -109,7 +254,8 @@ class JSBindingsConnection : public AsyncWrap {
   }
 
   void Disconnect() {
-    delegate_.Disconnect();
+    if (session_)
+      session_.reset();
     if (!persistent().IsEmpty()) {
       ClearWrap(object());
       persistent().Reset();
@@ -125,16 +271,14 @@ class JSBindingsConnection : public AsyncWrap {
 
   static void Dispatch(const FunctionCallbackInfo<Value>& info) {
     Environment* env = Environment::GetCurrent(info);
-    JSBindingsConnection* session;
-    ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
     if (!info[0]->IsString()) {
       env->ThrowTypeError("Inspector message must be a string");
       return;
     }
-
-    session->CheckIsCurrent();
-    Agent* inspector = env->inspector_agent();
-    inspector->Dispatch(ToProtocolString(env->isolate(), info[0])->string());
+    JSBindingsConnection* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, info.Holder());
+    session->session_->Dispatch(
+        ToProtocolString(env->isolate(), info[0])->string());
   }
 
   size_t self_size() const override { return sizeof(*this); }
@@ -142,6 +286,7 @@ class JSBindingsConnection : public AsyncWrap {
  private:
   JSBindingsSessionDelegate delegate_;
   Persistent<Function> callback_;
+  std::unique_ptr<InspectorSession> session_;
 };
 
 
@@ -213,7 +358,7 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
                                    call_args.data()).FromMaybe(Local<Value>());
 }
 
-static void* GetAsyncTask(int64_t asyncId) {
+void* GetAsyncTask(int64_t asyncId) {
   // The inspector assumes that when other clients use its asyncTask* API,
   // they use real pointers, or at least something aligned like real pointer.
   // In general it means that our task_id should always be even.
@@ -226,14 +371,14 @@ static void* GetAsyncTask(int64_t asyncId) {
 }
 
 template<void (Agent::*asyncTaskFn)(void*)>
-static void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
+void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsNumber());
   int64_t task_id = args[0]->IntegerValue(env->context()).FromJust();
   (env->inspector_agent()->*asyncTaskFn)(GetAsyncTask(task_id));
 }
 
-static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
+void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsString());
@@ -251,7 +396,7 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
   env->inspector_agent()->AsyncTaskScheduled(task_name_view, task, recurring);
 }
 
-static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
+void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsFunction());
@@ -265,6 +410,17 @@ static void RegisterAsyncHookWrapper(const FunctionCallbackInfo<Value>& args) {
 void IsEnabled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(env->inspector_agent()->enabled());
+}
+
+void RegisterDispatcherFactory(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (args.Length() == 1 || (args[0]->IsNull() || args[0]->IsFunction())) {
+    env->inspector_agent()->RegisterDispatcherFactory(
+        std::unique_ptr<MessageDispatcherFactory>(
+            new JSDispatcherFactory(env, args[0].As<Function>())));
+  } else {
+    env->ThrowTypeError("Factory should be a function");
+  }
 }
 
 void Open(const FunctionCallbackInfo<Value>& args) {
@@ -332,6 +488,9 @@ void InitInspectorBindings(Local<Object> target, Local<Value> unused,
 
   env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
   env->SetMethod(target, "isEnabled", IsEnabled);
+
+  env->SetMethod(target, "registerDispatcherFactory",
+                 RegisterDispatcherFactory);
 
   auto conn_str = FIXED_ONE_BYTE_STRING(env->isolate(), "Connection");
   Local<FunctionTemplate> tmpl =

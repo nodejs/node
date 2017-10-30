@@ -23,6 +23,21 @@ class Environment;
 
 namespace inspector {
 
+class ChannelImpl;
+class InspectorIo;
+class NodeInspectorClient;
+
+class InspectorSession {
+ public:
+  InspectorSession(NodeInspectorClient* client, ChannelImpl* channel)
+                   : channel_(channel), client_(client) { }
+  ~InspectorSession();
+  void Dispatch(const v8_inspector::StringView& message);
+ private:
+  ChannelImpl* channel_;
+  NodeInspectorClient* client_;
+};
+
 class InspectorSessionDelegate {
  public:
   virtual ~InspectorSessionDelegate() = default;
@@ -31,8 +46,27 @@ class InspectorSessionDelegate {
                                      = 0;
 };
 
-class InspectorIo;
-class NodeInspectorClient;
+class DispatcherSession {
+ public:
+  explicit DispatcherSession(ChannelImpl* channel) : channel_(channel) {}
+  ~DispatcherSession();
+  void SendMessageToFrontend(const v8_inspector::StringView& message);
+ private:
+  ChannelImpl* channel_;
+};
+
+class MessageDispatcher {
+ public:
+  virtual ~MessageDispatcher() = default;
+  virtual bool HandleMessage(const v8_inspector::StringView& message) = 0;
+};
+
+class MessageDispatcherFactory {
+ public:
+  virtual ~MessageDispatcherFactory() = default;
+  virtual std::unique_ptr<MessageDispatcher> Create(
+      std::unique_ptr<DispatcherSession> session) = 0;
+};
 
 class Agent {
  public:
@@ -67,13 +101,13 @@ class Agent {
     v8::Local<v8::Function> enable_function,
     v8::Local<v8::Function> disable_function);
 
+  void RegisterDispatcherFactory(
+      std::unique_ptr<MessageDispatcherFactory> factory);
+
   // These methods are called by the WS protocol and JS binding to create
   // inspector sessions.  The inspector responds by using the delegate to send
   // messages back.
-  void Connect(InspectorSessionDelegate* delegate);
-  void Disconnect();
-  void Dispatch(const v8_inspector::StringView& message);
-  InspectorSessionDelegate* delegate();
+  std::unique_ptr<InspectorSession> Connect(InspectorSessionDelegate* delegate);
 
   void RunMessageLoop();
   bool enabled() { return enabled_; }

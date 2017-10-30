@@ -100,6 +100,7 @@
       'lib/internal/fs.js',
       'lib/internal/http.js',
       'lib/internal/inspector_async_hook.js',
+      'lib/internal/inspector_node_domains.js',
       'lib/internal/linkedlist.js',
       'lib/internal/loader/Loader.js',
       'lib/internal/loader/ModuleMap.js',

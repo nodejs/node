@@ -76,7 +76,8 @@ namespace node {
 
 #if HAVE_INSPECTOR
 #define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                                \
-  V(INSPECTORJSBINDING)
+  V(INSPECTORJSBINDING)                                                       \
+  V(INSPECTORJSDISPATCHER)
 #else
 #define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
 #endif  // HAVE_INSPECTOR

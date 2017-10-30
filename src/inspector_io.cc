@@ -121,11 +121,18 @@ std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
 
 class IoSessionDelegate : public InspectorSessionDelegate {
  public:
-  explicit IoSessionDelegate(InspectorIo* io) : io_(io) { }
+  explicit IoSessionDelegate(Agent* agent, InspectorIo* io)
+                             : io_(io), session_(agent->Connect(this)) { }
   bool WaitForFrontendMessageWhilePaused() override;
   void SendMessageToFrontend(const v8_inspector::StringView& message) override;
+  bool IsConnected() { return !!session_; }
+  void Dispatch(const StringView& message) {
+    CHECK_NE(session_, nullptr);
+    session_->Dispatch(message);
+  }
  private:
   InspectorIo* io_;
+  std::unique_ptr<InspectorSession> session_;
 };
 
 // Passed to InspectorSocketServer to handle WS inspector protocol events,
@@ -382,9 +389,10 @@ void InspectorIo::DispatchMessages() {
         session_id_ = std::get<1>(task);
         state_ = State::kConnected;
         fprintf(stderr, "Debugger attached.\n");
-        session_delegate_ = std::unique_ptr<InspectorSessionDelegate>(
-            new IoSessionDelegate(this));
-        parent_env_->inspector_agent()->Connect(session_delegate_.get());
+        session_delegate_.reset(
+            new IoSessionDelegate(parent_env_->inspector_agent(), this));
+        if (!session_delegate_->IsConnected())
+          session_delegate_.reset();
         break;
       case InspectorAction::kEndSession:
         CHECK_NE(session_delegate_, nullptr);
@@ -393,11 +401,11 @@ void InspectorIo::DispatchMessages() {
         } else {
           state_ = State::kAccepting;
         }
-        parent_env_->inspector_agent()->Disconnect();
         session_delegate_.reset();
         break;
       case InspectorAction::kSendMessage:
-        parent_env_->inspector_agent()->Dispatch(message);
+        if (session_delegate_)
+          session_delegate_->Dispatch(message);
         break;
       }
     }
