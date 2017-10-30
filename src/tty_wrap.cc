@@ -21,12 +21,15 @@
 
 #include "tty_wrap.h"
 
+#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
+#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "stream_wrap.h"
+#include "util.h"
 #include "util-inl.h"
 
 namespace node {

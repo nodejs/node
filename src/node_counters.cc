@@ -21,6 +21,7 @@
 
 #include "node_counters.h"
 #include "uv.h"
+#include "env.h"
 #include "env-inl.h"
 
 #include <string.h>

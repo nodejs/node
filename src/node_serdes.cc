@@ -1,5 +1,6 @@
 #include "node_internals.h"
 #include "node_buffer.h"
+#include "base-object.h"
 #include "base-object-inl.h"
 
 namespace node {

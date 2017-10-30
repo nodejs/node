@@ -23,6 +23,7 @@
 
 #include "async-wrap.h"
 #include "connection_wrap.h"
+#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node.h"
@@ -31,6 +32,7 @@
 #include "connect_wrap.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
+#include "util.h"
 
 namespace node {
 

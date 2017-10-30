@@ -3,6 +3,7 @@
 #define SRC_ALIASED_BUFFER_H_
 
 #include "v8.h"
+#include "util.h"
 #include "util-inl.h"
 
 namespace node {
