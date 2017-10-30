@@ -1,3 +1,20 @@
+# Whitelist dotfiles
+.*
+!deps/**/.*
+!test/fixtures/**/.*
+!tools/eslint/**/.*
+!tools/doc/node_modules/**/.*
+!.editorconfig
+!.eslintignore
+!.eslintrc.yaml
+!.gitattributes
+!.github
+!.gitignore
+!.gitkeep
+!.mailmap
+!.nycrc
+!.remarkrc
+
 core
 vgcore.*
 v8*.log
@@ -16,10 +33,9 @@ node
 node_g
 *.swp
 .benchmark_reports
-/.project
-/.cproject
 icu_config.gypi
 .eslintcache
+node_trace.*.log
 
 /out
 
@@ -45,17 +61,17 @@ ipch/
 *.VC.opendb
 .vs/
 .vscode/
+/deps/v8/src/debug/obj
+/*.exe
 
 /config.mk
 /config.gypi
 /config_fips.gypi
 *-nodegyp*
 /gyp-mac-tool
-/dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
 /tools/msvs/genfiles/
-/tools/osx-pkg.pmdoc/index.xml
 /test/addons/??_*/
 email.md
 deps/v8-*
@@ -83,13 +99,21 @@ deps/npm/node_modules/.bin/
 
 # build/release artifacts
 /*.tar.*
+/*.pkg
 /SHASUMS*.txt*
 
 # test artifacts
 tools/faketime
+tools/remark-cli
+tools/remark-preset-lint-node
 icu_config.gypi
-test.tap
+*.tap
 
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+
+# libuv book and GitHub template
+deps/uv/.github/
+deps/uv/docs/code/
+deps/uv/docs/src/guide/

@@ -5,6 +5,7 @@
 #include "include/libplatform/v8-tracing.h"
 
 #include "base/trace_event/common/trace_event_common.h"
+#include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 
@@ -30,11 +31,13 @@ V8_INLINE static void CopyTraceObjectParameter(char** buffer,
   }
 }
 
-void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
-                             const char* name, const char* scope, uint64_t id,
-                             uint64_t bind_id, int num_args,
-                             const char** arg_names, const uint8_t* arg_types,
-                             const uint64_t* arg_values, unsigned int flags) {
+void TraceObject::Initialize(
+    char phase, const uint8_t* category_enabled_flag, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags) {
   pid_ = base::OS::GetCurrentProcessId();
   tid_ = base::OS::GetCurrentThreadId();
   phase_ = phase;
@@ -55,6 +58,8 @@ void TraceObject::Initialize(char phase, const uint8_t* category_enabled_flag,
     arg_names_[i] = arg_names[i];
     arg_values_[i].as_uint = arg_values[i];
     arg_types_[i] = arg_types[i];
+    if (arg_types[i] == TRACE_VALUE_TYPE_CONVERTABLE)
+      arg_convertables_[i] = std::move(arg_convertables[i]);
   }
 
   bool copy = !!(flags & TRACE_EVENT_FLAG_COPY);
@@ -107,8 +112,10 @@ void TraceObject::InitializeForTesting(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
     const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags, int pid, int tid,
-    int64_t ts, int64_t tts, uint64_t duration, uint64_t cpu_duration) {
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags, int pid, int tid, int64_t ts, int64_t tts,
+    uint64_t duration, uint64_t cpu_duration) {
   pid_ = pid;
   tid_ = tid;
   phase_ = phase;

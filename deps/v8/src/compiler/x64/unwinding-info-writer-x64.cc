@@ -15,7 +15,8 @@ void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
 
   block_will_exit_ = false;
 
-  DCHECK_LT(block->rpo_number().ToInt(), block_initial_states_.size());
+  DCHECK_LT(block->rpo_number().ToInt(),
+            static_cast<int>(block_initial_states_.size()));
   const BlockInitialState* initial_state =
       block_initial_states_[block->rpo_number().ToInt()];
   if (initial_state) {
@@ -47,7 +48,7 @@ void UnwindingInfoWriter::EndInstructionBlock(const InstructionBlock* block) {
 
   for (const RpoNumber& successor : block->successors()) {
     int successor_index = successor.ToInt();
-    DCHECK_LT(successor_index, block_initial_states_.size());
+    DCHECK_LT(successor_index, static_cast<int>(block_initial_states_.size()));
     const BlockInitialState* existing_state =
         block_initial_states_[successor_index];
     // If we already had an entry for this BB, check that the values are the

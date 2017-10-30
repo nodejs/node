@@ -2,11 +2,10 @@
  * `input` type prompt
  */
 
-var util = require("util");
-var chalk = require("chalk");
-var Base = require("./base");
-var observe = require("../utils/events");
-
+var util = require('util');
+var chalk = require('chalk');
+var Base = require('./base');
+var observe = require('../utils/events');
 
 /**
  * Module exports
@@ -14,16 +13,14 @@ var observe = require("../utils/events");
 
 module.exports = Prompt;
 
-
 /**
  * Constructor
  */
 
 function Prompt() {
-  return Base.apply( this, arguments );
+  return Base.apply(this, arguments);
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Start the Inquiry session
@@ -31,25 +28,24 @@ util.inherits( Prompt, Base );
  * @return {this}
  */
 
-Prompt.prototype._run = function( cb ) {
+Prompt.prototype._run = function (cb) {
   this.done = cb;
 
   // Once user confirm (enter key)
   var events = observe(this.rl);
-  var submit = events.line.map( this.filterInput.bind(this) );
+  var submit = events.line.map(this.filterInput.bind(this));
 
-  var validation = this.handleSubmitEvents( submit );
-  validation.success.forEach( this.onEnd.bind(this) );
-  validation.error.forEach( this.onError.bind(this) );
+  var validation = this.handleSubmitEvents(submit);
+  validation.success.forEach(this.onEnd.bind(this));
+  validation.error.forEach(this.onError.bind(this));
 
-  events.keypress.takeUntil( validation.success ).forEach( this.onKeypress.bind(this) );
+  events.keypress.takeUntil(validation.success).forEach(this.onKeypress.bind(this));
 
   // Init
   this.render();
 
   return this;
 };
-
 
 /**
  * Render the prompt to screen
@@ -73,32 +69,29 @@ Prompt.prototype.render = function (error) {
   this.screen.render(message, bottomContent);
 };
 
-
 /**
  * When user press `enter` key
  */
 
-Prompt.prototype.filterInput = function( input ) {
-  if ( !input ) {
-    return this.opt.default != null ? this.opt.default : "";
+Prompt.prototype.filterInput = function (input) {
+  if (!input) {
+    return this.opt.default == null ? '' : this.opt.default;
   }
   return input;
 };
 
-Prompt.prototype.onEnd = function( state ) {
-  this.filter( state.value, function( filteredValue ) {
-    this.answer = filteredValue;
-    this.status = "answered";
+Prompt.prototype.onEnd = function (state) {
+  this.answer = state.value;
+  this.status = 'answered';
 
-    // Re-render prompt
-    this.render();
+  // Re-render prompt
+  this.render();
 
-    this.screen.done();
-    this.done( state.value );
-  }.bind(this));
+  this.screen.done();
+  this.done(state.value);
 };
 
-Prompt.prototype.onError = function( state ) {
+Prompt.prototype.onError = function (state) {
   this.render(state.isValid);
 };
 
@@ -106,6 +99,6 @@ Prompt.prototype.onError = function( state ) {
  * When user press a key
  */
 
-Prompt.prototype.onKeypress = function() {
+Prompt.prototype.onKeypress = function () {
   this.render();
 };

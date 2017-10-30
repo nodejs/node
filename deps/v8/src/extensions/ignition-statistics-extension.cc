@@ -15,7 +15,8 @@ namespace internal {
 v8::Local<v8::FunctionTemplate>
 IgnitionStatisticsExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> name) {
-  DCHECK_EQ(strcmp(*v8::String::Utf8Value(name), "getIgnitionDispatchCounters"),
+  DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, name),
+                   "getIgnitionDispatchCounters"),
             0);
   return v8::FunctionTemplate::New(
       isolate, IgnitionStatisticsExtension::GetIgnitionDispatchCounters);
@@ -26,7 +27,6 @@ const char* const IgnitionStatisticsExtension::kSource =
 
 void IgnitionStatisticsExtension::GetIgnitionDispatchCounters(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_EQ(args.Length(), 0);
   DCHECK(FLAG_trace_ignition_dispatches);
   args.GetReturnValue().Set(reinterpret_cast<Isolate*>(args.GetIsolate())
                                 ->interpreter()

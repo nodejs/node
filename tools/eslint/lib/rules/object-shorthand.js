@@ -77,6 +77,9 @@ module.exports = {
                                 },
                                 avoidQuotes: {
                                     type: "boolean"
+                                },
+                                avoidExplicitReturnArrows: {
+                                    type: "boolean"
                                 }
                             },
                             additionalProperties: false
@@ -100,6 +103,8 @@ module.exports = {
         const PARAMS = context.options[1] || {};
         const IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
         const AVOID_QUOTES = PARAMS.avoidQuotes;
+        const AVOID_EXPLICIT_RETURN_ARROWS = !!PARAMS.avoidExplicitReturnArrows;
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -188,7 +193,7 @@ module.exports = {
 
                     // We have at least 1 shorthand property
                     if (shorthandProperties.length > 0) {
-                        context.report(node, "Unexpected mix of shorthand and non-shorthand properties.");
+                        context.report({ node, message: "Unexpected mix of shorthand and non-shorthand properties." });
                     } else if (checkRedundancy) {
 
                         // If all properties of the object contain a method or value with a name matching it's key,
@@ -196,11 +201,115 @@ module.exports = {
                         const canAlwaysUseShorthand = properties.every(isRedundant);
 
                         if (canAlwaysUseShorthand) {
-                            context.report(node, "Expected shorthand for all properties.");
+                            context.report({ node, message: "Expected shorthand for all properties." });
                         }
                     }
                 }
             }
+        }
+
+        /**
+        * Fixes a FunctionExpression node by making it into a shorthand property.
+        * @param {SourceCodeFixer} fixer The fixer object
+        * @param {ASTNode} node A `Property` node that has a `FunctionExpression` or `ArrowFunctionExpression` as its value
+        * @returns {Object} A fix for this node
+        */
+        function makeFunctionShorthand(fixer, node) {
+            const firstKeyToken = node.computed ? sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken) : sourceCode.getFirstToken(node.key);
+            const lastKeyToken = node.computed ? sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken) : sourceCode.getLastToken(node.key);
+            const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
+            let keyPrefix = "";
+
+            if (node.value.generator) {
+                keyPrefix = "*";
+            } else if (node.value.async) {
+                keyPrefix = "async ";
+            }
+
+            if (node.value.type === "FunctionExpression") {
+                const functionToken = sourceCode.getTokens(node.value).find(token => token.type === "Keyword" && token.value === "function");
+                const tokenBeforeParams = node.value.generator ? sourceCode.getTokenAfter(functionToken) : functionToken;
+
+                return fixer.replaceTextRange(
+                    [firstKeyToken.range[0], node.range[1]],
+                    keyPrefix + keyText + sourceCode.text.slice(tokenBeforeParams.range[1], node.value.range[1])
+                );
+            }
+            const arrowToken = sourceCode.getTokens(node.value).find(token => token.value === "=>");
+            const tokenBeforeArrow = sourceCode.getTokenBefore(arrowToken);
+            const hasParensAroundParameters = tokenBeforeArrow.type === "Punctuator" && tokenBeforeArrow.value === ")";
+            const oldParamText = sourceCode.text.slice(sourceCode.getFirstToken(node.value, node.value.async ? 1 : 0).range[0], tokenBeforeArrow.range[1]);
+            const newParamText = hasParensAroundParameters ? oldParamText : `(${oldParamText})`;
+
+            return fixer.replaceTextRange(
+                [firstKeyToken.range[0], node.range[1]],
+                keyPrefix + keyText + newParamText + sourceCode.text.slice(arrowToken.range[1], node.value.range[1])
+            );
+
+        }
+
+        /**
+        * Fixes a FunctionExpression node by making it into a longform property.
+        * @param {SourceCodeFixer} fixer The fixer object
+        * @param {ASTNode} node A `Property` node that has a `FunctionExpression` as its value
+        * @returns {Object} A fix for this node
+        */
+        function makeFunctionLongform(fixer, node) {
+            const firstKeyToken = node.computed ? sourceCode.getTokens(node).find(token => token.value === "[") : sourceCode.getFirstToken(node.key);
+            const lastKeyToken = node.computed ? sourceCode.getTokensBetween(node.key, node.value).find(token => token.value === "]") : sourceCode.getLastToken(node.key);
+            const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
+            let functionHeader = "function";
+
+            if (node.value.generator) {
+                functionHeader = "function*";
+            } else if (node.value.async) {
+                functionHeader = "async function";
+            }
+
+            return fixer.replaceTextRange([node.range[0], lastKeyToken.range[1]], `${keyText}: ${functionHeader}`);
+        }
+
+        /*
+         * To determine whether a given arrow function has a lexical identifier (`this`, `arguments`, `super`, or `new.target`),
+         * create a stack of functions that define these identifiers (i.e. all functions except arrow functions) as the AST is
+         * traversed. Whenever a new function is encountered, create a new entry on the stack (corresponding to a different lexical
+         * scope of `this`), and whenever a function is exited, pop that entry off the stack. When an arrow function is entered,
+         * keep a reference to it on the current stack entry, and remove that reference when the arrow function is exited.
+         * When a lexical identifier is encountered, mark all the arrow functions on the current stack entry by adding them
+         * to an `arrowsWithLexicalIdentifiers` set. Any arrow function in that set will not be reported by this rule,
+         * because converting it into a method would change the value of one of the lexical identifiers.
+         */
+        const lexicalScopeStack = [];
+        const arrowsWithLexicalIdentifiers = new WeakSet();
+        const argumentsIdentifiers = new WeakSet();
+
+        /**
+        * Enters a function. This creates a new lexical identifier scope, so a new Set of arrow functions is pushed onto the stack.
+        * Also, this marks all `arguments` identifiers so that they can be detected later.
+        * @returns {void}
+        */
+        function enterFunction() {
+            lexicalScopeStack.unshift(new Set());
+            context.getScope().variables.filter(variable => variable.name === "arguments").forEach(variable => {
+                variable.references.map(ref => ref.identifier).forEach(identifier => argumentsIdentifiers.add(identifier));
+            });
+        }
+
+        /**
+        * Exits a function. This pops the current set of arrow functions off the lexical scope stack.
+        * @returns {void}
+        */
+        function exitFunction() {
+            lexicalScopeStack.shift();
+        }
+
+        /**
+        * Marks the current function as having a lexical keyword. This implies that all arrow functions
+        * in the current lexical scope contain a reference to this lexical keyword.
+        * @returns {void}
+        */
+        function reportLexicalIdentifier() {
+            lexicalScopeStack[0].forEach(arrowFunction => arrowsWithLexicalIdentifiers.add(arrowFunction));
         }
 
         //--------------------------------------------------------------------------
@@ -208,6 +317,33 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
+            Program: enterFunction,
+            FunctionDeclaration: enterFunction,
+            FunctionExpression: enterFunction,
+            "Program:exit": exitFunction,
+            "FunctionDeclaration:exit": exitFunction,
+            "FunctionExpression:exit": exitFunction,
+
+            ArrowFunctionExpression(node) {
+                lexicalScopeStack[0].add(node);
+            },
+            "ArrowFunctionExpression:exit"(node) {
+                lexicalScopeStack[0].delete(node);
+            },
+
+            ThisExpression: reportLexicalIdentifier,
+            Super: reportLexicalIdentifier,
+            MetaProperty(node) {
+                if (node.meta.name === "new" && node.property.name === "target") {
+                    reportLexicalIdentifier();
+                }
+            },
+            Identifier(node) {
+                if (argumentsIdentifiers.has(node)) {
+                    reportLexicalIdentifier();
+                }
+            },
+
             ObjectExpression(node) {
                 if (APPLY_CONSISTENT) {
                     checkConsistency(node, false);
@@ -216,7 +352,7 @@ module.exports = {
                 }
             },
 
-            Property(node) {
+            "Property:exit"(node) {
                 const isConciseProperty = node.method || node.shorthand;
 
                 // Ignore destructuring assignment
@@ -230,60 +366,33 @@ module.exports = {
                 }
 
                 // only computed methods can fail the following checks
-                if (node.computed && node.value.type !== "FunctionExpression") {
+                if (node.computed && node.value.type !== "FunctionExpression" && node.value.type !== "ArrowFunctionExpression") {
                     return;
                 }
 
                 //--------------------------------------------------------------
                 // Checks for property/method shorthand.
                 if (isConciseProperty) {
+                    if (node.method && (APPLY_NEVER || AVOID_QUOTES && isStringLiteral(node.key))) {
+                        const message = APPLY_NEVER ? "Expected longform method syntax." : "Expected longform method syntax for string literal keys.";
 
-                    // if we're "never" and concise we should warn now
-                    if (APPLY_NEVER) {
-                        const type = node.method ? "method" : "property";
-
+                        // { x() {} } should be written as { x: function() {} }
                         context.report({
                             node,
-                            message: "Expected longform {{type}} syntax.",
-                            data: {
-                                type
-                            },
-                            fix(fixer) {
-                                if (node.method) {
-                                    if (node.value.generator) {
-                                        return fixer.replaceTextRange([node.range[0], node.key.range[1]], `${node.key.name}: function*`);
-                                    }
-
-                                    return fixer.insertTextAfter(node.key, ": function");
-                                }
-
-                                return fixer.insertTextAfter(node.key, `: ${node.key.name}`);
-                            }
+                            message,
+                            fix: fixer => makeFunctionLongform(fixer, node)
                         });
-                    }
+                    } else if (APPLY_NEVER) {
 
-                    // {'xyz'() {}} should be written as {'xyz': function() {}}
-                    if (AVOID_QUOTES && isStringLiteral(node.key)) {
+                        // { x } should be written as { x: x }
                         context.report({
                             node,
-                            message: "Expected longform method syntax for string literal keys.",
-                            fix(fixer) {
-                                if (node.computed) {
-                                    return fixer.insertTextAfterRange([node.key.range[0], node.key.range[1] + 1], ": function");
-                                }
-
-                                return fixer.insertTextAfter(node.key, ": function");
-                            }
+                            message: "Expected longform property syntax.",
+                            fix: fixer => fixer.insertTextAfter(node.key, `: ${node.key.name}`)
                         });
                     }
-
-                    return;
-                }
-
-                //--------------------------------------------------------------
-                // Checks for longform properties.
-                if (node.value.type === "FunctionExpression" && !node.value.id && APPLY_TO_METHODS) {
-                    if (IGNORE_CONSTRUCTORS && isConstructor(node.key.name)) {
+                } else if (APPLY_TO_METHODS && !node.value.id && (node.value.type === "FunctionExpression" || node.value.type === "ArrowFunctionExpression")) {
+                    if (IGNORE_CONSTRUCTORS && node.key.type === "Identifier" && isConstructor(node.key.name)) {
                         return;
                     }
                     if (AVOID_QUOTES && isStringLiteral(node.key)) {
@@ -291,39 +400,18 @@ module.exports = {
                     }
 
                     // {[x]: function(){}} should be written as {[x]() {}}
-                    if (node.computed) {
+                    if (node.value.type === "FunctionExpression" ||
+                        node.value.type === "ArrowFunctionExpression" &&
+                        node.value.body.type === "BlockStatement" &&
+                        AVOID_EXPLICIT_RETURN_ARROWS &&
+                        !arrowsWithLexicalIdentifiers.has(node.value)
+                    ) {
                         context.report({
                             node,
                             message: "Expected method shorthand.",
-                            fix(fixer) {
-                                if (node.value.generator) {
-                                    return fixer.replaceTextRange(
-                                        [node.key.range[0], node.value.range[0] + "function*".length],
-                                        `*[${node.key.name}]`
-                                    );
-                                }
-
-                                return fixer.removeRange([node.key.range[1] + 1, node.value.range[0] + "function".length]);
-                            }
+                            fix: fixer => makeFunctionShorthand(fixer, node)
                         });
-                        return;
                     }
-
-                    // {x: function(){}} should be written as {x() {}}
-                    context.report({
-                        node,
-                        message: "Expected method shorthand.",
-                        fix(fixer) {
-                            if (node.value.generator) {
-                                return fixer.replaceTextRange(
-                                    [node.key.range[0], node.value.range[0] + "function*".length],
-                                    `*${node.key.name}`
-                                );
-                            }
-
-                            return fixer.removeRange([node.key.range[1], node.value.range[0] + "function".length]);
-                        }
-                    });
                 } else if (node.value.type === "Identifier" && node.key.name === node.value.name && APPLY_TO_PROPS) {
 
                     // {x: x} should be written as {x}

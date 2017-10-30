@@ -1,6 +1,6 @@
 before
-
 *test*message*stack_overflow.js:*
-function stackOverflow() {
-                      ^
+JSON.stringify(array);
+     ^
+
 RangeError: Maximum call stack size exceeded

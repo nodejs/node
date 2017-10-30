@@ -1,8 +1,29 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
@@ -13,8 +34,8 @@ function forEach(obj, fn) {
 if (cluster.isWorker) {
   // Create a tcp server. This will be used as cluster-shared-server and as an
   // alternative IPC channel.
-  var server = net.Server();
-  var socket, message;
+  const server = net.Server();
+  let socket, message;
 
   function maybeReply() {
     if (!socket || !message) return;
@@ -39,10 +60,10 @@ if (cluster.isWorker) {
     maybeReply();
   });
 
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     global: {
       'receive': false,
       'correct': false
@@ -58,13 +79,13 @@ if (cluster.isWorker) {
   };
 
 
-  var client;
-  var check = function(type, result) {
+  let client;
+  const check = (type, result) => {
     checks[type].receive = true;
     checks[type].correct = result;
     console.error('check', checks);
 
-    var missing = false;
+    let missing = false;
     forEach(checks, function(type) {
       if (type.receive === false) missing = true;
     });
@@ -76,7 +97,7 @@ if (cluster.isWorker) {
   };
 
   // Spawn worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // When a IPC message is received from the worker
   worker.on('message', function(message) {
@@ -88,9 +109,9 @@ if (cluster.isWorker) {
   });
 
   // When a TCP server is listening in the worker connect to it
-  worker.on('listening', function() {
+  worker.on('listening', function(address) {
 
-    client = net.connect(common.PORT, function() {
+    client = net.connect(address.port, function() {
       // Send message to worker.
       worker.send('message from master');
     });
@@ -102,7 +123,7 @@ if (cluster.isWorker) {
       if (data.code === 'received message') {
         check('worker', data.echo === 'message from master');
       } else {
-        throw new Error('wrong TCP message recived: ' + data);
+        throw new Error(`wrong TCP message received: ${data}`);
       }
     });
 
@@ -118,9 +139,8 @@ if (cluster.isWorker) {
 
   process.once('exit', function() {
     forEach(checks, function(check, type) {
-      assert.ok(check.receive, 'The ' + type + ' did not receive any message');
-      assert.ok(check.correct,
-                'The ' + type + ' did not get the correct message');
+      assert.ok(check.receive, `The ${type} did not receive any message`);
+      assert.ok(check.correct, `The ${type} did not get the correct message`);
     });
   });
 }

@@ -1,3 +1,32 @@
+### v2.7.4
+
+* Reset colors prior to ending a line, to eliminate flicker when a line
+  is trucated between start and end color sequences.
+
+### v2.7.3
+
+* Only create our onExit handler when we're enabled and remove it when we're
+  disabled.  This stops us from creating multiple onExit handlers when
+  multiple gauge objects are being used.
+* Fix bug where if a theme name were given instead of a theme object, it
+  would crash.
+* Remove supports-color because it's not actually used.  Uhm.  Yes, I just
+  updated it.  >.>
+
+### v2.7.2
+
+* Use supports-color instead of has-color (as the module has been renamed)
+
+### v2.7.1
+
+* Bug fix: Calls to show/pulse while the progress bar is disabled should still
+  update our internal representation of what would be shown should it be enabled.
+
+### v2.7.0
+
+* New feature: Add new `isEnabled` method to allow introspection of the gauge's
+  "enabledness" as controlled by `.enable()` and `.disable()`.
+
 ### v2.6.0
 
 * Bug fix: Don't run the code associated with `enable`/`disable` if the gauge

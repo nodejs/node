@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
-
+#include "src/builtins/builtins.h"
+#include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
+#include "src/conversions.h"
+#include "src/counters.h"
 #include "src/dateparser-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -158,7 +162,7 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   const char* local_timezone = date_cache->LocalTimezone(time_ms);
   switch (mode) {
     case kDateOnly:
-      SNPrintF(str, "%s %s %02d %4d", kShortWeekDays[weekday],
+      SNPrintF(str, "%s %s %02d %04d", kShortWeekDays[weekday],
                kShortMonths[month], day, year);
       return;
     case kTimeOnly:
@@ -167,7 +171,7 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
                local_timezone);
       return;
     case kDateAndTime:
-      SNPrintF(str, "%s %s %02d %4d %02d:%02d:%02d GMT%c%02d%02d (%s)",
+      SNPrintF(str, "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
                kShortWeekDays[weekday], kShortMonths[month], day, year, hour,
                min, sec, (timezone_offset < 0) ? '-' : '+', timezone_hour,
                timezone_min, local_timezone);
@@ -203,13 +207,13 @@ BUILTIN(DateConstructor) {
 BUILTIN(DateConstructor_ConstructStub) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {
     time_val = JSDate::CurrentTimeValue(isolate);
   } else if (argc == 1) {
-    Handle<Object> value = args.at<Object>(1);
+    Handle<Object> value = args.at(1);
     if (value->IsJSDate()) {
       time_val = Handle<JSDate>::cast(value)->value()->Number();
     } else {
@@ -226,37 +230,37 @@ BUILTIN(DateConstructor_ConstructStub) {
   } else {
     Handle<Object> year_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year_object,
-                                       Object::ToNumber(args.at<Object>(1)));
+                                       Object::ToNumber(args.at(1)));
     Handle<Object> month_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month_object,
-                                       Object::ToNumber(args.at<Object>(2)));
+                                       Object::ToNumber(args.at(2)));
     double year = year_object->Number();
     double month = month_object->Number();
     double date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0, ms = 0.0;
     if (argc >= 3) {
       Handle<Object> date_object;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date_object,
-                                         Object::ToNumber(args.at<Object>(3)));
+                                         Object::ToNumber(args.at(3)));
       date = date_object->Number();
       if (argc >= 4) {
         Handle<Object> hours_object;
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, hours_object, Object::ToNumber(args.at<Object>(4)));
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hours_object,
+                                           Object::ToNumber(args.at(4)));
         hours = hours_object->Number();
         if (argc >= 5) {
           Handle<Object> minutes_object;
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-              isolate, minutes_object, Object::ToNumber(args.at<Object>(5)));
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, minutes_object,
+                                             Object::ToNumber(args.at(5)));
           minutes = minutes_object->Number();
           if (argc >= 6) {
             Handle<Object> seconds_object;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                isolate, seconds_object, Object::ToNumber(args.at<Object>(6)));
+            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, seconds_object,
+                                               Object::ToNumber(args.at(6)));
             seconds = seconds_object->Number();
             if (argc >= 7) {
               Handle<Object> ms_object;
-              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                  isolate, ms_object, Object::ToNumber(args.at<Object>(7)));
+              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms_object,
+                                                 Object::ToNumber(args.at(7)));
               ms = ms_object->Number();
             }
           }
@@ -301,43 +305,42 @@ BUILTIN(DateUTC) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
   double year = std::numeric_limits<double>::quiet_NaN();
-  double month = std::numeric_limits<double>::quiet_NaN();
-  double date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0, ms = 0.0;
+  double month = 0.0, date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0,
+         ms = 0.0;
   if (argc >= 1) {
     Handle<Object> year_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year_object,
-                                       Object::ToNumber(args.at<Object>(1)));
+                                       Object::ToNumber(args.at(1)));
     year = year_object->Number();
     if (argc >= 2) {
       Handle<Object> month_object;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month_object,
-                                         Object::ToNumber(args.at<Object>(2)));
+                                         Object::ToNumber(args.at(2)));
       month = month_object->Number();
       if (argc >= 3) {
         Handle<Object> date_object;
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, date_object, Object::ToNumber(args.at<Object>(3)));
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date_object,
+                                           Object::ToNumber(args.at(3)));
         date = date_object->Number();
         if (argc >= 4) {
           Handle<Object> hours_object;
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-              isolate, hours_object, Object::ToNumber(args.at<Object>(4)));
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hours_object,
+                                             Object::ToNumber(args.at(4)));
           hours = hours_object->Number();
           if (argc >= 5) {
             Handle<Object> minutes_object;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                isolate, minutes_object, Object::ToNumber(args.at<Object>(5)));
+            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, minutes_object,
+                                               Object::ToNumber(args.at(5)));
             minutes = minutes_object->Number();
             if (argc >= 6) {
               Handle<Object> seconds_object;
-              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                  isolate, seconds_object,
-                  Object::ToNumber(args.at<Object>(6)));
+              ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, seconds_object,
+                                                 Object::ToNumber(args.at(6)));
               seconds = seconds_object->Number();
               if (argc >= 7) {
                 Handle<Object> ms_object;
                 ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                    isolate, ms_object, Object::ToNumber(args.at<Object>(7)));
+                    isolate, ms_object, Object::ToNumber(args.at(7)));
                 ms = ms_object->Number();
               }
             }
@@ -394,11 +397,11 @@ BUILTIN(DatePrototypeSetFullYear) {
     dt = day;
   }
   if (argc >= 2) {
-    Handle<Object> month = args.at<Object>(2);
+    Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month, Object::ToNumber(month));
     m = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at<Object>(3);
+      Handle<Object> date = args.at(3);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date, Object::ToNumber(date));
       dt = date->Number();
     }
@@ -425,15 +428,15 @@ BUILTIN(DatePrototypeSetHours) {
     double s = (time_within_day / 1000) % 60;
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> min = args.at<Object>(2);
+      Handle<Object> min = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min, Object::ToNumber(min));
       m = min->Number();
       if (argc >= 3) {
-        Handle<Object> sec = args.at<Object>(3);
+        Handle<Object> sec = args.at(3);
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec, Object::ToNumber(sec));
         s = sec->Number();
         if (argc >= 4) {
-          Handle<Object> ms = args.at<Object>(4);
+          Handle<Object> ms = args.at(4);
           ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
           milli = ms->Number();
         }
@@ -482,11 +485,11 @@ BUILTIN(DatePrototypeSetMinutes) {
     double s = (time_within_day / 1000) % 60;
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> sec = args.at<Object>(2);
+      Handle<Object> sec = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec, Object::ToNumber(sec));
       s = sec->Number();
       if (argc >= 3) {
-        Handle<Object> ms = args.at<Object>(3);
+        Handle<Object> ms = args.at(3);
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
         milli = ms->Number();
       }
@@ -514,7 +517,7 @@ BUILTIN(DatePrototypeSetMonth) {
     double m = month->Number();
     double dt = day;
     if (argc >= 2) {
-      Handle<Object> date = args.at<Object>(2);
+      Handle<Object> date = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date, Object::ToNumber(date));
       dt = date->Number();
     }
@@ -541,7 +544,7 @@ BUILTIN(DatePrototypeSetSeconds) {
     double s = sec->Number();
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> ms = args.at<Object>(2);
+      Handle<Object> ms = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
       milli = ms->Number();
     }
@@ -595,11 +598,11 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
     dt = day;
   }
   if (argc >= 2) {
-    Handle<Object> month = args.at<Object>(2);
+    Handle<Object> month = args.at(2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month, Object::ToNumber(month));
     m = month->Number();
     if (argc >= 3) {
-      Handle<Object> date = args.at<Object>(3);
+      Handle<Object> date = args.at(3);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date, Object::ToNumber(date));
       dt = date->Number();
     }
@@ -625,15 +628,15 @@ BUILTIN(DatePrototypeSetUTCHours) {
     double s = (time_within_day / 1000) % 60;
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> min = args.at<Object>(2);
+      Handle<Object> min = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min, Object::ToNumber(min));
       m = min->Number();
       if (argc >= 3) {
-        Handle<Object> sec = args.at<Object>(3);
+        Handle<Object> sec = args.at(3);
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec, Object::ToNumber(sec));
         s = sec->Number();
         if (argc >= 4) {
-          Handle<Object> ms = args.at<Object>(4);
+          Handle<Object> ms = args.at(4);
           ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
           milli = ms->Number();
         }
@@ -680,11 +683,11 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
     double s = (time_within_day / 1000) % 60;
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> sec = args.at<Object>(2);
+      Handle<Object> sec = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec, Object::ToNumber(sec));
       s = sec->Number();
       if (argc >= 3) {
-        Handle<Object> ms = args.at<Object>(3);
+        Handle<Object> ms = args.at(3);
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
         milli = ms->Number();
       }
@@ -711,7 +714,7 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     double m = month->Number();
     double dt = day;
     if (argc >= 2) {
-      Handle<Object> date = args.at<Object>(2);
+      Handle<Object> date = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, date, Object::ToNumber(date));
       dt = date->Number();
     }
@@ -737,7 +740,7 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
     double s = sec->Number();
     double milli = time_within_day % 1000;
     if (argc >= 2) {
-      Handle<Object> ms = args.at<Object>(2);
+      Handle<Object> ms = args.at(2);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms, Object::ToNumber(ms));
       milli = ms->Number();
     }
@@ -819,26 +822,10 @@ BUILTIN(DatePrototypeToUTCString) {
   int year, month, day, weekday, hour, min, sec, ms;
   isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
                                        &hour, &min, &sec, &ms);
-  SNPrintF(ArrayVector(buffer), "%s, %02d %s %4d %02d:%02d:%02d GMT",
+  SNPrintF(ArrayVector(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT",
            kShortWeekDays[weekday], day, kShortMonths[month], year, hour, min,
            sec);
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
-}
-
-// ES6 section 20.3.4.44 Date.prototype.valueOf ( )
-BUILTIN(DatePrototypeValueOf) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.valueOf");
-  return date->value();
-}
-
-// ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
-BUILTIN(DatePrototypeToPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CHECK_RECEIVER(JSReceiver, receiver, "Date.prototype [ @@toPrimitive ]");
-  Handle<Object> hint = args.at<Object>(1);
-  RETURN_RESULT_OR_FAILURE(isolate, JSDate::ToPrimitive(receiver, hint));
 }
 
 // ES6 section B.2.4.1 Date.prototype.getYear ( )
@@ -906,96 +893,6 @@ BUILTIN(DatePrototypeToJson) {
     RETURN_RESULT_OR_FAILURE(
         isolate, Execution::Call(isolate, function, receiver_obj, 0, NULL));
   }
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetDate(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kDay);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetDay(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kWeekday);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetFullYear(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kYear);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetHours(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kHour);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetMilliseconds(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMillisecond);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetMinutes(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMinute);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetMonth(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMonth);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetSeconds(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kSecond);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetTime(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kDateValue);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetTimezoneOffset(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kTimezoneOffset);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCDate(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kDayUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCDay(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kWeekdayUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCFullYear(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kYearUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCHours(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kHourUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCMilliseconds(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMillisecondUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCMinutes(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMinuteUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCMonth(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kMonthUTC);
-}
-
-// static
-void Builtins::Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm) {
-  Generate_DatePrototype_GetField(masm, JSDate::kSecondUTC);
 }
 
 }  // namespace internal

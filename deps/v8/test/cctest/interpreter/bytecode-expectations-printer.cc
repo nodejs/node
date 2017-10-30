@@ -11,8 +11,9 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
+#include "src/api.h"
 #include "src/base/logging.h"
-#include "src/compiler.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -25,6 +26,21 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+
+static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
+  switch (idx) {
+#define COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX(NAME, Type, name) \
+  case Context::NAME:                                          \
+    return #name;
+
+    NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX)
+
+    default:
+      break;
+  }
+
+  return "UnknownIntrinsicIndex";
+}
 
 // static
 const char* const BytecodeExpectationsPrinter::kDefaultTopFunctionName =
@@ -47,11 +63,21 @@ std::string BytecodeExpectationsPrinter::WrapCodeInFunction(
   return program_stream.str();
 }
 
-v8::Local<v8::Script> BytecodeExpectationsPrinter::Compile(
+v8::Local<v8::Script> BytecodeExpectationsPrinter::CompileScript(
     const char* program) const {
   v8::Local<v8::String> source = V8StringFromUTF8(program);
   return v8::Script::Compile(isolate_->GetCurrentContext(), source)
       .ToLocalChecked();
+}
+
+v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
+    const char* program) const {
+  ScriptOrigin origin(
+      Local<v8::Value>(), Local<v8::Integer>(), Local<v8::Integer>(),
+      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate_));
+  v8::ScriptCompiler::Source source(V8StringFromUTF8(program), origin);
+  return v8::ScriptCompiler::CompileModule(isolate_, &source).ToLocalChecked();
 }
 
 void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
@@ -72,6 +98,14 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
       i::handle(js_function->shared()->bytecode_array(), i_isolate());
 
   return bytecodes;
+}
+
+i::Handle<i::BytecodeArray>
+BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
+    v8::Local<v8::Module> module) const {
+  i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
+  return i::handle(SharedFunctionInfo::cast(i_module->code())->bytecode_array(),
+                   i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -125,9 +159,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     Register register_value = bytecode_iterator.GetRegisterOperand(op_index);
     stream << 'R';
     if (op_size != OperandSize::kByte) stream << size_tag;
-    if (register_value.is_new_target()) {
-      stream << "(new_target)";
-    } else if (register_value.is_current_context()) {
+    if (register_value.is_current_context()) {
       stream << "(context)";
     } else if (register_value.is_function_closure()) {
       stream << "(closure)";
@@ -142,28 +174,42 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       stream << '(' << register_value.index() << ')';
     }
   } else {
-    stream << 'U' << size_tag << '(';
-
     switch (op_type) {
       case OperandType::kFlag8:
+        stream << 'U' << size_tag << '(';
         stream << bytecode_iterator.GetFlagOperand(op_index);
         break;
-      case OperandType::kIdx:
-        stream << bytecode_iterator.GetIndexOperand(op_index);
+      case OperandType::kIdx: {
+        stream << 'U' << size_tag << '(';
+        uint32_t idx = bytecode_iterator.GetIndexOperand(op_index);
+        if (bytecode == Bytecode::kCallJSRuntime && op_index == 0) {
+          stream << "%" << NameForNativeContextIntrinsicIndex(idx);
+        } else {
+          stream << idx;
+        }
+        break;
+      }
+      case OperandType::kUImm:
+        stream << 'U' << size_tag << '(';
+        stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
         break;
       case OperandType::kImm:
+        stream << 'I' << size_tag << '(';
         stream << bytecode_iterator.GetImmediateOperand(op_index);
         break;
       case OperandType::kRegCount:
+        stream << 'U' << size_tag << '(';
         stream << bytecode_iterator.GetRegisterCountOperand(op_index);
         break;
       case OperandType::kRuntimeId: {
+        stream << 'U' << size_tag << '(';
         Runtime::FunctionId id =
             bytecode_iterator.GetRuntimeIdOperand(op_index);
         stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
         break;
       }
       case OperandType::kIntrinsicId: {
+        stream << 'U' << size_tag << '(';
         Runtime::FunctionId id =
             bytecode_iterator.GetIntrinsicIdOperand(op_index);
         stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
@@ -202,7 +248,7 @@ void BytecodeExpectationsPrinter::PrintSourcePosition(
   if (!source_iterator.done() &&
       source_iterator.code_offset() == bytecode_offset) {
     stream << "/* " << std::setw(kPositionWidth)
-           << source_iterator.source_position();
+           << source_iterator.source_position().ScriptOffset();
     if (source_iterator.is_statement()) {
       stream << " S> */ ";
     } else {
@@ -225,32 +271,21 @@ void BytecodeExpectationsPrinter::PrintV8String(std::ostream& stream,
 
 void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream& stream, i::Handle<i::Object> constant) const {
-  switch (const_pool_type_) {
-    case ConstantPoolType::kString:
-      CHECK(constant->IsString());
+  if (constant->IsSmi()) {
+    stream << "Smi [";
+    i::Smi::cast(*constant)->SmiPrint(stream);
+    stream << "]";
+  } else {
+    stream << i::HeapObject::cast(*constant)->map()->instance_type();
+    if (constant->IsHeapNumber()) {
+      stream << " [";
+      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
+      stream << "]";
+    } else if (constant->IsString()) {
+      stream << " [";
       PrintV8String(stream, i::String::cast(*constant));
-      break;
-    case ConstantPoolType::kNumber:
-      if (constant->IsSmi()) {
-        i::Smi::cast(*constant)->SmiPrint(stream);
-      } else if (constant->IsHeapNumber()) {
-        i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    case ConstantPoolType::kMixed:
-      if (constant->IsSmi()) {
-        stream << "kInstanceTypeDontCare";
-      } else {
-        stream << "InstanceType::"
-               << i::HeapObject::cast(*constant)->map()->instance_type();
-      }
-      break;
-    case ConstantPoolType::kUnknown:
-    default:
-      UNREACHABLE();
-      return;
+      stream << "]";
+    }
   }
 }
 
@@ -270,7 +305,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
          << "\nbytecodes: [\n";
 
   SourcePositionTableIterator source_iterator(
-      bytecode_array->source_position_table());
+      bytecode_array->SourcePositionTable());
   BytecodeArrayIterator bytecode_iterator(bytecode_array);
   for (; !bytecode_iterator.done(); bytecode_iterator.Advance()) {
     stream << kIndent;
@@ -335,13 +370,20 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
-  v8::Local<v8::Script> script = Compile(source_code.c_str());
-
-  if (execute_) Run(script);
-
-  i::Handle<i::BytecodeArray> bytecode_array =
-      top_level_ ? GetBytecodeArrayForScript(script)
-                 : GetBytecodeArrayForGlobal(test_function_name_.c_str());
+  i::Handle<i::BytecodeArray> bytecode_array;
+  if (module_) {
+    CHECK(top_level_ && !wrap_);
+    v8::Local<v8::Module> module = CompileModule(source_code.c_str());
+    bytecode_array = GetBytecodeArrayForModule(module);
+  } else {
+    v8::Local<v8::Script> script = CompileScript(source_code.c_str());
+    if (top_level_) {
+      bytecode_array = GetBytecodeArrayForScript(script);
+    } else {
+      Run(script);
+      bytecode_array = GetBytecodeArrayForGlobal(test_function_name_.c_str());
+    }
+  }
 
   stream << "---\n";
   PrintCodeSnippet(stream, snippet);

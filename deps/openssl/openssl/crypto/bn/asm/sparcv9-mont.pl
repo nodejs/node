@@ -290,7 +290,7 @@ ___
 ######## .Lbn_sqr_mont gives up to 20% *overall* improvement over
 ######## code without following dedicated squaring procedure.
 ########
-$sbit="%i2";		# re-use $bp!
+$sbit="%o5";
 
 $code.=<<___;
 .align	32
@@ -403,7 +403,7 @@ $code.=<<___;
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
 	add	$acc0,$car0,$car0
-	add	$tpj,$car1,$car1
+	add	$tpj,$sbit,$sbit
 	ld	[$ap+$j],$apj			! ap[j]
 	and	$car0,$mask,$acc0
 	ld	[$np+$j],$npj			! np[j]
@@ -412,7 +412,7 @@ $code.=<<___;
 	ld	[$tp+8],$tpj			! tp[j]
 	add	$acc0,$acc0,$acc0
 	add	$j,4,$j				! j++
-	or	$sbit,$acc0,$acc0
+	add	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	cmp	$j,$num
@@ -426,12 +426,12 @@ $code.=<<___;
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
 	add	$acc0,$car0,$car0
-	add	$tpj,$car1,$car1
+	add	$tpj,$sbit,$sbit
 	and	$car0,$mask,$acc0
 	srlx	$car0,32,$car0
 	add	$acc1,$car1,$car1
 	add	$acc0,$acc0,$acc0
-	or	$sbit,$acc0,$acc0
+	add	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	add	$acc0,$car1,$car1
@@ -439,7 +439,7 @@ $code.=<<___;
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0
-	or	$sbit,$car0,$car0
+	add	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]
@@ -499,7 +499,7 @@ $code.=<<___;
 .Lsqr_inner2:
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$car1,$car1
+	add	$tpj,$sbit,$sbit
 	add	$acc0,$car0,$car0
 	ld	[$ap+$j],$apj			! ap[j]
 	and	$car0,$mask,$acc0
@@ -507,7 +507,7 @@ $code.=<<___;
 	srlx	$car0,32,$car0
 	add	$acc0,$acc0,$acc0
 	ld	[$tp+8],$tpj			! tp[j]
-	or	$sbit,$acc0,$acc0
+	add	$sbit,$acc0,$acc0
 	add	$j,4,$j				! j++
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
@@ -522,12 +522,12 @@ $code.=<<___;
 .Lsqr_no_inner2:
 	mulx	$apj,$mul0,$acc0
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$car1,$car1
+	add	$tpj,$sbit,$sbit
 	add	$acc0,$car0,$car0
 	and	$car0,$mask,$acc0
 	srlx	$car0,32,$car0
 	add	$acc0,$acc0,$acc0
-	or	$sbit,$acc0,$acc0
+	add	$sbit,$acc0,$acc0
 	srlx	$acc0,32,$sbit
 	and	$acc0,$mask,$acc0
 	add	$acc0,$car1,$car1
@@ -536,7 +536,7 @@ $code.=<<___;
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0
-	or	$sbit,$car0,$car0
+	add	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]
@@ -581,14 +581,17 @@ $code.=<<___;
 !.Lsqr_last
 
 	mulx	$npj,$mul1,$acc1
-	add	$tpj,$car1,$car1
+	add	$tpj,$acc0,$acc0
+	srlx	$acc0,32,$tmp0
+	and	$acc0,$mask,$acc0
+	add	$tmp0,$sbit,$sbit
 	add	$acc0,$car1,$car1
 	add	$acc1,$car1,$car1
 	st	$car1,[$tp]
 	srlx	$car1,32,$car1
 
 	add	$car0,$car0,$car0		! recover $car0
-	or	$sbit,$car0,$car0
+	add	$sbit,$car0,$car0
 	add	$car0,$car1,$car1
 	add	$car2,$car1,$car1
 	st	$car1,[$tp+4]

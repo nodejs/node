@@ -15,7 +15,7 @@ module.exports = {
         docs: {
             description: "disallow negating the left operand in `in` expressions",
             category: "Possible Errors",
-            recommended: true,
+            recommended: false,
             replacedBy: ["no-unsafe-negation"]
         },
         deprecated: true,
@@ -29,7 +29,7 @@ module.exports = {
 
             BinaryExpression(node) {
                 if (node.operator === "in" && node.left.type === "UnaryExpression" && node.left.operator === "!") {
-                    context.report(node, "The 'in' expression's left operand is negated.");
+                    context.report({ node, message: "The 'in' expression's left operand is negated." });
                 }
             }
         };

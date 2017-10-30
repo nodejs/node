@@ -37,16 +37,16 @@ module.exports = {
          * @private
          */
         function checkRegex(node, value, valueStart) {
-            const multipleSpacesRegex = /( {2,})+?/,
+            const multipleSpacesRegex = /( {2,})( [+*{?]|[^+*{?]|$)/,
                 regexResults = multipleSpacesRegex.exec(value);
 
             if (regexResults !== null) {
-                const count = regexResults[0].length;
+                const count = regexResults[1].length;
 
                 context.report({
                     node,
                     message: "Spaces are hard to count. Use {{{count}}}.",
-                    data: {count},
+                    data: { count },
                     fix(fixer) {
                         return fixer.replaceTextRange(
                             [valueStart + regexResults.index, valueStart + regexResults.index + count],
@@ -74,7 +74,7 @@ module.exports = {
                 nodeValue = token.value;
 
             if (nodeType === "RegularExpression") {
-                checkRegex(node, nodeValue, token.start);
+                checkRegex(node, nodeValue, token.range[0]);
             }
         }
 
@@ -100,7 +100,7 @@ module.exports = {
             const shadowed = regExpVar && regExpVar.defs.length > 0;
 
             if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0]) && !shadowed) {
-                checkRegex(node, node.arguments[0].value, node.arguments[0].start + 1);
+                checkRegex(node, node.arguments[0].value, node.arguments[0].range[0] + 1);
             }
         }
 

@@ -8,56 +8,61 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const Environments = require("./environments"),
-    Rules = require("../rules");
-
 const debug = require("debug")("eslint:plugins");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-let plugins = Object.create(null);
-
 const PLUGIN_NAME_PREFIX = "eslint-plugin-",
     NAMESPACE_REGEX = /^@.*\//i;
-
-/**
- * Removes the prefix `eslint-plugin-` from a plugin name.
- * @param {string} pluginName The name of the plugin which may have the prefix.
- * @returns {string} The name of the plugin without prefix.
- */
-function removePrefix(pluginName) {
-    return pluginName.indexOf(PLUGIN_NAME_PREFIX) === 0 ? pluginName.substring(PLUGIN_NAME_PREFIX.length) : pluginName;
-}
-
-/**
- * Gets the scope (namespace) of a plugin.
- * @param {string} pluginName The name of the plugin which may have the prefix.
- * @returns {string} The name of the plugins namepace if it has one.
- */
-function getNamespace(pluginName) {
-    return pluginName.match(NAMESPACE_REGEX) ? pluginName.match(NAMESPACE_REGEX)[0] : "";
-}
-
-/**
- * Removes the namespace from a plugin name.
- * @param {string} pluginName The name of the plugin which may have the prefix.
- * @returns {string} The name of the plugin without the namespace.
- */
-function removeNamespace(pluginName) {
-    return pluginName.replace(NAMESPACE_REGEX, "");
-}
 
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
-module.exports = {
+/**
+ * Plugin class
+ */
+class Plugins {
 
-    removePrefix,
-    getNamespace,
-    removeNamespace,
+    /**
+     * Creates the plugins context
+     * @param {Environments} envContext - env context
+     * @param {Rules} rulesContext - rules context
+     */
+    constructor(envContext, rulesContext) {
+        this._plugins = Object.create(null);
+        this._environments = envContext;
+        this._rules = rulesContext;
+    }
+
+    /**
+     * Removes the prefix `eslint-plugin-` from a plugin name.
+     * @param {string} pluginName The name of the plugin which may have the prefix.
+     * @returns {string} The name of the plugin without prefix.
+     */
+    static removePrefix(pluginName) {
+        return pluginName.startsWith(PLUGIN_NAME_PREFIX) ? pluginName.slice(PLUGIN_NAME_PREFIX.length) : pluginName;
+    }
+
+    /**
+     * Gets the scope (namespace) of a plugin.
+     * @param {string} pluginName The name of the plugin which may have the prefix.
+     * @returns {string} The name of the plugins namepace if it has one.
+     */
+    static getNamespace(pluginName) {
+        return pluginName.match(NAMESPACE_REGEX) ? pluginName.match(NAMESPACE_REGEX)[0] : "";
+    }
+
+    /**
+     * Removes the namespace from a plugin name.
+     * @param {string} pluginName The name of the plugin which may have the prefix.
+     * @returns {string} The name of the plugin without the namespace.
+     */
+    static removeNamespace(pluginName) {
+        return pluginName.replace(NAMESPACE_REGEX, "");
+    }
 
     /**
      * Defines a plugin with a given name rather than loading from disk.
@@ -66,22 +71,16 @@ module.exports = {
      * @returns {void}
      */
     define(pluginName, plugin) {
-        const pluginNamespace = getNamespace(pluginName),
-            pluginNameWithoutNamespace = removeNamespace(pluginName),
-            pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace),
+        const pluginNamespace = Plugins.getNamespace(pluginName),
+            pluginNameWithoutNamespace = Plugins.removeNamespace(pluginName),
+            pluginNameWithoutPrefix = Plugins.removePrefix(pluginNameWithoutNamespace),
             shortName = pluginNamespace + pluginNameWithoutPrefix;
 
         // load up environments and rules
-        plugins[shortName] = plugin;
-        Environments.importPlugin(plugin, shortName);
-        Rules.importPlugin(plugin, shortName);
-
-        // load up environments and rules for the name that '@scope/' was omitted
-        // 3 lines below will be removed by 4.0.0
-        plugins[pluginNameWithoutPrefix] = plugin;
-        Environments.importPlugin(plugin, pluginNameWithoutPrefix);
-        Rules.importPlugin(plugin, pluginNameWithoutPrefix);
-    },
+        this._plugins[shortName] = plugin;
+        this._environments.importPlugin(plugin, shortName);
+        this._rules.importPlugin(plugin, shortName);
+    }
 
     /**
      * Gets a plugin with the given name.
@@ -89,16 +88,16 @@ module.exports = {
      * @returns {Object} The plugin or null if not loaded.
      */
     get(pluginName) {
-        return plugins[pluginName] || null;
-    },
+        return this._plugins[pluginName] || null;
+    }
 
     /**
      * Returns all plugins that are loaded.
      * @returns {Object} The plugins cache.
      */
     getAll() {
-        return plugins;
-    },
+        return this._plugins;
+    }
 
     /**
      * Loads a plugin with the given name.
@@ -107,9 +106,9 @@ module.exports = {
      * @throws {Error} If the plugin cannot be loaded.
      */
     load(pluginName) {
-        const pluginNamespace = getNamespace(pluginName),
-            pluginNameWithoutNamespace = removeNamespace(pluginName),
-            pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace),
+        const pluginNamespace = Plugins.getNamespace(pluginName),
+            pluginNameWithoutNamespace = Plugins.removeNamespace(pluginName),
+            pluginNameWithoutPrefix = Plugins.removePrefix(pluginNameWithoutNamespace),
             shortName = pluginNamespace + pluginNameWithoutPrefix,
             longName = pluginNamespace + PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix;
         let plugin = null;
@@ -124,38 +123,55 @@ module.exports = {
             throw whitespaceError;
         }
 
-        if (!plugins[shortName]) {
+        if (!this._plugins[shortName]) {
             try {
                 plugin = require(longName);
-            } catch (err) {
-                debug(`Failed to load plugin ${longName}.`);
-                err.message = `Failed to load plugin ${pluginName}: ${err.message}`;
-                err.messageTemplate = "plugin-missing";
-                err.messageData = {
-                    pluginName: longName
-                };
-                throw err;
+            } catch (pluginLoadErr) {
+                try {
+
+                    // Check whether the plugin exists
+                    require.resolve(longName);
+                } catch (missingPluginErr) {
+
+                    // If the plugin can't be resolved, display the missing plugin error (usually a config or install error)
+                    debug(`Failed to load plugin ${longName}.`);
+                    missingPluginErr.message = `Failed to load plugin ${pluginName}: ${missingPluginErr.message}`;
+                    missingPluginErr.messageTemplate = "plugin-missing";
+                    missingPluginErr.messageData = {
+                        pluginName: longName
+                    };
+                    throw missingPluginErr;
+                }
+
+                // Otherwise, the plugin exists and is throwing on module load for some reason, so print the stack trace.
+                throw pluginLoadErr;
             }
 
             this.define(pluginName, plugin);
         }
-    },
+    }
 
     /**
      * Loads all plugins from an array.
      * @param {string[]} pluginNames An array of plugins names.
      * @returns {void}
      * @throws {Error} If a plugin cannot be loaded.
+     * @throws {Error} If "plugins" in config is not an array
      */
     loadAll(pluginNames) {
-        pluginNames.forEach(this.load, this);
-    },
 
-    /**
-     * Resets plugin information. Use for tests only.
-     * @returns {void}
-     */
-    testReset() {
-        plugins = Object.create(null);
+        // if "plugins" in config is not an array, throw an error so user can fix their config.
+        if (!Array.isArray(pluginNames)) {
+            const pluginNotArrayMessage = "ESLint configuration error: \"plugins\" value must be an array";
+
+            debug(`${pluginNotArrayMessage}: ${JSON.stringify(pluginNames)}`);
+
+            throw new Error(pluginNotArrayMessage);
+        }
+
+        // load each plugin by name
+        pluginNames.forEach(this.load, this);
     }
-};
+}
+
+module.exports = Plugins;

@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef V8_INTL_SUPPORT
+#include "unicode/uchar.h"
+#endif
+
 namespace unibrow {
 
 static const int kStartBit = (1 << 30);
@@ -36,12 +40,11 @@ static inline uchar GetEntry(int32_t entry) {
   return entry & (kStartBit - 1);
 }
 
-
 static inline bool IsStart(int32_t entry) {
   return (entry & kStartBit) != 0;
 }
 
-
+#ifndef V8_INTL_SUPPORT
 /**
  * Look up a character in the unicode table using a mix of binary and
  * interpolation search.  For a uniformly distributed array
@@ -81,13 +84,13 @@ static bool LookupPredicate(const int32_t* table, uint16_t size, uchar chr) {
   bool is_start = IsStart(field);
   return (entry == value) || (entry < value && is_start);
 }
+#endif  // !V8_INTL_SUPPORT
 
 template <int kW>
 struct MultiCharacterSpecialCase {
   static const uchar kEndOfEncoding = kSentinel;
   uchar chars[kW];
 };
-
 
 // Look up the mapping for the given character in the specified table,
 // which is of the specified length and uses the specified special case
@@ -190,8 +193,7 @@ static int LookupMapping(const int32_t* table,
   }
 }
 
-
-static inline size_t NonASCIISequenceLength(byte first) {
+static inline uint8_t NonASCIISequenceLength(byte first) {
   // clang-format off
   static const uint8_t lengths[256] = {
       // The first 128 entries correspond to ASCII characters.
@@ -229,99 +231,192 @@ static inline bool IsContinuationCharacter(byte chr) {
 // This method decodes an UTF-8 value according to RFC 3629.
 uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   size_t length = NonASCIISequenceLength(str[0]);
-  if (length == 0 || max_length < length) {
-    *cursor += 1;
-    return kBadChar;
+
+  // Check continuation characters.
+  size_t max_count = std::min(length, max_length);
+  size_t count = 1;
+  while (count < max_count && IsContinuationCharacter(str[count])) {
+    count++;
   }
-  if (length == 2) {
-    if (!IsContinuationCharacter(str[1])) {
-      *cursor += 1;
-      return kBadChar;
-    }
-    *cursor += 2;
-    return ((str[0] << 6) + str[1]) - 0x00003080;
-  }
+  *cursor += count;
+
+  // There must be enough continuation characters.
+  if (count != length) return kBadChar;
+
+  // Check overly long sequences & other conditions.
   if (length == 3) {
-    switch (str[0]) {
-      case 0xE0:
-        // Overlong three-byte sequence.
-        if (str[1] < 0xA0 || str[1] > 0xBF) {
-          *cursor += 1;
-          return kBadChar;
-        }
-        break;
-      case 0xED:
-        // High and low surrogate halves.
-        if (str[1] < 0x80 || str[1] > 0x9F) {
-          *cursor += 1;
-          return kBadChar;
-        }
-        break;
-      default:
-        if (!IsContinuationCharacter(str[1])) {
-          *cursor += 1;
-          return kBadChar;
-        }
-    }
-    if (!IsContinuationCharacter(str[2])) {
-      *cursor += 1;
+    if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
+      // Overlong three-byte sequence?
+      return kBadChar;
+    } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
+      // High and low surrogate halves?
       return kBadChar;
     }
-    *cursor += 3;
-    return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
-  }
-  DCHECK(length == 4);
-  switch (str[0]) {
-    case 0xF0:
+  } else if (length == 4) {
+    if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
       // Overlong four-byte sequence.
-      if (str[1] < 0x90 || str[1] > 0xBF) {
-        *cursor += 1;
-        return kBadChar;
-      }
-      break;
-    case 0xF4:
+      return kBadChar;
+    } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
       // Code points outside of the unicode range.
-      if (str[1] < 0x80 || str[1] > 0x8F) {
-        *cursor += 1;
-        return kBadChar;
-      }
-      break;
-    default:
-      if (!IsContinuationCharacter(str[1])) {
-        *cursor += 1;
-        return kBadChar;
-      }
+      return kBadChar;
+    }
   }
-  if (!IsContinuationCharacter(str[2])) {
-    *cursor += 1;
-    return kBadChar;
+
+  // All errors have been handled, so we only have to assemble the result.
+  switch (length) {
+    case 1:
+      return str[0];
+    case 2:
+      return ((str[0] << 6) + str[1]) - 0x00003080;
+    case 3:
+      return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
+    case 4:
+      return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
+             0x03C82080;
   }
-  if (!IsContinuationCharacter(str[3])) {
-    *cursor += 1;
-    return kBadChar;
-  }
-  *cursor += 4;
-  return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
-         0x03C82080;
+
+  UNREACHABLE();
 }
 
-bool Utf8::Validate(const byte* bytes, size_t length) {
-  size_t cursor = 0;
+uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
 
-  // Performance optimization: Skip over single-byte values first.
-  while (cursor < length && bytes[cursor] <= kMaxOneByteChar) {
-    ++cursor;
+  // The common case: 1-byte Utf8 (and no incomplete char in the buffer)
+  if (V8_LIKELY(next <= kMaxOneByteChar && *buffer == 0)) {
+    return static_cast<uchar>(next);
   }
 
-  while (cursor < length) {
-    uchar c = ValueOf(bytes + cursor, length - cursor, &cursor);
-    if (!IsValidCharacter(c)) return false;
+  if (*buffer == 0) {
+    // We're at the start of a new character.
+    uint32_t kind = NonASCIISequenceLength(next);
+    if (kind >= 2 && kind <= 4) {
+      // Start of 2..4 byte character, and no buffer.
+
+      // The mask for the lower bits depends on the kind, and is
+      // 0x1F, 0x0F, 0x07 for kinds 2, 3, 4 respectively. We can get that
+      // with one shift.
+      uint8_t mask = 0x7f >> kind;
+
+      // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
+      // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
+      // intended as a counter about how many bytes are still needed.
+      *buffer = kind << 28 | (kind - 1) << 24 | (next & mask);
+      return kIncomplete;
+    } else {
+      // No buffer, and not the start of a 1-byte char (handled at the
+      // beginning), and not the start of a 2..4 byte char? Bad char.
+      *buffer = 0;
+      return kBadChar;
+    }
+  } else if (*buffer <= 0xff) {
+    // We have one unprocessed byte left (from the last else case in this if
+    // statement).
+    uchar previous = *buffer;
+    *buffer = 0;
+    uchar t = ValueOfIncremental(previous, buffer);
+    if (t == kIncomplete) {
+      // If we have an incomplete character, process both the previous and the
+      // next byte at once.
+      return ValueOfIncremental(next, buffer);
+    } else {
+      // Otherwise, process the previous byte and save the next byte for next
+      // time.
+      DCHECK_EQ(0u, *buffer);
+      *buffer = next;
+      return t;
+    }
+  } else if (IsContinuationCharacter(next)) {
+    // We're inside of a character, as described by buffer.
+
+    // How many bytes (excluding this one) do we still expect?
+    uint8_t bytes_expected = *buffer >> 28;
+    uint8_t bytes_left = (*buffer >> 24) & 0x0f;
+    bytes_left--;
+    // Update the value.
+    uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
+    if (bytes_left) {
+      *buffer = (bytes_expected << 28 | bytes_left << 24 | value);
+      return kIncomplete;
+    } else {
+      *buffer = 0;
+      bool sequence_was_too_long = (bytes_expected == 2 && value < 0x80) ||
+                                   (bytes_expected == 3 && value < 0x800);
+      return sequence_was_too_long ? kBadChar : value;
+    }
+  } else {
+    // Within a character, but not a continuation character? Then the
+    // previous char was a bad char. But we need to save the current
+    // one.
+    *buffer = next;
+    return kBadChar;
+  }
+}
+
+uchar Utf8::ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer) {
+  DCHECK_NOT_NULL(buffer);
+  if (*buffer == 0) {
+    return kBufferEmpty;
+  } else {
+    // Process left-over chars. An incomplete char at the end maps to kBadChar.
+    uchar t = ValueOfIncremental(0, buffer);
+    return (t == kIncomplete) ? kBadChar : t;
+  }
+}
+
+bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
+  const byte* cursor = bytes;
+  const byte* end = bytes + length;
+
+  while (cursor < end) {
+    // Skip over single-byte values.
+    if (*cursor <= kMaxOneByteChar) {
+      ++cursor;
+      continue;
+    }
+
+    // Get the length the the character.
+    size_t seq_length = NonASCIISequenceLength(*cursor);
+    // For some invalid characters NonASCIISequenceLength returns 0.
+    if (seq_length == 0) return false;
+
+    const byte* char_end = cursor + seq_length;
+
+    // Return false if we do not have enough bytes for the character.
+    if (char_end > end) return false;
+
+    // Check if the bytes of the character are continuation bytes.
+    for (const byte* i = cursor + 1; i < char_end; ++i) {
+      if (!IsContinuationCharacter(*i)) return false;
+    }
+
+    // Check overly long sequences & other conditions.
+    if (seq_length == 3) {
+      if (cursor[0] == 0xE0 && (cursor[1] < 0xA0 || cursor[1] > 0xBF)) {
+        // Overlong three-byte sequence?
+        return false;
+      } else if (cursor[0] == 0xED && (cursor[1] < 0x80 || cursor[1] > 0x9F)) {
+        // High and low surrogate halves?
+        return false;
+      }
+    } else if (seq_length == 4) {
+      if (cursor[0] == 0xF0 && (cursor[1] < 0x90 || cursor[1] > 0xBF)) {
+        // Overlong four-byte sequence.
+        return false;
+      } else if (cursor[0] == 0xF4 && (cursor[1] < 0x80 || cursor[1] > 0x8F)) {
+        // Code points outside of the unicode range.
+        return false;
+      }
+    }
+    cursor = char_end;
   }
   return true;
 }
 
 // Uppercase:            point.category == 'Lu'
-
+// TODO(jshin): Check if it's ok to exclude Other_Uppercase characters.
+#ifdef V8_INTL_SUPPORT
+bool Uppercase::Is(uchar c) { return static_cast<bool>(u_isupper(c)); }
+#else
 static const uint16_t kUppercaseTable0Size = 455;
 static const int32_t kUppercaseTable0[455] = {
     1073741889, 90,         1073742016, 214,
@@ -487,196 +582,12 @@ bool Uppercase::Is(uchar c) {
     default: return false;
   }
 }
-
-
-// Lowercase:            point.category == 'Ll'
-
-static const uint16_t kLowercaseTable0Size = 467;
-static const int32_t kLowercaseTable0[467] = {
-    1073741921, 122,        181,        1073742047,
-    246,        1073742072, 255,        257,  // NOLINT
-    259,        261,        263,        265,
-    267,        269,        271,        273,  // NOLINT
-    275,        277,        279,        281,
-    283,        285,        287,        289,  // NOLINT
-    291,        293,        295,        297,
-    299,        301,        303,        305,  // NOLINT
-    307,        309,        1073742135, 312,
-    314,        316,        318,        320,  // NOLINT
-    322,        324,        326,        1073742152,
-    329,        331,        333,        335,  // NOLINT
-    337,        339,        341,        343,
-    345,        347,        349,        351,  // NOLINT
-    353,        355,        357,        359,
-    361,        363,        365,        367,  // NOLINT
-    369,        371,        373,        375,
-    378,        380,        1073742206, 384,  // NOLINT
-    387,        389,        392,        1073742220,
-    397,        402,        405,        1073742233,  // NOLINT
-    411,        414,        417,        419,
-    421,        424,        1073742250, 427,  // NOLINT
-    429,        432,        436,        438,
-    1073742265, 442,        1073742269, 447,  // NOLINT
-    454,        457,        460,        462,
-    464,        466,        468,        470,  // NOLINT
-    472,        474,        1073742300, 477,
-    479,        481,        483,        485,  // NOLINT
-    487,        489,        491,        493,
-    1073742319, 496,        499,        501,  // NOLINT
-    505,        507,        509,        511,
-    513,        515,        517,        519,  // NOLINT
-    521,        523,        525,        527,
-    529,        531,        533,        535,  // NOLINT
-    537,        539,        541,        543,
-    545,        547,        549,        551,  // NOLINT
-    553,        555,        557,        559,
-    561,        1073742387, 569,        572,  // NOLINT
-    1073742399, 576,        578,        583,
-    585,        587,        589,        1073742415,  // NOLINT
-    659,        1073742485, 687,        881,
-    883,        887,        1073742715, 893,  // NOLINT
-    912,        1073742764, 974,        1073742800,
-    977,        1073742805, 983,        985,  // NOLINT
-    987,        989,        991,        993,
-    995,        997,        999,        1001,  // NOLINT
-    1003,       1005,       1073742831, 1011,
-    1013,       1016,       1073742843, 1020,  // NOLINT
-    1073742896, 1119,       1121,       1123,
-    1125,       1127,       1129,       1131,  // NOLINT
-    1133,       1135,       1137,       1139,
-    1141,       1143,       1145,       1147,  // NOLINT
-    1149,       1151,       1153,       1163,
-    1165,       1167,       1169,       1171,  // NOLINT
-    1173,       1175,       1177,       1179,
-    1181,       1183,       1185,       1187,  // NOLINT
-    1189,       1191,       1193,       1195,
-    1197,       1199,       1201,       1203,  // NOLINT
-    1205,       1207,       1209,       1211,
-    1213,       1215,       1218,       1220,  // NOLINT
-    1222,       1224,       1226,       1228,
-    1073743054, 1231,       1233,       1235,  // NOLINT
-    1237,       1239,       1241,       1243,
-    1245,       1247,       1249,       1251,  // NOLINT
-    1253,       1255,       1257,       1259,
-    1261,       1263,       1265,       1267,  // NOLINT
-    1269,       1271,       1273,       1275,
-    1277,       1279,       1281,       1283,  // NOLINT
-    1285,       1287,       1289,       1291,
-    1293,       1295,       1297,       1299,  // NOLINT
-    1301,       1303,       1305,       1307,
-    1309,       1311,       1313,       1315,  // NOLINT
-    1317,       1319,       1321,       1323,
-    1325,       1327,       1073743201, 1415,  // NOLINT
-    1073749248, 7467,       1073749355, 7543,
-    1073749369, 7578,       7681,       7683,  // NOLINT
-    7685,       7687,       7689,       7691,
-    7693,       7695,       7697,       7699,  // NOLINT
-    7701,       7703,       7705,       7707,
-    7709,       7711,       7713,       7715,  // NOLINT
-    7717,       7719,       7721,       7723,
-    7725,       7727,       7729,       7731,  // NOLINT
-    7733,       7735,       7737,       7739,
-    7741,       7743,       7745,       7747,  // NOLINT
-    7749,       7751,       7753,       7755,
-    7757,       7759,       7761,       7763,  // NOLINT
-    7765,       7767,       7769,       7771,
-    7773,       7775,       7777,       7779,  // NOLINT
-    7781,       7783,       7785,       7787,
-    7789,       7791,       7793,       7795,  // NOLINT
-    7797,       7799,       7801,       7803,
-    7805,       7807,       7809,       7811,  // NOLINT
-    7813,       7815,       7817,       7819,
-    7821,       7823,       7825,       7827,  // NOLINT
-    1073749653, 7837,       7839,       7841,
-    7843,       7845,       7847,       7849,  // NOLINT
-    7851,       7853,       7855,       7857,
-    7859,       7861,       7863,       7865,  // NOLINT
-    7867,       7869,       7871,       7873,
-    7875,       7877,       7879,       7881,  // NOLINT
-    7883,       7885,       7887,       7889,
-    7891,       7893,       7895,       7897,  // NOLINT
-    7899,       7901,       7903,       7905,
-    7907,       7909,       7911,       7913,  // NOLINT
-    7915,       7917,       7919,       7921,
-    7923,       7925,       7927,       7929,  // NOLINT
-    7931,       7933,       1073749759, 7943,
-    1073749776, 7957,       1073749792, 7975,  // NOLINT
-    1073749808, 7991,       1073749824, 8005,
-    1073749840, 8023,       1073749856, 8039,  // NOLINT
-    1073749872, 8061,       1073749888, 8071,
-    1073749904, 8087,       1073749920, 8103,  // NOLINT
-    1073749936, 8116,       1073749942, 8119,
-    8126,       1073749954, 8132,       1073749958,  // NOLINT
-    8135,       1073749968, 8147,       1073749974,
-    8151,       1073749984, 8167,       1073750002,  // NOLINT
-    8180,       1073750006, 8183};                   // NOLINT
-static const uint16_t kLowercaseTable1Size = 84;
-static const int32_t kLowercaseTable1[84] = {
-  266, 1073742094, 271, 275, 303, 308, 313, 1073742140,  // NOLINT
-  317, 1073742150, 329, 334, 388, 1073744944, 3166, 3169,  // NOLINT
-  1073744997, 3174, 3176, 3178, 3180, 3185, 1073745011, 3188,  // NOLINT
-  1073745014, 3195, 3201, 3203, 3205, 3207, 3209, 3211,  // NOLINT
-  3213, 3215, 3217, 3219, 3221, 3223, 3225, 3227,  // NOLINT
-  3229, 3231, 3233, 3235, 3237, 3239, 3241, 3243,  // NOLINT
-  3245, 3247, 3249, 3251, 3253, 3255, 3257, 3259,  // NOLINT
-  3261, 3263, 3265, 3267, 3269, 3271, 3273, 3275,  // NOLINT
-  3277, 3279, 3281, 3283, 3285, 3287, 3289, 3291,  // NOLINT
-  3293, 3295, 3297, 1073745123, 3300, 3308, 3310, 3315,  // NOLINT
-  1073745152, 3365, 3367, 3373 };  // NOLINT
-static const uint16_t kLowercaseTable5Size = 105;
-static const int32_t kLowercaseTable5[105] = {
-    1601,       1603,       1605, 1607,
-    1609,       1611,       1613, 1615,  // NOLINT
-    1617,       1619,       1621, 1623,
-    1625,       1627,       1629, 1631,  // NOLINT
-    1633,       1635,       1637, 1639,
-    1641,       1643,       1645, 1665,  // NOLINT
-    1667,       1669,       1671, 1673,
-    1675,       1677,       1679, 1681,  // NOLINT
-    1683,       1685,       1687, 1689,
-    1691,       1827,       1829, 1831,  // NOLINT
-    1833,       1835,       1837, 1073743663,
-    1841,       1843,       1845, 1847,  // NOLINT
-    1849,       1851,       1853, 1855,
-    1857,       1859,       1861, 1863,  // NOLINT
-    1865,       1867,       1869, 1871,
-    1873,       1875,       1877, 1879,  // NOLINT
-    1881,       1883,       1885, 1887,
-    1889,       1891,       1893, 1895,  // NOLINT
-    1897,       1899,       1901, 1903,
-    1073743729, 1912,       1914, 1916,  // NOLINT
-    1919,       1921,       1923, 1925,
-    1927,       1932,       1934, 1937,  // NOLINT
-    1073743763, 1941,       1943, 1945,
-    1947,       1949,       1951, 1953,  // NOLINT
-    1955,       1957,       1959, 1961,
-    2042,       1073744688, 2906, 1073744740,  // NOLINT
-    2917};                                     // NOLINT
-static const uint16_t kLowercaseTable7Size = 6;
-static const int32_t kLowercaseTable7[6] = {
-  1073748736, 6918, 1073748755, 6935, 1073749825, 8026 };  // NOLINT
-bool Lowercase::Is(uchar c) {
-  int chunk_index = c >> 13;
-  switch (chunk_index) {
-    case 0: return LookupPredicate(kLowercaseTable0,
-                                       kLowercaseTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kLowercaseTable1,
-                                       kLowercaseTable1Size,
-                                       c);
-    case 5: return LookupPredicate(kLowercaseTable5,
-                                       kLowercaseTable5Size,
-                                       c);
-    case 7: return LookupPredicate(kLowercaseTable7,
-                                       kLowercaseTable7Size,
-                                       c);
-    default: return false;
-  }
-}
-
+#endif  // V8_INTL_SUPPORT
 
 // Letter:               point.category in ['Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl']
-
+#ifdef V8_INTL_SUPPORT
+bool Letter::Is(uchar c) { return static_cast<bool>(u_isalpha(c)); }
+#else
 static const uint16_t kLetterTable0Size = 431;
 static const int32_t kLetterTable0[431] = {
     1073741889, 90,         1073741921, 122,
@@ -877,8 +788,9 @@ bool Letter::Is(uchar c) {
     default: return false;
   }
 }
+#endif
 
-
+#ifndef V8_INTL_SUPPORT
 // ID_Start:             ((point.category in ['Lu', 'Ll', 'Lt', 'Lm', 'Lo',
 // 'Nl'] or 'Other_ID_Start' in point.properties) and ('Pattern_Syntax' not in
 // point.properties) and ('Pattern_White_Space' not in point.properties)) or
@@ -1224,13 +1136,12 @@ bool ID_Continue::Is(uchar c) {
   }
 }
 
-
 // WhiteSpace:           (point.category == 'Zs') or ('JS_White_Space' in
 // point.properties)
 
-static const uint16_t kWhiteSpaceTable0Size = 7;
-static const int32_t kWhiteSpaceTable0[7] = {9,   1073741835, 12,  32,
-                                             160, 5760,       6158};  // NOLINT
+static const uint16_t kWhiteSpaceTable0Size = 6;
+static const int32_t kWhiteSpaceTable0[6] = {9,  1073741835, 12,
+                                             32, 160,        5760};  // NOLINT
 static const uint16_t kWhiteSpaceTable1Size = 5;
 static const int32_t kWhiteSpaceTable1[5] = {
   1073741824, 10, 47, 95, 4096 };  // NOLINT
@@ -1250,29 +1161,17 @@ bool WhiteSpace::Is(uchar c) {
     default: return false;
   }
 }
-
+#endif  // !V8_INTL_SUPPORT
 
 // LineTerminator:       'JS_Line_Terminator' in point.properties
+// ES#sec-line-terminators lists exactly 4 code points:
+// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
 
-static const uint16_t kLineTerminatorTable0Size = 2;
-static const int32_t kLineTerminatorTable0[2] = {
-  10, 13 };  // NOLINT
-static const uint16_t kLineTerminatorTable1Size = 2;
-static const int32_t kLineTerminatorTable1[2] = {
-  1073741864, 41 };  // NOLINT
 bool LineTerminator::Is(uchar c) {
-  int chunk_index = c >> 13;
-  switch (chunk_index) {
-    case 0: return LookupPredicate(kLineTerminatorTable0,
-                                       kLineTerminatorTable0Size,
-                                       c);
-    case 1: return LookupPredicate(kLineTerminatorTable1,
-                                       kLineTerminatorTable1Size,
-                                       c);
-    default: return false;
-  }
+  return c == 0xA || c == 0xD || c == 0x2028 || c == 0x2029;
 }
 
+#ifndef V8_INTL_SUPPORT
 static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
   {{105, 775}}, {{kSentinel}} }; // NOLINT
 static const uint16_t kToLowercaseTable0Size = 488;  // NOLINT
@@ -1882,6 +1781,7 @@ int ToUppercase::Convert(uchar c,
     default: return 0;
   }
 }
+#endif  // !V8_INTL_SUPPORT
 
 static const MultiCharacterSpecialCase<1> kEcma262CanonicalizeMultiStrings0[1] = {  // NOLINT
   {{kSentinel}} }; // NOLINT
@@ -3361,14 +3261,11 @@ int CanonicalizationRange::Convert(uchar c,
 const uchar UnicodeData::kMaxCodePoint = 65533;
 
 int UnicodeData::GetByteCount() {
+#ifndef V8_INTL_SUPPORT                                 // NOLINT
   return kUppercaseTable0Size * sizeof(int32_t)         // NOLINT
          + kUppercaseTable1Size * sizeof(int32_t)       // NOLINT
          + kUppercaseTable5Size * sizeof(int32_t)       // NOLINT
          + kUppercaseTable7Size * sizeof(int32_t)       // NOLINT
-         + kLowercaseTable0Size * sizeof(int32_t)       // NOLINT
-         + kLowercaseTable1Size * sizeof(int32_t)       // NOLINT
-         + kLowercaseTable5Size * sizeof(int32_t)       // NOLINT
-         + kLowercaseTable7Size * sizeof(int32_t)       // NOLINT
          + kLetterTable0Size * sizeof(int32_t)          // NOLINT
          + kLetterTable1Size * sizeof(int32_t)          // NOLINT
          + kLetterTable2Size * sizeof(int32_t)          // NOLINT
@@ -3392,8 +3289,6 @@ int UnicodeData::GetByteCount() {
          + kWhiteSpaceTable0Size * sizeof(int32_t)      // NOLINT
          + kWhiteSpaceTable1Size * sizeof(int32_t)      // NOLINT
          + kWhiteSpaceTable7Size * sizeof(int32_t)      // NOLINT
-         + kLineTerminatorTable0Size * sizeof(int32_t)  // NOLINT
-         + kLineTerminatorTable1Size * sizeof(int32_t)  // NOLINT
          +
          kToLowercaseMultiStrings0Size *
              sizeof(MultiCharacterSpecialCase<2>)  // NOLINT
@@ -3418,6 +3313,9 @@ int UnicodeData::GetByteCount() {
          +
          kToUppercaseMultiStrings7Size *
              sizeof(MultiCharacterSpecialCase<3>)  // NOLINT
+#else
+  return
+#endif  // !V8_INTL_SUPPORT
          +
          kEcma262CanonicalizeMultiStrings0Size *
              sizeof(MultiCharacterSpecialCase<1>)  // NOLINT

@@ -46,7 +46,8 @@ module.exports = {
                 current.init = true;
                 current.valid = !astUtils.isDefaultThisBinding(
                     current.node,
-                    sourceCode);
+                    sourceCode
+                );
             }
             return current;
         };
@@ -114,7 +115,7 @@ module.exports = {
                 const current = stack.getCurrent();
 
                 if (current && !current.valid) {
-                    context.report(node, "Unexpected 'this'.");
+                    context.report({ node, message: "Unexpected 'this'." });
                 }
             }
         };

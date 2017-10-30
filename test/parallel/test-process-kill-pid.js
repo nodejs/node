@@ -1,6 +1,27 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // test variants of pid
 //
@@ -17,12 +38,35 @@ var assert = require('assert');
 //
 // process.pid, String(process.pid): ourself
 
-assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
-assert.throws(function() { process.kill(null); }, TypeError);
-assert.throws(function() { process.kill(undefined); }, TypeError);
-assert.throws(function() { process.kill(+'not a number'); }, TypeError);
-assert.throws(function() { process.kill(1 / 0); }, TypeError);
-assert.throws(function() { process.kill(-1 / 0); }, TypeError);
+const invalidPidArgument = common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError,
+  message: 'The "pid" argument must be of type Number'
+}, 6);
+
+assert.throws(function() { process.kill('SIGTERM'); },
+              invalidPidArgument);
+assert.throws(function() { process.kill(null); },
+              invalidPidArgument);
+assert.throws(function() { process.kill(undefined); },
+              invalidPidArgument);
+assert.throws(function() { process.kill(+'not a number'); },
+              invalidPidArgument);
+assert.throws(function() { process.kill(1 / 0); },
+              invalidPidArgument);
+assert.throws(function() { process.kill(-1 / 0); },
+              invalidPidArgument);
+
+// Test that kill throws an error for invalid signal
+const unknownSignal = common.expectsError({
+  code: 'ERR_UNKNOWN_SIGNAL',
+  type: TypeError,
+  message: 'Unknown signal: test'
+});
+
+
+assert.throws(function() { process.kill(1, 'test'); },
+              unknownSignal);
 
 // Test kill argument processing in valid cases.
 //
@@ -30,9 +74,9 @@ assert.throws(function() { process.kill(-1 / 0); }, TypeError);
 // that we don't kill our process group, or try to actually send ANY signals on
 // windows, which doesn't support them.
 function kill(tryPid, trySig, expectPid, expectSig) {
-  var getPid;
-  var getSig;
-  var origKill = process._kill;
+  let getPid;
+  let getSig;
+  const origKill = process._kill;
   process._kill = function(pid, sig) {
     getPid = pid;
     getSig = sig;
@@ -43,8 +87,8 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 
   process.kill(tryPid, trySig);
 
-  assert.equal(getPid, expectPid);
-  assert.equal(getSig, expectSig);
+  assert.strictEqual(getPid.toString(), expectPid.toString());
+  assert.strictEqual(getSig, expectSig);
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows

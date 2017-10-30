@@ -87,9 +87,7 @@ int MAIN(int argc, char **argv)
     char pass[50], *passin = NULL, *passout = NULL, *p8pass = NULL;
     int badarg = 0;
     int ret = 1;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
 
     if (bio_err == NULL)
         bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
@@ -223,9 +221,7 @@ int MAIN(int argc, char **argv)
 #endif
         goto end;
     }
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
@@ -391,6 +387,7 @@ int MAIN(int argc, char **argv)
     X509_SIG_free(p8);
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     EVP_PKEY_free(pkey);
+    release_engine(e);
     BIO_free_all(out);
     BIO_free(in);
     if (passin)

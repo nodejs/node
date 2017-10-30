@@ -37,6 +37,8 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "src/base/platform/platform-posix.h"
+
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -55,7 +57,7 @@
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 
-#ifndef _AIX
+#if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
 #include <sys/syscall.h>
 #endif
 
@@ -99,6 +101,13 @@ intptr_t OS::CommitPageSize() {
   return page_size;
 }
 
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   bool is_executable, void* hint) {
+  return OS::Allocate(requested, allocated,
+                      is_executable ? OS::MemoryPermission::kReadWriteExecute
+                                    : OS::MemoryPermission::kReadWrite,
+                      hint);
+}
 
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
@@ -129,6 +138,15 @@ void OS::Guard(void* address, const size_t size) {
 #endif
 }
 
+// Make a region of memory readable and writable.
+void OS::Unprotect(void* address, const size_t size) {
+#if V8_OS_CYGWIN
+  DWORD oldprotect;
+  VirtualProtect(address, size, PAGE_READWRITE, &oldprotect);
+#else
+  mprotect(address, size, PROT_READ | PROT_WRITE);
+#endif
+}
 
 static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
@@ -331,6 +349,8 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(gettid());
 #elif V8_OS_AIX
   return static_cast<int>(thread_self());
+#elif V8_OS_FUCHSIA
+  return static_cast<int>(pthread_self());
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #else
@@ -357,26 +377,7 @@ double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();
 }
 
-
-class TimezoneCache {};
-
-
-TimezoneCache* OS::CreateTimezoneCache() {
-  return NULL;
-}
-
-
-void OS::DisposeTimezoneCache(TimezoneCache* cache) {
-  DCHECK(cache == NULL);
-}
-
-
-void OS::ClearTimezoneCache(TimezoneCache* cache) {
-  DCHECK(cache == NULL);
-}
-
-
-double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
+double PosixTimezoneCache::DaylightSavingsOffset(double time) {
   if (std::isnan(time)) return std::numeric_limits<double>::quiet_NaN();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
@@ -399,7 +400,10 @@ FILE* OS::FOpen(const char* path, const char* mode) {
   FILE* file = fopen(path, mode);
   if (file == NULL) return NULL;
   struct stat file_stat;
-  if (fstat(fileno(file), &file_stat) != 0) return NULL;
+  if (fstat(fileno(file), &file_stat) != 0) {
+    fclose(file);
+    return NULL;
+  }
   bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
   if (is_regular_file) return file;
   fclose(file);
@@ -597,12 +601,15 @@ void Thread::Start() {
   result = pthread_attr_init(&attr);
   DCHECK_EQ(0, result);
   size_t stack_size = stack_size_;
-#if V8_OS_AIX
   if (stack_size == 0) {
-    // Default on AIX is 96KB -- bump up to 2MB
+#if V8_OS_MACOSX
+    // Default on Mac OS X is 512kB -- bump up to 1MB
+    stack_size = 1 * 1024 * 1024;
+#elif V8_OS_AIX
+    // Default on AIX is 96kB -- bump up to 2MB
     stack_size = 2 * 1024 * 1024;
-  }
 #endif
+  }
   if (stack_size > 0) {
     result = pthread_attr_setstacksize(&attr, stack_size);
     DCHECK_EQ(0, result);
@@ -745,6 +752,18 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   int result = pthread_setspecific(pthread_key, value);
   DCHECK_EQ(0, result);
   USE(result);
+}
+
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      return PROT_NONE;
+    case OS::MemoryPermission::kReadWrite:
+      return PROT_READ | PROT_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PROT_READ | PROT_WRITE | PROT_EXEC;
+  }
+  UNREACHABLE();
 }
 
 }  // namespace base

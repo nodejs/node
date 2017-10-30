@@ -45,7 +45,7 @@ function baseDifference(array, values, iteratee, comparator) {
   outer:
   while (++index < length) {
     var value = array[index],
-        computed = iteratee ? iteratee(value) : value;
+        computed = iteratee == null ? value : iteratee(value);
 
     value = (comparator || value !== 0) ? value : 0;
     if (isCommon && computed === computed) {

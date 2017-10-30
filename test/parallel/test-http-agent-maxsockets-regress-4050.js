@@ -1,7 +1,8 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const MAX_SOCKETS = 2;
 
@@ -12,9 +13,11 @@ const agent = new http.Agent({
   maxFreeSockets: 2
 });
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
-});
+}, 6));
+
+const countdown = new Countdown(6, common.mustCall(() => server.close()));
 
 function get(path, callback) {
   return http.get({
@@ -25,19 +28,14 @@ function get(path, callback) {
   }, callback);
 }
 
-server.listen(0, function() {
-  var finished = 0;
-  const num_requests = 6;
-  for (var i = 0; i < num_requests; i++) {
-    const request = get('/1', function() {
-    });
-    request.on('response', function() {
+server.listen(0, common.mustCall(() => {
+  for (let i = 0; i < 6; i++) {
+    const request = get('/1', common.mustCall());
+    request.on('response', common.mustCall(() => {
       request.abort();
       const sockets = agent.sockets[Object.keys(agent.sockets)[0]];
       assert(sockets.length <= MAX_SOCKETS);
-      if (++finished === num_requests) {
-        server.close();
-      }
-    });
+      countdown.dec();
+    }));
   }
-});
+}));

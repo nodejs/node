@@ -1,9 +1,11 @@
 'use strict';
 
-var Stringify = require('./stringify');
-var Parse = require('./parse');
+var stringify = require('./stringify');
+var parse = require('./parse');
+var formats = require('./formats');
 
 module.exports = {
-    stringify: Stringify,
-    parse: Parse
+    formats: formats,
+    parse: parse,
+    stringify: stringify
 };

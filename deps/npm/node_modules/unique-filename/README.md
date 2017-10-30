@@ -18,8 +18,8 @@ var uniqueTmpfile = uniqueFilename('/tmp', 'testing', '/my/thing/to/uniq/on')
 ### uniqueFilename(*dir*, *fileprefix*, *uniqstr*) → String
 
 Returns the full path of a unique filename that looks like:
-`dir/prefix-912ec803b2ce49e4a541068d495ab570`
-or `dir/912ec803b2ce49e4a541068d495ab570`
+`dir/prefix-7ddd44c0`
+or `dir/7ddd44c0`
 
 *dir* – The path you want the filename in. `os.tmpdir()` is a good choice for this.
 

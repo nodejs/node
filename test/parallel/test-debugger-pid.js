@@ -1,17 +1,17 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-var buffer = '';
+let buffer = '';
 
 // connect to debug agent
-var interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
+const interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
 
-console.error(process.execPath, 'debug', '-p', '655555');
 interfacer.stdout.setEncoding('utf-8');
 interfacer.stderr.setEncoding('utf-8');
-var onData = function(data) {
+const onData = (data) => {
   data = (buffer + data).split('\n');
   buffer = data.pop();
   data.forEach(function(line) {
@@ -21,34 +21,33 @@ var onData = function(data) {
 interfacer.stdout.on('data', onData);
 interfacer.stderr.on('data', onData);
 
-var lineCount = 0;
+let lineCount = 0;
 interfacer.on('line', function(line) {
-  var expected;
+  let expected;
   const pid = interfacer.pid;
-  if (common.isWindows) {
-    switch (++lineCount) {
-      case 1:
-        line = line.replace(/^(debug> *)+/, '');
-        const msg = 'There was an internal error in Node\'s debugger. ' +
-                    'Please report this bug.';
-        expected = `(node:${pid}) ${msg}`;
-        break;
+  switch (++lineCount) {
+    case 1:
+      expected =
+        new RegExp(`^\\(node:${pid}\\) \\[DEP0068\\] DeprecationWarning: `);
+      assert.ok(expected.test(line), `expected regexp match for ${line}`);
+      break;
+    case 2:
+      // Doesn't currently work on Windows.
+      if (!common.isWindows) {
+        expected = "Target process: 655555 doesn't exist.";
+        assert.strictEqual(line, expected);
+      }
+      break;
 
-      case 2:
-        expected = 'The parameter is incorrect.';
-        break;
-
-      default:
-        return;
-    }
-  } else {
-    line = line.replace(/^(debug> *)+/, '');
-    expected = `(node:${pid}) Target process: 655555 doesn't exist.`;
+    default:
+      if (!common.isWindows)
+        assert.fail(`unexpected line received: ${line}`);
   }
-
-  assert.strictEqual(expected, line);
 });
 
 interfacer.on('exit', function(code, signal) {
   assert.strictEqual(code, 1, `Got unexpected code: ${code}`);
+  if (!common.isWindows) {
+    assert.strictEqual(lineCount, 2);
+  }
 });

@@ -2,6 +2,10 @@
 const common = require('../common');
 const net = require('net');
 
-const socket = net.connect(common.PORT, common.localhostIPv4, common.fail);
-socket.on('error', common.fail);
+const server = net.createServer();
+server.listen(0);
+const port = server.address().port;
+const socket = net.connect(port, common.localhostIPv4, common.mustNotCall());
+socket.on('error', common.mustNotCall());
+server.close();
 socket.destroy();

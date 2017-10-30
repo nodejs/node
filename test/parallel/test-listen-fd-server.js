@@ -1,19 +1,38 @@
-'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (common.isWindows) {
+'use strict';
+const common = require('../common');
+if (common.isWindows)
   common.skip('This test is disabled on windows.');
-  return;
-}
+
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 switch (process.argv[2]) {
   case 'child': return child();
 }
 
-var ok;
+let ok;
 
 process.on('exit', function() {
   assert.ok(ok);
@@ -31,15 +50,15 @@ test(function(child, port) {
     port: port,
     path: '/',
   }).on('response', function(res) {
-    var s = '';
+    let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
     res.on('end', function() {
       child.kill();
       child.on('exit', function() {
-        assert.equal(s, 'hello from child\n');
-        assert.equal(res.statusCode, 200);
+        assert.strictEqual(s, 'hello from child\n');
+        assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
       });
@@ -67,15 +86,15 @@ function child() {
 }
 
 function test(cb) {
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
   }).listen(0, function() {
     const port = this.address().port;
     console.error('server listening on %d', port);
 
-    var spawn = require('child_process').spawn;
-    var child = spawn(process.execPath, [__filename, 'child'], {
+    const spawn = require('child_process').spawn;
+    const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle, 'ipc' ]
     });
 

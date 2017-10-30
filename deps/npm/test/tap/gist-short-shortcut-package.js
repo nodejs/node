@@ -28,17 +28,17 @@ test('setup', function (t) {
 test('gist-short-shortcut-package', function (t) {
   var cloneUrls = [
     ['git://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try git URLs first'],
-    ['https://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try HTTPS URLs second'],
-    ['git@gist.github.com:/deadbeef.git', 'GitHub gist shortcuts try SSH third']
+    ['https://gist.github.com/deadbeef.git', 'GitHub gist shortcuts try HTTPS URLs third'],
+    ['ssh://git@gist.github.com/deadbeef.git', 'GitHub gist shortcuts try SSH second']
   ]
   var npm = requireInject.installGlobally('../../lib/npm.js', {
     'child_process': {
       'execFile': function (cmd, args, options, cb) {
         process.nextTick(function () {
-          if (args[0] !== 'clone') return cb(null, '', '')
+          if (args.indexOf('clone') === -1) return cb(null, '', '')
           var cloneUrl = cloneUrls.shift()
           if (cloneUrl) {
-            t.is(args[3], cloneUrl[0], cloneUrl[1])
+            t.is(args[args.length - 2], cloneUrl[0], cloneUrl[1])
           } else {
             t.fail('too many attempts to clone')
           }

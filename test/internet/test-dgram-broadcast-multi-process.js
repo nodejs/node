@@ -1,10 +1,33 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
+if (common.inFreeBSDJail)
+  common.skip('in a FreeBSD jail');
+
 const assert = require('assert');
 const dgram = require('dgram');
 const util = require('util');
 const networkInterfaces = require('os').networkInterfaces();
-const Buffer = require('buffer').Buffer;
 const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '255.255.255.255';
 const TIMEOUT = common.platformTimeout(5000);
@@ -14,11 +37,6 @@ const messages = [
   Buffer.from('Third message to send'),
   Buffer.from('Fourth message to send')
 ];
-
-if (common.inFreeBSDJail) {
-  common.skip('in a FreeBSD jail');
-  return;
-}
 
 let bindAddress = null;
 
@@ -132,11 +150,7 @@ if (process.argv[2] !== 'child') {
                             worker.pid,
                             count);
 
-              assert.strictEqual(
-                count,
-                messages.length,
-                'A worker received an invalid multicast message'
-              );
+              assert.strictEqual(count, messages.length);
             });
 
             clearTimeout(timer);
@@ -179,7 +193,7 @@ if (process.argv[2] !== 'child') {
       common.PORT,
       LOCAL_BROADCAST_HOST,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
                       LOCAL_BROADCAST_HOST, common.PORT);
@@ -215,7 +229,7 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({message: buf.toString()});
+    process.send({ message: buf.toString() });
 
     if (receivedMessages.length === messages.length) {
       process.nextTick(function() {
@@ -227,14 +241,14 @@ if (process.argv[2] === 'child') {
   listenSocket.on('close', function() {
     //HACK: Wait to exit the process to ensure that the parent
     //process has had time to receive all messages via process.send()
-    //This may be indicitave of some other issue.
+    //This may be indicative of some other issue.
     setTimeout(function() {
       process.exit();
     }, 1000);
   });
 
   listenSocket.on('listening', function() {
-    process.send({listening: true});
+    process.send({ listening: true });
   });
 
   listenSocket.bind(common.PORT);

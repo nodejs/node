@@ -31,5 +31,9 @@
   # escapes (we need to parse to distinguish octal escapes from valid
   # back-references).
   'strict-octal-regexp': [SKIP],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
 }],  # ALWAYS
 ]

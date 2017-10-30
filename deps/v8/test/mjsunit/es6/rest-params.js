@@ -136,11 +136,9 @@ var O = {
 (function testUnmappedArguments() {
   // Strict/Unmapped arguments should always be used for functions with rest
   // parameters
-  assertThrows(function(...rest) { return arguments.caller; }, TypeError);
   assertThrows(function(...rest) { return arguments.callee; }, TypeError);
   // TODO(caitp): figure out why this doesn't throw sometimes, even though the
   //              getter always does =)
-  // assertThrows(function(...rest) { arguments.caller = 1; }, TypeError);
   // assertThrows(function(...rest) { arguments.callee = 1; }, TypeError);
 })();
 

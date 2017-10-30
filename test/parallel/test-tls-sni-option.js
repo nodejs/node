@@ -1,35 +1,47 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
-if (!process.features.tls_sni) {
-  common.skip('node compiled without OpenSSL or ' +
-              'with old OpenSSL version.');
-  return;
-}
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
+if (!process.features.tls_sni)
+  common.skip('node compiled without OpenSSL or with old OpenSSL version.');
 
 const assert = require('assert');
-const fs = require('fs');
-
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
+  return fixtures.readKey(`${n}.pem`);
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   requestCert: true,
   rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
-    var context = SNIContexts[servername];
+    const context = SNIContexts[servername];
 
     // Just to test asynchronous callback
     setTimeout(function() {
@@ -45,7 +57,7 @@ var serverOptions = {
   }
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert'),
@@ -60,7 +72,7 @@ var SNIContexts = {
   }
 };
 
-var clientsOptions = [{
+const clientsOptions = [{
   port: undefined,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
@@ -104,7 +116,7 @@ const clientErrors = [];
 let serverError;
 let clientError;
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
@@ -117,14 +129,15 @@ server.listen(0, startTest);
 
 function startTest() {
   function connectClient(i, callback) {
-    var options = clientsOptions[i];
+    const options = clientsOptions[i];
     clientError = null;
     serverError = null;
 
     options.port = server.address().port;
-    var client = tls.connect(options, function() {
+    const client = tls.connect(options, function() {
       clientResults.push(
-          /Hostname\/IP doesn't/.test(client.authorizationError || ''));
+        client.authorizationError &&
+         (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID'));
       client.destroy();
 
       next();

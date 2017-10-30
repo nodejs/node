@@ -21,28 +21,23 @@ const FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/;
 function parseOptions(options) {
     let functions = true;
     let classes = true;
+    let variables = true;
 
     if (typeof options === "string") {
         functions = (options !== "nofunc");
     } else if (typeof options === "object" && options !== null) {
         functions = options.functions !== false;
         classes = options.classes !== false;
+        variables = options.variables !== false;
     }
 
-    return {functions, classes};
-}
-
-/**
- * @returns {boolean} `false`.
- */
-function alwaysFalse() {
-    return false;
+    return { functions, classes, variables };
 }
 
 /**
  * Checks whether or not a given variable is a function declaration.
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is a function declaration.
  */
 function isFunction(variable) {
@@ -52,8 +47,8 @@ function isFunction(variable) {
 /**
  * Checks whether or not a given variable is a class declaration in an upper function scope.
  *
- * @param {escope.Variable} variable - A variable to check.
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the variable is a class declaration.
  */
 function isOuterClass(variable, reference) {
@@ -64,14 +59,16 @@ function isOuterClass(variable, reference) {
 }
 
 /**
- * Checks whether or not a given variable is a function declaration or a class declaration in an upper function scope.
- *
- * @param {escope.Variable} variable - A variable to check.
- * @param {escope.Reference} reference - A reference to check.
- * @returns {boolean} `true` if the variable is a function declaration or a class declaration.
- */
-function isFunctionOrOuterClass(variable, reference) {
-    return isFunction(variable, reference) || isOuterClass(variable, reference);
+* Checks whether or not a given variable is a variable declaration in an upper function scope.
+* @param {eslint-scope.Variable} variable - A variable to check.
+* @param {eslint-scope.Reference} reference - A reference to check.
+* @returns {boolean} `true` if the variable is a variable declaration.
+*/
+function isOuterVariable(variable, reference) {
+    return (
+        variable.defs[0].type === "Variable" &&
+        variable.scope.variableScope !== reference.from.variableScope
+    );
 }
 
 /**
@@ -154,8 +151,9 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            functions: {type: "boolean"},
-                            classes: {type: "boolean"}
+                            functions: { type: "boolean" },
+                            classes: { type: "boolean" },
+                            variables: { type: "boolean" }
                         },
                         additionalProperties: false
                     }
@@ -167,17 +165,23 @@ module.exports = {
     create(context) {
         const options = parseOptions(context.options[0]);
 
-        // Defines a function which checks whether or not a reference is allowed according to the option.
-        let isAllowed;
-
-        if (options.functions && options.classes) {
-            isAllowed = alwaysFalse;
-        } else if (options.functions) {
-            isAllowed = isOuterClass;
-        } else if (options.classes) {
-            isAllowed = isFunction;
-        } else {
-            isAllowed = isFunctionOrOuterClass;
+        /**
+         * Determines whether a given use-before-define case should be reported according to the options.
+         * @param {eslint-scope.Variable} variable The variable that gets used before being defined
+         * @param {eslint-scope.Reference} reference The reference to the variable
+         * @returns {boolean} `true` if the usage should be reported
+         */
+        function isForbidden(variable, reference) {
+            if (isFunction(variable)) {
+                return options.functions;
+            }
+            if (isOuterClass(variable, reference)) {
+                return options.classes;
+            }
+            if (isOuterVariable(variable, reference)) {
+                return options.variables;
+            }
+            return true;
         }
 
         /**
@@ -187,7 +191,7 @@ module.exports = {
          * @private
          */
         function findVariablesInScope(scope) {
-            scope.references.forEach(function(reference) {
+            scope.references.forEach(reference => {
                 const variable = reference.resolved;
 
                 // Skips when the reference is:
@@ -200,7 +204,7 @@ module.exports = {
                     !variable ||
                     variable.identifiers.length === 0 ||
                     (variable.identifiers[0].range[1] < reference.identifier.range[1] && !isInInitializer(variable, reference)) ||
-                    isAllowed(variable, reference)
+                    !isForbidden(variable, reference)
                 ) {
                     return;
                 }
@@ -246,7 +250,7 @@ module.exports = {
 
             ruleDefinition["ArrowFunctionExpression:exit"] = function(node) {
                 if (node.body.type !== "BlockStatement") {
-                    findVariables(node);
+                    findVariables();
                 }
             };
         } else {

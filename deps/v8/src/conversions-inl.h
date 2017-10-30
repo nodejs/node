@@ -57,7 +57,7 @@ inline unsigned int FastD2UI(double x) {
 #ifndef V8_TARGET_BIG_ENDIAN
     Address mantissa_ptr = reinterpret_cast<Address>(&x);
 #else
-    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kInt32Size;
 #endif
     // Copy least significant 32 bits of mantissa.
     memcpy(&result, mantissa_ptr, sizeof(result));
@@ -122,28 +122,79 @@ bool IsUint32Double(double value) {
          value == FastUI2D(FastD2UI(value));
 }
 
+bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
+  const double k2Pow52 = 4503599627370496.0;
+  const uint32_t kValidTopBits = 0x43300000;
+  const uint64_t kBottomBitMask = V8_2PART_UINT64_C(0x00000000, FFFFFFFF);
+
+  // Add 2^52 to the double, to place valid uint32 values in the low-significant
+  // bits of the exponent, by effectively setting the (implicit) top bit of the
+  // significand. Note that this addition also normalises 0.0 and -0.0.
+  double shifted_value = value + k2Pow52;
+
+  // At this point, a valid uint32 valued double will be represented as:
+  //
+  // sign = 0
+  // exponent = 52
+  // significand = 1. 00...00 <value>
+  //       implicit^          ^^^^^^^ 32 bits
+  //                  ^^^^^^^^^^^^^^^ 52 bits
+  //
+  // Therefore, we can first check the top 32 bits to make sure that the sign,
+  // exponent and remaining significand bits are valid, and only then check the
+  // value in the bottom 32 bits.
+
+  uint64_t result = bit_cast<uint64_t>(shifted_value);
+  if ((result >> 32) == kValidTopBits) {
+    *uint32_value = result & kBottomBitMask;
+    return FastUI2D(result & kBottomBitMask) == value;
+  }
+  return false;
+}
 
 int32_t NumberToInt32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
+  if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToInt32(number->Number());
 }
 
-
 uint32_t NumberToUint32(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
+  if (number->IsSmi()) return Smi::ToInt(number);
   return DoubleToUint32(number->Number());
 }
 
+uint32_t PositiveNumberToUint32(Object* number) {
+  if (number->IsSmi()) {
+    int value = Smi::ToInt(number);
+    if (value <= 0) return 0;
+    return value;
+  }
+  DCHECK(number->IsHeapNumber());
+  double value = number->Number();
+  // Catch all values smaller than 1 and use the double-negation trick for NANs.
+  if (!(value >= 1)) return 0;
+  uint32_t max = std::numeric_limits<uint32_t>::max();
+  if (value < max) return static_cast<uint32_t>(value);
+  return max;
+}
+
 int64_t NumberToInt64(Object* number) {
-  if (number->IsSmi()) return Smi::cast(number)->value();
-  return static_cast<int64_t>(number->Number());
+  if (number->IsSmi()) return Smi::ToInt(number);
+  double d = number->Number();
+  if (std::isnan(d)) return 0;
+  if (d >= static_cast<double>(std::numeric_limits<int64_t>::max())) {
+    return std::numeric_limits<int64_t>::max();
+  }
+  if (d <= static_cast<double>(std::numeric_limits<int64_t>::min())) {
+    return std::numeric_limits<int64_t>::min();
+  }
+  return static_cast<int64_t>(d);
 }
 
 bool TryNumberToSize(Object* number, size_t* result) {
   // Do not create handles in this function! Don't use SealHandleScope because
   // the function can be used concurrently.
   if (number->IsSmi()) {
-    int value = Smi::cast(number)->value();
+    int value = Smi::ToInt(number);
     DCHECK(static_cast<unsigned>(Smi::kMaxValue) <=
            std::numeric_limits<size_t>::max());
     if (value >= 0) {
@@ -154,7 +205,12 @@ bool TryNumberToSize(Object* number, size_t* result) {
   } else {
     DCHECK(number->IsHeapNumber());
     double value = HeapNumber::cast(number)->value();
-    if (value >= 0 && value <= std::numeric_limits<size_t>::max()) {
+    // If value is compared directly to the limit, the limit will be
+    // casted to a double and could end up as limit + 1,
+    // because a double might not have enough mantissa bits for it.
+    // So we might as well cast the limit first, and use < instead of <=.
+    double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
+    if (value >= 0 && value < maxSize) {
       *result = static_cast<size_t>(value);
       return true;
     } else {
@@ -376,7 +432,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (base::bits::IsPowerOfTwo32(radix)) {
+  if (base::bits::IsPowerOfTwo(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(
@@ -441,7 +497,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
 
   // NOTE: The code for computing the value may seem a bit complex at
   // first glance. It is structured to use 32-bit multiply-and-add
-  // loops as long as possible to avoid loosing precision.
+  // loops as long as possible to avoid losing precision.
 
   double v = 0.0;
   bool done = false;

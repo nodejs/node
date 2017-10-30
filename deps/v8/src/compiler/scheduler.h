@@ -9,8 +9,9 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/zone-pool.h"
-#include "src/zone-containers.h"
+#include "src/compiler/zone-stats.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -25,15 +26,15 @@ class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
 // ordering the basic blocks in the special RPO order.
-class Scheduler {
+class V8_EXPORT_PRIVATE Scheduler {
  public:
   // Flags that control the mode of operation.
-  enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1 };
+  enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1, kTempSchedule = 1u << 2 };
   typedef base::Flags<Flag> Flags;
 
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(Zone* zone, Graph* graph, Flags flags);
+  static Schedule* ComputeSchedule(Zone* temp_zone, Graph* graph, Flags flags);
 
   // Compute the RPO of blocks in an existing schedule.
   static BasicBlockVector* ComputeSpecialRPO(Zone* zone, Schedule* schedule);
@@ -64,7 +65,8 @@ class Scheduler {
   Graph* graph_;
   Schedule* schedule_;
   Flags flags_;
-  NodeVectorVector scheduled_nodes_;     // Per-block list of nodes in reverse.
+  ZoneVector<NodeVector*>
+      scheduled_nodes_;                  // Per-block list of nodes in reverse.
   NodeVector schedule_root_nodes_;       // Fixed root nodes seed the worklist.
   ZoneQueue<Node*> schedule_queue_;      // Worklist of schedulable nodes.
   ZoneVector<SchedulerData> node_data_;  // Per-node data for all nodes.
@@ -72,7 +74,8 @@ class Scheduler {
   SpecialRPONumberer* special_rpo_;      // Special RPO numbering of blocks.
   ControlEquivalence* equivalence_;      // Control dependence equivalence.
 
-  Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags);
+  Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
+            size_t node_count_hint_);
 
   inline SchedulerData DefaultSchedulerData();
   inline SchedulerData* GetData(Node* node);

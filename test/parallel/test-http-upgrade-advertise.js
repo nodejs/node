@@ -18,7 +18,7 @@ function fire() {
   const test = tests.shift();
 
   const done = common.mustCall(function done(result) {
-    assert.equal(result, test.expected);
+    assert.strictEqual(result, test.expected);
 
     fire();
   });

@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const v8 = require('v8');
 const Readable = require('stream').Readable;
 
 const bench = common.createBenchmark(main, {
@@ -14,13 +13,6 @@ function main(conf) {
   const s = new Readable();
   function noop() {}
   s._read = noop;
-
-  // Force optimization before starting the benchmark
-  s.push(b);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(s.read)');
-  s.push(b);
-  while (s.read());
 
   bench.start();
   for (var k = 0; k < n; ++k) {

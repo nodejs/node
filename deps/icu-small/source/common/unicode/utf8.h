@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  utf8.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -41,25 +41,7 @@
 
 /* internal definitions ----------------------------------------------------- */
 
-/**
- * \var utf8_countTrailBytes
- * Internal array with numbers of trail bytes for any given byte used in
- * lead byte position.
- *
- * This is internal since it is not meant to be called directly by external clients;
- * however it is called by public macros in this file and thus must remain stable,
- * and should not be hidden when other internal functions are hidden (otherwise
- * public macros would fail to compile).
- * @internal
- */
-#ifdef U_UTF8_IMPL
-U_EXPORT const uint8_t
-#elif defined(U_STATIC_IMPLEMENTATION) || defined(U_COMMON_IMPLEMENTATION)
-U_CFUNC const uint8_t
-#else
-U_CFUNC U_IMPORT const uint8_t /* U_IMPORT2? */ /*U_IMPORT*/
-#endif
-utf8_countTrailBytes[256];
+
 
 /**
  * Counts the trail bytes for a UTF-8 lead byte.

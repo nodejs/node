@@ -1,0 +1,58 @@
+Checks that async chains for for-await-of are correct.
+
+Running test: testBasic
+Debugger (test.js:12:2)
+Basic (test.js:50:4)
+-- async function --
+Basic (test.js:48:20)
+(anonymous) (testBasic.js:0:0)
+
+
+Running test: testUncaughtReject
+Debugger (test.js:12:2)
+-- async function --
+UncaughtReject (test.js:54:29)
+(anonymous) (testUncaughtReject.js:0:0)
+
+
+Running test: testUncaughtThrow
+Debugger (test.js:12:2)
+-- async function --
+UncaughtThrow (test.js:63:28)
+(anonymous) (testUncaughtThrow.js:0:0)
+
+
+Running test: testCaughtReject
+Debugger (test.js:12:2)
+CaughtReject (test.js:78:4)
+-- async function --
+CaughtReject (test.js:72:27)
+(anonymous) (testCaughtReject.js:0:0)
+
+
+Running test: testCaughtThrow
+Debugger (test.js:12:2)
+CaughtThrow (test.js:88:4)
+-- async function --
+CaughtThrow (test.js:82:26)
+(anonymous) (testCaughtThrow.js:0:0)
+
+
+Running test: testUncaughtRejectOnBreak
+
+Running test: testUncaughtThrowOnBreak
+Debugger (test.js:12:2)
+-- async function --
+UncaughtThrowOnBreak (test.js:101:35)
+(anonymous) (testUncaughtThrowOnBreak.js:0:0)
+
+
+Running test: testCaughtRejectOnBreak
+
+Running test: testCaughtThrowOnBreak
+Debugger (test.js:12:2)
+CaughtThrowOnBreak (test.js:126:4)
+-- async function --
+CaughtThrowOnBreak (test.js:120:33)
+(anonymous) (testCaughtThrowOnBreak.js:0:0)
+

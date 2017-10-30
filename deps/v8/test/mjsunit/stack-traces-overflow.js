@@ -40,7 +40,12 @@ try {
   overflow();
 } catch (e) {
   var first_frame = e.stack.split("\n")[1]
-  assertTrue(first_frame.indexOf("stack-traces-overflow.js:30:18") > 0);
+  // The overflow can happen when pushing the arguments (in interpreter) or when
+  // the new function execution is starting. So the stack trace could either
+  // point to start of the function (stack-traces-overflow.js30:18) or to the
+  // location of call (stack-traces-overflow.js32:3).
+  assertTrue((first_frame.indexOf("stack-traces-overflow.js:30:18") > 0) ||
+             (first_frame.indexOf("stack-traces-overflow.js:32:3") > 0) );
 }
 
 // Test stack trace getter and setter.

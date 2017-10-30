@@ -9,9 +9,11 @@
 
 #include "src/api.h"
 #include "src/heap/heap.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 void TestArrayBufferViewContents(LocalContext& env, bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
@@ -82,3 +84,6 @@ TEST(AllocateNotExternal) {
   CHECK(!buffer->IsExternal());
   CHECK_EQ(memory, buffer->GetContents().Data());
 }
+
+}  // namespace internal
+}  // namespace v8

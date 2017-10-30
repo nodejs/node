@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.2j
+VERSION=1.0.2l
 MAJOR=1
 MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
@@ -203,7 +203,8 @@ CLEARENV=	TOP= && unset TOP $${LIB+LIB} $${LIBS+LIBS}	\
 		$${ASFLAGS+ASFLAGS} $${AFLAGS+AFLAGS}		\
 		$${LDCMD+LDCMD} $${LDFLAGS+LDFLAGS} $${SCRIPTS+SCRIPTS}	\
 		$${SHAREDCMD+SHAREDCMD} $${SHAREDFLAGS+SHAREDFLAGS}	\
-		$${SHARED_LIB+SHARED_LIB} $${LIBEXTRAS+LIBEXTRAS}
+		$${SHARED_LIB+SHARED_LIB} $${LIBEXTRAS+LIBEXTRAS}	\
+		$${APPS+APPS}
 
 # LC_ALL=C ensures that error [and other] messages are delivered in
 # same language for uniform treatment.
@@ -424,6 +425,14 @@ clean:	libclean
 	do \
 	rm -fr $$i/*; \
 	done
+
+distclean: clean
+	-$(RM) `find . -name .git -prune -o -type l -print`
+	$(RM) apps/CA.pl
+	$(RM) test/evptests.txt test/newkey.pem test/testkey.pem test/testreq.pem
+	$(RM) tools/c_rehash
+	$(RM) crypto/opensslconf.h
+	$(RM) Makefile Makefile.bak
 
 makefile.one: files
 	$(PERL) util/mk1mf.pl >makefile.one; \

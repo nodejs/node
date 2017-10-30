@@ -26,6 +26,7 @@ B<openssl> B<ocsp>
 [B<-no_nonce>]
 [B<-url URL>]
 [B<-host host:n>]
+[B<-header name value>]
 [B<-path>]
 [B<-CApath dir>]
 [B<-CAfile file>]
@@ -134,6 +135,14 @@ specify the responder URL. Both HTTP and HTTPS (SSL/TLS) URLs can be specified.
 if the B<host> option is present then the OCSP request is sent to the host
 B<hostname> on port B<port>. B<path> specifies the HTTP path name to use
 or "/" by default.
+
+=item B<-header name value>
+
+If sending a request to an OCSP server, then the specified header name and
+value are added to the HTTP request.  Note that the B<name> and B<value> must
+be specified as two separate parameters, not as a single quoted string, and
+that the header name does not have the trailing colon.
+Some OCSP responders require a Host header; use this flag to provide it.
 
 =item B<-timeout seconds>
 

@@ -45,9 +45,14 @@ if [ "$ACTUAL_KERNEL_MAP_RESTRICTION" -ne "0" ] ; then
   echo 0 | sudo tee $KERNEL_MAP_CONFIG_FILE
 fi
 
+# Extract the command being perfed, so that we can prepend arguments to the
+# arguments that the user supplied.
+COMMAND=$1
+shift 1
+
 echo "Running..."
 perf record -R \
   -e $EVENT_TYPE \
   -c $SAMPLE_EVERY_N_CYCLES \
   --call-graph $CALL_GRAPH_METHOD \
-  -i $@ --perf_basic_prof
+  -i "$COMMAND" --perf_basic_prof "$@"

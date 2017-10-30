@@ -13,9 +13,7 @@ const cli = CLI(`usage: ./node scatter.js [options] [--] <filename>
 
   --runs 30              number of samples
   --set  variable=value  set benchmark variable (can be repeated)
-`, {
-  arrayArgs: ['set']
-});
+`, { arrayArgs: ['set'] });
 
 if (cli.items.length !== 1) {
   cli.abort(cli.usage);
@@ -34,7 +32,7 @@ function csvEncodeValue(value) {
   if (typeof value === 'number') {
     return value.toString();
   } else {
-    return '"' + value.replace(/"/g, '""') + '"';
+    return `"${value.replace(/"/g, '""')}"`;
   }
 }
 
@@ -42,6 +40,10 @@ function csvEncodeValue(value) {
   const child = fork(path.resolve(__dirname, filepath), cli.optional.set);
 
   child.on('message', function(data) {
+    if (data.type !== 'report') {
+      return;
+    }
+
     // print csv header
     if (printHeader) {
       const confHeader = Object.keys(data.conf)

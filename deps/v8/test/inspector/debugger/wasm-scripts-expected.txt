@@ -1,0 +1,19 @@
+Tests how wasm scripts are reported
+Check that inspector gets two wasm scripts at module creation time.
+Script #0 parsed. URL: v8://test/testFunction
+Script #1 parsed. URL: v8://test/runTestRunction
+Script #2 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-0
+Script #3 parsed. URL: wasm://wasm/wasm-7b04570e/wasm-7b04570e-1
+Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-0:
+func $nopFunction
+  nop
+end
+
+Source for wasm://wasm/wasm-7b04570e/wasm-7b04570e-1:
+func $main
+  block
+    i32.const 2
+    drop
+  end
+end
+

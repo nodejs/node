@@ -1,0 +1,10 @@
+Tests that json parser on backend correctly works with unicode
+{
+    id : 1
+    result : {
+        result : {
+            type : string
+            value : Привет мир
+        }
+    }
+}

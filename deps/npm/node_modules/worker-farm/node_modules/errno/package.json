@@ -1,0 +1,60 @@
+{
+  "_from": "errno@>=0.1.1 <0.2.0-0",
+  "_id": "errno@0.1.4",
+  "_inBundle": false,
+  "_integrity": "sha1-uJbiOp5ei6M4cfyZar02NfyaHH0=",
+  "_location": "/worker-farm/errno",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "errno@>=0.1.1 <0.2.0-0",
+    "name": "errno",
+    "escapedName": "errno",
+    "rawSpec": ">=0.1.1 <0.2.0-0",
+    "saveSpec": null,
+    "fetchSpec": ">=0.1.1 <0.2.0-0"
+  },
+  "_requiredBy": [
+    "/worker-farm"
+  ],
+  "_resolved": "https://registry.npmjs.org/errno/-/errno-0.1.4.tgz",
+  "_shasum": "b896e23a9e5e8ba33871fc996abd3635fc9a1c7d",
+  "_spec": "errno@>=0.1.1 <0.2.0-0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/worker-farm",
+  "authors": [
+    "Rod Vagg @rvagg <rod@vagg.org> (https://github.com/rvagg)"
+  ],
+  "bin": {
+    "errno": "./cli.js"
+  },
+  "bugs": {
+    "url": "https://github.com/rvagg/node-errno/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "prr": "~0.0.0"
+  },
+  "deprecated": false,
+  "description": "libuv errno details exposed",
+  "devDependencies": {
+    "tape": "~3.5.0"
+  },
+  "homepage": "https://github.com/rvagg/node-errno#readme",
+  "keywords": [
+    "errors",
+    "errno",
+    "libuv"
+  ],
+  "license": "MIT",
+  "main": "errno.js",
+  "name": "errno",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvagg/node-errno.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "0.1.4"
+}

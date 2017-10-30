@@ -59,7 +59,7 @@ module.exports = {
             const declarations = node.declarations;
             let prev;
 
-            declarations.forEach(function(current) {
+            declarations.forEach(current => {
                 if (prev && prev.loc.end.line === current.loc.start.line) {
                     if (always || prev.init || current.init) {
                         context.report({

@@ -7,6 +7,7 @@
 
 #include "src/api.h"
 #include "src/isolate.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -17,8 +18,8 @@ namespace internal {
 template <int kArrayLength>
 class CustomArgumentsBase : public Relocatable {
  public:
-  virtual inline void IterateInstance(ObjectVisitor* v) {
-    v->VisitPointers(values_, values_ + kArrayLength);
+  virtual inline void IterateInstance(RootVisitor* v) {
+    v->VisitRootPointers(Root::kRelocatable, values_, values_ + kArrayLength);
   }
 
  protected:
@@ -88,7 +89,7 @@ class PropertyCallbackArguments
         Smi::FromInt(should_throw == Object::THROW_ON_ERROR ? 1 : 0);
 
     // Here the hole is set as default value.
-    // It cannot escape into js as it's remove in Call below.
+    // It cannot escape into js as it's removed in Call below.
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
@@ -119,8 +120,15 @@ class PropertyCallbackArguments
   inline Handle<Object> Call(GenericNamedPropertySetterCallback f,
                              Handle<Name> name, Handle<Object> value);
 
+  inline Handle<Object> Call(GenericNamedPropertyDefinerCallback f,
+                             Handle<Name> name,
+                             const v8::PropertyDescriptor& desc);
+
   inline Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
                              Handle<Object> value);
+
+  inline Handle<Object> Call(IndexedPropertyDefinerCallback f, uint32_t index,
+                             const v8::PropertyDescriptor& desc);
 
   inline void Call(AccessorNameSetterCallback f, Handle<Name> name,
                    Handle<Object> value);
@@ -129,6 +137,8 @@ class PropertyCallbackArguments
   inline JSObject* holder() {
     return JSObject::cast(this->begin()[T::kHolderIndex]);
   }
+
+  bool PerformSideEffectCheck(Isolate* isolate, Address function);
 };
 
 class FunctionCallbackArguments

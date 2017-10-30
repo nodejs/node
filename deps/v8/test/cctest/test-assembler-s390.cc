@@ -59,7 +59,7 @@ TEST(0) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -99,7 +99,7 @@ TEST(1) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -151,7 +151,7 @@ TEST(2) {
   __ iilf(r0, Operand(0xFFF0FFFF));
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -194,8 +194,8 @@ TEST(3) {
   __ ay(r13, MemOperand(r1, r2, 123));
   __ brc(Condition(14), Operand(123));
   __ brc(Condition(14), Operand(-123));
-  __ brcl(Condition(14), Operand(123), false);
-  __ brcl(Condition(14), Operand(-123), false);
+  __ brcl(Condition(14), Operand(123));
+  __ brcl(Condition(14), Operand(-123));
   __ iilf(r13, Operand(123456789));
   __ iihf(r13, Operand(-123456789));
   __ mvc(MemOperand(r0, 123), MemOperand(r4, 567), 89);
@@ -207,7 +207,7 @@ TEST(3) {
   // OS::DebugBreak();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -248,7 +248,7 @@ TEST(4) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -276,7 +276,7 @@ TEST(5) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -310,7 +310,7 @@ TEST(6) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -342,7 +342,7 @@ TEST(7) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -373,7 +373,7 @@ TEST(8) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -400,7 +400,7 @@ TEST(9) {
   __ b(r14);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
@@ -412,5 +412,90 @@ TEST(9) {
   ::printf("f() = %" V8PRIdPTR  "\n", res);
 }
 #endif
+
+// Test msrkc and msgrkc
+TEST(10) {
+  if (!CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    return;
+  }
+
+  ::printf("MISC_INSTR_EXT2 is enabled.\n");
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  Label ok, failed;
+
+  {  // test 1: msrkc
+    __ lgfi(r2, Operand(3));
+    __ lgfi(r3, Operand(4));
+    __ msrkc(r1, r2, r3);                                  // 3 * 4
+    __ b(static_cast<Condition>(le | overflow), &failed);  // test failed.
+    __ chi(r1, Operand(12));
+    __ bne(&failed);  // test failed.
+
+    __ lgfi(r2, Operand(-3));
+    __ lgfi(r3, Operand(4));
+    __ msrkc(r1, r2, r3);                                  // -3 * 4
+    __ b(static_cast<Condition>(ge | overflow), &failed);  // test failed.
+    __ chi(r1, Operand(-12));
+    __ bne(&failed);  // test failed.
+
+    __ iilf(r2, Operand(0x80000000));
+    __ lgfi(r3, Operand(-1));
+    __ msrkc(r1, r2, r3);       // INT_MIN * -1
+    __ b(nooverflow, &failed);  // test failed.
+    __ cfi(r1, Operand(0x80000000));
+    __ bne(&failed);  // test failed.
+  }
+
+  {  // test 1: msgrkc
+    __ lgfi(r2, Operand(3));
+    __ lgfi(r3, Operand(4));
+    __ msgrkc(r1, r2, r3);                                 // 3 * 4
+    __ b(static_cast<Condition>(le | overflow), &failed);  // test failed.
+    __ chi(r1, Operand(12));
+    __ bne(&failed);  // test failed.
+
+    __ lgfi(r2, Operand(-3));
+    __ lgfi(r3, Operand(4));
+    __ msgrkc(r1, r2, r3);                                 // -3 * 4
+    __ b(static_cast<Condition>(ge | overflow), &failed);  // test failed.
+    __ chi(r1, Operand(-12));
+    __ bne(&failed);  // test failed.
+
+    __ lgfi(r2, Operand::Zero());
+    __ iihf(r2, Operand(0x80000000));
+    __ lgfi(r3, Operand(-1));
+    __ msgrkc(r1, r2, r3);      // INT_MIN * -1
+    __ b(nooverflow, &failed);  // test failed.
+    __ cgr(r1, r2);
+    __ bne(&failed);  // test failed.
+  }
+
+  __ bind(&ok);
+  __ lgfi(r2, Operand::Zero());
+  __ b(r14);  // test done.
+
+  __ bind(&failed);
+  __ lgfi(r2, Operand(1));
+  __ b(r14);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  code->Print();
+#endif
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+  intptr_t res = reinterpret_cast<intptr_t>(
+      CALL_GENERATED_CODE(isolate, f, 3, 4, 0, 0, 0));
+  ::printf("f() = %" V8PRIxPTR "\n", res);
+  CHECK_EQ(0, static_cast<int>(res));
+}
 
 #undef __

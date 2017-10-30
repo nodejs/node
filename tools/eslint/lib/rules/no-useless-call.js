@@ -96,10 +96,7 @@ module.exports = {
                 const thisArg = node.arguments[0];
 
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
-                    context.report(
-                        node,
-                        "unnecessary '.{{name}}()'.",
-                        {name: node.callee.property.name});
+                    context.report({ node, message: "unnecessary '.{{name}}()'.", data: { name: node.callee.property.name } });
                 }
             }
         };

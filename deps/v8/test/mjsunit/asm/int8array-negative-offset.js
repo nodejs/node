@@ -13,7 +13,7 @@ var m = (function Module(stdlib, foreign, heap) {
   function load(i) {
     i = i|0;
     i = MEM8[i >> 0]|0;
-    return i;
+    return i | 0;
   }
   function store(i, v) {
     i = i|0;
@@ -23,7 +23,7 @@ var m = (function Module(stdlib, foreign, heap) {
   function load8(i) {
     i = i|0;
     i = MEM8[i + 8 >> 0]|0;
-    return i;
+    return i | 0;
   }
   function store8(i, v) {
     i = i|0;

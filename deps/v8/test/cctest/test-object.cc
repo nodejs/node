@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
+#include "src/handles-inl.h"
+#include "src/handles.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/v8.h"
-
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
@@ -53,9 +59,6 @@ TEST(NoSideEffectsToString) {
   CheckObject(isolate, factory->undefined_value(), "undefined");
   CheckObject(isolate, factory->null_value(), "null");
 
-  int lanes[] = {0, 1, 2, 3};
-  CheckObject(isolate, factory->NewInt32x4(lanes), "SIMD.Int32x4(0, 1, 2, 3)");
-
   CheckObject(isolate, factory->error_to_string(), "[object Error]");
   CheckObject(isolate, factory->stack_trace_symbol(),
               "Symbol(stack_trace_symbol)");
@@ -69,3 +72,6 @@ TEST(NoSideEffectsToString) {
   CheckObject(isolate, factory->NewJSObject(isolate->object_function()),
               "#<Object>");
 }
+
+}  // namespace internal
+}  // namespace v8

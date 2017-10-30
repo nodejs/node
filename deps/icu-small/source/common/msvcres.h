@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 //{{NO_DEPENDENCIES}}
 // Copyright (c) 2003-2010 International Business Machines

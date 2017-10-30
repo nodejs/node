@@ -20,6 +20,7 @@ class JSONTraceWriter : public TraceWriter {
 
  private:
   void AppendArgValue(uint8_t type, TraceObject::ArgValue value);
+  void AppendArgValue(v8::ConvertableToTraceFormat*);
 
   std::ostream& stream_;
   bool append_comma_ = false;

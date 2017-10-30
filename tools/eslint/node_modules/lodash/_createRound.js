@@ -16,7 +16,7 @@ function createRound(methodName) {
   var func = Math[methodName];
   return function(number, precision) {
     number = toNumber(number);
-    precision = nativeMin(toInteger(precision), 292);
+    precision = precision == null ? 0 : nativeMin(toInteger(precision), 292);
     if (precision) {
       // Shift with exponential notation to avoid floating-point issues.
       // See [MDN](https://mdn.io/round#Examples) for more details.

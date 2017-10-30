@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 
 module.exports = doJSON;
@@ -9,29 +30,29 @@ const common = require('./common.js');
 const marked = require('marked');
 
 // customized heading without id attribute
-var renderer = new marked.Renderer();
+const renderer = new marked.Renderer();
 renderer.heading = function(text, level) {
-  return '<h' + level + '>' + text + '</h' + level + '>\n';
+  return `<h${level}>${text}</h${level}>\n`;
 };
 marked.setOptions({
   renderer: renderer
 });
 
 function doJSON(input, filename, cb) {
-  var root = {source: filename};
-  var stack = [root];
+  const root = { source: filename };
+  const stack = [root];
   var depth = 0;
   var current = root;
   var state = null;
-  var lexed = marked.lexer(input);
+  const lexed = marked.lexer(input);
   lexed.forEach(function(tok) {
-    var type = tok.type;
+    const type = tok.type;
     var text = tok.text;
 
     // <!-- type = module -->
     // This is for cases where the markdown semantic structure is lacking.
     if (type === 'paragraph' || type === 'html') {
-      var metaExpr = /<!--([^=]+)=([^\-]+)-->\n*/g;
+      var metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
       text = text.replace(metaExpr, function(_0, k, v) {
         current[k.trim()] = v.trim();
         return '';
@@ -102,7 +123,7 @@ function doJSON(input, filename, cb) {
         current.list.push(tok);
         current.list.level = 1;
       } else if (type === 'html' && common.isYAMLBlock(tok.text)) {
-        current.meta = parseYAML(tok.text);
+        current.meta = common.extractAndParseYAML(tok.text);
       } else {
         current.desc = current.desc || [];
         if (!Array.isArray(current.desc)) {
@@ -202,14 +223,14 @@ function doJSON(input, filename, cb) {
 //          default: 'false' } ] } ]
 
 function processList(section) {
-  var list = section.list;
-  var values = [];
+  const list = section.list;
+  const values = [];
   var current;
-  var stack = [];
+  const stack = [];
 
   // for now, *just* build the heirarchical list
   list.forEach(function(tok) {
-    var type = tok.type;
+    const type = tok.type;
     if (type === 'space') return;
     if (type === 'list_item_start' || type === 'loose_item_start') {
       var n = {};
@@ -222,29 +243,28 @@ function processList(section) {
         current.options.push(n);
         current = n;
       }
-      return;
     } else if (type === 'list_item_end') {
       if (!current) {
         throw new Error('invalid list - end without current item\n' +
-                        JSON.stringify(tok) + '\n' +
+                        `${JSON.stringify(tok)}\n` +
                         JSON.stringify(list));
       }
       current = stack.pop();
     } else if (type === 'text') {
       if (!current) {
         throw new Error('invalid list - text without current item\n' +
-                        JSON.stringify(tok) + '\n' +
+                        `${JSON.stringify(tok)}\n` +
                         JSON.stringify(list));
       }
       current.textRaw = current.textRaw || '';
-      current.textRaw += tok.text + ' ';
+      current.textRaw += `${tok.text} `;
     }
   });
 
   // shove the name in there for properties, since they are always
   // just going to be the value etc.
   if (section.type === 'property' && values[0]) {
-    values[0].textRaw = '`' + section.name + '` ' + values[0].textRaw;
+    values[0].textRaw = `\`${section.name}\` ${values[0].textRaw}`;
   }
 
   // now pull the actual values out of the text bits.
@@ -302,10 +322,6 @@ function processList(section) {
   delete section.list;
 }
 
-function parseYAML(text) {
-  return common.extractAndParseYAML(text);
-}
-
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
@@ -313,8 +329,8 @@ function parseSignature(text, sig) {
   params = params[1];
   params = params.split(/,/);
   var optionalLevel = 0;
-  var optionalCharDict = {'[': 1, ' ': 0, ']': -1};
-  params.forEach(function(p, i, _) {
+  const optionalCharDict = { '[': 1, ' ': 0, ']': -1 };
+  params.forEach(function(p, i) {
     p = p.trim();
     if (!p) return;
     var param = sig.params[i];
@@ -335,7 +351,7 @@ function parseSignature(text, sig) {
     }
     p = p.substring(0, pos + 1);
 
-    var eq = p.indexOf('=');
+    const eq = p.indexOf('=');
     if (eq !== -1) {
       def = p.substr(eq + 1);
       p = p.substr(0, eq);
@@ -346,8 +362,8 @@ function parseSignature(text, sig) {
     // at this point, the name should match.
     if (p !== param.name) {
       console.error('Warning: invalid param "%s"', p);
-      console.error(' > ' + JSON.stringify(param));
-      console.error(' > ' + text);
+      console.error(` > ${JSON.stringify(param)}`);
+      console.error(` > ${text}`);
     }
     if (optional) param.optional = true;
     if (def !== undefined) param.default = def;
@@ -365,13 +381,13 @@ function parseListItem(item) {
   // text = text.replace(/^(Argument|Param)s?\s*:?\s*/i, '');
 
   text = text.replace(/^, /, '').trim();
-  var retExpr = /^returns?\s*:?\s*/i;
-  var ret = text.match(retExpr);
+  const retExpr = /^returns?\s*:?\s*/i;
+  const ret = text.match(retExpr);
   if (ret) {
     item.name = 'return';
     text = text.replace(retExpr, '');
   } else {
-    var nameExpr = /^['`"]?([^'`": \{]+)['`"]?\s*:?\s*/;
+    var nameExpr = /^['`"]?([^'`": {]+)['`"]?\s*:?\s*/;
     var name = text.match(nameExpr);
     if (name) {
       item.name = name[1];
@@ -380,24 +396,24 @@ function parseListItem(item) {
   }
 
   text = text.trim();
-  var defaultExpr = /\(default\s*[:=]?\s*['"`]?([^, '"`]*)['"`]?\)/i;
-  var def = text.match(defaultExpr);
+  const defaultExpr = /\(default\s*[:=]?\s*['"`]?([^, '"`]*)['"`]?\)/i;
+  const def = text.match(defaultExpr);
   if (def) {
     item.default = def[1];
     text = text.replace(defaultExpr, '');
   }
 
   text = text.trim();
-  var typeExpr = /^\{([^\}]+)\}/;
-  var type = text.match(typeExpr);
+  const typeExpr = /^\{([^}]+)\}/;
+  const type = text.match(typeExpr);
   if (type) {
     item.type = type[1];
     text = text.replace(typeExpr, '');
   }
 
   text = text.trim();
-  var optExpr = /^Optional\.|(?:, )?Optional$/;
-  var optional = text.match(optExpr);
+  const optExpr = /^Optional\.|(?:, )?Optional$/;
+  const optional = text.match(optExpr);
   if (optional) {
     item.optional = true;
     text = text.replace(optExpr, '');
@@ -412,7 +428,7 @@ function parseListItem(item) {
 function finishSection(section, parent) {
   if (!section || !parent) {
     throw new Error('Invalid finishSection call\n' +
-                    JSON.stringify(section) + '\n' +
+                    `${JSON.stringify(section)}\n` +
                     JSON.stringify(parent));
   }
 
@@ -472,11 +488,11 @@ function finishSection(section, parent) {
 
   var plur;
   if (section.type.slice(-1) === 's') {
-    plur = section.type + 'es';
+    plur = `${section.type}es`;
   } else if (section.type.slice(-1) === 'y') {
     plur = section.type.replace(/y$/, 'ies');
   } else {
-    plur = section.type + 's';
+    plur = `${section.type}s`;
   }
 
   // if the parent's type is 'misc', then it's just a random
@@ -499,9 +515,6 @@ function finishSection(section, parent) {
             parent[k] = parent[k].concat(section[k]);
           } else if (!parent[k]) {
             parent[k] = section[k];
-          } else {
-            // parent already has, and it's not an array.
-            return;
           }
       }
     });
@@ -543,21 +556,19 @@ function deepCopy_(src) {
 
 
 // these parse out the contents of an H# tag
-var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
-var classExpr = /^Class:\s*([^ ]+).*?$/i;
-var propExpr = /^(?:property:?\s*)?[^\.]+\.([^ \.\(\)]+)\s*?$/i;
-var braceExpr = /^(?:property:?\s*)?[^\.\[]+(\[[^\]]+\])\s*?$/i;
-var classMethExpr =
-  /^class\s*method\s*:?[^\.]+\.([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var methExpr =
-  /^(?:method:?\s*)?(?:[^\.]+\.)?([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
+const eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
+const classExpr = /^Class:\s*([^ ]+).*$/i;
+const propExpr = /^[^.]+\.([^ .()]+)\s*$/;
+const braceExpr = /^[^.[]+(\[[^\]]+\])\s*$/;
+const classMethExpr = /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i;
+const methExpr = /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/;
+const newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {
-  var section = {};
+  const section = {};
   // infer the type from the text.
-  var text = section.textRaw = tok.text;
+  const text = section.textRaw = tok.text;
   if (text.match(eventExpr)) {
     section.type = 'event';
     section.name = text.replace(eventExpr, '$1');

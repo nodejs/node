@@ -16,8 +16,6 @@ class RegisterConfigurationUnitTest : public ::testing::Test {
  public:
   RegisterConfigurationUnitTest() {}
   virtual ~RegisterConfigurationUnitTest() {}
-
- private:
 };
 
 TEST_F(RegisterConfigurationUnitTest, BasicProperties) {
@@ -30,9 +28,8 @@ TEST_F(RegisterConfigurationUnitTest, BasicProperties) {
 
   RegisterConfiguration test(
       kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, kNumAllocatableDoubleRegs, general_codes,
-      double_codes, RegisterConfiguration::OVERLAP, nullptr, nullptr, nullptr,
-      nullptr);
+      kNumAllocatableDoubleRegs, general_codes, double_codes,
+      RegisterConfiguration::OVERLAP, nullptr, nullptr, nullptr, nullptr);
 
   EXPECT_EQ(test.num_general_registers(), kNumGeneralRegs);
   EXPECT_EQ(test.num_double_registers(), kNumDoubleRegs);
@@ -67,9 +64,8 @@ TEST_F(RegisterConfigurationUnitTest, CombineAliasing) {
 
   RegisterConfiguration test(
       kNumGeneralRegs, kNumDoubleRegs, kNumAllocatableGeneralRegs,
-      kNumAllocatableDoubleRegs, kNumAllocatableDoubleRegs, general_codes,
-      double_codes, RegisterConfiguration::COMBINE, nullptr, nullptr, nullptr,
-      nullptr);
+      kNumAllocatableDoubleRegs, general_codes, double_codes,
+      RegisterConfiguration::COMBINE, nullptr, nullptr, nullptr, nullptr);
 
   // There are 3 allocatable double regs, but only 2 can alias float regs.
   EXPECT_EQ(test.num_allocatable_float_registers(), 4);
@@ -157,9 +153,10 @@ TEST_F(RegisterConfigurationUnitTest, CombineAliasing) {
       test.GetAliases(kFloat64, RegisterConfiguration::kMaxFPRegisters / 2 + 1,
                       kFloat32, &alias_base_index),
       0);
-  EXPECT_EQ(test.GetAliases(kFloat64, RegisterConfiguration::kMaxFPRegisters,
-                            kFloat32, &alias_base_index),
-            0);
+  EXPECT_EQ(
+      test.GetAliases(kFloat64, RegisterConfiguration::kMaxFPRegisters - 1,
+                      kFloat32, &alias_base_index),
+      0);
 }
 
 }  // namespace internal

@@ -8,6 +8,16 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+const ignore = require("ignore");
+
+const arrayOfStrings = {
+    type: "array",
+    items: {
+        type: "string"
+    },
+    uniqueItems: true
+};
+
 module.exports = {
     meta: {
         docs: {
@@ -17,31 +27,55 @@ module.exports = {
         },
 
         schema: {
-            type: "array",
-            items: {
-                type: "string"
-            },
-            uniqueItems: true
+            anyOf: [
+                arrayOfStrings,
+                {
+                    type: "array",
+                    items: [{
+                        type: "object",
+                        properties: {
+                            paths: arrayOfStrings,
+                            patterns: arrayOfStrings
+                        },
+                        additionalProperties: false
+                    }],
+                    additionalItems: false
+                }
+            ]
         }
     },
 
     create(context) {
-        const restrictedImports = context.options;
+        const options = Array.isArray(context.options) ? context.options : [];
+        const isStringArray = typeof options[0] !== "object";
+        const restrictedPaths = new Set(isStringArray ? context.options : options[0].paths || []);
+        const restrictedPatterns = isStringArray ? [] : options[0].patterns || [];
 
         // if no imports are restricted we don"t need to check
-        if (restrictedImports.length === 0) {
+        if (restrictedPaths.size === 0 && restrictedPatterns.length === 0) {
             return {};
         }
+
+        const ig = ignore().add(restrictedPatterns);
 
         return {
             ImportDeclaration(node) {
                 if (node && node.source && node.source.value) {
 
-                    const value = node.source.value.trim();
+                    const importName = node.source.value.trim();
 
-                    if (restrictedImports.indexOf(value) !== -1) {
-                        context.report(node, "'{{importName}}' import is restricted from being used.", {
-                            importName: value
+                    if (restrictedPaths.has(importName)) {
+                        context.report({
+                            node,
+                            message: "'{{importName}}' import is restricted from being used.",
+                            data: { importName }
+                        });
+                    }
+                    if (restrictedPatterns.length > 0 && ig.ignores(importName)) {
+                        context.report({
+                            node,
+                            message: "'{{importName}}' import is restricted from being used by a pattern.",
+                            data: { importName }
                         });
                     }
                 }

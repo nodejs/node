@@ -8,8 +8,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const createTokenStore = require("../token-store.js"),
-    Traverser = require("./traverser");
+const TokenStore = require("../token-store"),
+    Traverser = require("./traverser"),
+    astUtils = require("../ast-utils"),
+    lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Private
@@ -56,9 +58,9 @@ function findJSDocComment(comments, line) {
 
                 if (line - comments[i].loc.end.line <= 1) {
                     return comments[i];
-                } else {
-                    break;
                 }
+                break;
+
             }
         }
     }
@@ -77,79 +79,117 @@ function looksLikeExport(astNode) {
         astNode.type === "ExportAllDeclaration" || astNode.type === "ExportSpecifier";
 }
 
+/**
+ * Merges two sorted lists into a larger sorted list in O(n) time
+ * @param {Token[]} tokens The list of tokens
+ * @param {Token[]} comments The list of comments
+ * @returns {Token[]} A sorted list of tokens and comments
+ */
+function sortedMerge(tokens, comments) {
+    const result = [];
+    let tokenIndex = 0;
+    let commentIndex = 0;
+
+    while (tokenIndex < tokens.length || commentIndex < comments.length) {
+        if (commentIndex >= comments.length || tokenIndex < tokens.length && tokens[tokenIndex].range[0] < comments[commentIndex].range[0]) {
+            result.push(tokens[tokenIndex++]);
+        } else {
+            result.push(comments[commentIndex++]);
+        }
+    }
+
+    return result;
+}
 
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
-/**
- * Represents parsed source code.
- * @param {string} text - The source code text.
- * @param {ASTNode} ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
- * @constructor
- */
-function SourceCode(text, ast) {
-    validate(ast);
+class SourceCode extends TokenStore {
 
     /**
-     * The flag to indicate that the source code has Unicode BOM.
-     * @type boolean
+     * Represents parsed source code.
+     * @param {string} text - The source code text.
+     * @param {ASTNode} ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
+     * @constructor
      */
-    this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
+    constructor(text, ast) {
+        validate(ast);
+
+        super(ast.tokens, ast.comments);
+
+        /**
+         * The flag to indicate that the source code has Unicode BOM.
+         * @type boolean
+         */
+        this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
+
+        /**
+         * The original text source code.
+         * BOM was stripped from this text.
+         * @type string
+         */
+        this.text = (this.hasBOM ? text.slice(1) : text);
+
+        /**
+         * The parsed AST for the source code.
+         * @type ASTNode
+         */
+        this.ast = ast;
+
+        // Check the source text for the presence of a shebang since it is parsed as a standard line comment.
+        const shebangMatched = this.text.match(astUtils.SHEBANG_MATCHER);
+        const hasShebang = shebangMatched && ast.comments.length && ast.comments[0].value === shebangMatched[1];
+
+        if (hasShebang) {
+            ast.comments[0].type = "Shebang";
+        }
+
+        this.tokensAndComments = sortedMerge(ast.tokens, ast.comments);
+
+        /**
+         * The source code split into lines according to ECMA-262 specification.
+         * This is done to avoid each rule needing to do so separately.
+         * @type string[]
+         */
+        this.lines = [];
+        this.lineStartIndices = [0];
+
+        const lineEndingPattern = astUtils.createGlobalLinebreakMatcher();
+        let match;
+
+        /*
+         * Previously, this was implemented using a regex that
+         * matched a sequence of non-linebreak characters followed by a
+         * linebreak, then adding the lengths of the matches. However,
+         * this caused a catastrophic backtracking issue when the end
+         * of a file contained a large number of non-newline characters.
+         * To avoid this, the current implementation just matches newlines
+         * and uses match.index to get the correct line start indices.
+         */
+        while ((match = lineEndingPattern.exec(this.text))) {
+            this.lines.push(this.text.slice(this.lineStartIndices[this.lineStartIndices.length - 1], match.index));
+            this.lineStartIndices.push(match.index + match[0].length);
+        }
+        this.lines.push(this.text.slice(this.lineStartIndices[this.lineStartIndices.length - 1]));
+
+        // Cache for comments found using getComments().
+        this._commentCache = new WeakMap();
+
+        // don't allow modification of this object
+        Object.freeze(this);
+        Object.freeze(this.lines);
+    }
 
     /**
-     * The original text source code.
-     * BOM was stripped from this text.
-     * @type string
+     * Split the source code into multiple lines based on the line delimiters
+     * @param {string} text Source code as a string
+     * @returns {string[]} Array of source code lines
+     * @public
      */
-    this.text = (this.hasBOM ? text.slice(1) : text);
-
-    /**
-     * The parsed AST for the source code.
-     * @type ASTNode
-     */
-    this.ast = ast;
-
-    /**
-     * The source code split into lines according to ECMA-262 specification.
-     * This is done to avoid each rule needing to do so separately.
-     * @type string[]
-     */
-    this.lines = SourceCode.splitLines(this.text);
-
-    this.tokensAndComments = ast.tokens.concat(ast.comments).sort(function(left, right) {
-        return left.range[0] - right.range[0];
-    });
-
-    // create token store methods
-    const tokenStore = createTokenStore(ast.tokens);
-
-    Object.keys(tokenStore).forEach(function(methodName) {
-        this[methodName] = tokenStore[methodName];
-    }, this);
-
-    const tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
-
-    this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
-    this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
-
-    // don't allow modification of this object
-    Object.freeze(this);
-    Object.freeze(this.lines);
-}
-
-/**
- * Split the source code into multiple lines based on the line delimiters
- * @param {string} text Source code as a string
- * @returns {string[]} Array of source code lines
- * @public
- */
-SourceCode.splitLines = function(text) {
-    return text.split(/\r\n|\r|\n|\u2028|\u2029/g);
-};
-
-SourceCode.prototype = {
-    constructor: SourceCode,
+    static splitLines(text) {
+        return text.split(astUtils.createGlobalLinebreakMatcher());
+    }
 
     /**
      * Gets the source code for the given node.
@@ -162,11 +202,9 @@ SourceCode.prototype = {
         if (node) {
             return this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
                 node.range[1] + (afterCount || 0));
-        } else {
-            return this.text;
         }
-
-    },
+        return this.text;
+    }
 
     /**
      * Gets the entire source text split into an array of lines.
@@ -174,7 +212,7 @@ SourceCode.prototype = {
      */
     getLines() {
         return this.lines;
-    },
+    }
 
     /**
      * Retrieves an array containing all comments in the source code.
@@ -182,7 +220,7 @@ SourceCode.prototype = {
      */
     getAllComments() {
         return this.ast.comments;
-    },
+    }
 
     /**
      * Gets all comments for the given node.
@@ -191,60 +229,111 @@ SourceCode.prototype = {
      * @public
      */
     getComments(node) {
+        if (this._commentCache.has(node)) {
+            return this._commentCache.get(node);
+        }
 
-        let leadingComments = node.leadingComments || [];
-        const trailingComments = node.trailingComments || [];
+        const comments = {
+            leading: [],
+            trailing: []
+        };
 
         /*
-         * espree adds a "comments" array on Program nodes rather than
-         * leadingComments/trailingComments. Comments are only left in the
-         * Program node comments array if there is no executable code.
+         * Return all comments as leading comments of the Program node when
+         * there is no executable code.
          */
         if (node.type === "Program") {
             if (node.body.length === 0) {
-                leadingComments = node.comments;
+                comments.leading = node.comments;
+            }
+        } else {
+
+            /* Return comments as trailing comments of nodes that only contain
+             * comments (to mimic the comment attachment behavior present in Espree).
+             */
+            if ((node.type === "BlockStatement" || node.type === "ClassBody") && node.body.length === 0 ||
+                node.type === "ObjectExpression" && node.properties.length === 0 ||
+                node.type === "ArrayExpression" && node.elements.length === 0 ||
+                node.type === "SwitchStatement" && node.cases.length === 0
+            ) {
+                comments.trailing = this.getTokens(node, {
+                    includeComments: true,
+                    filter: astUtils.isCommentToken
+                });
+            }
+
+            /*
+             * Iterate over tokens before and after node and collect comment tokens.
+             * Do not include comments that exist outside of the parent node
+             * to avoid duplication.
+             */
+            let currentToken = this.getTokenBefore(node, { includeComments: true });
+
+            while (currentToken && astUtils.isCommentToken(currentToken)) {
+                if (node.parent && (currentToken.start < node.parent.start)) {
+                    break;
+                }
+                comments.leading.push(currentToken);
+                currentToken = this.getTokenBefore(currentToken, { includeComments: true });
+            }
+
+            comments.leading.reverse();
+
+            currentToken = this.getTokenAfter(node, { includeComments: true });
+
+            while (currentToken && astUtils.isCommentToken(currentToken)) {
+                if (node.parent && (currentToken.end > node.parent.end)) {
+                    break;
+                }
+                comments.trailing.push(currentToken);
+                currentToken = this.getTokenAfter(currentToken, { includeComments: true });
             }
         }
 
-        return {
-            leading: leadingComments,
-            trailing: trailingComments
-        };
-    },
+        this._commentCache.set(node, comments);
+        return comments;
+    }
 
     /**
      * Retrieves the JSDoc comment for a given node.
      * @param {ASTNode} node The AST node to get the comment for.
-     * @returns {ASTNode} The BlockComment node containing the JSDoc for the
+     * @returns {ASTNode} The Block comment node containing the JSDoc for the
      *      given node or null if not found.
      * @public
      */
     getJSDocComment(node) {
-
         let parent = node.parent;
+        const leadingComments = this.getCommentsBefore(node);
 
         switch (node.type) {
             case "ClassDeclaration":
             case "FunctionDeclaration":
                 if (looksLikeExport(parent)) {
-                    return findJSDocComment(parent.leadingComments, parent.loc.start.line);
+                    return findJSDocComment(this.getCommentsBefore(parent), parent.loc.start.line);
                 }
-                return findJSDocComment(node.leadingComments, node.loc.start.line);
+                return findJSDocComment(leadingComments, node.loc.start.line);
 
             case "ClassExpression":
-                return findJSDocComment(parent.parent.leadingComments, parent.parent.loc.start.line);
+                return findJSDocComment(this.getCommentsBefore(parent.parent), parent.parent.loc.start.line);
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
-
                 if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
-                    while (parent && !parent.leadingComments && !/Function/.test(parent.type) && parent.type !== "MethodDefinition" && parent.type !== "Property") {
+                    let parentLeadingComments = this.getCommentsBefore(parent);
+
+                    while (!parentLeadingComments.length && !/Function/.test(parent.type) && parent.type !== "MethodDefinition" && parent.type !== "Property") {
                         parent = parent.parent;
+
+                        if (!parent) {
+                            break;
+                        }
+
+                        parentLeadingComments = this.getCommentsBefore(parent);
                     }
 
-                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments, parent.loc.start.line) : null;
-                } else if (node.leadingComments) {
-                    return findJSDocComment(node.leadingComments, node.loc.start.line);
+                    return parent && parent.type !== "FunctionDeclaration" && parent.type !== "Program" ? findJSDocComment(parentLeadingComments, parent.loc.start.line) : null;
+                } else if (leadingComments.length) {
+                    return findJSDocComment(leadingComments, node.loc.start.line);
                 }
 
             // falls through
@@ -252,7 +341,7 @@ SourceCode.prototype = {
             default:
                 return null;
         }
-    },
+    }
 
     /**
      * Gets the deepest node containing a range index.
@@ -280,8 +369,8 @@ SourceCode.prototype = {
             }
         });
 
-        return result ? Object.assign({parent: resultParent}, result) : null;
-    },
+        return result ? Object.assign({ parent: resultParent }, result) : null;
+    }
 
     /**
      * Determines if two tokens have at least one whitespace character
@@ -297,7 +386,82 @@ SourceCode.prototype = {
 
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }
-};
 
+    /**
+    * Converts a source text index into a (line, column) pair.
+    * @param {number} index The index of a character in a file
+    * @returns {Object} A {line, column} location object with a 0-indexed column
+    */
+    getLocFromIndex(index) {
+        if (typeof index !== "number") {
+            throw new TypeError("Expected `index` to be a number.");
+        }
+
+        if (index < 0 || index > this.text.length) {
+            throw new RangeError(`Index out of range (requested index ${index}, but source text has length ${this.text.length}).`);
+        }
+
+        /*
+         * For an argument of this.text.length, return the location one "spot" past the last character
+         * of the file. If the last character is a linebreak, the location will be column 0 of the next
+         * line; otherwise, the location will be in the next column on the same line.
+         *
+         * See getIndexFromLoc for the motivation for this special case.
+         */
+        if (index === this.text.length) {
+            return { line: this.lines.length, column: this.lines[this.lines.length - 1].length };
+        }
+
+        /*
+         * To figure out which line rangeIndex is on, determine the last index at which rangeIndex could
+         * be inserted into lineIndices to keep the list sorted.
+         */
+        const lineNumber = lodash.sortedLastIndex(this.lineStartIndices, index);
+
+        return { line: lineNumber, column: index - this.lineStartIndices[lineNumber - 1] };
+    }
+
+    /**
+    * Converts a (line, column) pair into a range index.
+    * @param {Object} loc A line/column location
+    * @param {number} loc.line The line number of the location (1-indexed)
+    * @param {number} loc.column The column number of the location (0-indexed)
+    * @returns {number} The range index of the location in the file.
+    */
+    getIndexFromLoc(loc) {
+        if (typeof loc !== "object" || typeof loc.line !== "number" || typeof loc.column !== "number") {
+            throw new TypeError("Expected `loc` to be an object with numeric `line` and `column` properties.");
+        }
+
+        if (loc.line <= 0) {
+            throw new RangeError(`Line number out of range (line ${loc.line} requested). Line numbers should be 1-based.`);
+        }
+
+        if (loc.line > this.lineStartIndices.length) {
+            throw new RangeError(`Line number out of range (line ${loc.line} requested, but only ${this.lineStartIndices.length} lines present).`);
+        }
+
+        const lineStartIndex = this.lineStartIndices[loc.line - 1];
+        const lineEndIndex = loc.line === this.lineStartIndices.length ? this.text.length : this.lineStartIndices[loc.line];
+        const positionIndex = lineStartIndex + loc.column;
+
+        /*
+         * By design, getIndexFromLoc({ line: lineNum, column: 0 }) should return the start index of
+         * the given line, provided that the line number is valid element of this.lines. Since the
+         * last element of this.lines is an empty string for files with trailing newlines, add a
+         * special case where getting the index for the first location after the end of the file
+         * will return the length of the file, rather than throwing an error. This allows rules to
+         * use getIndexFromLoc consistently without worrying about edge cases at the end of a file.
+         */
+        if (
+            loc.line === this.lineStartIndices.length && positionIndex > lineEndIndex ||
+            loc.line < this.lineStartIndices.length && positionIndex >= lineEndIndex
+        ) {
+            throw new RangeError(`Column number out of range (column ${loc.column} requested, but the length of line ${loc.line} is ${lineEndIndex - lineStartIndex}).`);
+        }
+
+        return positionIndex;
+    }
+}
 
 module.exports = SourceCode;

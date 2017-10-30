@@ -1,4 +1,0 @@
-*%(basename)s:8: SyntaxError: Tail call of a direct eval is not allowed
-  return  continue  eval  ("f()")  ;
-                    ^^^^^^^^^^^^^
-SyntaxError: Tail call of a direct eval is not allowed

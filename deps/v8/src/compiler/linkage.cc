@@ -4,15 +4,15 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/ast/scopes.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -22,34 +22,6 @@ namespace {
 
 LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
-}
-
-MachineType reptyp(Representation representation) {
-  switch (representation.kind()) {
-    case Representation::kInteger8:
-      return MachineType::Int8();
-    case Representation::kUInteger8:
-      return MachineType::Uint8();
-    case Representation::kInteger16:
-      return MachineType::Int16();
-    case Representation::kUInteger16:
-      return MachineType::Uint16();
-    case Representation::kInteger32:
-      return MachineType::Int32();
-    case Representation::kSmi:
-    case Representation::kTagged:
-    case Representation::kHeapObject:
-      return MachineType::AnyTagged();
-    case Representation::kDouble:
-      return MachineType::Float64();
-    case Representation::kExternal:
-      return MachineType::Pointer();
-    case Representation::kNone:
-    case Representation::kNumRepresentations:
-      break;
-  }
-  UNREACHABLE();
-  return MachineType::None();
 }
 
 }  // namespace
@@ -81,8 +53,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
 MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
   size_t param_count = ParameterCount();
   size_t return_count = ReturnCount();
-  MachineType* types = reinterpret_cast<MachineType*>(
-      zone->New(sizeof(MachineType*) * (param_count + return_count)));
+  MachineType* types = zone->NewArray<MachineType>(param_count + return_count);
   int current = 0;
   for (size_t i = 0; i < return_count; ++i) {
     types[current++] = GetReturnType(i);
@@ -135,6 +106,22 @@ bool CallDescriptor::CanTailCall(const Node* node) const {
   return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
 }
 
+int CallDescriptor::CalculateFixedFrameSize() const {
+  switch (kind_) {
+    case kCallJSFunction:
+      return PushArgumentCount()
+                 ? OptimizedBuiltinFrameConstants::kFixedSlotCount
+                 : StandardFrameConstants::kFixedSlotCount;
+      break;
+    case kCallAddress:
+      return CommonFrameConstants::kFixedSlotCountAboveFp +
+             CommonFrameConstants::kCPSlotCount;
+      break;
+    case kCallCodeObject:
+      return TypedFrameConstants::kFixedSlotCount;
+  }
+  UNREACHABLE();
+}
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   DCHECK(!info->IsStub());
@@ -152,19 +139,16 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 
 // static
 bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
-  // Most runtime functions need a FrameState. A few chosen ones that we know
-  // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
-  // are blacklisted here and can be called without a FrameState.
   switch (function) {
+    // Most runtime functions need a FrameState. A few chosen ones that we know
+    // not to call into arbitrary JavaScript, not to throw, and not to lazily
+    // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
+    case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kForInDone:
-    case Runtime::kForInStep:
     case Runtime::kGeneratorGetContinuation:
-    case Runtime::kGetSuperConstructor:
+    case Runtime::kIncBlockCounter:
     case Runtime::kIsFunction:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
@@ -183,29 +167,31 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return false;
-    case Runtime::kInlineCall:
-    case Runtime::kInlineDeoptimizeNow:
-    case Runtime::kInlineGetPrototype:
-    case Runtime::kInlineNewObject:
-    case Runtime::kInlineRegExpConstructResult:
-    case Runtime::kInlineRegExpExec:
-    case Runtime::kInlineSubString:
-    case Runtime::kInlineThrowNotDateError:
-    case Runtime::kInlineToInteger:
-    case Runtime::kInlineToLength:
-    case Runtime::kInlineToNumber:
-    case Runtime::kInlineToObject:
-    case Runtime::kInlineToString:
-      return true;
+
+    // Some inline intrinsics are also safe to call without a FrameState.
+    case Runtime::kInlineClassOf:
+    case Runtime::kInlineCreateIterResultObject:
+    case Runtime::kInlineGeneratorClose:
+    case Runtime::kInlineGeneratorGetContext:
+    case Runtime::kInlineGeneratorGetInputOrDebugPos:
+    case Runtime::kInlineGeneratorGetResumeMode:
+    case Runtime::kInlineCreateJSGeneratorObject:
+    case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsJSMap:
+    case Runtime::kInlineIsJSSet:
+    case Runtime::kInlineIsJSWeakMap:
+    case Runtime::kInlineIsJSWeakSet:
+    case Runtime::kInlineIsJSReceiver:
+    case Runtime::kInlineIsRegExp:
+    case Runtime::kInlineIsSmi:
+    case Runtime::kInlineIsTypedArray:
+      return false;
+
     default:
       break;
   }
 
-  // Most inlined runtime functions (except the ones listed above) can be called
-  // without a FrameState or will be lowered by JSIntrinsicLowering internally.
-  const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
-
+  // For safety, default to needing a FrameState unless whitelisted.
   return true;
 }
 
@@ -356,11 +342,11 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
     Operator::Properties properties, MachineType return_type,
-    size_t return_count) {
+    size_t return_count, Linkage::ContextSpecification context_spec) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
-  const int context_count = 1;
+  const int context_count = context_spec == kPassContext ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 
@@ -382,8 +368,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.
@@ -393,7 +378,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     }
   }
   // Add context.
-  locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
+  if (context_count) {
+    locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
+  }
 
   // The target for stub calls is a code object.
   MachineType target_type = MachineType::AnyTagged();
@@ -410,7 +397,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kNoCalleeSaved,                   // callee-saved fp
       CallDescriptor::kCanUseRoots |    // flags
           flags,                        // flags
-      descriptor.DebugName(isolate));
+      descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 
 // static
@@ -452,8 +439,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.

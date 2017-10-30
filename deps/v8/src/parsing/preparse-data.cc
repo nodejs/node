@@ -6,59 +6,39 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-format.h"
 
 namespace v8 {
 namespace internal {
 
+void ParserLogger::LogFunction(int start, int end, int num_parameters,
+                               LanguageMode language_mode,
+                               bool uses_super_property,
+                               int num_inner_functions) {
+  function_store_.Add(start);
+  function_store_.Add(end);
+  function_store_.Add(num_parameters);
+  function_store_.Add(
+      FunctionEntry::EncodeFlags(language_mode, uses_super_property));
+  function_store_.Add(num_inner_functions);
+}
 
-CompleteParserRecorder::CompleteParserRecorder() {
+ParserLogger::ParserLogger() {
   preamble_[PreparseDataConstants::kMagicOffset] =
       PreparseDataConstants::kMagicNumber;
   preamble_[PreparseDataConstants::kVersionOffset] =
       PreparseDataConstants::kCurrentVersion;
-  preamble_[PreparseDataConstants::kHasErrorOffset] = false;
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = 0;
   preamble_[PreparseDataConstants::kSizeOffset] = 0;
-  DCHECK_EQ(5, PreparseDataConstants::kHeaderSize);
+  DCHECK_EQ(4, PreparseDataConstants::kHeaderSize);
 #ifdef DEBUG
   prev_start_ = -1;
 #endif
 }
 
-
-void CompleteParserRecorder::LogMessage(int start_pos, int end_pos,
-                                        MessageTemplate::Template message,
-                                        const char* arg_opt,
-                                        ParseErrorType error_type) {
-  if (HasError()) return;
-  preamble_[PreparseDataConstants::kHasErrorOffset] = true;
-  function_store_.Reset();
-  STATIC_ASSERT(PreparseDataConstants::kMessageStartPos == 0);
-  function_store_.Add(start_pos);
-  STATIC_ASSERT(PreparseDataConstants::kMessageEndPos == 1);
-  function_store_.Add(end_pos);
-  STATIC_ASSERT(PreparseDataConstants::kMessageArgCountPos == 2);
-  function_store_.Add((arg_opt == NULL) ? 0 : 1);
-  STATIC_ASSERT(PreparseDataConstants::kParseErrorTypePos == 3);
-  function_store_.Add(error_type);
-  STATIC_ASSERT(PreparseDataConstants::kMessageTemplatePos == 4);
-  function_store_.Add(static_cast<unsigned>(message));
-  STATIC_ASSERT(PreparseDataConstants::kMessageArgPos == 5);
-  if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
-}
-
-
-void CompleteParserRecorder::WriteString(Vector<const char> str) {
-  function_store_.Add(str.length());
-  for (int i = 0; i < str.length(); i++) {
-    function_store_.Add(str[i]);
-  }
-}
-
-
-ScriptData* CompleteParserRecorder::GetScriptData() {
+ScriptData* ParserLogger::GetScriptData() {
   int function_size = function_store_.size();
   int total_size = PreparseDataConstants::kHeaderSize + function_size;
   unsigned* data = NewArray<unsigned>(total_size);
@@ -75,6 +55,33 @@ ScriptData* CompleteParserRecorder::GetScriptData() {
   return result;
 }
 
+PreParseData::FunctionData PreParseData::GetFunctionData(int start) const {
+  auto it = functions_.find(start);
+  if (it != functions_.end()) {
+    return it->second;
+  }
+  return FunctionData();
+}
+
+void PreParseData::AddFunctionData(int start, FunctionData&& data) {
+  DCHECK(data.is_valid());
+  functions_[start] = std::move(data);
+}
+
+void PreParseData::AddFunctionData(int start, const FunctionData& data) {
+  DCHECK(data.is_valid());
+  functions_[start] = data;
+}
+
+size_t PreParseData::size() const { return functions_.size(); }
+
+PreParseData::const_iterator PreParseData::begin() const {
+  return functions_.begin();
+}
+
+PreParseData::const_iterator PreParseData::end() const {
+  return functions_.end();
+}
 
 }  // namespace internal
 }  // namespace v8.

@@ -1,19 +1,19 @@
 // Measure the time it takes for the HTTP client to send a request body.
 'use strict';
 
-var common = require('../common.js');
-var http = require('http');
+const common = require('../common.js');
+const http = require('http');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
-  bytes: [32, 256, 1024],
+  len: [32, 256, 1024],
   method: ['write', 'end']
 });
 
 function main(conf) {
-  var dur = +conf.dur;
-  var len = +conf.bytes;
+  const dur = +conf.dur;
+  const len = +conf.len;
 
   var encoding;
   var chunk;
@@ -23,15 +23,15 @@ function main(conf) {
       break;
     case 'utf':
       encoding = 'utf8';
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
-      chunk = new Array(len + 1).join('a');
+      chunk = 'a'.repeat(len);
       break;
   }
 
   var nreqs = 0;
-  var options = {
+  const options = {
     headers: { 'Connection': 'keep-alive', 'Transfer-Encoding': 'chunked' },
     agent: new http.Agent({ maxSockets: 1 }),
     host: '127.0.0.1',
@@ -40,7 +40,7 @@ function main(conf) {
     method: 'POST'
   };
 
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     res.end();
   });
   server.listen(options.port, options.host, function() {
@@ -50,7 +50,7 @@ function main(conf) {
   });
 
   function pummel() {
-    var req = http.request(options, function(res) {
+    const req = http.request(options, function(res) {
       nreqs++;
       pummel();  // Line up next request.
       res.resume();

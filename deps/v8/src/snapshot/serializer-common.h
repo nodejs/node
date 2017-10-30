@@ -6,8 +6,11 @@
 #define V8_SNAPSHOT_SERIALIZER_COMMON_H_
 
 #include "src/address-map.h"
+#include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
+#include "src/utils.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -16,19 +19,37 @@ class Isolate;
 
 class ExternalReferenceEncoder {
  public:
-  explicit ExternalReferenceEncoder(Isolate* isolate);
+  class Value {
+   public:
+    explicit Value(uint32_t raw) : value_(raw) {}
+    static uint32_t Encode(uint32_t index, bool is_from_api) {
+      return Index::encode(index) | IsFromAPI::encode(is_from_api);
+    }
 
-  uint32_t Encode(Address key) const;
+    bool is_from_api() const { return IsFromAPI::decode(value_); }
+    uint32_t index() const { return Index::decode(value_); }
+    uint32_t raw() const { return value_; }
+
+   private:
+    class Index : public BitField<uint32_t, 0, 31> {};
+    class IsFromAPI : public BitField<bool, 31, 1> {};
+    uint32_t value_;
+  };
+
+  explicit ExternalReferenceEncoder(Isolate* isolate);
+  ~ExternalReferenceEncoder();
+
+  Value Encode(Address key);
 
   const char* NameOfAddress(Isolate* isolate, Address address) const;
 
  private:
-  static uint32_t Hash(Address key) {
-    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key) >>
-                                 kPointerSizeLog2);
-  }
+  AddressToIndexHashMap* map_;
 
-  base::HashMap* map_;
+#ifdef DEBUG
+  std::vector<int> count_;
+  const intptr_t* api_references_;
+#endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };
@@ -64,7 +85,7 @@ class HotObjectsList {
   static const int kSize = 8;
 
  private:
-  STATIC_ASSERT(IS_POWER_OF_TWO(kSize));
+  static_assert(base::bits::IsPowerOfTwo(kSize), "kSize must be power of two");
   static const int kSizeMask = kSize - 1;
   HeapObject* circular_queue_[kSize];
   int index_;
@@ -75,9 +96,9 @@ class HotObjectsList {
 // The Serializer/Deserializer class is a common superclass for Serializer and
 // Deserializer which is used to store common constants and methods used by
 // both.
-class SerializerDeserializer : public ObjectVisitor {
+class SerializerDeserializer : public RootVisitor {
  public:
-  static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
+  static void Iterate(Isolate* isolate, RootVisitor* visitor);
 
   // No reservation for large object space necessary.
   // We also handle map space differenly.
@@ -87,6 +108,9 @@ class SerializerDeserializer : public ObjectVisitor {
 
  protected:
   static bool CanBeDeferred(HeapObject* o);
+
+  void RestoreExternalReferenceRedirectors(
+      const std::vector<AccessorInfo*>& accessor_infos);
 
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
@@ -166,12 +190,17 @@ class SerializerDeserializer : public ObjectVisitor {
   // Internal reference encoded as offsets of pc and target from code entry.
   static const int kInternalReference = 0x1b;
   static const int kInternalReferenceEncoded = 0x1c;
-  // Used for the source code of the natives, which is in the executable, but
-  // is referred to from external strings in the snapshot.
-  static const int kNativesStringResource = 0x1d;
-  // Used for the source code for compiled stubs, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x1e;
+  // Used to encode deoptimizer entry code.
+  static const int kDeoptimizerEntryPlain = 0x1d;
+  static const int kDeoptimizerEntryFromCode = 0x1e;
+  // Used for embedder-provided serialization data for embedder fields.
+  static const int kEmbedderFieldsData = 0x1f;
+
+  // Used for embedder-allocated backing stores for TypedArrays.
+  static const int kOffHeapBackingStore = 0x35;
+
+  // Used to encode external referenced provided through the API.
+  static const int kApiReference = 0x36;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
@@ -182,7 +211,7 @@ class SerializerDeserializer : public ObjectVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  // 0x1f, 0x35..0x37, 0x55..0x57, 0x75..0x7f unused.
+  // 0x37, 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -237,6 +266,11 @@ class SerializedData {
   SerializedData(byte* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(NULL), size_(0), owns_data_(false) {}
+  SerializedData(SerializedData&& other)
+      : data_(other.data_), size_(other.size_), owns_data_(other.owns_data_) {
+    // Ensure |other| will not attempt to destroy our data in destructor.
+    other.owns_data_ = false;
+  }
 
   ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
@@ -252,19 +286,19 @@ class SerializedData {
     return 0xC0DE0000 ^ external_refs;
   }
 
+  static const uint32_t kMagicNumberOffset = 0;
+  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
+
  protected:
-  void SetHeaderValue(int offset, uint32_t value) {
-    uint32_t* address = reinterpret_cast<uint32_t*>(data_ + offset);
-    memcpy(reinterpret_cast<uint32_t*>(address), &value, sizeof(value));
+  void SetHeaderValue(uint32_t offset, uint32_t value) {
+    WriteLittleEndianValue(data_ + offset, value);
   }
 
-  uint32_t GetHeaderValue(int offset) const {
-    uint32_t value;
-    memcpy(&value, reinterpret_cast<int*>(data_ + offset), sizeof(value));
-    return value;
+  uint32_t GetHeaderValue(uint32_t offset) const {
+    return ReadLittleEndianValue<uint32_t>(data_ + offset);
   }
 
-  void AllocateData(int size);
+  void AllocateData(uint32_t size);
 
   static uint32_t ComputeMagicNumber(Isolate* isolate) {
     return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
@@ -274,11 +308,12 @@ class SerializedData {
     SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));
   }
 
-  static const int kMagicNumberOffset = 0;
-
   byte* data_;
-  int size_;
+  uint32_t size_;
   bool owns_data_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SerializedData);
 };
 
 }  // namespace internal

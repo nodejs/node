@@ -109,7 +109,7 @@ local function MakeClangCommandLine(
       .. " -Xclang -triple -Xclang " .. triple
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
-      .. " -DV8_I18N_SUPPORT"
+      .. " -DV8_INTL_SUPPORT"
       .. " -I./"
       .. " -Iinclude/"
       .. " -Ithird_party/icu/source/common"
@@ -183,6 +183,7 @@ end
 -------------------------------------------------------------------------------
 -- GYP file parsing
 
+-- TODO(machenbach): Remove this when deprecating gyp.
 local function ParseGYPFile()
    local result = {}
    local gyp_files = {
@@ -209,6 +210,32 @@ local function ParseGYPFile()
    return result
 end
 
+local function ParseGNFile()
+   local result = {}
+   local gn_files = {
+       { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
+       { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
+   }
+
+   for i = 1, #gn_files do
+      local filename = gn_files[i][1]
+      local pattern = gn_files[i][2]
+      local prefix = gn_files[i][3]
+      local gn_file = assert(io.open(filename), "failed to open GN file")
+      local gn = gn_file:read('*a')
+      for condition, sources in
+         gn:gmatch "### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
+      end
+      gn_file:close()
+   end
+
+   return result
+end
+
 local function EvaluateCondition(cond, props)
    if cond == 'all' then return true end
 
@@ -230,13 +257,40 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseGYPFile()
+
+local gyp_sources = ParseGYPFile()
+local gn_sources = ParseGNFile()
+
+-- TODO(machenbach): Remove this comparison logic when deprecating gyp.
+local function CompareSources(sources1, sources2, what)
+  for condition, files1 in pairs(sources1) do
+    local files2 = sources2[condition]
+    assert(
+      files2 ~= nil,
+      "Missing gcmole condition in " .. what .. ": " .. condition)
+
+    -- Turn into set for speed.
+    files2_set = {}
+    for i, file in pairs(files2) do files2_set[file] = true end
+
+    for i, file in pairs(files1) do
+      assert(
+        files2_set[file] ~= nil,
+        "Missing file " .. file .. " in " .. what .. " for condition " ..
+        condition)
+    end
+  end
+end
+
+CompareSources(gyp_sources, gn_sources, "GN")
+CompareSources(gn_sources, gyp_sources, "GYP")
+
 
 local function FilesForArch(arch)
-   return BuildFileList(sources, { os = 'linux',
-                                   arch = arch,
-                                   mode = 'debug',
-                                   simulator = ''})
+   return BuildFileList(gn_sources, { os = 'linux',
+                                      arch = arch,
+                                      mode = 'debug',
+                                      simulator = ''})
 end
 
 local mtConfig = {}
@@ -274,18 +328,17 @@ local gc, gc_caused, funcs
 
 local WHITELIST = {
    -- The following functions call CEntryStub which is always present.
-   "MacroAssembler.*CallExternalReference",
    "MacroAssembler.*CallRuntime",
    "CompileCallLoadPropertyWithInterceptor",
    "CallIC.*GenerateMiss",
 
-   -- DirectCEntryStub is a special stub used on ARM. 
+   -- DirectCEntryStub is a special stub used on ARM.
    -- It is pinned and always present.
-   "DirectCEntryStub.*GenerateCall",  
+   "DirectCEntryStub.*GenerateCall",
 
-   -- TODO GCMole currently is sensitive enough to understand that certain 
-   --      functions only cause GC and return Failure simulataneously. 
-   --      Callsites of such functions are safe as long as they are properly 
+   -- TODO GCMole currently is sensitive enough to understand that certain
+   --      functions only cause GC and return Failure simulataneously.
+   --      Callsites of such functions are safe as long as they are properly
    --      check return value and propagate the Failure to the caller.
    --      It should be possible to extend GCMole to understand this.
    "Heap.*AllocateFunctionPrototype",

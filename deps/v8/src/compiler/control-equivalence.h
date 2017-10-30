@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_CONTROL_EQUIVALENCE_H_
 #define V8_COMPILER_CONTROL_EQUIVALENCE_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -28,14 +30,15 @@ namespace compiler {
 // control regions in linear time" by Johnson, Pearson & Pingali (PLDI94) which
 // also contains proofs for the aforementioned equivalence. References to line
 // numbers in the algorithm from figure 4 have been added [line:x].
-class ControlEquivalence final : public ZoneObject {
+class V8_EXPORT_PRIVATE ControlEquivalence final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   ControlEquivalence(Zone* zone, Graph* graph)
       : zone_(zone),
         graph_(graph),
         dfs_number_(0),
         class_number_(1),
-        node_data_(graph->NodeCount(), EmptyData(), zone) {}
+        node_data_(graph->NodeCount(), zone) {}
 
   // Run the main algorithm starting from the {exit} control node. This causes
   // the following iterations over control edges of the graph:
@@ -77,17 +80,21 @@ class ControlEquivalence final : public ZoneObject {
   // The stack is used during the undirected DFS walk.
   typedef ZoneStack<DFSStackEntry> DFSStack;
 
-  struct NodeData {
+  struct NodeData : ZoneObject {
+    explicit NodeData(Zone* zone)
+        : class_number(kInvalidClass),
+          blist(BracketList(zone)),
+          visited(false),
+          on_stack(false) {}
+
     size_t class_number;  // Equivalence class number assigned to node.
-    size_t dfs_number;    // Pre-order DFS number assigned to node.
-    bool visited;         // Indicates node has already been visited.
-    bool on_stack;        // Indicates node is on DFS stack during walk.
-    bool participates;    // Indicates node participates in DFS walk.
     BracketList blist;    // List of brackets per node.
+    bool visited : 1;     // Indicates node has already been visited.
+    bool on_stack : 1;    // Indicates node is on DFS stack during walk.
   };
 
   // The per-node data computed during the DFS walk.
-  typedef ZoneVector<NodeData> Data;
+  typedef ZoneVector<NodeData*> Data;
 
   // Called at pre-visit during DFS walk.
   void VisitPre(Node* node);
@@ -121,30 +128,36 @@ class ControlEquivalence final : public ZoneObject {
   void DetermineParticipation(Node* exit);
 
  private:
-  NodeData* GetData(Node* node) { return &node_data_[node->id()]; }
+  NodeData* GetData(Node* node) {
+    size_t const index = node->id();
+    if (index >= node_data_.size()) node_data_.resize(index + 1);
+    return node_data_[index];
+  }
+  void AllocateData(Node* node) {
+    size_t const index = node->id();
+    if (index >= node_data_.size()) node_data_.resize(index + 1);
+    node_data_[index] = new (zone_) NodeData(zone_);
+  }
+
   int NewClassNumber() { return class_number_++; }
   int NewDFSNumber() { return dfs_number_++; }
 
-  // Template used to initialize per-node data.
-  NodeData EmptyData() {
-    return {kInvalidClass, 0, false, false, false, BracketList(zone_)};
-  }
-
-  // Accessors for the DFS number stored within the per-node data.
-  size_t GetNumber(Node* node) { return GetData(node)->dfs_number; }
-  void SetNumber(Node* node, size_t number) {
-    GetData(node)->dfs_number = number;
-  }
+  bool Participates(Node* node) { return GetData(node) != nullptr; }
 
   // Accessors for the equivalence class stored within the per-node data.
   size_t GetClass(Node* node) { return GetData(node)->class_number; }
   void SetClass(Node* node, size_t number) {
+    DCHECK(Participates(node));
     GetData(node)->class_number = number;
   }
 
   // Accessors for the bracket list stored within the per-node data.
-  BracketList& GetBracketList(Node* node) { return GetData(node)->blist; }
+  BracketList& GetBracketList(Node* node) {
+    DCHECK(Participates(node));
+    return GetData(node)->blist;
+  }
   void SetBracketList(Node* node, BracketList& list) {
+    DCHECK(Participates(node));
     GetData(node)->blist = list;
   }
 

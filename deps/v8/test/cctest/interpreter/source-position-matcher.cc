@@ -56,9 +56,9 @@ struct PositionTableEntryComparer {
 bool SourcePositionMatcher::Match(Handle<BytecodeArray> original_bytecode,
                                   Handle<BytecodeArray> optimized_bytecode) {
   SourcePositionTableIterator original(
-      original_bytecode->source_position_table());
+      original_bytecode->SourcePositionTable());
   SourcePositionTableIterator optimized(
-      optimized_bytecode->source_position_table());
+      optimized_bytecode->SourcePositionTable());
 
   int last_original_bytecode_offset = 0;
   int last_optimized_bytecode_offset = 0;
@@ -213,7 +213,8 @@ void SourcePositionMatcher::MoveToNextStatement(
     if (iterator->is_statement()) {
       break;
     }
-    positions->push_back({iterator->code_offset(), iterator->source_position(),
+    positions->push_back({iterator->code_offset(),
+                          iterator->source_position().raw(),
                           iterator->is_statement()});
     iterator->Advance();
   }

@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
-
-#include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -38,8 +38,8 @@ uint32_t GetMatchingRelocInfoCount(Handle<Code> code, RelocInfo::Mode rmode) {
 }
 
 WASM_EXEC_TEST(Int32AsmjsDivS) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Int32(),
-                        MachineType::Int32());
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(0, r.Call(0, 100));
@@ -50,8 +50,8 @@ WASM_EXEC_TEST(Int32AsmjsDivS) {
 }
 
 WASM_EXEC_TEST(Int32AsmjsRemS) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Int32(),
-                        MachineType::Int32());
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemS, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(33, r.Call(133, 100));
@@ -62,8 +62,8 @@ WASM_EXEC_TEST(Int32AsmjsRemS) {
 }
 
 WASM_EXEC_TEST(Int32AsmjsDivU) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Int32(),
-                        MachineType::Int32());
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsDivU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(0, r.Call(0, 100));
@@ -74,8 +74,8 @@ WASM_EXEC_TEST(Int32AsmjsDivU) {
 }
 
 WASM_EXEC_TEST(Int32AsmjsRemU) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Int32(),
-                        MachineType::Int32());
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprI32AsmjsRemU, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
   CHECK_EQ(17, r.Call(217, 100));
@@ -86,7 +86,8 @@ WASM_EXEC_TEST(Int32AsmjsRemU) {
 }
 
 WASM_EXEC_TEST(I32AsmjsSConvertF32) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Float32());
+  WasmRunner<int32_t, float> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF32, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
@@ -96,7 +97,8 @@ WASM_EXEC_TEST(I32AsmjsSConvertF32) {
 }
 
 WASM_EXEC_TEST(I32AsmjsSConvertF64) {
-  WasmRunner<int32_t> r(execution_mode, MachineType::Float64());
+  WasmRunner<int32_t, double> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsSConvertF64, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
@@ -106,7 +108,8 @@ WASM_EXEC_TEST(I32AsmjsSConvertF64) {
 }
 
 WASM_EXEC_TEST(I32AsmjsUConvertF32) {
-  WasmRunner<uint32_t> r(execution_mode, MachineType::Float32());
+  WasmRunner<uint32_t, float> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF32, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
@@ -116,7 +119,8 @@ WASM_EXEC_TEST(I32AsmjsUConvertF32) {
 }
 
 WASM_EXEC_TEST(I32AsmjsUConvertF64) {
-  WasmRunner<uint32_t> r(execution_mode, MachineType::Float64());
+  WasmRunner<uint32_t, double> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprI32AsmjsUConvertF64, WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
@@ -126,10 +130,10 @@ WASM_EXEC_TEST(I32AsmjsUConvertF64) {
 }
 
 WASM_EXEC_TEST(LoadMemI32_oob_asm) {
-  TestingModule module(execution_mode);
-  int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  WasmRunner<int32_t> r(&module, MachineType::Uint32());
-  module.RandomizeMemory(1112);
+  WasmRunner<int32_t, uint32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  r.builder().RandomizeMemory(1112);
 
   BUILD(r, WASM_UNOP(kExprI32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
@@ -146,10 +150,10 @@ WASM_EXEC_TEST(LoadMemI32_oob_asm) {
 }
 
 WASM_EXEC_TEST(LoadMemF32_oob_asm) {
-  TestingModule module(execution_mode);
-  float* memory = module.AddMemoryElems<float>(8);
-  WasmRunner<float> r(&module, MachineType::Uint32());
-  module.RandomizeMemory(1112);
+  WasmRunner<float, uint32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
+  float* memory = r.builder().AddMemoryElems<float>(8);
+  r.builder().RandomizeMemory(1112);
 
   BUILD(r, WASM_UNOP(kExprF32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
@@ -166,10 +170,10 @@ WASM_EXEC_TEST(LoadMemF32_oob_asm) {
 }
 
 WASM_EXEC_TEST(LoadMemF64_oob_asm) {
-  TestingModule module(execution_mode);
-  double* memory = module.AddMemoryElems<double>(8);
-  WasmRunner<double> r(&module, MachineType::Uint32());
-  module.RandomizeMemory(1112);
+  WasmRunner<double, uint32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
+  double* memory = r.builder().AddMemoryElems<double>(8);
+  r.builder().RandomizeMemory(1112);
 
   BUILD(r, WASM_UNOP(kExprF64AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
@@ -188,10 +192,10 @@ WASM_EXEC_TEST(LoadMemF64_oob_asm) {
 }
 
 WASM_EXEC_TEST(StoreMemI32_oob_asm) {
-  TestingModule module(execution_mode);
-  int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  WasmRunner<int32_t> r(&module, MachineType::Uint32(), MachineType::Uint32());
-  module.RandomizeMemory(1112);
+  WasmRunner<int32_t, uint32_t, uint32_t> r(execution_mode);
+  r.builder().ChangeOriginToAsmjs();
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  r.builder().RandomizeMemory(1112);
 
   BUILD(r, WASM_BINOP(kExprI32AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
@@ -223,13 +227,13 @@ WASM_EXEC_TEST(StoreMemI32_oob_asm) {
 
 #define INT_LOAD_TEST(OP_TYPE)                                                \
   TEST(RunWasm_AsmCheckedRelocInfo##OP_TYPE) {                                \
-    TestingModule module(kExecuteCompiled);                                   \
-    WasmRunner<int32_t> r(&module, MachineType::Uint32());                    \
+    WasmRunner<int32_t, uint32_t> r(kExecuteCompiled);                        \
+    r.builder().ChangeOriginToAsmjs();                                        \
     BUILD(r, WASM_UNOP(OP_TYPE, WASM_GET_LOCAL(0)));                          \
-    CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],  \
+    CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),     \
                                           RelocInfo::WASM_MEMORY_REFERENCE)); \
     CHECK_NE(                                                                 \
-        0, GetMatchingRelocInfoCount(module.instance->function_code[0],       \
+        0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),          \
                                      RelocInfo::WASM_MEMORY_SIZE_REFERENCE)); \
   }
 
@@ -237,61 +241,60 @@ FOREACH_INT_CHECKED_LOAD_OP(INT_LOAD_TEST)
 
 #define INT_STORE_TEST(OP_TYPE)                                               \
   TEST(RunWasm_AsmCheckedRelocInfo##OP_TYPE) {                                \
-    TestingModule module(kExecuteCompiled);                                   \
-    WasmRunner<int32_t> r(&module, MachineType::Uint32(),                     \
-                          MachineType::Uint32());                             \
+    WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteCompiled);              \
+    r.builder().ChangeOriginToAsmjs();                                        \
     BUILD(r, WASM_BINOP(OP_TYPE, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));      \
-    CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],  \
+    CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),     \
                                           RelocInfo::WASM_MEMORY_REFERENCE)); \
     CHECK_NE(                                                                 \
-        0, GetMatchingRelocInfoCount(module.instance->function_code[0],       \
+        0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),          \
                                      RelocInfo::WASM_MEMORY_SIZE_REFERENCE)); \
   }
 
 FOREACH_INT_CHECKED_STORE_OP(INT_STORE_TEST)
 
 TEST(RunWasm_AsmCheckedLoadFloat32RelocInfo) {
-  TestingModule module(kExecuteCompiled);
-  WasmRunner<float> r(&module, MachineType::Uint32());
+  WasmRunner<float, uint32_t> r(kExecuteCompiled);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprF32AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
-  CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_REFERENCE));
-  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_NE(0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedStoreFloat32RelocInfo) {
-  TestingModule module(kExecuteCompiled);
-  WasmRunner<float> r(&module, MachineType::Uint32(), MachineType::Float32());
+  WasmRunner<float, uint32_t, float> r(kExecuteCompiled);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprF32AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
-  CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_REFERENCE));
-  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_NE(0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedLoadFloat64RelocInfo) {
-  TestingModule module(kExecuteCompiled);
-  WasmRunner<double> r(&module, MachineType::Uint32());
+  WasmRunner<double, uint32_t> r(kExecuteCompiled);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_UNOP(kExprF64AsmjsLoadMem, WASM_GET_LOCAL(0)));
 
-  CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_REFERENCE));
-  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_NE(0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
 
 TEST(RunWasm_AsmCheckedStoreFloat64RelocInfo) {
-  TestingModule module(kExecuteCompiled);
-  WasmRunner<double> r(&module, MachineType::Uint32(), MachineType::Float64());
+  WasmRunner<double, uint32_t, double> r(kExecuteCompiled);
+  r.builder().ChangeOriginToAsmjs();
   BUILD(r, WASM_BINOP(kExprF64AsmjsStoreMem, WASM_GET_LOCAL(0),
                       WASM_GET_LOCAL(1)));
 
-  CHECK_EQ(1, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_EQ(1, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_REFERENCE));
-  CHECK_NE(0, GetMatchingRelocInfoCount(module.instance->function_code[0],
+  CHECK_NE(0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }

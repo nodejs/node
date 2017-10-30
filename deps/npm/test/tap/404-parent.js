@@ -40,14 +40,14 @@ function setup () {
   process.chdir(pkg)
 }
 
-function plugin (server) {
-  server.get('/test-npm-404-parent-test')
-    .reply(404, {'error': 'version not found'})
-}
-
 function performInstall (cb) {
-  mr({port: common.port, plugin: plugin}, function (er, s) { // create mock registry.
-    npm.load({registry: common.registry}, function () {
+  mr({port: common.port}, function (er, s) { // create mock registry.
+    s.get('/test-npm-404-parent-test')
+      .many().reply(404, {'error': 'version not found'})
+    npm.load({
+      registry: common.registry
+    }, function () {
+      npm.config.set('fetch-retries', 0)
       var pwd = process.cwd()
       process.chdir(pkg)
       npm.commands.install([], function (err) {

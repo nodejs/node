@@ -10,6 +10,7 @@
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/visitors.h"
 
 namespace v8 {
 
@@ -31,7 +32,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   // Record that the Locker has been used at least once.
-  base::NoBarrier_Store(&g_locker_was_ever_used_, 1);
+  base::Relaxed_Store(&g_locker_was_ever_used_, 1);
   // Get the big lock if necessary.
   if (!isolate_->thread_manager()->IsLockedByCurrentThread()) {
     isolate_->thread_manager()->Lock();
@@ -59,7 +60,7 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
 
 
 bool Locker::IsActive() {
-  return !!base::NoBarrier_Load(&g_locker_was_ever_used_);
+  return !!base::Relaxed_Load(&g_locker_was_ever_used_);
 }
 
 
@@ -288,7 +289,7 @@ void ThreadManager::EagerlyArchiveThread() {
   state->LinkInto(ThreadState::IN_USE_LIST);
   char* to = state->data();
   // Ensure that data containing GC roots are archived first, and handle them
-  // in ThreadManager::Iterate(ObjectVisitor*).
+  // in ThreadManager::Iterate(RootVisitor*).
   to = isolate_->handle_scope_implementer()->ArchiveThread(to);
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(isolate_, to);
@@ -320,8 +321,7 @@ bool ThreadManager::IsArchived() {
   return data != NULL && data->thread_state() != NULL;
 }
 
-
-void ThreadManager::Iterate(ObjectVisitor* v) {
+void ThreadManager::Iterate(RootVisitor* v) {
   // Expecting no threads during serialization/deserialization
   for (ThreadState* state = FirstThreadStateInUse();
        state != NULL;

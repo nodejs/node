@@ -153,9 +153,7 @@ function Glob (pattern, options, cb) {
   }
 
   var self = this
-  var n = this.minimatch.set.length
   this._processing = 0
-  this.matches = new Array(n)
 
   this._emitQueue = []
   this._processQueue = []
@@ -457,9 +455,6 @@ Glob.prototype._emitMatch = function (index, e) {
   if (this.aborted)
     return
 
-  if (this.matches[index][e])
-    return
-
   if (isIgnored(this, e))
     return
 
@@ -468,16 +463,22 @@ Glob.prototype._emitMatch = function (index, e) {
     return
   }
 
-  var abs = this._makeAbs(e)
+  var abs = isAbsolute(e) ? e : this._makeAbs(e)
+
+  if (this.mark)
+    e = this._mark(e)
+
+  if (this.absolute)
+    e = abs
+
+  if (this.matches[index][e])
+    return
 
   if (this.nodir) {
     var c = this.cache[abs]
     if (c === 'DIR' || Array.isArray(c))
       return
   }
-
-  if (this.mark)
-    e = this._mark(e)
 
   this.matches[index][e] = true
 
@@ -505,15 +506,15 @@ Glob.prototype._readdirInGlobStar = function (abs, cb) {
     fs.lstat(abs, lstatcb)
 
   function lstatcb_ (er, lstat) {
-    if (er)
+    if (er && er.code === 'ENOENT')
       return cb()
 
-    var isSym = lstat.isSymbolicLink()
+    var isSym = lstat && lstat.isSymbolicLink()
     self.symlinks[abs] = isSym
 
     // If it's not a symlink or a dir, then it's definitely a regular file.
     // don't bother doing a readdir in that case.
-    if (!isSym && !lstat.isDirectory()) {
+    if (!isSym && lstat && !lstat.isDirectory()) {
       self.cache[abs] = 'FILE'
       cb()
     } else
@@ -766,7 +767,7 @@ Glob.prototype._stat = function (f, cb) {
 }
 
 Glob.prototype._stat2 = function (f, abs, er, stat, cb) {
-  if (er) {
+  if (er && (er.code === 'ENOENT' || er.code === 'ENOTDIR')) {
     this.statCache[abs] = false
     return cb()
   }
@@ -774,13 +775,15 @@ Glob.prototype._stat2 = function (f, abs, er, stat, cb) {
   var needDir = f.slice(-1) === '/'
   this.statCache[abs] = stat
 
-  if (abs.slice(-1) === '/' && !stat.isDirectory())
+  if (abs.slice(-1) === '/' && stat && !stat.isDirectory())
     return cb(null, false, stat)
 
-  var c = stat.isDirectory() ? 'DIR' : 'FILE'
+  var c = true
+  if (stat)
+    c = stat.isDirectory() ? 'DIR' : 'FILE'
   this.cache[abs] = this.cache[abs] || c
 
-  if (needDir && c !== 'DIR')
+  if (needDir && c === 'FILE')
     return cb()
 
   return cb(null, c, stat)

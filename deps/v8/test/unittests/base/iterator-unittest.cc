@@ -42,7 +42,7 @@ TEST(IteratorTest, IteratorRangeArray) {
 
 
 TEST(IteratorTest, IteratorRangeDeque) {
-  typedef std::deque<unsigned> C;
+  typedef std::deque<int> C;
   C c;
   c.push_back(1);
   c.push_back(2);

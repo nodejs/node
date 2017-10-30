@@ -278,8 +278,8 @@ function TestKeyDescriptor(obj) {
     assertEquals(i|0, desc.value)
     assertTrue(desc.configurable)
     assertEquals(i % 2 == 0, desc.writable)
-    assertEquals(i % 2 == 0, desc.enumerable)
-    assertEquals(i % 2 == 0,
+    assertEquals(false, desc.enumerable)
+    assertEquals(false,
         Object.prototype.propertyIsEnumerable.call(obj, symbols[i]))
   }
 }
@@ -295,7 +295,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
 
 for (var i in objs) {
   var obj = objs[i]
@@ -340,19 +340,37 @@ function TestGetOwnPropertySymbols() {
 TestGetOwnPropertySymbols()
 
 
-function TestSealAndFreeze(freeze) {
+function TestSealAndFreeze(factory, freeze, isFrozen) {
   var sym = %CreatePrivateSymbol("private")
-  var obj = {}
+  var obj = factory();
   obj[sym] = 1
   freeze(obj)
+  assertTrue(isFrozen(obj))
   obj[sym] = 2
   assertEquals(2, obj[sym])
   assertTrue(delete obj[sym])
   assertEquals(undefined, obj[sym])
 }
-TestSealAndFreeze(Object.seal)
-TestSealAndFreeze(Object.freeze)
-TestSealAndFreeze(Object.preventExtensions)
+
+var fastObj = () => {
+  var obj = {}
+  assertTrue(%HasFastProperties(obj))
+  return obj
+}
+var dictObj = () => {
+  var obj = Object.create(null)
+  obj.a = 1
+  delete obj.a
+  assertFalse(%HasFastProperties(obj))
+  return obj
+}
+
+TestSealAndFreeze(fastObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(fastObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(fastObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
+TestSealAndFreeze(dictObj, Object.seal, Object.isSealed)
+TestSealAndFreeze(dictObj, Object.freeze,  Object.isFrozen)
+TestSealAndFreeze(dictObj, Object.preventExtensions, obj => !Object.isExtensible(obj))
 
 
 var s = %CreatePrivateSymbol("s");

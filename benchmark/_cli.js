@@ -45,13 +45,13 @@ function CLI(usage, settings) {
         currentOptional = arg.slice(1);
       }
 
-      // Default the value to true
-      if (!settings.arrayArgs.includes(currentOptional)) {
+      if (settings.boolArgs && settings.boolArgs.includes(currentOptional)) {
         this.optional[currentOptional] = true;
+        mode = 'both';
+      } else {
+        // expect the next value to be option related (either -- or the value)
+        mode = 'option';
       }
-
-      // expect the next value to be option related (either -- or the value)
-      mode = 'option';
     } else if (mode === 'option') {
       // Optional arguments value
 
@@ -88,6 +88,8 @@ CLI.prototype.benchmarks = function() {
   const filter = this.optional.filter || false;
 
   for (const category of this.items) {
+    if (benchmarks[category] === undefined)
+      continue;
     for (const scripts of benchmarks[category]) {
       if (filter && scripts.lastIndexOf(filter) === -1) continue;
 

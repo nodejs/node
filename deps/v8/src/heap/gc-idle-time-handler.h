@@ -68,7 +68,7 @@ class GCIdleTimeHeapState {
 
 // The idle time handler makes decisions about which garbage collection
 // operations are executing during IdleNotification.
-class GCIdleTimeHandler {
+class V8_EXPORT_PRIVATE GCIdleTimeHandler {
  public:
   // If we haven't recorded any incremental marking events yet, we carefully
   // mark with a conservative lower bound for the marking speed.
@@ -107,6 +107,8 @@ class GCIdleTimeHandler {
   // considered low
   static const size_t kLowAllocationThroughput = 1000;
 
+  static const size_t kMaxHeapSizeForContextDisposalMarkCompact = 100 * MB;
+
   // If contexts are disposed at a higher rate a full gc is triggered.
   static const double kHighContextDisposalRate;
 
@@ -125,6 +127,8 @@ class GCIdleTimeHandler {
   GCIdleTimeAction Compute(double idle_time_in_ms,
                            GCIdleTimeHeapState heap_state);
 
+  bool Enabled();
+
   void ResetNoProgressCounter() { idle_times_which_made_no_progress_ = 0; }
 
   static size_t EstimateMarkingStepSize(double idle_time_in_ms,
@@ -134,7 +138,8 @@ class GCIdleTimeHandler {
       size_t size_of_objects, double mark_compact_speed_in_bytes_per_ms);
 
   static bool ShouldDoContextDisposalMarkCompact(int context_disposed,
-                                                 double contexts_disposal_rate);
+                                                 double contexts_disposal_rate,
+                                                 size_t size_of_objects);
 
   static bool ShouldDoFinalIncrementalMarkCompact(
       double idle_time_in_ms, size_t size_of_objects,

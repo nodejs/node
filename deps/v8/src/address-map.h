@@ -5,6 +5,7 @@
 #ifndef V8_ADDRESS_MAP_H_
 #define V8_ADDRESS_MAP_H_
 
+#include "include/v8.h"
 #include "src/assert-scope.h"
 #include "src/base/hashmap.h"
 #include "src/objects.h"
@@ -12,49 +13,50 @@
 namespace v8 {
 namespace internal {
 
-class AddressMapBase {
- protected:
-  static void SetValue(base::HashMap::Entry* entry, uint32_t v) {
-    entry->value = reinterpret_cast<void*>(v);
+template <typename Type>
+class PointerToIndexHashMap
+    : public base::TemplateHashMapImpl<uintptr_t, uint32_t,
+                                       base::KeyEqualityMatcher<intptr_t>,
+                                       base::DefaultAllocationPolicy> {
+ public:
+  typedef base::TemplateHashMapEntry<uintptr_t, uint32_t> Entry;
+
+  inline void Set(Type value, uint32_t index) {
+    uintptr_t key = Key(value);
+    LookupOrInsert(key, Hash(key))->value = index;
   }
 
-  static uint32_t GetValue(base::HashMap::Entry* entry) {
-    return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
-  }
-
-  inline static base::HashMap::Entry* LookupEntry(base::HashMap* map,
-                                                  HeapObject* obj,
-                                                  bool insert) {
-    if (insert) {
-      map->LookupOrInsert(Key(obj), Hash(obj));
-    }
-    return map->Lookup(Key(obj), Hash(obj));
+  inline Maybe<uint32_t> Get(Type value) const {
+    uintptr_t key = Key(value);
+    Entry* entry = Lookup(key, Hash(key));
+    if (entry == nullptr) return Nothing<uint32_t>();
+    return Just(entry->value);
   }
 
  private:
-  static uint32_t Hash(HeapObject* obj) {
-    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
+  static uintptr_t Key(Type value) {
+    return reinterpret_cast<uintptr_t>(value);
   }
 
-  static void* Key(HeapObject* obj) {
-    return reinterpret_cast<void*>(obj->address());
-  }
+  static uint32_t Hash(uintptr_t key) { return static_cast<uint32_t>(key); }
 };
 
-class RootIndexMap : public AddressMapBase {
+class AddressToIndexHashMap : public PointerToIndexHashMap<Address> {};
+class HeapObjectToIndexHashMap : public PointerToIndexHashMap<HeapObject*> {};
+
+class RootIndexMap {
  public:
   explicit RootIndexMap(Isolate* isolate);
 
   static const int kInvalidRootIndex = -1;
 
   int Lookup(HeapObject* obj) {
-    base::HashMap::Entry* entry = LookupEntry(map_, obj, false);
-    if (entry) return GetValue(entry);
-    return kInvalidRootIndex;
+    Maybe<uint32_t> maybe_index = map_->Get(obj);
+    return maybe_index.IsJust() ? maybe_index.FromJust() : kInvalidRootIndex;
   }
 
  private:
-  base::HashMap* map_;
+  HeapObjectToIndexHashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
@@ -79,6 +81,11 @@ class SerializerReference {
 
   static SerializerReference MapReference(uint32_t index) {
     return SerializerReference(SpaceBits::encode(MAP_SPACE) |
+                               ValueIndexBits::encode(index));
+  }
+
+  static SerializerReference OffHeapBackingStoreReference(uint32_t index) {
+    return SerializerReference(SpaceBits::encode(kExternalSpace) |
                                ValueIndexBits::encode(index));
   }
 
@@ -114,6 +121,15 @@ class SerializerReference {
 
   uint32_t map_index() const {
     DCHECK(is_back_reference());
+    return ValueIndexBits::decode(bitfield_);
+  }
+
+  bool is_off_heap_backing_store_reference() const {
+    return SpaceBits::decode(bitfield_) == kExternalSpace;
+  }
+
+  uint32_t off_heap_backing_store_index() const {
+    DCHECK(is_off_heap_backing_store_reference());
     return ValueIndexBits::decode(bitfield_);
   }
 
@@ -158,6 +174,8 @@ class SerializerReference {
   //   [ kSpecialValueSpace      ] [ Special value index          ]
   // Attached reference
   //   [ kAttachedReferenceSpace ] [ Attached reference index     ]
+  // External
+  //   [ kExternalSpace          ] [ External reference index     ]
 
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
@@ -165,7 +183,8 @@ class SerializerReference {
 
   static const int kSpecialValueSpace = LAST_SPACE + 1;
   static const int kAttachedReferenceSpace = kSpecialValueSpace + 1;
-  STATIC_ASSERT(kAttachedReferenceSpace < (1 << kSpaceTagSize));
+  static const int kExternalSpace = kAttachedReferenceSpace + 1;
+  STATIC_ASSERT(kExternalSpace < (1 << kSpaceTagSize));
 
   static const int kInvalidValue = 0;
   static const int kDummyValue = 1;
@@ -186,23 +205,21 @@ class SerializerReference {
 
 // Mapping objects to their location after deserialization.
 // This is used during building, but not at runtime by V8.
-class SerializerReferenceMap : public AddressMapBase {
+class SerializerReferenceMap {
  public:
   SerializerReferenceMap()
-      : no_allocation_(),
-        map_(base::HashMap::PointersMatch),
-        attached_reference_index_(0) {}
+      : no_allocation_(), map_(), attached_reference_index_(0) {}
 
-  SerializerReference Lookup(HeapObject* obj) {
-    base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);
-    return entry ? SerializerReference(GetValue(entry)) : SerializerReference();
+  SerializerReference Lookup(void* obj) {
+    Maybe<uint32_t> maybe_index = map_.Get(obj);
+    return maybe_index.IsJust() ? SerializerReference(maybe_index.FromJust())
+                                : SerializerReference();
   }
 
-  void Add(HeapObject* obj, SerializerReference b) {
+  void Add(void* obj, SerializerReference b) {
     DCHECK(b.is_valid());
-    DCHECK_NULL(LookupEntry(&map_, obj, false));
-    base::HashMap::Entry* entry = LookupEntry(&map_, obj, true);
-    SetValue(entry, b.bitfield_);
+    DCHECK(map_.Get(obj).IsNothing());
+    map_.Set(obj, b.bitfield_);
   }
 
   SerializerReference AddAttachedReference(HeapObject* attached_reference) {
@@ -214,7 +231,7 @@ class SerializerReferenceMap : public AddressMapBase {
 
  private:
   DisallowHeapAllocation no_allocation_;
-  base::HashMap map_;
+  PointerToIndexHashMap<void*> map_;
   int attached_reference_index_;
   DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };

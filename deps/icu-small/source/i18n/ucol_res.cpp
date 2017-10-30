@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  ucol_res.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -680,6 +680,7 @@ ucol_getKeywordValuesForLocale(const char* /*key*/, const char* locale,
         return NULL;
     }
     memcpy(en, &defaultKeywordValues, sizeof(UEnumeration));
+    ulist_resetList(sink.values);  // Initialize the iterator.
     en->context = sink.values;
     sink.values = NULL;  // Avoid deletion in the sink destructor.
     return en;

@@ -154,8 +154,8 @@ THREADED_TEST(GlobalVariableAccess) {
       v8::External::New(isolate, &baz));
   LocalContext env(0, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run(env.local()).ToLocalChecked();
-  CHECK_EQ(bar, -3);
-  CHECK_EQ(foo, 7);
+  CHECK_EQ(-3, bar);
+  CHECK_EQ(7, foo);
 }
 
 
@@ -319,7 +319,7 @@ static void CheckAccessorArgsCorrect(
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage();
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()

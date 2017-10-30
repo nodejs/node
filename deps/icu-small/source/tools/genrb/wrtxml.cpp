@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -73,7 +73,7 @@ static int32_t write_utf8_file(FileStream* fileStream, UnicodeString outString)
     u_strToUTF8(NULL,
                 0,
                 &len,
-                outString.getBuffer(),
+                toUCharPtr(outString.getBuffer()),
                 outString.length(),
                 &status);
 
@@ -85,7 +85,7 @@ static int32_t write_utf8_file(FileStream* fileStream, UnicodeString outString)
     u_strToUTF8(dest,
                 len,
                 &len,
-                outString.getBuffer(),
+                toUCharPtr(outString.getBuffer()),
                 outString.length(),
                 &status);
 

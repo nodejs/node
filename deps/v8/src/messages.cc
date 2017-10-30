@@ -10,8 +10,10 @@
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/objects/frame-array-inl.h"
 #include "src/string-builder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -20,11 +22,11 @@ MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
                                  int end_pos)
     : script_(script), start_pos_(start_pos), end_pos_(end_pos) {}
 MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
-                                 int end_pos, Handle<JSFunction> function)
+                                 int end_pos, Handle<SharedFunctionInfo> shared)
     : script_(script),
       start_pos_(start_pos),
       end_pos_(end_pos),
-      function_(function) {}
+      shared_(shared) {}
 MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 
 // If no message listeners have been registered this one is called
@@ -46,11 +48,10 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
   }
 }
 
-
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Isolate* isolate, MessageTemplate::Template message,
-    MessageLocation* location, Handle<Object> argument,
-    Handle<JSArray> stack_frames) {
+    const MessageLocation* location, Handle<Object> argument,
+    Handle<FixedArray> stack_frames) {
   Factory* factory = isolate->factory();
 
   int start = -1;
@@ -74,50 +75,63 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   return message_obj;
 }
 
-
-void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
+void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
                                    Handle<JSMessageObject> message) {
-  // We are calling into embedder's code which can throw exceptions.
-  // Thus we need to save current exception state, reset it to the clean one
-  // and ignore scheduled exceptions callbacks can throw.
-
-  // We pass the exception object into the message handler callback though.
-  Object* exception_object = isolate->heap()->undefined_value();
-  if (isolate->has_pending_exception()) {
-    exception_object = isolate->pending_exception();
-  }
-  Handle<Object> exception(exception_object, isolate);
-
-  Isolate::ExceptionScope exception_scope(isolate);
-  isolate->clear_pending_exception();
-  isolate->set_external_caught_exception(false);
-
-  // Turn the exception on the message into a string if it is an object.
-  if (message->argument()->IsJSObject()) {
-    HandleScope scope(isolate);
-    Handle<Object> argument(message->argument(), isolate);
-
-    MaybeHandle<Object> maybe_stringified;
-    Handle<Object> stringified;
-    // Make sure we don't leak uncaught internally generated Error objects.
-    if (argument->IsJSError()) {
-      maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
-    } else {
-      v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
-      catcher.SetVerbose(false);
-      catcher.SetCaptureMessage(false);
-
-      maybe_stringified = Object::ToString(isolate, argument);
-    }
-
-    if (!maybe_stringified.ToHandle(&stringified)) {
-      stringified = isolate->factory()->NewStringFromAsciiChecked("exception");
-    }
-    message->set_argument(*stringified);
-  }
-
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
-  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
+
+  if (api_message_obj->ErrorLevel() == v8::Isolate::kMessageError) {
+    // We are calling into embedder's code which can throw exceptions.
+    // Thus we need to save current exception state, reset it to the clean one
+    // and ignore scheduled exceptions callbacks can throw.
+
+    // We pass the exception object into the message handler callback though.
+    Object* exception_object = isolate->heap()->undefined_value();
+    if (isolate->has_pending_exception()) {
+      exception_object = isolate->pending_exception();
+    }
+    Handle<Object> exception(exception_object, isolate);
+
+    Isolate::ExceptionScope exception_scope(isolate);
+    isolate->clear_pending_exception();
+    isolate->set_external_caught_exception(false);
+
+    // Turn the exception on the message into a string if it is an object.
+    if (message->argument()->IsJSObject()) {
+      HandleScope scope(isolate);
+      Handle<Object> argument(message->argument(), isolate);
+
+      MaybeHandle<Object> maybe_stringified;
+      Handle<Object> stringified;
+      // Make sure we don't leak uncaught internally generated Error objects.
+      if (argument->IsJSError()) {
+        maybe_stringified = Object::NoSideEffectsToString(isolate, argument);
+      } else {
+        v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+        catcher.SetVerbose(false);
+        catcher.SetCaptureMessage(false);
+
+        maybe_stringified = Object::ToString(isolate, argument);
+      }
+
+      if (!maybe_stringified.ToHandle(&stringified)) {
+        stringified =
+            isolate->factory()->NewStringFromAsciiChecked("exception");
+      }
+      message->set_argument(*stringified);
+    }
+
+    v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception);
+    ReportMessageNoExceptions(isolate, loc, message, api_exception_obj);
+  } else {
+    ReportMessageNoExceptions(isolate, loc, message, v8::Local<v8::Value>());
+  }
+}
+
+void MessageHandler::ReportMessageNoExceptions(
+    Isolate* isolate, const MessageLocation* loc, Handle<Object> message,
+    v8::Local<v8::Value> api_exception_obj) {
+  v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
+  int error_level = api_message_obj->ErrorLevel();
 
   Handle<TemplateList> global_listeners =
       isolate->factory()->message_listeners();
@@ -133,6 +147,11 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
       if (global_listeners->get(i)->IsUndefined(isolate)) continue;
       FixedArray* listener = FixedArray::cast(global_listeners->get(i));
       Foreign* callback_obj = Foreign::cast(listener->get(0));
+      int32_t message_levels =
+          static_cast<int32_t>(Smi::ToInt(listener->get(2)));
+      if (!(message_levels & error_level)) {
+        continue;
+      }
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
       Handle<Object> callback_data(listener->get(1), isolate);
@@ -164,162 +183,11 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
   return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
 }
 
-
-CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
-    : isolate_(isolate) {
-  Handle<Object> maybe_function = JSObject::GetDataProperty(
-      call_site_obj, isolate->factory()->call_site_function_symbol());
-  if (maybe_function->IsJSFunction()) {
-    // javascript
-    fun_ = Handle<JSFunction>::cast(maybe_function);
-    receiver_ = JSObject::GetDataProperty(
-        call_site_obj, isolate->factory()->call_site_receiver_symbol());
-  } else {
-    Handle<Object> maybe_wasm_func_index = JSObject::GetDataProperty(
-        call_site_obj, isolate->factory()->call_site_wasm_func_index_symbol());
-    if (!maybe_wasm_func_index->IsSmi()) {
-      // invalid: neither javascript nor wasm
-      return;
-    }
-    // wasm
-    wasm_obj_ = Handle<JSObject>::cast(JSObject::GetDataProperty(
-        call_site_obj, isolate->factory()->call_site_wasm_obj_symbol()));
-    wasm_func_index_ = Smi::cast(*maybe_wasm_func_index)->value();
-    DCHECK(static_cast<int>(wasm_func_index_) >= 0);
-  }
-
-  CHECK(JSObject::GetDataProperty(
-            call_site_obj, isolate->factory()->call_site_position_symbol())
-            ->ToInt32(&pos_));
-}
-
-
-Handle<Object> CallSite::GetFileName() {
-  if (!IsJavaScript()) return isolate_->factory()->null_value();
-  Object* script = fun_->shared()->script();
-  if (!script->IsScript()) return isolate_->factory()->null_value();
-  return Handle<Object>(Script::cast(script)->name(), isolate_);
-}
-
-
-Handle<Object> CallSite::GetFunctionName() {
-  if (IsWasm()) {
-    return wasm::GetWasmFunctionNameOrNull(isolate_, wasm_obj_,
-                                           wasm_func_index_);
-  }
-  Handle<String> result = JSFunction::GetName(fun_);
-  if (result->length() != 0) return result;
-
-  Handle<Object> script(fun_->shared()->script(), isolate_);
-  if (script->IsScript() &&
-      Handle<Script>::cast(script)->compilation_type() ==
-          Script::COMPILATION_TYPE_EVAL) {
-    return isolate_->factory()->eval_string();
-  }
-  return isolate_->factory()->null_value();
-}
-
-Handle<Object> CallSite::GetScriptNameOrSourceUrl() {
-  if (!IsJavaScript()) return isolate_->factory()->null_value();
-  Object* script_obj = fun_->shared()->script();
-  if (!script_obj->IsScript()) return isolate_->factory()->null_value();
-  Handle<Script> script(Script::cast(script_obj), isolate_);
-  Object* source_url = script->source_url();
-  if (source_url->IsString()) return Handle<Object>(source_url, isolate_);
-  return Handle<Object>(script->name(), isolate_);
-}
-
-bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
-                     Handle<JSFunction> fun,
-                     LookupIterator::Configuration config) {
-  LookupIterator iter =
-      LookupIterator::PropertyOrElement(isolate, obj, name, config);
-  if (iter.state() == LookupIterator::DATA) {
-    return iter.GetDataValue().is_identical_to(fun);
-  } else if (iter.state() == LookupIterator::ACCESSOR) {
-    Handle<Object> accessors = iter.GetAccessors();
-    if (accessors->IsAccessorPair()) {
-      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
-      return pair->getter() == *fun || pair->setter() == *fun;
-    }
-  }
-  return false;
-}
-
-
-Handle<Object> CallSite::GetMethodName() {
-  if (!IsJavaScript() || receiver_->IsNull(isolate_) ||
-      receiver_->IsUndefined(isolate_)) {
-    return isolate_->factory()->null_value();
-  }
-  Handle<JSReceiver> receiver =
-      Object::ToObject(isolate_, receiver_).ToHandleChecked();
-  if (!receiver->IsJSObject()) {
-    return isolate_->factory()->null_value();
-  }
-
-  Handle<JSObject> obj = Handle<JSObject>::cast(receiver);
-  Handle<Object> function_name(fun_->shared()->name(), isolate_);
-  if (function_name->IsString()) {
-    Handle<String> name = Handle<String>::cast(function_name);
-    // ES2015 gives getters and setters name prefixes which must
-    // be stripped to find the property name.
-    if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
-        name->IsUtf8EqualTo(CStrVector("set "), true)) {
-      name = isolate_->factory()->NewProperSubString(name, 4, name->length());
-    }
-    if (CheckMethodName(isolate_, obj, name, fun_,
-                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
-      return name;
-    }
-  }
-
-  HandleScope outer_scope(isolate_);
-  Handle<Object> result;
-  for (PrototypeIterator iter(isolate_, obj, kStartAtReceiver); !iter.IsAtEnd();
-       iter.Advance()) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (!current->IsJSObject()) break;
-    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
-    if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys =
-        KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
-    for (int i = 0; i < keys->length(); i++) {
-      HandleScope inner_scope(isolate_);
-      if (!keys->get(i)->IsName()) continue;
-      Handle<Name> name_key(Name::cast(keys->get(i)), isolate_);
-      if (!CheckMethodName(isolate_, current_obj, name_key, fun_,
-                           LookupIterator::OWN_SKIP_INTERCEPTOR))
-        continue;
-      // Return null in case of duplicates to avoid confusion.
-      if (!result.is_null()) return isolate_->factory()->null_value();
-      result = inner_scope.CloseAndEscape(name_key);
-    }
-  }
-
-  if (!result.is_null()) return outer_scope.CloseAndEscape(result);
-  return isolate_->factory()->null_value();
-}
-
-Handle<Object> CallSite::GetTypeName() {
-  // TODO(jgruber): Check for strict/constructor here as in
-  // CallSitePrototypeGetThis.
-
-  if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_))
-    return isolate_->factory()->null_value();
-
-  if (receiver_->IsJSProxy()) return isolate_->factory()->Proxy_string();
-
-  Handle<JSReceiver> receiver_object =
-      Object::ToObject(isolate_, receiver_).ToHandleChecked();
-  return JSReceiver::GetConstructorName(receiver_object);
-}
-
 namespace {
 
 Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   if (script->eval_from_shared()->IsUndefined(isolate))
-    return *isolate->factory()->undefined_value();
+    return isolate->heap()->undefined_value();
 
   Handle<SharedFunctionInfo> shared(
       SharedFunctionInfo::cast(script->eval_from_shared()));
@@ -333,17 +201,17 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 
 Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
   if (script->eval_from_shared()->IsUndefined(isolate))
-    return *isolate->factory()->undefined_value();
+    return isolate->heap()->undefined_value();
 
   Handle<SharedFunctionInfo> eval_from_shared(
       SharedFunctionInfo::cast(script->eval_from_shared()));
   return eval_from_shared->script()->IsScript()
              ? eval_from_shared->script()
-             : *isolate->factory()->undefined_value();
+             : isolate->heap()->undefined_value();
 }
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
-  Handle<Object> sourceURL = Script::GetNameOrSourceURL(script);
+  Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
   if (!sourceURL->IsUndefined(isolate)) {
     DCHECK(sourceURL->IsString());
     return Handle<String>::cast(sourceURL);
@@ -385,8 +253,8 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
         builder.AppendString(Handle<String>::cast(name_obj));
 
         Script::PositionInfo info;
-        if (eval_from_script->GetPositionInfo(script->GetEvalPosition(), &info,
-                                              Script::NO_OFFSET)) {
+        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
+                                    &info, Script::NO_OFFSET)) {
           builder.AppendCString(":");
 
           Handle<String> str = isolate->factory()->NumberToString(
@@ -414,126 +282,608 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
 
 }  // namespace
 
-Handle<Object> CallSite::GetEvalOrigin() {
-  if (IsWasm()) return isolate_->factory()->undefined_value();
-  DCHECK(IsJavaScript());
-
-  Handle<Object> script = handle(fun_->shared()->script(), isolate_);
-  if (!script->IsScript()) return isolate_->factory()->undefined_value();
-
-  return FormatEvalOrigin(isolate_, Handle<Script>::cast(script))
-      .ToHandleChecked();
+Handle<Object> StackFrameBase::GetEvalOrigin() {
+  if (!HasScript()) return isolate_->factory()->undefined_value();
+  return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
-int CallSite::GetLineNumber() {
-  if (pos_ >= 0 && IsJavaScript()) {
-    Handle<Object> script_obj(fun_->shared()->script(), isolate_);
-    if (script_obj->IsScript()) {
-      Handle<Script> script = Handle<Script>::cast(script_obj);
-      return Script::GetLineNumber(script, pos_) + 1;
-    }
+bool StackFrameBase::IsEval() {
+  return HasScript() &&
+         GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
+}
+
+void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
+                                  int frame_ix) {
+  DCHECK(!array->IsWasmFrame(frame_ix));
+  isolate_ = isolate;
+  receiver_ = handle(array->Receiver(frame_ix), isolate);
+  function_ = handle(array->Function(frame_ix), isolate);
+  code_ = handle(array->Code(frame_ix), isolate);
+  offset_ = array->Offset(frame_ix)->value();
+
+  const int flags = array->Flags(frame_ix)->value();
+  is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
+  is_strict_ = (flags & FrameArray::kIsStrict) != 0;
+}
+
+JSStackFrame::JSStackFrame() {}
+
+JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
+                           Handle<JSFunction> function,
+                           Handle<AbstractCode> code, int offset)
+    : StackFrameBase(isolate),
+      receiver_(receiver),
+      function_(function),
+      code_(code),
+      offset_(offset),
+      is_constructor_(false),
+      is_strict_(false) {}
+
+Handle<Object> JSStackFrame::GetFunction() const {
+  return Handle<Object>::cast(function_);
+}
+
+Handle<Object> JSStackFrame::GetFileName() {
+  if (!HasScript()) return isolate_->factory()->null_value();
+  return handle(GetScript()->name(), isolate_);
+}
+
+Handle<Object> JSStackFrame::GetFunctionName() {
+  Handle<String> result = JSFunction::GetName(function_);
+  if (result->length() != 0) return result;
+
+  if (HasScript() &&
+      GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+    return isolate_->factory()->eval_string();
   }
-  return -1;
-}
-
-
-int CallSite::GetColumnNumber() {
-  if (pos_ >= 0 && IsJavaScript()) {
-    Handle<Object> script_obj(fun_->shared()->script(), isolate_);
-    if (script_obj->IsScript()) {
-      Handle<Script> script = Handle<Script>::cast(script_obj);
-      return Script::GetColumnNumber(script, pos_) + 1;
-    }
-  }
-  return -1;
-}
-
-
-bool CallSite::IsNative() {
-  if (!IsJavaScript()) return false;
-  Handle<Object> script(fun_->shared()->script(), isolate_);
-  return script->IsScript() &&
-         Handle<Script>::cast(script)->type() == Script::TYPE_NATIVE;
-}
-
-
-bool CallSite::IsToplevel() {
-  if (IsWasm()) return false;
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
-         receiver_->IsUndefined(isolate_);
-}
-
-
-bool CallSite::IsEval() {
-  if (!IsJavaScript()) return false;
-  Handle<Object> script(fun_->shared()->script(), isolate_);
-  return script->IsScript() &&
-         Handle<Script>::cast(script)->compilation_type() ==
-             Script::COMPILATION_TYPE_EVAL;
-}
-
-
-bool CallSite::IsConstructor() {
-  // Builtin exit frames mark constructors by passing a special symbol as the
-  // receiver.
-  Object* ctor_symbol = isolate_->heap()->call_site_constructor_symbol();
-  if (*receiver_ == ctor_symbol) return true;
-  if (!IsJavaScript() || !receiver_->IsJSObject()) return false;
-  Handle<Object> constructor =
-      JSReceiver::GetDataProperty(Handle<JSObject>::cast(receiver_),
-                                  isolate_->factory()->constructor_string());
-  return constructor.is_identical_to(fun_);
+  return isolate_->factory()->null_value();
 }
 
 namespace {
 
-// Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
-// a vector of JS CallSite objects.
-MaybeHandle<FixedArray> GetStackFrames(Isolate* isolate,
-                                       Handle<Object> raw_stack) {
-  DCHECK(raw_stack->IsJSArray());
-  Handle<JSArray> raw_stack_array = Handle<JSArray>::cast(raw_stack);
+bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
+                     Handle<Name> name, Handle<JSFunction> fun,
+                     LookupIterator::Configuration config) {
+  LookupIterator iter =
+      LookupIterator::PropertyOrElement(isolate, receiver, name, config);
+  if (iter.state() == LookupIterator::DATA) {
+    return iter.GetDataValue().is_identical_to(fun);
+  } else if (iter.state() == LookupIterator::ACCESSOR) {
+    Handle<Object> accessors = iter.GetAccessors();
+    if (accessors->IsAccessorPair()) {
+      Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
+      return pair->getter() == *fun || pair->setter() == *fun;
+    }
+  }
+  return false;
+}
 
-  DCHECK(raw_stack_array->elements()->IsFixedArray());
-  Handle<FixedArray> raw_stack_elements =
-      handle(FixedArray::cast(raw_stack_array->elements()), isolate);
+Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
+  Object* name_or_url = script->source_url();
+  if (!name_or_url->IsString()) name_or_url = script->name();
+  return handle(name_or_url, isolate);
+}
 
-  const int raw_stack_len = raw_stack_elements->length();
-  DCHECK(raw_stack_len % 4 == 1);  // Multiples of 4 plus sloppy frames count.
-  const int frame_count = (raw_stack_len - 1) / 4;
+}  // namespace
 
-  Handle<Object> sloppy_frames_obj =
-      FixedArray::get(*raw_stack_elements, 0, isolate);
-  int sloppy_frames = Handle<Smi>::cast(sloppy_frames_obj)->value();
+Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
+  if (!HasScript()) return isolate_->factory()->null_value();
+  return ScriptNameOrSourceUrl(GetScript(), isolate_);
+}
 
-  int dst_ix = 0;
-  Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
-  for (int i = 1; i < raw_stack_len; i += 4) {
-    Handle<Object> recv = FixedArray::get(*raw_stack_elements, i, isolate);
-    Handle<Object> fun = FixedArray::get(*raw_stack_elements, i + 1, isolate);
-    Handle<AbstractCode> code = Handle<AbstractCode>::cast(
-        FixedArray::get(*raw_stack_elements, i + 2, isolate));
-    Handle<Smi> pc =
-        Handle<Smi>::cast(FixedArray::get(*raw_stack_elements, i + 3, isolate));
-
-    Handle<Object> pos =
-        (fun->IsSmi() && pc->value() < 0)
-            ? handle(Smi::FromInt(-1 - pc->value()), isolate)
-            : handle(Smi::FromInt(code->SourcePosition(pc->value())), isolate);
-
-    sloppy_frames--;
-    Handle<Object> strict = isolate->factory()->ToBoolean(sloppy_frames < 0);
-
-    Handle<Object> callsite;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, callsite,
-        CallSiteUtils::Construct(isolate, recv, fun, pos, strict), FixedArray);
-
-    frames->set(dst_ix++, *callsite);
+Handle<Object> JSStackFrame::GetMethodName() {
+  if (receiver_->IsNullOrUndefined(isolate_)) {
+    return isolate_->factory()->null_value();
   }
 
-  DCHECK_EQ(frame_count, dst_ix);
-  return frames;
+  Handle<JSReceiver> receiver;
+  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
+    DCHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
+    isolate_->set_external_caught_exception(false);
+    return isolate_->factory()->null_value();
+  }
+
+  Handle<String> name(function_->shared()->name(), isolate_);
+  // ES2015 gives getters and setters name prefixes which must
+  // be stripped to find the property name.
+  if (name->IsUtf8EqualTo(CStrVector("get "), true) ||
+      name->IsUtf8EqualTo(CStrVector("set "), true)) {
+    name = isolate_->factory()->NewProperSubString(name, 4, name->length());
+  }
+  if (CheckMethodName(isolate_, receiver, name, function_,
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
+    return name;
+  }
+
+  HandleScope outer_scope(isolate_);
+  Handle<Object> result;
+  for (PrototypeIterator iter(isolate_, receiver, kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
+    if (!current->IsJSObject()) break;
+    Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
+    if (current_obj->IsAccessCheckNeeded()) break;
+    Handle<FixedArray> keys =
+        KeyAccumulator::GetOwnEnumPropertyKeys(isolate_, current_obj);
+    for (int i = 0; i < keys->length(); i++) {
+      HandleScope inner_scope(isolate_);
+      if (!keys->get(i)->IsName()) continue;
+      Handle<Name> name_key(Name::cast(keys->get(i)), isolate_);
+      if (!CheckMethodName(isolate_, current_obj, name_key, function_,
+                           LookupIterator::OWN_SKIP_INTERCEPTOR))
+        continue;
+      // Return null in case of duplicates to avoid confusion.
+      if (!result.is_null()) return isolate_->factory()->null_value();
+      result = inner_scope.CloseAndEscape(name_key);
+    }
+  }
+
+  if (!result.is_null()) return outer_scope.CloseAndEscape(result);
+  return isolate_->factory()->null_value();
+}
+
+Handle<Object> JSStackFrame::GetTypeName() {
+  // TODO(jgruber): Check for strict/constructor here as in
+  // CallSitePrototypeGetThis.
+
+  if (receiver_->IsNullOrUndefined(isolate_)) {
+    return isolate_->factory()->null_value();
+  } else if (receiver_->IsJSProxy()) {
+    return isolate_->factory()->Proxy_string();
+  }
+
+  Handle<JSReceiver> receiver;
+  if (!Object::ToObject(isolate_, receiver_).ToHandle(&receiver)) {
+    DCHECK(isolate_->has_pending_exception());
+    isolate_->clear_pending_exception();
+    isolate_->set_external_caught_exception(false);
+    return isolate_->factory()->null_value();
+  }
+
+  return JSReceiver::GetConstructorName(receiver);
+}
+
+int JSStackFrame::GetLineNumber() {
+  DCHECK_LE(0, GetPosition());
+  if (HasScript()) return Script::GetLineNumber(GetScript(), GetPosition()) + 1;
+  return -1;
+}
+
+int JSStackFrame::GetColumnNumber() {
+  DCHECK_LE(0, GetPosition());
+  if (HasScript()) {
+    return Script::GetColumnNumber(GetScript(), GetPosition()) + 1;
+  }
+  return -1;
+}
+
+bool JSStackFrame::IsNative() {
+  return HasScript() && GetScript()->type() == Script::TYPE_NATIVE;
+}
+
+bool JSStackFrame::IsToplevel() {
+  return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
+}
+
+namespace {
+
+bool IsNonEmptyString(Handle<Object> object) {
+  return (object->IsString() && String::cast(*object)->length() > 0);
+}
+
+void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
+                        IncrementalStringBuilder* builder) {
+  if (call_site->IsNative()) {
+    builder->AppendCString("native");
+    return;
+  }
+
+  Handle<Object> file_name = call_site->GetScriptNameOrSourceUrl();
+  if (!file_name->IsString() && call_site->IsEval()) {
+    Handle<Object> eval_origin = call_site->GetEvalOrigin();
+    DCHECK(eval_origin->IsString());
+    builder->AppendString(Handle<String>::cast(eval_origin));
+    builder->AppendCString(", ");  // Expecting source position to follow.
+  }
+
+  if (IsNonEmptyString(file_name)) {
+    builder->AppendString(Handle<String>::cast(file_name));
+  } else {
+    // Source code does not originate from a file and is not native, but we
+    // can still get the source position inside the source string, e.g. in
+    // an eval string.
+    builder->AppendCString("<anonymous>");
+  }
+
+  int line_number = call_site->GetLineNumber();
+  if (line_number != -1) {
+    builder->AppendCharacter(':');
+    Handle<String> line_string = isolate->factory()->NumberToString(
+        handle(Smi::FromInt(line_number), isolate), isolate);
+    builder->AppendString(line_string);
+
+    int column_number = call_site->GetColumnNumber();
+    if (column_number != -1) {
+      builder->AppendCharacter(':');
+      Handle<String> column_string = isolate->factory()->NumberToString(
+          handle(Smi::FromInt(column_number), isolate), isolate);
+      builder->AppendString(column_string);
+    }
+  }
+}
+
+int StringIndexOf(Isolate* isolate, Handle<String> subject,
+                  Handle<String> pattern) {
+  if (pattern->length() > subject->length()) return -1;
+  return String::IndexOf(isolate, subject, pattern, 0);
+}
+
+// Returns true iff
+// 1. the subject ends with '.' + pattern, or
+// 2. subject == pattern.
+bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
+                              Handle<String> pattern) {
+  if (String::Equals(subject, pattern)) return true;
+
+  FlatStringReader subject_reader(isolate, String::Flatten(subject));
+  FlatStringReader pattern_reader(isolate, String::Flatten(pattern));
+
+  int pattern_index = pattern_reader.length() - 1;
+  int subject_index = subject_reader.length() - 1;
+  for (int i = 0; i <= pattern_reader.length(); i++) {  // Iterate over len + 1.
+    if (subject_index < 0) {
+      return false;
+    }
+
+    const uc32 subject_char = subject_reader.Get(subject_index);
+    if (i == pattern_reader.length()) {
+      if (subject_char != '.') return false;
+    } else if (subject_char != pattern_reader.Get(pattern_index)) {
+      return false;
+    }
+
+    pattern_index--;
+    subject_index--;
+  }
+
+  return true;
+}
+
+void AppendMethodCall(Isolate* isolate, JSStackFrame* call_site,
+                      IncrementalStringBuilder* builder) {
+  Handle<Object> type_name = call_site->GetTypeName();
+  Handle<Object> method_name = call_site->GetMethodName();
+  Handle<Object> function_name = call_site->GetFunctionName();
+
+  if (IsNonEmptyString(function_name)) {
+    Handle<String> function_string = Handle<String>::cast(function_name);
+    if (IsNonEmptyString(type_name)) {
+      Handle<String> type_string = Handle<String>::cast(type_name);
+      bool starts_with_type_name =
+          (StringIndexOf(isolate, function_string, type_string) == 0);
+      if (!starts_with_type_name) {
+        builder->AppendString(type_string);
+        builder->AppendCharacter('.');
+      }
+    }
+    builder->AppendString(function_string);
+
+    if (IsNonEmptyString(method_name)) {
+      Handle<String> method_string = Handle<String>::cast(method_name);
+      if (!StringEndsWithMethodName(isolate, function_string, method_string)) {
+        builder->AppendCString(" [as ");
+        builder->AppendString(method_string);
+        builder->AppendCharacter(']');
+      }
+    }
+  } else {
+    if (IsNonEmptyString(type_name)) {
+      builder->AppendString(Handle<String>::cast(type_name));
+      builder->AppendCharacter('.');
+    }
+    if (IsNonEmptyString(method_name)) {
+      builder->AppendString(Handle<String>::cast(method_name));
+    } else {
+      builder->AppendCString("<anonymous>");
+    }
+  }
+}
+
+}  // namespace
+
+MaybeHandle<String> JSStackFrame::ToString() {
+  IncrementalStringBuilder builder(isolate_);
+
+  Handle<Object> function_name = GetFunctionName();
+
+  const bool is_toplevel = IsToplevel();
+  const bool is_constructor = IsConstructor();
+  const bool is_method_call = !(is_toplevel || is_constructor);
+
+  if (is_method_call) {
+    AppendMethodCall(isolate_, this, &builder);
+  } else if (is_constructor) {
+    builder.AppendCString("new ");
+    if (IsNonEmptyString(function_name)) {
+      builder.AppendString(Handle<String>::cast(function_name));
+    } else {
+      builder.AppendCString("<anonymous>");
+    }
+  } else if (IsNonEmptyString(function_name)) {
+    builder.AppendString(Handle<String>::cast(function_name));
+  } else {
+    AppendFileLocation(isolate_, this, &builder);
+    return builder.Finish();
+  }
+
+  builder.AppendCString(" (");
+  AppendFileLocation(isolate_, this, &builder);
+  builder.AppendCString(")");
+
+  return builder.Finish();
+}
+
+int JSStackFrame::GetPosition() const { return code_->SourcePosition(offset_); }
+
+bool JSStackFrame::HasScript() const {
+  return function_->shared()->script()->IsScript();
+}
+
+Handle<Script> JSStackFrame::GetScript() const {
+  return handle(Script::cast(function_->shared()->script()), isolate_);
+}
+
+WasmStackFrame::WasmStackFrame() {}
+
+void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
+                                    int frame_ix) {
+  // This function is called for compiled and interpreted wasm frames, and for
+  // asm.js->wasm frames.
+  DCHECK(array->IsWasmFrame(frame_ix) ||
+         array->IsWasmInterpretedFrame(frame_ix) ||
+         array->IsAsmJsWasmFrame(frame_ix));
+  isolate_ = isolate;
+  wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
+  wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
+  if (array->IsWasmInterpretedFrame(frame_ix)) {
+    code_ = Handle<AbstractCode>::null();
+  } else {
+    code_ = handle(array->Code(frame_ix), isolate);
+  }
+  offset_ = array->Offset(frame_ix)->value();
+}
+
+Handle<Object> WasmStackFrame::GetReceiver() const { return wasm_instance_; }
+
+Handle<Object> WasmStackFrame::GetFunction() const {
+  return handle(Smi::FromInt(wasm_func_index_), isolate_);
+}
+
+Handle<Object> WasmStackFrame::GetFunctionName() {
+  Handle<Object> name;
+  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
+                                             isolate_);
+  if (!WasmCompiledModule::GetFunctionNameOrNull(isolate_, compiled_module,
+                                                 wasm_func_index_)
+           .ToHandle(&name)) {
+    name = isolate_->factory()->null_value();
+  }
+  return name;
+}
+
+MaybeHandle<String> WasmStackFrame::ToString() {
+  IncrementalStringBuilder builder(isolate_);
+
+  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
+                                             isolate_);
+  MaybeHandle<String> module_name =
+      WasmCompiledModule::GetModuleNameOrNull(isolate_, compiled_module);
+  MaybeHandle<String> function_name = WasmCompiledModule::GetFunctionNameOrNull(
+      isolate_, compiled_module, wasm_func_index_);
+  bool has_name = !module_name.is_null() || !function_name.is_null();
+  if (has_name) {
+    if (module_name.is_null()) {
+      builder.AppendString(function_name.ToHandleChecked());
+    } else {
+      builder.AppendString(module_name.ToHandleChecked());
+      if (!function_name.is_null()) {
+        builder.AppendCString(".");
+        builder.AppendString(function_name.ToHandleChecked());
+      }
+    }
+    builder.AppendCString(" (");
+  }
+
+  builder.AppendCString("wasm-function[");
+
+  char buffer[16];
+  SNPrintF(ArrayVector(buffer), "%u]", wasm_func_index_);
+  builder.AppendCString(buffer);
+
+  SNPrintF(ArrayVector(buffer), ":%d", GetPosition());
+  builder.AppendCString(buffer);
+
+  if (has_name) builder.AppendCString(")");
+
+  return builder.Finish();
+}
+
+int WasmStackFrame::GetPosition() const {
+  if (IsInterpreted()) return offset_;
+  // TODO(wasm): Clean this up (bug 5007).
+  return (offset_ < 0) ? (-1 - offset_) : code_->SourcePosition(offset_);
+}
+
+Handle<Object> WasmStackFrame::Null() const {
+  return isolate_->factory()->null_value();
+}
+
+bool WasmStackFrame::HasScript() const { return true; }
+
+Handle<Script> WasmStackFrame::GetScript() const {
+  return handle(
+      WasmInstanceObject::cast(*wasm_instance_)->compiled_module()->script(),
+      isolate_);
+}
+
+AsmJsWasmStackFrame::AsmJsWasmStackFrame() {}
+
+void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
+                                         Handle<FrameArray> array,
+                                         int frame_ix) {
+  DCHECK(array->IsAsmJsWasmFrame(frame_ix));
+  WasmStackFrame::FromFrameArray(isolate, array, frame_ix);
+  is_at_number_conversion_ =
+      array->Flags(frame_ix)->value() & FrameArray::kAsmJsAtNumberConversion;
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetReceiver() const {
+  return isolate_->global_proxy();
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
+  // TODO(clemensh): Return lazily created JSFunction.
+  return Null();
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetFileName() {
+  Handle<Script> script =
+      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  DCHECK(script->IsUserJavaScript());
+  return handle(script->name(), isolate_);
+}
+
+Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
+  Handle<Script> script =
+      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  DCHECK_EQ(Script::TYPE_NORMAL, script->type());
+  return ScriptNameOrSourceUrl(script, isolate_);
+}
+
+int AsmJsWasmStackFrame::GetPosition() const {
+  DCHECK_LE(0, offset_);
+  int byte_offset = code_->SourcePosition(offset_);
+  Handle<WasmCompiledModule> compiled_module(
+      WasmInstanceObject::cast(*wasm_instance_)->compiled_module(), isolate_);
+  DCHECK_LE(0, byte_offset);
+  return WasmCompiledModule::GetAsmJsSourcePosition(
+      compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),
+      is_at_number_conversion_);
+}
+
+int AsmJsWasmStackFrame::GetLineNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script =
+      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  DCHECK(script->IsUserJavaScript());
+  return Script::GetLineNumber(script, GetPosition()) + 1;
+}
+
+int AsmJsWasmStackFrame::GetColumnNumber() {
+  DCHECK_LE(0, GetPosition());
+  Handle<Script> script =
+      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  DCHECK(script->IsUserJavaScript());
+  return Script::GetColumnNumber(script, GetPosition()) + 1;
+}
+
+MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
+  // The string should look exactly as the respective javascript frame string.
+  // Keep this method in line to JSStackFrame::ToString().
+
+  IncrementalStringBuilder builder(isolate_);
+
+  Handle<Object> function_name = GetFunctionName();
+
+  if (IsNonEmptyString(function_name)) {
+    builder.AppendString(Handle<String>::cast(function_name));
+    builder.AppendCString(" (");
+  }
+
+  AppendFileLocation(isolate_, this, &builder);
+
+  if (IsNonEmptyString(function_name)) builder.AppendCString(")");
+
+  return builder.Finish();
+}
+
+FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
+                                       Handle<FrameArray> array, int frame_ix)
+    : isolate_(isolate), array_(array), next_frame_ix_(frame_ix) {}
+
+bool FrameArrayIterator::HasNext() const {
+  return (next_frame_ix_ < array_->FrameCount());
+}
+
+void FrameArrayIterator::Next() { next_frame_ix_++; }
+
+StackFrameBase* FrameArrayIterator::Frame() {
+  DCHECK(HasNext());
+  const int flags = array_->Flags(next_frame_ix_)->value();
+  int flag_mask = FrameArray::kIsWasmFrame |
+                  FrameArray::kIsWasmInterpretedFrame |
+                  FrameArray::kIsAsmJsWasmFrame;
+  switch (flags & flag_mask) {
+    case 0:
+      // JavaScript Frame.
+      js_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &js_frame_;
+    case FrameArray::kIsWasmFrame:
+    case FrameArray::kIsWasmInterpretedFrame:
+      // Wasm Frame:
+      wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &wasm_frame_;
+    case FrameArray::kIsAsmJsWasmFrame:
+      // Asm.js Wasm Frame:
+      asm_wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      return &asm_wasm_frame_;
+    default:
+      UNREACHABLE();
+  }
+}
+
+namespace {
+
+MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
+                                      Handle<FrameArray> frame_array,
+                                      int frame_index) {
+  Handle<JSFunction> target =
+      handle(isolate->native_context()->callsite_function(), isolate);
+
+  Handle<JSObject> obj;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, JSObject::New(target, target),
+                             Object);
+
+  Handle<Symbol> key = isolate->factory()->call_site_frame_array_symbol();
+  RETURN_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                   obj, key, frame_array, DONT_ENUM),
+                      Object);
+
+  key = isolate->factory()->call_site_frame_index_symbol();
+  Handle<Object> value(Smi::FromInt(frame_index), isolate);
+  RETURN_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                   obj, key, value, DONT_ENUM),
+                      Object);
+
+  return obj;
+}
+
+// Convert the raw frames as written by Isolate::CaptureSimpleStackTrace into
+// a JSArray of JSCallSite objects.
+MaybeHandle<JSArray> GetStackFrames(Isolate* isolate,
+                                    Handle<FrameArray> elems) {
+  const int frame_count = elems->FrameCount();
+
+  Handle<FixedArray> frames = isolate->factory()->NewFixedArray(frame_count);
+  for (int i = 0; i < frame_count; i++) {
+    Handle<Object> site;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, site,
+                               ConstructCallSite(isolate, elems, i), JSArray);
+    frames->set(i, *site);
+  }
+
+  return isolate->factory()->NewJSArrayWithElements(frames);
 }
 
 MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
@@ -548,13 +898,14 @@ MaybeHandle<Object> AppendErrorString(Isolate* isolate, Handle<Object> error,
     Handle<Object> pending_exception =
         handle(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
+    isolate->set_external_caught_exception(false);
 
     err_str = ErrorUtils::ToString(isolate, pending_exception);
     if (err_str.is_null()) {
       // Formatting the thrown exception threw again, give up.
       DCHECK(isolate->has_pending_exception());
       isolate->clear_pending_exception();
-
+      isolate->set_external_caught_exception(false);
       builder->AppendCString("<error>");
     } else {
       // Formatted thrown exception successfully, append it.
@@ -590,11 +941,11 @@ class PrepareStackTraceScope {
 MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
                                                  Handle<JSObject> error,
                                                  Handle<Object> raw_stack) {
-  // Create JS CallSite objects from the raw stack frame array.
+  DCHECK(raw_stack->IsJSArray());
+  Handle<JSArray> raw_stack_array = Handle<JSArray>::cast(raw_stack);
 
-  Handle<FixedArray> frames;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, frames,
-                             GetStackFrames(isolate, raw_stack), Object);
+  DCHECK(raw_stack_array->elements()->IsFixedArray());
+  Handle<FrameArray> elems(FrameArray::cast(raw_stack_array->elements()));
 
   // If there's a user-specified "prepareStackFrames" function, call it on the
   // frames and use its result.
@@ -609,12 +960,16 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   const bool in_recursion = isolate->formatting_stack_trace();
   if (prepare_stack_trace->IsJSFunction() && !in_recursion) {
     PrepareStackTraceScope scope(isolate);
-    Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(frames);
+
+    Handle<JSArray> sites;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
+                               Object);
 
     const int argc = 2;
     ScopedVector<Handle<Object>> argv(argc);
+
     argv[0] = error;
-    argv[1] = array;
+    argv[1] = sites;
 
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -625,17 +980,18 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     return result;
   }
 
+  // Otherwise, run our internal formatting logic.
+
   IncrementalStringBuilder builder(isolate);
 
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
-  for (int i = 0; i < frames->length(); i++) {
+  for (FrameArrayIterator it(isolate, elems); it.HasNext(); it.Next()) {
     builder.AppendCString("\n    at ");
 
-    Handle<Object> frame = FixedArray::get(*frames, i, isolate);
-    MaybeHandle<String> maybe_frame_string =
-        CallSiteUtils::ToString(isolate, frame);
+    StackFrameBase* frame = it.Frame();
+    MaybeHandle<String> maybe_frame_string = frame->ToString();
     if (maybe_frame_string.is_null()) {
       // CallSite.toString threw. Try to return a string representation of the
       // thrown exception instead.
@@ -644,6 +1000,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
       Handle<Object> pending_exception =
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
+      isolate->set_external_caught_exception(false);
 
       maybe_frame_string = ErrorUtils::ToString(isolate, pending_exception);
       if (maybe_frame_string.is_null()) {
@@ -662,7 +1019,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     }
   }
 
-  RETURN_RESULT(isolate, builder.Finish(), Object);
+  return builder.Finish();
 }
 
 Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
@@ -674,6 +1031,8 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
       template_index, result_string, factory->empty_string(),
       factory->empty_string());
   if (!maybe_result_string.ToHandle(&result_string)) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
     return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
   }
   // A string that has been obtained from JS code in this way is
@@ -873,6 +1232,7 @@ Handle<String> FormatMessage(Isolate* isolate, int template_index,
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
+    isolate->set_external_caught_exception(false);
     return isolate->factory()->NewStringFromAsciiChecked("<error>");
   }
 
@@ -900,291 +1260,6 @@ MaybeHandle<Object> ErrorUtils::MakeGenericError(
   Handle<String> msg = FormatMessage(isolate, template_index, arg0, arg1, arg2);
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, mode,
                                no_caller, false);
-}
-
-#define SET_CALLSITE_PROPERTY(target, key, value)                        \
-  RETURN_ON_EXCEPTION(                                                   \
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(                 \
-                   target, isolate->factory()->key(), value, DONT_ENUM), \
-      Object)
-
-MaybeHandle<Object> CallSiteUtils::Construct(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             Handle<Object> fun,
-                                             Handle<Object> pos,
-                                             Handle<Object> strict_mode) {
-  // Create the JS object.
-
-  Handle<JSFunction> target =
-      handle(isolate->native_context()->callsite_function(), isolate);
-
-  Handle<JSObject> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, JSObject::New(target, target),
-                             Object);
-
-  // For wasm frames, receiver is the wasm object and fun is the function index
-  // instead of an actual function.
-  const bool is_wasm_object =
-      receiver->IsJSObject() && wasm::IsWasmObject(JSObject::cast(*receiver));
-  if (!fun->IsJSFunction() && !is_wasm_object) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kCallSiteExpectsFunction,
-                                 Object::TypeOf(isolate, receiver),
-                                 Object::TypeOf(isolate, fun)),
-                    Object);
-  }
-
-  if (is_wasm_object) {
-    DCHECK(fun->IsSmi());
-    DCHECK(wasm::GetNumberOfFunctions(JSObject::cast(*receiver)) >
-           Smi::cast(*fun)->value());
-
-    SET_CALLSITE_PROPERTY(obj, call_site_wasm_obj_symbol, receiver);
-    SET_CALLSITE_PROPERTY(obj, call_site_wasm_func_index_symbol, fun);
-  } else {
-    DCHECK(fun->IsJSFunction());
-    SET_CALLSITE_PROPERTY(obj, call_site_receiver_symbol, receiver);
-    SET_CALLSITE_PROPERTY(obj, call_site_function_symbol, fun);
-  }
-
-  DCHECK(pos->IsSmi());
-  SET_CALLSITE_PROPERTY(obj, call_site_position_symbol, pos);
-  SET_CALLSITE_PROPERTY(
-      obj, call_site_strict_symbol,
-      isolate->factory()->ToBoolean(strict_mode->BooleanValue()));
-
-  return obj;
-}
-
-#undef SET_CALLSITE_PROPERTY
-
-namespace {
-
-bool IsNonEmptyString(Handle<Object> object) {
-  return (object->IsString() && String::cast(*object)->length() > 0);
-}
-
-MaybeHandle<JSObject> AppendWasmToString(Isolate* isolate,
-                                         Handle<JSObject> recv,
-                                         CallSite* call_site,
-                                         IncrementalStringBuilder* builder) {
-  Handle<Object> name = call_site->GetFunctionName();
-  if (name->IsNull(isolate)) {
-    builder->AppendCString("<WASM UNNAMED>");
-  } else {
-    DCHECK(name->IsString());
-    builder->AppendString(Handle<String>::cast(name));
-  }
-
-  builder->AppendCString(" (<WASM>[");
-
-  Handle<String> ix = isolate->factory()->NumberToString(
-      handle(Smi::FromInt(call_site->wasm_func_index()), isolate));
-  builder->AppendString(ix);
-
-  builder->AppendCString("]+");
-
-  Handle<Object> pos;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, pos, JSObject::GetProperty(
-                        recv, isolate->factory()->call_site_position_symbol()),
-      JSObject);
-  DCHECK(pos->IsNumber());
-  builder->AppendString(isolate->factory()->NumberToString(pos));
-  builder->AppendCString(")");
-
-  return recv;
-}
-
-MaybeHandle<JSObject> AppendFileLocation(Isolate* isolate,
-                                         Handle<JSObject> recv,
-                                         CallSite* call_site,
-                                         IncrementalStringBuilder* builder) {
-  if (call_site->IsNative()) {
-    builder->AppendCString("native");
-    return recv;
-  }
-
-  Handle<Object> file_name = call_site->GetScriptNameOrSourceUrl();
-  if (!file_name->IsString() && call_site->IsEval()) {
-    Handle<Object> eval_origin = call_site->GetEvalOrigin();
-    DCHECK(eval_origin->IsString());
-    builder->AppendString(Handle<String>::cast(eval_origin));
-    builder->AppendCString(", ");  // Expecting source position to follow.
-  }
-
-  if (IsNonEmptyString(file_name)) {
-    builder->AppendString(Handle<String>::cast(file_name));
-  } else {
-    // Source code does not originate from a file and is not native, but we
-    // can still get the source position inside the source string, e.g. in
-    // an eval string.
-    builder->AppendCString("<anonymous>");
-  }
-
-  int line_number = call_site->GetLineNumber();
-  if (line_number != -1) {
-    builder->AppendCharacter(':');
-    Handle<String> line_string = isolate->factory()->NumberToString(
-        handle(Smi::FromInt(line_number), isolate), isolate);
-    builder->AppendString(line_string);
-
-    int column_number = call_site->GetColumnNumber();
-    if (column_number != -1) {
-      builder->AppendCharacter(':');
-      Handle<String> column_string = isolate->factory()->NumberToString(
-          handle(Smi::FromInt(column_number), isolate), isolate);
-      builder->AppendString(column_string);
-    }
-  }
-
-  return recv;
-}
-
-int StringIndexOf(Isolate* isolate, Handle<String> subject,
-                  Handle<String> pattern) {
-  if (pattern->length() > subject->length()) return -1;
-  return String::IndexOf(isolate, subject, pattern, 0);
-}
-
-// Returns true iff
-// 1. the subject ends with '.' + pattern, or
-// 2. subject == pattern.
-bool StringEndsWithMethodName(Isolate* isolate, Handle<String> subject,
-                              Handle<String> pattern) {
-  if (String::Equals(subject, pattern)) return true;
-
-  FlatStringReader subject_reader(isolate, String::Flatten(subject));
-  FlatStringReader pattern_reader(isolate, String::Flatten(pattern));
-
-  int pattern_index = pattern_reader.length() - 1;
-  int subject_index = subject_reader.length() - 1;
-  for (int i = 0; i <= pattern_reader.length(); i++) {  // Iterate over len + 1.
-    if (subject_index < 0) {
-      return false;
-    }
-
-    const uc32 subject_char = subject_reader.Get(subject_index);
-    if (i == pattern_reader.length()) {
-      if (subject_char != '.') return false;
-    } else if (subject_char != pattern_reader.Get(pattern_index)) {
-      return false;
-    }
-
-    pattern_index--;
-    subject_index--;
-  }
-
-  return true;
-}
-
-MaybeHandle<JSObject> AppendMethodCall(Isolate* isolate, Handle<JSObject> recv,
-                                       CallSite* call_site,
-                                       IncrementalStringBuilder* builder) {
-  Handle<Object> type_name = call_site->GetTypeName();
-  Handle<Object> method_name = call_site->GetMethodName();
-  Handle<Object> function_name = call_site->GetFunctionName();
-
-  if (IsNonEmptyString(function_name)) {
-    Handle<String> function_string = Handle<String>::cast(function_name);
-    if (IsNonEmptyString(type_name)) {
-      Handle<String> type_string = Handle<String>::cast(type_name);
-      bool starts_with_type_name =
-          (StringIndexOf(isolate, function_string, type_string) == 0);
-      if (!starts_with_type_name) {
-        builder->AppendString(type_string);
-        builder->AppendCharacter('.');
-      }
-    }
-    builder->AppendString(function_string);
-
-    if (IsNonEmptyString(method_name)) {
-      Handle<String> method_string = Handle<String>::cast(method_name);
-      if (!StringEndsWithMethodName(isolate, function_string, method_string)) {
-        builder->AppendCString(" [as ");
-        builder->AppendString(method_string);
-        builder->AppendCharacter(']');
-      }
-    }
-  } else {
-    builder->AppendString(Handle<String>::cast(type_name));
-    builder->AppendCharacter('.');
-    if (IsNonEmptyString(method_name)) {
-      builder->AppendString(Handle<String>::cast(method_name));
-    } else {
-      builder->AppendCString("<anonymous>");
-    }
-  }
-
-  return recv;
-}
-
-}  // namespace
-
-MaybeHandle<String> CallSiteUtils::ToString(Isolate* isolate,
-                                            Handle<Object> receiver) {
-  if (!receiver->IsJSObject()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked("toString"),
-                     receiver),
-        String);
-  }
-  Handle<JSObject> recv = Handle<JSObject>::cast(receiver);
-
-  if (!JSReceiver::HasOwnProperty(
-           recv, isolate->factory()->call_site_position_symbol())
-           .FromMaybe(false)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kCallSiteMethod,
-                     isolate->factory()->NewStringFromAsciiChecked("toString")),
-        String);
-  }
-
-  IncrementalStringBuilder builder(isolate);
-
-  CallSite call_site(isolate, recv);
-  if (call_site.IsWasm()) {
-    RETURN_ON_EXCEPTION(isolate,
-                        AppendWasmToString(isolate, recv, &call_site, &builder),
-                        String);
-    RETURN_RESULT(isolate, builder.Finish(), String);
-  }
-
-  DCHECK(!call_site.IsWasm());
-  Handle<Object> function_name = call_site.GetFunctionName();
-
-  const bool is_toplevel = call_site.IsToplevel();
-  const bool is_constructor = call_site.IsConstructor();
-  const bool is_method_call = !(is_toplevel || is_constructor);
-
-  if (is_method_call) {
-    RETURN_ON_EXCEPTION(
-        isolate, AppendMethodCall(isolate, recv, &call_site, &builder), String);
-  } else if (is_constructor) {
-    builder.AppendCString("new ");
-    if (IsNonEmptyString(function_name)) {
-      builder.AppendString(Handle<String>::cast(function_name));
-    } else {
-      builder.AppendCString("<anonymous>");
-    }
-  } else if (IsNonEmptyString(function_name)) {
-    builder.AppendString(Handle<String>::cast(function_name));
-  } else {
-    RETURN_ON_EXCEPTION(isolate,
-                        AppendFileLocation(isolate, recv, &call_site, &builder),
-                        String);
-    RETURN_RESULT(isolate, builder.Finish(), String);
-  }
-
-  builder.AppendCString(" (");
-  RETURN_ON_EXCEPTION(
-      isolate, AppendFileLocation(isolate, recv, &call_site, &builder), String);
-  builder.AppendCString(")");
-
-  RETURN_RESULT(isolate, builder.Finish(), String);
 }
 
 }  // namespace internal

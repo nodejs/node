@@ -9,8 +9,8 @@ const bench = common.createBenchmark(main, {
 });
 
 function copyArguments() {
-  var len = arguments.length;
-  var args = new Array(len);
+  const len = arguments.length;
+  const args = new Array(len);
   for (var i = 0; i < len; i++)
     args[i] = arguments[i];
   assert.strictEqual(args[0], 1);
@@ -35,8 +35,6 @@ function useArguments() {
 
 function runCopyArguments(n) {
 
-  common.v8ForceOptimization(copyArguments, 1, 2, 'a', 'b');
-
   var i = 0;
   bench.start();
   for (; i < n; i++)
@@ -46,8 +44,6 @@ function runCopyArguments(n) {
 
 function runRestArguments(n) {
 
-  common.v8ForceOptimization(restArguments, 1, 2, 'a', 'b');
-
   var i = 0;
   bench.start();
   for (; i < n; i++)
@@ -56,8 +52,6 @@ function runRestArguments(n) {
 }
 
 function runUseArguments(n) {
-
-  common.v8ForceOptimization(useArguments, 1, 2, 'a', 'b');
 
   var i = 0;
   bench.start();
@@ -70,6 +64,8 @@ function main(conf) {
   const n = +conf.millions * 1e6;
 
   switch (conf.method) {
+    case '':
+      // Empty string falls through to next line as default, mostly for tests.
     case 'copy':
       runCopyArguments(n);
       break;

@@ -28,10 +28,33 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
+#include <memory>
+
 #include "include/libplatform/libplatform.h"
-#include "src/isolate-inl.h"  // TODO(everyone): Make cctest IWYU.
-#include "src/objects-inl.h"  // TODO(everyone): Make cctest IWYU.
+#include "include/v8-platform.h"
+#include "src/debug/debug-interface.h"
+#include "src/flags.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
+#include "src/utils.h"
 #include "src/v8.h"
+#include "src/zone/accounting-allocator.h"
+
+namespace v8 {
+namespace base {
+
+class RandomNumberGenerator;
+
+}  // namespace base
+
+namespace internal {
+
+class HandleScope;
+class Zone;
+
+}  // namespace internal
+
+}  // namespace v8
 
 #ifndef TEST
 #define TEST(Name)                                                      \
@@ -91,7 +114,7 @@ class CcTest {
 
   static v8::Isolate* isolate() {
     CHECK(isolate_ != NULL);
-    v8::base::NoBarrier_Store(&isolate_used_, 1);
+    v8::base::Relaxed_Store(&isolate_used_, 1);
     return isolate_;
   }
 
@@ -104,17 +127,16 @@ class CcTest {
     return reinterpret_cast<i::Isolate*>(isolate());
   }
 
-  static i::Heap* heap() {
-    return i_isolate()->heap();
-  }
+  static i::Heap* heap();
 
-  static v8::base::RandomNumberGenerator* random_number_generator() {
-    return InitIsolateOnce()->random_number_generator();
-  }
+  static void CollectGarbage(i::AllocationSpace space);
+  static void CollectAllGarbage();
+  static void CollectAllGarbage(int flags);
+  static void CollectAllAvailableGarbage();
 
-  static v8::Local<v8::Object> global() {
-    return isolate()->GetCurrentContext()->Global();
-  }
+  static v8::base::RandomNumberGenerator* random_number_generator();
+
+  static v8::Local<v8::Object> global();
 
   static v8::ArrayBuffer::Allocator* array_buffer_allocator() {
     return allocator_;
@@ -127,13 +149,7 @@ class CcTest {
 
   // TODO(dcarney): Remove.
   // This must be called first in a test.
-  static void InitializeVM() {
-    CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
-    CHECK(!initialize_called_);
-    initialize_called_ = true;
-    v8::HandleScope handle_scope(CcTest::isolate());
-    v8::Context::New(CcTest::isolate())->Enter();
-  }
+  static void InitializeVM();
 
   // Only for UNINITIALIZED_TESTs
   static void DisableAutomaticDispose();
@@ -144,9 +160,7 @@ class CcTest {
       CcTestExtensionFlags extensions,
       v8::Isolate* isolate = CcTest::isolate());
 
-  static void TearDown() {
-    if (isolate_ != NULL) isolate_->Dispose();
-  }
+  static void TearDown();
 
  private:
   friend int main(int argc, char** argv);
@@ -180,11 +194,17 @@ class ApiTestFuzzer: public v8::base::Thread {
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
 
-  enum PartOfTest { FIRST_PART,
-                    SECOND_PART,
-                    THIRD_PART,
-                    FOURTH_PART,
-                    LAST_PART = FOURTH_PART };
+  enum PartOfTest {
+    FIRST_PART,
+    SECOND_PART,
+    THIRD_PART,
+    FOURTH_PART,
+    FIFTH_PART,
+    SIXTH_PART,
+    SEVENTH_PART,
+    EIGHTH_PART,
+    LAST_PART = EIGHTH_PART
+  };
 
   static void SetUp(PartOfTest part);
   static void RunAllTests();
@@ -269,11 +289,7 @@ class LocalContext {
     Initialize(CcTest::isolate(), extensions, global_template, global_object);
   }
 
-  virtual ~LocalContext() {
-    v8::HandleScope scope(isolate_);
-    v8::Local<v8::Context>::New(isolate_, context_)->Exit();
-    context_.Reset();
-  }
+  virtual ~LocalContext();
 
   v8::Context* operator->() {
     return *reinterpret_cast<v8::Context**>(&context_);
@@ -288,17 +304,7 @@ class LocalContext {
  private:
   void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
                   v8::Local<v8::ObjectTemplate> global_template,
-                  v8::Local<v8::Value> global_object) {
-     v8::HandleScope scope(isolate);
-     v8::Local<v8::Context> context = v8::Context::New(isolate,
-                                                       extensions,
-                                                       global_template,
-                                                       global_object);
-     context_.Reset(isolate, context);
-     context->Enter();
-     // We can't do this later perhaps because of a fatal error.
-     isolate_ = isolate;
-  }
+                  v8::Local<v8::Value> global_object);
 
   v8::Persistent<v8::Context> context_;
   v8::Isolate* isolate_;
@@ -312,11 +318,25 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   return converted;
 }
 
+template <typename T>
+static inline i::Handle<T> GetGlobal(const char* name) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Handle<i::String> str_name =
+      isolate->factory()->InternalizeUtf8String(name);
+
+  i::Handle<i::Object> value =
+      i::Object::GetProperty(isolate->global_object(), str_name)
+          .ToHandleChecked();
+  return i::Handle<T>::cast(value);
+}
 
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
 
+static inline v8::Local<v8::Integer> v8_int(int32_t x) {
+  return v8::Integer::New(v8::Isolate::GetCurrent(), x);
+}
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
@@ -488,7 +508,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsString());
-  v8::String::Utf8Value utf8(result);
+  v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), result);
   CHECK_EQ(0, strcmp(expected, *utf8));
 }
 
@@ -546,18 +566,15 @@ static inline void CheckDoubleEquals(double expected, double actual) {
   CHECK_GE(expected, actual - kEpsilon);
 }
 
-
-static void DummyDebugEventListener(
-    const v8::Debug::EventDetails& event_details) {}
-
+static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {
-  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
+  v8::debug::SetDebugDelegate(isolate, &dummy_delegate);
 }
 
 
 static inline void DisableDebugger(v8::Isolate* isolate) {
-  v8::Debug::SetDebugEventListener(isolate, nullptr);
+  v8::debug::SetDebugDelegate(isolate, nullptr);
 }
 
 
@@ -567,32 +584,122 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
   }
 }
 
+class InitializedHandleScopeImpl;
 
 class InitializedHandleScope {
  public:
-  InitializedHandleScope()
-      : main_isolate_(CcTest::InitIsolateOnce()),
-        handle_scope_(main_isolate_) {}
+  InitializedHandleScope();
+  ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Isolate* main_isolate() { return main_isolate_; }
 
  private:
   i::Isolate* main_isolate_;
-  i::HandleScope handle_scope_;
+  std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
-
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() : main_zone_(&allocator_) {}
+  HandleAndZoneScope();
+  ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
-  i::Zone* main_zone() { return &main_zone_; }
+  i::Zone* main_zone() { return main_zone_.get(); }
 
  private:
-  v8::base::AccountingAllocator allocator_;
-  i::Zone main_zone_;
+  v8::internal::AccountingAllocator allocator_;
+  std::unique_ptr<i::Zone> main_zone_;
+};
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() {}
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return strlen(data_); }
+
+ private:
+  const char* data_;
+};
+
+class ManualGCScope {
+ public:
+  ManualGCScope()
+      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
+        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking) {
+    i::FLAG_concurrent_marking = false;
+    i::FLAG_concurrent_sweeping = false;
+    i::FLAG_stress_incremental_marking = false;
+  }
+  ~ManualGCScope() {
+    i::FLAG_concurrent_marking = flag_concurrent_marking_;
+    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+  }
+
+ private:
+  bool flag_concurrent_marking_;
+  bool flag_concurrent_sweeping_;
+  bool flag_stress_incremental_marking_;
+};
+
+// This is an abstract base class that can be overridden to implement a test
+// platform. It delegates all operations to a given platform at the time
+// of construction.
+class TestPlatform : public v8::Platform {
+ public:
+  // v8::Platform implementation.
+  void OnCriticalMemoryPressure() override {
+    old_platform_->OnCriticalMemoryPressure();
+  }
+
+  void CallOnBackgroundThread(v8::Task* task,
+                              ExpectedRuntime expected_runtime) override {
+    old_platform_->CallOnBackgroundThread(task, expected_runtime);
+  }
+
+  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
+    old_platform_->CallOnForegroundThread(isolate, task);
+  }
+
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
+                                     double delay_in_seconds) override {
+    old_platform_->CallDelayedOnForegroundThread(isolate, task,
+                                                 delay_in_seconds);
+  }
+
+  double MonotonicallyIncreasingTime() override {
+    return old_platform_->MonotonicallyIncreasingTime();
+  }
+
+  void CallIdleOnForegroundThread(v8::Isolate* isolate,
+                                  v8::IdleTask* task) override {
+    old_platform_->CallIdleOnForegroundThread(isolate, task);
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override {
+    return old_platform_->IdleTasksEnabled(isolate);
+  }
+
+  v8::TracingController* GetTracingController() override {
+    return old_platform_->GetTracingController();
+  }
+
+ protected:
+  TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
+  ~TestPlatform() { i::V8::SetPlatformForTesting(old_platform_); }
+
+  v8::Platform* old_platform() const { return old_platform_; }
+
+ private:
+  v8::Platform* old_platform_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
 
 #endif  // ifndef CCTEST_H_

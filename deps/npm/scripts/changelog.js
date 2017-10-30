@@ -5,14 +5,14 @@ Usage:
 node scripts/changelog.js [comittish]
 
 Generates changelog entries in our format as best as its able based on
-commits starting at comittish, or if that's not passed, master.
+commits starting at comittish, or if that's not passed, latest.
 
 Ordinarily this is run via the gen-changelog shell script, which appends
 the result to the changelog.
 
 */
 const execSync = require('child_process').execSync
-const branch = process.argv[2] || 'master'
+const branch = process.argv[2] || 'origin/latest'
 const log = execSync(`git log --reverse --pretty='format:%h %H%d %s (%aN)%n%b%n---%n' ${branch}...`).toString().split(/\n/)
 
 main()
@@ -25,7 +25,7 @@ function shortname (url) {
   if (repo !== 'npm/npm') {
     return `${repo}#${id}`
   } else {
-    return `${id}`
+    return `#${id}`
   }
 }
 
@@ -74,7 +74,7 @@ function main () {
     /*eslint no-cond-assign:0*/
     if (/^---$/.test(line)) {
       print_commit(commit)
-    } else if (m = line.match(/^([a-f0-9]{7}) ([a-f0-9]+) (?:[(]([^)]+)[)] )?(.*?) [(](.*?)[)]/)) {
+    } else if (m = line.match(/^([a-f0-9]{7,9}) ([a-f0-9]+) (?:[(]([^)]+)[)] )?(.*?) [(](.*?)[)]/)) {
       commit = {
         shortid: m[1],
         fullid: m[2],
@@ -90,7 +90,7 @@ function main () {
     } else if (m = line.match(/^Credit: @(.*)/)) {
       if (!commit.credit) commit.credit = []
       commit.credit.push(m[1])
-    } else if (m = line.match(/^Fixes: (.*)/)) {
+    } else if (m = line.match(/^Fixes: #?(.*?)/)) {
       commit.fixes = m[1]
     } else if (m = line.match(/^Reviewed-By: @(.*)/)) {
       commit.reviewed = m[1]

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ***************************************************************************
@@ -6,7 +6,7 @@
 * and others. All Rights Reserved.
 ***************************************************************************
 *   file name:  uspoof.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -643,13 +643,6 @@ uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
                                 UErrorCode *status) {
     const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
     if (U_FAILURE(*status)) {
-        return dest;
-    }
-
-    // Check that at least one of the CONFUSABLE flags is turned on.  If not,
-    // return an error.
-    if ((This->fChecks & USPOOF_CONFUSABLE) == 0) {
-        *status = U_ILLEGAL_ARGUMENT_ERROR;
         return dest;
     }
 

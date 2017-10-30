@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "include/libplatform/v8-tracing.h"
+#include "src/libplatform/default-platform.h"
 #include "src/tracing/trace-event.h"
 #include "test/cctest/cctest.h"
 
@@ -14,12 +15,9 @@ namespace tracing {
 TEST(TestTraceConfig) {
   LocalContext env;
   TraceConfig* trace_config = new TraceConfig();
-  trace_config->EnableSampling();
   trace_config->AddIncludedCategory("v8");
   trace_config->AddIncludedCategory(TRACE_DISABLED_BY_DEFAULT("v8.runtime"));
-  trace_config->AddExcludedCategory("v8.cpu_profile");
 
-  CHECK_EQ(trace_config->IsSamplingEnabled(), true);
   CHECK_EQ(trace_config->IsSystraceEnabled(), false);
   CHECK_EQ(trace_config->IsArgumentFilterEnabled(), false);
   CHECK_EQ(trace_config->IsCategoryGroupEnabled("v8"), true);
@@ -28,6 +26,14 @@ TEST(TestTraceConfig) {
   CHECK_EQ(trace_config->IsCategoryGroupEnabled(
                TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
            true);
+  CHECK_EQ(trace_config->IsCategoryGroupEnabled("v8,v8.cpu_profile"), true);
+  CHECK_EQ(
+      trace_config->IsCategoryGroupEnabled("v8,disabled-by-default-v8.runtime"),
+      true);
+  CHECK_EQ(trace_config->IsCategoryGroupEnabled(
+               "v8_cpu_profile,v8.cpu_profile.hires"),
+           false);
+
   delete trace_config;
 }
 
@@ -35,14 +41,28 @@ TEST(TestTraceObject) {
   TraceObject trace_object;
   uint8_t category_enabled_flag = 41;
   trace_object.Initialize('X', &category_enabled_flag, "Test.Trace",
-                          "Test.Scope", 42, 123, 0, NULL, NULL, NULL, 0);
+                          "Test.Scope", 42, 123, 0, nullptr, nullptr, nullptr,
+                          nullptr, 0);
   CHECK_EQ('X', trace_object.phase());
   CHECK_EQ(category_enabled_flag, *trace_object.category_enabled_flag());
   CHECK_EQ(std::string("Test.Trace"), std::string(trace_object.name()));
   CHECK_EQ(std::string("Test.Scope"), std::string(trace_object.scope()));
-  CHECK_EQ(0, trace_object.duration());
-  CHECK_EQ(0, trace_object.cpu_duration());
+  CHECK_EQ(0u, trace_object.duration());
+  CHECK_EQ(0u, trace_object.cpu_duration());
 }
+
+class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
+ public:
+  explicit ConvertableToTraceFormatMock(int value) : value_(value) {}
+  void AppendAsTraceFormat(std::string* out) const override {
+    *out += "[" + std::to_string(value_) + "," + std::to_string(value_) + "]";
+  }
+
+ private:
+  int value_;
+
+  DISALLOW_COPY_AND_ASSIGN(ConvertableToTraceFormatMock);
+};
 
 class MockTraceWriter : public TraceWriter {
  public:
@@ -75,7 +95,8 @@ TEST(TestTraceBufferRingBuffer) {
     TraceObject* trace_object = ring_buffer->AddTraceEvent(&handles[i]);
     CHECK_NOT_NULL(trace_object);
     trace_object->Initialize('X', &category_enabled_flag, names[i].c_str(),
-                             "Test.Scope", 42, 123, 0, NULL, NULL, NULL, 0);
+                             "Test.Scope", 42, 123, 0, nullptr, nullptr,
+                             nullptr, nullptr, 0);
     trace_object = ring_buffer->GetEventByHandle(handles[i]);
     CHECK_NOT_NULL(trace_object);
     CHECK_EQ('X', trace_object->phase());
@@ -115,7 +136,8 @@ TEST(TestJSONTraceWriter) {
   // Create a scope for the tracing controller to terminate the trace writer.
   {
     TracingController tracing_controller;
-    platform::SetTracingController(default_platform, &tracing_controller);
+    static_cast<v8::platform::DefaultPlatform*>(default_platform)
+        ->SetTracingController(&tracing_controller);
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
@@ -128,13 +150,13 @@ TEST(TestJSONTraceWriter) {
     TraceObject trace_object;
     trace_object.InitializeForTesting(
         'X', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test0",
-        v8::internal::tracing::kGlobalScope, 42, 123, 0, NULL, NULL, NULL,
-        TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
+        v8::internal::tracing::kGlobalScope, 42, 123, 0, nullptr, nullptr,
+        nullptr, nullptr, TRACE_EVENT_FLAG_HAS_ID, 11, 22, 100, 50, 33, 44);
     writer->AppendTraceEvent(&trace_object);
     trace_object.InitializeForTesting(
         'Y', tracing_controller.GetCategoryGroupEnabled("v8-cat"), "Test1",
-        v8::internal::tracing::kGlobalScope, 43, 456, 0, NULL, NULL, NULL, 0,
-        55, 66, 110, 55, 77, 88);
+        v8::internal::tracing::kGlobalScope, 43, 456, 0, nullptr, nullptr,
+        nullptr, nullptr, 0, 55, 66, 110, 55, 77, 88);
     writer->AppendTraceEvent(&trace_object);
     tracing_controller.StopTracing();
   }
@@ -158,7 +180,8 @@ TEST(TestTracingController) {
   i::V8::SetPlatformForTesting(default_platform);
 
   TracingController tracing_controller;
-  platform::SetTracingController(default_platform, &tracing_controller);
+  static_cast<v8::platform::DefaultPlatform*>(default_platform)
+      ->SetTracingController(&tracing_controller);
 
   MockTraceWriter* writer = new MockTraceWriter();
   TraceBuffer* ring_buffer =
@@ -174,7 +197,7 @@ TEST(TestTracingController) {
   TRACE_EVENT0("v8", "v8.Test3");
   tracing_controller.StopTracing();
 
-  CHECK_EQ(2, writer->events().size());
+  CHECK_EQ(2u, writer->events().size());
   CHECK_EQ(std::string("v8.Test"), writer->events()[0]);
   CHECK_EQ(std::string("v8.Test3"), writer->events()[1]);
 
@@ -224,7 +247,8 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   // Create a scope for the tracing controller to terminate the trace writer.
   {
     TracingController tracing_controller;
-    platform::SetTracingController(default_platform, &tracing_controller);
+    static_cast<v8::platform::DefaultPlatform*>(default_platform)
+        ->SetTracingController(&tracing_controller);
     TraceWriter* writer = TraceWriter::CreateJSONTraceWriter(stream);
 
     TraceBuffer* ring_buffer =
@@ -264,6 +288,14 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     mm = "CHANGED";
     mmm = "CHANGED";
 
+    TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                         new ConvertableToTraceFormatMock(42));
+    std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
+        new ConvertableToTraceFormatMock(42));
+    TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
+                         std::move(trace_event_arg), "a2",
+                         new ConvertableToTraceFormatMock(123));
+
     tracing_controller.StopTracing();
   }
 
@@ -274,7 +306,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   GetJSONStrings(all_names, trace_str, "\"name\"", "\"", "\"");
   GetJSONStrings(all_cats, trace_str, "\"cat\"", "\"", "\"");
 
-  CHECK_EQ(all_args.size(), 22);
+  CHECK_EQ(all_args.size(), 24u);
   CHECK_EQ(all_args[0], "\"aa\":11");
   CHECK_EQ(all_args[1], "\"bb\":22");
   CHECK_EQ(all_args[2], "\"cc\":33");
@@ -303,6 +335,82 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   CHECK_EQ(all_names[20], "INIT");
   CHECK_EQ(all_names[21], "INIT");
   CHECK_EQ(all_args[21], "\"mm1\":\"INIT\",\"mm2\":\"\\\"INIT\\\"\"");
+  CHECK_EQ(all_args[22], "\"a1\":[42,42]");
+  CHECK_EQ(all_args[23], "\"a1\":[42,42],\"a2\":[123,123]");
+
+  i::V8::SetPlatformForTesting(old_platform);
+}
+
+namespace {
+
+class TraceStateObserverImpl : public TracingController::TraceStateObserver {
+ public:
+  void OnTraceEnabled() override { ++enabled_count; }
+  void OnTraceDisabled() override { ++disabled_count; }
+
+  int enabled_count = 0;
+  int disabled_count = 0;
+};
+
+}  // namespace
+
+TEST(TracingObservers) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
+  i::V8::SetPlatformForTesting(default_platform);
+
+  v8::platform::tracing::TracingController tracing_controller;
+  static_cast<v8::platform::DefaultPlatform*>(default_platform)
+      ->SetTracingController(&tracing_controller);
+  MockTraceWriter* writer = new MockTraceWriter();
+  v8::platform::tracing::TraceBuffer* ring_buffer =
+      v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
+                                                                      writer);
+  tracing_controller.Initialize(ring_buffer);
+  v8::platform::tracing::TraceConfig* trace_config =
+      new v8::platform::tracing::TraceConfig();
+  trace_config->AddIncludedCategory("v8");
+
+  TraceStateObserverImpl observer;
+  tracing_controller.AddTraceStateObserver(&observer);
+
+  CHECK_EQ(0, observer.enabled_count);
+  CHECK_EQ(0, observer.disabled_count);
+
+  tracing_controller.StartTracing(trace_config);
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(0, observer.disabled_count);
+
+  TraceStateObserverImpl observer2;
+  tracing_controller.AddTraceStateObserver(&observer2);
+
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
+
+  tracing_controller.RemoveTraceStateObserver(&observer2);
+
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
+
+  tracing_controller.StopTracing();
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
+  CHECK_EQ(1, observer2.enabled_count);
+  CHECK_EQ(0, observer2.disabled_count);
+
+  tracing_controller.RemoveTraceStateObserver(&observer);
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
+
+  trace_config = new v8::platform::tracing::TraceConfig();
+  tracing_controller.StartTracing(trace_config);
+  tracing_controller.StopTracing();
+
+  CHECK_EQ(1, observer.enabled_count);
+  CHECK_EQ(1, observer.disabled_count);
 
   i::V8::SetPlatformForTesting(old_platform);
 }

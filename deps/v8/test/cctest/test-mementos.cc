@@ -25,10 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/factory.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   Isolate* isolate = CcTest::i_isolate();
@@ -36,7 +46,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -47,7 +57,8 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   // site pointer.
   AllocationMemento* memento =
       reinterpret_cast<AllocationMemento*>(new_space->top() + kHeapObjectTag);
-  memento->set_map_no_write_barrier(heap->allocation_memento_map());
+  memento->set_map_after_allocation(heap->allocation_memento_map(),
+                                    SKIP_WRITE_BARRIER);
   memento->set_allocation_site(
       reinterpret_cast<AllocationSite*>(kHeapObjectTag), SKIP_WRITE_BARRIER);
 }
@@ -62,8 +73,7 @@ TEST(Regress340063) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::i_isolate()->heap()->CollectAllGarbage(
-      Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -80,8 +90,7 @@ TEST(Regress470390) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  CcTest::i_isolate()->heap()->CollectAllGarbage(
-      Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 }
 
 
@@ -93,5 +102,8 @@ TEST(BadMementoAfterTopForceScavenge) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Force GC to test the poisoned memento handling
-  CcTest::i_isolate()->heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
 }
+
+}  // namespace internal
+}  // namespace v8

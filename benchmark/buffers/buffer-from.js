@@ -10,10 +10,12 @@ const bench = common.createBenchmark(main, {
     'buffer',
     'uint8array',
     'string',
-    'string-base64'
+    'string-utf8',
+    'string-base64',
+    'object'
   ],
   len: [10, 2048],
-  n: [1024]
+  n: [2048]
 });
 
 function main(conf) {
@@ -25,6 +27,7 @@ function main(conf) {
   const str = 'a'.repeat(len);
   const buffer = Buffer.allocUnsafe(len);
   const uint8array = new Uint8Array(len);
+  const obj = { length: null }; // Results in a new, empty Buffer
 
   var i;
 
@@ -73,10 +76,24 @@ function main(conf) {
       }
       bench.end(n);
       break;
+    case 'string-utf8':
+      bench.start();
+      for (i = 0; i < n * 1024; i++) {
+        Buffer.from(str, 'utf8');
+      }
+      bench.end(n);
+      break;
     case 'string-base64':
       bench.start();
       for (i = 0; i < n * 1024; i++) {
         Buffer.from(str, 'base64');
+      }
+      bench.end(n);
+      break;
+    case 'object':
+      bench.start();
+      for (i = 0; i < n * 1024; i++) {
+        Buffer.from(obj);
       }
       bench.end(n);
       break;

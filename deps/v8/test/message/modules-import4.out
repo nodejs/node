@@ -1,0 +1,5 @@
+*%(basename)s:8: SyntaxError: The requested module does not provide an export named 'c'
+export {c as a} from "modules-import4.js";
+        ^^^^^^
+SyntaxError: The requested module does not provide an export named 'c'
+

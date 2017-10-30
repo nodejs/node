@@ -51,7 +51,7 @@ test('cursory test of unpublishing with config', function (t) {
     child = common.npm(
       [
         '--userconfig', fixturePath,
-        '--loglevel', 'silent',
+        '--loglevel', 'error',
         '--force',
         'unpublish'
       ],

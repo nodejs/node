@@ -1,72 +1,73 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var serverConnected = false;
-var serverRequests = 0;
-var clientResponses = 0;
-
-var server = http.createServer(function(req, res) {
-  console.error('Server got GET request');
+const server = http.createServer(common.mustCall((req, res) => {
   req.resume();
-  ++serverRequests;
   res.writeHead(200);
   res.write('');
-  setTimeout(function() {
-    res.end(req.url);
-  }, 50);
-});
-server.on('connect', function(req, socket, firstBodyChunk) {
-  console.error('Server got CONNECT request');
-  serverConnected = true;
+  setTimeout(() => res.end(req.url), 50);
+}, 2));
+
+const countdown = new Countdown(2, common.mustCall(() => server.close()));
+
+server.on('connect', common.mustCall((req, socket) => {
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
   socket.resume();
-  socket.on('end', function() {
-    socket.end();
-  });
-});
-server.listen(0, function() {
-  var req = http.request({
-    port: this.address().port,
+  socket.on('end', () => socket.end());
+}));
+
+server.listen(0, common.mustCall(() => {
+  const req = http.request({
+    port: server.address().port,
     method: 'CONNECT',
     path: 'google.com:80'
   });
-  req.on('connect', function(res, socket, firstBodyChunk) {
-    console.error('Client got CONNECT response');
+  req.on('connect', common.mustCall((res, socket) => {
     socket.end();
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       doRequest(0);
       doRequest(1);
-    });
+    }));
     socket.resume();
-  });
+  }));
   req.end();
-});
+}));
 
 function doRequest(i) {
   http.get({
     port: server.address().port,
-    path: '/request' + i
-  }, function(res) {
-    console.error('Client got GET response');
-    var data = '';
+    path: `/request${i}`
+  }, common.mustCall((res) => {
+    let data = '';
     res.setEncoding('utf8');
-    res.on('data', function(chunk) {
-      data += chunk;
-    });
-    res.on('end', function() {
-      assert.equal(data, '/request' + i);
-      ++clientResponses;
-      if (clientResponses === 2) {
-        server.close();
-      }
-    });
-  });
+    res.on('data', (chunk) => data += chunk);
+    res.on('end', common.mustCall(() => {
+      assert.strictEqual(data, `/request${i}`);
+      countdown.dec();
+    }));
+  }));
 }
-
-process.on('exit', function() {
-  assert(serverConnected);
-  assert.equal(serverRequests, 2);
-  assert.equal(clientResponses, 2);
-});

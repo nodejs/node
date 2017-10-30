@@ -10,7 +10,7 @@
 namespace node {
 
 template <typename WrapType, typename UVType>
-class ConnectionWrap : public StreamWrap {
+class ConnectionWrap : public LibuvStreamWrap {
  public:
   UVType* UVHandle() {
     return &handle_;
@@ -22,8 +22,7 @@ class ConnectionWrap : public StreamWrap {
  protected:
   ConnectionWrap(Environment* env,
                  v8::Local<v8::Object> object,
-                 ProviderType provider,
-                 AsyncWrap* parent);
+                 ProviderType provider);
   ~ConnectionWrap() {
   }
 

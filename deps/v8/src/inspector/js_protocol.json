@@ -1,6 +1,32 @@
 {
-    "version": { "major": "1", "minor": "1" },
-    "domains": [{
+    "version": { "major": "1", "minor": "2" },
+    "domains": [
+    {
+        "domain": "Schema",
+        "description": "Provides information about the protocol schema.",
+        "types": [
+            {
+                "id": "Domain",
+                "type": "object",
+                "description": "Description of the protocol domain.",
+                "properties": [
+                    { "name": "name", "type": "string", "description": "Domain name." },
+                    { "name": "version", "type": "string", "description": "Domain version." }
+                ]
+            }
+        ],
+        "commands": [
+            {
+                "name": "getDomains",
+                "description": "Returns supported domains.",
+                "handlers": ["browser", "renderer"],
+                "returns": [
+                    { "name": "domains", "type": "array", "items": { "$ref": "Domain" }, "description": "List of supported domains." }
+                ]
+            }
+        ]
+    },
+    {
         "domain": "Runtime",
         "description": "Runtime domain exposes JavaScript runtime by means of remote evaluation and mirror objects. Evaluation results are returned as mirror object that expose object type, string representation and unique identifier that can be used for further object reference. Original objects are maintained in memory unless they are either explicitly released or are released along with the other objects in their object group.",
         "types": [
@@ -15,25 +41,31 @@
                 "description": "Unique object identifier."
             },
             {
+                "id": "UnserializableValue",
+                "type": "string",
+                "enum": ["Infinity", "NaN", "-Infinity", "-0"],
+                "description": "Primitive value which cannot be JSON-stringified."
+            },
+            {
                 "id": "RemoteObject",
                 "type": "object",
                 "description": "Mirror object referencing original JavaScript object.",
-                "exported": true,
                 "properties": [
                     { "name": "type", "type": "string", "enum": ["object", "function", "undefined", "string", "number", "boolean", "symbol"], "description": "Object type." },
-                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." },
+                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "weakmap", "weakset", "iterator", "generator", "error", "proxy", "promise", "typedarray"], "description": "Object subtype hint. Specified for <code>object</code> type values only." },
                     { "name": "className", "type": "string", "optional": true, "description": "Object class (constructor) name. Specified for <code>object</code> type values only." },
-                    { "name": "value", "type": "any", "optional": true, "description": "Remote object value in case of primitive values or JSON values (if it was requested), or description string if the value can not be JSON-stringified (like NaN, Infinity, -Infinity, -0)." },
+                    { "name": "value", "type": "any", "optional": true, "description": "Remote object value in case of primitive values or JSON values (if it was requested)." },
+                    { "name": "unserializableValue", "$ref": "UnserializableValue", "optional": true, "description": "Primitive value which can not be JSON-stringified does not have <code>value</code>, but gets this property." },
                     { "name": "description", "type": "string", "optional": true, "description": "String representation of the object." },
                     { "name": "objectId", "$ref": "RemoteObjectId", "optional": true, "description": "Unique object identifier (for non-primitive values)." },
-                    { "name": "preview", "$ref": "ObjectPreview", "optional": true, "description": "Preview containing abbreviated property values. Specified for <code>object</code> type values only.", "hidden": true },
-                    { "name": "customPreview", "$ref": "CustomPreview", "optional": true, "hidden": true}
+                    { "name": "preview", "$ref": "ObjectPreview", "optional": true, "description": "Preview containing abbreviated property values. Specified for <code>object</code> type values only.", "experimental": true },
+                    { "name": "customPreview", "$ref": "CustomPreview", "optional": true, "experimental": true}
                 ]
             },
             {
                 "id": "CustomPreview",
                 "type": "object",
-                "hidden": true,
+                "experimental": true,
                 "properties": [
                     { "name": "header", "type": "string"},
                     { "name": "hasBody", "type": "boolean"},
@@ -45,11 +77,11 @@
             {
                 "id": "ObjectPreview",
                 "type": "object",
-                "hidden": true,
+                "experimental": true,
                 "description": "Object containing abbreviated remote object value.",
                 "properties": [
                     { "name": "type", "type": "string", "enum": ["object", "function", "undefined", "string", "number", "boolean", "symbol"], "description": "Object type." },
-                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." },
+                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "weakmap", "weakset", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." },
                     { "name": "description", "type": "string", "optional": true, "description": "String representation of the object." },
                     { "name": "overflow", "type": "boolean", "description": "True iff some of the properties or entries of the original object did not fit." },
                     { "name": "properties", "type": "array", "items": { "$ref": "PropertyPreview" }, "description": "List of the properties." },
@@ -59,19 +91,19 @@
             {
                 "id": "PropertyPreview",
                 "type": "object",
-                "hidden": true,
+                "experimental": true,
                 "properties": [
                     { "name": "name", "type": "string", "description": "Property name." },
                     { "name": "type", "type": "string", "enum": ["object", "function", "undefined", "string", "number", "boolean", "symbol", "accessor"], "description": "Object type. Accessor means that the property itself is an accessor property." },
                     { "name": "value", "type": "string", "optional": true, "description": "User-friendly property value string." },
                     { "name": "valuePreview", "$ref": "ObjectPreview", "optional": true, "description": "Nested value preview." },
-                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." }
+                    { "name": "subtype", "type": "string", "optional": true, "enum": ["array", "null", "node", "regexp", "date", "map", "set", "weakmap", "weakset", "iterator", "generator", "error"], "description": "Object subtype hint. Specified for <code>object</code> type values only." }
                 ]
             },
             {
                 "id": "EntryPreview",
                 "type": "object",
-                "hidden": true,
+                "experimental": true,
                 "properties": [
                     { "name": "key", "$ref": "ObjectPreview", "optional": true, "description": "Preview of the key. Specified for map-like collection entries." },
                     { "name": "value", "$ref": "ObjectPreview", "description": "Preview of the value." }
@@ -90,8 +122,8 @@
                     { "name": "configurable", "type": "boolean", "description": "True if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object." },
                     { "name": "enumerable", "type": "boolean", "description": "True if this property shows up during enumeration of the properties on the corresponding object." },
                     { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the result was thrown during the evaluation." },
-                    { "name": "isOwn", "optional": true, "type": "boolean", "description": "True if the property is owned for the object.", "hidden": true },
-                    { "name": "symbol", "$ref": "RemoteObject", "optional": true, "description": "Property symbol object, if the property is of the <code>symbol</code> type.", "hidden": true }
+                    { "name": "isOwn", "optional": true, "type": "boolean", "description": "True if the property is owned for the object." },
+                    { "name": "symbol", "$ref": "RemoteObject", "optional": true, "description": "Property symbol object, if the property is of the <code>symbol</code> type." }
                 ]
             },
             {
@@ -101,17 +133,16 @@
                 "properties": [
                     { "name": "name", "type": "string", "description": "Conventional property name." },
                     { "name": "value", "$ref": "RemoteObject", "optional": true, "description": "The value associated with the property." }
-                ],
-                "hidden": true
+                ]
             },
             {
                 "id": "CallArgument",
                 "type": "object",
-                "description": "Represents function call argument. Either remote object id <code>objectId</code> or primitive <code>value</code> or neither of (for undefined) them should be specified.",
+                "description": "Represents function call argument. Either remote object id <code>objectId</code>, primitive <code>value</code>, unserializable primitive value or neither of (for undefined) them should be specified.",
                 "properties": [
-                    { "name": "value", "type": "any", "optional": true, "description": "Primitive value, or description string if the value can not be JSON-stringified (like NaN, Infinity, -Infinity, -0)." },
-                    { "name": "objectId", "$ref": "RemoteObjectId", "optional": true, "description": "Remote object handle." },
-                    { "name": "type", "optional": true, "hidden": true, "type": "string", "enum": ["object", "function", "undefined", "string", "number", "boolean", "symbol"], "description": "Object type." }
+                    { "name": "value", "type": "any", "optional": true, "description": "Primitive value or serializable javascript object." },
+                    { "name": "unserializableValue", "$ref": "UnserializableValue", "optional": true, "description": "Primitive value which can not be JSON-stringified." },
+                    { "name": "objectId", "$ref": "RemoteObjectId", "optional": true, "description": "Remote object handle." }
                 ]
             },
             {
@@ -125,31 +156,31 @@
                 "description": "Description of an isolated world.",
                 "properties": [
                     { "name": "id", "$ref": "ExecutionContextId", "description": "Unique id of the execution context. It can be used to specify in which execution context script evaluation should be performed." },
-                    { "name": "isDefault", "type": "boolean", "description": "Whether context is the default page context (as opposite to e.g. context of content script).", "hidden": true },
-                    { "name": "origin", "type": "string", "description": "Execution context origin.", "hidden": true},
-                    { "name": "name", "type": "string", "description": "Human readable name describing given context.", "hidden": true},
-                    { "name": "frameId", "type": "string", "description": "Id of the owning frame. May be an empty string if the context is not associated with a frame." }
+                    { "name": "origin", "type": "string", "description": "Execution context origin." },
+                    { "name": "name", "type": "string", "description": "Human readable name describing given context." },
+                    { "name": "auxData", "type": "object", "optional": true, "description": "Embedder-specific auxiliary data." }
                 ]
             },
             {
                 "id": "ExceptionDetails",
                 "type": "object",
-                "hidden": true,
                 "description": "Detailed information about exception (or error) that was thrown during script compilation or execution.",
                 "properties": [
-                    { "name": "text", "type": "string", "description": "Exception text." },
-                    { "name": "scriptId", "$ref": "ScriptId", "description": "Script ID of the exception location." },
+                    { "name": "exceptionId", "type": "integer", "description": "Exception id." },
+                    { "name": "text", "type": "string", "description": "Exception text, which should be used together with exception object when available." },
                     { "name": "lineNumber", "type": "integer", "description": "Line number of the exception location (0-based)." },
                     { "name": "columnNumber", "type": "integer", "description": "Column number of the exception location (0-based)." },
+                    { "name": "scriptId", "$ref": "ScriptId", "optional": true, "description": "Script ID of the exception location." },
                     { "name": "url", "type": "string", "optional": true, "description": "URL of the exception location, to be used when the script was not reported." },
-                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "JavaScript stack trace if available." }
+                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "JavaScript stack trace if available." },
+                    { "name": "exception", "$ref": "RemoteObject", "optional": true, "description": "Exception object if available." },
+                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Identifier of the context where exception happened." }
                 ]
             },
             {
                 "id": "Timestamp",
                 "type": "number",
-                "description": "Number of milliseconds since epoch.",
-                "hidden": true
+                "description": "Number of milliseconds since epoch."
             },
             {
                 "id": "CallFrame",
@@ -167,40 +198,36 @@
                 "id": "StackTrace",
                 "type": "object",
                 "description": "Call frames for assertions or error messages.",
-                "exported": true,
                 "properties": [
                     { "name": "description", "type": "string", "optional": true, "description": "String label of this stack trace. For async traces this may be a name of the function that initiated the async call." },
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "JavaScript function name." },
-                    { "name": "parent", "$ref": "StackTrace", "optional": true, "hidden": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." }
+                    { "name": "parent", "$ref": "StackTrace", "optional": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." },
+                    { "name": "promiseCreationFrame", "$ref": "CallFrame", "optional": true, "experimental": true, "description": "Creation frame of the Promise which produced the next synchronous trace when resolved, if available." }
                 ]
             }
         ],
         "commands": [
             {
                 "name": "evaluate",
-                "async": true,
                 "parameters": [
                     { "name": "expression", "type": "string", "description": "Expression to evaluate." },
                     { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects." },
-                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Determines whether Command Line API should be available during the evaluation.", "hidden": true },
-                    { "name": "doNotPauseOnExceptionsAndMuteConsole", "type": "boolean", "optional": true, "description": "Specifies whether evaluation should stop on exceptions and mute console. Overrides setPauseOnException state.", "hidden": true },
-                    { "name": "contextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which isolated context to perform evaluation. Each content script lives in an isolated context and this parameter may be used to specify one of those contexts. If the parameter is omitted or 0 the evaluation will be performed in the context of the inspected page." },
+                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Determines whether Command Line API should be available during the evaluation." },
+                    { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
+                    { "name": "contextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the evaluation will be performed in the context of the inspected page." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
-                    { "name": "generatePreview", "type": "boolean", "optional": true, "hidden": true, "description": "Whether preview should be generated for the result." },
-                    { "name": "userGesture", "type": "boolean", "optional": true, "hidden": true, "description": "Whether execution should be treated as initiated by user in the UI." },
-                    { "name": "awaitPromise", "type": "boolean", "optional":true, "hidden": true, "description": "Whether execution should wait for promise to be resolved. If the result of evaluation is not a Promise, it's considered to be an error." }
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
+                    { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Evaluation result." },
-                    { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the result was thrown during the evaluation." },
-                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "hidden": true, "description": "Exception details."}
+                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Evaluates expression on global object."
             },
             {
                 "name": "awaitPromise",
-                "hidden": true,
-                "async": true,
                 "parameters": [
                     { "name": "promiseObjectId", "$ref": "RemoteObjectId", "description": "Identifier of the promise." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
@@ -208,7 +235,6 @@
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Promise result. Will contain rejected value if promise was rejected." },
-                    { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the promise was rejected." },
                     { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details if stack strace is available."}
                 ],
                 "description": "Add handler to promise with given promise object id."
@@ -219,14 +245,15 @@
                     { "name": "objectId", "$ref": "RemoteObjectId", "description": "Identifier of the object to call function on." },
                     { "name": "functionDeclaration", "type": "string", "description": "Declaration of the function to call." },
                     { "name": "arguments", "type": "array", "items": { "$ref": "CallArgument", "description": "Call argument." }, "optional": true, "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target object." },
-                    { "name": "doNotPauseOnExceptionsAndMuteConsole", "type": "boolean", "optional": true, "description": "Specifies whether function call should stop on exceptions and mute console. Overrides setPauseOnException state.", "hidden": true },
+                    { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
-                    { "name": "generatePreview", "type": "boolean", "optional": true, "hidden": true, "description": "Whether preview should be generated for the result." },
-                    { "name": "userGesture", "type": "boolean", "optional": true, "hidden": true, "description": "Whether execution should be treated as initiated by user in the UI." }
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
+                    { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Call result." },
-                    { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the result was thrown during the evaluation." }
+                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Calls function with given declaration on the given object. Object group of the result is inherited from the target object."
             },
@@ -235,13 +262,13 @@
                 "parameters": [
                     { "name": "objectId", "$ref": "RemoteObjectId", "description": "Identifier of the object to return properties for." },
                     { "name": "ownProperties", "optional": true, "type": "boolean", "description": "If true, returns properties belonging only to the element itself, not to its prototype chain." },
-                    { "name": "accessorPropertiesOnly", "optional": true, "type": "boolean", "description": "If true, returns accessor properties (with getter/setter) only; internal properties are not returned either.", "hidden": true },
-                    { "name": "generatePreview", "type": "boolean", "optional": true, "hidden": true, "description": "Whether preview should be generated for the results." }
+                    { "name": "accessorPropertiesOnly", "optional": true, "type": "boolean", "description": "If true, returns accessor properties (with getter/setter) only; internal properties are not returned either.", "experimental": true },
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the results." }
                 ],
                 "returns": [
                     { "name": "result", "type": "array", "items": { "$ref": "PropertyDescriptor" }, "description": "Object properties." },
-                    { "name": "internalProperties", "optional": true, "type": "array", "items": { "$ref": "InternalPropertyDescriptor" }, "description": "Internal object properties (only of the element itself).", "hidden": true },
-                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "hidden": true, "description": "Exception details."}
+                    { "name": "internalProperties", "optional": true, "type": "array", "items": { "$ref": "InternalPropertyDescriptor" }, "description": "Internal object properties (only of the element itself)." },
+                    { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Returns properties of a given object. Object group of the result is inherited from the target object."
             },
@@ -260,9 +287,8 @@
                 "description": "Releases all remote objects that belong to a given group."
             },
             {
-                "name": "run",
-                "hidden": true,
-                "description": "Tells inspected instance(worker or page) that it can run in case it was started paused."
+                "name": "runIfWaitingForDebugger",
+                "description": "Tells inspected instance to run if it was waiting for debugger to attach."
             },
             {
                 "name": "enable",
@@ -270,12 +296,10 @@
             },
             {
                 "name": "disable",
-                "hidden": true,
                 "description": "Disables reporting of execution contexts creation."
             },
             {
                 "name": "discardConsoleEntries",
-                "hidden": true,
                 "description": "Discards collected exceptions and console API calls."
             },
             {
@@ -286,16 +310,15 @@
                         "type": "boolean"
                     }
                 ],
-                "hidden": true
+                "experimental": true
             },
             {
                 "name": "compileScript",
-                "hidden": true,
                 "parameters": [
                     { "name": "expression", "type": "string", "description": "Expression to compile." },
                     { "name": "sourceURL", "type": "string", "description": "Source url to be set for the script." },
                     { "name": "persistScript", "type": "boolean", "description": "Specifies whether the compiled script should be persisted." },
-                    { "name": "executionContextId", "$ref": "ExecutionContextId", "description": "Specifies in which isolated context to perform script run. Each content script lives in an isolated context and this parameter is used to specify one of those contexts." }
+                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which execution context to perform script run. If the parameter is omitted the evaluation will be performed in the context of the inspected page." }
                 ],
                 "returns": [
                     { "name": "scriptId", "$ref": "ScriptId", "optional": true, "description": "Id of the script." },
@@ -305,26 +328,38 @@
             },
             {
                 "name": "runScript",
-                "hidden": true,
                 "parameters": [
                     { "name": "scriptId", "$ref": "ScriptId", "description": "Id of the script to run." },
-                    { "name": "executionContextId", "$ref": "ExecutionContextId", "description": "Specifies in which isolated context to perform script run. Each content script lives in an isolated context and this parameter is used to specify one of those contexts." },
+                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies in which execution context to perform script run. If the parameter is omitted the evaluation will be performed in the context of the inspected page." },
                     { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects." },
-                    { "name": "doNotPauseOnExceptionsAndMuteConsole", "type": "boolean", "optional": true, "description": "Specifies whether script run should stop on exceptions and mute console. Overrides setPauseOnException state." },
-                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Determines whether Command Line API should be available during the evaluation." }
+                    { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
+                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Determines whether Command Line API should be available during the evaluation." },
+                    { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "description": "Whether preview should be generated for the result." },
+                    { "name": "awaitPromise", "type": "boolean", "optional": true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Run result." },
                     { "name": "exceptionDetails", "$ref": "ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Runs script with given id in a given context."
+            },
+            {
+                "name": "queryObjects",
+                "parameters": [
+                    { "name": "prototypeObjectId", "$ref": "RemoteObjectId", "description": "Identifier of the prototype to return objects for." }
+                ],
+                "returns": [
+                    { "name": "objects", "$ref": "RemoteObject", "description": "Array with objects." }
+                ],
+                "experimental": true
             }
         ],
         "events": [
             {
                 "name": "executionContextCreated",
                 "parameters": [
-                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution contex." }
+                    { "name": "context", "$ref": "ExecutionContextDescription", "description": "A newly created execution context." }
                 ],
                 "description": "Issued when new execution context is created."
             },
@@ -343,42 +378,37 @@
                 "name": "exceptionThrown",
                 "description": "Issued when exception was thrown and unhandled.",
                 "parameters": [
-                    { "name": "exceptionId", "type": "integer", "description": "Exception id." },
                     { "name": "timestamp", "$ref": "Timestamp", "description": "Timestamp of the exception." },
-                    { "name": "details", "$ref": "ExceptionDetails" },
-                    { "name": "exception", "$ref": "RemoteObject", "optional": true, "description": "Exception object." },
-                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Identifier of the context where exception happened." }
-                ],
-                "hidden": true
+                    { "name": "exceptionDetails", "$ref": "ExceptionDetails" }
+                ]
             },
             {
                 "name": "exceptionRevoked",
                 "description": "Issued when unhandled exception was revoked.",
                 "parameters": [
-                    { "name": "message", "type": "string", "description": "Message describing why exception was revoked." },
+                    { "name": "reason", "type": "string", "description": "Reason describing why exception was revoked." },
                     { "name": "exceptionId", "type": "integer", "description": "The id of revoked exception, as reported in <code>exceptionUnhandled</code>." }
-                ],
-                "hidden": true
+                ]
             },
             {
                 "name": "consoleAPICalled",
                 "description": "Issued when console API was called.",
                 "parameters": [
-                    { "name": "type", "type": "string", "enum": ["log", "debug", "info", "error", "warning", "dir", "dirxml", "table", "trace", "clear", "startGroup", "startGroupCollapsed", "endGroup", "assert", "profile", "profileEnd"], "description": "Type of the call." },
+                    { "name": "type", "type": "string", "enum": ["log", "debug", "info", "error", "warning", "dir", "dirxml", "table", "trace", "clear", "startGroup", "startGroupCollapsed", "endGroup", "assert", "profile", "profileEnd", "count", "timeEnd"], "description": "Type of the call." },
                     { "name": "args", "type": "array", "items": { "$ref": "RemoteObject" }, "description": "Call arguments." },
                     { "name": "executionContextId", "$ref": "ExecutionContextId", "description": "Identifier of the context where the call was made." },
                     { "name": "timestamp", "$ref": "Timestamp", "description": "Call timestamp." },
-                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "Stack trace captured when the call was made." }
-                ],
-                "hidden": true
+                    { "name": "stackTrace", "$ref": "StackTrace", "optional": true, "description": "Stack trace captured when the call was made." },
+                    { "name": "context", "type": "string", "optional": true, "experimental": true, "description": "Console context descriptor for calls on non-default console context (not console.*): 'anonymous#unique-logger-id' for call on unnamed context, 'name#unique-logger-id' for call on named context." }
+                ]
             },
             {
                 "name": "inspectRequested",
+                "description": "Issued when object should be inspected (for example, as a result of inspect() command line API call).",
                 "parameters": [
                     { "name": "object", "$ref": "RemoteObject" },
                     { "name": "hints", "type": "object" }
-                ],
-                "hidden": true
+                ]
             }
         ]
     },
@@ -409,7 +439,7 @@
             },
             {
                 "id": "ScriptPosition",
-                "hidden": true,
+                "experimental": true,
                 "type": "object",
                 "properties": [
                     { "name": "lineNumber", "type": "integer" },
@@ -423,11 +453,11 @@
                 "properties": [
                     { "name": "callFrameId", "$ref": "CallFrameId", "description": "Call frame identifier. This identifier is only valid while the virtual machine is paused." },
                     { "name": "functionName", "type": "string", "description": "Name of the JavaScript function called on this call frame." },
-                    { "name": "functionLocation", "$ref": "Location", "optional": true, "hidden": true, "description": "Location in the source code." },
+                    { "name": "functionLocation", "$ref": "Location", "optional": true, "experimental": true, "description": "Location in the source code." },
                     { "name": "location", "$ref": "Location", "description": "Location in the source code." },
                     { "name": "scopeChain", "type": "array", "items": { "$ref": "Scope" }, "description": "Scope chain for this call frame." },
                     { "name": "this", "$ref": "Runtime.RemoteObject", "description": "<code>this</code> object for this call frame." },
-                    { "name": "returnValue", "$ref": "Runtime.RemoteObject", "optional": true, "hidden": true, "description": "The value being returned, if the function is at return point." }
+                    { "name": "returnValue", "$ref": "Runtime.RemoteObject", "optional": true, "description": "The value being returned, if the function is at return point." }
                 ],
                 "description": "JavaScript call frame. Array of call frames form the call stack."
             },
@@ -435,11 +465,11 @@
                 "id": "Scope",
                 "type": "object",
                 "properties": [
-                    { "name": "type", "type": "string", "enum": ["global", "local", "with", "closure", "catch", "block", "script"], "description": "Scope type." },
+                    { "name": "type", "type": "string", "enum": ["global", "local", "with", "closure", "catch", "block", "script", "eval", "module"], "description": "Scope type." },
                     { "name": "object", "$ref": "Runtime.RemoteObject", "description": "Object representing the scope. For <code>global</code> and <code>with</code> scopes it represents the actual object; for the rest of the scopes, it is artificial transient object enumerating scope variables as its properties." },
-                    { "name": "name", "type": "string", "optional": true, "hidden": true },
-                    { "name": "startLocation", "$ref": "Location", "optional": true, "hidden": true, "description": "Location in the source code where scope starts" },
-                    { "name": "endLocation", "$ref": "Location", "optional": true, "hidden": true, "description": "Location in the source code where scope ends" }
+                    { "name": "name", "type": "string", "optional": true },
+                    { "name": "startLocation", "$ref": "Location", "optional": true, "description": "Location in the source code where scope starts" },
+                    { "name": "endLocation", "$ref": "Location", "optional": true, "description": "Location in the source code where scope ends" }
                 ],
                 "description": "Scope description."
             },
@@ -447,12 +477,22 @@
                 "id": "SearchMatch",
                 "type": "object",
                 "description": "Search match for resource.",
-                "exported": true,
                 "properties": [
                     { "name": "lineNumber", "type": "number", "description": "Line number in resource content." },
                     { "name": "lineContent", "type": "string", "description": "Line with match content." }
                 ],
-                "hidden": true
+                "experimental": true
+            },
+            {
+                "id": "BreakLocation",
+                "type": "object",
+                "properties": [
+                    { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "Script identifier as reported in the <code>Debugger.scriptParsed</code>." },
+                    { "name": "lineNumber", "type": "integer", "description": "Line number in the script (0-based)." },
+                    { "name": "columnNumber", "type": "integer", "optional": true, "description": "Column number in the script (0-based)." },
+                    { "name": "type", "type": "string", "enum": [ "debuggerStatement", "call", "return" ], "optional": true }
+                ],
+                "experimental": true
             }
         ],
         "commands": [
@@ -473,9 +513,8 @@
             },
             {
                 "name": "setSkipAllPauses",
-                "hidden": true,
                 "parameters": [
-                    { "name": "skipped", "type": "boolean", "description": "New value for skip pauses state." }
+                    { "name": "skip", "type": "boolean", "description": "New value for skip pauses state." }
                 ],
                 "description": "Makes page not interrupt on any pauses (breakpoint, exception, dom exception etc)."
             },
@@ -514,10 +553,23 @@
                 "description": "Removes JavaScript breakpoint."
             },
             {
+                "name": "getPossibleBreakpoints",
+                "parameters": [
+                    { "name": "start", "$ref": "Location", "description": "Start of range to search possible breakpoint locations in." },
+                    { "name": "end", "$ref": "Location", "optional": true, "description": "End of range to search possible breakpoint locations in (excluding). When not specified, end of scripts is used as end of range." },
+                    { "name": "restrictToFunction", "type": "boolean", "optional": true, "description": "Only consider locations which are in the same (non-nested) function as start." }
+                ],
+                "returns": [
+                    { "name": "locations", "type": "array", "items": { "$ref": "BreakLocation" }, "description": "List of the possible breakpoint locations." }
+                ],
+                "description": "Returns possible locations for breakpoint. scriptId in start and end range locations should be the same.",
+                "experimental": true
+            },
+            {
                 "name": "continueToLocation",
                 "parameters": [
                     { "name": "location", "$ref": "Location", "description": "Location to continue to." },
-                    { "name": "interstatementLocation", "type": "boolean", "optional": true, "hidden": true, "description": "Allows breakpoints at the intemediate positions inside statements." }
+                    { "name": "targetCallFrames", "type": "string", "enum": ["any", "current"], "optional": true, "experimental": true }
                 ],
                 "description": "Continues execution until specific location is reached."
             },
@@ -538,6 +590,11 @@
                 "description": "Stops on the next JavaScript statement."
             },
             {
+                "name": "scheduleStepIntoAsync",
+                "description": "Steps into next scheduled async task if any is scheduled before next pause. Returns success when async task is actually scheduled, returns error if no task were scheduled or another scheduleStepIntoAsync was called.",
+                "experimental": true
+            },
+            {
                 "name": "resume",
                 "description": "Resumes JavaScript execution."
             },
@@ -552,27 +609,21 @@
                 "returns": [
                     { "name": "result", "type": "array", "items": { "$ref": "SearchMatch" }, "description": "List of search matches." }
                 ],
+                "experimental": true,
                 "description": "Searches for given string in script content."
-            },
-            {
-                "name": "canSetScriptSource",
-                "returns": [
-                    { "name": "result", "type": "boolean", "description": "True if <code>setScriptSource</code> is supported." }
-                ],
-                "description": "Always returns true."
             },
             {
                 "name": "setScriptSource",
                 "parameters": [
                     { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "Id of the script to edit." },
                     { "name": "scriptSource", "type": "string", "description": "New content of the script." },
-                    { "name": "preview", "type": "boolean", "optional": true, "description": " If true the change will not actually be applied. Preview mode may be used to get result description without actually modifying the code.", "hidden": true }
+                    { "name": "dryRun", "type": "boolean", "optional": true, "description": " If true the change will not actually be applied. Dry run may be used to get result description without actually modifying the code." }
                 ],
                 "returns": [
                     { "name": "callFrames", "type": "array", "optional": true, "items": { "$ref": "CallFrame" }, "description": "New stack trace in case editing has happened while VM was stopped." },
-                    { "name": "stackChanged", "type": "boolean", "optional": true, "description": "Whether current call stack  was modified after applying the changes.", "hidden": true },
-                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any.", "hidden": true },
-                    { "name": "compileError", "optional": true, "$ref": "Runtime.ExceptionDetails", "description": "Error data if any." }
+                    { "name": "stackChanged", "type": "boolean", "optional": true, "description": "Whether current call stack  was modified after applying the changes." },
+                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." },
+                    { "name": "exceptionDetails", "optional": true, "$ref": "Runtime.ExceptionDetails", "description": "Exception details if any." }
                 ],
                 "description": "Edits JavaScript source live."
             },
@@ -585,7 +636,6 @@
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "New stack trace." },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }
                 ],
-                "hidden": true,
                 "description": "Restarts particular call frame from the beginning."
             },
             {
@@ -611,15 +661,15 @@
                     { "name": "callFrameId", "$ref": "CallFrameId", "description": "Call frame identifier to evaluate on." },
                     { "name": "expression", "type": "string", "description": "Expression to evaluate." },
                     { "name": "objectGroup", "type": "string", "optional": true, "description": "String object group name to put result into (allows rapid releasing resulting object handles using <code>releaseObjectGroup</code>)." },
-                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Specifies whether command line API should be available to the evaluated expression, defaults to false.", "hidden": true },
-                    { "name": "doNotPauseOnExceptionsAndMuteConsole", "type": "boolean", "optional": true, "description": "Specifies whether evaluation should stop on exceptions and mute console. Overrides setPauseOnException state.", "hidden": true },
+                    { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Specifies whether command line API should be available to the evaluated expression, defaults to false." },
+                    { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
-                    { "name": "generatePreview", "type": "boolean", "optional": true, "hidden": true, "description": "Whether preview should be generated for the result." }
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
+                    { "name": "throwOnSideEffect", "type": "boolean", "optional": true, "experimental": true, "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "Runtime.RemoteObject", "description": "Object wrapper for the evaluation result." },
-                    { "name": "wasThrown", "type": "boolean", "optional": true, "description": "True if the result was thrown during the evaluation." },
-                    { "name": "exceptionDetails", "$ref": "Runtime.ExceptionDetails", "optional": true, "hidden": true, "description": "Exception details."}
+                    { "name": "exceptionDetails", "$ref": "Runtime.ExceptionDetails", "optional": true, "description": "Exception details."}
                 ],
                 "description": "Evaluates expression on a given call frame."
             },
@@ -631,24 +681,13 @@
                     { "name": "newValue", "$ref": "Runtime.CallArgument", "description": "New variable value." },
                     { "name": "callFrameId", "$ref": "CallFrameId", "description": "Id of callframe that holds variable." }
                 ],
-                "hidden": true,
                 "description": "Changes value of variable in a callframe. Object-based scopes are not supported and must be mutated manually."
-            },
-            {
-                "name": "getBacktrace",
-                "returns": [
-                    { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "Call stack the virtual machine stopped on." },
-                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }
-                ],
-                "hidden": true,
-                "description": "Returns call stack including variables changed since VM was paused. VM must be paused."
             },
             {
                 "name": "setAsyncCallStackDepth",
                 "parameters": [
                     { "name": "maxDepth", "type": "integer", "description": "Maximum depth of async call stacks. Setting to <code>0</code> will effectively disable collecting async call stacks (default)." }
                 ],
-                "hidden": true,
                 "description": "Enables or disables async call stacks tracking."
             },
             {
@@ -656,7 +695,7 @@
                 "parameters": [
                     { "name": "patterns", "type": "array", "items": { "type": "string" }, "description": "Array of regexps that will be used to check script url for blackbox state." }
                 ],
-                "hidden": true,
+                "experimental": true,
                 "description": "Replace previous blackbox patterns with passed ones. Forces backend to skip stepping/pausing in scripts with url matching one of the patterns. VM will try to leave blackboxed script by performing 'step in' several times, finally resorting to 'step out' if unsuccessful."
             },
             {
@@ -665,7 +704,7 @@
                     { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "Id of the script." },
                     { "name": "positions", "type": "array", "items": { "$ref": "ScriptPosition" } }
                 ],
-                "hidden": true,
+                "experimental": true,
                 "description": "Makes backend skip steps in the script in blackboxed ranges. VM will try leave blacklisted scripts by performing 'step in' several times, finally resorting to 'step out' if unsuccessful. Positions array contains positions where blackbox state is changed. First interval isn't blackboxed. Array should be sorted."
             }
         ],
@@ -679,14 +718,15 @@
                     { "name": "startColumn", "type": "integer", "description": "Column offset of the script within the resource with given URL." },
                     { "name": "endLine", "type": "integer", "description": "Last line of the script." },
                     { "name": "endColumn", "type": "integer", "description": "Length of the last line of the script." },
-                    { "name": "executionContextId", "$ref": "Runtime.ExecutionContextId", "description": "Specifies script creation context.", "hidden": true },
-                    { "name": "hash", "type": "string", "hidden": true, "description": "Content hash of the script."},
-                    { "name": "isContentScript", "type": "boolean", "optional": true, "description": "Determines whether this script is a user extension script." },
-                    { "name": "isInternalScript", "type": "boolean", "optional": true, "description": "Determines whether this script is an internal script.", "hidden": true },
-                    { "name": "isLiveEdit", "type": "boolean", "optional": true, "description": "True, if this script is generated as a result of the live edit operation.", "hidden": true },
+                    { "name": "executionContextId", "$ref": "Runtime.ExecutionContextId", "description": "Specifies script creation context." },
+                    { "name": "hash", "type": "string", "description": "Content hash of the script."},
+                    { "name": "executionContextAuxData", "type": "object", "optional": true, "description": "Embedder-specific auxiliary data." },
+                    { "name": "isLiveEdit", "type": "boolean", "optional": true, "description": "True, if this script is generated as a result of the live edit operation.", "experimental": true },
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
-                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "hidden": true },
-                    { "name": "deprecatedCommentWasUsed", "type": "boolean", "optional": true, "hidden": true, "description": "True, if '//@ sourceURL' or '//@ sourceMappingURL' was used."}
+                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
+                    { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true },
+                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true },
+                    { "name": "stackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "JavaScript top stack frame of where the script parsed event was triggered if available.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine parses script. This event is also fired for all known and uncollected scripts upon enabling debugger."
             },
@@ -699,13 +739,14 @@
                     { "name": "startColumn", "type": "integer", "description": "Column offset of the script within the resource with given URL." },
                     { "name": "endLine", "type": "integer", "description": "Last line of the script." },
                     { "name": "endColumn", "type": "integer", "description": "Length of the last line of the script." },
-                    { "name": "executionContextId", "$ref": "Runtime.ExecutionContextId", "description": "Specifies script creation context.", "hidden": true },
-                    { "name": "hash", "type": "string", "hidden": true, "description": "Content hash of the script."},
-                    { "name": "isContentScript", "type": "boolean", "optional": true, "description": "Determines whether this script is a user extension script." },
-                    { "name": "isInternalScript", "type": "boolean", "optional": true, "description": "Determines whether this script is an internal script.", "hidden": true },
+                    { "name": "executionContextId", "$ref": "Runtime.ExecutionContextId", "description": "Specifies script creation context." },
+                    { "name": "hash", "type": "string", "description": "Content hash of the script."},
+                    { "name": "executionContextAuxData", "type": "object", "optional": true, "description": "Embedder-specific auxiliary data." },
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
-                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "hidden": true },
-                    { "name": "deprecatedCommentWasUsed", "type": "boolean", "optional": true, "hidden": true, "description": "True, if '//@ sourceURL' or '//@ sourceMappingURL' was used."}
+                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
+                    { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true },
+                    { "name": "length", "type": "integer", "optional": true, "description": "This script length.", "experimental": true },
+                    { "name": "stackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "JavaScript top stack frame of where the script parsed event was triggered if available.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine fails to parse the script."
             },
@@ -721,10 +762,10 @@
                 "name": "paused",
                 "parameters": [
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "Call stack the virtual machine stopped on." },
-                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "other" ], "description": "Pause reason.", "exported": true },
+                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "OOM", "other", "ambiguous" ], "description": "Pause reason." },
                     { "name": "data", "type": "object", "optional": true, "description": "Object containing break-specific auxiliary properties." },
-                    { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs", "hidden": true },
-                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any.", "hidden": true }
+                    { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs" },
+                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }
                 ],
                 "description": "Fired when the virtual machine stopped on breakpoint or exception or any other stop criteria."
             },
@@ -775,61 +816,78 @@
                     { "name": "message", "$ref": "ConsoleMessage", "description": "Console message that has been added." }
                 ],
                 "description": "Issued when new console message is added."
-            },
-            {
-                "name": "messageRepeatCountUpdated",
-                "parameters": [
-                    { "name": "count", "type": "integer", "description": "New repeat count value." },
-                    { "name": "timestamp", "$ref": "Runtime.Timestamp", "description": "Timestamp of most recent message in batch.", "hidden": true }
-                ],
-                "description": "Not issued.",
-                "deprecated": true
-            },
-            {
-                "name": "messagesCleared",
-                "description": "Not issued.",
-                "deprecated": true
             }
         ]
     },
     {
         "domain": "Profiler",
         "dependencies": ["Runtime", "Debugger"],
-        "hidden": true,
         "types": [
             {
-                "id": "CPUProfileNode",
+                "id": "ProfileNode",
                 "type": "object",
-                "description": "CPU Profile node. Holds callsite information, execution statistics and child nodes.",
+                "description": "Profile node. Holds callsite information, execution statistics and child nodes.",
                 "properties": [
-                    { "name": "callFrame", "$ref": "Runtime.CallFrame", "description": "Function location." },
-                    { "name": "hitCount", "type": "integer", "description": "Number of samples where this node was on top of the call stack." },
-                    { "name": "children", "type": "array", "items": { "$ref": "CPUProfileNode" }, "description": "Child nodes." },
-                    { "name": "deoptReason", "type": "string", "description": "The reason of being not optimized. The function may be deoptimized or marked as don't optimize."},
                     { "name": "id", "type": "integer", "description": "Unique id of the node." },
-                    { "name": "positionTicks", "type": "array", "items": { "$ref": "PositionTickInfo" }, "description": "An array of source position ticks." }
+                    { "name": "callFrame", "$ref": "Runtime.CallFrame", "description": "Function location." },
+                    { "name": "hitCount", "type": "integer", "optional": true, "experimental": true, "description": "Number of samples where this node was on top of the call stack." },
+                    { "name": "children", "type": "array", "items": { "type": "integer" }, "optional": true, "description": "Child node ids." },
+                    { "name": "deoptReason", "type": "string", "optional": true, "description": "The reason of being not optimized. The function may be deoptimized or marked as don't optimize."},
+                    { "name": "positionTicks", "type": "array", "items": { "$ref": "PositionTickInfo" }, "optional": true, "experimental": true, "description": "An array of source position ticks." }
                 ]
             },
             {
-                "id": "CPUProfile",
+                "id": "Profile",
                 "type": "object",
                 "description": "Profile.",
                 "properties": [
-                    { "name": "head", "$ref": "CPUProfileNode" },
-                    { "name": "startTime", "type": "number", "description": "Profiling start time in seconds." },
-                    { "name": "endTime", "type": "number", "description": "Profiling end time in seconds." },
+                    { "name": "nodes", "type": "array", "items": { "$ref": "ProfileNode" }, "description": "The list of profile nodes. First item is the root node." },
+                    { "name": "startTime", "type": "number", "description": "Profiling start timestamp in microseconds." },
+                    { "name": "endTime", "type": "number", "description": "Profiling end timestamp in microseconds." },
                     { "name": "samples", "optional": true, "type": "array", "items": { "type": "integer" }, "description": "Ids of samples top nodes." },
-                    { "name": "timestamps", "optional": true, "type": "array", "items": { "type": "number" }, "description": "Timestamps of the samples in microseconds." }
+                    { "name": "timeDeltas", "optional": true, "type": "array", "items": { "type": "integer" }, "description": "Time intervals between adjacent samples in microseconds. The first delta is relative to the profile startTime." }
                 ]
             },
             {
                 "id": "PositionTickInfo",
                 "type": "object",
+                "experimental": true,
                 "description": "Specifies a number of samples attributed to a certain source position.",
                 "properties": [
                     { "name": "line", "type": "integer", "description": "Source line number (1-based)." },
                     { "name": "ticks", "type": "integer", "description": "Number of samples attributed to the source line." }
                 ]
+            },
+            {   "id": "CoverageRange",
+                "type": "object",
+                "description": "Coverage data for a source range.",
+                "properties": [
+                    { "name": "startOffset", "type": "integer", "description": "JavaScript script source offset for the range start." },
+                    { "name": "endOffset", "type": "integer", "description": "JavaScript script source offset for the range end." },
+                    { "name": "count", "type": "integer", "description": "Collected execution count of the source range." }
+                ],
+                "experimental": true
+            },
+            {   "id": "FunctionCoverage",
+                "type": "object",
+                "description": "Coverage data for a JavaScript function.",
+                "properties": [
+                    { "name": "functionName", "type": "string", "description": "JavaScript function name." },
+                    { "name": "ranges", "type": "array", "items": { "$ref": "CoverageRange" }, "description": "Source ranges inside the function with coverage data." },
+                    { "name": "isBlockCoverage", "type": "boolean", "description": "Whether coverage data for this function has block granularity." }
+                ],
+                "experimental": true
+            },
+            {
+                "id": "ScriptCoverage",
+                "type": "object",
+                "description": "Coverage data for a JavaScript script.",
+                "properties": [
+                    { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "JavaScript script id." },
+                    { "name": "url", "type": "string", "description": "JavaScript script name or url." },
+                    { "name": "functions", "type": "array", "items": { "$ref": "FunctionCoverage" }, "description": "Functions contained in the script that has coverage data." }
+                ],
+                "experimental": true
             }
         ],
         "commands": [
@@ -852,8 +910,38 @@
             {
                 "name": "stop",
                 "returns": [
-                    { "name": "profile", "$ref": "CPUProfile", "description": "Recorded profile." }
+                    { "name": "profile", "$ref": "Profile", "description": "Recorded profile." }
                 ]
+            },
+            {
+                "name": "startPreciseCoverage",
+                "parameters": [
+                    { "name": "callCount", "type": "boolean", "optional": true, "description": "Collect accurate call counts beyond simple 'covered' or 'not covered'." },
+                    { "name": "detailed", "type": "boolean", "optional": true, "description": "Collect block-based coverage." }
+                ],
+                "description": "Enable precise code coverage. Coverage data for JavaScript executed before enabling precise code coverage may be incomplete. Enabling prevents running optimized code and resets execution counters.",
+                "experimental": true
+            },
+            {
+                "name": "stopPreciseCoverage",
+                "description": "Disable precise code coverage. Disabling releases unnecessary execution count records and allows executing optimized code.",
+                "experimental": true
+            },
+            {
+                "name": "takePreciseCoverage",
+                "returns": [
+                    { "name": "result", "type": "array", "items": { "$ref": "ScriptCoverage" }, "description": "Coverage data for the current isolate." }
+                ],
+                "description": "Collect coverage data for the current isolate, and resets execution counters. Precise code coverage needs to have started.",
+                "experimental": true
+            },
+            {
+                "name": "getBestEffortCoverage",
+                "returns": [
+                    { "name": "result", "type": "array", "items": { "$ref": "ScriptCoverage" }, "description": "Coverage data for the current isolate." }
+                ],
+                "description": "Collect coverage data for the current isolate. The coverage data may be incomplete due to garbage collection.",
+                "experimental": true
             }
         ],
         "events": [
@@ -862,17 +950,17 @@
                 "parameters": [
                     { "name": "id", "type": "string" },
                     { "name": "location", "$ref": "Debugger.Location", "description": "Location of console.profile()." },
-                    { "name": "title", "type": "string", "optional": true, "description": "Profile title passed as argument to console.profile()." }
+                    { "name": "title", "type": "string", "optional": true, "description": "Profile title passed as an argument to console.profile()." }
                 ],
-                "description": "Sent when new profile recodring is started using console.profile() call."
+                "description": "Sent when new profile recording is started using console.profile() call."
             },
             {
                 "name": "consoleProfileFinished",
                 "parameters": [
                     { "name": "id", "type": "string" },
                     { "name": "location", "$ref": "Debugger.Location", "description": "Location of console.profileEnd()." },
-                    { "name": "profile", "$ref": "CPUProfile" },
-                    { "name": "title", "type": "string", "optional": true, "description": "Profile title passed as argunet to console.profile()." }
+                    { "name": "profile", "$ref": "Profile" },
+                    { "name": "title", "type": "string", "optional": true, "description": "Profile title passed as an argument to console.profile()." }
                 ]
             }
         ]
@@ -880,7 +968,7 @@
     {
         "domain": "HeapProfiler",
         "dependencies": ["Runtime"],
-        "hidden": true,
+        "experimental": true,
         "types": [
             {
                 "id": "HeapSnapshotObjectId",
@@ -993,7 +1081,7 @@
             },
             {
                 "name": "lastSeenObjectId",
-                "description": "If heap objects tracking has been started then backend regulary sends a current value for last seen object id and corresponding timestamp. If the were changes in the heap since last event then one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
+                "description": "If heap objects tracking has been started then backend regularly sends a current value for last seen object id and corresponding timestamp. If the were changes in the heap since last event then one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
                 "parameters": [
                     { "name": "lastSeenObjectId", "type": "integer" },
                     { "name": "timestamp", "type": "number" }

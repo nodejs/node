@@ -8,8 +8,7 @@
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/type-info.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -29,11 +28,11 @@ class AstExpressionRewriter : public AstVisitor<AstExpressionRewriter> {
   }
   virtual ~AstExpressionRewriter() {}
 
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  virtual void VisitDeclarations(Declaration::List* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 
-  virtual void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
+  virtual void VisitLiteralProperty(LiteralProperty* property);
 
  protected:
   virtual bool RewriteExpression(Expression* expr) = 0;

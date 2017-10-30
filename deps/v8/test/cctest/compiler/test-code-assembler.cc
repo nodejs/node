@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/code-assembler.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -11,11 +13,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef CodeAssemblerTesterImpl<CodeAssembler> CodeAssemblerTester;
-
 namespace {
 
-Node* SmiTag(CodeAssemblerTester& m, Node* value) {
+typedef CodeAssemblerLabel Label;
+typedef CodeAssemblerVariable Variable;
+
+Node* SmiTag(CodeAssembler& m, Node* value) {
   int32_t constant_value;
   if (m.ToInt32Constant(value, constant_value) &&
       Smi::IsValid(constant_value)) {
@@ -24,36 +27,44 @@ Node* SmiTag(CodeAssemblerTester& m, Node* value) {
   return m.WordShl(value, m.IntPtrConstant(kSmiShiftSize + kSmiTagSize));
 }
 
-Node* UndefinedConstant(CodeAssemblerTester& m) {
+Node* UndefinedConstant(CodeAssembler& m) {
   return m.LoadRoot(Heap::kUndefinedValueRootIndex);
 }
 
-Node* LoadObjectField(CodeAssemblerTester& m, Node* object, int offset,
+Node* SmiFromWord32(CodeAssembler& m, Node* value) {
+  value = m.ChangeInt32ToIntPtr(value);
+  return m.BitcastWordToTaggedSigned(
+      m.WordShl(value, kSmiShiftSize + kSmiTagSize));
+}
+
+Node* LoadObjectField(CodeAssembler& m, Node* object, int offset,
                       MachineType rep = MachineType::AnyTagged()) {
   return m.Load(rep, object, m.IntPtrConstant(offset - kHeapObjectTag));
+}
+
+Node* LoadMap(CodeAssembler& m, Node* object) {
+  return LoadObjectField(m, object, JSObject::kMapOffset);
 }
 
 }  // namespace
 
 TEST(SimpleSmiReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   m.Return(SmiTag(m, m.Int32Constant(37)));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(37, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(37, ft.CallChecked<Smi>()->value());
 }
 
 TEST(SimpleIntPtrReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   int test;
-  m.Return(m.IntPtrConstant(reinterpret_cast<intptr_t>(&test)));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
+  m.Return(m.BitcastWordToTagged(
+      m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
+  FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(reinterpret_cast<intptr_t>(&test),
            reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
@@ -61,67 +72,57 @@ TEST(SimpleIntPtrReturn) {
 
 TEST(SimpleDoubleReturn) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   m.Return(m.NumberConstant(0.5));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0.5, Handle<HeapNumber>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(0.5, ft.CallChecked<HeapNumber>()->value());
 }
 
 TEST(SimpleCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
   m.Return(m.CallRuntime(Runtime::kNumberToSmi, context, b));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(0, ft.CallChecked<Smi>()->value());
 }
 
 TEST(SimpleTailCallRuntime1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* b = SmiTag(m, m.Int32Constant(0));
   m.TailCallRuntime(Runtime::kNumberToSmi, context, b);
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(0, ft.CallChecked<Smi>()->value());
 }
 
 TEST(SimpleCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
 }
 
 TEST(SimpleTailCallRuntime2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
   Node* a = SmiTag(m, m.Int32Constant(2));
   Node* b = SmiTag(m, m.Int32Constant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(descriptor, code);
-  MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(6, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  FunctionTester ft(asm_tester.GenerateCode());
+  CHECK_EQ(6, ft.CallChecked<Smi>()->value());
 }
 
 namespace {
@@ -143,7 +144,8 @@ Handle<JSFunction> CreateSumAllArgumentsFunction(FunctionTester& ft) {
 TEST(SimpleCallJSFunction0Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
-  CodeAssemblerTester m(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(kNumParams + 2);
@@ -154,8 +156,7 @@ TEST(SimpleCallJSFunction0Arg) {
     Node* result = m.CallJS(callable, context, function, receiver);
     m.Return(result);
   }
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, kNumParams);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -165,7 +166,8 @@ TEST(SimpleCallJSFunction0Arg) {
 TEST(SimpleCallJSFunction1Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester m(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(1);
@@ -177,8 +179,7 @@ TEST(SimpleCallJSFunction1Arg) {
     Node* result = m.CallJS(callable, context, function, receiver, a);
     m.Return(result);
   }
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, kNumParams);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -188,7 +189,8 @@ TEST(SimpleCallJSFunction1Arg) {
 TEST(SimpleCallJSFunction2Arg) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
-  CodeAssemblerTester m(isolate, kNumParams);
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
   {
     Node* function = m.Parameter(0);
     Node* context = m.Parameter(1);
@@ -201,8 +203,7 @@ TEST(SimpleCallJSFunction2Arg) {
     Node* result = m.CallJS(callable, context, function, receiver, a, b);
     m.Return(result);
   }
-  Handle<Code> code = m.GenerateCode();
-  FunctionTester ft(code, kNumParams);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<JSFunction> sum = CreateSumAllArgumentsFunction(ft);
   MaybeHandle<Object> result = ft.Call(sum);
@@ -211,10 +212,10 @@ TEST(SimpleCallJSFunction2Arg) {
 
 TEST(VariableMerge1) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Variable var1(&m, MachineRepresentation::kTagged);
+  Label l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -230,10 +231,10 @@ TEST(VariableMerge1) {
 
 TEST(VariableMerge2) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Variable var1(&m, MachineRepresentation::kTagged);
+  Label l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -251,11 +252,11 @@ TEST(VariableMerge2) {
 
 TEST(VariableMerge3) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Variable var2(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Variable var1(&m, MachineRepresentation::kTagged);
+  Variable var2(&m, MachineRepresentation::kTagged);
+  Label l1(&m), l2(&m), merge(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   var2.Bind(temp);
@@ -276,10 +277,10 @@ TEST(VariableMerge3) {
 
 TEST(VariableMergeBindFirst) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Variable var1(&m, MachineRepresentation::kTagged);
+  Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
   m.Branch(m.Int32Constant(1), &l1, &l2);
@@ -302,11 +303,11 @@ TEST(VariableMergeBindFirst) {
 
 TEST(VariableMergeSwitch) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
-  CodeStubAssembler::Label l1(&m), l2(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Variable var1(&m, MachineRepresentation::kTagged);
+  Label l1(&m), l2(&m), default_label(&m);
+  Label* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   Node* temp = m.Int32Constant(0);
   var1.Bind(temp);
@@ -324,22 +325,22 @@ TEST(VariableMergeSwitch) {
 
 TEST(SplitEdgeBranchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Label l1(&m), merge(&m);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Label l1(&m), merge(&m);
   m.Branch(m.Int32Constant(1), &l1, &merge);
   m.Bind(&l1);
   m.Goto(&merge);
   m.Bind(&merge);
-  USE(m.GenerateCode());
+  USE(asm_tester.GenerateCode());
 }
 
 TEST(SplitEdgeSwitchMerge) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
-  CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
-  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
+  Label l1(&m), l2(&m), l3(&m), default_label(&m);
+  Label* labels[] = {&l1, &l2};
   int32_t values[] = {1, 2};
   m.Branch(m.Int32Constant(1), &l3, &l1);
   m.Bind(&l3);
@@ -349,13 +350,13 @@ TEST(SplitEdgeSwitchMerge) {
   m.Bind(&l2);
   m.Goto(&default_label);
   m.Bind(&default_label);
-  USE(m.GenerateCode());
+  USE(asm_tester.GenerateCode());
 }
 
 TEST(TestToConstant) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   int32_t value32;
   int64_t value64;
   Node* a = m.Int32Constant(5);
@@ -380,46 +381,44 @@ TEST(TestToConstant) {
 }
 
 TEST(DeferredCodePhiHints) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Label block1(&m, Label::kDeferred);
   m.Goto(&block1);
   m.Bind(&block1);
   {
     Variable var_object(&m, MachineRepresentation::kTagged);
     Label loop(&m, &var_object);
-    var_object.Bind(m.IntPtrConstant(0));
+    var_object.Bind(m.SmiConstant(0));
     m.Goto(&loop);
     m.Bind(&loop);
     {
-      Node* map = LoadObjectField(m, var_object.value(), JSObject::kMapOffset);
+      Node* map = LoadMap(m, var_object.value());
       var_object.Bind(map);
       m.Goto(&loop);
     }
   }
-  CHECK(!m.GenerateCode().is_null());
+  CHECK(!asm_tester.GenerateCode().is_null());
 }
 
 TEST(TestOutOfScopeVariable) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
-  VoidDescriptor descriptor(isolate);
-  CodeAssemblerTester m(isolate, descriptor);
+  CodeAssemblerTester asm_tester(isolate);
+  CodeAssembler m(asm_tester.state());
   Label block1(&m);
   Label block2(&m);
   Label block3(&m);
   Label block4(&m);
-  m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block1, &block4);
+  m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
+                       m.IntPtrConstant(0)),
+           &block1, &block4);
   m.Bind(&block4);
   {
     Variable var_object(&m, MachineRepresentation::kTagged);
-    m.Branch(m.WordEqual(m.Parameter(0), m.IntPtrConstant(0)), &block2,
-             &block3);
+    m.Branch(m.WordEqual(m.UncheckedCast<IntPtrT>(m.Parameter(0)),
+                         m.IntPtrConstant(0)),
+             &block2, &block3);
 
     m.Bind(&block2);
     var_object.Bind(m.IntPtrConstant(55));
@@ -430,7 +429,126 @@ TEST(TestOutOfScopeVariable) {
     m.Goto(&block1);
   }
   m.Bind(&block1);
-  CHECK(!m.GenerateCode().is_null());
+  CHECK(!asm_tester.GenerateCode().is_null());
+}
+
+TEST(GotoIfException) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
+
+  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
+  Node* to_string_tag =
+      m.HeapConstant(isolate->factory()->to_string_tag_symbol());
+  Variable exception(&m, MachineRepresentation::kTagged);
+
+  Label exception_handler(&m);
+  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
+  Node* string = m.CallStub(to_string, context, to_string_tag);
+  m.GotoIfException(string, &exception_handler, &exception);
+  m.Return(string);
+
+  m.Bind(&exception_handler);
+  m.Return(exception.value());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result = ft.Call().ToHandleChecked();
+
+  // Should be a TypeError.
+  CHECK(result->IsJSObject());
+
+  Handle<Object> constructor =
+      Object::GetPropertyOrElement(result,
+                                   isolate->factory()->constructor_string())
+          .ToHandleChecked();
+  CHECK(constructor->SameValue(*isolate->type_error_function()));
+}
+
+TEST(GotoIfExceptionMultiple) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 4;  // receiver, first, second, third
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeAssembler m(asm_tester.state());
+
+  Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
+  Node* first_value = m.Parameter(0);
+  Node* second_value = m.Parameter(1);
+  Node* third_value = m.Parameter(2);
+
+  Label exception_handler1(&m);
+  Label exception_handler2(&m);
+  Label exception_handler3(&m);
+  Variable return_value(&m, MachineRepresentation::kWord32);
+  Variable error(&m, MachineRepresentation::kTagged);
+
+  return_value.Bind(m.Int32Constant(0));
+
+  // try { return ToString(param1) } catch (e) { ... }
+  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
+  Node* string = m.CallStub(to_string, context, first_value);
+  m.GotoIfException(string, &exception_handler1, &error);
+  m.Return(string);
+
+  // try { ToString(param2); return 7 } catch (e) { ... }
+  m.Bind(&exception_handler1);
+  return_value.Bind(m.Int32Constant(7));
+  error.Bind(UndefinedConstant(m));
+  string = m.CallStub(to_string, context, second_value);
+  m.GotoIfException(string, &exception_handler2, &error);
+  m.Return(SmiFromWord32(m, return_value.value()));
+
+  // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
+  m.Bind(&exception_handler2);
+  // Return returnValue & ~2
+  error.Bind(UndefinedConstant(m));
+  string = m.CallStub(to_string, context, third_value);
+  m.GotoIfException(string, &exception_handler3, &error);
+  m.Return(SmiFromWord32(
+      m, m.Word32And(return_value.value(),
+                     m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
+
+  m.Bind(&exception_handler3);
+  m.Return(error.value());
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Object> result;
+  // First handler does not throw, returns result of first value.
+  result = ft.Call(isolate->factory()->undefined_value(),
+                   isolate->factory()->to_string_tag_symbol())
+               .ToHandleChecked();
+  CHECK(String::cast(*result)->IsOneByteEqualTo(OneByteVector("undefined")));
+
+  // First handler returns a number.
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->undefined_value())
+               .ToHandleChecked();
+  CHECK_EQ(7, Smi::ToInt(*result));
+
+  // First handler throws, second handler returns a number.
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->to_primitive_symbol())
+               .ToHandleChecked();
+  CHECK_EQ(7 & ~2, Smi::ToInt(*result));
+
+  // First handler throws, second handler throws, third handler returns thrown
+  // value.
+  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
+                   isolate->factory()->to_primitive_symbol(),
+                   isolate->factory()->unscopables_symbol())
+               .ToHandleChecked();
+
+  // Should be a TypeError.
+  CHECK(result->IsJSObject());
+
+  Handle<Object> constructor =
+      Object::GetPropertyOrElement(result,
+                                   isolate->factory()->constructor_string())
+          .ToHandleChecked();
+  CHECK(constructor->SameValue(*isolate->type_error_function()));
 }
 
 }  // namespace compiler

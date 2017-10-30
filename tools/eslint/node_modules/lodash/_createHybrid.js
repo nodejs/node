@@ -9,12 +9,12 @@ var composeArgs = require('./_composeArgs'),
     root = require('./_root');
 
 /** Used to compose bitmasks for function metadata. */
-var BIND_FLAG = 1,
-    BIND_KEY_FLAG = 2,
-    CURRY_FLAG = 8,
-    CURRY_RIGHT_FLAG = 16,
-    ARY_FLAG = 128,
-    FLIP_FLAG = 512;
+var WRAP_BIND_FLAG = 1,
+    WRAP_BIND_KEY_FLAG = 2,
+    WRAP_CURRY_FLAG = 8,
+    WRAP_CURRY_RIGHT_FLAG = 16,
+    WRAP_ARY_FLAG = 128,
+    WRAP_FLIP_FLAG = 512;
 
 /**
  * Creates a function that wraps `func` to invoke it with optional `this`
@@ -36,11 +36,11 @@ var BIND_FLAG = 1,
  * @returns {Function} Returns the new wrapped function.
  */
 function createHybrid(func, bitmask, thisArg, partials, holders, partialsRight, holdersRight, argPos, ary, arity) {
-  var isAry = bitmask & ARY_FLAG,
-      isBind = bitmask & BIND_FLAG,
-      isBindKey = bitmask & BIND_KEY_FLAG,
-      isCurried = bitmask & (CURRY_FLAG | CURRY_RIGHT_FLAG),
-      isFlip = bitmask & FLIP_FLAG,
+  var isAry = bitmask & WRAP_ARY_FLAG,
+      isBind = bitmask & WRAP_BIND_FLAG,
+      isBindKey = bitmask & WRAP_BIND_KEY_FLAG,
+      isCurried = bitmask & (WRAP_CURRY_FLAG | WRAP_CURRY_RIGHT_FLAG),
+      isFlip = bitmask & WRAP_FLIP_FLAG,
       Ctor = isBindKey ? undefined : createCtor(func);
 
   function wrapper() {

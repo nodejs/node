@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -20,7 +21,7 @@ const DEFAULT_OPTIONS = Object.freeze({
     objects: "never",
     imports: "never",
     exports: "never",
-    functions: "ignore",
+    functions: "ignore"
 });
 
 /**
@@ -53,7 +54,7 @@ function normalizeOptions(optionValue) {
             exports: optionValue,
 
             // For backward compatibility, always ignore functions.
-            functions: "ignore",
+            functions: "ignore"
         };
     }
     if (typeof optionValue === "object" && optionValue !== null) {
@@ -62,7 +63,7 @@ function normalizeOptions(optionValue) {
             objects: optionValue.objects || DEFAULT_OPTIONS.objects,
             imports: optionValue.imports || DEFAULT_OPTIONS.imports,
             exports: optionValue.exports || DEFAULT_OPTIONS.exports,
-            functions: optionValue.functions || DEFAULT_OPTIONS.functions,
+            functions: optionValue.functions || DEFAULT_OPTIONS.functions
         };
     }
 
@@ -80,49 +81,49 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
         fixable: "code",
-
-        schema: [
-            {
-                defs: {
-                    value: {
-                        enum: [
-                            "always",
-                            "always-multiline",
-                            "only-multiline",
-                            "never"
-                        ]
-                    },
-                    valueWithIgnore: {
-                        anyOf: [
-                            {
-                                $ref: "#/defs/value"
-                            },
-                            {
-                                enum: ["ignore"]
-                            }
-                        ]
-                    }
+        schema: {
+            definitions: {
+                value: {
+                    enum: [
+                        "always-multiline",
+                        "always",
+                        "never",
+                        "only-multiline"
+                    ]
                 },
-                anyOf: [
-                    {
-                        $ref: "#/defs/value"
-                    },
-                    {
-                        type: "object",
-                        properties: {
-                            arrays: {$refs: "#/defs/valueWithIgnore"},
-                            objects: {$refs: "#/defs/valueWithIgnore"},
-                            imports: {$refs: "#/defs/valueWithIgnore"},
-                            exports: {$refs: "#/defs/valueWithIgnore"},
-                            functions: {$refs: "#/defs/valueWithIgnore"}
-                        },
-                        additionalProperties: false
-                    }
-                ]
+                valueWithIgnore: {
+                    enum: [
+                        "always-multiline",
+                        "always",
+                        "ignore",
+                        "never",
+                        "only-multiline"
+                    ]
+                }
             },
-        ]
+            type: "array",
+            items: [
+                {
+                    oneOf: [
+                        {
+                            $ref: "#/definitions/value"
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                arrays: { $ref: "#/definitions/valueWithIgnore" },
+                                objects: { $ref: "#/definitions/valueWithIgnore" },
+                                imports: { $ref: "#/definitions/valueWithIgnore" },
+                                exports: { $ref: "#/definitions/valueWithIgnore" },
+                                functions: { $ref: "#/definitions/valueWithIgnore" }
+                            },
+                            additionalProperties: false
+                        }
+                    ]
+                }
+            ]
+        }
     },
 
     create(context) {
@@ -171,19 +172,14 @@ module.exports = {
         function getTrailingToken(node, lastItem) {
             switch (node.type) {
                 case "ObjectExpression":
-                case "ObjectPattern":
                 case "ArrayExpression":
-                case "ArrayPattern":
                 case "CallExpression":
                 case "NewExpression":
                     return sourceCode.getLastToken(node, 1);
-                case "FunctionDeclaration":
-                case "FunctionExpression":
-                    return sourceCode.getTokenBefore(node.body, 1);
                 default: {
                     const nextToken = sourceCode.getTokenAfter(lastItem);
 
-                    if (nextToken.value === ",") {
+                    if (astUtils.isCommaToken(nextToken)) {
                         return nextToken;
                     }
                     return sourceCode.getLastToken(lastItem);
@@ -229,7 +225,7 @@ module.exports = {
 
             const trailingToken = getTrailingToken(node, lastItem);
 
-            if (trailingToken.value === ",") {
+            if (astUtils.isCommaToken(trailingToken)) {
                 context.report({
                     node: lastItem,
                     loc: trailingToken.loc.start,
@@ -317,7 +313,7 @@ module.exports = {
             "always-multiline": forceTrailingCommaIfMultiline,
             "only-multiline": allowTrailingCommaIfMultiline,
             never: forbidTrailingComma,
-            ignore: lodash.noop,
+            ignore: lodash.noop
         };
 
         return {
@@ -335,7 +331,7 @@ module.exports = {
             FunctionExpression: predicate[options.functions],
             ArrowFunctionExpression: predicate[options.functions],
             CallExpression: predicate[options.functions],
-            NewExpression: predicate[options.functions],
+            NewExpression: predicate[options.functions]
         };
     }
 };

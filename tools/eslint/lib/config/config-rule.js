@@ -9,9 +9,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const rules = require("../rules"),
+const Rules = require("../rules"),
     loadRules = require("../load-rules");
 
+const rules = new Rules();
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -23,7 +24,7 @@ const rules = require("../rules"),
  * @returns {Array[]}    An array of arrays.
  */
 function explodeArray(xs) {
-    return xs.reduce(function(accumulator, x) {
+    return xs.reduce((accumulator, x) => {
         accumulator.push([x]);
         return accumulator;
     }, []);
@@ -49,8 +50,8 @@ function combineArrays(arr1, arr2) {
     if (arr2.length === 0) {
         return explodeArray(arr1);
     }
-    arr1.forEach(function(x1) {
-        arr2.forEach(function(x2) {
+    arr1.forEach(x1 => {
+        arr2.forEach(x2 => {
             res.push([].concat(x1, x2));
         });
     });
@@ -78,16 +79,14 @@ function combineArrays(arr1, arr2) {
  * @returns {Array[]}          Array of arrays of objects grouped by property
  */
 function groupByProperty(objects) {
-    const groupedObj = objects.reduce(function(accumulator, obj) {
+    const groupedObj = objects.reduce((accumulator, obj) => {
         const prop = Object.keys(obj)[0];
 
         accumulator[prop] = accumulator[prop] ? accumulator[prop].concat(obj) : [obj];
         return accumulator;
     }, {});
 
-    return Object.keys(groupedObj).map(function(prop) {
-        return groupedObj[prop];
-    });
+    return Object.keys(groupedObj).map(prop => groupedObj[prop]);
 }
 
 
@@ -152,16 +151,16 @@ function combinePropertyObjects(objArr1, objArr2) {
     if (objArr2.length === 0) {
         return objArr1;
     }
-    objArr1.forEach(function(obj1) {
-        objArr2.forEach(function(obj2) {
+    objArr1.forEach(obj1 => {
+        objArr2.forEach(obj2 => {
             const combinedObj = {};
             const obj1Props = Object.keys(obj1);
             const obj2Props = Object.keys(obj2);
 
-            obj1Props.forEach(function(prop1) {
+            obj1Props.forEach(prop1 => {
                 combinedObj[prop1] = obj1[prop1];
             });
-            obj2Props.forEach(function(prop2) {
+            obj2Props.forEach(prop2 => {
                 combinedObj[prop2] = obj2[prop2];
             });
             res.push(combinedObj);
@@ -170,30 +169,29 @@ function combinePropertyObjects(objArr1, objArr2) {
     return res;
 }
 
- /**
-  * Creates a new instance of a rule configuration set
-  *
-  * A rule configuration set is an array of configurations that are valid for a
-  * given rule.  For example, the configuration set for the "semi" rule could be:
-  *
-  * ruleConfigSet.ruleConfigs // -> [[2], [2, "always"], [2, "never"]]
-  *
-  * @param {ruleConfig[]} configs Valid rule configurations
-  * @constructor
-  */
-function RuleConfigSet(configs) {
+/**
+ * Creates a new instance of a rule configuration set
+ *
+ * A rule configuration set is an array of configurations that are valid for a
+ * given rule.  For example, the configuration set for the "semi" rule could be:
+ *
+ * ruleConfigSet.ruleConfigs // -> [[2], [2, "always"], [2, "never"]]
+ *
+ * Rule configuration set class
+ */
+class RuleConfigSet {
 
     /**
-    * Stored valid rule configurations for this instance
-    * @type {array}
-    */
-    this.ruleConfigs = configs || [];
+     * @param {ruleConfig[]} configs Valid rule configurations
+     */
+    constructor(configs) {
 
-}
-
-RuleConfigSet.prototype = {
-
-    constructor: RuleConfigSet,
+        /**
+        * Stored valid rule configurations for this instance
+        * @type {array}
+        */
+        this.ruleConfigs = configs || [];
+    }
 
     /**
     * Add a severity level to the front of all configs in the instance.
@@ -205,14 +203,14 @@ RuleConfigSet.prototype = {
     addErrorSeverity(severity) {
         severity = severity || 2;
 
-        this.ruleConfigs = this.ruleConfigs.map(function(config) {
+        this.ruleConfigs = this.ruleConfigs.map(config => {
             config.unshift(severity);
             return config;
         });
 
         // Add a single config at the beginning consisting of only the severity
         this.ruleConfigs.unshift(severity);
-    },
+    }
 
     /**
     * Add rule configs from an array of strings (schema enums)
@@ -221,12 +219,12 @@ RuleConfigSet.prototype = {
     */
     addEnums(enums) {
         this.ruleConfigs = this.ruleConfigs.concat(combineArrays(this.ruleConfigs, enums));
-    },
+    }
 
     /**
     * Add rule configurations from a schema object
     * @param  {Object} obj Schema item with type === "object"
-    * @returns {void}
+    * @returns {boolean} true if at least one schema for the object could be generated, false otherwise
     */
     addObject(obj) {
         const objectConfigSet = {
@@ -241,9 +239,7 @@ RuleConfigSet.prototype = {
             },
 
             combine() {
-                this.objectConfigs = groupByProperty(this.objectConfigs).reduce(function(accumulator, objArr) {
-                    return combinePropertyObjects(accumulator, objArr);
-                }, []);
+                this.objectConfigs = groupByProperty(this.objectConfigs).reduce((accumulator, objArr) => combinePropertyObjects(accumulator, objArr), []);
             }
         };
 
@@ -251,7 +247,7 @@ RuleConfigSet.prototype = {
          * The object schema could have multiple independent properties.
          * If any contain enums or booleans, they can be added and then combined
          */
-        Object.keys(obj.properties).forEach(function(prop) {
+        Object.keys(obj.properties).forEach(prop => {
             if (obj.properties[prop].enum) {
                 objectConfigSet.add(prop, obj.properties[prop].enum);
             }
@@ -263,9 +259,12 @@ RuleConfigSet.prototype = {
 
         if (objectConfigSet.objectConfigs.length > 0) {
             this.ruleConfigs = this.ruleConfigs.concat(combineArrays(this.ruleConfigs, objectConfigSet.objectConfigs));
+            return true;
         }
+
+        return false;
     }
-};
+}
 
 /**
 * Generate valid rule configurations based on a schema object
@@ -276,20 +275,21 @@ function generateConfigsFromSchema(schema) {
     const configSet = new RuleConfigSet();
 
     if (Array.isArray(schema)) {
-        schema.forEach(function(opt) {
+        for (const opt of schema) {
             if (opt.enum) {
                 configSet.addEnums(opt.enum);
-            }
+            } else if (opt.type && opt.type === "object") {
+                if (!configSet.addObject(opt)) {
+                    break;
+                }
 
-            if (opt.type && opt.type === "object") {
-                configSet.addObject(opt);
-            }
+            // TODO (IanVS): support oneOf
+            } else {
 
-            if (opt.oneOf) {
-
-                // TODO (IanVS): not yet implemented
+                // If we don't know how to fill in this option, don't fill in any of the following options.
+                break;
             }
-        });
+        }
     }
     configSet.addErrorSeverity();
     return configSet.ruleConfigs;
@@ -302,7 +302,7 @@ function generateConfigsFromSchema(schema) {
 function createCoreRuleConfigs() {
     const ruleList = loadRules();
 
-    return Object.keys(ruleList).reduce(function(accumulator, id) {
+    return Object.keys(ruleList).reduce((accumulator, id) => {
         const rule = rules.get(id);
         const schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
 

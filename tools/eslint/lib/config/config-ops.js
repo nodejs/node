@@ -9,7 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const Environments = require("./environments");
+const minimatch = require("minimatch"),
+    path = require("path");
 
 const debug = require("debug")("eslint:config-ops");
 
@@ -18,7 +19,7 @@ const debug = require("debug")("eslint:config-ops");
 //------------------------------------------------------------------------------
 
 const RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
-    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
+    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce((map, value, index) => {
         map[value] = index;
         return map;
     }, {}),
@@ -46,10 +47,11 @@ module.exports = {
     /**
      * Creates an environment config based on the specified environments.
      * @param {Object<string,boolean>} env The environment settings.
+     * @param {Environments} envContext The environment context.
      * @returns {Object} A configuration object with the appropriate rules and globals
      *      set.
      */
-    createEnvironmentConfig(env) {
+    createEnvironmentConfig(env, envContext) {
 
         const envConfig = this.createEmptyConfig();
 
@@ -57,10 +59,8 @@ module.exports = {
 
             envConfig.env = env;
 
-            Object.keys(env).filter(function(name) {
-                return env[name];
-            }).forEach(function(name) {
-                const environment = Environments.get(name);
+            Object.keys(env).filter(name => env[name]).forEach(name => {
+                const environment = envContext.get(name);
 
                 if (environment) {
                     debug(`Creating config for environment ${name}`);
@@ -82,12 +82,13 @@ module.exports = {
      * Given a config with environment settings, applies the globals and
      * ecmaFeatures to the configuration and returns the result.
      * @param {Object} config The configuration information.
+     * @param {Environments} envContent env context.
      * @returns {Object} The updated configuration information.
      */
-    applyEnvironments(config) {
+    applyEnvironments(config, envContent) {
         if (config.env && typeof config.env === "object") {
             debug("Apply environment settings to config");
-            return this.merge(this.createEnvironmentConfig(config.env), config);
+            return this.merge(this.createEnvironmentConfig(config.env, envContent), config);
         }
 
         return config;
@@ -149,7 +150,7 @@ module.exports = {
             if (typeof src !== "object" && !Array.isArray(src)) {
                 src = [src];
             }
-            Object.keys(src).forEach(function(e, i) {
+            Object.keys(src).forEach((e, i) => {
                 e = src[i];
                 if (typeof dst[i] === "undefined") {
                     dst[i] = e;
@@ -171,13 +172,15 @@ module.exports = {
             });
         } else {
             if (target && typeof target === "object") {
-                Object.keys(target).forEach(function(key) {
+                Object.keys(target).forEach(key => {
                     dst[key] = target[key];
                 });
             }
-            Object.keys(src).forEach(function(key) {
-                if (Array.isArray(src[key]) || Array.isArray(target[key])) {
-                    dst[key] = deepmerge(target[key], src[key], key === "plugins", isRule);
+            Object.keys(src).forEach(key => {
+                if (key === "overrides") {
+                    dst[key] = (target[key] || []).concat(src[key] || []);
+                } else if (Array.isArray(src[key]) || Array.isArray(target[key])) {
+                    dst[key] = deepmerge(target[key], src[key], key === "plugins" || key === "extends", isRule);
                 } else if (typeof src[key] !== "object" || !src[key] || key === "exported" || key === "astGlobals") {
                     dst[key] = src[key];
                 } else {
@@ -190,25 +193,25 @@ module.exports = {
     },
 
     /**
-     * Converts new-style severity settings (off, warn, error) into old-style
-     * severity settings (0, 1, 2) for all rules. Assumption is that severity
-     * values have already been validated as correct.
-     * @param {Object} config The config object to normalize.
-     * @returns {void}
+     * Normalizes the severity value of a rule's configuration to a number
+     * @param {(number|string|[number, ...*]|[string, ...*])} ruleConfig A rule's configuration value, generally
+     * received from the user. A valid config value is either 0, 1, 2, the string "off" (treated the same as 0),
+     * the string "warn" (treated the same as 1), the string "error" (treated the same as 2), or an array
+     * whose first element is one of the above values. Strings are matched case-insensitively.
+     * @returns {(0|1|2)} The numeric severity value if the config value was valid, otherwise 0.
      */
-    normalize(config) {
+    getRuleSeverity(ruleConfig) {
+        const severityValue = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
-        if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
-                const ruleConfig = config.rules[ruleId];
-
-                if (typeof ruleConfig === "string") {
-                    config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
-                } else if (Array.isArray(ruleConfig) && typeof ruleConfig[0] === "string") {
-                    ruleConfig[0] = RULE_SEVERITY[ruleConfig[0].toLowerCase()] || 0;
-                }
-            });
+        if (severityValue === 0 || severityValue === 1 || severityValue === 2) {
+            return severityValue;
         }
+
+        if (typeof severityValue === "string") {
+            return RULE_SEVERITY[severityValue.toLowerCase()] || 0;
+        }
+
+        return 0;
     },
 
     /**
@@ -221,7 +224,7 @@ module.exports = {
     normalizeToStrings(config) {
 
         if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
+            Object.keys(config.rules).forEach(ruleId => {
                 const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "number") {
@@ -269,8 +272,112 @@ module.exports = {
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isEverySeverityValid(config) {
-        return Object.keys(config).every(function(ruleId) {
-            return this.isValidSeverity(config[ruleId]);
-        }, this);
+        return Object.keys(config).every(ruleId => this.isValidSeverity(config[ruleId]));
+    },
+
+    /**
+     * Merges all configurations in a given config vector. A vector is an array of objects, each containing a config
+     * file path and a list of subconfig indices that match the current file path. All config data is assumed to be
+     * cached.
+     * @param {Array<Object>} vector list of config files and their subconfig indices that match the current file path
+     * @param {Object} configCache the config cache
+     * @returns {Object} config object
+     */
+    getConfigFromVector(vector, configCache) {
+
+        const cachedConfig = configCache.getMergedVectorConfig(vector);
+
+        if (cachedConfig) {
+            return cachedConfig;
+        }
+
+        debug("Using config from partial cache");
+
+        const subvector = Array.from(vector);
+        let nearestCacheIndex = subvector.length - 1,
+            partialCachedConfig;
+
+        while (nearestCacheIndex >= 0) {
+            partialCachedConfig = configCache.getMergedVectorConfig(subvector);
+            if (partialCachedConfig) {
+                break;
+            }
+            subvector.pop();
+            nearestCacheIndex--;
+        }
+
+        if (!partialCachedConfig) {
+            partialCachedConfig = {};
+        }
+
+        let finalConfig = partialCachedConfig;
+
+        // Start from entry immediately following nearest cached config (first uncached entry)
+        for (let i = nearestCacheIndex + 1; i < vector.length; i++) {
+            finalConfig = this.mergeVectorEntry(finalConfig, vector[i], configCache);
+            configCache.setMergedVectorConfig(vector.slice(0, i + 1), finalConfig);
+        }
+
+        return finalConfig;
+    },
+
+    /**
+     * Merges the config options from a single vector entry into the supplied config.
+     * @param {Object} config the base config to merge the vector entry's options into
+     * @param {Object} vectorEntry a single entry from a vector, consisting of a config file path and an array of
+     * matching override indices
+     * @param {Object} configCache the config cache
+     * @returns {Object} merged config object
+     */
+    mergeVectorEntry(config, vectorEntry, configCache) {
+        const vectorEntryConfig = Object.assign({}, configCache.getConfig(vectorEntry.filePath));
+        let mergedConfig = Object.assign({}, config),
+            overrides;
+
+        if (vectorEntryConfig.overrides) {
+            overrides = vectorEntryConfig.overrides.filter(
+                (override, overrideIndex) => vectorEntry.matchingOverrides.indexOf(overrideIndex) !== -1
+            );
+        } else {
+            overrides = [];
+        }
+
+        mergedConfig = this.merge(mergedConfig, vectorEntryConfig);
+
+        delete mergedConfig.overrides;
+
+        mergedConfig = overrides.reduce((lastConfig, override) => this.merge(lastConfig, override), mergedConfig);
+
+        if (mergedConfig.filePath) {
+            delete mergedConfig.filePath;
+            delete mergedConfig.baseDirectory;
+        } else if (mergedConfig.files) {
+            delete mergedConfig.files;
+        }
+
+        return mergedConfig;
+    },
+
+    /**
+     * Checks that the specified file path matches all of the supplied glob patterns.
+     * @param {string} filePath The file path to test patterns against
+     * @param {string|string[]} patterns One or more glob patterns, of which at least one should match the file path
+     * @param {string|string[]} [excludedPatterns] One or more glob patterns, of which none should match the file path
+     * @returns {boolean} True if all the supplied patterns match the file path, false otherwise
+     */
+    pathMatchesGlobs(filePath, patterns, excludedPatterns) {
+        const patternList = [].concat(patterns);
+        const excludedPatternList = [].concat(excludedPatterns || []);
+
+        patternList.concat(excludedPatternList).forEach(pattern => {
+            if (path.isAbsolute(pattern) || pattern.includes("..")) {
+                throw new Error(`Invalid override pattern (expected relative path not containing '..'): ${pattern}`);
+            }
+        });
+
+        const opts = { matchBase: true };
+
+        return patternList.some(pattern => minimatch(filePath, pattern, opts)) &&
+            !excludedPatternList.some(excludedPattern => minimatch(filePath, excludedPattern, opts));
     }
 };

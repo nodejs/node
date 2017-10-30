@@ -28,7 +28,7 @@ module.exports = {
 
         /**
          * Checks whether or not a given definition is a parameter's.
-         * @param {escope.DefEntry} def - A definition to check.
+         * @param {eslint-scope.DefEntry} def - A definition to check.
          * @returns {boolean} `true` if the definition is a parameter's.
          */
         function isParameter(def) {
@@ -54,7 +54,7 @@ module.exports = {
                     context.report({
                         node,
                         message: "Duplicate param '{{name}}'.",
-                        data: {name: variable.name}
+                        data: { name: variable.name }
                     });
                 }
             }

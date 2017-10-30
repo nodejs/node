@@ -25,16 +25,14 @@ namespace internal {
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*s390_regexp_matcher)(String*, int, const byte*, const byte*, int*,
-                                   int, Address, int, void*, Isolate*);
+                                   int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type ppc_regexp_matcher.
-// The ninth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
   (FUNCTION_CAST<s390_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
-                                             NULL, p8))
+                                             p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on s390 uses the C stack, we
@@ -211,7 +209,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(base::HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -233,7 +231,8 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(base::HashMap* i_cache, void* start, size_t size);
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
+                          size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_lr, end_sim_pc).
@@ -303,22 +302,11 @@ class Simulator {
 
   inline int64_t ReadDW(intptr_t addr);
   inline double ReadDouble(intptr_t addr);
+  inline float ReadFloat(intptr_t addr);
   inline void WriteDW(intptr_t addr, int64_t value);
 
   // S390
   void Trace(Instruction* instr);
-  bool DecodeTwoByte(Instruction* instr);
-  bool DecodeFourByte(Instruction* instr);
-  bool DecodeFourByteArithmetic(Instruction* instr);
-  bool DecodeFourByteArithmetic64Bit(Instruction* instr);
-  bool DecodeFourByteFloatingPoint(Instruction* instr);
-  void DecodeFourByteFloatingPointIntConversion(Instruction* instr);
-  void DecodeFourByteFloatingPointRound(Instruction* instr);
-
-  bool DecodeSixByte(Instruction* instr);
-  bool DecodeSixByteArithmetic(Instruction* instr);
-  bool S390InstructionDecode(Instruction* instr);
-  void DecodeSixByteBitShift(Instruction* instr);
 
   // Used by the CL**BR instructions.
   template <typename T1, typename T2>
@@ -445,11 +433,14 @@ class Simulator {
   void ExecuteInstruction(Instruction* instr, bool auto_incr_pc = true);
 
   // ICache.
-  static void CheckICache(base::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(base::HashMap* i_cache, intptr_t start, int size);
-  static CachePage* GetCachePage(base::HashMap* i_cache, void* page);
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
+                           int size);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(
       Isolate* isolate, void* external_function,
       v8::internal::ExternalReference::Type type);
@@ -482,7 +473,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation
-  base::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;
@@ -518,6 +509,12 @@ class Simulator {
   static void EvalTableInit();
 
 #define EVALUATE(name) int Evaluate_##name(Instruction* instr)
+#define EVALUATE_VRR_INSTRUCTIONS(name, op_name, op_value) EVALUATE(op_name);
+  S390_VRR_C_OPCODE_LIST(EVALUATE_VRR_INSTRUCTIONS)
+  S390_VRR_A_OPCODE_LIST(EVALUATE_VRR_INSTRUCTIONS)
+#undef EVALUATE_VRR_INSTRUCTIONS
+
+  EVALUATE(DUMY);
   EVALUATE(BKPT);
   EVALUATE(SPM);
   EVALUATE(BALR);
@@ -605,6 +602,7 @@ class Simulator {
   EVALUATE(OI);
   EVALUATE(XI);
   EVALUATE(LM);
+  EVALUATE(CS);
   EVALUATE(MVCLE);
   EVALUATE(CLCLE);
   EVALUATE(MC);
@@ -728,6 +726,7 @@ class Simulator {
   EVALUATE(ALSIH);
   EVALUATE(ALSIHN);
   EVALUATE(CIH);
+  EVALUATE(CLIH);
   EVALUATE(STCK);
   EVALUATE(CFC);
   EVALUATE(IPM);
@@ -747,6 +746,7 @@ class Simulator {
   EVALUATE(SAR);
   EVALUATE(EAR);
   EVALUATE(MSR);
+  EVALUATE(MSRKC);
   EVALUATE(MVST);
   EVALUATE(CUSE);
   EVALUATE(SRST);
@@ -920,6 +920,7 @@ class Simulator {
   EVALUATE(ALGR);
   EVALUATE(SLGR);
   EVALUATE(MSGR);
+  EVALUATE(MSGRKC);
   EVALUATE(DSGR);
   EVALUATE(LRVGR);
   EVALUATE(LPGFR);
@@ -1059,6 +1060,7 @@ class Simulator {
   EVALUATE(BCTG);
   EVALUATE(STY);
   EVALUATE(MSY);
+  EVALUATE(MSC);
   EVALUATE(NY);
   EVALUATE(CLY);
   EVALUATE(OY);
@@ -1129,6 +1131,7 @@ class Simulator {
   EVALUATE(SRLG);
   EVALUATE(SLLG);
   EVALUATE(CSY);
+  EVALUATE(CSG);
   EVALUATE(RLLG);
   EVALUATE(RLL);
   EVALUATE(STMG);
@@ -1254,10 +1257,9 @@ class Simulator {
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)->Call(entry, 10, (intptr_t)p0, (intptr_t)p1,     \
-                                    (intptr_t)p2, (intptr_t)p3, (intptr_t)p4,  \
-                                    (intptr_t)p5, (intptr_t)p6, (intptr_t)p7,  \
-                                    (intptr_t)NULL, (intptr_t)p8)
+  Simulator::current(isolate)->Call(                                           \
+      entry, 9, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2, (intptr_t)p3,        \
+      (intptr_t)p4, (intptr_t)p5, (intptr_t)p6, (intptr_t)p7, (intptr_t)p8)
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

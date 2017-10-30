@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  uniset_closure.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -184,7 +184,6 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
         return *this;
     }
     if (attribute & (USET_CASE_INSENSITIVE | USET_ADD_CASE_MAPPINGS)) {
-        const UCaseProps *csp = ucase_getSingleton();
         {
             UnicodeSet foldSet(*this);
             UnicodeString str;
@@ -207,7 +206,6 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
             int32_t n = getRangeCount();
             UChar32 result;
             const UChar *full;
-            int32_t locCache = 0;
 
             for (int32_t i=0; i<n; ++i) {
                 UChar32 start = getRangeStart(i);
@@ -216,22 +214,22 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
                 if (attribute & USET_CASE_INSENSITIVE) {
                     // full case closure
                     for (UChar32 cp=start; cp<=end; ++cp) {
-                        ucase_addCaseClosure(csp, cp, &sa);
+                        ucase_addCaseClosure(cp, &sa);
                     }
                 } else {
                     // add case mappings
                     // (does not add long s for regular s, or Kelvin for k, for example)
                     for (UChar32 cp=start; cp<=end; ++cp) {
-                        result = ucase_toFullLower(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullLower(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullTitle(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullTitle(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullUpper(csp, cp, NULL, NULL, &full, "", &locCache);
+                        result = ucase_toFullUpper(cp, NULL, NULL, &full, UCASE_LOC_ROOT);
                         addCaseMapping(foldSet, result, full, str);
 
-                        result = ucase_toFullFolding(csp, cp, &full, 0);
+                        result = ucase_toFullFolding(cp, &full, 0);
                         addCaseMapping(foldSet, result, full, str);
                     }
                 }
@@ -241,7 +239,7 @@ UnicodeSet& UnicodeSet::closeOver(int32_t attribute) {
                     for (int32_t j=0; j<strings->size(); ++j) {
                         str = *(const UnicodeString *) strings->elementAt(j);
                         str.foldCase();
-                        if(!ucase_addStringCaseClosure(csp, str.getBuffer(), str.length(), &sa)) {
+                        if(!ucase_addStringCaseClosure(str.getBuffer(), str.length(), &sa)) {
                             foldSet.add(str); // does not map to code points: add the folded string itself
                         }
                     }

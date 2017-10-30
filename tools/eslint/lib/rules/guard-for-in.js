@@ -33,7 +33,7 @@ module.exports = {
                 const body = node.body.type === "BlockStatement" ? node.body.body[0] : node.body;
 
                 if (body && body.type !== "IfStatement") {
-                    context.report(node, "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype.");
+                    context.report({ node, message: "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype." });
                 }
             }
         };

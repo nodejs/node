@@ -52,7 +52,7 @@ module.exports = {
             "Program:exit"(/* node */) {
                 const globalScope = context.getScope();
 
-                globalScope.through.forEach(function(ref) {
+                globalScope.through.forEach(ref => {
                     const identifier = ref.identifier;
 
                     if (!considerTypeOf && hasTypeOfOperator(identifier)) {

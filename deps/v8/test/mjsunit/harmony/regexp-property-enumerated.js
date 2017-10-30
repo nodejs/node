@@ -4,16 +4,13 @@
 
 // Flags: --harmony-regexp-property
 
-function t(re, s) { assertTrue(re.test(s)); }
-function f(re, s) { assertFalse(re.test(s)); }
+assertThrows("/\\p{Bidi_Class=L}+/u");
+assertThrows("/\\p{bc=Left_To_Right}+/u");
+assertThrows("/\\p{bc=AL}+/u");
+assertThrows("/\\p{bc=Arabic_Letter}+/u");
 
-t(/\p{Bidi_Class=L}+/u, "Is this the real life?");
-t(/\p{bc=Left_To_Right}+/u, "Is this just fantasy?");
-t(/\p{bc=AL}+/u, "السلام عليكم‎");
-t(/\p{bc=Arabic_Letter}+/u, "متشرف بمعرفتك‎");
-
-t(/\p{Line_Break=Glue}/u, "\u00A0");
-t(/\p{lb=AL}/u, "~");
+assertThrows("/\\p{Line_Break=Glue}/u");
+assertThrows("/\\p{lb=AL}/u");
 
 assertThrows("/\\p{Block=}/u");
 assertThrows("/\\p{=}/u");
@@ -22,7 +19,7 @@ assertThrows("/\\p{=Hiragana}/u");
 assertThrows("/\\p{Block=CJK=}/u");
 
 assertThrows("/\\p{Age=V8_0}/u");
-assertThrows("/\\p{General_Category=Letter}/u");
-assertThrows("/\\p{gc=L}/u");
+assertDoesNotThrow("/\\p{General_Category=Letter}/u");
+assertDoesNotThrow("/\\p{gc=L}/u");
 assertThrows("/\\p{General_Category_Mask=Letter}/u");
 assertThrows("/\\p{gcm=L}/u");

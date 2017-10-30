@@ -2692,6 +2692,7 @@ aesni_cbc_sha1_enc_shaext:
 	movl	240(%rcx),%r11d
 	subq	%rdi,%rsi
 	movups	(%rcx),%xmm15
+	movups	(%r8),%xmm2
 	movups	16(%rcx),%xmm0
 	leaq	112(%rcx),%rcx
 

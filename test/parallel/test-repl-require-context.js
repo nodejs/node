@@ -14,10 +14,7 @@ child.stdout.on('data', (data) => {
 });
 
 child.on('exit', common.mustCall(() => {
-  const results = output.split('\n').map((line) => {
-    return line.replace(/\w*>\w*/, '').trim();
-  });
-
+  const results = output.replace(/^> /mg, '').split('\n');
   assert.deepStrictEqual(results, ['undefined', 'true', 'true', '']);
 }));
 

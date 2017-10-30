@@ -18,7 +18,7 @@ for (let i = 0; i < 5; i++) {
   });
   target.output = [];
 
-  target.on('pipe', common.mustCall(() => {}));
+  target.on('pipe', common.mustCall());
   readable.pipe(target);
 
 
@@ -35,7 +35,7 @@ process.nextTick(common.mustCall(() => {
   for (const target of writables) {
     assert.deepStrictEqual(target.output, [input]);
 
-    target.on('unpipe', common.mustCall(() => {}));
+    target.on('unpipe', common.mustCall());
     readable.unpipe(target);
   }
 

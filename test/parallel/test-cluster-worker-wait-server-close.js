@@ -1,18 +1,18 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
-var serverClosed = false;
+let serverClosed = false;
 
 if (cluster.isWorker) {
-  var server = net.createServer(function(socket) {
+  const server = net.createServer(function(socket) {
     // Wait for any data, then close connection
     socket.write('.');
-    socket.on('data', function discard() {});
-  }).listen(common.PORT, common.localhostIPv4);
+    socket.on('data', () => {});
+  }).listen(0, common.localhostIPv4);
 
   server.once('close', function() {
     serverClosed = true;
@@ -20,7 +20,7 @@ if (cluster.isWorker) {
 
   // Although not typical, the worker process can exit before the disconnect
   // event fires. Use this to keep the process open until the event has fired.
-  var keepOpen = setInterval(function() {}, 9999);
+  const keepOpen = setInterval(() => {}, 9999);
 
   // Check worker events and properties
   process.once('disconnect', function() {
@@ -30,14 +30,14 @@ if (cluster.isWorker) {
   });
 } else if (cluster.isMaster) {
   // start worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
-  var socket;
   // Disconnect worker when it is ready
-  worker.once('listening', function() {
-    net.createConnection(common.PORT, common.localhostIPv4, function() {
-      socket = this;
-      this.on('data', function() {
+  worker.once('listening', function(address) {
+    const socket = net.createConnection(address.port, common.localhostIPv4);
+
+    socket.on('connect', function() {
+      socket.on('data', function() {
         console.log('got data from client');
         // socket definitely connected to worker if we got data
         worker.disconnect();

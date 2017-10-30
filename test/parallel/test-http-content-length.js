@@ -1,27 +1,27 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var expectedHeadersMultipleWrites = {
+const expectedHeadersMultipleWrites = {
   'connection': 'close',
   'transfer-encoding': 'chunked',
 };
 
-var expectedHeadersEndWithData = {
+const expectedHeadersEndWithData = {
   'connection': 'close',
   'content-length': String('hello world'.length)
 };
 
-var expectedHeadersEndNoData = {
+const expectedHeadersEndNoData = {
   'connection': 'close',
   'content-length': '0',
 };
 
-var receivedRequests = 0;
-var totalRequests = 3;
+let receivedRequests = 0;
+const totalRequests = 3;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.removeHeader('Date');
 
   switch (req.url.substr(1)) {
@@ -47,7 +47,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(0, function() {
-  var req;
+  let req;
 
   req = http.request({
     port: this.address().port,

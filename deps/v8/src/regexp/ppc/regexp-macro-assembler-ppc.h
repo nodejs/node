@@ -7,7 +7,6 @@
 
 #include "src/macro-assembler.h"
 #include "src/ppc/assembler-ppc.h"
-#include "src/ppc/frames-ppc.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
@@ -96,9 +95,8 @@ class RegExpMacroAssemblerPPC : public NativeRegExpMacroAssembler {
   static const int kReturnAddress = kStoredRegisters + 7 * kPointerSize;
   static const int kCallerFrame = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
-  static const int kSecondaryReturnAddress =
+  static const int kIsolate =
       kCallerFrame + kStackFrameExtraParamSlot * kPointerSize;
-  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.

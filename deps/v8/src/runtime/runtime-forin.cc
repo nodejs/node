@@ -31,7 +31,7 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys, accumulator.GetKeys(GetKeysConversion::kKeepNumbers),
+        isolate, keys, accumulator.GetKeys(GetKeysConversion::kConvertToString),
         HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
@@ -140,17 +140,6 @@ RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
   return MakeTriple(*cache_type, *cache_array, Smi::FromInt(cache_length));
 }
 
-
-RUNTIME_FUNCTION(Runtime_ForInDone) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  DCHECK_LE(0, index);
-  DCHECK_LE(index, length);
-  return isolate->heap()->ToBoolean(index == length);
-}
-
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -169,33 +158,6 @@ RUNTIME_FUNCTION(Runtime_ForInFilter) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   RETURN_RESULT_OR_FAILURE(isolate,
                            HasEnumerableProperty(isolate, receiver, key));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ForInNext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, cache_array, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, cache_type, 2);
-  CONVERT_SMI_ARG_CHECKED(index, 3);
-  Handle<Object> key = handle(cache_array->get(index), isolate);
-  // Don't need filtering if expected map still matches that of the receiver.
-  if (receiver->map() == *cache_type) {
-    return *key;
-  }
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           HasEnumerableProperty(isolate, receiver, key));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ForInStep) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, Smi::kMaxValue);
-  return Smi::FromInt(index + 1);
 }
 
 }  // namespace internal

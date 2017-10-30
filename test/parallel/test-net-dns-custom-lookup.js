@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 function check(addressType, cb) {
-  var server = net.createServer(function(client) {
+  const server = net.createServer(function(client) {
     client.end();
     server.close();
     cb && cb();
   });
 
-  var address = addressType === 4 ? common.localhostIPv4 : '::1';
+  const address = addressType === 4 ? common.localhostIPv4 : '::1';
   server.listen(0, address, common.mustCall(function() {
     net.connect({
       port: this.address().port,
@@ -18,9 +18,9 @@ function check(addressType, cb) {
       family: addressType,
       lookup: lookup
     }).on('lookup', common.mustCall(function(err, ip, type) {
-      assert.equal(err, null);
-      assert.equal(address, ip);
-      assert.equal(type, addressType);
+      assert.strictEqual(err, null);
+      assert.strictEqual(address, ip);
+      assert.strictEqual(type, addressType);
     }));
   }));
 

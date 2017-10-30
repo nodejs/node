@@ -206,8 +206,9 @@ my %globals;
 	    }
 	    sprintf "\$%s",$self->{value};
 	} else {
-	    $self->{value} =~ s/0x([0-9a-f]+)/0$1h/ig if ($masm);
-	    sprintf "%s",$self->{value};
+	    my $value = $self->{value};
+	    $value =~ s/0x([0-9a-f]+)/0$1h/ig if ($masm);
+	    sprintf "%s",$value;
 	}
     }
 }
@@ -250,11 +251,18 @@ my %globals;
 	$self->{base}  =~ s/^[er](.?[0-9xpi])[d]?$/r\1/;
 
 	# Solaris /usr/ccs/bin/as can't handle multiplications
-	# in $self->{label}, new gas requires sign extension...
+	# in $self->{label}...
 	use integer;
 	$self->{label} =~ s/(?<![\w\$\.])(0x?[0-9a-f]+)/oct($1)/egi;
 	$self->{label} =~ s/\b([0-9]+\s*[\*\/\%]\s*[0-9]+)\b/eval($1)/eg;
-	$self->{label} =~ s/\b([0-9]+)\b/$1<<32>>32/eg;
+
+	# Some assemblers insist on signed presentation of 32-bit
+	# offsets, but sign extension is a tricky business in perl...
+	if ((1<<31)<<1) {
+	    $self->{label} =~ s/\b([0-9]+)\b/$1<<32>>32/eg;
+	} else {
+	    $self->{label} =~ s/\b([0-9]+)\b/$1>>0/eg;
+	}
 
 	if (!$self->{label} && $self->{index} && $self->{scale}==1 &&
 	    $self->{base} =~ /(rbp|r13)/) {
@@ -407,7 +415,7 @@ my %globals;
 	}
     }
 }
-{ package expr;		# pick up expressioins
+{ package expr;		# pick up expressions
     sub re {
 	my	$self = shift;	# single instance is enough...
 	local	*line = shift;
@@ -970,7 +978,7 @@ close STDOUT;
 # the area above user stack pointer in true asynchronous manner...
 #
 # All the above means that if assembler programmer adheres to Unix
-# register and stack layout, but disregards the "red zone" existense,
+# register and stack layout, but disregards the "red zone" existence,
 # it's possible to use following prologue and epilogue to "gear" from
 # Unix to Win64 ABI in leaf functions with not more than 6 arguments.
 #

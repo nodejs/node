@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -37,7 +43,7 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                requireReturnForObjectLiteral: {type: "boolean"}
+                                requireReturnForObjectLiteral: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -46,7 +52,9 @@ module.exports = {
                     maxItems: 2
                 }
             ]
-        }
+        },
+
+        fixable: "code"
     },
 
     create(context) {
@@ -55,6 +63,30 @@ module.exports = {
         const asNeeded = !options[0] || options[0] === "as-needed";
         const never = options[0] === "never";
         const requireReturnForObjectLiteral = options[1] && options[1].requireReturnForObjectLiteral;
+        const sourceCode = context.getSourceCode();
+
+        /**
+         * Checks whether the given node has ASI problem or not.
+         * @param {Token} token The token to check.
+         * @returns {boolean} `true` if it changes semantics if `;` or `}` followed by the token are removed.
+         */
+        function hasASIProblem(token) {
+            return token && token.type === "Punctuator" && /^[([/`+-]/.test(token.value);
+        }
+
+        /**
+         * Gets the closing parenthesis which is the pair of the given opening parenthesis.
+         * @param {Token} token The opening parenthesis token to get.
+         * @returns {Token} The found closing parenthesis token.
+         */
+        function findClosingParen(token) {
+            let node = sourceCode.getNodeByRangeIndex(token.range[1]);
+
+            while (!astUtils.isParenthesised(sourceCode, node)) {
+                node = node.parent;
+            }
+            return sourceCode.getTokenAfter(node);
+        }
 
         /**
          * Determines whether a arrow function body needs braces
@@ -65,45 +97,113 @@ module.exports = {
             const arrowBody = node.body;
 
             if (arrowBody.type === "BlockStatement") {
-                if (never) {
+                const blockBody = arrowBody.body;
+
+                if (blockBody.length !== 1 && !never) {
+                    return;
+                }
+
+                if (asNeeded && requireReturnForObjectLiteral && blockBody[0].type === "ReturnStatement" &&
+                    blockBody[0].argument && blockBody[0].argument.type === "ObjectExpression") {
+                    return;
+                }
+
+                if (never || asNeeded && blockBody[0].type === "ReturnStatement") {
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message: "Unexpected block statement surrounding arrow body."
+                        message: "Unexpected block statement surrounding arrow body.",
+                        fix(fixer) {
+                            const fixes = [];
+
+                            if (blockBody.length !== 1 ||
+                                blockBody[0].type !== "ReturnStatement" ||
+                                !blockBody[0].argument ||
+                                hasASIProblem(sourceCode.getTokenAfter(arrowBody))
+                            ) {
+                                return fixes;
+                            }
+
+                            const openingBrace = sourceCode.getFirstToken(arrowBody);
+                            const closingBrace = sourceCode.getLastToken(arrowBody);
+                            const firstValueToken = sourceCode.getFirstToken(blockBody[0], 1);
+                            const lastValueToken = sourceCode.getLastToken(blockBody[0]);
+                            const commentsExist =
+                                sourceCode.commentsExistBetween(openingBrace, firstValueToken) ||
+                                sourceCode.commentsExistBetween(lastValueToken, closingBrace);
+
+                            // Remove tokens around the return value.
+                            // If comments don't exist, remove extra spaces as well.
+                            if (commentsExist) {
+                                fixes.push(
+                                    fixer.remove(openingBrace),
+                                    fixer.remove(closingBrace),
+                                    fixer.remove(sourceCode.getTokenAfter(openingBrace)) // return keyword
+                                );
+                            } else {
+                                fixes.push(
+                                    fixer.removeRange([openingBrace.range[0], firstValueToken.range[0]]),
+                                    fixer.removeRange([lastValueToken.range[1], closingBrace.range[1]])
+                                );
+                            }
+
+                            // If the first token of the reutrn value is `{`,
+                            // enclose the return value by parentheses to avoid syntax error.
+                            if (astUtils.isOpeningBraceToken(firstValueToken)) {
+                                fixes.push(
+                                    fixer.insertTextBefore(firstValueToken, "("),
+                                    fixer.insertTextAfter(lastValueToken, ")")
+                                );
+                            }
+
+                            // If the last token of the return statement is semicolon, remove it.
+                            // Non-block arrow body is an expression, not a statement.
+                            if (astUtils.isSemicolonToken(lastValueToken)) {
+                                fixes.push(fixer.remove(lastValueToken));
+                            }
+
+                            return fixes;
+                        }
                     });
-                } else {
-                    const blockBody = arrowBody.body;
-
-                    if (blockBody.length !== 1) {
-                        return;
-                    }
-
-                    if (asNeeded && requireReturnForObjectLiteral && blockBody[0].type === "ReturnStatement" &&
-                        blockBody[0].argument.type === "ObjectExpression") {
-                        return;
-                    }
-
-                    if (asNeeded && blockBody[0].type === "ReturnStatement") {
-                        context.report({
-                            node,
-                            loc: arrowBody.loc.start,
-                            message: "Unexpected block statement surrounding arrow body."
-                        });
-                    }
                 }
             } else {
                 if (always || (asNeeded && requireReturnForObjectLiteral && arrowBody.type === "ObjectExpression")) {
                     context.report({
                         node,
                         loc: arrowBody.loc.start,
-                        message: "Expected block statement surrounding arrow body."
+                        message: "Expected block statement surrounding arrow body.",
+                        fix(fixer) {
+                            const fixes = [];
+                            const arrowToken = sourceCode.getTokenBefore(arrowBody, astUtils.isArrowToken);
+                            const firstBodyToken = sourceCode.getTokenAfter(arrowToken);
+                            const lastBodyToken = sourceCode.getLastToken(node);
+                            const isParenthesisedObjectLiteral =
+                                astUtils.isOpeningParenToken(firstBodyToken) &&
+                                astUtils.isOpeningBraceToken(sourceCode.getTokenAfter(firstBodyToken));
+
+                            // Wrap the value by a block and a return statement.
+                            fixes.push(
+                                fixer.insertTextBefore(firstBodyToken, "{return "),
+                                fixer.insertTextAfter(lastBodyToken, "}")
+                            );
+
+                            // If the value is object literal, remove parentheses which were forced by syntax.
+                            if (isParenthesisedObjectLiteral) {
+                                fixes.push(
+                                    fixer.remove(firstBodyToken),
+                                    fixer.remove(findClosingParen(firstBodyToken))
+                                );
+                            }
+
+                            return fixes;
+                        }
                     });
                 }
             }
         }
 
         return {
-            ArrowFunctionExpression: validate
+            "ArrowFunctionExpression:exit": validate
         };
     }
 };

@@ -8,13 +8,13 @@ const cluster = require('cluster');
 
 if (cluster.isMaster) {
   cluster.on('exit', (worker, code) => {
-    assert.strictEqual(code, 0, 'worker exited with error');
+    assert.strictEqual(code, 0, `worker exited with code: ${code}, expected 0`);
   });
 
   return cluster.fork();
 }
 
-var eventFired = false;
+let eventFired = false;
 
 cluster.worker.disconnect();
 

@@ -53,9 +53,9 @@
   # Skip tests that are too slow for simulators.
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'simulator'
-['arch == arm64 and simulator_run == True', {
+['arch == arm64 and simulator_run', {
   'dfg-int-overflow-in-loop': [SKIP],
-}],  # 'arch == arm64 and simulator_run == True'
+}],  # 'arch == arm64 and simulator_run'
 ['dcheck_always_on == True and (arch == arm or arch == arm64)', {
   # Doesn't work with gcc 4.6 on arm or arm64 for some reason.
   'reentrant-caching': [SKIP],
@@ -64,7 +64,7 @@
   # Too slow for mips big-endian boards on bots (no FPU).
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == mips'
-['(arch == ppc or arch == ppc64) and simulator_run == True', {
+['(arch == ppc or arch == ppc64) and simulator_run', {
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == ppc or arch == ppc64'
@@ -72,10 +72,6 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-['arch == x87', {
-  # Too slow.
-  'dfg-negative-array-index': [SKIP],
-}], # 'arch == x87'
 
 ##############################################################################
 ['asan == True', {
@@ -103,20 +99,6 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['variant == ignition and msan', {
-  # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [SKIP],
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # variant == ignition and msan
-
-##############################################################################
-['variant == ignition_turbofan and msan', {
-  # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [SKIP],
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # variant == ignition_turbofan and msan
-
-##############################################################################
 ['arch == arm64 and msan', {
   # Stack size too large with masm on Arm64.
   'fast/js/excessive-comma-usage': [SKIP],
@@ -128,6 +110,22 @@
   'fast/js/excessive-comma-usage': [SKIP],
   'run-json-stringify': [SKIP],
 }],  # 'gcov_coverage'
+
+##############################################################################
+['variant == stress_asm_wasm', {
+  # Stack size too large with asm.js validator.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # variant == stress_asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+##############################################################################
+['no_i18n == True', {
+  'fast/js/string-capitalization': [FAIL],
+}],  # variant == wasm_traps
 
 ##############################################################################
 ]

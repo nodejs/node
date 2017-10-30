@@ -16,7 +16,7 @@ function compileList(schema, name, result) {
 
   schema[name].forEach(function (currentType) {
     result.forEach(function (previousType, previousIndex) {
-      if (previousType.tag === currentType.tag) {
+      if (previousType.tag === currentType.tag && previousType.kind === currentType.kind) {
         exclude.push(previousIndex);
       }
     });
@@ -31,16 +31,20 @@ function compileList(schema, name, result) {
 
 
 function compileMap(/* lists... */) {
-  var result = {}, index, length;
+  var result = {
+        scalar: {},
+        sequence: {},
+        mapping: {},
+        fallback: {}
+      }, index, length;
 
   function collectType(type) {
-    result[type.tag] = type;
+    result[type.kind][type.tag] = result['fallback'][type.tag] = type;
   }
 
   for (index = 0, length = arguments.length; index < length; index += 1) {
     arguments[index].forEach(collectType);
   }
-
   return result;
 }
 

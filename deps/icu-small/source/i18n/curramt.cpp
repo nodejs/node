@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -19,12 +19,12 @@
 
 U_NAMESPACE_BEGIN
 
-CurrencyAmount::CurrencyAmount(const Formattable& amount, const UChar* isoCode,
+CurrencyAmount::CurrencyAmount(const Formattable& amount, ConstChar16Ptr isoCode,
                                UErrorCode& ec) :
     Measure(amount, new CurrencyUnit(isoCode, ec), ec) {
 }
 
-CurrencyAmount::CurrencyAmount(double amount, const UChar* isoCode,
+CurrencyAmount::CurrencyAmount(double amount, ConstChar16Ptr isoCode,
                                UErrorCode& ec) :
     Measure(Formattable(amount), new CurrencyUnit(isoCode, ec), ec) {
 }

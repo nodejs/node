@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
@@ -6,7 +6,7 @@
  *   Corporation and others.  All Rights Reserved.
  **********************************************************************
  *   file name:  ucsdet.h
- *   encoding:   US-ASCII
+ *   encoding:   UTF-8
  *   indentation:4
  *
  *   created on: 2005Aug04
@@ -45,6 +45,10 @@
  * in a single language, and a minimum of a few hundred bytes worth of plain text
  * in the language are needed.  The detection process will attempt to
  * ignore html or xml style markup that could otherwise obscure the content.
+ * <p>
+ * An alternative to the ICU Charset Detector is the
+ * Compact Encoding Detector, https://github.com/google/compact_enc_det.
+ * It often gives more accurate results, especially with short input samples.
  */
 
 
@@ -395,7 +399,7 @@ ucsdet_getDetectableCharsets(const UCharsetDetector *ucsd,  UErrorCode *status);
 /**
   * Enable or disable individual charset encoding.
   * A name of charset encoding must be included in the names returned by
-  * {@link #getAllDetectableCharsets()}.
+  * {@link #ucsdet_getAllDetectableCharsets()}.
   *
   * @param ucsd a Charset detector.
   * @param encoding encoding the name of charset encoding.

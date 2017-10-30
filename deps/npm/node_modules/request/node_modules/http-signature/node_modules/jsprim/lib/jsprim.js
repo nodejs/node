@@ -2,7 +2,7 @@
  * lib/jsprim.js: utilities for primitive JavaScript types
  */
 
-var mod_assert = require('assert');
+var mod_assert = require('assert-plus');
 var mod_util = require('util');
 
 var mod_extsprintf = require('extsprintf');
@@ -28,6 +28,8 @@ exports.mergeObjects = mergeObjects;
 
 exports.startsWith = startsWith;
 exports.endsWith = endsWith;
+
+exports.parseInteger = parseInteger;
 
 exports.iso8601 = iso8601;
 exports.rfc1123 = rfc1123;
@@ -278,6 +280,251 @@ function parseDateTime(str)
 		return (new Date(str));
 	}
 }
+
+
+/*
+ * Number.*_SAFE_INTEGER isn't present before node v0.12, so we hardcode
+ * the ES6 definitions here, while allowing for them to someday be higher.
+ */
+var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991;
+var MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER || -9007199254740991;
+
+
+/*
+ * Default options for parseInteger().
+ */
+var PI_DEFAULTS = {
+	base: 10,
+	allowSign: true,
+	allowPrefix: false,
+	allowTrailing: false,
+	allowImprecise: false,
+	trimWhitespace: false,
+	leadingZeroIsOctal: false
+};
+
+var CP_0 = 0x30;
+var CP_9 = 0x39;
+
+var CP_A = 0x41;
+var CP_B = 0x42;
+var CP_O = 0x4f;
+var CP_T = 0x54;
+var CP_X = 0x58;
+var CP_Z = 0x5a;
+
+var CP_a = 0x61;
+var CP_b = 0x62;
+var CP_o = 0x6f;
+var CP_t = 0x74;
+var CP_x = 0x78;
+var CP_z = 0x7a;
+
+var PI_CONV_DEC = 0x30;
+var PI_CONV_UC = 0x37;
+var PI_CONV_LC = 0x57;
+
+
+/*
+ * A stricter version of parseInt() that provides options for changing what
+ * is an acceptable string (for example, disallowing trailing characters).
+ */
+function parseInteger(str, uopts)
+{
+	mod_assert.string(str, 'str');
+	mod_assert.optionalObject(uopts, 'options');
+
+	var baseOverride = false;
+	var options = PI_DEFAULTS;
+
+	if (uopts) {
+		baseOverride = hasKey(uopts, 'base');
+		options = mergeObjects(options, uopts);
+		mod_assert.number(options.base, 'options.base');
+		mod_assert.ok(options.base >= 2, 'options.base >= 2');
+		mod_assert.ok(options.base <= 36, 'options.base <= 36');
+		mod_assert.bool(options.allowSign, 'options.allowSign');
+		mod_assert.bool(options.allowPrefix, 'options.allowPrefix');
+		mod_assert.bool(options.allowTrailing,
+		    'options.allowTrailing');
+		mod_assert.bool(options.allowImprecise,
+		    'options.allowImprecise');
+		mod_assert.bool(options.trimWhitespace,
+		    'options.trimWhitespace');
+		mod_assert.bool(options.leadingZeroIsOctal,
+		    'options.leadingZeroIsOctal');
+
+		if (options.leadingZeroIsOctal) {
+			mod_assert.ok(!baseOverride,
+			    '"base" and "leadingZeroIsOctal" are ' +
+			    'mutually exclusive');
+		}
+	}
+
+	var c;
+	var pbase = -1;
+	var base = options.base;
+	var start;
+	var mult = 1;
+	var value = 0;
+	var idx = 0;
+	var len = str.length;
+
+	/* Trim any whitespace on the left side. */
+	if (options.trimWhitespace) {
+		while (idx < len && isSpace(str.charCodeAt(idx))) {
+			++idx;
+		}
+	}
+
+	/* Check the number for a leading sign. */
+	if (options.allowSign) {
+		if (str[idx] === '-') {
+			idx += 1;
+			mult = -1;
+		} else if (str[idx] === '+') {
+			idx += 1;
+		}
+	}
+
+	/* Parse the base-indicating prefix if there is one. */
+	if (str[idx] === '0') {
+		if (options.allowPrefix) {
+			pbase = prefixToBase(str.charCodeAt(idx + 1));
+			if (pbase !== -1 && (!baseOverride || pbase === base)) {
+				base = pbase;
+				idx += 2;
+			}
+		}
+
+		if (pbase === -1 && options.leadingZeroIsOctal) {
+			base = 8;
+		}
+	}
+
+	/* Parse the actual digits. */
+	for (start = idx; idx < len; ++idx) {
+		c = translateDigit(str.charCodeAt(idx));
+		if (c !== -1 && c < base) {
+			value *= base;
+			value += c;
+		} else {
+			break;
+		}
+	}
+
+	/* If we didn't parse any digits, we have an invalid number. */
+	if (start === idx) {
+		return (new Error('invalid number: ' + JSON.stringify(str)));
+	}
+
+	/* Trim any whitespace on the right side. */
+	if (options.trimWhitespace) {
+		while (idx < len && isSpace(str.charCodeAt(idx))) {
+			++idx;
+		}
+	}
+
+	/* Check for trailing characters. */
+	if (idx < len && !options.allowTrailing) {
+		return (new Error('trailing characters after number: ' +
+		    JSON.stringify(str.slice(idx))));
+	}
+
+	/* If our value is 0, we return now, to avoid returning -0. */
+	if (value === 0) {
+		return (0);
+	}
+
+	/* Calculate our final value. */
+	var result = value * mult;
+
+	/*
+	 * If the string represents a value that cannot be precisely represented
+	 * by JavaScript, then we want to check that:
+	 *
+	 * - We never increased the value past MAX_SAFE_INTEGER
+	 * - We don't make the result negative and below MIN_SAFE_INTEGER
+	 *
+	 * Because we only ever increment the value during parsing, there's no
+	 * chance of moving past MAX_SAFE_INTEGER and then dropping below it
+	 * again, losing precision in the process. This means that we only need
+	 * to do our checks here, at the end.
+	 */
+	if (!options.allowImprecise &&
+	    (value > MAX_SAFE_INTEGER || result < MIN_SAFE_INTEGER)) {
+		return (new Error('number is outside of the supported range: ' +
+		    JSON.stringify(str.slice(start, idx))));
+	}
+
+	return (result);
+}
+
+
+/*
+ * Interpret a character code as a base-36 digit.
+ */
+function translateDigit(d)
+{
+	if (d >= CP_0 && d <= CP_9) {
+		/* '0' to '9' -> 0 to 9 */
+		return (d - PI_CONV_DEC);
+	} else if (d >= CP_A && d <= CP_Z) {
+		/* 'A' - 'Z' -> 10 to 35 */
+		return (d - PI_CONV_UC);
+	} else if (d >= CP_a && d <= CP_z) {
+		/* 'a' - 'z' -> 10 to 35 */
+		return (d - PI_CONV_LC);
+	} else {
+		/* Invalid character code */
+		return (-1);
+	}
+}
+
+
+/*
+ * Test if a value matches the ECMAScript definition of trimmable whitespace.
+ */
+function isSpace(c)
+{
+	return (c === 0x20) ||
+	    (c >= 0x0009 && c <= 0x000d) ||
+	    (c === 0x00a0) ||
+	    (c === 0x1680) ||
+	    (c === 0x180e) ||
+	    (c >= 0x2000 && c <= 0x200a) ||
+	    (c === 0x2028) ||
+	    (c === 0x2029) ||
+	    (c === 0x202f) ||
+	    (c === 0x205f) ||
+	    (c === 0x3000) ||
+	    (c === 0xfeff);
+}
+
+
+/*
+ * Determine which base a character indicates (e.g., 'x' indicates hex).
+ */
+function prefixToBase(c)
+{
+	if (c === CP_b || c === CP_B) {
+		/* 0b/0B (binary) */
+		return (2);
+	} else if (c === CP_o || c === CP_O) {
+		/* 0o/0O (octal) */
+		return (8);
+	} else if (c === CP_t || c === CP_T) {
+		/* 0t/0T (decimal) */
+		return (10);
+	} else if (c === CP_x || c === CP_X) {
+		/* 0x/0X (hexadecimal) */
+		return (16);
+	} else {
+		/* Not a meaningful character */
+		return (-1);
+	}
+}
+
 
 function validateJsonObjectJS(schema, input)
 {

@@ -1074,7 +1074,8 @@ class FileInfo(object):
     """
     fullname = self.FullName()
     # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
-    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) \
+    .replace('\\', '/').decode('utf-8')
     prefix = os.path.commonprefix([fullname, toplevel])
     return fullname[len(prefix) + 1:]
 
@@ -3020,7 +3021,7 @@ def CheckComment(line, filename, linenum, next_line_start, error):
       # If the comment contains an alphanumeric character, there
       # should be a space somewhere between it and the // unless
       # it's a /// or //! Doxygen comment.
-      if (Match(r'//[^ ]*\w', comment) and
+      if (Match(r'(?://[^ ]*\w)|(?:////\s*$)', comment) and
           not Match(r'(///|//\!)(\s+|$)', comment)):
         error(filename, linenum, 'whitespace/comments', 4,
               'Should have a space between // and comment')
@@ -6050,7 +6051,7 @@ def ParseArguments(args):
       try:
           _valid_extensions = set(val.split(','))
       except ValueError:
-          PrintUsage('Extensions must be comma seperated list.')
+          PrintUsage('Extensions must be comma separated list.')
     elif opt == '--logfile':
       logger.addHandler(logging.FileHandler(val, mode='wb'))
 
@@ -6083,7 +6084,7 @@ def main():
 
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:
-    ProcessFile(filename, _cpplint_state.verbose_level)
+    ProcessFile(filename.decode('utf-8'), _cpplint_state.verbose_level)
   _cpplint_state.PrintErrorCounts()
 
   sys.exit(_cpplint_state.error_count > 0)

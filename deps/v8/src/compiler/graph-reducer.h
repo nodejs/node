@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/node-marker.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -40,9 +42,12 @@ class Reduction final {
 // language-specific reductions (e.g. reduction based on types or constant
 // folding of low-level operators) can be integrated into the graph reduction
 // phase.
-class Reducer {
+class V8_EXPORT_PRIVATE Reducer {
  public:
   virtual ~Reducer() {}
+
+  // Only used for tracing, when using the --trace_turbo_reduction flag.
+  virtual const char* reducer_name() const = 0;
 
   // Try to reduce a node if possible.
   virtual Reduction Reduce(Node* node) = 0;
@@ -119,7 +124,8 @@ class AdvancedReducer : public Reducer {
 
 
 // Performs an iterative reduction of a node graph.
-class GraphReducer : public AdvancedReducer::Editor {
+class V8_EXPORT_PRIVATE GraphReducer
+    : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
   ~GraphReducer();
@@ -171,7 +177,7 @@ class GraphReducer : public AdvancedReducer::Editor {
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
-  ZoneStack<Node*> revisit_;
+  ZoneQueue<Node*> revisit_;
   ZoneStack<NodeState> stack_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);

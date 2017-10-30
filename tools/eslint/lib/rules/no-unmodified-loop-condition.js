@@ -18,14 +18,14 @@ const Traverser = require("../util/traverser"),
 
 const pushAll = Function.apply.bind(Array.prototype.push);
 const SENTINEL_PATTERN = /(?:(?:Call|Class|Function|Member|New|Yield)Expression|Statement|Declaration)$/;
-const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/;  // for-in/of statements don't have `test` property.
+const LOOP_PATTERN = /^(?:DoWhile|For|While)Statement$/; // for-in/of statements don't have `test` property.
 const GROUP_PATTERN = /^(?:BinaryExpression|ConditionalExpression)$/;
 const SKIP_PATTERN = /^(?:ArrowFunction|Class|Function)Expression$/;
 const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 
 /**
  * @typedef {Object} LoopConditionInfo
- * @property {escope.Reference} reference - The reference.
+ * @property {eslint-scope.Reference} reference - The reference.
  * @property {ASTNode} group - BinaryExpression or ConditionalExpression nodes
  *      that the reference is belonging to.
  * @property {Function} isInLoop - The predicate which checks a given reference
@@ -37,7 +37,7 @@ const DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 /**
  * Checks whether or not a given reference is a write reference.
  *
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is a write reference.
  */
 function isWriteReference(reference) {
@@ -77,7 +77,7 @@ function isUnmodifiedAndNotBelongToGroup(condition) {
  * Checks whether or not a given reference is inside of a given node.
  *
  * @param {ASTNode} node - A node to check.
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is inside of the node.
  */
 function isInRange(node, reference) {
@@ -91,7 +91,7 @@ function isInRange(node, reference) {
  * Checks whether or not a given reference is inside of a loop node's condition.
  *
  * @param {ASTNode} node - A node to check.
- * @param {escope.Reference} reference - A reference to check.
+ * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is inside of the loop node's
  *      condition.
  */
@@ -134,7 +134,7 @@ function hasDynamicExpressions(root) {
 /**
  * Creates the loop condition information from a given reference.
  *
- * @param {escope.Reference} reference - A reference to create.
+ * @param {eslint-scope.Reference} reference - A reference to create.
  * @returns {LoopConditionInfo|null} Created loop condition info, or null.
  */
 function toLoopCondition(reference) {
@@ -188,7 +188,7 @@ function toLoopCondition(reference) {
  * Gets the function which encloses a given reference.
  * This supports only FunctionDeclaration.
  *
- * @param {escope.Reference} reference - A reference to get.
+ * @param {eslint-scope.Reference} reference - A reference to get.
  * @returns {ASTNode|null} The function node or null.
  */
 function getEncloseFunctionDeclaration(reference) {
@@ -209,17 +209,17 @@ function getEncloseFunctionDeclaration(reference) {
  * Updates the "modified" flags of given loop conditions with given modifiers.
  *
  * @param {LoopConditionInfo[]} conditions - The loop conditions to be updated.
- * @param {escope.Reference[]} modifiers - The references to update.
+ * @param {eslint-scope.Reference[]} modifiers - The references to update.
  * @returns {void}
  */
 function updateModifiedFlag(conditions, modifiers) {
-    let funcNode, funcVar;
 
     for (let i = 0; i < conditions.length; ++i) {
         const condition = conditions[i];
 
         for (let j = 0; !condition.modified && j < modifiers.length; ++j) {
             const modifier = modifiers[j];
+            let funcNode, funcVar;
 
             /*
              * Besides checking for the condition being in the loop, we want to
@@ -311,7 +311,7 @@ module.exports = {
          * Finds unmodified references which are inside of a loop condition.
          * Then reports the references which are outside of groups.
          *
-         * @param {escope.Variable} variable - A variable to report.
+         * @param {eslint-scope.Variable} variable - A variable to report.
          * @returns {void}
          */
         function checkReferences(variable) {

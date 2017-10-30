@@ -15,7 +15,8 @@ void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
 
   block_will_exit_ = false;
 
-  DCHECK_LT(block->rpo_number().ToInt(), block_initial_states_.size());
+  DCHECK_LT(block->rpo_number().ToInt(),
+            static_cast<int>(block_initial_states_.size()));
   const BlockInitialState* initial_state =
       block_initial_states_[block->rpo_number().ToInt()];
   if (initial_state) {
@@ -23,6 +24,7 @@ void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
       eh_frame_writer_.AdvanceLocation(pc_offset);
       if (initial_state->saved_lr_) {
         eh_frame_writer_.RecordRegisterSavedToStack(lr, kPointerSize);
+        eh_frame_writer_.RecordRegisterSavedToStack(fp, 0);
       } else {
         eh_frame_writer_.RecordRegisterFollowsInitialRule(lr);
       }
@@ -42,7 +44,7 @@ void UnwindingInfoWriter::EndInstructionBlock(const InstructionBlock* block) {
 
   for (const RpoNumber& successor : block->successors()) {
     int successor_index = successor.ToInt();
-    DCHECK_LT(successor_index, block_initial_states_.size());
+    DCHECK_LT(successor_index, static_cast<int>(block_initial_states_.size()));
     const BlockInitialState* existing_state =
         block_initial_states_[successor_index];
 
@@ -75,6 +77,7 @@ void UnwindingInfoWriter::MarkFrameConstructed(int at_pc) {
   // the construction, since the LR itself is not modified in the process.
   eh_frame_writer_.AdvanceLocation(at_pc);
   eh_frame_writer_.RecordRegisterSavedToStack(lr, kPointerSize);
+  eh_frame_writer_.RecordRegisterSavedToStack(fp, 0);
   saved_lr_ = true;
 }
 

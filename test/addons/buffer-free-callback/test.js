@@ -5,8 +5,8 @@ const common = require('../../common');
 const binding = require(`./build/${common.buildType}/binding`);
 
 function check(size, alignment, offset) {
-  var buf = binding.alloc(size, alignment, offset);
-  var slice = buf.slice(size >>> 1);
+  let buf = binding.alloc(size, alignment, offset);
+  let slice = buf.slice(size >>> 1);
 
   buf = null;
   binding.check(slice);

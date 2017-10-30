@@ -1,70 +1,91 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 // minimum string size to overflow into external string space
-var EXTERN_APEX = 0xFBEE9;
+const EXTERN_APEX = 0xFBEE9;
 
 // manually controlled string for checking binary output
-var ucs2_control = 'a\u0000';
-var write_str = 'a';
+let ucs2_control = 'a\u0000';
+let write_str = 'a';
 
 
 // first do basic checks
-var b = Buffer.from(write_str, 'ucs2');
+let b = Buffer.from(write_str, 'ucs2');
 // first check latin1
-var c = b.toString('latin1');
-assert.equal(b[0], 0x61);
-assert.equal(b[1], 0);
-assert.equal(ucs2_control, c);
+let c = b.toString('latin1');
+assert.strictEqual(b[0], 0x61);
+assert.strictEqual(b[1], 0);
+assert.strictEqual(ucs2_control, c);
 // now check binary
 c = b.toString('binary');
-assert.equal(b[0], 0x61);
-assert.equal(b[1], 0);
-assert.equal(ucs2_control, c);
+assert.strictEqual(b[0], 0x61);
+assert.strictEqual(b[1], 0);
+assert.strictEqual(ucs2_control, c);
 
 // now create big strings
-var size = 1 + (1 << 20);
-write_str = Array(size).join(write_str);
-ucs2_control = Array(size).join(ucs2_control);
+const size = 1 << 20;
+write_str = write_str.repeat(size);
+ucs2_control = ucs2_control.repeat(size);
 
 // check resultant buffer and output string
 b = Buffer.from(write_str, 'ucs2');
 // check fist Buffer created from write string
 for (let i = 0; i < b.length; i += 2) {
-  assert.equal(b[i], 0x61);
-  assert.equal(b[i + 1], 0);
+  assert.strictEqual(b[i], 0x61);
+  assert.strictEqual(b[i + 1], 0);
 }
 
 // create another string to create an external string
-var b_ucs = b.toString('ucs2');
+const b_ucs = b.toString('ucs2');
 
 // check control against external binary string
-var l_bin = b.toString('latin1');
-assert.equal(ucs2_control, l_bin);
+const l_bin = b.toString('latin1');
+assert.strictEqual(ucs2_control, l_bin);
 
 // check control against external binary string
-var b_bin = b.toString('binary');
-assert.equal(ucs2_control, b_bin);
+const b_bin = b.toString('binary');
+assert.strictEqual(ucs2_control, b_bin);
 
 // create buffer copy from external
-var c_bin = Buffer.from(l_bin, 'latin1');
-var c_ucs = Buffer.from(b_ucs, 'ucs2');
+const c_bin = Buffer.from(l_bin, 'latin1');
+const c_ucs = Buffer.from(b_ucs, 'ucs2');
 // make sure they're the same length
-assert.equal(c_bin.length, c_ucs.length);
+assert.strictEqual(c_bin.length, c_ucs.length);
 // make sure Buffers from externals are the same
 for (let i = 0; i < c_bin.length; i++) {
-  assert.equal(c_bin[i], c_ucs[i]);
+  assert.strictEqual(c_bin[i], c_ucs[i]);
 }
 // check resultant strings
-assert.equal(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
-assert.equal(c_bin.toString('latin1'), ucs2_control);
-assert.equal(c_ucs.toString('latin1'), ucs2_control);
+assert.strictEqual(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
+assert.strictEqual(c_bin.toString('latin1'), ucs2_control);
+assert.strictEqual(c_ucs.toString('latin1'), ucs2_control);
 
 
 // now let's test BASE64 and HEX ecoding/decoding
-var RADIOS = 2;
-var PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
-var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
+const RADIOS = 2;
+const PRE_HALF_APEX = Math.ceil(EXTERN_APEX / 2) - RADIOS;
+const PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
 {
   for (let j = 0; j < RADIOS * 2; j += 1) {
@@ -110,7 +131,7 @@ var PRE_3OF4_APEX = Math.ceil((EXTERN_APEX / 4) * 3) - RADIOS;
 
 // https://github.com/nodejs/node/issues/1024
 {
-  const a = Array(1 << 20).join('x');
+  const a = 'x'.repeat(1 << 20 - 1);
   const b = Buffer.from(a, 'ucs2').toString('ucs2');
   const c = Buffer.from(b, 'utf8').toString('utf8');
 

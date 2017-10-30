@@ -38,12 +38,13 @@ if and only if B<ret E<gt> 0>.
 
 =item SSL_ERROR_ZERO_RETURN
 
-The TLS/SSL connection has been closed.  If the protocol version is SSL 3.0
-or TLS 1.0, this result code is returned only if a closure
-alert has occurred in the protocol, i.e. if the connection has been
-closed cleanly. Note that in this case B<SSL_ERROR_ZERO_RETURN>
-does not necessarily indicate that the underlying transport
-has been closed.
+The TLS/SSL connection has been closed.
+If the protocol version is SSL 3.0 or higher, this result code is returned only
+if a closure alert has occurred in the protocol, i.e. if the connection has been
+closed cleanly.
+Note that in this case B<SSL_ERROR_ZERO_RETURN> does not necessarily
+indicate that the underlying transport has been closed.
+
 
 =item SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE
 
@@ -89,12 +90,9 @@ Details depend on the application.
 
 =item SSL_ERROR_SYSCALL
 
-Some I/O error occurred.  The OpenSSL error queue may contain more
-information on the error.  If the error queue is empty
-(i.e. ERR_get_error() returns 0), B<ret> can be used to find out more
-about the error: If B<ret == 0>, an EOF was observed that violates
-the protocol.  If B<ret == -1>, the underlying B<BIO> reported an
-I/O error (for socket I/O on Unix systems, consult B<errno> for details).
+Some non-recoverable I/O error occurred.
+The OpenSSL error queue may contain more information on the error.
+For socket I/O on Unix systems, consult B<errno> for details.
 
 =item SSL_ERROR_SSL
 

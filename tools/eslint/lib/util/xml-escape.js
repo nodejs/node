@@ -15,7 +15,7 @@
  * @private
  */
 module.exports = function(s) {
-    return (`${s}`).replace(/[<>&"'\x00-\x1F\x7F\u0080-\uFFFF]/g, function(c) { // eslint-disable-line no-control-regex
+    return (`${s}`).replace(/[<>&"'\x00-\x1F\x7F\u0080-\uFFFF]/g, c => { // eslint-disable-line no-control-regex
         switch (c) {
             case "<":
                 return "&lt;";

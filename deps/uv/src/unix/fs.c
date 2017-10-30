@@ -60,8 +60,14 @@
 # include <sys/sendfile.h>
 #endif
 
+#if defined(__APPLE__)
+# include <copyfile.h>
+#endif
+
 #define INIT(subtype)                                                         \
   do {                                                                        \
+    if (req == NULL)                                                          \
+      return -EINVAL;                                                         \
     req->type = UV_FS;                                                        \
     if (cb != NULL)                                                           \
       uv__req_init(loop, req, UV_FS);                                         \
@@ -129,8 +135,23 @@
 static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
   return fdatasync(req->file);
-#elif defined(__APPLE__) && defined(SYS_fdatasync)
-  return syscall(SYS_fdatasync, req->file);
+#elif defined(__APPLE__)
+  /* Apple's fdatasync and fsync explicitly do NOT flush the drive write cache
+   * to the drive platters. This is in contrast to Linux's fdatasync and fsync
+   * which do, according to recent man pages. F_FULLFSYNC is Apple's equivalent
+   * for flushing buffered data to permanent storage.
+   */
+  return fcntl(req->file, F_FULLFSYNC);
+#else
+  return fsync(req->file);
+#endif
+}
+
+
+static ssize_t uv__fs_fsync(uv_fs_t* req) {
+#if defined(__APPLE__)
+  /* See the comment in uv__fs_fdatasync. */
+  return fcntl(req->file, F_FULLFSYNC);
 #else
   return fsync(req->file);
 #endif
@@ -365,7 +386,6 @@ static int uv__fs_scandir_sort(UV_CONST_DIRENT** a, UV_CONST_DIRENT** b) {
 
 static ssize_t uv__fs_scandir(uv_fs_t* req) {
   uv__dirent_t **dents;
-  int saved_errno;
   int n;
 
   dents = NULL;
@@ -374,28 +394,17 @@ static ssize_t uv__fs_scandir(uv_fs_t* req) {
   /* NOTE: We will use nbufs as an index field */
   req->nbufs = 0;
 
-  if (n == 0)
-    goto out; /* osx still needs to deallocate some memory */
-  else if (n == -1)
+  if (n == 0) {
+    /* OS X still needs to deallocate some memory.
+     * Memory was allocated using the system allocator, so use free() here.
+     */
+    free(dents);
+    dents = NULL;
+  } else if (n == -1) {
     return n;
+  }
 
   req->ptr = dents;
-
-  return n;
-
-out:
-  saved_errno = errno;
-  if (dents != NULL) {
-    int i;
-
-    /* Memory was allocated using the system allocator, so use free() here. */
-    for (i = 0; i < n; i++)
-      free(dents[i]);
-    free(dents);
-  }
-  errno = saved_errno;
-
-  req->ptr = NULL;
 
   return n;
 }
@@ -429,7 +438,12 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
     return -1;
   }
 
+#if defined(__MVS__)
+  len = os390_readlink(req->path, buf, len);
+#else
   len = readlink(req->path, buf, len);
+#endif
+
 
   if (len == -1) {
     uv__free(buf);
@@ -763,6 +777,118 @@ done:
   return r;
 }
 
+static ssize_t uv__fs_copyfile(uv_fs_t* req) {
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
+  /* On macOS, use the native copyfile(3). */
+  copyfile_flags_t flags;
+
+  flags = COPYFILE_ALL;
+
+  if (req->flags & UV_FS_COPYFILE_EXCL)
+    flags |= COPYFILE_EXCL;
+
+  return copyfile(req->path, req->new_path, NULL, flags);
+#else
+  uv_fs_t fs_req;
+  uv_file srcfd;
+  uv_file dstfd;
+  struct stat statsbuf;
+  int dst_flags;
+  int result;
+  int err;
+  size_t bytes_to_send;
+  int64_t in_offset;
+
+  dstfd = -1;
+  err = 0;
+
+  /* Open the source file. */
+  srcfd = uv_fs_open(NULL, &fs_req, req->path, O_RDONLY, 0, NULL);
+  uv_fs_req_cleanup(&fs_req);
+
+  if (srcfd < 0)
+    return srcfd;
+
+  /* Get the source file's mode. */
+  if (fstat(srcfd, &statsbuf)) {
+    err = -errno;
+    goto out;
+  }
+
+  dst_flags = O_WRONLY | O_CREAT | O_TRUNC;
+
+  if (req->flags & UV_FS_COPYFILE_EXCL)
+    dst_flags |= O_EXCL;
+
+  /* Open the destination file. */
+  dstfd = uv_fs_open(NULL,
+                     &fs_req,
+                     req->new_path,
+                     dst_flags,
+                     statsbuf.st_mode,
+                     NULL);
+  uv_fs_req_cleanup(&fs_req);
+
+  if (dstfd < 0) {
+    err = dstfd;
+    goto out;
+  }
+
+  if (fchmod(dstfd, statsbuf.st_mode) == -1) {
+    err = -errno;
+    goto out;
+  }
+
+  bytes_to_send = statsbuf.st_size;
+  in_offset = 0;
+  while (bytes_to_send != 0) {
+    err = uv_fs_sendfile(NULL,
+                         &fs_req,
+                         dstfd,
+                         srcfd,
+                         in_offset,
+                         bytes_to_send,
+                         NULL);
+    uv_fs_req_cleanup(&fs_req);
+    if (err < 0)
+      break;
+    bytes_to_send -= fs_req.result;
+    in_offset += fs_req.result;
+  }
+
+out:
+  if (err < 0)
+    result = err;
+  else
+    result = 0;
+
+  /* Close the source file. */
+  err = uv__close_nocheckstdio(srcfd);
+
+  /* Don't overwrite any existing errors. */
+  if (err != 0 && result == 0)
+    result = err;
+
+  /* Close the destination file if it is open. */
+  if (dstfd >= 0) {
+    err = uv__close_nocheckstdio(dstfd);
+
+    /* Don't overwrite any existing errors. */
+    if (err != 0 && result == 0)
+      result = err;
+
+    /* Remove the destination file if something went wrong. */
+    if (result != 0) {
+      uv_fs_unlink(NULL, &fs_req, req->new_path, NULL);
+      /* Ignore the unlink return value, as an error already happened. */
+      uv_fs_req_cleanup(&fs_req);
+    }
+  }
+
+  return result;
+#endif
+}
+
 static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_dev = src->st_dev;
   dst->st_mode = src->st_mode;
@@ -798,6 +924,10 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_flags = 0;
   dst->st_gen = 0;
 #elif !defined(_AIX) && (       \
+    defined(__DragonFly__)   || \
+    defined(__FreeBSD__)     || \
+    defined(__OpenBSD__)     || \
+    defined(__NetBSD__)      || \
     defined(_GNU_SOURCE)     || \
     defined(_BSD_SOURCE)     || \
     defined(_SVID_SOURCE)    || \
@@ -809,9 +939,7 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_mtim.tv_nsec = src->st_mtim.tv_nsec;
   dst->st_ctim.tv_sec = src->st_ctim.tv_sec;
   dst->st_ctim.tv_nsec = src->st_ctim.tv_nsec;
-# if defined(__DragonFly__)  || \
-     defined(__FreeBSD__)    || \
-     defined(__OpenBSD__)    || \
+# if defined(__FreeBSD__)    || \
      defined(__NetBSD__)
   dst->st_birthtim.tv_sec = src->st_birthtim.tv_sec;
   dst->st_birthtim.tv_nsec = src->st_birthtim.tv_nsec;
@@ -941,11 +1069,12 @@ static void uv__fs_work(struct uv__work* w) {
     X(CHMOD, chmod(req->path, req->mode));
     X(CHOWN, chown(req->path, req->uid, req->gid));
     X(CLOSE, close(req->file));
+    X(COPYFILE, uv__fs_copyfile(req));
     X(FCHMOD, fchmod(req->file, req->mode));
     X(FCHOWN, fchown(req->file, req->uid, req->gid));
     X(FDATASYNC, uv__fs_fdatasync(req));
     X(FSTAT, uv__fs_fstat(req->file, &req->statbuf));
-    X(FSYNC, fsync(req->file));
+    X(FSYNC, uv__fs_fsync(req));
     X(FTRUNCATE, ftruncate(req->file, req->off));
     X(FUTIME, uv__fs_futime(req));
     X(LSTAT, uv__fs_lstat(req->path, &req->statbuf));
@@ -1181,10 +1310,11 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
                unsigned int nbufs,
                int64_t off,
                uv_fs_cb cb) {
+  INIT(READ);
+
   if (bufs == NULL || nbufs == 0)
     return -EINVAL;
 
-  INIT(READ);
   req->file = file;
 
   req->nbufs = nbufs;
@@ -1319,10 +1449,11 @@ int uv_fs_write(uv_loop_t* loop,
                 unsigned int nbufs,
                 int64_t off,
                 uv_fs_cb cb) {
+  INIT(WRITE);
+
   if (bufs == NULL || nbufs == 0)
     return -EINVAL;
 
-  INIT(WRITE);
   req->file = file;
 
   req->nbufs = nbufs;
@@ -1344,6 +1475,9 @@ int uv_fs_write(uv_loop_t* loop,
 
 
 void uv_fs_req_cleanup(uv_fs_t* req) {
+  if (req == NULL)
+    return;
+
   /* Only necessary for asychronous requests, i.e., requests with a callback.
    * Synchronous ones don't copy their arguments and have req->path and
    * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP is the
@@ -1361,4 +1495,21 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   if (req->ptr != &req->statbuf)
     uv__free(req->ptr);
   req->ptr = NULL;
+}
+
+
+int uv_fs_copyfile(uv_loop_t* loop,
+                   uv_fs_t* req,
+                   const char* path,
+                   const char* new_path,
+                   int flags,
+                   uv_fs_cb cb) {
+  INIT(COPYFILE);
+
+  if (flags & ~UV_FS_COPYFILE_EXCL)
+    return -EINVAL;
+
+  PATH2;
+  req->flags = flags;
+  POST;
 }

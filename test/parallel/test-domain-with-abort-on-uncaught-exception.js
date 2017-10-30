@@ -29,8 +29,8 @@ const fs = require('fs');
 const domainErrHandlerExMessage = 'exception from domain error handler';
 
 if (process.argv[2] === 'child') {
-  var domain = require('domain');
-  var d = domain.create();
+  const domain = require('domain');
+  const d = domain.create();
 
   process.on('uncaughtException', function onUncaughtException() {
     // The process' uncaughtException event must not be emitted when
@@ -43,11 +43,11 @@ if (process.argv[2] === 'child') {
   d.on('error', function(err) {
     // Swallowing the error on purpose if 'throwInDomainErrHandler' is not
     // set
-    if (process.argv.indexOf('throwInDomainErrHandler') !== -1) {
+    if (process.argv.includes('throwInDomainErrHandler')) {
       // If useTryCatch is set, wrap the throw in a try/catch block.
       // This is to make sure that a caught exception does not trigger
       // an abort.
-      if (process.argv.indexOf('useTryCatch') !== -1) {
+      if (process.argv.includes('useTryCatch')) {
         try {
           throw new Error(domainErrHandlerExMessage);
         } catch (e) {
@@ -80,7 +80,7 @@ if (process.argv[2] === 'child') {
     throw new Error('Error from domain.run callback');
   });
 } else {
-  var exec = require('child_process').exec;
+  const exec = require('child_process').exec;
 
   function testDomainExceptionHandling(cmdLineOption, options) {
     if (typeof cmdLineOption === 'object') {
@@ -88,31 +88,25 @@ if (process.argv[2] === 'child') {
       cmdLineOption = undefined;
     }
 
-    var throwInDomainErrHandlerOpt;
+    let throwInDomainErrHandlerOpt;
     if (options.throwInDomainErrHandler)
       throwInDomainErrHandlerOpt = 'throwInDomainErrHandler';
 
-    var cmdToExec = '';
+    let cmdToExec = '';
     if (!common.isWindows) {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
       cmdToExec += 'ulimit -c 0 && ';
     }
 
-    var useTryCatchOpt;
+    let useTryCatchOpt;
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
-    cmdToExec += process.argv[0] + ' ';
-    cmdToExec += (cmdLineOption ? cmdLineOption : '') + ' ';
-    cmdToExec += process.argv[1] + ' ';
-    cmdToExec += [
-      'child',
-      throwInDomainErrHandlerOpt,
-      useTryCatchOpt
-    ].join(' ');
+    cmdToExec += `"${process.argv[0]}" ${cmdLineOption ? cmdLineOption : ''} "${
+      process.argv[1]}" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
 
-    var child = exec(cmdToExec);
+    const child = exec(cmdToExec);
 
     if (child) {
       child.on('exit', function onChildExited(exitCode, signal) {
@@ -125,15 +119,15 @@ if (process.argv[2] === 'child') {
           } else {
             // By default, uncaught exceptions make node exit with an exit
             // code of 7.
-            assert.equal(exitCode, 7);
-            assert.equal(signal, null);
+            assert.strictEqual(exitCode, 7);
+            assert.strictEqual(signal, null);
           }
         } else {
           // If the top-level domain's error handler does not throw,
           // the process must exit gracefully, whether or not
           // --abort_on_uncaught_exception was passed on the command line
-          assert.equal(exitCode, 0);
-          assert.equal(signal, null);
+          assert.strictEqual(exitCode, 0);
+          assert.strictEqual(signal, null);
         }
       });
     }

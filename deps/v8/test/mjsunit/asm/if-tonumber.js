@@ -10,8 +10,8 @@ function Module(stdlib, foreign, heap) {
   "use asm";
   function foo(i) {
     i = i|0;
-    if (i > 0) {
-      i = i == 1;
+    if ((i | 0) > 0) {
+      i = (i | 0) == 1;
     } else {
       i = 1;
     }

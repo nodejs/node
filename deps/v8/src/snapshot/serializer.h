@@ -5,6 +5,8 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_H_
 #define V8_SNAPSHOT_SERIALIZER_H_
 
+#include <map>
+
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
@@ -38,7 +40,7 @@ class CodeAddressMap : public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(base::HashMap::PointersMatch) {}
+    NameMap() : impl_() {}
 
     ~NameMap() {
       for (base::HashMap::Entry* p = impl_.Start(); p != NULL;
@@ -123,7 +125,7 @@ class Serializer : public SerializerDeserializer {
   explicit Serializer(Isolate* isolate);
   ~Serializer() override;
 
-  void EncodeReservations(List<SerializedData::Reservation>* out) const;
+  void EncodeReservations(std::vector<SerializedData::Reservation>* out) const;
 
   void SerializeDeferredObjects();
 
@@ -156,7 +158,9 @@ class Serializer : public SerializerDeserializer {
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
-  void VisitPointers(Object** start, Object** end) override;
+  virtual bool MustBeDeferred(HeapObject* object);
+
+  void VisitRootPointers(Root root, Object** start, Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
@@ -186,13 +190,12 @@ class Serializer : public SerializerDeserializer {
     }
   }
 
-  bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
-
   // This will return the space for an object.
+  SerializerReference AllocateOffHeapBackingStore();
   SerializerReference AllocateLargeObject(int size);
   SerializerReference AllocateMap();
   SerializerReference Allocate(AllocationSpace space, int size);
-  int EncodeExternalReference(Address addr) {
+  ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
 
@@ -217,10 +220,18 @@ class Serializer : public SerializerDeserializer {
 
   void QueueDeferredObject(HeapObject* obj) {
     DCHECK(reference_map_.Lookup(obj).is_back_reference());
-    deferred_objects_.Add(obj);
+    deferred_objects_.push_back(obj);
   }
 
   void OutputStatistics(const char* name);
+
+#ifdef DEBUG
+  void PushStack(HeapObject* o) { stack_.push_back(o); }
+  void PopStack() { stack_.pop_back(); }
+  void PrintStack();
+
+  bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
+#endif  // DEBUG
 
   Isolate* isolate_;
 
@@ -244,7 +255,7 @@ class Serializer : public SerializerDeserializer {
   // page. So we track the chunk size in pending_chunk_ of a space, but
   // when it exceeds a page, we complete the current chunk and start a new one.
   uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
-  List<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
+  std::vector<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
   uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
   // Number of maps that we need to allocate.
   uint32_t num_maps_;
@@ -253,16 +264,27 @@ class Serializer : public SerializerDeserializer {
   uint32_t large_objects_total_size_;
   uint32_t seen_large_objects_index_;
 
-  List<byte> code_buffer_;
+  // Used to keep track of the off-heap backing stores used by TypedArrays/
+  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
+  // TypedArray has an on-heap backing store, the backing_store pointer in the
+  // corresponding ArrayBuffer will be null, which makes it indistinguishable
+  // from index 0.
+  uint32_t seen_backing_stores_index_;
+
+  std::vector<byte> code_buffer_;
 
   // To handle stack overflow.
-  List<HeapObject*> deferred_objects_;
+  std::vector<HeapObject*> deferred_objects_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = 256;
   int* instance_type_count_;
   size_t* instance_type_size_;
 #endif  // OBJECT_PRINT
+
+#ifdef DEBUG
+  std::vector<HeapObject*> stack_;
+#endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
@@ -277,35 +299,30 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
         sink_(sink),
         reference_representation_(how_to_code + where_to_point),
         bytes_processed_so_far_(0),
-        code_has_been_output_(false) {}
-  ~ObjectSerializer() override {}
-  void Serialize();
-  void SerializeDeferred();
-  void VisitPointers(Object** start, Object** end) override;
-  void VisitEmbeddedPointer(RelocInfo* target) override;
-  void VisitExternalReference(Address* p) override;
-  void VisitExternalReference(RelocInfo* rinfo) override;
-  void VisitInternalReference(RelocInfo* rinfo) override;
-  void VisitCodeTarget(RelocInfo* target) override;
-  void VisitCodeEntry(Address entry_address) override;
-  void VisitCell(RelocInfo* rinfo) override;
-  void VisitRuntimeEntry(RelocInfo* reloc) override;
-  // Used for seralizing the external strings that hold the natives source.
-  void VisitExternalOneByteString(
-      v8::String::ExternalOneByteStringResource** resource) override;
-  // We can't serialize a heap with external two byte strings.
-  void VisitExternalTwoByteString(
-      v8::String::ExternalStringResource** resource) override {
-    UNREACHABLE();
+        code_has_been_output_(false) {
+#ifdef DEBUG
+    serializer_->PushStack(obj);
+#endif  // DEBUG
   }
+  ~ObjectSerializer() override {
+#ifdef DEBUG
+    serializer_->PopStack();
+#endif  // DEBUG
+  }
+  void Serialize();
+  void SerializeContent();
+  void SerializeDeferred();
+  void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
+  void VisitExternalReference(Foreign* host, Address* p) override;
+  void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
+  void VisitCodeTarget(Code* host, RelocInfo* target) override;
+  void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
 
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);
 
-  bool SerializeExternalNativeSourceString(
-      int builtin_count,
-      v8::String::ExternalOneByteStringResource** resource_pointer,
-      FixedArray* source_cache, int resource_index);
 
   enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
   // This function outputs or skips the raw data between the last pointer and
@@ -313,14 +330,19 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // bytes to skip instead of performing a skip instruction, in case the skip
   // can be merged into the next instruction.
   int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
-  // External strings are serialized in a way to resemble sequential strings.
+  int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  void FixupIfNeutered();
+  void SerializeJSArrayBuffer();
+  void SerializeFixedTypedArray();
   void SerializeExternalString();
+  void SerializeExternalStringAsSequentialString();
 
   Address PrepareCode();
 
   Serializer* serializer_;
   HeapObject* object_;
   SnapshotByteSink* sink_;
+  std::map<void*, Smi*> backing_stores;
   int reference_representation_;
   int bytes_processed_so_far_;
   bool code_has_been_output_;

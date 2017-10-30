@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --noflush-optimized-code-cache --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
-// The following triggers a GC in SharedFunctionInfo::AddToOptimizedCodeMap.
+// The following triggers a GC in Context::AddToOSROptimizedCodeCache.
 // Flags: --gc-interval=1234 --gc-global
 
 function makeFun() {

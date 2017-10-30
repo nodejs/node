@@ -1053,18 +1053,17 @@ $L$mulx4x_outer::
 	mulx	r13,r15,QWORD PTR[16+rsi]
 	adox	r11,QWORD PTR[((-24))+rbx]
 	adcx	r12,r15
-	adox	r12,rbp
+	adox	r12,QWORD PTR[((-16))+rbx]
 	adcx	r13,rbp
+	adox	r13,rbp
 
 	mov	QWORD PTR[8+rsp],rdi
-DB	067h
 	mov	r15,r8
 	imul	r8,QWORD PTR[24+rsp]
 	xor	ebp,ebp
 
 	mulx	r14,rax,QWORD PTR[24+rsi]
 	mov	rdx,r8
-	adox	r12,QWORD PTR[((-16))+rbx]
 	adcx	r13,rax
 	adox	r13,QWORD PTR[((-8))+rbx]
 	adcx	r14,rbp

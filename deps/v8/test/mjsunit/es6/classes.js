@@ -164,14 +164,15 @@
                SyntaxError);
 
   var D = class extends function() {
-    arguments.caller;
+    this.args = arguments;
   } {};
   assertThrows(function() {
     Object.getPrototypeOf(D).arguments;
   }, TypeError);
-  assertThrows(function() {
-    new D;
-  }, TypeError);
+  var e = new D();
+  assertThrows(() => e.args.callee, TypeError);
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(e.args, 'caller'));
+  assertFalse('caller' in e.args);
 })();
 
 
@@ -627,7 +628,7 @@ function assertAccessorDescriptor(object, name) {
 (function TestConstructorCall(){
   var realmIndex = Realm.create();
   var otherTypeError = Realm.eval(realmIndex, "TypeError");
-  var A = Realm.eval(realmIndex, '"use strict"; class A {}');
+  var A = Realm.eval(realmIndex, '"use strict"; class A {}; A');
   var instance = new A();
   var constructor = instance.constructor;
   var otherTypeError = Realm.eval(realmIndex, 'TypeError');

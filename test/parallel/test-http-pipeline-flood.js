@@ -26,7 +26,7 @@ switch (process.argv[2]) {
 function parent() {
   const http = require('http');
   const bigResponse = Buffer.alloc(10240, 'x');
-  var backloggedReqs = 0;
+  let backloggedReqs = 0;
 
   const server = http.createServer(function(req, res) {
     res.setHeader('content-length', bigResponse.length);
@@ -38,7 +38,7 @@ function parent() {
         // may still be asked to process more requests if they were read before
         // the flood-prevention mechanism activated.
         setImmediate(() => {
-          req.socket.on('data', () => common.fail('Unexpected data received'));
+          req.socket.on('data', common.mustNotCall('Unexpected data received'));
         });
       }
       backloggedReqs++;
@@ -46,7 +46,7 @@ function parent() {
     res.end();
   });
 
-  server.on('connection', common.mustCall(function(conn) {}));
+  server.on('connection', common.mustCall());
 
   server.listen(0, function() {
     const spawn = require('child_process').spawn;
@@ -68,9 +68,9 @@ function child() {
   const port = +process.argv[3];
   const conn = net.connect({ port: port });
 
-  var req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
+  let req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
 
-  req = new Array(10241).join(req);
+  req = req.repeat(10240);
 
   conn.on('connect', write);
 

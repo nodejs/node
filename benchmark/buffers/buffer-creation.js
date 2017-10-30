@@ -19,6 +19,7 @@ function main(conf) {
   const len = +conf.len;
   const n = +conf.n;
   switch (conf.type) {
+    case '':
     case 'fast-alloc':
       bench.start();
       for (let i = 0; i < n * 1024; i++) {

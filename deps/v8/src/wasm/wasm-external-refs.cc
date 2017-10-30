@@ -42,7 +42,7 @@ void f64_nearest_int_wrapper(double* param) {
 }
 
 void int64_to_float32_wrapper(int64_t* input, float* output) {
-  *output = static_cast<float>(*input);
+  *output = static_cast<float>(ReadUnalignedValue<int64_t>(input));
 }
 
 void uint64_to_float32_wrapper(uint64_t* input, float* output) {
@@ -75,12 +75,13 @@ void uint64_to_float32_wrapper(uint64_t* input, float* output) {
   *output = result;
 
 #else
-  *output = static_cast<float>(*input);
+  *output = static_cast<float>(ReadUnalignedValue<uint64_t>(input));
 #endif
 }
 
 void int64_to_float64_wrapper(int64_t* input, double* output) {
-  *output = static_cast<double>(*input);
+  WriteDoubleValue(output,
+                   static_cast<double>(ReadUnalignedValue<int64_t>(input)));
 }
 
 void uint64_to_float64_wrapper(uint64_t* input, double* output) {
@@ -100,7 +101,8 @@ void uint64_to_float64_wrapper(uint64_t* input, double* output) {
   *output = result;
 
 #else
-  *output = static_cast<double>(*input);
+  WriteDoubleValue(output,
+                   static_cast<double>(ReadUnalignedValue<uint64_t>(input)));
 #endif
 }
 
@@ -110,7 +112,7 @@ int32_t float32_to_int64_wrapper(float* input, int64_t* output) {
   // not within int64 range.
   if (*input >= static_cast<float>(std::numeric_limits<int64_t>::min()) &&
       *input < static_cast<float>(std::numeric_limits<int64_t>::max())) {
-    *output = static_cast<int64_t>(*input);
+    WriteUnalignedValue<int64_t>(output, static_cast<int64_t>(*input));
     return 1;
   }
   return 0;
@@ -122,7 +124,7 @@ int32_t float32_to_uint64_wrapper(float* input, uint64_t* output) {
   // not within uint64 range.
   if (*input > -1.0 &&
       *input < static_cast<float>(std::numeric_limits<uint64_t>::max())) {
-    *output = static_cast<uint64_t>(*input);
+    WriteUnalignedValue<uint64_t>(output, static_cast<uint64_t>(*input));
     return 1;
   }
   return 0;
@@ -132,9 +134,10 @@ int32_t float64_to_int64_wrapper(double* input, int64_t* output) {
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within int64 range which are actually
   // not within int64 range.
-  if (*input >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
-      *input < static_cast<double>(std::numeric_limits<int64_t>::max())) {
-    *output = static_cast<int64_t>(*input);
+  double input_val = ReadDoubleValue(input);
+  if (input_val >= static_cast<double>(std::numeric_limits<int64_t>::min()) &&
+      input_val < static_cast<double>(std::numeric_limits<int64_t>::max())) {
+    WriteUnalignedValue<int64_t>(output, static_cast<int64_t>(input_val));
     return 1;
   }
   return 0;
@@ -144,46 +147,55 @@ int32_t float64_to_uint64_wrapper(double* input, uint64_t* output) {
   // We use "<" here to check the upper bound because of rounding problems: With
   // "<=" some inputs would be considered within uint64 range which are actually
   // not within uint64 range.
-  if (*input > -1.0 &&
-      *input < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
-    *output = static_cast<uint64_t>(*input);
+  double input_val = ReadDoubleValue(input);
+  if (input_val > -1.0 &&
+      input_val < static_cast<double>(std::numeric_limits<uint64_t>::max())) {
+    WriteUnalignedValue<uint64_t>(output, static_cast<uint64_t>(input_val));
     return 1;
   }
   return 0;
 }
 
 int32_t int64_div_wrapper(int64_t* dst, int64_t* src) {
-  if (*src == 0) {
+  int64_t src_val = ReadUnalignedValue<int64_t>(src);
+  int64_t dst_val = ReadUnalignedValue<int64_t>(dst);
+  if (src_val == 0) {
     return 0;
   }
-  if (*src == -1 && *dst == std::numeric_limits<int64_t>::min()) {
+  if (src_val == -1 && dst_val == std::numeric_limits<int64_t>::min()) {
     return -1;
   }
-  *dst /= *src;
+  WriteUnalignedValue<int64_t>(dst, dst_val / src_val);
   return 1;
 }
 
 int32_t int64_mod_wrapper(int64_t* dst, int64_t* src) {
-  if (*src == 0) {
+  int64_t src_val = ReadUnalignedValue<int64_t>(src);
+  int64_t dst_val = ReadUnalignedValue<int64_t>(dst);
+  if (src_val == 0) {
     return 0;
   }
-  *dst %= *src;
+  WriteUnalignedValue<int64_t>(dst, dst_val % src_val);
   return 1;
 }
 
 int32_t uint64_div_wrapper(uint64_t* dst, uint64_t* src) {
-  if (*src == 0) {
+  uint64_t src_val = ReadUnalignedValue<uint64_t>(src);
+  uint64_t dst_val = ReadUnalignedValue<uint64_t>(dst);
+  if (src_val == 0) {
     return 0;
   }
-  *dst /= *src;
+  WriteUnalignedValue<uint64_t>(dst, dst_val / src_val);
   return 1;
 }
 
 int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
-  if (*src == 0) {
+  uint64_t src_val = ReadUnalignedValue<uint64_t>(src);
+  uint64_t dst_val = ReadUnalignedValue<uint64_t>(dst);
+  if (src_val == 0) {
     return 0;
   }
-  *dst %= *src;
+  WriteUnalignedValue<uint64_t>(dst, dst_val % src_val);
   return 1;
 }
 
@@ -192,7 +204,8 @@ uint32_t word32_ctz_wrapper(uint32_t* input) {
 }
 
 uint32_t word64_ctz_wrapper(uint64_t* input) {
-  return static_cast<uint32_t>(base::bits::CountTrailingZeros64(*input));
+  return static_cast<uint32_t>(
+      base::bits::CountTrailingZeros64(ReadUnalignedValue<uint64_t>(input)));
 }
 
 uint32_t word32_popcnt_wrapper(uint32_t* input) {
@@ -200,17 +213,28 @@ uint32_t word32_popcnt_wrapper(uint32_t* input) {
 }
 
 uint32_t word64_popcnt_wrapper(uint64_t* input) {
-  return static_cast<uint32_t>(base::bits::CountPopulation(*input));
+  return static_cast<uint32_t>(
+      base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(input)));
 }
 
 void float64_pow_wrapper(double* param0, double* param1) {
   double x = ReadDoubleValue(param0);
   double y = ReadDoubleValue(param1);
-  if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    WriteDoubleValue(param0, std::numeric_limits<double>::quiet_NaN());
-  }
   WriteDoubleValue(param0, Pow(x, y));
 }
+
+static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
+
+void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {
+  wasm_trap_callback_for_testing = callback;
+}
+
+void call_trap_callback_for_testing() {
+  if (wasm_trap_callback_for_testing) {
+    wasm_trap_callback_for_testing();
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -555,7 +555,6 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
 
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
-  uv_loop_t* loop = handle->loop;
   unsigned int i, simultaneous_accepts;
   uv_tcp_accept_t* req;
   int err;
@@ -612,8 +611,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 
     for (i = 0; i < simultaneous_accepts; i++) {
       req = &handle->tcp.serv.accept_reqs[i];
-      uv_req_init(loop, (uv_req_t*)req);
-      req->type = UV_ACCEPT;
+      UV_REQ_INIT(req, UV_ACCEPT);
       req->accept_socket = INVALID_SOCKET;
       req->data = handle;
 
@@ -635,8 +633,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     /* try to clean up {uv_simultaneous_server_accepts} requests. */
     for (i = simultaneous_accepts; i < uv_simultaneous_server_accepts; i++) {
       req = &handle->tcp.serv.accept_reqs[i];
-      uv_req_init(loop, (uv_req_t*) req);
-      req->type = UV_ACCEPT;
+      UV_REQ_INIT(req, UV_ACCEPT);
       req->accept_socket = INVALID_SOCKET;
       req->data = handle;
       req->wait_handle = INVALID_HANDLE_VALUE;
@@ -779,8 +776,7 @@ static int uv_tcp_try_connect(uv_connect_t* req,
     }
   }
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_CONNECT;
+  UV_REQ_INIT(req, UV_CONNECT);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
   memset(&req->u.io.overlapped, 0, sizeof(req->u.io.overlapped));
@@ -863,8 +859,7 @@ int uv_tcp_write(uv_loop_t* loop,
   int result;
   DWORD bytes;
 
-  uv_req_init(loop, (uv_req_t*) req);
-  req->type = UV_WRITE;
+  UV_REQ_INIT(req, UV_WRITE);
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
 
@@ -1451,6 +1446,8 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
   WSAPROTOCOL_INFOW protocol_info;
   int opt_len;
   int err;
+  struct sockaddr_storage saddr;
+  int saddr_len;
 
   /* Detect the address family of the socket. */
   opt_len = (int) sizeof protocol_info;
@@ -1469,6 +1466,19 @@ int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
                           1);
   if (err) {
     return uv_translate_sys_error(err);
+  }
+
+  /* Support already active socket. */
+  saddr_len = sizeof(saddr);
+  if (!uv_tcp_getsockname(handle, (struct sockaddr*) &saddr, &saddr_len)) {
+    /* Socket is already bound. */
+    handle->flags |= UV_HANDLE_BOUND;
+    saddr_len = sizeof(saddr);
+    if (!uv_tcp_getpeername(handle, (struct sockaddr*) &saddr, &saddr_len)) {
+      /* Socket is already connected. */
+      uv_connection_init((uv_stream_t*) handle);
+      handle->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
+    }
   }
 
   return 0;

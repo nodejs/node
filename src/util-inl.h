@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 
@@ -357,38 +378,44 @@ T* UncheckedRealloc(T* pointer, size_t n) {
 
 // As per spec realloc behaves like malloc if passed nullptr.
 template <typename T>
-T* UncheckedMalloc(size_t n) {
+inline T* UncheckedMalloc(size_t n) {
   if (n == 0) n = 1;
   return UncheckedRealloc<T>(nullptr, n);
 }
 
 template <typename T>
-T* UncheckedCalloc(size_t n) {
+inline T* UncheckedCalloc(size_t n) {
   if (n == 0) n = 1;
   MultiplyWithOverflowCheck(sizeof(T), n);
   return static_cast<T*>(calloc(n, sizeof(T)));
 }
 
 template <typename T>
-T* Realloc(T* pointer, size_t n) {
+inline T* Realloc(T* pointer, size_t n) {
   T* ret = UncheckedRealloc(pointer, n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
 
 template <typename T>
-T* Malloc(size_t n) {
+inline T* Malloc(size_t n) {
   T* ret = UncheckedMalloc<T>(n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
 
 template <typename T>
-T* Calloc(size_t n) {
+inline T* Calloc(size_t n) {
   T* ret = UncheckedCalloc<T>(n);
   if (n > 0) CHECK_NE(ret, nullptr);
   return ret;
 }
+
+// Shortcuts for char*.
+inline char* Malloc(size_t n) { return Malloc<char>(n); }
+inline char* Calloc(size_t n) { return Calloc<char>(n); }
+inline char* UncheckedMalloc(size_t n) { return UncheckedMalloc<char>(n); }
+inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 
 }  // namespace node
 

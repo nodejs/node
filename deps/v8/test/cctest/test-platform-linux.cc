@@ -36,11 +36,12 @@
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-using namespace ::v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(VirtualMemory) {
-  v8::base::VirtualMemory* vm = new v8::base::VirtualMemory(1 * MB);
+  v8::base::VirtualMemory* vm =
+      new v8::base::VirtualMemory(1 * MB, v8::base::OS::GetRandomMmapAddr());
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();
   size_t block_size = 4 * KB;
@@ -51,3 +52,6 @@ TEST(VirtualMemory) {
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
 }
+
+}  // namespace internal
+}  // namespace v8

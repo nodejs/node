@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -17,10 +23,13 @@ module.exports = {
             recommended: true
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         // Node types which have a test which will coerce values to booleans.
         const BOOLEAN_NODE_TYPES = [
@@ -70,7 +79,11 @@ module.exports = {
                         grandparent.callee.type === "Identifier" &&
                         grandparent.callee.name === "Boolean")
                 ) {
-                    context.report(node, "Redundant double negation.");
+                    context.report({
+                        node,
+                        message: "Redundant double negation.",
+                        fix: fixer => fixer.replaceText(parent, sourceCode.getText(node.argument))
+                    });
                 }
             },
             CallExpression(node) {
@@ -81,7 +94,26 @@ module.exports = {
                 }
 
                 if (isInBooleanContext(node, parent)) {
-                    context.report(node, "Redundant Boolean call.");
+                    context.report({
+                        node,
+                        message: "Redundant Boolean call.",
+                        fix: fixer => {
+                            if (!node.arguments.length) {
+                                return fixer.replaceText(parent, "true");
+                            }
+
+                            if (node.arguments.length > 1 || node.arguments[0].type === "SpreadElement") {
+                                return null;
+                            }
+
+                            const argument = node.arguments[0];
+
+                            if (astUtils.getPrecedence(argument) < astUtils.getPrecedence(node.parent)) {
+                                return fixer.replaceText(node, `(${sourceCode.getText(argument)})`);
+                            }
+                            return fixer.replaceText(node, sourceCode.getText(argument));
+                        }
+                    });
                 }
             }
         };

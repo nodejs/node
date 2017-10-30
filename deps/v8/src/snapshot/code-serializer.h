@@ -22,7 +22,7 @@ class CodeSerializer : public Serializer {
   MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, ScriptData* cached_data, Handle<String> source);
 
-  const List<uint32_t>* stub_keys() const { return &stub_keys_; }
+  const std::vector<uint32_t>* stub_keys() const { return &stub_keys_; }
 
   uint32_t source_hash() const { return source_hash_; }
 
@@ -36,21 +36,22 @@ class CodeSerializer : public Serializer {
     UNREACHABLE();
   }
 
+  virtual bool ElideObject(Object* obj) { return false; }
   void SerializeGeneric(HeapObject* heap_object, HowToCode how_to_code,
+                        WhereToPoint where_to_point);
+  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
 
  private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
   void SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                          WhereToPoint where_to_point);
 
   DisallowHeapAllocation no_gc_;
   uint32_t source_hash_;
-  List<uint32_t> stub_keys_;
+  std::vector<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
@@ -58,24 +59,18 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
  public:
   static std::unique_ptr<ScriptData> SerializeWasmModule(
       Isolate* isolate, Handle<FixedArray> compiled_module);
-  static MaybeHandle<FixedArray> DeserializeWasmModule(Isolate* isolate,
-                                                       ScriptData* data);
+  static MaybeHandle<FixedArray> DeserializeWasmModule(
+      Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes);
 
  protected:
   void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point) override {
-    Code::Kind kind = code_object->kind();
-    if (kind == Code::WASM_FUNCTION || kind == Code::WASM_TO_JS_FUNCTION ||
-        kind == Code::JS_TO_WASM_FUNCTION) {
-      SerializeGeneric(code_object, how_to_code, where_to_point);
-    } else {
-      UNREACHABLE();
-    }
-  }
+                           WhereToPoint where_to_point) override;
+  bool ElideObject(Object* obj) override;
 
  private:
-  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
-      : CodeSerializer(isolate, source_hash) {}
+  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash,
+                               Handle<Context> native_context,
+                               Handle<SeqOneByteString> module_bytes);
   DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 
@@ -89,16 +84,48 @@ class SerializedCodeData : public SerializedData {
     SOURCE_MISMATCH = 3,
     CPU_FEATURES_MISMATCH = 4,
     FLAGS_MISMATCH = 5,
-    CHECKSUM_MISMATCH = 6
+    CHECKSUM_MISMATCH = 6,
+    INVALID_HEADER = 7,
+    LENGTH_MISMATCH = 8
   };
 
+  // The data header consists of uint32_t-sized entries:
+  // [0] magic number and (internally provided) external reference count
+  // [1] extra (API-provided) external reference count
+  // [2] version hash
+  // [3] source hash
+  // [4] cpu features
+  // [5] flag hash
+  // [6] number of code stub keys
+  // [7] number of reservation size entries
+  // [8] payload length
+  // [9] payload checksum part 1
+  // [10] payload checksum part 2
+  // ...  reservations
+  // ...  code stub keys
+  // ...  serialized payload
+  static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
+  static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
+  static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;
+  static const uint32_t kNumReservationsOffset = kFlagHashOffset + kUInt32Size;
+  static const uint32_t kNumCodeStubKeysOffset =
+      kNumReservationsOffset + kUInt32Size;
+  static const uint32_t kPayloadLengthOffset =
+      kNumCodeStubKeysOffset + kUInt32Size;
+  static const uint32_t kChecksum1Offset = kPayloadLengthOffset + kUInt32Size;
+  static const uint32_t kChecksum2Offset = kChecksum1Offset + kUInt32Size;
+  static const uint32_t kUnalignedHeaderSize = kChecksum2Offset + kUInt32Size;
+  static const uint32_t kHeaderSize = POINTER_SIZE_ALIGN(kUnalignedHeaderSize);
+
   // Used when consuming.
-  static const SerializedCodeData FromCachedData(
-      Isolate* isolate, ScriptData* cached_data, uint32_t expected_source_hash,
-      SanityCheckResult* rejection_result);
+  static SerializedCodeData FromCachedData(Isolate* isolate,
+                                           ScriptData* cached_data,
+                                           uint32_t expected_source_hash,
+                                           SanityCheckResult* rejection_result);
 
   // Used when producing.
-  SerializedCodeData(const List<byte>* payload, const CodeSerializer* cs);
+  SerializedCodeData(const std::vector<byte>* payload,
+                     const CodeSerializer* cs);
 
   // Return ScriptData object and relinquish ownership over it to the caller.
   ScriptData* GetScriptData();
@@ -121,30 +148,6 @@ class SerializedCodeData : public SerializedData {
 
   SanityCheckResult SanityCheck(Isolate* isolate,
                                 uint32_t expected_source_hash) const;
-  // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] source hash
-  // [3] cpu features
-  // [4] flag hash
-  // [5] number of code stub keys
-  // [6] number of reservation size entries
-  // [7] payload length
-  // [8] payload checksum part 1
-  // [9] payload checksum part 2
-  // ...  reservations
-  // ...  code stub keys
-  // ...  serialized payload
-  static const int kVersionHashOffset = kMagicNumberOffset + kInt32Size;
-  static const int kSourceHashOffset = kVersionHashOffset + kInt32Size;
-  static const int kCpuFeaturesOffset = kSourceHashOffset + kInt32Size;
-  static const int kFlagHashOffset = kCpuFeaturesOffset + kInt32Size;
-  static const int kNumReservationsOffset = kFlagHashOffset + kInt32Size;
-  static const int kNumCodeStubKeysOffset = kNumReservationsOffset + kInt32Size;
-  static const int kPayloadLengthOffset = kNumCodeStubKeysOffset + kInt32Size;
-  static const int kChecksum1Offset = kPayloadLengthOffset + kInt32Size;
-  static const int kChecksum2Offset = kChecksum1Offset + kInt32Size;
-  static const int kHeaderSize = kChecksum2Offset + kInt32Size;
 };
 
 }  // namespace internal

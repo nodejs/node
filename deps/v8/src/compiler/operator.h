@@ -7,10 +7,12 @@
 
 #include <ostream>  // NOLINT(readability/streams)
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
+#include "src/globals.h"
 #include "src/handles.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +30,7 @@ namespace compiler {
 // as the name for a named field access, the ID of a runtime function, etc.
 // Static parameters are private to the operator and only semantically
 // meaningful to the operator itself.
-class Operator : public ZoneObject {
+class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   typedef uint16_t Opcode;
 
@@ -93,9 +95,6 @@ class Operator : public ZoneObject {
 
   Properties properties() const { return properties_; }
 
-  // TODO(bmeurer): Use bit fields below?
-  static const size_t kMaxControlOutputCount = (1u << 16) - 1;
-
   // TODO(titzer): convert return values here to size_t.
   int ValueInputCount() const { return value_in_; }
   int EffectInputCount() const { return effect_in_; }
@@ -134,15 +133,15 @@ class Operator : public ZoneObject {
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
+  const char* mnemonic_;
   Opcode opcode_;
   Properties properties_;
-  const char* mnemonic_;
   uint32_t value_in_;
   uint16_t effect_in_;
   uint16_t control_in_;
-  uint16_t value_out_;
+  uint32_t value_out_;
   uint8_t effect_out_;
-  uint16_t control_out_;
+  uint32_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };

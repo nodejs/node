@@ -2,13 +2,13 @@
 // pretending to be another platform is too hacky, since it breaks
 // how the underlying system looks up module paths and runs
 // child processes, and all that stuff is cached.
-if (process.platform === 'win32') {
-  console.log('TAP Version 13\n' +
-              '1..0\n' +
-              '# Skip unix tests, this is not unix\n')
-  return
-}
 var tap = require('tap')
+
+
+if (process.platform === 'win32') {
+  tap.plan(0, 'Skip unix tests, this is not unix')
+  process.exit(0)
+}
 
 // like unix, but funny
 process.env.USER = 'sirUser'

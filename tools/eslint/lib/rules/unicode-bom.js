@@ -36,7 +36,7 @@ module.exports = {
             Program: function checkUnicodeBOM(node) {
 
                 const sourceCode = context.getSourceCode(),
-                    location = {column: 0, line: 1},
+                    location = { column: 0, line: 1 },
                     requireBOM = context.options[0] || "never";
 
                 if (!sourceCode.hasBOM && (requireBOM === "always")) {
@@ -45,7 +45,7 @@ module.exports = {
                         loc: location,
                         message: "Expected Unicode BOM (Byte Order Mark).",
                         fix(fixer) {
-                            return fixer.insertTextBefore(node, "\uFEFF");
+                            return fixer.insertTextBeforeRange([0, 1], "\uFEFF");
                         }
                     });
                 } else if (sourceCode.hasBOM && (requireBOM === "never")) {

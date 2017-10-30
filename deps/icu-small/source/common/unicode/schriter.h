@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -175,7 +175,7 @@ protected:
    * @param newTextLength The length of the String
    * @stable ICU 2.0
    */
-  void setText(const UChar* newText, int32_t newTextLength);
+  void setText(const char16_t* newText, int32_t newTextLength);
 
   /**
    * Copy of the iterated string object.

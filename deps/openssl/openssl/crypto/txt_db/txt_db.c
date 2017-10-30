@@ -162,6 +162,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
                     "wrong number of fields on line %ld (looking for field %d, got %d, '%s' left)\n",
                     ln, num, n, f);
 #endif
+            OPENSSL_free(pp);
             er = 2;
             goto err;
         }
@@ -171,6 +172,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
                                                                * fix :-( */
             fprintf(stderr, "failure in sk_push\n");
 #endif
+            OPENSSL_free(pp);
             er = 2;
             goto err;
         }
@@ -222,7 +224,7 @@ int TXT_DB_create_index(TXT_DB *db, int field, int (*qual) (OPENSSL_STRING *),
                         LHASH_HASH_FN_TYPE hash, LHASH_COMP_FN_TYPE cmp)
 {
     LHASH_OF(OPENSSL_STRING) *idx;
-    OPENSSL_STRING *r;
+    OPENSSL_STRING *r, *k;
     int i, n;
 
     if (field >= db->num_fields) {
@@ -239,10 +241,15 @@ int TXT_DB_create_index(TXT_DB *db, int field, int (*qual) (OPENSSL_STRING *),
         r = sk_OPENSSL_PSTRING_value(db->data, i);
         if ((qual != NULL) && (qual(r) == 0))
             continue;
-        if ((r = lh_OPENSSL_STRING_insert(idx, r)) != NULL) {
+        if ((k = lh_OPENSSL_STRING_insert(idx, r)) != NULL) {
             db->error = DB_ERROR_INDEX_CLASH;
-            db->arg1 = sk_OPENSSL_PSTRING_find(db->data, r);
+            db->arg1 = sk_OPENSSL_PSTRING_find(db->data, k);
             db->arg2 = i;
+            lh_OPENSSL_STRING_free(idx);
+            return (0);
+        }
+        if (lh_OPENSSL_STRING_retrieve(idx, r) == NULL) {
+            db->error = DB_ERROR_MALLOC;
             lh_OPENSSL_STRING_free(idx);
             return (0);
         }
@@ -320,20 +327,29 @@ int TXT_DB_insert(TXT_DB *db, OPENSSL_STRING *row)
             }
         }
     }
-    /* We have passed the index checks, now just append and insert */
-    if (!sk_OPENSSL_PSTRING_push(db->data, row)) {
-        db->error = DB_ERROR_MALLOC;
-        goto err;
-    }
 
     for (i = 0; i < db->num_fields; i++) {
         if (db->index[i] != NULL) {
             if ((db->qual[i] != NULL) && (db->qual[i] (row) == 0))
                 continue;
             (void)lh_OPENSSL_STRING_insert(db->index[i], row);
+            if (lh_OPENSSL_STRING_retrieve(db->index[i], row) == NULL)
+                goto err1;
         }
     }
+    if (!sk_OPENSSL_PSTRING_push(db->data, row))
+        goto err1;
     return (1);
+
+ err1:
+    db->error = DB_ERROR_MALLOC;
+    while (i-- > 0) {
+        if (db->index[i] != NULL) {
+            if ((db->qual[i] != NULL) && (db->qual[i] (row) == 0))
+                continue;
+            (void)lh_OPENSSL_STRING_delete(db->index[i], row);
+        }
+    }
  err:
     return (0);
 }

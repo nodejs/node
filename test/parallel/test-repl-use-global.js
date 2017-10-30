@@ -80,7 +80,7 @@ function runRepl(useGlobal, testFunc, cb) {
   };
 
   repl.createInternalRepl(
-      process.env,
-      opts,
-      testFunc(useGlobal, cb, opts.output));
+    process.env,
+    opts,
+    testFunc(useGlobal, cb, opts.output));
 }

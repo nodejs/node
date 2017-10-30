@@ -6,9 +6,12 @@
 #define V8_DEOPTIMIZER_H_
 
 #include "src/allocation.h"
+#include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
+#include "src/frame-constants.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -42,14 +45,12 @@ class TranslatedValue {
     kBoolBit,
     kFloat,
     kDouble,
-    kCapturedObject,    // Object captured by the escape analysis.
-                        // The number of nested objects can be obtained
-                        // with the DeferredObjectLength() method
-                        // (the values of the nested objects follow
-                        // this value in the depth-first order.)
-    kDuplicatedObject,  // Duplicated object of a deferred object.
-    kArgumentsObject    // Arguments object - only used to keep indexing
-                        // in sync, it should not be materialized.
+    kCapturedObject,   // Object captured by the escape analysis.
+                       // The number of nested objects can be obtained
+                       // with the DeferredObjectLength() method
+                       // (the values of the nested objects follow
+                       // this value in the depth-first order.)
+    kDuplicatedObject  // Duplicated object of a deferred object.
   };
 
   TranslatedValue(TranslatedState* container, Kind kind)
@@ -58,13 +59,11 @@ class TranslatedValue {
   void Handlify();
   int GetChildrenCount() const;
 
-  static TranslatedValue NewArgumentsObject(TranslatedState* container,
-                                            int length, int object_index);
   static TranslatedValue NewDeferredObject(TranslatedState* container,
                                            int length, int object_index);
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
-  static TranslatedValue NewFloat(TranslatedState* container, float value);
-  static TranslatedValue NewDouble(TranslatedState* container, double value);
+  static TranslatedValue NewFloat(TranslatedState* container, Float32 value);
+  static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
@@ -86,7 +85,7 @@ class TranslatedValue {
 
   struct MaterializedObjectInfo {
     int id_;
-    int length_;  // Applies only to kArgumentsObject or kCapturedObject kinds.
+    int length_;  // Applies only to kCapturedObject kinds.
   };
 
   union {
@@ -97,10 +96,10 @@ class TranslatedValue {
     // kind is kInt32.
     int32_t int32_value_;
     // kind is kFloat
-    float float_value_;
+    Float32 float_value_;
     // kind is kDouble
-    double double_value_;
-    // kind is kDuplicatedObject or kArgumentsObject or kCapturedObject.
+    Float64 double_value_;
+    // kind is kDuplicatedObject or kCapturedObject.
     MaterializedObjectInfo materialization_info_;
   };
 
@@ -108,8 +107,8 @@ class TranslatedValue {
   Object* raw_literal() const;
   int32_t int32_value() const;
   uint32_t uint32_value() const;
-  float float_value() const;
-  double double_value() const;
+  Float32 float_value() const;
+  Float64 double_value() const;
   int object_length() const;
   int object_index() const;
 };
@@ -118,14 +117,13 @@ class TranslatedValue {
 class TranslatedFrame {
  public:
   enum Kind {
-    kFunction,
     kInterpretedFunction,
     kGetter,
     kSetter,
-    kTailCallerFunction,
     kArgumentsAdaptor,
     kConstructStub,
-    kCompiledStub,
+    kBuiltinContinuation,
+    kJavaScriptBuiltinContinuation,
     kInvalid
   };
 
@@ -184,8 +182,6 @@ class TranslatedFrame {
   friend class TranslatedState;
 
   // Constructor static methods.
-  static TranslatedFrame JSFrame(BailoutId node_id,
-                                 SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
                                           SharedFunctionInfo* shared_info,
                                           int height);
@@ -193,12 +189,13 @@ class TranslatedFrame {
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
-  static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
-  static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
+  static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
+                                            SharedFunctionInfo* shared_info,
                                             int height);
-  static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
-    return TranslatedFrame(kCompiledStub, isolate, nullptr, height);
-  }
+  static TranslatedFrame BuiltinContinuationFrame(
+      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
+  static TranslatedFrame JavaScriptBuiltinContinuationFrame(
+      BailoutId bailout_id, SharedFunctionInfo* shared_info, int height);
   static TranslatedFrame InvalidFrame() {
     return TranslatedFrame(kInvalid, nullptr);
   }
@@ -248,12 +245,12 @@ class TranslatedFrame {
 class TranslatedState {
  public:
   TranslatedState();
-  explicit TranslatedState(JavaScriptFrame* frame);
+  explicit TranslatedState(const JavaScriptFrame* frame);
 
-  void Prepare(bool has_adapted_arguments, Address stack_frame_pointer);
+  void Prepare(Address stack_frame_pointer);
 
   // Store newly materialized values into the isolate.
-  void StoreMaterializedValuesAndDeopt();
+  void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
 
   typedef std::vector<TranslatedFrame>::iterator iterator;
   iterator begin() { return frames_.begin(); }
@@ -272,7 +269,7 @@ class TranslatedState {
 
   void Init(Address input_frame_pointer, TranslationIterator* iterator,
             FixedArray* literal_array, RegisterValues* registers,
-            FILE* trace_file);
+            FILE* trace_file, int parameter_count);
 
  private:
   friend TranslatedValue;
@@ -281,24 +278,30 @@ class TranslatedState {
                                             FixedArray* literal_array,
                                             Address fp,
                                             FILE* trace_file);
-  TranslatedValue CreateNextTranslatedValue(int frame_index, int value_index,
-                                            TranslationIterator* iterator,
-                                            FixedArray* literal_array,
-                                            Address fp,
-                                            RegisterValues* registers,
-                                            FILE* trace_file);
+  int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
+                                FixedArray* literal_array, Address fp,
+                                RegisterValues* registers, FILE* trace_file);
+  Address ComputeArgumentsPosition(Address input_frame_pointer, bool is_rest,
+                                   int* length);
+  void CreateArgumentsElementsTranslatedValues(int frame_index,
+                                               Address input_frame_pointer,
+                                               bool is_rest, FILE* trace_file);
 
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
   Handle<Object> MaterializeObjectAt(int object_index);
-  bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
+  class CapturedObjectMaterializer;
+  Handle<Object> MaterializeCapturedObjectAt(TranslatedValue* slot,
+                                             int frame_index, int* value_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
+  static Float32 GetFloatSlot(Address fp, int slot_index);
+  static Float64 GetDoubleSlot(Address fp, int slot_index);
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_;
   Address stack_frame_pointer_;
-  bool has_adapted_arguments_;
+  int formal_parameter_count_;
 
   struct ObjectPosition {
     int frame_index_;
@@ -311,16 +314,7 @@ class TranslatedState {
 class OptimizedFunctionVisitor BASE_EMBEDDED {
  public:
   virtual ~OptimizedFunctionVisitor() {}
-
-  // Function which is called before iteration of any optimized functions
-  // from given native context.
-  virtual void EnterContext(Context* context) = 0;
-
   virtual void VisitFunction(JSFunction* function) = 0;
-
-  // Function which is called after iteration of all optimized functions
-  // from given native context.
-  virtual void LeaveContext(Context* context) = 0;
 };
 
 class Deoptimizer : public Malloced {
@@ -340,7 +334,6 @@ class Deoptimizer : public Malloced {
         return "TOS_REGISTER";
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   struct DeoptInfo {
@@ -357,8 +350,6 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code* code, byte* from);
 
-  static int ComputeSourcePositionFromBaselineCode(SharedFunctionInfo* shared,
-                                                   BailoutId node_id);
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo* shared,
                                                     BailoutId node_id);
 
@@ -383,8 +374,6 @@ class Deoptimizer : public Malloced {
     bool needs_frame;
   };
 
-  static bool TraceEnabledFor(BailoutType deopt_type,
-                              StackFrame::Type frame_type);
   static const char* MessageFor(BailoutType type);
 
   int output_count() const { return output_count_; }
@@ -410,17 +399,11 @@ class Deoptimizer : public Malloced {
                                                         int jsframe_index,
                                                         Isolate* isolate);
 
-  // Makes sure that there is enough room in the relocation
-  // information of a code object to perform lazy deoptimization
-  // patching. If there is not enough room a new relocation
-  // information object is allocated and comments are added until it
-  // is big enough.
-  static void EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code);
-
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
-  // execution returns.
-  static void DeoptimizeFunction(JSFunction* function);
+  // execution returns. If {code} is specified then the given code is targeted
+  // instead of the function code (e.g. OSR code not installed on function).
+  static void DeoptimizeFunction(JSFunction* function, Code* code = nullptr);
 
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);
@@ -434,8 +417,7 @@ class Deoptimizer : public Malloced {
   static void VisitAllOptimizedFunctions(
       Isolate* isolate, OptimizedFunctionVisitor* visitor);
 
-  // The size in bytes of the code required at a lazy deopt patch site.
-  static int patch_size();
+  static void UnlinkOptimizedCode(Code* code, Context* native_context);
 
   ~Deoptimizer();
 
@@ -458,9 +440,6 @@ class Deoptimizer : public Malloced {
   static int GetDeoptimizationId(Isolate* isolate,
                                  Address addr,
                                  BailoutType type);
-  static int GetOutputInfo(DeoptimizationOutputData* data,
-                           BailoutId node_id,
-                           SharedFunctionInfo* shared);
 
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
@@ -500,13 +479,12 @@ class Deoptimizer : public Malloced {
     int count_;
   };
 
-  int ConvertJSFrameIndexToFrameIndex(int jsframe_index);
-
   static size_t GetMaxDeoptTableSize();
 
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                BailoutType type,
                                                int max_entry_id);
+  static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -514,32 +492,23 @@ class Deoptimizer : public Malloced {
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
-  Deoptimizer(Isolate* isolate,
-              JSFunction* function,
-              BailoutType type,
-              unsigned bailout_id,
-              Address from,
-              int fp_to_sp_delta,
-              Code* optimized_code);
-  Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
+  Deoptimizer(Isolate* isolate, JSFunction* function, BailoutType type,
+              unsigned bailout_id, Address from, int fp_to_sp_delta);
+  Code* FindOptimizedCode();
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(TranslatedFrame* translated_frame, int frame_index,
-                        bool goto_catch_handler);
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
   void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
                                       int frame_index);
-  void DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
-                                int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
   void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
                                   int frame_index, bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
-                                  int frame_index);
+  void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
+                                    int frame_index, bool java_script_frame);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
@@ -560,8 +529,6 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
 
-  Object* ComputeLiteral(int index) const;
-
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 
@@ -575,22 +542,10 @@ class Deoptimizer : public Malloced {
   // Deoptimizes all code marked in the given context.
   static void DeoptimizeMarkedCodeForContext(Context* native_context);
 
-  // Patch the given code so that it will deoptimize itself.
-  static void PatchCodeForDeoptimization(Isolate* isolate, Code* code);
-
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than
   // searching all code objects).
   Code* FindDeoptimizingCode(Address addr);
-
-  // Fill the given output frame's registers to contain the failure handler
-  // address and the number of parameters for a stub failure trampoline.
-  void SetPlatformCompiledStubRegisters(FrameDescription* output_frame,
-                                        CodeStubDescriptor* desc);
-
-  // Fill the given output frame's double registers with the original values
-  // from the input frame's double registers.
-  void CopyDoubleRegisters(FrameDescription* output_frame);
 
   Isolate* isolate_;
   JSFunction* function_;
@@ -657,12 +612,12 @@ class RegisterValues {
     return registers_[n];
   }
 
-  float GetFloatRegister(unsigned n) const {
+  Float32 GetFloatRegister(unsigned n) const {
     DCHECK(n < arraysize(float_registers_));
     return float_registers_[n];
   }
 
-  double GetDoubleRegister(unsigned n) const {
+  Float64 GetDoubleRegister(unsigned n) const {
     DCHECK(n < arraysize(double_registers_));
     return double_registers_[n];
   }
@@ -672,19 +627,24 @@ class RegisterValues {
     registers_[n] = value;
   }
 
-  void SetFloatRegister(unsigned n, float value) {
+  void SetFloatRegister(unsigned n, Float32 value) {
     DCHECK(n < arraysize(float_registers_));
     float_registers_[n] = value;
   }
 
-  void SetDoubleRegister(unsigned n, double value) {
+  void SetDoubleRegister(unsigned n, Float64 value) {
     DCHECK(n < arraysize(double_registers_));
     double_registers_[n] = value;
   }
 
+  // Generated code is writing directly into the below arrays, make sure their
+  // element sizes fit what the machine instructions expect.
+  static_assert(sizeof(Float32) == kFloatSize, "size mismatch");
+  static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
+
   intptr_t registers_[Register::kNumRegisters];
-  float float_registers_[FloatRegister::kMaxNumRegisters];
-  double double_registers_[DoubleRegister::kMaxNumRegisters];
+  Float32 float_registers_[FloatRegister::kMaxNumRegisters];
+  Float64 double_registers_[DoubleRegister::kMaxNumRegisters];
 };
 
 
@@ -710,8 +670,6 @@ class FrameDescription {
     DCHECK(static_cast<uint32_t>(frame_size_) == frame_size_);
     return static_cast<uint32_t>(frame_size_);
   }
-
-  unsigned GetOffsetFromSlotIndex(int slot_index);
 
   intptr_t GetFrameSlot(unsigned offset) {
     return *GetFrameSlotPointer(offset);
@@ -739,7 +697,7 @@ class FrameDescription {
     return register_values_.GetRegister(n);
   }
 
-  double GetDoubleRegister(unsigned n) const {
+  Float64 GetDoubleRegister(unsigned n) const {
     return register_values_.GetDoubleRegister(n);
   }
 
@@ -747,7 +705,7 @@ class FrameDescription {
     register_values_.SetRegister(n, value);
   }
 
-  void SetDoubleRegister(unsigned n, double value) {
+  void SetDoubleRegister(unsigned n, Float64 value) {
     register_values_.SetDoubleRegister(n, value);
   }
 
@@ -773,9 +731,6 @@ class FrameDescription {
 
   void SetContinuation(intptr_t pc) { continuation_ = pc; }
 
-  StackFrame::Type GetFrameType() const { return type_; }
-  void SetFrameType(StackFrame::Type type) { type_ = type; }
-
   // Argument count, including receiver.
   int parameter_count() { return parameter_count_; }
 
@@ -785,6 +740,10 @@ class FrameDescription {
 
   static int double_registers_offset() {
     return OFFSET_OF(FrameDescription, register_values_.double_registers_);
+  }
+
+  static int float_registers_offset() {
+    return OFFSET_OF(FrameDescription, register_values_.float_registers_);
   }
 
   static int frame_size_offset() {
@@ -817,7 +776,6 @@ class FrameDescription {
   intptr_t fp_;
   intptr_t context_;
   intptr_t constant_pool_;
-  StackFrame::Type type_;
   Smi* state_;
 
   // Continuation is the PC where the execution continues after
@@ -833,8 +791,6 @@ class FrameDescription {
     return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
-
-  int ComputeFixedSize();
 };
 
 
@@ -858,15 +814,15 @@ class DeoptimizerData {
 
 class TranslationBuffer BASE_EMBEDDED {
  public:
-  explicit TranslationBuffer(Zone* zone) : contents_(256, zone) { }
+  explicit TranslationBuffer(Zone* zone) : contents_(zone) {}
 
-  int CurrentIndex() const { return contents_.length(); }
-  void Add(int32_t value, Zone* zone);
+  int CurrentIndex() const { return static_cast<int>(contents_.size()); }
+  void Add(int32_t value);
 
   Handle<ByteArray> CreateByteArray(Factory* factory);
 
  private:
-  ZoneList<uint8_t> contents_;
+  ZoneChunkList<uint8_t> contents_;
 };
 
 
@@ -890,31 +846,31 @@ class TranslationIterator BASE_EMBEDDED {
   int index_;
 };
 
-#define TRANSLATION_OPCODE_LIST(V) \
-  V(BEGIN)                         \
-  V(JS_FRAME)                      \
-  V(INTERPRETED_FRAME)             \
-  V(CONSTRUCT_STUB_FRAME)          \
-  V(GETTER_STUB_FRAME)             \
-  V(SETTER_STUB_FRAME)             \
-  V(ARGUMENTS_ADAPTOR_FRAME)       \
-  V(TAIL_CALLER_FRAME)             \
-  V(COMPILED_STUB_FRAME)           \
-  V(DUPLICATED_OBJECT)             \
-  V(ARGUMENTS_OBJECT)              \
-  V(CAPTURED_OBJECT)               \
-  V(REGISTER)                      \
-  V(INT32_REGISTER)                \
-  V(UINT32_REGISTER)               \
-  V(BOOL_REGISTER)                 \
-  V(FLOAT_REGISTER)                \
-  V(DOUBLE_REGISTER)               \
-  V(STACK_SLOT)                    \
-  V(INT32_STACK_SLOT)              \
-  V(UINT32_STACK_SLOT)             \
-  V(BOOL_STACK_SLOT)               \
-  V(FLOAT_STACK_SLOT)              \
-  V(DOUBLE_STACK_SLOT)             \
+#define TRANSLATION_OPCODE_LIST(V)          \
+  V(BEGIN)                                  \
+  V(INTERPRETED_FRAME)                      \
+  V(BUILTIN_CONTINUATION_FRAME)             \
+  V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) \
+  V(CONSTRUCT_STUB_FRAME)                   \
+  V(GETTER_STUB_FRAME)                      \
+  V(SETTER_STUB_FRAME)                      \
+  V(ARGUMENTS_ADAPTOR_FRAME)                \
+  V(DUPLICATED_OBJECT)                      \
+  V(ARGUMENTS_ELEMENTS)                     \
+  V(ARGUMENTS_LENGTH)                       \
+  V(CAPTURED_OBJECT)                        \
+  V(REGISTER)                               \
+  V(INT32_REGISTER)                         \
+  V(UINT32_REGISTER)                        \
+  V(BOOL_REGISTER)                          \
+  V(FLOAT_REGISTER)                         \
+  V(DOUBLE_REGISTER)                        \
+  V(STACK_SLOT)                             \
+  V(INT32_STACK_SLOT)                       \
+  V(UINT32_STACK_SLOT)                      \
+  V(BOOL_STACK_SLOT)                        \
+  V(FLOAT_STACK_SLOT)                       \
+  V(DOUBLE_STACK_SLOT)                      \
   V(LITERAL)
 
 class Translation BASE_EMBEDDED {
@@ -931,24 +887,27 @@ class Translation BASE_EMBEDDED {
       : buffer_(buffer),
         index_(buffer->CurrentIndex()),
         zone_(zone) {
-    buffer_->Add(BEGIN, zone);
-    buffer_->Add(frame_count, zone);
-    buffer_->Add(jsframe_count, zone);
+    buffer_->Add(BEGIN);
+    buffer_->Add(frame_count);
+    buffer_->Add(jsframe_count);
   }
 
   int index() const { return index_; }
 
   // Commands.
-  void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
   void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
                              unsigned height);
-  void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
-  void BeginTailCallerFrame(int literal_id);
-  void BeginConstructStubFrame(int literal_id, unsigned height);
+  void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+                               unsigned height);
+  void BeginBuiltinContinuationFrame(BailoutId bailout_id, int literal_id,
+                                     unsigned height);
+  void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
+                                               int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
-  void BeginArgumentsObject(int args_length);
+  void ArgumentsElements(bool is_rest);
+  void ArgumentsLength(bool is_rest);
   void BeginCapturedObject(int length);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);
@@ -964,7 +923,6 @@ class Translation BASE_EMBEDDED {
   void StoreFloatStackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
-  void StoreArgumentsObject(bool args_known, int args_index, int args_length);
   void StoreJSFrameFunction();
 
   Zone* zone() const { return zone_; }
@@ -992,7 +950,7 @@ class MaterializedObjectStore {
   bool Remove(Address fp);
 
  private:
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
   Handle<FixedArray> GetStackEntries();
   Handle<FixedArray> EnsureStackEntries(int size);
 

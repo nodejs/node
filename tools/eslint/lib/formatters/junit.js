@@ -19,9 +19,9 @@ const xmlEscape = require("../util/xml-escape");
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "Error";
-    } else {
-        return "Warning";
     }
+    return "Warning";
+
 }
 
 //------------------------------------------------------------------------------
@@ -35,15 +35,12 @@ module.exports = function(results) {
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
     output += "<testsuites>\n";
 
-    results.forEach(function(result) {
+    results.forEach(result => {
 
         const messages = result.messages;
 
-        if (messages.length) {
-            output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
-        }
-
-        messages.forEach(function(message) {
+        output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
+        messages.forEach(message => {
             const type = message.fatal ? "error" : "failure";
 
             output += `<testcase time="0" name="org.eslint.${message.ruleId || "unknown"}">`;
@@ -57,10 +54,7 @@ module.exports = function(results) {
             output += `</${type}>`;
             output += "</testcase>\n";
         });
-
-        if (messages.length) {
-            output += "</testsuite>\n";
-        }
+        output += "</testsuite>\n";
 
     });
 

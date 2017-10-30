@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -57,7 +57,7 @@ typedef enum UFormattableType {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UFMT_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UFormattableType;
 
 

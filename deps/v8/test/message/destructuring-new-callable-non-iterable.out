@@ -1,0 +1,5 @@
+*%(basename)s:6: TypeError: f is not a function or its return value is not iterable
+var [a] = new f;
+          ^
+TypeError: f is not a function or its return value is not iterable
+    at *%(basename)s:6:11

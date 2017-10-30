@@ -19,5 +19,3 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = (columns, border) => {
   return border.bodyLeft + columns.join(border.bodyJoin) + border.bodyRight + '\n';
 };
-
-module.exports = exports['default'];

@@ -1,0 +1,65 @@
+{
+  "_from": "lazy-property@~1.0.0",
+  "_id": "lazy-property@1.0.0",
+  "_integrity": "sha1-hN3Es3Bnm6i9TNz6TAa0PVcREUc=",
+  "_location": "/lazy-property",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "lazy-property@~1.0.0",
+    "name": "lazy-property",
+    "escapedName": "lazy-property",
+    "rawSpec": "~1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "~1.0.0"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lazy-property/-/lazy-property-1.0.0.tgz",
+  "_shasum": "84ddc4b370679ba8bd4cdcfa4c06b43d57111147",
+  "_shrinkwrap": null,
+  "_spec": "lazy-property@~1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Mikola Lysenko"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/mikolalysenko/lazy-property/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Lazily initialized properties for objects",
+  "devDependencies": {
+    "tape": "^2.12.3"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "gitHead": "850a27f710ec72f05b534805c31f095ff590f1ea",
+  "homepage": "https://github.com/mikolalysenko/lazy-property#readme",
+  "keywords": [
+    "lazy",
+    "property",
+    "object",
+    "initialize",
+    "array",
+    "dictionary"
+  ],
+  "license": "MIT",
+  "main": "lazyProperty.js",
+  "name": "lazy-property",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mikolalysenko/lazy-property.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "version": "1.0.0"
+}

@@ -7,8 +7,7 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var rmStuff = require('../../unbuild.js').rmStuff
 var lifecycle = require('../../utils/lifecycle.js')
-var updatePackageJson = require('../update-package-json.js')
-var rename = require('../../utils/rename.js')
+var move = require('../../utils/move.js')
 
 /*
   Move a module from one point in the node_modules tree to another.
@@ -16,17 +15,16 @@ var rename = require('../../utils/rename.js')
   folders.
 */
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('move', pkg.fromPath, pkg.path)
   chain([
-    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, false, true],
-    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, false, true],
+    [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, { failOk: true }],
+    [lifecycle, pkg.package, 'uninstall', pkg.fromPath, { failOk: true }],
     [rmStuff, pkg.package, pkg.fromPath],
-    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, false, true],
+    [lifecycle, pkg.package, 'postuninstall', pkg.fromPath, { failOk: true }],
     [moveModuleOnly, pkg.fromPath, pkg.path, log],
-    [lifecycle, pkg.package, 'preinstall', pkg.path, false, true],
-    [removeEmptyParents, path.resolve(pkg.fromPath, '..')],
-    [updatePackageJson, pkg, pkg.path]
+    [lifecycle, pkg.package, 'preinstall', pkg.path, { failOk: true }],
+    [removeEmptyParents, path.resolve(pkg.fromPath, '..')]
   ], next)
 }
 
@@ -46,7 +44,7 @@ function moveModuleOnly (from, to, log, done) {
 
   log.silly('move', 'move existing destination node_modules away', toModules)
 
-  rename(toModules, tempToModules, removeDestination(done))
+  move(toModules, tempToModules).then(removeDestination(done), removeDestination(done))
 
   function removeDestination (next) {
     return function (er) {
@@ -62,7 +60,7 @@ function moveModuleOnly (from, to, log, done) {
   function moveToModulesBack (next) {
     return function () {
       log.silly('move', 'move existing destination node_modules back', toModules)
-      rename(tempToModules, toModules, iferr(done, next))
+      move(tempToModules, toModules).then(next, done)
     }
   }
 
@@ -76,14 +74,14 @@ function moveModuleOnly (from, to, log, done) {
   function moveNodeModules (next) {
     return function () {
       log.silly('move', 'move source node_modules away', fromModules)
-      rename(fromModules, tempFromModules, iferr(doMove(next), doMove(moveNodeModulesBack(next))))
+      move(fromModules, tempFromModules).then(doMove(moveNodeModulesBack(next)), doMove(next))
     }
   }
 
   function doMove (next) {
     return function () {
       log.silly('move', 'move module dir to final dest', from, to)
-      rename(from, to, iferr(done, next))
+      move(from, to).then(next, done)
     }
   }
 
@@ -91,7 +89,7 @@ function moveModuleOnly (from, to, log, done) {
     return function () {
       mkdirp(from, iferr(done, function () {
         log.silly('move', 'put source node_modules back', fromModules)
-        rename(tempFromModules, fromModules, iferr(done, next))
+        move(tempFromModules, fromModules).then(next, done)
       }))
     }
   }

@@ -1,0 +1,72 @@
+{
+  "_from": "duplexify@^3.4.2",
+  "_id": "duplexify@3.5.0",
+  "_integrity": "sha1-GqdzAC4VeEV+nZ1KULDMquvL1gQ=",
+  "_location": "/mississippi/duplexify",
+  "_phantomChildren": {
+    "wrappy": "1.0.2"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "duplexify@^3.4.2",
+    "name": "duplexify",
+    "escapedName": "duplexify",
+    "rawSpec": "^3.4.2",
+    "saveSpec": null,
+    "fetchSpec": "^3.4.2"
+  },
+  "_requiredBy": [
+    "/mississippi",
+    "/mississippi/pumpify"
+  ],
+  "_resolved": "https://registry.npmjs.org/duplexify/-/duplexify-3.5.0.tgz",
+  "_shasum": "1aa773002e1578457e9d9d4a50b0ccaaebcbd604",
+  "_shrinkwrap": null,
+  "_spec": "duplexify@^3.4.2",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/mafintosh/duplexify/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "end-of-stream": "1.0.0",
+    "inherits": "^2.0.1",
+    "readable-stream": "^2.0.0",
+    "stream-shift": "^1.0.0"
+  },
+  "deprecated": false,
+  "description": "Turn a writable and readable stream into a streams2 duplex stream with support for async initialization and streams1/streams2 input",
+  "devDependencies": {
+    "concat-stream": "^1.4.6",
+    "tape": "^2.13.3",
+    "through2": "^0.5.1"
+  },
+  "homepage": "https://github.com/mafintosh/duplexify",
+  "keywords": [
+    "duplex",
+    "streams2",
+    "streams",
+    "stream",
+    "writable",
+    "readable",
+    "async"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "duplexify",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/duplexify.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "3.5.0"
+}

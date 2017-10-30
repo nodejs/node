@@ -8,6 +8,7 @@ prefix known_issues
 
 [$system==win32]
 test-stdout-buffer-flush-on-exit: SKIP
+test-cluster-disconnect-handles: SKIP
 
 [$system==linux]
 

@@ -5,7 +5,7 @@ const assert = require('assert');
 const http = require('http');
 
 const uncaughtCallback = common.mustCall(function(er) {
-  assert.equal(er.message, 'get did fail');
+  assert.strictEqual(er.message, 'get did fail');
 });
 
 process.on('uncaughtException', uncaughtCallback);

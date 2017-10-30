@@ -44,7 +44,7 @@ module.exports = {
         docs: {
             description: "disallow negating the left operand of relational operators",
             category: "Possible Errors",
-            recommended: false
+            recommended: true
         },
         schema: [],
         fixable: "code"

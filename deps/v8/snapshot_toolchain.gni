@@ -76,9 +76,11 @@ if (v8_snapshot_toolchain == "") {
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "x86") {
       _cpus = v8_current_cpu
-    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el") {
+    } else if (v8_current_cpu == "arm64" || v8_current_cpu == "mips64el" ||
+               v8_current_cpu == "mips64") {
       _cpus = "x64_v8_${v8_current_cpu}"
-    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel" ||
+               v8_current_cpu == "mips") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
       # This branch should not be reached; leave _cpus blank so the assert

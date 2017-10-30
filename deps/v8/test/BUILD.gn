@@ -3,12 +3,15 @@
 # found in the LICENSE file.
 
 import("../gni/isolate.gni")
+import("../gni/v8.gni")
 
 group("gn_all") {
   testonly = true
 
   deps = [
     ":default_tests",
+    "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
   ]
 
   if (host_os != "mac" || !is_android) {
@@ -26,7 +29,6 @@ group("gn_all") {
       ":bot_default_run",
       ":default_run",
       ":mozilla_run",
-      ":simdjs_run",
       "test262:test262_run",
     ]
   }
@@ -43,11 +45,14 @@ group("default_tests") {
     deps = [
       ":cctest_run",
       ":fuzzer_run",
+      ":inspector-test_run",
       ":intl_run",
       ":message_run",
       ":mjsunit_run",
+      ":mkgrokdump_run",
       ":preparser_run",
       ":unittests_run",
+      ":wasm_spec_tests_run",
     ]
   }
 }
@@ -72,6 +77,7 @@ v8_isolate_run("default") {
 v8_isolate_run("optimize_for_size") {
   deps = [
     ":cctest_run",
+    ":inspector-test_run",
     ":intl_run",
     ":mjsunit_run",
     ":webkit_run",
@@ -122,11 +128,18 @@ v8_isolate_run("fuzzer") {
     "..:v8_simple_json_fuzzer",
     "..:v8_simple_parser_fuzzer",
     "..:v8_simple_regexp_fuzzer",
-    "..:v8_simple_wasm_asmjs_fuzzer",
     "..:v8_simple_wasm_fuzzer",
   ]
 
   isolate = "fuzzer/fuzzer.isolate"
+}
+
+v8_isolate_run("inspector-test") {
+  deps = [
+    "inspector:inspector-test",
+  ]
+
+  isolate = "inspector/inspector.isolate"
 }
 
 v8_isolate_run("intl") {
@@ -153,6 +166,14 @@ v8_isolate_run("mjsunit") {
   isolate = "mjsunit/mjsunit.isolate"
 }
 
+v8_isolate_run("mkgrokdump") {
+  deps = [
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  isolate = "mkgrokdump/mkgrokdump.isolate"
+}
+
 v8_isolate_run("mozilla") {
   deps = [
     "..:d8_run",
@@ -169,20 +190,20 @@ v8_isolate_run("preparser") {
   isolate = "preparser/preparser.isolate"
 }
 
-v8_isolate_run("simdjs") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "simdjs/simdjs.isolate"
-}
-
 v8_isolate_run("unittests") {
   deps = [
     "unittests:unittests",
   ]
 
   isolate = "unittests/unittests.isolate"
+}
+
+v8_isolate_run("wasm_spec_tests") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "wasm-spec-tests/wasm-spec-tests.isolate"
 }
 
 v8_isolate_run("webkit") {

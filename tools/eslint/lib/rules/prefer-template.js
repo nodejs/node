@@ -74,7 +74,7 @@ function startsWithTemplateCurly(node) {
         return startsWithTemplateCurly(node.left);
     }
     if (node.type === "TemplateLiteral") {
-        return node.expressions.length && node.quasis.length && node.quasis[0].start === node.quasis[0].end;
+        return node.expressions.length && node.quasis.length && node.quasis[0].range[0] === node.quasis[0].range[1];
     }
     return node.type !== "Literal" || typeof node.value !== "string";
 }
@@ -89,7 +89,7 @@ function endsWithTemplateCurly(node) {
         return startsWithTemplateCurly(node.right);
     }
     if (node.type === "TemplateLiteral") {
-        return node.expressions.length && node.quasis.length && node.quasis[node.quasis.length - 1].start === node.quasis[node.quasis.length - 1].end;
+        return node.expressions.length && node.quasis.length && node.quasis[node.quasis.length - 1].range[0] === node.quasis[node.quasis.length - 1].range[1];
     }
     return node.type !== "Literal" || typeof node.value !== "string";
 }
@@ -157,7 +157,7 @@ module.exports = {
             }
 
             if (isConcatenation(currentNode) && hasStringLiteral(currentNode) && hasNonStringLiteral(currentNode)) {
-                const plusSign = sourceCode.getTokensBetween(currentNode.left, currentNode.right).find(token => token.value === "+");
+                const plusSign = sourceCode.getFirstTokenBetween(currentNode.left, currentNode.right, token => token.value === "+");
                 const textBeforePlus = getTextBetween(currentNode.left, plusSign);
                 const textAfterPlus = getTextBetween(plusSign, currentNode.right);
                 const leftEndsWithCurly = endsWithTemplateCurly(currentNode.left);

@@ -8,7 +8,8 @@
 #include "src/base/iterator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -122,7 +123,6 @@ class LoopTree : public ZoneObject {
       if (node->opcode() == IrOpcode::kLoop) return node;
     }
     UNREACHABLE();
-    return nullptr;
   }
 
   Zone* zone() const { return zone_; }
@@ -153,7 +153,7 @@ class LoopTree : public ZoneObject {
   ZoneVector<Node*> loop_nodes_;
 };
 
-class LoopFinder {
+class V8_EXPORT_PRIVATE LoopFinder {
  public:
   // Build a loop tree for the entire graph.
   static LoopTree* BuildLoopTree(Graph* graph, Zone* temp_zone);

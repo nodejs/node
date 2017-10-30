@@ -1,124 +1,141 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
 
-var expectFilePath = common.isWindows ||
-                     common.isLinux ||
-                     common.isOSX;
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
-var watchSeenOne = 0;
-var watchSeenTwo = 0;
-var watchSeenThree = 0;
+const expectFilePath = common.isWindows ||
+                       common.isLinux ||
+                       common.isOSX ||
+                       common.isAIX;
 
-var testDir = common.tmpDir;
-
-var filenameOne = 'watch.txt';
-var filepathOne = path.join(testDir, filenameOne);
-
-var filenameTwo = 'hasOwnProperty';
-var filepathTwo = filenameTwo;
-var filepathTwoAbs = path.join(testDir, filenameTwo);
-
-process.on('exit', function() {
-  assert.ok(watchSeenOne > 0);
-  assert.ok(watchSeenTwo > 0);
-  assert.ok(watchSeenThree > 0);
-});
+const testDir = common.tmpDir;
 
 common.refreshTmpDir();
 
-fs.writeFileSync(filepathOne, 'hello');
+{
+  const filepath = path.join(testDir, 'watch.txt');
 
-assert.doesNotThrow(
+  fs.writeFileSync(filepath, 'hello');
+
+  assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathOne);
-      watcher.on('change', function(event, filename) {
-        assert.equal('change', event);
+      const watcher = fs.watch(filepath);
+      watcher.on('change', common.mustCall(function(event, filename) {
+        assert.strictEqual(event, 'change');
 
         if (expectFilePath) {
-          assert.equal('watch.txt', filename);
+          assert.strictEqual(filename, 'watch.txt');
         }
         watcher.close();
-        ++watchSeenOne;
-      });
+      }));
     }
-);
+  );
 
-setImmediate(function() {
-  fs.writeFileSync(filepathOne, 'world');
-});
+  setImmediate(function() {
+    fs.writeFileSync(filepath, 'world');
+  });
+}
 
+{
+  const filepathAbs = path.join(testDir, 'hasOwnProperty');
 
-process.chdir(testDir);
+  process.chdir(testDir);
 
-fs.writeFileSync(filepathTwoAbs, 'howdy');
+  fs.writeFileSync(filepathAbs, 'howdy');
 
-assert.doesNotThrow(
+  assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathTwo, function(event, filename) {
-        assert.equal('change', event);
+      const watcher =
+        fs.watch('hasOwnProperty', common.mustCall(function(event, filename) {
+          assert.strictEqual(event, 'change');
 
-        if (expectFilePath) {
-          assert.equal('hasOwnProperty', filename);
-        }
-        watcher.close();
-        ++watchSeenTwo;
-      });
+          if (expectFilePath) {
+            assert.strictEqual(filename, 'hasOwnProperty');
+          }
+          watcher.close();
+        }));
     }
-);
+  );
 
-setImmediate(function() {
-  fs.writeFileSync(filepathTwoAbs, 'pardner');
-});
+  setImmediate(function() {
+    fs.writeFileSync(filepathAbs, 'pardner');
+  });
+}
 
-const filenameThree = 'newfile.txt';
-const testsubdir = fs.mkdtempSync(testDir + path.sep);
-const filepathThree = path.join(testsubdir, filenameThree);
+{
+  const testsubdir = fs.mkdtempSync(testDir + path.sep);
+  const filepath = path.join(testsubdir, 'newfile.txt');
 
-assert.doesNotThrow(
+  assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = common.isSunOS ? 'change' : 'rename';
-        assert.equal(renameEv, event);
-        if (expectFilePath) {
-          assert.equal('newfile.txt', filename);
-        } else {
-          assert.equal(null, filename);
-        }
-        watcher.close();
-        ++watchSeenThree;
-      });
+      const watcher =
+        fs.watch(testsubdir, common.mustCall(function(event, filename) {
+          const renameEv = common.isSunOS || common.isAIX ? 'change' : 'rename';
+          assert.strictEqual(event, renameEv);
+          if (expectFilePath) {
+            assert.strictEqual(filename, 'newfile.txt');
+          } else {
+            assert.strictEqual(filename, null);
+          }
+          watcher.close();
+        }));
     }
-);
+  );
 
-setImmediate(function() {
-  var fd = fs.openSync(filepathThree, 'w');
-  fs.closeSync(fd);
-});
+  setImmediate(function() {
+    const fd = fs.openSync(filepath, 'w');
+    fs.closeSync(fd);
+  });
+
+}
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
-fs.watch(__filename, {persistent: false}, function() {
-  assert(0);
-});
+{
+  fs.watch(__filename, { persistent: false }, common.mustNotCall());
+}
 
 // whitebox test to ensure that wrapped FSEvent is safe
 // https://github.com/joyent/node/issues/6690
-var oldhandle;
-assert.throws(function() {
-  var w = fs.watch(__filename, function(event, filename) { });
-  oldhandle = w._handle;
-  w._handle = { close: w._handle.close };
-  w.close();
-}, TypeError);
-oldhandle.close(); // clean up
+{
+  let oldhandle;
+  assert.throws(function() {
+    const w = fs.watch(__filename, common.mustNotCall());
+    oldhandle = w._handle;
+    w._handle = { close: w._handle.close };
+    w.close();
+  }, /^TypeError: Illegal invocation$/);
+  oldhandle.close(); // clean up
 
-assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent: false}, function() {});
-  oldhandle = w._handle;
-  w._handle = { stop: w._handle.stop };
-  w.stop();
-}, TypeError);
-oldhandle.stop(); // clean up
+  assert.throws(function() {
+    const w = fs.watchFile(__filename, { persistent: false },
+                           common.mustNotCall());
+    oldhandle = w._handle;
+    w._handle = { stop: w._handle.stop };
+    w.stop();
+  }, /^TypeError: Illegal invocation$/);
+  oldhandle.stop(); // clean up
+}

@@ -91,6 +91,14 @@ class PerfJitLogger : public CodeEventLogger {
 #endif
   }
 
+#if V8_TARGET_ARCH_32_BIT
+  static const int kElfHeaderSize = 0x34;
+#elif V8_TARGET_ARCH_64_BIT
+  static const int kElfHeaderSize = 0x40;
+#else
+#error Unknown target architecture pointer size
+#endif
+
   // Per-process singleton file. We assume that there is one main isolate;
   // to determine when it goes away, we keep reference count.
   static base::LazyRecursiveMutex file_mutex_;

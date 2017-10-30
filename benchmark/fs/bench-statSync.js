@@ -4,18 +4,25 @@ const common = require('../common');
 const fs = require('fs');
 
 const bench = common.createBenchmark(main, {
-  n: [1e4],
-  kind: ['lstatSync', 'statSync']
+  n: [1e6],
+  statSyncType: ['fstatSync', 'lstatSync', 'statSync']
 });
 
 
 function main(conf) {
   const n = conf.n >>> 0;
-  const fn = fs[conf.kind];
+  const statSyncType = conf.statSyncType;
+  const arg = (statSyncType === 'fstatSync' ?
+    fs.openSync(__filename, 'r') :
+    __dirname);
+  const fn = fs[statSyncType];
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    fn(__filename);
+    fn(arg);
   }
   bench.end(n);
+
+  if (statSyncType === 'fstat')
+    fs.closeSync(arg);
 }

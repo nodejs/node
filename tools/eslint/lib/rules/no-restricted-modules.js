@@ -8,6 +8,16 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+const ignore = require("ignore");
+
+const arrayOfStrings = {
+    type: "array",
+    items: {
+        type: "string"
+    },
+    uniqueItems: true
+};
+
 module.exports = {
     meta: {
         docs: {
@@ -17,23 +27,36 @@ module.exports = {
         },
 
         schema: {
-            type: "array",
-            items: {
-                type: "string"
-            },
-            uniqueItems: true
+            anyOf: [
+                arrayOfStrings,
+                {
+                    type: "array",
+                    items: [{
+                        type: "object",
+                        properties: {
+                            paths: arrayOfStrings,
+                            patterns: arrayOfStrings
+                        },
+                        additionalProperties: false
+                    }],
+                    additionalItems: false
+                }
+            ]
         }
     },
 
     create(context) {
+        const options = Array.isArray(context.options) ? context.options : [];
+        const isStringArray = typeof options[0] !== "object";
+        const restrictedPaths = new Set(isStringArray ? context.options : options[0].paths || []);
+        const restrictedPatterns = isStringArray ? [] : options[0].patterns || [];
 
-        // trim restricted module names
-        const restrictedModules = context.options;
-
-        // if no modules are restricted we don't need to check the CallExpressions
-        if (restrictedModules.length === 0) {
+        // if no imports are restricted we don"t need to check
+        if (restrictedPaths.size === 0 && restrictedPatterns.length === 0) {
             return {};
         }
+
+        const ig = ignore().add(restrictedPatterns);
 
         /**
          * Function to check if a node is a string literal.
@@ -53,36 +76,30 @@ module.exports = {
             return node.callee.type === "Identifier" && node.callee.name === "require";
         }
 
-        /**
-         * Function to check if a node has an argument that is an restricted module and return its name.
-         * @param {ASTNode} node The node to check
-         * @returns {undefined|string} restricted module name or undefined if node argument isn't restricted.
-         */
-        function getRestrictedModuleName(node) {
-            let moduleName;
-
-            // node has arguments and first argument is string
-            if (node.arguments.length && isString(node.arguments[0])) {
-                const argumentValue = node.arguments[0].value.trim();
-
-                // check if argument value is in restricted modules array
-                if (restrictedModules.indexOf(argumentValue) !== -1) {
-                    moduleName = argumentValue;
-                }
-            }
-
-            return moduleName;
-        }
-
         return {
             CallExpression(node) {
                 if (isRequireCall(node)) {
-                    const restrictedModuleName = getRestrictedModuleName(node);
 
-                    if (restrictedModuleName) {
-                        context.report(node, "'{{moduleName}}' module is restricted from being used.", {
-                            moduleName: restrictedModuleName
-                        });
+                    // node has arguments and first argument is string
+                    if (node.arguments.length && isString(node.arguments[0])) {
+                        const moduleName = node.arguments[0].value.trim();
+
+                        // check if argument value is in restricted modules array
+                        if (restrictedPaths.has(moduleName)) {
+                            context.report({
+                                node,
+                                message: "'{{moduleName}}' module is restricted from being used.",
+                                data: { moduleName }
+                            });
+                        }
+
+                        if (restrictedPatterns.length > 0 && ig.ignores(moduleName)) {
+                            context.report({
+                                node,
+                                message: "'{{moduleName}}' module is restricted from being used by a pattern.",
+                                data: { moduleName }
+                            });
+                        }
                     }
                 }
             }

@@ -48,21 +48,21 @@ function test(test_double, test_object, set, length) {
   var array_2 = make_array(length);
 
   // false, true, nice setter function, 20
-  assertTrue(%HasFastSmiElements(array_1));
-  assertTrue(%HasFastSmiElements(array_2));
+  assertTrue(%HasSmiElements(array_1));
+  assertTrue(%HasSmiElements(array_2));
   for (var i = 0; i < length; i++) {
     if (i == length - 5 && test_double) {
       // Trigger conversion to fast double elements at length-5.
       set(array_1, i, 0.5);
       set(array_2, i, 0.5);
-      assertTrue(%HasFastDoubleElements(array_1));
-      assertTrue(%HasFastDoubleElements(array_2));
+      assertTrue(%HasDoubleElements(array_1));
+      assertTrue(%HasDoubleElements(array_2));
     } else if (i == length - 3 && test_object) {
       // Trigger conversion to fast object elements at length-3.
       set(array_1, i, 'object');
       set(array_2, i, 'object');
-      assertTrue(%HasFastObjectElements(array_1));
-      assertTrue(%HasFastObjectElements(array_2));
+      assertTrue(%HasObjectElements(array_1));
+      assertTrue(%HasObjectElements(array_2));
     } else if (i != length - 7) {
       // Set the element to an integer but leave a hole at length-7.
       set(array_1, i, 2*i+1);
@@ -92,7 +92,7 @@ function test(test_double, test_object, set, length) {
 
 function run_test(test_double, test_object, set, length) {
   test(test_double, test_object, set, length);
-    %ClearFunctionTypeFeedback(test);
+    %ClearFunctionFeedback(test);
 }
 
 run_test(false, false, function(a,i,v){ a[i] = v; }, 20);

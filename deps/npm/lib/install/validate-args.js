@@ -14,10 +14,21 @@ module.exports = function (idealTree, args, next) {
 
   asyncMap(args, function (pkg, done) {
     chain([
+      [hasMinimumFields, pkg],
       [checkSelf, idealTree, pkg, force],
       [isInstallable, pkg]
     ], done)
   }, next)
+}
+
+function hasMinimumFields (pkg, cb) {
+  if (pkg.name === '' || pkg.name == null) {
+    return cb(new Error(`Can't install ${pkg._resolved}: Missing package name`))
+  } else if (pkg.version === '' || pkg.version == null) {
+    return cb(new Error(`Can't install ${pkg._resolved}: Missing package version`))
+  } else {
+    return cb()
+  }
 }
 
 function getWarnings (pkg) {
@@ -50,7 +61,12 @@ function checkSelf (idealTree, pkg, force, next) {
     idealTree.warnings.push(warn)
     next()
   } else {
-    var er = new Error('Refusing to install ' + pkg.name + ' as a dependency of itself')
+    var er = new Error('Refusing to install package with name "' + pkg.name +
+     '" under a package\n' +
+     'also called "' + pkg.name + '". Did you name your project the same\n' +
+     'as the dependency you\'re installing?\n\n' +
+     'For more information, see:\n' +
+     '    <https://docs.npmjs.com/cli/install#limitations-of-npms-install-algorithm>')
     er.code = 'ENOSELF'
     next(er)
   }

@@ -11,7 +11,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
-#include "src/compiler.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
 #include "src/locked-queue.h"
@@ -84,7 +83,6 @@ class CodeDeoptEventRecord : public CodeEventRecord {
  public:
   Address start;
   const char* deopt_reason;
-  SourcePosition position;
   int deopt_id;
   void* pc;
   int fp_to_sp_delta;
@@ -124,7 +122,7 @@ class CodeEventsContainer {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
     CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
-#undef DECLARE_TYPE
+#undef DECLARE_CLASS
   };
 };
 
@@ -140,7 +138,7 @@ class ProfilerEventsProcessor : public base::Thread {
   // Thread control.
   virtual void Run();
   void StopSynchronously();
-  INLINE(bool running()) { return !!base::NoBarrier_Load(&running_); }
+  INLINE(bool running()) { return !!base::Relaxed_Load(&running_); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
@@ -222,12 +220,14 @@ class CpuProfiler : public CodeEventObserver {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void CreateEntriesForRuntimeCallStats();
 
   Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
+  std::vector<std::unique_ptr<CodeEntry>> static_entries_;
   bool saved_is_logging_;
   bool is_profiling_;
 

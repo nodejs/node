@@ -12,6 +12,8 @@
 const fs = require("fs"),
     path = require("path");
 
+const rulesDirCache = {};
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -29,13 +31,20 @@ module.exports = function(rulesDir, cwd) {
         rulesDir = path.resolve(cwd, rulesDir);
     }
 
+    // cache will help performance as IO operation are expensive
+    if (rulesDirCache[rulesDir]) {
+        return rulesDirCache[rulesDir];
+    }
+
     const rules = Object.create(null);
 
-    fs.readdirSync(rulesDir).forEach(function(file) {
+    fs.readdirSync(rulesDir).forEach(file => {
         if (path.extname(file) !== ".js") {
             return;
         }
         rules[file.slice(0, -3)] = path.join(rulesDir, file);
     });
+    rulesDirCache[rulesDir] = rules;
+
     return rules;
 };

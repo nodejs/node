@@ -31,6 +31,7 @@
 
 #include "src/api.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/string-search.h"
 #include "test/cctest/cctest.h"
 
@@ -141,6 +142,19 @@ TEST(LocalVar) {
   CheckFunctionName(script, "return 2", "fun2");
 }
 
+TEST(ObjectProperty) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Script> script =
+      Compile(CcTest::isolate(),
+              "var obj = {\n"
+              "  fun1: function() { return 1; },\n"
+              "  fun2: class { constructor() { return 2; } }\n"
+              "}");
+  CheckFunctionName(script, "return 1", "obj.fun1");
+  CheckFunctionName(script, "return 2", "obj.fun2");
+}
 
 TEST(InConstructor) {
   CcTest::InitializeVM();

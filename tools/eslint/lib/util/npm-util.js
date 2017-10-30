@@ -10,8 +10,8 @@
 //------------------------------------------------------------------------------
 
 const fs = require("fs"),
+    spawn = require("cross-spawn"),
     path = require("path"),
-    shell = require("shelljs"),
     log = require("../logging");
 
 //------------------------------------------------------------------------------
@@ -29,13 +29,13 @@ function findPackageJson(startDir) {
     let dir = path.resolve(startDir || process.cwd());
 
     do {
-        const pkgfile = path.join(dir, "package.json");
+        const pkgFile = path.join(dir, "package.json");
 
-        if (!shell.test("-f", pkgfile)) {
+        if (!fs.existsSync(pkgFile) || !fs.statSync(pkgFile).isFile()) {
             dir = path.join(dir, "..");
             continue;
         }
-        return pkgfile;
+        return pkgFile;
     } while (dir !== path.resolve(dir, ".."));
     return null;
 }
@@ -50,10 +50,42 @@ function findPackageJson(startDir) {
  * @returns {void}
  */
 function installSyncSaveDev(packages) {
-    if (Array.isArray(packages)) {
-        packages = packages.join(" ");
+    if (!Array.isArray(packages)) {
+        packages = [packages];
     }
-    shell.exec(`npm i --save-dev ${packages}`, {stdio: "inherit"});
+    const npmProcess = spawn.sync("npm", ["i", "--save-dev"].concat(packages),
+        { stdio: "inherit" });
+    const error = npmProcess.error;
+
+    if (error && error.code === "ENOENT") {
+        const pluralS = packages.length > 1 ? "s" : "";
+
+        log.error(`Could not execute npm. Please install the following package${pluralS} with your package manager of choice: ${packages.join(", ")}`);
+    }
+}
+
+/**
+ * Fetch `peerDependencies` of the given package by `npm show` command.
+ * @param {string} packageName The package name to fetch peerDependencies.
+ * @returns {Object} Gotten peerDependencies. Returns null if npm was not found.
+ */
+function fetchPeerDependencies(packageName) {
+    const npmProcess = spawn.sync(
+        "npm",
+        ["show", "--json", packageName, "peerDependencies"],
+        { encoding: "utf8" }
+    );
+
+    const error = npmProcess.error;
+
+    if (error && error.code === "ENOENT") {
+        return null;
+    }
+    const fetchedText = npmProcess.stdout.trim();
+
+    return JSON.parse(fetchedText || "{}");
+
+
 }
 
 /**
@@ -89,7 +121,7 @@ function check(packages, opt) {
     if (opt.dependencies && typeof fileJson.dependencies === "object") {
         deps = deps.concat(Object.keys(fileJson.dependencies));
     }
-    return packages.reduce(function(status, pkg) {
+    return packages.reduce((status, pkg) => {
         status[pkg] = deps.indexOf(pkg) !== -1;
         return status;
     }, {});
@@ -107,7 +139,7 @@ function check(packages, opt) {
  *                               and values are booleans indicating installation.
  */
 function checkDeps(packages, rootDir) {
-    return check(packages, {dependencies: true, startDir: rootDir});
+    return check(packages, { dependencies: true, startDir: rootDir });
 }
 
 /**
@@ -121,7 +153,7 @@ function checkDeps(packages, rootDir) {
  *                               and values are booleans indicating installation.
  */
 function checkDevDeps(packages) {
-    return check(packages, {devDependencies: true});
+    return check(packages, { devDependencies: true });
 }
 
 /**
@@ -140,6 +172,7 @@ function checkPackageJson(startDir) {
 
 module.exports = {
     installSyncSaveDev,
+    fetchPeerDependencies,
     checkDeps,
     checkDevDeps,
     checkPackageJson

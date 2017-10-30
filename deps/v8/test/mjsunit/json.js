@@ -327,6 +327,7 @@ assertEquals('{"x":5}', JSON.stringify({x:5,y:6}, ['x']));
 assertEquals('{\n "a": "b",\n "c": "d"\n}',
              JSON.stringify({a:"b",c:"d"}, null, 1));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
+assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x', 'x', 'y']));
 
 // toJSON get string keys.
 var checker = {};

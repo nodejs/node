@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "September 2016" "" ""
+.TH "NPM\-VERSION" "1" "October 2017" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -100,6 +100,17 @@ This runs all your tests, and proceeds only if they pass\. Then runs your \fBbui
 adds everything in the \fBdist\fP directory to the commit\. After the commit, it pushes the new commit
 and tag up to the server, and deletes the \fBbuild/temp\fP directory\.
 .SH CONFIGURATION
+.SS allow\-same\-version
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Prevents throwing an error when \fBnpm version\fP is used to set the new version
+to the same value as the current version\.
 .SS git\-tag\-version
 .RS 0
 .IP \(bu 2
@@ -110,6 +121,28 @@ Type: Boolean
 .RE
 .P
 Commit and tag the version change\.
+.SS commit\-hooks
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run git commit hooks when committing the version change\.
+.SS sign\-git\-tag
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Pass the \fB\-s\fP flag to git to sign the tag\.
+.P
+Note that you must have a default GPG key set up in your git config for this to work properly\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

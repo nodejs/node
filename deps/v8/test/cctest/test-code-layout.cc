@@ -2,10 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
+#include "src/isolate.h"
 #include "src/objects.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(CodeLayoutWithoutUnwindingInfo) {
   CcTest::InitializeVM();
@@ -33,7 +43,7 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(memcmp(code->instruction_start(), buffer, buffer_size), 0);
+  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
   CHECK_EQ(code->instruction_end() - reinterpret_cast<byte*>(*code),
            Code::kHeaderSize + buffer_size - kHeapObjectTag);
 }
@@ -70,7 +80,7 @@ TEST(CodeLayoutWithUnwindingInfo) {
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);
-  CHECK_EQ(memcmp(code->instruction_start(), buffer, buffer_size), 0);
+  CHECK_EQ(0, memcmp(code->instruction_start(), buffer, buffer_size));
   CHECK(IsAligned(code->GetUnwindingInfoSizeOffset(), 8));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
   CHECK(
@@ -82,3 +92,6 @@ TEST(CodeLayoutWithUnwindingInfo) {
            Code::kHeaderSize + RoundUp(buffer_size, kInt64Size) + kInt64Size +
                unwinding_info_size - kHeapObjectTag);
 }
+
+}  // namespace internal
+}  // namespace v8

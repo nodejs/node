@@ -1,31 +1,51 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
 
-var join = require('path').join;
-var net = require('net');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+if (!common.opensslCli)
+  common.skip('missing openssl-cli');
 
-var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
-var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
+const assert = require('assert');
+const tls = require('tls');
+const net = require('net');
+const spawn = require('child_process').spawn;
+const fixtures = require('../common/fixtures');
+
+const key = fixtures.readSync('agent.key').toString();
+const cert = fixtures.readSync('agent.crt').toString();
 
 function log(a) {
-  console.error('***server*** ' + a);
+  console.error(`***server*** ${a}`);
 }
 
-var server = net.createServer(common.mustCall(function(socket) {
-  log('connection fd=' + socket.fd);
-  var sslcontext = tls.createSecureContext({key: key, cert: cert});
+const server = net.createServer(common.mustCall(function(socket) {
+  log(`connection fd=${socket.fd}`);
+  const sslcontext = tls.createSecureContext({ key: key, cert: cert });
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var pair = tls.createSecurePair(sslcontext, true);
+  const pair = tls.createSecurePair(sslcontext, true);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);
@@ -43,7 +63,7 @@ var server = net.createServer(common.mustCall(function(socket) {
   });
 
   pair.cleartext.on('data', function(data) {
-    log('read bytes ' + data.length);
+    log(`read bytes ${data.length}`);
     pair.cleartext.write(data);
   });
 
@@ -84,23 +104,23 @@ var server = net.createServer(common.mustCall(function(socket) {
   });
 }));
 
-var gotHello = false;
-var sentWorld = false;
-var gotWorld = false;
+let gotHello = false;
+let sentWorld = false;
+let gotWorld = false;
 
 server.listen(0, common.mustCall(function() {
   // To test use: openssl s_client -connect localhost:8000
 
-  var args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`];
+  const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args);
+  const client = spawn(common.opensslCli, args);
 
 
-  var out = '';
+  let out = '';
 
   client.stdout.setEncoding('utf8');
   client.stdout.on('data', function(d) {

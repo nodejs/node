@@ -11,5 +11,5 @@ RangeError: Invalid input
     at Module.load (module.js:*:*)
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*:*)
-    at Module.runMain (module.js:*:*)
-    at run (bootstrap_node.js:*:*)
+    at Function.Module.runMain (module.js:*:*)
+    at startup (bootstrap_node.js:*:*)

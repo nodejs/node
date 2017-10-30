@@ -4,16 +4,15 @@
 
 #include "test/unittests/test-utils.h"
 
-#include "src/v8.h"
-
-#include "test/cctest/wasm/test-signatures.h"
-
 #include "src/bit-vector.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
-
-#include "src/wasm/ast-decoder.h"
-#include "src/wasm/wasm-macro-gen.h"
+#include "src/v8.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
+
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 #define WASM_SET_ZERO(i) WASM_SET_LOCAL(i, WASM_ZERO)
 
@@ -39,7 +38,7 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Empty0) {
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Empty1) {
-  byte code[] = {kExprLoop, 0};
+  byte code[] = {kExprLoop, kLocalVoid, 0};
   for (int i = 0; i < 5; i++) {
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
@@ -53,6 +52,17 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, One) {
   num_locals = 5;
   for (int i = 0; i < 5; i++) {
     byte code[] = {WASM_LOOP(WASM_SET_ZERO(i))};
+    BitVector* assigned = Analyze(code, code + arraysize(code));
+    for (int j = 0; j < assigned->length(); j++) {
+      CHECK_EQ(j == i, assigned->Contains(j));
+    }
+  }
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, TeeOne) {
+  num_locals = 5;
+  for (int i = 0; i < 5; i++) {
+    byte code[] = {WASM_LOOP(WASM_TEE_LOCAL(i, WASM_ZERO))};
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
       CHECK_EQ(j == i, assigned->Contains(j));
@@ -98,24 +108,10 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, NestedIf) {
   }
 }
 
-static byte LEBByte(uint32_t val, byte which) {
-  byte b = (val >> (which * 7)) & 0x7F;
-  if (val >> ((which + 1) * 7)) b |= 0x80;
-  return b;
-}
-
 TEST_F(WasmLoopAssignmentAnalyzerTest, BigLocal) {
   num_locals = 65000;
   for (int i = 13; i < 65000; i = static_cast<int>(i * 1.5)) {
-    byte code[] = {kExprLoop,
-                   1,
-                   kExprSetLocal,
-                   LEBByte(i, 0),
-                   LEBByte(i, 1),
-                   LEBByte(i, 2),
-                   11,
-                   12,
-                   13};
+    byte code[] = {WASM_LOOP(WASM_I32V_1(11), kExprSetLocal, U32V_3(i))};
 
     BitVector* assigned = Analyze(code, code + arraysize(code));
     for (int j = 0; j < assigned->length(); j++) {
@@ -143,8 +139,8 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop1) {
   byte code[] = {
       WASM_LOOP(WASM_IF(
           WASM_GET_LOCAL(0),
-          WASM_BRV(0, WASM_SET_LOCAL(
-                          3, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(1)))))),
+          WASM_BRV(0, WASM_SET_LOCAL(3, WASM_I32_SUB(WASM_GET_LOCAL(0),
+                                                     WASM_I32V_1(1)))))),
       WASM_GET_LOCAL(0)};
 
   BitVector* assigned = Analyze(code, code + arraysize(code));
@@ -167,12 +163,12 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
                   kSum, WASM_F32_ADD(WASM_GET_LOCAL(kSum),
                                      WASM_LOAD_MEM(MachineType::Float32(),
                                                    WASM_GET_LOCAL(kIter)))),
-              WASM_SET_LOCAL(kIter,
-                             WASM_I32_SUB(WASM_GET_LOCAL(kIter), WASM_I8(4))))),
+              WASM_SET_LOCAL(
+                  kIter, WASM_I32_SUB(WASM_GET_LOCAL(kIter), WASM_I32V_1(4))))),
       WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO, WASM_GET_LOCAL(kSum)),
       WASM_GET_LOCAL(kIter))};
 
-  BitVector* assigned = Analyze(code + 1, code + arraysize(code));
+  BitVector* assigned = Analyze(code + 2, code + arraysize(code));
   for (int j = 0; j < assigned->length(); j++) {
     bool expected = j == kIter || j == kSum;
     CHECK_EQ(expected, assigned->Contains(j));
@@ -180,11 +176,19 @@ TEST_F(WasmLoopAssignmentAnalyzerTest, Loop2) {
 }
 
 TEST_F(WasmLoopAssignmentAnalyzerTest, Malformed) {
-  byte code[] = {kExprLoop, kExprF32Neg, kExprBrTable, 0x0e, 'h', 'e',
-                 'l',       'l',         'o',          ',',  ' ', 'w',
-                 'o',       'r',         'l',          'd',  '!'};
+  byte code[] = {kExprLoop, kLocalVoid, kExprF32Neg, kExprBrTable, 0x0e, 'h',
+                 'e',       'l',        'l',         'o',          ',',  ' ',
+                 'w',       'o',        'r',         'l',          'd',  '!'};
   BitVector* assigned = Analyze(code, code + arraysize(code));
   CHECK_NULL(assigned);
+}
+
+TEST_F(WasmLoopAssignmentAnalyzerTest, regress_642867) {
+  static const byte code[] = {
+      WASM_LOOP(WASM_ZERO, kExprSetLocal, 0xfa, 0xff, 0xff, 0xff,
+                0x0f)};  // local index LEB128 0xfffffffa
+  // Just make sure that the analysis does not crash.
+  Analyze(code, code + arraysize(code));
 }
 
 }  // namespace wasm

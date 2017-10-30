@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -9,7 +30,7 @@ let regularExit = 0;
 const stream = new common.ArrayStream();
 
 function testTerminalMode() {
-  var r1 = repl.start({
+  const r1 = repl.start({
     input: stream,
     output: stream,
     terminal: true
@@ -28,7 +49,7 @@ function testTerminalMode() {
 }
 
 function testRegularMode() {
-  var r2 = repl.start({
+  const r2 = repl.start({
     input: stream,
     output: stream,
     terminal: false
@@ -45,8 +66,8 @@ function testRegularMode() {
 }
 
 process.on('exit', function() {
-  assert.equal(terminalExit, 1);
-  assert.equal(regularExit, 1);
+  assert.strictEqual(terminalExit, 1);
+  assert.strictEqual(regularExit, 1);
 });
 
 

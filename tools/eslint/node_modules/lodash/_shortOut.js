@@ -1,5 +1,5 @@
 /** Used to detect hot functions by number of calls within a span of milliseconds. */
-var HOT_COUNT = 500,
+var HOT_COUNT = 800,
     HOT_SPAN = 16;
 
 /* Built-in method references for those with the same name as other `lodash` methods. */

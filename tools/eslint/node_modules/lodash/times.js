@@ -1,5 +1,5 @@
-var baseIteratee = require('./_baseIteratee'),
-    baseTimes = require('./_baseTimes'),
+var baseTimes = require('./_baseTimes'),
+    castFunction = require('./_castFunction'),
     toInteger = require('./toInteger');
 
 /** Used as references for various `Number` constants. */
@@ -38,7 +38,7 @@ function times(n, iteratee) {
   var index = MAX_ARRAY_LENGTH,
       length = nativeMin(n, MAX_ARRAY_LENGTH);
 
-  iteratee = baseIteratee(iteratee);
+  iteratee = castFunction(iteratee);
   n -= MAX_ARRAY_LENGTH;
 
   var result = baseTimes(length, iteratee);

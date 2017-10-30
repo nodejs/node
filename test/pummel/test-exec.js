@@ -1,9 +1,30 @@
-'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var SLEEP3_COMMAND;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+
+let SLEEP3_COMMAND;
 if (!common.isWindows) {
   // Unix.
   SLEEP3_COMMAND = 'sleep 3';
@@ -14,18 +35,18 @@ if (!common.isWindows) {
 }
 
 
-var success_count = 0;
-var error_count = 0;
+let success_count = 0;
+let error_count = 0;
 
 
 exec(
-  '"' + process.execPath + '" -p -e process.versions',
+  `"${process.execPath}" -p -e process.versions`,
   function(err, stdout, stderr) {
     if (err) {
       error_count++;
-      console.log('error!: ' + err.code);
-      console.log('stdout: ' + JSON.stringify(stdout));
-      console.log('stderr: ' + JSON.stringify(stderr));
+      console.log(`error!: ${err.code}`);
+      console.log(`stdout: ${JSON.stringify(stdout)}`);
+      console.log(`stderr: ${JSON.stringify(stderr)}`);
       assert.strictEqual(false, err.killed);
     } else {
       success_count++;
@@ -43,9 +64,9 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
     assert.notStrictEqual(err.code, 0);
     assert.strictEqual(false, err.killed);
     assert.strictEqual(null, err.signal);
-    console.log('error code: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
+    console.log(`error code: ${err.code}`);
+    console.log(`stdout: ${JSON.stringify(stdout)}`);
+    console.log(`stderr: ${JSON.stringify(stderr)}`);
   } else {
     success_count++;
     console.dir(stdout);
@@ -55,19 +76,22 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
 });
 
 
-var sleeperStart = new Date();
+const sleeperStart = new Date();
 exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
-  var diff = (new Date()) - sleeperStart;
+  const diff = (new Date()) - sleeperStart;
   console.log('\'sleep 3\' with timeout 50 took %d ms', diff);
   assert.ok(diff < 500);
   assert.ok(err);
   assert.ok(err.killed);
   assert.strictEqual(err.signal, 'SIGTERM');
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, '');
 });
 
 
-var startSleep3 = new Date();
-var killMeTwice = exec(SLEEP3_COMMAND, {timeout: 1000}, killMeTwiceCallback);
+const startSleep3 = new Date();
+const killMeTwice = exec(SLEEP3_COMMAND, { timeout: 1000 },
+                         killMeTwiceCallback);
 
 process.nextTick(function() {
   console.log('kill pid %d', killMeTwice.pid);
@@ -79,12 +103,14 @@ process.nextTick(function() {
 });
 
 function killMeTwiceCallback(err, stdout, stderr) {
-  var diff = (new Date()) - startSleep3;
+  const diff = (new Date()) - startSleep3;
   // We should have already killed this process. Assert that the timeout still
   // works and that we are getting the proper callback parameters.
   assert.ok(err);
   assert.ok(err.killed);
   assert.strictEqual(err.signal, 'SIGTERM');
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, '');
 
   // the timeout should still be in effect
   console.log('\'sleep 3\' was already killed. Took %d ms', diff);
@@ -92,10 +118,12 @@ function killMeTwiceCallback(err, stdout, stderr) {
 }
 
 
-exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
+exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 },
      function(err, stdout, stderr) {
        assert.ok(err);
        assert.ok(/maxBuffer/.test(err.message));
+       assert.strictEqual(stdout, '');
+       assert.strictEqual(stderr, '');
      });
 
 

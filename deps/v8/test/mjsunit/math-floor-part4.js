@@ -93,10 +93,10 @@ function test() {
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
   test();
+  new Array(i * 10000);
 }
-
 
 // Regression test for a bug where a negative zero coming from Math.floor
 // was not properly handled by other operations.

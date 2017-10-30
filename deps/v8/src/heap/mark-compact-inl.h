@@ -5,135 +5,97 @@
 #ifndef V8_HEAP_MARK_COMPACT_INL_H_
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
+#include "src/base/bits.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/remembered-set.h"
-#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
-  if (marking_deque_.Push(obj)) {
-    MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
-  } else {
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
-    Marking::BlackToGrey(mark_bit);
+  DCHECK(non_atomic_marking_state()->IsBlack(obj));
+  if (!marking_worklist()->Push(obj)) {
+    non_atomic_marking_state()->BlackToGrey(obj);
   }
 }
 
-
-void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
-  if (!marking_deque_.Unshift(obj)) {
-    MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
-    Marking::BlackToGrey(mark_bit);
-  }
-}
-
-
-void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
-  if (Marking::IsWhite(mark_bit)) {
-    Marking::WhiteToBlack(mark_bit);
-    DCHECK(obj->GetIsolate()->heap()->Contains(obj));
+void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
+  if (non_atomic_marking_state()->WhiteToBlack(obj)) {
     PushBlack(obj);
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainer(host, obj);
+    }
   }
 }
 
-
-void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(Marking::IsWhite(mark_bit));
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
-  Marking::WhiteToBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
+void MarkCompactCollector::MarkRootObject(Root root, HeapObject* obj) {
+  if (non_atomic_marking_state()->WhiteToBlack(obj)) {
+    PushBlack(obj);
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(root, obj);
+    }
+  }
 }
 
-
-bool MarkCompactCollector::IsMarked(Object* obj) {
-  DCHECK(obj->IsHeapObject());
-  HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(heap_object));
+void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
+  if (non_atomic_marking_state()->WhiteToBlack(obj)) {
+    PushBlack(obj);
+    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      heap_->AddRetainingRoot(Root::kWrapperTracing, obj);
+    }
+  }
 }
-
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
                                       Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
-  if (target_page->IsEvacuationCandidate() &&
-      !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object)));
+  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
+      !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }
 }
 
-
-void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
-  if (GetNextCandidate(shared_info) == nullptr) {
-    SetNextCandidate(shared_info, shared_function_info_candidates_head_);
-    shared_function_info_candidates_head_ = shared_info;
+template <LiveObjectIterationMode mode>
+LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk, Bitmap* bitmap,
+                                          Address start)
+    : chunk_(chunk),
+      one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
+      two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
+      free_space_map_(chunk->heap()->free_space_map()),
+      it_(chunk, bitmap) {
+  it_.Advance(Bitmap::IndexToCell(
+      Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(start))));
+  if (!it_.Done()) {
+    cell_base_ = it_.CurrentCellBase();
+    current_cell_ = *it_.CurrentCell();
+    AdvanceToNextValidObject();
+  } else {
+    current_object_ = nullptr;
   }
 }
 
-
-void CodeFlusher::AddCandidate(JSFunction* function) {
-  DCHECK(function->code() == function->shared()->code());
-  if (function->next_function_link()->IsUndefined(isolate_)) {
-    SetNextCandidate(function, jsfunction_candidates_head_);
-    jsfunction_candidates_head_ = function;
-  }
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator& LiveObjectRange<mode>::iterator::
+operator++() {
+  AdvanceToNextValidObject();
+  return *this;
 }
 
-
-JSFunction** CodeFlusher::GetNextCandidateSlot(JSFunction* candidate) {
-  return reinterpret_cast<JSFunction**>(
-      HeapObject::RawField(candidate, JSFunction::kNextFunctionLinkOffset));
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::iterator::
+operator++(int) {
+  iterator retval = *this;
+  ++(*this);
+  return retval;
 }
 
-
-JSFunction* CodeFlusher::GetNextCandidate(JSFunction* candidate) {
-  Object* next_candidate = candidate->next_function_link();
-  return reinterpret_cast<JSFunction*>(next_candidate);
-}
-
-
-void CodeFlusher::SetNextCandidate(JSFunction* candidate,
-                                   JSFunction* next_candidate) {
-  candidate->set_next_function_link(next_candidate, UPDATE_WEAK_WRITE_BARRIER);
-}
-
-
-void CodeFlusher::ClearNextCandidate(JSFunction* candidate, Object* undefined) {
-  DCHECK(undefined->IsUndefined(candidate->GetIsolate()));
-  candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
-}
-
-
-SharedFunctionInfo* CodeFlusher::GetNextCandidate(
-    SharedFunctionInfo* candidate) {
-  Object* next_candidate = candidate->code()->gc_metadata();
-  return reinterpret_cast<SharedFunctionInfo*>(next_candidate);
-}
-
-
-void CodeFlusher::SetNextCandidate(SharedFunctionInfo* candidate,
-                                   SharedFunctionInfo* next_candidate) {
-  candidate->code()->set_gc_metadata(next_candidate);
-}
-
-
-void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
-  candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
-}
-
-
-template <LiveObjectIterationMode T>
-HeapObject* LiveObjectIterator<T>::Next() {
+template <LiveObjectIterationMode mode>
+void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
   while (!it_.Done()) {
     HeapObject* object = nullptr;
+    int size = 0;
     while (current_cell_ != 0) {
       uint32_t trailing_zeros = base::bits::CountTrailingZeros32(current_cell_);
       Address addr = cell_base_ + trailing_zeros * kPointerSize;
@@ -141,34 +103,33 @@ HeapObject* LiveObjectIterator<T>::Next() {
       // Clear the first bit of the found object..
       current_cell_ &= ~(1u << trailing_zeros);
 
-      uint32_t second_bit_index = 0;
-      if (trailing_zeros < Bitmap::kBitIndexMask) {
-        second_bit_index = 1u << (trailing_zeros + 1);
-      } else {
+      uint32_t second_bit_index = 1u << (trailing_zeros + 1);
+      if (trailing_zeros >= Bitmap::kBitIndexMask) {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
         // cell.
         // However, if there is a black area at the end of the page, and the
         // last word is a one word filler, we are not allowed to advance. In
         // that case we can return immediately.
-        if (it_.Done()) {
-          DCHECK(HeapObject::FromAddress(addr)->map() ==
-                 HeapObject::FromAddress(addr)
-                     ->GetHeap()
-                     ->one_pointer_filler_map());
-          return nullptr;
+        if (!it_.Advance()) {
+          DCHECK(HeapObject::FromAddress(addr)->map() == one_word_filler_map_);
+          current_object_ = nullptr;
+          return;
         }
-        it_.Advance();
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
 
+      Map* map = nullptr;
       if (current_cell_ & second_bit_index) {
         // We found a black object. If the black object is within a black area,
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
-        Address end = addr + black_object->Size() - kPointerSize;
+        map =
+            base::AsAtomicPointer::Relaxed_Load(reinterpret_cast<Map**>(addr));
+        size = black_object->SizeFromMap(map);
+        Address end = addr + size - kPointerSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
@@ -189,18 +150,29 @@ HeapObject* LiveObjectIterator<T>::Next() {
           current_cell_ &= ~(end_index_mask + end_index_mask - 1);
         }
 
-        if (T == kBlackObjects || T == kAllLiveObjects) {
+        if (mode == kBlackObjects || mode == kAllLiveObjects) {
           object = black_object;
         }
-      } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
+      } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
+        map =
+            base::AsAtomicPointer::Relaxed_Load(reinterpret_cast<Map**>(addr));
         object = HeapObject::FromAddress(addr);
+        size = object->SizeFromMap(map);
       }
 
       // We found a live object.
       if (object != nullptr) {
-        if (object->IsFiller()) {
-          // Black areas together with slack tracking may result in black filler
-          // objects. We filter these objects out in the iterator.
+        // Do not use IsFiller() here. This may cause a data race for reading
+        // out the instance type when a new map concurrently is written into
+        // this object while iterating over the object.
+        if (map == one_word_filler_map_ || map == two_word_filler_map_ ||
+            map == free_space_map_) {
+          // There are two reasons why we can get black or grey fillers:
+          // 1) Black areas together with slack tracking may result in black one
+          // word filler objects.
+          // 2) Left trimming may leave black or grey fillers behind because we
+          // do not clear the old location of the object start.
+          // We filter these objects out in the iterator.
           object = nullptr;
         } else {
           break;
@@ -209,15 +181,28 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done()) {
-        it_.Advance();
+      if (it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
     }
-    if (object != nullptr) return object;
+    if (object != nullptr) {
+      current_object_ = object;
+      current_size_ = size;
+      return;
+    }
   }
-  return nullptr;
+  current_object_ = nullptr;
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::begin() {
+  return iterator(chunk_, bitmap_, start_);
+}
+
+template <LiveObjectIterationMode mode>
+typename LiveObjectRange<mode>::iterator LiveObjectRange<mode>::end() {
+  return iterator(chunk_, bitmap_, end_);
 }
 
 }  // namespace internal

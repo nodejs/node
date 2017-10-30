@@ -5,28 +5,12 @@
 #ifndef V8_MIPS_CODE_STUBS_MIPS_H_
 #define V8_MIPS_CODE_STUBS_MIPS_H_
 
-#include "src/mips/frames-mips.h"
-
 namespace v8 {
 namespace internal {
 
 
-void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
-
-
 class StringHelper : public AllStatic {
  public:
-  // Generate code for copying a large number of characters. This function
-  // is allowed to spend extra time setting up conditions to make copying
-  // faster. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     String::Encoding encoding);
-
   // Compares two flat one-byte strings and returns result in v0.
   static void GenerateCompareFlatOneByteStrings(
       MacroAssembler* masm, Register left, Register right, Register scratch1,
@@ -310,14 +294,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register properties,
                                      Handle<Name> name,
                                      Register scratch0);
-
-  static void GeneratePositiveLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register elements,
-                                     Register name,
-                                     Register r0,
-                                     Register r1);
 
   bool SometimesSetsUpAFrame() override { return false; }
 

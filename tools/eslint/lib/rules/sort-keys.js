@@ -64,7 +64,7 @@ const isValidOrders = {
     },
     descIN(a, b) {
         return isValidOrders.ascIN(b, a);
-    },
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ module.exports = {
                             prevName,
                             order,
                             insensitive: insensitive ? "insensitive " : "",
-                            natual: natual ? "natural " : "",
+                            natual: natual ? "natural " : ""
                         }
                     });
                 }

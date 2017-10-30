@@ -12,7 +12,7 @@ common.refreshTmpDir();
 
 // Create the necessary files
 files.forEach(function(currentFile) {
-  fs.closeSync(fs.openSync(readdirDir + '/' + currentFile, 'w'));
+  fs.closeSync(fs.openSync(`${readdirDir}/${currentFile}`, 'w'));
 });
 
 // Check the readdir Sync version
@@ -31,5 +31,5 @@ assert.throws(function() {
 }, /Error: ENOTDIR: not a directory/);
 
 fs.readdir(__filename, common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTDIR');
+  assert.strictEqual(e.code, 'ENOTDIR');
 }));

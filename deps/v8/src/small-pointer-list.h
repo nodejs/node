@@ -7,7 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/globals.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

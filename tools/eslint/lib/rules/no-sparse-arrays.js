@@ -33,7 +33,7 @@ module.exports = {
                 const emptySpot = node.elements.indexOf(null) > -1;
 
                 if (emptySpot) {
-                    context.report(node, "Unexpected comma in middle of array.");
+                    context.report({ node, message: "Unexpected comma in middle of array." });
                 }
             }
 

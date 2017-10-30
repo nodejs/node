@@ -7,7 +7,9 @@
 
 #include <iosfwd>
 
-#include "src/zone-containers.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -18,15 +20,14 @@ class BasicBlock;
 class BasicBlockInstrumentor;
 class Node;
 
-
 typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef ZoneVector<Node*> NodeVector;
-
 
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
 // first nodes in the block.
-class BasicBlock final : public ZoneObject {
+class V8_EXPORT_PRIVATE BasicBlock final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Possible control nodes that can end a block.
   enum Control {
@@ -57,6 +58,14 @@ class BasicBlock final : public ZoneObject {
   BasicBlock(Zone* zone, Id id);
 
   Id id() const { return id_; }
+#if DEBUG
+  void set_debug_info(AssemblerDebugInfo debug_info) {
+    debug_info_ = debug_info;
+  }
+  AssemblerDebugInfo debug_info() const { return debug_info_; }
+#endif  // DEBUG
+
+  void Print();
 
   // Predecessors.
   BasicBlockVector& predecessors() { return predecessors_; }
@@ -87,6 +96,8 @@ class BasicBlock final : public ZoneObject {
   typedef NodeVector::iterator iterator;
   iterator begin() { return nodes_.begin(); }
   iterator end() { return nodes_.end(); }
+
+  void RemoveNode(iterator it) { nodes_.erase(it); }
 
   typedef NodeVector::const_iterator const_iterator;
   const_iterator begin() const { return nodes_.begin(); }
@@ -164,11 +175,15 @@ class BasicBlock final : public ZoneObject {
 
   BasicBlockVector successors_;
   BasicBlockVector predecessors_;
+#if DEBUG
+  AssemblerDebugInfo debug_info_;
+#endif
   Id id_;
 
   DISALLOW_COPY_AND_ASSIGN(BasicBlock);
 };
 
+std::ostream& operator<<(std::ostream&, const BasicBlock&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Control&);
 std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
 
@@ -177,7 +192,7 @@ std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
 // and ordering them within basic blocks. Prior to computing a schedule,
 // a graph has no notion of control flow ordering other than that induced
 // by the graph's dependencies. A schedule is required to generate code.
-class Schedule final : public ZoneObject {
+class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Schedule(Zone* zone, size_t node_count_hint = 0);
 
@@ -263,6 +278,8 @@ class Schedule final : public ZoneObject {
   void EnsureSplitEdgeForm(BasicBlock* block);
   // Ensure entry into a deferred block happens from a single hot block.
   void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
+  // Move Phi operands to newly created merger blocks
+  void MovePhis(BasicBlock* from, BasicBlock* to);
   // Copy deferred block markers down as far as possible
   void PropagateDeferredMark();
 
@@ -282,7 +299,7 @@ class Schedule final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
-std::ostream& operator<<(std::ostream&, const Schedule&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const Schedule&);
 
 }  // namespace compiler
 }  // namespace internal

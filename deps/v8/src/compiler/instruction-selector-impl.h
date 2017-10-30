@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
-#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
 #include "src/macro-assembler.h"
@@ -87,6 +87,12 @@ class OperandGenerator {
   InstructionOperand Use(Node* node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::NONE,
                                         UnallocatedOperand::USED_AT_START,
+                                        GetVReg(node)));
+  }
+
+  InstructionOperand UseAnyAtEnd(Node* node) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+                                        UnallocatedOperand::USED_AT_END,
                                         GetVReg(node)));
   }
 
@@ -176,6 +182,21 @@ class OperandGenerator {
                               sequence()->NextVirtualRegister());
   }
 
+  int AllocateVirtualRegister() { return sequence()->NextVirtualRegister(); }
+
+  InstructionOperand DefineSameAsFirstForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT, vreg);
+  }
+
+  InstructionOperand DefineAsRegistertForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg);
+  }
+
+  InstructionOperand UseRegisterForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
+                              UnallocatedOperand::USED_AT_START, vreg);
+  }
+
   InstructionOperand TempDoubleRegister() {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
@@ -234,7 +255,6 @@ class OperandGenerator {
         break;
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   static Constant ToNegatedConstant(const Node* node) {
@@ -247,7 +267,6 @@ class OperandGenerator {
         break;
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   UnallocatedOperand Define(Node* node, UnallocatedOperand operand) {
@@ -329,9 +348,10 @@ class FlagsContinuation final {
 
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
+                                         DeoptimizeKind kind,
                                          DeoptimizeReason reason,
                                          Node* frame_state) {
-    return FlagsContinuation(condition, reason, frame_state);
+    return FlagsContinuation(condition, kind, reason, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -339,13 +359,24 @@ class FlagsContinuation final {
     return FlagsContinuation(condition, result);
   }
 
+  // Creates a new flags continuation for a wasm trap.
+  static FlagsContinuation ForTrap(FlagsCondition condition,
+                                   Runtime::FunctionId trap_id, Node* result) {
+    return FlagsContinuation(condition, trap_id, result);
+  }
+
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const { return mode_ == kFlags_branch; }
   bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
+  bool IsTrap() const { return mode_ == kFlags_trap; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
+  }
+  DeoptimizeKind kind() const {
+    DCHECK(IsDeoptimize());
+    return kind_;
   }
   DeoptimizeReason reason() const {
     DCHECK(IsDeoptimize());
@@ -358,6 +389,10 @@ class FlagsContinuation final {
   Node* result() const {
     DCHECK(IsSet());
     return frame_state_or_result_;
+  }
+  Runtime::FunctionId trap_id() const {
+    DCHECK(IsTrap());
+    return trap_id_;
   }
   BasicBlock* true_block() const {
     DCHECK(IsBranch());
@@ -381,6 +416,7 @@ class FlagsContinuation final {
   void Overwrite(FlagsCondition condition) { condition_ = condition; }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
+    DCHECK(condition_ == kEqual || condition_ == kNotEqual);
     bool negate = condition_ == kEqual;
     condition_ = condition;
     if (negate) Negate();
@@ -415,10 +451,11 @@ class FlagsContinuation final {
   }
 
  private:
-  FlagsContinuation(FlagsCondition condition, DeoptimizeReason reason,
-                    Node* frame_state)
+  FlagsContinuation(FlagsCondition condition, DeoptimizeKind kind,
+                    DeoptimizeReason reason, Node* frame_state)
       : mode_(kFlags_deoptimize),
         condition_(condition),
+        kind_(kind),
         reason_(reason),
         frame_state_or_result_(frame_state) {
     DCHECK_NOT_NULL(frame_state);
@@ -430,13 +467,24 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
+  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
+                    Node* result)
+      : mode_(kFlags_trap),
+        condition_(condition),
+        frame_state_or_result_(result),
+        trap_id_(trap_id) {
+    DCHECK_NOT_NULL(result);
+  }
+
   FlagsMode const mode_;
   FlagsCondition condition_;
-  DeoptimizeReason reason_;      // Only value if mode_ == kFlags_deoptimize
+  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize
+  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize
   Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch.
   BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch.
+  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
 };
 
 }  // namespace compiler

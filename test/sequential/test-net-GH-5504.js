@@ -1,11 +1,34 @@
-'use strict';
-var common = require('../common');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// this test only fails with CentOS 6.3 using kernel version 2.6.32
-// On other linuxes and darwin, the `read` call gets an ECONNRESET in
+'use strict';
+const common = require('../common');
+
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/5504
+//
+// This test only fails with CentOS 6.3 using kernel version 2.6.32.
+// On other Linuxes and macOS, the `read` call gets an ECONNRESET in
 // that case.  On sunos, the `write` call fails with EPIPE.
 //
-// However, old CentOS will occasionally send an EOF instead of a
+// However, old CentOS will occasionally send an EOF instead of an
 // ECONNRESET or EPIPE when the client has been destroyed abruptly.
 //
 // Make sure we don't keep trying to write or read more in that case.
@@ -18,8 +41,8 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
-  var content = Buffer.alloc(64 * 1024 * 1024, '#');
+  const net = require('net');
+  const content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
     socket.on('end', function() {
@@ -35,8 +58,8 @@ function server() {
 }
 
 function client() {
-  var net = require('net');
-  var client = net.connect({
+  const net = require('net');
+  const client = net.connect({
     host: common.localhostIPv4,
     port: common.PORT
   }, function() {
@@ -45,41 +68,32 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
+  const spawn = require('child_process').spawn;
+  const node = process.execPath;
 
-  setTimeout(function() {
-    if (s) s.kill();
-    if (c) c.kill();
-    setTimeout(function() {
-      throw new Error('hang');
-    });
-  }, common.platformTimeout(2000)).unref();
-
-  var s = spawn(node, [__filename, 'server'], {
+  const s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
       NODE_DEBUG: 'net'
     })
   });
-  var c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');
-  s.on('exit', common.mustCall(function(c) {}));
+  s.on('exit', common.mustCall());
 
   s.stdout.once('data', common.mustCall(function() {
-    c = spawn(node, [__filename, 'client']);
+    const c = spawn(node, [__filename, 'client']);
     wrap(c.stderr, process.stderr, 'CLIENT 2>');
     wrap(c.stdout, process.stdout, 'CLIENT 1>');
-    c.on('exit', common.mustCall(function(c) {}));
+    c.on('exit', common.mustCall());
   }));
 
   function wrap(inp, out, w) {
     inp.setEncoding('utf8');
-    inp.on('data', function(c) {
-      c = c.trim();
-      if (!c) return;
-      out.write(w + c.split('\n').join('\n' + w) + '\n');
+    inp.on('data', function(chunk) {
+      chunk = chunk.trim();
+      if (!chunk) return;
+      out.write(`${w}${chunk.split('\n').join(`\n${w}`)}\n`);
     });
   }
 }

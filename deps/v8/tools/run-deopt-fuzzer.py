@@ -58,12 +58,9 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
 MODE_FLAGS = {
-    "debug"   : ["--nohard-abort", "--nodead-code-elimination",
-                 "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap",
-                 "--noconcurrent-recompilation"],
-    "release" : ["--nohard-abort", "--nodead-code-elimination",
-                 "--nofold-constants", "--noconcurrent-recompilation"]}
+    "debug"   : ["--nohard-abort", "--enable-slow-asserts",
+                 "--verify-heap", "--noconcurrent-recompilation"],
+    "release" : ["--nohard-abort", "--noconcurrent-recompilation"]}
 
 SUPPORTED_ARCHS = ["android_arm",
                    "android_ia32",
@@ -406,6 +403,8 @@ def Execute(arch, mode, args, options, suites, workspace):
     "novfp3": False,
     "predictable": False,
     "byteorder": sys.byteorder,
+    "no_harness": False,
+    "ubsan_vptr": False,
   }
   all_tests = []
   num_tests = 0

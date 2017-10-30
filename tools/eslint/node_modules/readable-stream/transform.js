@@ -1,1 +1,1 @@
-module.exports = require("./lib/_stream_transform.js")
+module.exports = require('./readable').Transform

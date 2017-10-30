@@ -4,7 +4,7 @@ npm-publish(1) -- Publish a package
 
 ## SYNOPSIS
 
-    npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]
+    npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--otp otpcode]
 
     Publishes '.' if no argument supplied
     Sets tag 'latest' if no --tag specified
@@ -41,12 +41,21 @@ specifying a different default registry or using a `npm-scope(7)` in the name
   If you don't have a paid account, you must publish with `--access public`
   to publish scoped packages.
 
+* `[--otp <otpcode>]`
+  If you have two-factor authentication enabled in `auth-and-writes` mode
+  then you can provide a code from your authenticator with this. If you
+  don't include this and you're running from a TTY then you'll be prompted.
+
 Fails if the package name and version combination already exists in
 the specified registry.
 
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with npm-unpublish(1).
+
+As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication. Subsequent
+installs will use the strongest supported algorithm to verify downloads.
 
 For a "dry run" that does everything except actually publishing to the
 registry, see `npm-pack(1)`, which figures out the files to be included and
@@ -59,5 +68,6 @@ packs them into a tarball to be uploaded to the registry.
 * npm-adduser(1)
 * npm-owner(1)
 * npm-deprecate(1)
-* npm-tag(1)
+* npm-dist-tag(1)
 * npm-pack(1)
+* npm-profile(1)

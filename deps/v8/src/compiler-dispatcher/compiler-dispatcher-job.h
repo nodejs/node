@@ -5,78 +5,54 @@
 #ifndef V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_JOB_H_
 #define V8_COMPILER_DISPATCHER_COMPILER_DISPATCHER_JOB_H_
 
-#include <memory>
-
-#include "src/base/macros.h"
+#include "src/contexts.h"
 #include "src/handles.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
-class Isolate;
-class JSFunction;
-class ParseInfo;
-class Parser;
-class String;
-class UnicodeCache;
-class Utf16CharacterStream;
-class Zone;
+class SharedFunctionInfo;
 
-enum class CompileJobStatus {
-  kInitial,
-  kReadyToParse,
-  kParsed,
-  kReadyToCompile,
-  kFailed,
-  kDone,
-};
+class UnoptimizedCompileJob;
 
-class CompilerDispatcherJob {
+class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  CompilerDispatcherJob(Isolate* isolate, Handle<JSFunction> function,
-                        size_t max_stack_size);
-  ~CompilerDispatcherJob();
+  enum Type { kUnoptimizedCompile };
 
-  CompileJobStatus status() const { return status_; }
-  bool can_parse_on_background_thread() const {
-    return can_parse_on_background_thread_;
-  }
+  virtual ~CompilerDispatcherJob() {}
 
-  // Transition from kInitial to kReadyToParse.
-  void PrepareToParseOnMainThread();
+  virtual Type type() const = 0;
 
-  // Transition from kReadyToParse to kParsed.
-  void Parse();
+  // Returns true if this CompilerDispatcherJob has finished (either with a
+  // success or a failure).
+  virtual bool IsFinished() = 0;
 
-  // Transition from kParsed to kReadyToCompile (or kFailed). Returns false
-  // when transitioning to kFailed. In that case, an exception is pending.
-  bool FinalizeParsingOnMainThread();
+  // Returns true if this CompilerDispatcherJob has failed.
+  virtual bool IsFailed() = 0;
+
+  // Return true if the next step can be run on any thread, that is when both
+  // StepNextOnMainThread and StepNextOnBackgroundThread could be used for the
+  // next step.
+  virtual bool CanStepNextOnAnyThread() = 0;
+
+  // Step the job forward by one state on the main thread.
+  virtual void StepNextOnMainThread(Isolate* isolate) = 0;
+
+  // Step the job forward by one state on a background thread.
+  virtual void StepNextOnBackgroundThread() = 0;
 
   // Transition from any state to kInitial and free all resources.
-  void ResetOnMainThread();
+  virtual void ResetOnMainThread(Isolate* isolate) = 0;
 
- private:
-  FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
+  // Estimate how long the next step will take using the tracer.
+  virtual double EstimateRuntimeOfNextStepInMs() const = 0;
 
-  CompileJobStatus status_ = CompileJobStatus::kInitial;
-  Isolate* isolate_;
-  Handle<JSFunction> function_;  // Global handle.
-  Handle<String> source_;        // Global handle.
-  size_t max_stack_size_;
+  // Even though the name does not imply this, ShortPrint() must only be invoked
+  // on the main thread.
+  virtual void ShortPrintOnMainThread() = 0;
 
-  // Members required for parsing.
-  std::unique_ptr<UnicodeCache> unicode_cache_;
-  std::unique_ptr<Zone> zone_;
-  std::unique_ptr<Utf16CharacterStream> character_stream_;
-  std::unique_ptr<ParseInfo> parse_info_;
-  std::unique_ptr<Parser> parser_;
-  std::unique_ptr<DeferredHandles> handles_from_parsing_;
-
-  bool can_parse_on_background_thread_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
+  // Casts to implementations.
+  const UnoptimizedCompileJob* AsUnoptimizedCompileJob() const;
 };
 
 }  // namespace internal

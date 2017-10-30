@@ -32,7 +32,7 @@ lib: $(LIBOBJ)
 		$(MAKE) -f $(TOP)/Makefile.shared -e \
 			LIBNAME=$(LIBNAME) \
 			LIBEXTRAS='$(LIBOBJ)' \
-			LIBDEPS='-L$(TOP) -lcrypto' \
+			LIBDEPS='-L$(TOP) -lcrypto $(EX_LIBS)' \
 			link_o.$(SHLIB_TARGET); \
 	else \
 		$(AR) $(LIB) $(LIBOBJ); \

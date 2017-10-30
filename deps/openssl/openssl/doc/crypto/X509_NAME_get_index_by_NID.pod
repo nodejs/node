@@ -83,10 +83,9 @@ Process all entries:
 
 Process all commonName entries:
 
- int loc;
+ int lastpos = -1;
  X509_NAME_ENTRY *e;
 
- loc = -1;
  for (;;)
 	{
 	lastpos = X509_NAME_get_index_by_NID(nm, NID_commonName, lastpos);

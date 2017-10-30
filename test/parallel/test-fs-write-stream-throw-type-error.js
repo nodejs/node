@@ -8,28 +8,34 @@ const example = path.join(common.tmpDir, 'dummy');
 
 common.refreshTmpDir();
 
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, undefined);
 });
-assert.doesNotThrow(function() {
+
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, null);
 });
-assert.doesNotThrow(function() {
+
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, 'utf8');
 });
-assert.doesNotThrow(function() {
-  fs.createWriteStream(example, {encoding: 'utf8'});
+
+assert.doesNotThrow(() => {
+  fs.createWriteStream(example, { encoding: 'utf8' });
 });
 
-assert.throws(function() {
-  fs.createWriteStream(example, 123);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, 0);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, true);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createWriteStream(example, false);
-}, /"options" must be a string or an object/);
+const createWriteStreamErr = (path, opt) => {
+  common.expectsError(
+    () => {
+      fs.createWriteStream(path, opt);
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
+};
+
+createWriteStreamErr(example, 123);
+createWriteStreamErr(example, 0);
+createWriteStreamErr(example, true);
+createWriteStreamErr(example, false);

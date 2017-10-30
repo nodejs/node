@@ -1,17 +1,8 @@
-var isObjectLike = require('./isObjectLike');
+var baseGetTag = require('./_baseGetTag'),
+    isObjectLike = require('./isObjectLike');
 
 /** `Object#toString` result references. */
 var numberTag = '[object Number]';
-
-/** Used for built-in method references. */
-var objectProto = Object.prototype;
-
-/**
- * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
- * of values.
- */
-var objectToString = objectProto.toString;
 
 /**
  * Checks if `value` is classified as a `Number` primitive or object.
@@ -41,7 +32,7 @@ var objectToString = objectProto.toString;
  */
 function isNumber(value) {
   return typeof value == 'number' ||
-    (isObjectLike(value) && objectToString.call(value) == numberTag);
+    (isObjectLike(value) && baseGetTag(value) == numberTag);
 }
 
 module.exports = isNumber;

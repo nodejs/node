@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var files = [];
+const files = [];
 
 while (files.length < 256)
   files.push(fs.openSync(__filename, 'r'));
 
-var r = process.memoryUsage();
-assert.equal(true, r['rss'] > 0);
+const r = process.memoryUsage();
+assert.strictEqual(true, r['rss'] > 0);

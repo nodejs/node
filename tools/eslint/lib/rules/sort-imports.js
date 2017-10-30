@@ -39,7 +39,9 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
@@ -47,7 +49,8 @@ module.exports = {
         const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false,
             ignoreMemberSort = configuration.ignoreMemberSort || false,
-            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"];
+            memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
+            sourceCode = context.getSourceCode();
         let previousDeclaration = null;
 
         /**
@@ -68,9 +71,9 @@ module.exports = {
                 return "all";
             } else if (node.specifiers.length === 1) {
                 return "single";
-            } else {
-                return "multiple";
             }
+            return "multiple";
+
         }
 
         /**
@@ -90,9 +93,9 @@ module.exports = {
         function getFirstLocalMemberName(node) {
             if (node.specifiers[0]) {
                 return node.specifiers[0].local.name;
-            } else {
-                return null;
             }
+            return null;
+
         }
 
         return {
@@ -135,36 +138,49 @@ module.exports = {
                     }
                 }
 
-                // Multiple members of an import declaration should also be sorted alphabetically.
-                if (!ignoreMemberSort && node.specifiers.length > 1) {
-                    let previousSpecifier = null;
-                    let previousSpecifierName = null;
+                if (!ignoreMemberSort) {
+                    const importSpecifiers = node.specifiers.filter(specifier => specifier.type === "ImportSpecifier");
+                    const getSortableName = ignoreCase ? specifier => specifier.local.name.toLowerCase() : specifier => specifier.local.name;
+                    const firstUnsortedIndex = importSpecifiers.map(getSortableName).findIndex((name, index, array) => array[index - 1] > name);
 
-                    for (let i = 0; i < node.specifiers.length; ++i) {
-                        const currentSpecifier = node.specifiers[i];
+                    if (firstUnsortedIndex !== -1) {
+                        context.report({
+                            node: importSpecifiers[firstUnsortedIndex],
+                            message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
+                            data: { memberName: importSpecifiers[firstUnsortedIndex].local.name },
+                            fix(fixer) {
+                                if (importSpecifiers.some(specifier => sourceCode.getCommentsBefore(specifier).length || sourceCode.getCommentsAfter(specifier).length)) {
 
-                        if (currentSpecifier.type !== "ImportSpecifier") {
-                            continue;
-                        }
-
-                        let currentSpecifierName = currentSpecifier.local.name;
-
-                        if (ignoreCase) {
-                            currentSpecifierName = currentSpecifierName.toLowerCase();
-                        }
-
-                        if (previousSpecifier && currentSpecifierName < previousSpecifierName) {
-                            context.report({
-                                node: currentSpecifier,
-                                message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
-                                data: {
-                                    memberName: currentSpecifier.local.name
+                                    // If there are comments in the ImportSpecifier list, don't rearrange the specifiers.
+                                    return null;
                                 }
-                            });
-                        }
 
-                        previousSpecifier = currentSpecifier;
-                        previousSpecifierName = currentSpecifierName;
+                                return fixer.replaceTextRange(
+                                    [importSpecifiers[0].range[0], importSpecifiers[importSpecifiers.length - 1].range[1]],
+                                    importSpecifiers
+
+                                        // Clone the importSpecifiers array to avoid mutating it
+                                        .slice()
+
+                                        // Sort the array into the desired order
+                                        .sort((specifierA, specifierB) => {
+                                            const aName = getSortableName(specifierA);
+                                            const bName = getSortableName(specifierB);
+
+                                            return aName > bName ? 1 : -1;
+                                        })
+
+                                        // Build a string out of the sorted list of import specifiers and the text between the originals
+                                        .reduce((sourceText, specifier, index) => {
+                                            const textAfterSpecifier = index === importSpecifiers.length - 1
+                                                ? ""
+                                                : sourceCode.getText().slice(importSpecifiers[index].range[1], importSpecifiers[index + 1].range[0]);
+
+                                            return sourceText + sourceCode.getText(specifier) + textAfterSpecifier;
+                                        }, "")
+                                );
+                            }
+                        });
                     }
                 }
 

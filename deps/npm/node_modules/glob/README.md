@@ -273,6 +273,9 @@ the filesystem.
   In the case of a symlink that cannot be resolved, the full absolute
   path to the matched entry is returned (though it will usually be a
   broken symlink)
+* `absolute` Set to true to always receive absolute paths for matched
+  files.  Unlike `realpath`, this also affects the values returned in
+  the `match` event.
 
 ## Comparisons to other fnmatch/glob implementations
 

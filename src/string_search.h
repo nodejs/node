@@ -7,7 +7,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
+#include "node_internals.h"
 #include <string.h>
 
 namespace node {
@@ -28,7 +28,7 @@ class Vector {
  public:
   Vector(T* data, size_t length, bool isForward)
       : start_(data), length_(length), is_forward_(isForward) {
-    ASSERT(length > 0 && data != nullptr);
+    CHECK(length > 0 && data != nullptr);
   }
 
   // Returns the start of the memory range.
@@ -44,7 +44,9 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    ASSERT(index < length_);
+#ifdef DEBUG
+    CHECK(index < length_);
+#endif
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
@@ -238,7 +240,7 @@ inline const void* MemrchrFill(const void* haystack, uint8_t needle,
 }
 
 
-// Finds the first occurence of *two-byte* character pattern[0] in the string
+// Finds the first occurrence of *two-byte* character pattern[0] in the string
 // `subject`. Does not check that the whole pattern matches.
 template <typename Char>
 inline size_t FindFirstCharacter(Vector<const Char> pattern,
@@ -284,7 +286,7 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
 }
 
 
-// Finds the first occurance of the byte pattern[0] in string `subject`.
+// Finds the first occurrence of the byte pattern[0] in string `subject`.
 // Does not verify that the whole pattern matches.
 template <>
 inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
@@ -342,7 +344,7 @@ size_t StringSearch<Char>::LinearSearch(
     i = FindFirstCharacter(pattern, subject, i);
     if (i == subject.length())
       return subject.length();
-    ASSERT_LE(i, n);
+    CHECK_LE(i, n);
 
     bool matches = true;
     for (size_t j = 1; j < pattern_length; j++) {
@@ -373,7 +375,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
   // Only preprocess at most kBMMaxShift last characters of pattern.
   size_t start = search->start_;
 
-  int* bad_char_occurence = search->bad_char_table();
+  int* bad_char_occurrence = search->bad_char_table();
   int* good_suffix_shift = search->good_suffix_shift_table();
 
   Char last_char = pattern[pattern_length - 1];
@@ -383,7 +385,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
     size_t j = pattern_length - 1;
     int c;
     while (last_char != (c = subject[index + j])) {
-      int shift = j - CharOccurrence(bad_char_occurence, c);
+      int shift = j - CharOccurrence(bad_char_occurrence, c);
       index += shift;
       if (index > subject_length - pattern_length) {
         return subject.length();
@@ -399,11 +401,11 @@ size_t StringSearch<Char>::BoyerMooreSearch(
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
       index += pattern_length - 1 -
-               CharOccurrence(bad_char_occurence,
+               CharOccurrence(bad_char_occurrence,
                               static_cast<Char>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
-      int bc_occ = CharOccurrence(bad_char_occurence, c);
+      int bc_occ = CharOccurrence(bad_char_occurrence, c);
       int shift = j - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;
@@ -591,7 +593,7 @@ size_t StringSearch<Char>::InitialSearch(
       i = FindFirstCharacter(pattern, subject, i);
       if (i == subject.length())
         return subject.length();
-      ASSERT_LE(i, n);
+      CHECK_LE(i, n);
       size_t j = 1;
       do {
         if (pattern[j] != subject[i + j]) {
@@ -644,7 +646,7 @@ size_t SearchString(const Char* haystack,
       needle, needle_length, is_forward);
   Vector<const Char> v_haystack = Vector<const Char>(
       haystack, haystack_length, is_forward);
-  ASSERT(haystack_length >= needle_length);
+  CHECK(haystack_length >= needle_length);
   size_t diff = haystack_length - needle_length;
   size_t relative_start_index;
   if (is_forward) {

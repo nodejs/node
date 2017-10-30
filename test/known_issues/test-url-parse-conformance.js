@@ -1,22 +1,20 @@
 'use strict';
 
 // Refs: https://github.com/nodejs/node/issues/5832
-
-const common = require('../common');
+require('../common');
 const url = require('url');
 const assert = require('assert');
-const path = require('path');
+const fixtures = require('../common/fixtures');
+const tests = require(fixtures.path('url-tests'));
 
-const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
-
-var failed = 0;
-var attempted = 0;
+let failed = 0;
+let attempted = 0;
 
 tests.forEach((test) => {
   attempted++;
   // Skip comments
   if (typeof test === 'string') return;
-  var parsed;
+  let parsed;
 
   try {
     // Attempt to parse
@@ -28,7 +26,7 @@ tests.forEach((test) => {
     } else {
       // Test was not supposed to fail, so we're good so far. Now
       // check the results of the parse.
-      var username, password;
+      let username, password;
       try {
         assert.strictEqual(test.href, parsed.href);
         assert.strictEqual(test.protocol, parsed.protocol);

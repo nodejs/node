@@ -38,3 +38,30 @@ tape('set get has', function (t) {
   t.equal(c.get('tva'), 'test1')
 
 })
+
+tape('swap', function (t) {
+  var headers = {}
+    , c = caseless(headers)
+    ;
+  t.plan(4)
+  // No Header to Swap.
+  t.throws(function () {
+    c.swap('content-type')
+  })
+  // Set Header.
+  c.set('content-type', 'application/json')
+  // Swap Header With Itself.
+  c.swap('content-type')
+  // Does Not Delete Itself.
+  t.ok(c.has('content-type'))
+  // Swap Header With a Different Header.
+  c.swap('Content-Type')
+  // Still Has Header.
+  t.ok(c.has('Content-Type'))
+  // Delete Header.
+  c.del('Content-Type')
+  // No Header to Swap.
+  t.throws(function () {
+    c.swap('content-type')
+  })
+})

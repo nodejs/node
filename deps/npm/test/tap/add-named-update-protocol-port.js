@@ -72,6 +72,7 @@ test('tarball paths should update port if updating protocol', function (t) {
     {},
     function (er, code, stdout, stderr) {
       if (er) { throw er }
+      t.equal(stderr, '', 'no error output')
       t.equal(code, 0, 'addNamed worked')
       server1.done()
       t.end()

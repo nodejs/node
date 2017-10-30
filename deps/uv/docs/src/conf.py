@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# libuv API documentation documentation build configuration file, created by
+# libuv documentation documentation build configuration file, created by
 # sphinx-quickstart on Sun Jul 27 11:47:51 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -21,11 +21,11 @@ def get_libuv_version():
     with open('../../include/uv-version.h') as f:
         data = f.read()
     try:
-        m = re.search(r"""^#define UV_VERSION_MAJOR (\d)$""", data, re.MULTILINE)
+        m = re.search(r"""^#define UV_VERSION_MAJOR (\d+)$""", data, re.MULTILINE)
         major = int(m.group(1))
-        m = re.search(r"""^#define UV_VERSION_MINOR (\d)$""", data, re.MULTILINE)
+        m = re.search(r"""^#define UV_VERSION_MINOR (\d+)$""", data, re.MULTILINE)
         minor = int(m.group(1))
-        m = re.search(r"""^#define UV_VERSION_PATCH (\d)$""", data, re.MULTILINE)
+        m = re.search(r"""^#define UV_VERSION_PATCH (\d+)$""", data, re.MULTILINE)
         patch = int(m.group(1))
         m = re.search(r"""^#define UV_VERSION_IS_RELEASE (\d)$""", data, re.MULTILINE)
         is_release = int(m.group(1))
@@ -64,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'libuv API documentation'
-copyright = u'libuv contributors'
+copyright = u'2014-present, libuv contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -130,10 +130,10 @@ html_theme = 'nature'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = 'libuv API documentation'
+html_title = 'libuv documentation'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = 'libuv %s API documentation' % version
+html_short_title = 'libuv %s documentation' % version
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -216,7 +216,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'libuv.tex', u'libuv API documentation',
+  ('index', 'libuv.tex', u'libuv documentation',
    u'libuv contributors', 'manual'),
 ]
 
@@ -246,7 +246,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'libuv', u'libuv API documentation',
+    ('index', 'libuv', u'libuv documentation',
      [u'libuv contributors'], 1)
 ]
 
@@ -260,7 +260,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'libuv', u'libuv API documentation',
+  ('index', 'libuv', u'libuv documentation',
    u'libuv contributors', 'libuv', 'Cross-platform asynchronous I/O',
    'Miscellaneous'),
 ]
@@ -281,10 +281,10 @@ texinfo_documents = [
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'libuv API documentation'
+epub_title = u'libuv documentation'
 epub_author = u'libuv contributors'
 epub_publisher = u'libuv contributors'
-epub_copyright = u'2014, libuv contributors'
+epub_copyright = u'2014-present, libuv contributors'
 
 # The basename for the epub file. It defaults to the project name.
 epub_basename = u'libuv'

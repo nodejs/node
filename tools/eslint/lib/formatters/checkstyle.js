@@ -19,9 +19,9 @@ const xmlEscape = require("../util/xml-escape");
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "error";
-    } else {
-        return "warning";
     }
+    return "warning";
+
 }
 
 //------------------------------------------------------------------------------
@@ -35,12 +35,12 @@ module.exports = function(results) {
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
     output += "<checkstyle version=\"4.3\">";
 
-    results.forEach(function(result) {
+    results.forEach(result => {
         const messages = result.messages;
 
         output += `<file name="${xmlEscape(result.filePath)}">`;
 
-        messages.forEach(function(message) {
+        messages.forEach(message => {
             output += [
                 `<error line="${xmlEscape(message.line)}"`,
                 `column="${xmlEscape(message.column)}"`,

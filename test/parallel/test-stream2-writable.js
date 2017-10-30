@@ -1,10 +1,32 @@
-'use strict';
-require('../common');
-var W = require('_stream_writable');
-var D = require('_stream_duplex');
-var assert = require('assert');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var util = require('util');
+'use strict';
+
+const common = require('../common');
+const W = require('_stream_writable');
+const D = require('_stream_duplex');
+const assert = require('assert');
+
+const util = require('util');
 util.inherits(TestWriter, W);
 
 function TestWriter() {
@@ -22,73 +44,39 @@ TestWriter.prototype._write = function(chunk, encoding, cb) {
   }.bind(this), Math.floor(Math.random() * 10));
 };
 
-var chunks = new Array(50);
-for (var i = 0; i < chunks.length; i++) {
-  chunks[i] = new Array(i + 1).join('x');
+const chunks = new Array(50);
+for (let i = 0; i < chunks.length; i++) {
+  chunks[i] = 'x'.repeat(i);
 }
 
-// tiny node-tap lookalike.
-var tests = [];
-var count = 0;
-
-function test(name, fn) {
-  count++;
-  tests.push([name, fn]);
-}
-
-function run() {
-  var next = tests.shift();
-  if (!next)
-    return console.error('ok');
-
-  var name = next[0];
-  var fn = next[1];
-  console.log('# %s', name);
-  fn({
-    same: assert.deepStrictEqual,
-    equal: assert.equal,
-    end: function() {
-      count--;
-      run();
-    }
-  });
-}
-
-// ensure all tests have run
-process.on('exit', function() {
-  assert.equal(count, 0);
-});
-
-process.nextTick(run);
-
-test('write fast', function(t) {
-  var tw = new TestWriter({
+{
+  // Verify fast writing
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
-  tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got chunks in the right order');
-    t.end();
-  });
+  tw.on('finish', common.mustCall(function() {
+    assert.deepStrictEqual(tw.buffer, chunks, 'got chunks in the right order');
+  }));
 
   chunks.forEach(function(chunk) {
-    // screw backpressure.  Just buffer it all up.
+    // Ignore backpressure. Just buffer it all up.
     tw.write(chunk);
   });
   tw.end();
-});
+}
 
-test('write slow', function(t) {
-  var tw = new TestWriter({
+{
+  // Verify slow writing
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
-  tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got chunks in the right order');
-    t.end();
-  });
+  tw.on('finish', common.mustCall(function() {
+    assert.deepStrictEqual(tw.buffer, chunks, 'got chunks in the right order');
+  }));
 
-  var i = 0;
+  let i = 0;
   (function W() {
     tw.write(chunks[i++]);
     if (i < chunks.length)
@@ -96,29 +84,30 @@ test('write slow', function(t) {
     else
       tw.end();
   })();
-});
+}
 
-test('write backpressure', function(t) {
-  var tw = new TestWriter({
+{
+  // Verify write backpressure
+  const tw = new TestWriter({
     highWaterMark: 50
   });
 
-  var drains = 0;
+  let drains = 0;
 
-  tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got chunks in the right order');
-    t.equal(drains, 17);
-    t.end();
-  });
+  tw.on('finish', common.mustCall(function() {
+    assert.deepStrictEqual(tw.buffer, chunks, 'got chunks in the right order');
+    assert.strictEqual(drains, 17);
+  }));
 
   tw.on('drain', function() {
     drains++;
   });
 
-  var i = 0;
+  let i = 0;
   (function W() {
+    let ret;
     do {
-      var ret = tw.write(chunks[i++]);
+      ret = tw.write(chunks[i++]);
     } while (ret !== false && i < chunks.length);
 
     if (i < chunks.length) {
@@ -128,41 +117,42 @@ test('write backpressure', function(t) {
       tw.end();
     }
   })();
-});
+}
 
-test('write bufferize', function(t) {
-  var tw = new TestWriter({
+{
+  // Verify write buffersize
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
-  var encodings =
-      [ 'hex',
-        'utf8',
-        'utf-8',
-        'ascii',
-        'latin1',
-        'binary',
-        'base64',
-        'ucs2',
-        'ucs-2',
-        'utf16le',
-        'utf-16le',
-        undefined ];
+  const encodings =
+    [ 'hex',
+      'utf8',
+      'utf-8',
+      'ascii',
+      'latin1',
+      'binary',
+      'base64',
+      'ucs2',
+      'ucs-2',
+      'utf16le',
+      'utf-16le',
+      undefined ];
 
   tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got the expected chunks');
+    assert.deepStrictEqual(tw.buffer, chunks, 'got the expected chunks');
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[i % encodings.length];
+    const enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
-  t.end();
-});
+}
 
-test('write no bufferize', function(t) {
-  var tw = new TestWriter({
+{
+  // Verify write with no buffersize
+  const tw = new TestWriter({
     highWaterMark: 100,
     decodeStrings: false
   });
@@ -173,215 +163,234 @@ test('write no bufferize', function(t) {
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
 
-  var encodings =
-      [ 'hex',
-        'utf8',
-        'utf-8',
-        'ascii',
-        'latin1',
-        'binary',
-        'base64',
-        'ucs2',
-        'ucs-2',
-        'utf16le',
-        'utf-16le',
-        undefined ];
+  const encodings =
+    [ 'hex',
+      'utf8',
+      'utf-8',
+      'ascii',
+      'latin1',
+      'binary',
+      'base64',
+      'ucs2',
+      'ucs-2',
+      'utf16le',
+      'utf-16le',
+      undefined ];
 
   tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got the expected chunks');
+    assert.deepStrictEqual(tw.buffer, chunks, 'got the expected chunks');
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[i % encodings.length];
+    const enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
-  t.end();
-});
+}
 
-test('write callbacks', function(t) {
-  var callbacks = chunks.map(function(chunk, i) {
-    return [i, function(er) {
+{
+  // Verify write callbacks
+  const callbacks = chunks.map(function(chunk, i) {
+    return [i, function() {
       callbacks._called[i] = chunk;
     }];
   }).reduce(function(set, x) {
-    set['callback-' + x[0]] = x[1];
+    set[`callback-${x[0]}`] = x[1];
     return set;
   }, {});
   callbacks._called = [];
 
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
-  tw.on('finish', function() {
-    process.nextTick(function() {
-      t.same(tw.buffer, chunks, 'got chunks in the right order');
-      t.same(callbacks._called, chunks, 'called all callbacks');
-      t.end();
-    });
-  });
+  tw.on('finish', common.mustCall(function() {
+    process.nextTick(common.mustCall(function() {
+      assert.deepStrictEqual(tw.buffer, chunks,
+                             'got chunks in the right order');
+      assert.deepStrictEqual(callbacks._called, chunks, 'called all callbacks');
+    }));
+  }));
 
   chunks.forEach(function(chunk, i) {
-    tw.write(chunk, callbacks['callback-' + i]);
+    tw.write(chunk, callbacks[`callback-${i}`]);
   });
   tw.end();
-});
+}
 
-test('end callback', function(t) {
-  var tw = new TestWriter();
-  tw.end(function() {
-    t.end();
-  });
-});
+{
+  // Verify end() callback
+  const tw = new TestWriter();
+  tw.end(common.mustCall());
+}
 
-test('end callback with chunk', function(t) {
-  var tw = new TestWriter();
-  tw.end(Buffer.from('hello world'), function() {
-    t.end();
-  });
-});
+{
+  // Verify end() callback with chunk
+  const tw = new TestWriter();
+  tw.end(Buffer.from('hello world'), common.mustCall());
+}
 
-test('end callback with chunk and encoding', function(t) {
-  var tw = new TestWriter();
-  tw.end('hello world', 'ascii', function() {
-    t.end();
-  });
-});
+{
+  // Verify end() callback with chunk and encoding
+  const tw = new TestWriter();
+  tw.end('hello world', 'ascii', common.mustCall());
+}
 
-test('end callback after .write() call', function(t) {
-  var tw = new TestWriter();
+{
+  // Verify end() callback after write() call
+  const tw = new TestWriter();
   tw.write(Buffer.from('hello world'));
-  tw.end(function() {
-    t.end();
-  });
-});
+  tw.end(common.mustCall());
+}
 
-test('end callback called after write callback', function(t) {
-  var tw = new TestWriter();
-  var writeCalledback = false;
+{
+  // Verify end() callback after write() callback
+  const tw = new TestWriter();
+  let writeCalledback = false;
   tw.write(Buffer.from('hello world'), function() {
     writeCalledback = true;
   });
-  tw.end(function() {
-    t.equal(writeCalledback, true);
-    t.end();
+  tw.end(common.mustCall(function() {
+    assert.strictEqual(writeCalledback, true);
+  }));
+}
+
+{
+  // Verify encoding is ignored for buffers
+  const tw = new W();
+  const hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
+  tw._write = common.mustCall(function(chunk) {
+    assert.strictEqual(chunk.toString('hex'), hex);
   });
-});
-
-test('encoding should be ignored for buffers', function(t) {
-  var tw = new W();
-  var hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
-  tw._write = function(chunk, encoding, cb) {
-    t.equal(chunk.toString('hex'), hex);
-    t.end();
-  };
-  var buf = Buffer.from(hex, 'hex');
+  const buf = Buffer.from(hex, 'hex');
   tw.write(buf, 'latin1');
-});
+}
 
-test('writables are not pipable', function(t) {
-  var w = new W();
-  w._write = function() {};
-  var gotError = false;
-  w.on('error', function(er) {
+{
+  // Verify writables cannot be piped
+  const w = new W();
+  w._write = common.mustNotCall();
+  let gotError = false;
+  w.on('error', function() {
     gotError = true;
   });
   w.pipe(process.stdout);
-  assert(gotError);
-  t.end();
-});
+  assert.strictEqual(gotError, true);
+}
 
-test('duplexes are pipable', function(t) {
-  var d = new D();
-  d._read = function() {};
-  d._write = function() {};
-  var gotError = false;
-  d.on('error', function(er) {
+{
+  // Verify that duplex streams cannot be piped
+  const d = new D();
+  d._read = common.mustCall();
+  d._write = common.mustNotCall();
+  let gotError = false;
+  d.on('error', function() {
     gotError = true;
   });
   d.pipe(process.stdout);
-  assert(!gotError);
-  t.end();
-});
+  assert.strictEqual(gotError, false);
+}
 
-test('end(chunk) two times is an error', function(t) {
-  var w = new W();
-  w._write = function() {};
-  var gotError = false;
+{
+  // Verify that end(chunk) twice is an error
+  const w = new W();
+  w._write = common.mustCall((msg) => {
+    assert.strictEqual(msg.toString(), 'this is the end');
+  });
+  let gotError = false;
   w.on('error', function(er) {
     gotError = true;
-    t.equal(er.message, 'write after end');
+    assert.strictEqual(er.message, 'write after end');
   });
   w.end('this is the end');
   w.end('and so is this');
-  process.nextTick(function() {
-    assert(gotError);
-    t.end();
-  });
-});
+  process.nextTick(common.mustCall(function() {
+    assert.strictEqual(gotError, true);
+  }));
+}
 
-test('dont end while writing', function(t) {
-  var w = new W();
-  var wrote = false;
+{
+  // Verify stream doesn't end while writing
+  const w = new W();
+  let wrote = false;
   w._write = function(chunk, e, cb) {
-    assert(!this.writing);
+    assert.strictEqual(this.writing, undefined);
     wrote = true;
     this.writing = true;
     setTimeout(function() {
       this.writing = false;
       cb();
-    });
+    }, 1);
   };
-  w.on('finish', function() {
-    assert(wrote);
-    t.end();
-  });
+  w.on('finish', common.mustCall(function() {
+    assert.strictEqual(wrote, true);
+  }));
   w.write(Buffer.alloc(0));
   w.end();
-});
+}
 
-test('finish does not come before write cb', function(t) {
-  var w = new W();
-  var writeCb = false;
+{
+  // Verify finish does not come before write() callback
+  const w = new W();
+  let writeCb = false;
   w._write = function(chunk, e, cb) {
     setTimeout(function() {
       writeCb = true;
       cb();
     }, 10);
   };
-  w.on('finish', function() {
-    assert(writeCb);
-    t.end();
-  });
+  w.on('finish', common.mustCall(function() {
+    assert.strictEqual(writeCb, true);
+  }));
   w.write(Buffer.alloc(0));
   w.end();
-});
+}
 
-test('finish does not come before sync _write cb', function(t) {
-  var w = new W();
-  var writeCb = false;
+{
+  // Verify finish does not come before synchronous _write() callback
+  const w = new W();
+  let writeCb = false;
   w._write = function(chunk, e, cb) {
     cb();
   };
-  w.on('finish', function() {
-    assert(writeCb);
-    t.end();
-  });
-  w.write(Buffer.alloc(0), function(er) {
+  w.on('finish', common.mustCall(function() {
+    assert.strictEqual(writeCb, true);
+  }));
+  w.write(Buffer.alloc(0), function() {
     writeCb = true;
   });
   w.end();
-});
+}
 
-test('finish is emitted if last chunk is empty', function(t) {
-  var w = new W();
+{
+  // Verify finish is emitted if the last chunk is empty
+  const w = new W();
   w._write = function(chunk, e, cb) {
     process.nextTick(cb);
   };
-  w.on('finish', function() {
-    t.end();
-  });
+  w.on('finish', common.mustCall());
   w.write(Buffer.allocUnsafe(1));
   w.end(Buffer.alloc(0));
-});
+}
+
+{
+  // Verify that finish is emitted after shutdown
+  const w = new W();
+  let shutdown = false;
+
+  w._final = common.mustCall(function(cb) {
+    assert.strictEqual(this, w);
+    setTimeout(function() {
+      shutdown = true;
+      cb();
+    }, 100);
+  });
+  w._write = function(chunk, e, cb) {
+    process.nextTick(cb);
+  };
+  w.on('finish', common.mustCall(function() {
+    assert.strictEqual(shutdown, true);
+  }));
+  w.write(Buffer.allocUnsafe(1));
+  w.end(Buffer.allocUnsafe(0));
+}

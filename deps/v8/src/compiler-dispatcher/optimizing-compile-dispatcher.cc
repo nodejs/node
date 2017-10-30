@@ -5,8 +5,10 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
-#include "src/full-codegen/full-codegen.h"
+#include "src/compilation-info.h"
+#include "src/compiler.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
@@ -17,8 +19,11 @@ namespace {
 
 void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
   if (restore_function_code) {
-    Handle<JSFunction> function = job->info()->closure();
+    Handle<JSFunction> function = job->compilation_info()->closure();
     function->ReplaceCode(function->shared()->code());
+    if (function->IsInOptimizationQueue()) {
+      function->ClearOptimizationMarker();
+    }
     // TODO(mvstanton): We can't call ensureliterals here due to allocation,
     // but we probably shouldn't call ReplaceCode either, as this
     // sometimes runs on the worker thread!
@@ -31,11 +36,11 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
 
 class OptimizingCompileDispatcher::CompileTask : public v8::Task {
  public:
-  explicit CompileTask(Isolate* isolate) : isolate_(isolate) {
-    OptimizingCompileDispatcher* dispatcher =
-        isolate_->optimizing_compile_dispatcher();
-    base::LockGuard<base::Mutex> lock_guard(&dispatcher->ref_count_mutex_);
-    ++dispatcher->ref_count_;
+  explicit CompileTask(Isolate* isolate,
+                       OptimizingCompileDispatcher* dispatcher)
+      : isolate_(isolate), dispatcher_(dispatcher) {
+    base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+    ++dispatcher_->ref_count_;
   }
 
   virtual ~CompileTask() {}
@@ -47,30 +52,29 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
 
-    OptimizingCompileDispatcher* dispatcher =
-        isolate_->optimizing_compile_dispatcher();
     {
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.RecompileConcurrent");
 
-      if (dispatcher->recompilation_delay_ != 0) {
+      if (dispatcher_->recompilation_delay_ != 0) {
         base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-            dispatcher->recompilation_delay_));
+            dispatcher_->recompilation_delay_));
       }
 
-      dispatcher->CompileNext(dispatcher->NextInput(true));
+      dispatcher_->CompileNext(dispatcher_->NextInput(true));
     }
     {
-      base::LockGuard<base::Mutex> lock_guard(&dispatcher->ref_count_mutex_);
-      if (--dispatcher->ref_count_ == 0) {
-        dispatcher->ref_count_zero_.NotifyOne();
+      base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+      if (--dispatcher_->ref_count_ == 0) {
+        dispatcher_->ref_count_zero_.NotifyOne();
       }
     }
   }
 
   Isolate* isolate_;
+  OptimizingCompileDispatcher* dispatcher_;
 
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
@@ -132,7 +136,23 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   }
 }
 
-void OptimizingCompileDispatcher::Flush() {
+void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
+  if (blocking_behavior == BlockingBehavior::kDontBlock) {
+    if (FLAG_block_concurrent_recompilation) Unblock();
+    base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
+    while (input_queue_length_ > 0) {
+      CompilationJob* job = input_queue_[InputQueueIndex(0)];
+      DCHECK_NOT_NULL(job);
+      input_queue_shift_ = InputQueueIndex(1);
+      input_queue_length_--;
+      DisposeCompilationJob(job, true);
+    }
+    FlushOutputQueue(true);
+    if (FLAG_trace_concurrent_recompilation) {
+      PrintF("  ** Flushed concurrent recompilation queues (not blocking).\n");
+    }
+    return;
+  }
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
@@ -176,9 +196,9 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       job = output_queue_.front();
       output_queue_.pop();
     }
-    CompilationInfo* info = job->info();
+    CompilationInfo* info = job->compilation_info();
     Handle<JSFunction> function(*info->closure());
-    if (function->IsOptimized()) {
+    if (function->HasOptimizedCode()) {
       if (FLAG_trace_concurrent_recompilation) {
         PrintF("  ** Aborting compilation for ");
         function->ShortPrint();
@@ -204,14 +224,14 @@ void OptimizingCompileDispatcher::QueueForOptimization(CompilationJob* job) {
     blocked_jobs_++;
   } else {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_), v8::Platform::kShortRunningTask);
+        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
   }
 }
 
 void OptimizingCompileDispatcher::Unblock() {
   while (blocked_jobs_ > 0) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_), v8::Platform::kShortRunningTask);
+        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
     blocked_jobs_--;
   }
 }

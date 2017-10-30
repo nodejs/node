@@ -1,6 +1,6 @@
 var nopt = require("../")
   , test = require('tap').test
-
+  , isWin = process.platform === 'win32'
 
 test("passing a string results in a string", function (t) {
   var parsed = nopt({ key: String }, {}, ["--key", "myvalue"], 0)
@@ -15,11 +15,41 @@ test("Empty String results in empty string, not true", function (t) {
   t.end()
 })
 
-test("~ path is resolved to $HOME", function (t) {
+// https://github.com/npm/nopt/issues/65
+test("Empty String should not swallow next flag", function (t) {
+  var parsed = nopt({ empty: String, foo: String }, {}, ["--empty", "--foo"], 0)
+  t.same(parsed.empty, "")
+  t.same(parsed.foo, "")
+  t.end()
+})
+
+// https://github.com/npm/nopt/issues/66
+test("Empty String should not be true when type is single item Array", function (t) {
+  var parsed = nopt({	'foo': [String] }, {}, ["--foo"], 0)
+  t.same(parsed.foo, "")
+  t.end()
+})
+
+test("~ path is resolved to " + (isWin ? '%USERPROFILE%' : '$HOME'), function (t) {
   var path = require("path")
-  if (!process.env.HOME) process.env.HOME = "/tmp"
-  var parsed = nopt({key: path}, {}, ["--key=~/val"], 0)
-  t.same(parsed.key, path.resolve(process.env.HOME, "val"))
+    , the
+
+  if (isWin) {
+    the = {
+      key: 'USERPROFILE',
+      dir: 'C:\\temp',
+      val: '~\\val'
+    }
+  } else {
+    the = {
+      key: 'HOME',
+      dir: '/tmp',
+      val: '~/val'
+    }
+  }
+  if (!process.env[the.key]) process.env[the.key] = v.dir
+  var parsed = nopt({key: path}, {}, ["--key=" + the.val], 0)
+  t.same(parsed.key, path.resolve(process.env[the.key], "val"))
   t.end()
 })
 
@@ -148,7 +178,7 @@ test("other tests", function (t) {
     ,["--color --logfd 7", {logfd:7,color:true}, []]
     ,["--color=true", {color:true}, []]
     ,["--logfd=10", {logfd:10}, []]
-    ,["--tmp=/tmp -tar=gtar",{tmp:"/tmp",tar:"gtar"},[]]
+    ,["--tmp=/tmp -tar=gtar", {tmp: isWin ? "C:\\tmp" : "/tmp",tar:"gtar"},[]]
     ,["--tmp=tmp -tar=gtar",
       {tmp:path.resolve(process.cwd(), "tmp"),tar:"gtar"},[]]
     ,["--logfd x", {}, []]

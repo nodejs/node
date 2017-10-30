@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-codes.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/jump-threading.h"
+#include "src/source-position.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -106,8 +107,8 @@ class TestCode : public HandleAndZoneScope {
 
 
 void VerifyForwarding(TestCode& code, int count, int* expected) {
-  base::AccountingAllocator allocator;
-  Zone local_zone(&allocator);
+  v8::internal::AccountingAllocator allocator;
+  Zone local_zone(&allocator, ZONE_NAME);
   ZoneVector<RpoNumber> result(&local_zone);
   JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_, true);
 

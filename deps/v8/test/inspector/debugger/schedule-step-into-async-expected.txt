@@ -1,0 +1,191 @@
+Checks Debugger.scheduleStepIntoAsync.
+
+Running test: testScheduleErrors
+paused at:
+function testNoScheduledTask() {
+  #debugger;
+  return 42;
+
+{
+    error : {
+        code : -32000
+        message : Current scheduled step into async was overriden with new one.
+    }
+    id : <messageId>
+}
+{
+    error : {
+        code : -32000
+        message : No async tasks were scheduled before pause.
+    }
+    id : <messageId>
+}
+paused at:
+  debugger;
+  #return 42;
+}
+
+
+Running test: testSimple
+paused at:
+function testSimple() {
+  #debugger;
+  Promise.resolve().then(v => v * 2);
+
+paused at:
+  debugger;
+  #Promise.resolve().then(v => v * 2);
+}
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  Promise.resolve().then(#v => v * 2);
+}
+
+
+Running test: testNotResolvedPromise
+paused at:
+  var p = new Promise(resolve => resolveCallback = resolve);
+  #debugger;
+  p.then(v => v * 2);
+
+paused at:
+  debugger;
+  p.#then(v => v * 2);
+  resolveCallback();
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  p.then(#v => v * 2);
+  resolveCallback();
+
+
+Running test: testTwoAsyncTasks
+paused at:
+function testTwoAsyncTasks() {
+  #debugger;
+  Promise.resolve().then(v => v * 2);
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  Promise.resolve().then(#v => v * 2);
+  Promise.resolve().then(v => v * 4);
+
+
+Running test: testTwoTasksAndGoToSecond
+paused at:
+function testTwoAsyncTasks() {
+  #debugger;
+  Promise.resolve().then(v => v * 2);
+
+paused at:
+  debugger;
+  #Promise.resolve().then(v => v * 2);
+  Promise.resolve().then(v => v * 4);
+
+paused at:
+  Promise.resolve().then(v => v * 2);
+  #Promise.resolve().then(v => v * 4);
+}
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  Promise.resolve().then(v => v * 2);
+  Promise.resolve().then(#v => v * 4);
+}
+
+
+Running test: testTwoAsyncTasksWithBreak
+paused at:
+function testTwoAsyncTasksWithBreak() {
+  #debugger;
+  Promise.resolve().then(v => v * 2);
+
+paused at:
+  debugger;
+  #Promise.resolve().then(v => v * 2);
+  debugger;
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  Promise.resolve().then(v => v * 2);
+  #debugger;
+  Promise.resolve().then(v => v * 4);
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  Promise.resolve().then(#v => v * 4);
+}
+
+
+Running test: testPromiseAll
+paused at:
+function testPromiseAll() {
+  #debugger;
+  Promise.all([ Promise.resolve(), Promise.resolve() ]).then(v => v * 2);
+
+paused at:
+  debugger;
+  #Promise.all([ Promise.resolve(), Promise.resolve() ]).then(v => v * 2);
+}
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  Promise.all([ Promise.resolve(), Promise.resolve() ]).then(#v => v * 2);
+}
+
+
+Running test: testWithBlackboxedCode
+paused at:
+function testBlackboxedCreatePromise() {
+  #debugger;
+  createPromise().then(v => v * 2);
+
+paused at:
+  debugger;
+  #createPromise().then(v => v * 2);
+}
+
+{
+    id : <messageId>
+    result : {
+    }
+}
+paused at:
+  debugger;
+  createPromise().then(#v => v * 2);
+}
+

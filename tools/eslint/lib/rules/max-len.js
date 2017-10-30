@@ -39,6 +39,9 @@ const OPTIONS_SCHEMA = {
         ignoreTemplateLiterals: {
             type: "boolean"
         },
+        ignoreRegExpLiterals: {
+            type: "boolean"
+        },
         ignoreTrailingComments: {
             type: "boolean"
         }
@@ -100,12 +103,12 @@ module.exports = {
         function computeLineLength(line, tabWidth) {
             let extraCharacterCount = 0;
 
-            line.replace(/\t/g, function(match, offset) {
+            line.replace(/\t/g, (match, offset) => {
                 const totalOffset = offset + extraCharacterCount,
                     previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                     spaceCount = tabWidth - previousTabStopOffset;
 
-                extraCharacterCount += spaceCount - 1;  // -1 for the replaced tab
+                extraCharacterCount += spaceCount - 1; // -1 for the replaced tab
             });
             return Array.from(line).length + extraCharacterCount;
         }
@@ -129,6 +132,7 @@ module.exports = {
             ignoreComments = options.ignoreComments || false,
             ignoreStrings = options.ignoreStrings || false,
             ignoreTemplateLiterals = options.ignoreTemplateLiterals || false,
+            ignoreRegExpLiterals = options.ignoreRegExpLiterals || false,
             ignoreTrailingComments = options.ignoreTrailingComments || options.ignoreComments || false,
             ignoreUrls = options.ignoreUrls || false,
             maxCommentLength = options.comments;
@@ -177,11 +181,10 @@ module.exports = {
          * Gets the line after the comment and any remaining trailing whitespace is
          * stripped.
          * @param {string} line The source line with a trailing comment
-         * @param {number} lineNumber The one-indexed line number this is on
          * @param {ASTNode} comment The comment to remove
          * @returns {string} Line without comment and trailing whitepace
          */
-        function stripTrailingComment(line, lineNumber, comment) {
+        function stripTrailingComment(line, comment) {
 
             // loc.column is zero-indexed
             return line.slice(0, comment.loc.start.column).replace(/\s+$/, "");
@@ -209,9 +212,7 @@ module.exports = {
          * @returns {ASTNode[]} An array of string nodes.
          */
         function getAllStrings() {
-            return sourceCode.ast.tokens.filter(function(token) {
-                return token.type === "String";
-            });
+            return sourceCode.ast.tokens.filter(token => token.type === "String");
         }
 
         /**
@@ -220,9 +221,17 @@ module.exports = {
          * @returns {ASTNode[]} An array of template literal nodes.
          */
         function getAllTemplateLiterals() {
-            return sourceCode.ast.tokens.filter(function(token) {
-                return token.type === "Template";
-            });
+            return sourceCode.ast.tokens.filter(token => token.type === "Template");
+        }
+
+
+        /**
+         * Retrieves an array containing all RegExp literals in the source code.
+         *
+         * @returns {ASTNode[]} An array of RegExp literal nodes.
+         */
+        function getAllRegExpLiterals() {
+            return sourceCode.ast.tokens.filter(token => token.type === "RegularExpression");
         }
 
 
@@ -258,13 +267,16 @@ module.exports = {
                 // we iterate over comments in parallel with the lines
             let commentsIndex = 0;
 
-            const strings = getAllStrings(sourceCode);
+            const strings = getAllStrings();
             const stringsByLine = strings.reduce(groupByLineNumber, {});
 
-            const templateLiterals = getAllTemplateLiterals(sourceCode);
+            const templateLiterals = getAllTemplateLiterals();
             const templateLiteralsByLine = templateLiterals.reduce(groupByLineNumber, {});
 
-            lines.forEach(function(line, i) {
+            const regExpLiterals = getAllRegExpLiterals();
+            const regExpLiteralsByLine = regExpLiterals.reduce(groupByLineNumber, {});
+
+            lines.forEach((line, i) => {
 
                 // i is zero-indexed, line numbers are one-indexed
                 const lineNumber = i + 1;
@@ -293,13 +305,14 @@ module.exports = {
                     if (isFullLineComment(line, lineNumber, comment)) {
                         lineIsComment = true;
                     } else if (ignoreTrailingComments && isTrailingComment(line, lineNumber, comment)) {
-                        line = stripTrailingComment(line, lineNumber, comment);
+                        line = stripTrailingComment(line, comment);
                     }
                 }
                 if (ignorePattern && ignorePattern.test(line) ||
                     ignoreUrls && URL_REGEXP.test(line) ||
                     ignoreStrings && stringsByLine[lineNumber] ||
-                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber]
+                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber] ||
+                    ignoreRegExpLiterals && regExpLiteralsByLine[lineNumber]
                 ) {
 
                     // ignore this line
@@ -307,21 +320,24 @@ module.exports = {
                 }
 
                 const lineLength = computeLineLength(line, tabWidth);
+                const commentLengthApplies = lineIsComment && maxCommentLength;
 
                 if (lineIsComment && ignoreComments) {
                     return;
                 }
 
-                if (lineIsComment && lineLength > maxCommentLength) {
-                    context.report({
-                        node,
-                        loc: { line: lineNumber, column: 0 },
-                        message: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}.",
-                        data: {
-                            lineNumber: i + 1,
-                            maxCommentLength
-                        }
-                    });
+                if (commentLengthApplies) {
+                    if (lineLength > maxCommentLength) {
+                        context.report({
+                            node,
+                            loc: { line: lineNumber, column: 0 },
+                            message: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}.",
+                            data: {
+                                lineNumber: i + 1,
+                                maxCommentLength
+                            }
+                        });
+                    }
                 } else if (lineLength > maxLength) {
                     context.report({
                         node,

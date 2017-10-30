@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -41,7 +41,11 @@ public:
     /**
      * Return the canonical id for this tzid defined by CLDR, which might be the id itself.
      * This overload method returns a persistent const UChar*, which is guranteed to persist
-     * (a pointer to a resource).
+     * (a pointer to a resource). If the given system tzid is not known, U_ILLEGAL_ARGUMENT_ERROR
+     * is set in the status.
+     * @param tzid Zone ID
+     * @param status Receives the status
+     * @return The canonical ID for the input time zone ID
      */
     static const UChar* U_EXPORT2 getCanonicalCLDRID(const UnicodeString &tzid, UErrorCode& status);
 

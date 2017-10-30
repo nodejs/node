@@ -80,7 +80,7 @@ static int error_means_no_support(DWORD error) {
 }
 
 
-void uv_winsock_init() {
+void uv_winsock_init(void) {
   WSADATA wsa_data;
   int errorno;
   SOCKET dummy;

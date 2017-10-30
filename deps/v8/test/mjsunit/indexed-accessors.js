@@ -101,7 +101,7 @@ assertEquals(q1.b, 17);
 // Reported by nth10sd.
 
 a = function() {};
-__defineSetter__("0", function() {});
+this.__defineSetter__("0", function() {});
 if (a |= '') {};
 assertThrows('this[a].__parent__');
 assertEquals(a, 0);

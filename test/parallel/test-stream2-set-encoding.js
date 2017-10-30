@@ -1,44 +1,29 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
-var R = require('_stream_readable');
-var util = require('util');
-
-// tiny node-tap lookalike.
-var tests = [];
-var count = 0;
-
-function test(name, fn) {
-  count++;
-  tests.push([name, fn]);
-}
-
-function run() {
-  var next = tests.shift();
-  if (!next)
-    return console.error('ok');
-
-  var name = next[0];
-  var fn = next[1];
-  console.log('# %s', name);
-  fn({
-    same: assert.deepStrictEqual,
-    equal: assert.equal,
-    end: function() {
-      count--;
-      run();
-    }
-  });
-}
-
-// ensure all tests have run
-process.on('exit', function() {
-  assert.equal(count, 0);
-});
-
-process.nextTick(run);
-
-/////
+const common = require('../common');
+const assert = require('assert');
+const R = require('_stream_readable');
+const util = require('util');
 
 util.inherits(TestReader, R);
 
@@ -66,19 +51,18 @@ TestReader.prototype._read = function(n) {
     }
 
     this.pos += n;
-    var ret = Buffer.alloc(n, 'a');
-
-    console.log('this.push(ret)', ret);
+    const ret = Buffer.alloc(n, 'a');
 
     return this.push(ret);
   }.bind(this), 1);
 };
 
-test('setEncoding utf8', function(t) {
-  var tr = new TestReader(100);
+{
+  // Verify utf8 encoding
+  const tr = new TestReader(100);
   tr.setEncoding('utf8');
-  var out = [];
-  var expect =
+  const out = [];
+  const expect =
     [ 'aaaaaaaaaa',
       'aaaaaaaaaa',
       'aaaaaaaaaa',
@@ -91,23 +75,23 @@ test('setEncoding utf8', function(t) {
       'aaaaaaaaaa' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
 
-test('setEncoding hex', function(t) {
-  var tr = new TestReader(100);
+{
+  // Verify hex encoding
+  const tr = new TestReader(100);
   tr.setEncoding('hex');
-  var out = [];
-  var expect =
+  const out = [];
+  const expect =
     [ '6161616161',
       '6161616161',
       '6161616161',
@@ -130,22 +114,22 @@ test('setEncoding hex', function(t) {
       '6161616161' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('setEncoding hex with read(13)', function(t) {
-  var tr = new TestReader(100);
+{
+  // Verify hex encoding with read(13)
+  const tr = new TestReader(100);
   tr.setEncoding('hex');
-  var out = [];
-  var expect =
+  const out = [];
+  const expect =
     [ '6161616161616',
       '1616161616161',
       '6161616161616',
@@ -164,24 +148,22 @@ test('setEncoding hex with read(13)', function(t) {
       '16161' ];
 
   tr.on('readable', function flow() {
-    console.log('readable once');
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(13)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    console.log('END');
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('setEncoding base64', function(t) {
-  var tr = new TestReader(100);
+{
+  // Verify base64 encoding
+  const tr = new TestReader(100);
   tr.setEncoding('base64');
-  var out = [];
-  var expect =
+  const out = [];
+  const expect =
     [ 'YWFhYWFhYW',
       'FhYWFhYWFh',
       'YWFhYWFhYW',
@@ -198,21 +180,21 @@ test('setEncoding base64', function(t) {
       'FhYQ==' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('encoding: utf8', function(t) {
-  var tr = new TestReader(100, { encoding: 'utf8' });
-  var out = [];
-  var expect =
+{
+  // Verify utf8 encoding
+  const tr = new TestReader(100, { encoding: 'utf8' });
+  const out = [];
+  const expect =
     [ 'aaaaaaaaaa',
       'aaaaaaaaaa',
       'aaaaaaaaaa',
@@ -225,22 +207,22 @@ test('encoding: utf8', function(t) {
       'aaaaaaaaaa' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
 
-test('encoding: hex', function(t) {
-  var tr = new TestReader(100, { encoding: 'hex' });
-  var out = [];
-  var expect =
+{
+  // Verify hex encoding
+  const tr = new TestReader(100, { encoding: 'hex' });
+  const out = [];
+  const expect =
     [ '6161616161',
       '6161616161',
       '6161616161',
@@ -263,21 +245,21 @@ test('encoding: hex', function(t) {
       '6161616161' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('encoding: hex with read(13)', function(t) {
-  var tr = new TestReader(100, { encoding: 'hex' });
-  var out = [];
-  var expect =
+{
+  // Verify hex encoding with read(13)
+  const tr = new TestReader(100, { encoding: 'hex' });
+  const out = [];
+  const expect =
     [ '6161616161616',
       '1616161616161',
       '6161616161616',
@@ -296,21 +278,21 @@ test('encoding: hex with read(13)', function(t) {
       '16161' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(13)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('encoding: base64', function(t) {
-  var tr = new TestReader(100, { encoding: 'base64' });
-  var out = [];
-  var expect =
+{
+  // Verify base64 encoding
+  const tr = new TestReader(100, { encoding: 'base64' });
+  const out = [];
+  const expect =
     [ 'YWFhYWFhYW',
       'FhYWFhYWFh',
       'YWFhYWFhYW',
@@ -327,19 +309,18 @@ test('encoding: base64', function(t) {
       'FhYQ==' ];
 
   tr.on('readable', function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
-  tr.on('end', function() {
-    t.same(out, expect);
-    t.end();
-  });
-});
+  tr.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(out, expect);
+  }));
+}
 
-test('chainable', function(t) {
-  var tr = new TestReader(100);
-  t.equal(tr.setEncoding('utf8'), tr);
-  t.end();
-});
+{
+  // Verify chaining behavior
+  const tr = new TestReader(100);
+  assert.deepStrictEqual(tr.setEncoding('utf8'), tr);
+}

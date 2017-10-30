@@ -18,9 +18,9 @@ const yaml = require("js-yaml");
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "error";
-    } else {
-        return "warning";
     }
+    return "warning";
+
 }
 
 /**
@@ -44,7 +44,7 @@ function outputDiagnostics(diagnostic) {
 module.exports = function(results) {
     let output = `TAP version 13\n1..${results.length}\n`;
 
-    results.forEach(function(result, id) {
+    results.forEach((result, id) => {
         const messages = result.messages;
         let testResult = "ok";
         let diagnostics = {};
@@ -52,7 +52,7 @@ module.exports = function(results) {
         if (messages.length > 0) {
             testResult = "not ok";
 
-            messages.forEach(function(message) {
+            messages.forEach(message => {
                 const diagnostic = {
                     message: message.message,
                     severity: getMessageType(message),

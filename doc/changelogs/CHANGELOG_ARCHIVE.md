@@ -151,6 +151,7 @@
 </table>
 
 * Other Versions
+  * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)
   * [5.x](CHANGELOG_V5.md)
@@ -3025,7 +3026,7 @@ https://github.com/nodejs/node/commit/311d7dee19034ff1c6bc9098c36973b8d687eaba
   * After V8 heap is compact, don't use a timer every 2 seconds.
 
   * Improve nextTick implementation.
-  * Add primative support for Upgrading HTTP connections.
+  * Add primitive support for Upgrading HTTP connections.
     (See commit log for docs 760bba5)
 
   * Add timeout and maxBuffer options to child_process.exec

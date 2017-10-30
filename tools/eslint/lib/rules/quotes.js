@@ -33,6 +33,9 @@ const QUOTE_SETTINGS = {
     }
 };
 
+// An unescaped newline is a newline preceded by an even number of backslashes.
+const UNESCAPED_LINEBREAK_PATTERN = new RegExp(String.raw`(^|[^\\])(\\\\)*[${Array.from(astUtils.LINEBREAKS).join("")}]`);
+
 /**
  * Switches quoting of javascript string between ' " and `
  * escaping and unescaping as necessary.
@@ -51,7 +54,7 @@ QUOTE_SETTINGS.backtick.convert = function(str) {
     if (newQuote === oldQuote) {
         return str;
     }
-    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, function(match, escaped, newline) {
+    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, (match, escaped, newline) => {
         if (escaped === oldQuote || oldQuote === "`" && escaped === "${") {
             return escaped; // unescape
         }
@@ -206,6 +209,7 @@ module.exports = {
 
                 // LiteralPropertyName.
                 case "Property":
+                case "MethodDefinition":
                     return parent.key === node && !parent.computed;
 
                 // ModuleSpecifier.
@@ -225,10 +229,9 @@ module.exports = {
             Literal(node) {
                 const val = node.value,
                     rawVal = node.raw;
-                let isValid;
 
                 if (settings && typeof val === "string") {
-                    isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
+                    let isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
                         isJSXLiteral(node) ||
                         astUtils.isSurroundedBy(rawVal, settings.quote);
 
@@ -254,20 +257,34 @@ module.exports = {
             TemplateLiteral(node) {
 
                 // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
-                if (allowTemplateLiterals || quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
+                if (
+                    allowTemplateLiterals ||
+                    quoteOption === "backtick" ||
+                    node.parent.type === "TaggedTemplateExpression" && node === node.parent.quasi
+                ) {
                     return;
                 }
 
-                const shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+                // A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
+                const shouldWarn = node.quasis.length === 1 && !UNESCAPED_LINEBREAK_PATTERN.test(node.quasis[0].value.raw);
 
                 if (shouldWarn) {
                     context.report({
                         node,
                         message: "Strings must use {{description}}.",
                         data: {
-                            description: settings.description,
+                            description: settings.description
                         },
                         fix(fixer) {
+                            if (isPartOfDirectivePrologue(node)) {
+
+                                /*
+                                 * TemplateLiterals in a directive prologue aren't actually directives, but if they're
+                                 * in the directive prologue, then fixing them might turn them into directives and change
+                                 * the behavior of the code.
+                                 */
+                                return null;
+                            }
                             return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }
                     });

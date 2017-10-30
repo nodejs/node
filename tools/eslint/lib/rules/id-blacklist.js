@@ -55,8 +55,8 @@ module.exports = {
          * @returns {boolean} whether an error should be reported or not
          */
         function shouldReport(effectiveParent, name) {
-            return effectiveParent.type !== "CallExpression"
-                && effectiveParent.type !== "NewExpression" &&
+            return effectiveParent.type !== "CallExpression" &&
+                effectiveParent.type !== "NewExpression" &&
                 isInvalid(name);
         }
 
@@ -67,8 +67,12 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report(node, "Identifier '{{name}}' is blacklisted.", {
-                name: node.name
+            context.report({
+                node,
+                message: "Identifier '{{name}}' is blacklisted.",
+                data: {
+                    name: node.name
+                }
             });
         }
 

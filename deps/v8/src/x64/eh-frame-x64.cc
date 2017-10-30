@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/eh-frame.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

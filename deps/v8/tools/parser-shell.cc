@@ -36,8 +36,9 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api.h"
 #include "src/compiler.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
@@ -93,16 +94,13 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   i::ScriptData* cached_data_impl = NULL;
   // First round of parsing (produce data to cache).
   {
-    Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator());
-    ParseInfo info(&zone, script);
-    info.set_global();
+    ParseInfo info(script);
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
-    // Allow lazy parsing; otherwise we won't produce cached data.
-    info.set_allow_lazy_parsing();
-    bool success = Parser::ParseStatic(&info);
+    bool success =
+        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
     parse_time1 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
@@ -111,16 +109,13 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   }
   // Second round of parsing (consume cached data).
   {
-    Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator());
-    ParseInfo info(&zone, script);
-    info.set_global();
+    ParseInfo info(script);
     info.set_cached_data(&cached_data_impl);
     info.set_compile_options(v8::ScriptCompiler::kConsumeParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
-    // Allow lazy parsing; otherwise cached data won't help.
-    info.set_allow_lazy_parsing();
-    bool success = Parser::ParseStatic(&info);
+    bool success =
+        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
     parse_time2 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");

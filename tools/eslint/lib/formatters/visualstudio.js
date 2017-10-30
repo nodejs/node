@@ -18,9 +18,9 @@
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "error";
-    } else {
-        return "warning";
     }
+    return "warning";
+
 }
 
 
@@ -33,13 +33,13 @@ module.exports = function(results) {
     let output = "",
         total = 0;
 
-    results.forEach(function(result) {
+    results.forEach(result => {
 
         const messages = result.messages;
 
         total += messages.length;
 
-        messages.forEach(function(message) {
+        messages.forEach(message => {
 
             output += result.filePath;
             output += `(${message.line || 0}`;

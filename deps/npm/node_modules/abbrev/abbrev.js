@@ -1,4 +1,3 @@
-
 module.exports = exports = abbrev.abbrev = abbrev
 
 abbrev.monkeyPatch = monkeyPatch

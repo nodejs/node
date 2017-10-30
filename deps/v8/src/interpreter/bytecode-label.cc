@@ -5,6 +5,7 @@
 #include "src/interpreter/bytecode-label.h"
 
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -12,7 +13,7 @@ namespace interpreter {
 
 BytecodeLabel* BytecodeLabels::New() {
   DCHECK(!is_bound());
-  labels_.push_back(BytecodeLabel());
+  labels_.emplace_back(BytecodeLabel());
   return &labels_.back();
 }
 

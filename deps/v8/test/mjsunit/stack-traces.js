@@ -264,7 +264,7 @@ function testOmittedBuiltin(throwing, omitted) {
 }
 
 
-testTrace("testArrayNative", testArrayNative, ["Array.map (native)"]);
+testTrace("testArrayNative", testArrayNative, ["Array.map"]);
 testTrace("testNested", testNested, ["at one", "at two", "at three"]);
 testTrace("testMethodNameInference", testMethodNameInference, ["at Foo.bar"]);
 testTrace("testImplicitConversion", testImplicitConversion, ["at Nirk.valueOf"]);
@@ -304,9 +304,6 @@ testTraceNativeConstructor(RegExp);  // Does ToString on argument.
 testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
                                                      (b < a) - (a < b); });
                    }, "QuickSort");
-
-// Omitted because ADD from runtime.js is non-native builtin.
-testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
 
 var reached = false;
 var error = new Error();
@@ -394,9 +391,7 @@ assertTrue(desc.writable);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }
-
-var x = {}
-assertThrows(() => Error.captureStackTrace(x));
+assertThrows(() => new Error().stack);
 
 // Check that we don't crash when CaptureSimpleStackTrace returns undefined.
 var o = {};

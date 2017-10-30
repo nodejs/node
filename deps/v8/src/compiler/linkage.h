@@ -5,13 +5,16 @@
 #ifndef V8_COMPILER_LINKAGE_H_
 #define V8_COMPILER_LINKAGE_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/operator.h"
-#include "src/frames.h"
+#include "src/globals.h"
+#include "src/interface-descriptors.h"
 #include "src/machine-type.h"
+#include "src/reglist.h"
 #include "src/runtime/runtime.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -161,7 +164,8 @@ typedef Signature<LinkageLocation> LocationSignature;
 
 // Describes a call to various parts of the compiler. Every call has the notion
 // of a "target", which is the first input to the call.
-class CallDescriptor final : public ZoneObject {
+class V8_EXPORT_PRIVATE CallDescriptor final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
@@ -184,7 +188,9 @@ class CallDescriptor final : public ZoneObject {
     // Causes the code generator to initialize the root register.
     kInitializeRootRegister = 1u << 7,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 8
+    kNoAllocate = 1u << 8,
+    // Push argument count as part of function prologue.
+    kPushArgumentCount = 1u << 9
   };
   typedef base::Flags<Flag> Flags;
 
@@ -193,7 +199,8 @@ class CallDescriptor final : public ZoneObject {
                  Operator::Properties properties,
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
-                 const char* debug_name = "")
+                 const char* debug_name = "",
+                 const RegList allocatable_registers = 0)
       : kind_(kind),
         target_type_(target_type),
         target_loc_(target_loc),
@@ -202,9 +209,9 @@ class CallDescriptor final : public ZoneObject {
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
+        allocatable_registers_(allocatable_registers),
         flags_(flags),
-        debug_name_(debug_name) {
-  }
+        debug_name_(debug_name) {}
 
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
@@ -246,6 +253,7 @@ class CallDescriptor final : public ZoneObject {
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
   bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
   bool UseNativeStack() const { return flags() & kUseNativeStack; }
+  bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
   }
@@ -293,6 +301,14 @@ class CallDescriptor final : public ZoneObject {
 
   bool CanTailCall(const Node* call) const;
 
+  int CalculateFixedFrameSize() const;
+
+  RegList AllocatableRegisters() const { return allocatable_registers_; }
+
+  bool HasRestrictedAllocatableRegisters() const {
+    return allocatable_registers_ != 0;
+  }
+
  private:
   friend class Linkage;
 
@@ -304,6 +320,9 @@ class CallDescriptor final : public ZoneObject {
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const RegList callee_saved_fp_registers_;
+  // Non-zero value means restricting the set of allocatable registers for
+  // register allocator to use.
+  const RegList allocatable_registers_;
   const Flags flags_;
   const char* const debug_name_;
 
@@ -313,7 +332,8 @@ class CallDescriptor final : public ZoneObject {
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
 
 std::ostream& operator<<(std::ostream& os, const CallDescriptor& d);
-std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const CallDescriptor::Kind& k);
 
 // Defines the linkage for a compilation, including the calling conventions
 // for incoming parameters and return value(s) as well as the outgoing calling
@@ -329,8 +349,10 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
 // Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
 // Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
-class Linkage : public ZoneObject {
+class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
+  enum ContextSpecification { kNoContext, kPassContext };
+
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
 
   static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
@@ -356,7 +378,8 @@ class Linkage : public ZoneObject {
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
       MachineType return_type = MachineType::AnyTagged(),
-      size_t return_count = 1);
+      size_t return_count = 1,
+      ContextSpecification context_spec = kPassContext);
 
   static CallDescriptor* GetAllocateCallDescriptor(Zone* zone);
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(

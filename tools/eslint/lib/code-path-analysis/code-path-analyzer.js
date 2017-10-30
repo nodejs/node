@@ -154,7 +154,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentEnd",
                     currentSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -175,7 +176,8 @@ function forwardCurrentToHead(analyzer, node) {
                 analyzer.emitter.emit(
                     "onCodePathSegmentStart",
                     headSegment,
-                    node);
+                    node
+                );
             }
         }
     }
@@ -202,7 +204,8 @@ function leaveFromCurrentSegment(analyzer, node) {
             analyzer.emitter.emit(
                 "onCodePathSegmentEnd",
                 currentSegment,
-                node);
+                node
+            );
         }
     }
 
@@ -369,7 +372,8 @@ function processCodePathToEnter(analyzer, node) {
         case "SwitchStatement":
             state.pushSwitchContext(
                 node.cases.some(isCaseNode),
-                astUtils.getLabel(node));
+                astUtils.getLabel(node)
+            );
             break;
 
         case "TryStatement":
@@ -512,13 +516,8 @@ function processCodePathToExit(analyzer, node) {
             break;
     }
 
-    /*
-     * Skip updating the current segment to avoid creating useless segments if
-     * the node type is the same as the parent node type.
-     */
-    if (!dontForward && (!node.parent || node.type !== node.parent.type)) {
-
-        // Emits onCodePathSegmentStart events if updated.
+    // Emits onCodePathSegmentStart events if updated.
+    if (!dontForward) {
         forwardCurrentToHead(analyzer, node);
     }
     debug.dumpState(node, state, true);
@@ -569,21 +568,20 @@ function postprocess(analyzer, node) {
 /**
  * The class to analyze code paths.
  * This class implements the EventGenerator interface.
- *
- * @constructor
- * @param {EventGenerator} eventGenerator - An event generator to wrap.
  */
-function CodePathAnalyzer(eventGenerator) {
-    this.original = eventGenerator;
-    this.emitter = eventGenerator.emitter;
-    this.codePath = null;
-    this.idGenerator = new IdGenerator("s");
-    this.currentNode = null;
-    this.onLooped = this.onLooped.bind(this);
-}
+class CodePathAnalyzer {
 
-CodePathAnalyzer.prototype = {
-    constructor: CodePathAnalyzer,
+    /**
+     * @param {EventGenerator} eventGenerator - An event generator to wrap.
+     */
+    constructor(eventGenerator) {
+        this.original = eventGenerator;
+        this.emitter = eventGenerator.emitter;
+        this.codePath = null;
+        this.idGenerator = new IdGenerator("s");
+        this.currentNode = null;
+        this.onLooped = this.onLooped.bind(this);
+    }
 
     /**
      * Does the process to enter a given AST node.
@@ -608,7 +606,7 @@ CodePathAnalyzer.prototype = {
         this.original.enterNode(node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * Does the process to leave a given AST node.
@@ -631,7 +629,7 @@ CodePathAnalyzer.prototype = {
         postprocess(this, node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * This is called on a code path looped.
@@ -652,6 +650,6 @@ CodePathAnalyzer.prototype = {
             );
         }
     }
-};
+}
 
 module.exports = CodePathAnalyzer;

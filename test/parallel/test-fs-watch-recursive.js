@@ -2,10 +2,8 @@
 
 const common = require('../common');
 
-if (!(common.isOSX || common.isWindows)) {
+if (!(common.isOSX || common.isWindows))
   common.skip('recursive option is darwin/windows specific');
-  return;
-}
 
 const assert = require('assert');
 const path = require('path');
@@ -20,9 +18,9 @@ const testsubdir = fs.mkdtempSync(testDir + path.sep);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 
-const watcher = fs.watch(testDir, {recursive: true});
+const watcher = fs.watch(testDir, { recursive: true });
 
-var watcherClosed = false;
+let watcherClosed = false;
 watcher.on('change', function(event, filename) {
   assert.ok('change' === event || 'rename' === event);
 
@@ -37,8 +35,9 @@ watcher.on('change', function(event, filename) {
   watcherClosed = true;
 });
 
+let interval;
 if (common.isOSX) {
-  var interval = setInterval(function() {
+  interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 10);
 } else {

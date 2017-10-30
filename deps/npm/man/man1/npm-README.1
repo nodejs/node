@@ -1,8 +1,8 @@
-.TH "NPM" "1" "September 2016" "" ""
+.TH "NPM" "1" "October 2017" "" ""
 .SH "NAME"
 \fBnpm\fR \- a JavaScript package manager
 .P
-Build Status \fIhttps://img\.shields\.io/travis/npm/npm/master\.svg\fR \fIhttps://travis\-ci\.org/npm/npm\fR
+Build Status \fIhttps://img\.shields\.io/travis/npm/npm/latest\.svg\fR \fIhttps://travis\-ci\.org/npm/npm\fR
 .SH SYNOPSIS
 .P
 This is just enough info to get you up and running\.
@@ -10,9 +10,9 @@ This is just enough info to get you up and running\.
 Much more info available via \fBnpm help\fP once it's installed\.
 .SH IMPORTANT
 .P
-\fBYou need node v0\.10 or higher to run this program\.\fR
+\fBYou need node v4 or higher to run this program\.\fR
 .P
-To install an old \fBand unsupported\fR version of npm that works on node 0\.3
+To install an old \fBand unsupported\fR version of npm that works on node v0\.12
 and prior, clone the git repo and dig through the old tags and branches\.
 .P
 \fBnpm is configured to use npm, Inc\.'s public package registry at
@@ -27,13 +27,13 @@ terms of use for the default public registry are available at
 https://www\.npmjs\.com\|\.
 .SH Super Easy Install
 .P
-npm is bundled with node \fIhttp://nodejs\.org/download/\fR\|\.
+npm is bundled with node \fIhttps://nodejs\.org/en/download/\fR\|\.
 .SS Windows Computers
 .P
-Get the MSI \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
+Get the MSI \fIhttps://nodejs\.org/en/download/\fR\|\.  npm is in it\.
 .SS Apple Macintosh Computers
 .P
-Get the pkg \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
+Get the pkg \fIhttps://nodejs\.org/en/download/\fR\|\.  npm is in it\.
 .SS Other Sorts of Unices
 .P
 Run \fBmake install\fP\|\.  npm will be installed with node\.
@@ -76,16 +76,16 @@ If you plan on hacking on npm, \fBmake link\fP is your friend\.
 .P
 If you've got the npm source code, you can also semi\-permanently set
 arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fP, and then
-run npm commands by doing \fBnode cli\.js <cmd> <args>\fP\|\.  (This is helpful
+run npm commands by doing \fBnode bin/npm\-cli\.js <command> <args>\fP\|\.  (This is helpful
 for testing, or running stuff without actually installing npm itself\.)
 .SH Windows Install or Upgrade
 .P
 Many improvements for Windows users have been made in npm 3 \- you will have a better
 experience if you run a recent version of npm\. To upgrade, either use Microsoft's
 upgrade tool \fIhttps://github\.com/felixrieseberg/npm\-windows\-upgrade\fR,
-download a new version of Node \fIhttp://nodejs\.org/download/\fR,
+download a new version of Node \fIhttps://nodejs\.org/en/download/\fR,
 or follow the Windows upgrade instructions in the
-npm Troubleshooting Guide \fIhttps://github\.com/npm/npm/wiki/Troubleshooting#upgrading\-on\-windows\fR\|\.
+npm Troubleshooting Guide \fI\|\./TROUBLESHOOTING\.md\fR\|\.
 .P
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly\.
@@ -143,12 +143,12 @@ this means that future npm installs will not remember the settings that
 you have chosen\.
 .SH More Docs
 .P
-Check out the docs \fIhttps://docs\.npmjs\.com/\fR,
+Check out the docs \fIhttps://docs\.npmjs\.com/\fR\|\.
 .P
 You can use the \fBnpm help\fP command to read any of them\.
 .P
 If you're a developer, and you want to use npm to publish your program,
-you should read this \fIhttps://docs\.npmjs\.com/misc/developers\fR
+you should read this \fIhttps://docs\.npmjs\.com/misc/developers\fR\|\.
 .SH BUGS
 .P
 When you find issues, please report them:
@@ -162,8 +162,9 @@ https://github\.com/npm/npm/issues
 Be sure to include \fIall\fR of the output from the npm command that didn't work
 as expected\.  The \fBnpm\-debug\.log\fP file is also helpful to provide\.
 .P
-You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
-will no doubt tell you to put the output in a gist or email\.
+You can also find npm people in \fB#npm\fP on https://package\.community/ or
+on Twitter \fIhttps://twitter\.com/npm_support\fR\|\.  Whoever responds will no
+doubt tell you to put the output in a gist or email\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -36,8 +36,8 @@ module.exports = {
                 generation = 1;
 
             while (ancestor && ["Program", "FunctionDeclaration",
-                    "FunctionExpression", "ArrowFunctionExpression"
-                    ].indexOf(ancestor.type) < 0) {
+                "FunctionExpression", "ArrowFunctionExpression"
+            ].indexOf(ancestor.type) < 0) {
                 generation += 1;
                 ancestor = ancestors.pop();
             }
@@ -58,19 +58,19 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            const body = nearestBody(node),
+            const body = nearestBody(),
                 valid = ((body.type === "Program" && body.distance === 1) ||
                     body.distance === 2);
 
             if (!valid) {
-                context.report(node, "Move {{type}} declaration to {{body}} root.",
-                    {
-                        type: (node.type === "FunctionDeclaration" ?
-                            "function" : "variable"),
-                        body: (body.type === "Program" ?
-                            "program" : "function body")
+                context.report({
+                    node,
+                    message: "Move {{type}} declaration to {{body}} root.",
+                    data: {
+                        type: (node.type === "FunctionDeclaration" ? "function" : "variable"),
+                        body: (body.type === "Program" ? "program" : "function body")
                     }
-                );
+                });
             }
         }
 

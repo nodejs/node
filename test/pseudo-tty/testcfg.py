@@ -142,8 +142,7 @@ class TTYTestConfiguration(test.TestConfiguration):
         file_path = file_prefix + ".js"
         output_path = file_prefix + ".out"
         if not exists(output_path):
-          print "Could not find %s" % output_path
-          continue
+          raise Exception("Could not find %s" % output_path)
         result.append(TTYTestCase(test, file_path, output_path,
                                       arch, mode, self.context, self))
     return result

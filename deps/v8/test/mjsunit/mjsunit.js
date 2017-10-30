@@ -27,8 +27,16 @@
 
 function MjsUnitAssertionError(message) {
   this.message = message;
-  // This allows fetching the stack trace using TryCatch::StackTrace.
-  this.stack = new Error("").stack;
+  // Temporarily install a custom stack trace formatter and restore the
+  // previous value.
+  let prevPrepareStackTrace = Error.prepareStackTrace;
+  try {
+    Error.prepareStackTrace = MjsUnitAssertionError.prepareStackTrace;
+    // This allows fetching the stack trace using TryCatch::StackTrace.
+    this.stack = new Error("MjsUnitAssertionError").stack;
+  } finally {
+    Error.prepareStackTrace = prevPrepareStackTrace;
+  }
 }
 
 /*
@@ -36,7 +44,6 @@ function MjsUnitAssertionError(message) {
  * framework expects lines that signal failed tests to start with
  * the f-word and ignore all other lines.
  */
-
 
 MjsUnitAssertionError.prototype.toString = function () {
   return this.message + "\n\nStack: " + this.stack;
@@ -54,6 +61,11 @@ var assertSame;
 // and the properties of non-Array objects).
 var assertEquals;
 
+// Expected and found values are not identical primitive values or functions
+// or similarly structured objects (checking internal properties
+// of, e.g., Number and Date objects, the elements of arrays
+// and the properties of non-Array objects).
+var assertNotEquals;
 
 // The difference between expected and found value is within certain tolerance.
 var assertEqualsDelta;
@@ -68,7 +80,7 @@ var assertArrayEquals;
 var assertPropertiesEqual;
 
 // Assert that the string conversion of the found value is equal to
-// the expected string. Only kept for backwards compatability, please
+// the expected string. Only kept for backwards compatibility, please
 // check the real structure of the found value.
 var assertToStringEquals;
 
@@ -117,6 +129,55 @@ var assertUnoptimized;
 // Assert that a string contains another expected substring.
 var assertContains;
 
+// Assert that a string matches a given regex.
+var assertMatches;
+
+// Assert the result of a promise.
+var assertPromiseResult;
+
+var promiseTestChain;
+var promiseTestCount = 0;
+
+// These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
+var V8OptimizationStatus = {
+  kIsFunction: 1 << 0,
+  kNeverOptimize: 1 << 1,
+  kAlwaysOptimize: 1 << 2,
+  kMaybeDeopted: 1 << 3,
+  kOptimized: 1 << 4,
+  kTurboFanned: 1 << 5,
+  kInterpreted: 1 << 6,
+  kMarkedForOptimization: 1 << 7,
+  kMarkedForConcurrentOptimization: 1 << 8,
+  kOptimizingConcurrently: 1 << 9,
+  kIsExecuting: 1 << 10,
+  kTopmostFrameIsTurboFanned: 1 << 11,
+};
+
+// Returns true if --no-opt mode is on.
+var isNeverOptimize;
+
+// Returns true if --always-opt mode is on.
+var isAlwaysOptimize;
+
+// Returns true if given function in interpreted.
+var isInterpreted;
+
+// Returns true if given function is optimized.
+var isOptimized;
+
+// Returns true if given function is compiled by Crankshaft.
+var isCrankshafted;
+
+// Returns true if given function is compiled by TurboFan.
+var isTurboFanned;
+
+// Used for async tests. See definition below for more documentation.
+var testAsync;
+
+// Monkey-patchable all-purpose failure handler.
+var failWithMessage;
+
 
 (function () {  // Scope for utility functions.
 
@@ -126,8 +187,10 @@ var assertContains;
   var StringPrototypeValueOf = String.prototype.valueOf;
   var DatePrototypeValueOf = Date.prototype.valueOf;
   var RegExpPrototypeToString = RegExp.prototype.toString;
-  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypeForEach = Array.prototype.forEach;
   var ArrayPrototypeJoin = Array.prototype.join;
+  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypePush = Array.prototype.push;
 
   function classOf(object) {
     // Argument must not be null or undefined.
@@ -180,6 +243,16 @@ var assertContains;
             var mapped = ArrayPrototypeMap.call(value, PrettyPrintArrayElement);
             var joined = ArrayPrototypeJoin.call(mapped, ",");
             return "[" + joined + "]";
+          case "Uint8Array":
+          case "Int8Array":
+          case "Int16Array":
+          case "Uint16Array":
+          case "Uint32Array":
+          case "Int32Array":
+          case "Float32Array":
+          case "Float64Array":
+            var joined = ArrayPrototypeJoin.call(value, ",");
+            return objectClass + "([" + joined + "])";
           case "Object":
             break;
           default:
@@ -201,16 +274,28 @@ var assertContains;
   }
 
 
-  function fail(expectedText, found, name_opt) {
+  failWithMessage = function failWithMessage(message) {
+    throw new MjsUnitAssertionError(message);
+  }
+
+  function formatFailureText(expectedText, found, name_opt) {
     var message = "Fail" + "ure";
     if (name_opt) {
       // Fix this when we ditch the old test runner.
       message += " (" + name_opt + ")";
     }
 
-    message += ": expected <" + expectedText +
-        "> found <" + PrettyPrint(found) + ">";
-    throw new MjsUnitAssertionError(message);
+    var foundText = PrettyPrint(found);
+    if (expectedText.length <= 40 && foundText.length <= 40) {
+      message += ": expected <" + expectedText + "> found <" + foundText + ">";
+    } else {
+      message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
+    }
+    return message;
+  }
+
+  function fail(expectedText, found, name_opt) {
+    return failWithMessage(formatFailureText(expectedText, found, name_opt));
   }
 
 
@@ -285,10 +370,18 @@ var assertContains;
     }
   };
 
+  assertNotEquals = function assertNotEquals(expected, found, name_opt) {
+    if (deepEquals(found, expected)) {
+      fail("not equals to " + PrettyPrint(expected), found, name_opt);
+    }
+  };
+
 
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
-    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+    if (Math.abs(expected - found) > delta) {
+      fail(PrettyPrint(expected) + " +- " + PrettyPrint(delta), found, name_opt);
+    }
   };
 
 
@@ -349,27 +442,30 @@ var assertContains;
 
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
-    var threwException = true;
     try {
       if (typeof code === 'function') {
         code();
       } else {
         eval(code);
       }
-      threwException = false;
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       } else if (type_opt !== void 0) {
-        fail("invalid use of assertThrows, maybe you want assertThrowsEquals");
+        failWithMessage(
+            'invalid use of assertThrows, maybe you want assertThrowsEquals');
       }
       if (arguments.length >= 3) {
-        assertEquals(e.type, cause_opt);
+        if (cause_opt instanceof RegExp) {
+          assertMatches(cause_opt, e.message, "Error message");
+        } else {
+          assertEquals(cause_opt, e.message, "Error message");
+        }
       }
       // Success.
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -380,7 +476,7 @@ var assertContains;
       assertEquals(val, e);
       return;
     }
-    throw new MjsUnitAssertionError("Did not throw exception");
+    failWithMessage("Did not throw exception");
   };
 
 
@@ -391,9 +487,9 @@ var assertContains;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      fail("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithMessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
-               (actualTypeName ? " but of < " + actualTypeName + ">" : ""));
+               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
   };
 
@@ -401,12 +497,12 @@ var assertContains;
    assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
       if (typeof code === 'function') {
-        code();
+        return code();
       } else {
-        eval(code);
+        return eval(code);
       }
     } catch (e) {
-      fail("threw an exception: ", e.message || e, name_opt);
+      failWithMessage("threw an exception: " + (e.message || e));
     }
   };
 
@@ -416,13 +512,60 @@ var assertContains;
     if (name_opt) {
       message += " - " + name_opt;
     }
-    throw new MjsUnitAssertionError(message);
+    failWithMessage(message);
   };
 
   assertContains = function(sub, value, name_opt) {
     if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
       fail("contains '" + String(sub) + "'", value, name_opt);
     }
+  };
+
+  assertMatches = function(regexp, str, name_opt) {
+    if (!(regexp instanceof RegExp)) {
+      regexp = new RegExp(regexp);
+    }
+    if (!str.match(regexp)) {
+      fail("should match '" + regexp + "'", str, name_opt);
+    }
+  };
+
+  assertPromiseResult = function(promise, success, fail) {
+    // Use --allow-natives-syntax to use this function. Note that this function
+    // overwrites {failWithMessage} permanently with %AbortJS.
+
+    // We have to patch mjsunit because normal assertion failures just throw
+    // exceptions which are swallowed in a then clause.
+    // We use eval here to avoid parsing issues with the natives syntax.
+    if (!success) success = () => {};
+
+    failWithMessage = (msg) => eval("%AbortJS(msg)");
+    if (!fail) {
+      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+    }
+
+    var test_promise =
+        promise.then(
+          result => {
+            try {
+              success(result);
+            } catch (e) {
+              failWithMessage(e);
+            }
+          },
+          result => {
+            fail(result);
+          }
+        )
+        .then((x)=> {
+          if (--promiseTestCount == 0) testRunner.notifyDone();
+        });
+
+    if (!promiseTestChain) promiseTestChain = Promise.resolve();
+    // waitUntilDone is idempotent.
+    testRunner.waitUntilDone();
+    ++promiseTestCount;
+    return promiseTestChain.then(test_promise);
   };
 
   var OptimizationStatusImpl = undefined;
@@ -441,12 +584,243 @@ var assertContains;
 
   assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) !== 1, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    // Tests that use assertUnoptimized() do not make sense if --always-opt
+    // option is provided. Such tests must add --no-always-opt to flags comment.
+    assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
+                "test does not make sense with --always-opt");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if ((opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
+      // When --deopt-every-n-times flag is specified it's no longer guaranteed
+      // that particular function is still deoptimized, so keep running the test
+      // to stress test the deoptimizer.
+      return;
+    }
+    assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
   assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) !== 2, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    // Tests that use assertOptimized() do not make sense if --no-opt
+    // option is provided. Such tests must add --opt to flags comment.
+    assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
+                "test does not make sense with --no-opt");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if ((opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
+      // When --deopt-every-n-times flag is specified it's no longer guaranteed
+      // that particular function is still optimized, so keep running the test
+      // to stress test the deoptimizer.
+      return;
+    }
+    assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
+  isNeverOptimize = function isNeverOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kNeverOptimize) !== 0;
+  }
+
+  isAlwaysOptimize = function isAlwaysOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
+  }
+
+  isInterpreted = function isInterpreted(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
+  }
+
+  isOptimized = function isOptimized(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+  }
+
+  isCrankshafted = function isCrankshafted(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kTurboFanned) === 0;
+  }
+
+  isTurboFanned = function isTurboFanned(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
+  }
+
+  // Custom V8-specific stack trace formatter that is temporarily installed on
+  // the Error object.
+  MjsUnitAssertionError.prepareStackTrace = function(error, stack) {
+    // Trigger default formatting with recursion.
+    try {
+      // Filter-out all but the first mjsunit frame.
+      let filteredStack = [];
+      let inMjsunit = true;
+      for (let i = 0; i < stack.length; i++) {
+        let frame = stack[i];
+        if (inMjsunit) {
+          let file = frame.getFileName();
+          if (!file || !file.endsWith("mjsunit.js")) {
+            inMjsunit = false;
+            // Push the last mjsunit frame, typically containing the assertion
+            // function.
+            if (i > 0) ArrayPrototypePush.call(filteredStack, stack[i-1]);
+            ArrayPrototypePush.call(filteredStack, stack[i]);
+          }
+          continue;
+        }
+        ArrayPrototypePush.call(filteredStack, frame);
+      }
+      stack = filteredStack;
+
+      // Infer function names and calculate {max_name_length}
+      let max_name_length = 0;
+      ArrayPrototypeForEach.call(stack, each => {
+        let name = each.getFunctionName();
+        if (name == null) name = "";
+        if (each.isEval()) {
+          name = name;
+        } else if (each.isConstructor()) {
+          name = "new " + name;
+        } else if (each.isNative()) {
+          name = "native " + name;
+        } else if (!each.isToplevel()) {
+          name = each.getTypeName() + "." + name;
+        }
+        each.name = name;
+        max_name_length = Math.max(name.length, max_name_length)
+      });
+
+      // Format stack frames.
+      stack = ArrayPrototypeMap.call(stack, each => {
+        let frame = "    at " + each.name.padEnd(max_name_length);
+        let fileName = each.getFileName();
+        if (each.isEval()) return frame + " " + each.getEvalOrigin();
+        frame += " " + (fileName ? fileName : "");
+        let line= each.getLineNumber();
+        frame += " " + (line ? line : "");
+        let column = each.getColumnNumber();
+        frame += (column ? ":" + column : "");
+        return frame;
+      });
+      return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
+    } catch(e) {};
+    return error.stack;
+  }
+
+  /**
+   * This is to be used through the testAsync helper function defined
+   * below.
+   *
+   * This requires the --allow-natives-syntax flag to allow calling
+   * runtime functions.
+   *
+   * There must be at least one assertion in an async test. A test
+   * with no assertions will fail.
+   *
+   * @example
+   * testAsync(assert => {
+   *   assert.plan(1) // There should be one assertion in this test.
+   *   Promise.resolve(1)
+   *    .then(val => assert.equals(1, val),
+   *          assert.unreachable);
+   * })
+   */
+  class AsyncAssertion {
+    constructor(test, name) {
+      this.expectedAsserts_ = -1;
+      this.actualAsserts_ = 0;
+      this.test_ = test;
+      this.name_ = name || '';
+    }
+
+    /**
+     * Sets the number of expected asserts in the test. The test fails
+     * if the number of asserts computed after running the test is not
+     * equal to this specified value.
+     * @param {number} expectedAsserts
+     */
+    plan(expectedAsserts) {
+      this.expectedAsserts_ = expectedAsserts;
+    }
+
+    fail(expectedText, found) {
+      let message = formatFailureText(expectedText, found);
+      message += "\nin test:" + this.name_
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    equals(expected, found, name_opt) {
+      this.actualAsserts_++;
+      if (!deepEquals(expected, found)) {
+        this.fail(PrettyPrint(expected), found, name_opt);
+      }
+    }
+
+    unreachable() {
+      let message = "Failure: unreachable in test: " + this.name_;
+      message += "\n" + Function.prototype.toString.apply(this.test_);
+      eval("%AbortJS(message)");
+    }
+
+    unexpectedRejection(details) {
+      return (error) => {
+        let message =
+            "Failure: unexpected Promise rejection in test: " + this.name_;
+        if (details) message += "\n    @" + details;
+        if (error instanceof Error) {
+          message += "\n" + String(error.stack);
+        } else {
+          message += "\n" + String(error);
+        }
+        message += "\n\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      };
+    }
+
+    drainMicrotasks() {
+      eval("%RunMicrotasks()");
+    }
+
+    done_() {
+      if (this.expectedAsserts_ === -1) {
+        let message = "Please call t.plan(count) to initialize test harness " +
+            "with correct assert count (Note: count > 0)";
+        eval("%AbortJS(message)");
+      }
+
+      if (this.expectedAsserts_ !== this.actualAsserts_) {
+        let message = "Expected asserts: " + this.expectedAsserts_;
+        message += ", Actual asserts: " + this.actualAsserts_;
+        message += "\nin test: " + this.name_;
+        message += "\n" + Function.prototype.toString.apply(this.test_);
+        eval("%AbortJS(message)");
+      }
+    }
+  }
+
+  /** This is used to test async functions and promises.
+   * @param {testCallback} test - test function
+   * @param {string} [name] - optional name of the test
+   *
+   *
+   * @callback testCallback
+   * @param {AsyncAssertion} assert
+   */
+  testAsync = function(test, name) {
+    let assert = new AsyncAssertion(test, name);
+    test(assert);
+    eval("%RunMicrotasks()");
+    assert.done_();
+  }
 })();

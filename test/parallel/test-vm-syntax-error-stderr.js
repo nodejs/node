@@ -1,29 +1,25 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var child_process = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const child_process = require('child_process');
+const fixtures = require('../common/fixtures');
 
-var wrong_script = path.join(common.fixturesDir, 'cert.pem');
+const wrong_script = fixtures.path('cert.pem');
 
-var p = child_process.spawn(process.execPath, [
+const p = child_process.spawn(process.execPath, [
   '-e',
   'require(process.argv[1]);',
   wrong_script
 ]);
 
-p.stdout.on('data', function(data) {
-  assert(false, 'Unexpected stdout data: ' + data);
-});
+p.stdout.on('data', common.mustNotCall());
 
-var output = '';
+let output = '';
 
-p.stderr.on('data', function(data) {
-  output += data;
-});
+p.stderr.on('data', (data) => output += data);
 
-process.on('exit', function() {
+p.stderr.on('end', common.mustCall(() => {
   assert(/BEGIN CERT/.test(output));
   assert(/^\s+\^/m.test(output));
   assert(/Invalid left-hand side expression in prefix operation/.test(output));
-});
+}));

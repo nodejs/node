@@ -1,45 +1,40 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var childProcess = require('child_process');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const childProcess = require('child_process');
+const fs = require('fs');
+const fixtures = require('../common/fixtures');
 
-var scriptString = path.join(common.fixturesDir, 'print-chars.js');
-var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
-var tmpFile = path.join(common.tmpDir, 'stdout.txt');
+const scriptString = fixtures.path('print-chars.js');
+const scriptBuffer = fixtures.path('print-chars-from-buffer.js');
+const tmpFile = path.join(common.tmpDir, 'stdout.txt');
 
 common.refreshTmpDir();
 
 function test(size, useBuffer, cb) {
-  var cmd = '"' + process.argv[0] + '"' +
-            ' ' +
-            '"' + (useBuffer ? scriptBuffer : scriptString) + '"' +
-            ' ' +
-            size +
-            ' > ' +
-            '"' + tmpFile + '"';
+  const cmd = `"${process.argv[0]}" "${
+    useBuffer ? scriptBuffer : scriptString}" ${size} > "${tmpFile}"`;
 
   try {
     fs.unlinkSync(tmpFile);
   } catch (e) {}
 
-  console.log(size + ' chars to ' + tmpFile + '...');
+  console.log(`${size} chars to ${tmpFile}...`);
 
-  childProcess.exec(cmd, function(err) {
-    if (err) throw err;
-
+  childProcess.exec(cmd, common.mustCall(function(err) {
+    assert.ifError(err);
     console.log('done!');
 
-    var stat = fs.statSync(tmpFile);
+    const stat = fs.statSync(tmpFile);
 
-    console.log(tmpFile + ' has ' + stat.size + ' bytes');
+    console.log(`${tmpFile} has ${stat.size} bytes`);
 
-    assert.equal(size, stat.size);
+    assert.strictEqual(size, stat.size);
     fs.unlinkSync(tmpFile);
 
     cb();
-  });
+  }));
 }
 
 test(1024 * 1024, false, common.mustCall(function() {

@@ -6,6 +6,9 @@
 #define V8_BASE_BITS_H_
 
 #include <stdint.h>
+#include <type_traits>
+
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 #if V8_CC_MSVC
 #include <intrin.h>
@@ -23,6 +26,33 @@ class CheckedNumeric;
 }
 
 namespace bits {
+
+// Define overloaded |Name| for |Name32| and |Name64|, depending on the size of
+// the given value.
+//
+// The overloads are only defined for input types of size 4 and 8, respectively,
+// using enable_if and SFINAE to disable them otherwise. enable_if<bool,
+// typename> only has a "type" member if the first parameter is true, in which
+// case "type" is a typedef to the second member (here, set to "unsigned").
+// Otherwise, enable_if::type doesn't exist, making the function signature
+// invalid, and so the entire function is thrown away (without an error) due to
+// SFINAE.
+//
+// Not that we cannot simply check sizeof(T) using an if statement, as we need
+// both branches of the if to be syntactically valid even if one of the branches
+// is dead.
+#define DEFINE_32_64_OVERLOADS(Name)                                   \
+  template <typename T>                                                \
+  inline typename std::enable_if<sizeof(T) == 4, unsigned>::type Name( \
+      T value) {                                                       \
+    return Name##32(value);                                            \
+  }                                                                    \
+                                                                       \
+  template <typename T>                                                \
+  inline typename std::enable_if<sizeof(T) == 8, unsigned>::type Name( \
+      T value) {                                                       \
+    return Name##64(value);                                            \
+  }
 
 // CountPopulation32(value) returns the number of bits set in |value|.
 inline unsigned CountPopulation32(uint32_t value) {
@@ -49,17 +79,7 @@ inline unsigned CountPopulation64(uint64_t value) {
 #endif
 }
 
-
-// Overloaded versions of CountPopulation32/64.
-inline unsigned CountPopulation(uint32_t value) {
-  return CountPopulation32(value);
-}
-
-
-inline unsigned CountPopulation(uint64_t value) {
-  return CountPopulation64(value);
-}
-
+DEFINE_32_64_OVERLOADS(CountPopulation)
 
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
@@ -146,34 +166,24 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #endif
 }
 
-// Overloaded versions of CountTrailingZeros32/64.
-inline unsigned CountTrailingZeros(uint32_t value) {
-  return CountTrailingZeros32(value);
-}
-
-inline unsigned CountTrailingZeros(uint64_t value) {
-  return CountTrailingZeros64(value);
-}
+DEFINE_32_64_OVERLOADS(CountTrailingZeros)
 
 // Returns true iff |value| is a power of 2.
-inline bool IsPowerOfTwo32(uint32_t value) {
-  return value && !(value & (value - 1));
+template <typename T,
+          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+constexpr inline bool IsPowerOfTwo(T value) {
+  return value > 0 && (value & (value - 1)) == 0;
 }
-
-
-// Returns true iff |value| is a power of 2.
-inline bool IsPowerOfTwo64(uint64_t value) {
-  return value && !(value & (value - 1));
-}
-
 
 // RoundUpToPowerOfTwo32(value) returns the smallest power of two which is
 // greater than or equal to |value|. If you pass in a |value| that is already a
 // power of two, it is returned as is. |value| must be less than or equal to
-// 0x80000000u. Implementation is from "Hacker's Delight" by Henry S. Warren,
-// Jr., figure 3-3, page 48, where the function is called clp2.
-uint32_t RoundUpToPowerOfTwo32(uint32_t value);
-
+// 0x80000000u. Uses computation based on leading zeros if we have compiler
+// support for that. Falls back to the implementation from "Hacker's Delight" by
+// Henry S. Warren, Jr., figure 3-3, page 48, where the function is called clp2.
+V8_BASE_EXPORT uint32_t RoundUpToPowerOfTwo32(uint32_t value);
+// Same for 64 bit integers. |value| must be <= 2^63
+V8_BASE_EXPORT uint64_t RoundUpToPowerOfTwo64(uint64_t value);
 
 // RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
 // less than or equal to |value|. If you pass in a |value| that is already a
@@ -241,7 +251,7 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 // SignedMulOverflow32(lhs,rhs,val) performs a signed multiplication of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed multiplication resulted in an overflow.
-bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
+V8_BASE_EXPORT bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
 
 // SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and
@@ -265,31 +275,28 @@ inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
 // SignedMulOverflow64(lhs,rhs,val) performs a signed multiplication of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed multiplication resulted in an overflow.
-bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val);
+V8_BASE_EXPORT bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val);
 
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and
 // |rhs|, extracts the most significant 32 bits of the result, and returns
 // those.
-int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 
 // SignedMulHighAndAdd32(lhs, rhs, acc) multiplies two signed 32-bit values
 // |lhs| and |rhs|, extracts the most significant 32 bits of the result, and
 // adds the accumulate value |acc|.
-int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc);
-
+V8_BASE_EXPORT int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs,
+                                             int32_t acc);
 
 // SignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
 // truncated to int32. If |rhs| is zero, then zero is returned. If |lhs|
 // is minint and |rhs| is -1, it returns minint.
-int32_t SignedDiv32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 
 // SignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
 // truncated to int32. If either |rhs| is zero or |lhs| is minint and |rhs|
 // is -1, it returns zero.
-int32_t SignedMod32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedMod32(int32_t lhs, int32_t rhs);
 
 // UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
@@ -319,18 +326,18 @@ inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
 
 
 // Clamp |value| on overflow and underflow conditions.
-int64_t FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value);
-
+V8_BASE_EXPORT int64_t
+FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value);
 
 // SignedSaturatedAdd64(lhs, rhs) adds |lhs| and |rhs|,
 // checks and returns the result.
-int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
+V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
 
-
-// SignedSaturatedSub64(lhs, rhs) substracts |lhs| by |rhs|,
+// SignedSaturatedSub64(lhs, rhs) subtracts |lhs| by |rhs|,
 // checks and returns the result.
-int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
+V8_BASE_EXPORT int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
 
+#undef DEFINE_32_64_OVERLOADS
 
 }  // namespace bits
 }  // namespace base

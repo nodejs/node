@@ -61,7 +61,6 @@ V8_INLINE size_t hash_value_unsigned(T v) {
     }
   }
   UNREACHABLE();
-  return static_cast<size_t>(v);
 }
 
 }  // namespace

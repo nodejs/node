@@ -1,4 +1,0 @@
-*%(basename)s:13: SyntaxError: Tail call expression is not allowed here
-  var x =  continue  f()  ;
-           ^^^^^^^^^^^^^
-SyntaxError: Tail call expression is not allowed here

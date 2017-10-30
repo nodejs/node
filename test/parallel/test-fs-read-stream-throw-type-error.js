@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
-const example = path.join(common.fixturesDir, 'x.txt');
+const example = fixtures.path('x.txt');
 
 assert.doesNotThrow(function() {
   fs.createReadStream(example, undefined);
@@ -16,18 +16,21 @@ assert.doesNotThrow(function() {
   fs.createReadStream(example, 'utf8');
 });
 assert.doesNotThrow(function() {
-  fs.createReadStream(example, {encoding: 'utf8'});
+  fs.createReadStream(example, { encoding: 'utf8' });
 });
 
-assert.throws(function() {
-  fs.createReadStream(example, 123);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createReadStream(example, 0);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createReadStream(example, true);
-}, /"options" must be a string or an object/);
-assert.throws(function() {
-  fs.createReadStream(example, false);
-}, /"options" must be a string or an object/);
+const createReadStreamErr = (path, opt) => {
+  common.expectsError(
+    () => {
+      fs.createReadStream(path, opt);
+    },
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    });
+};
+
+createReadStreamErr(example, 123);
+createReadStreamErr(example, 0);
+createReadStreamErr(example, true);
+createReadStreamErr(example, false);

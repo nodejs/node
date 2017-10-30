@@ -7,6 +7,11 @@
 #include "src/api-arguments.h"
 #include "src/api-natives.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/counters.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
+#include "src/prototype.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -77,6 +82,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
         !isolate->MayAccess(handle(isolate->context()), js_receiver)) {
       isolate->ReportFailedAccessCheck(js_receiver);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return isolate->factory()->undefined_value();
     }
 
     raw_holder = GetCompatibleReceiver(isolate, *fun_data, *js_receiver);
@@ -112,7 +118,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
     // Rebox the result.
     result->VerifyApiCallResultType();
-    if (!is_construct || result->IsJSObject()) return handle(*result, isolate);
+    if (!is_construct || result->IsJSReceiver())
+      return handle(*result, isolate);
   }
 
   return js_receiver;
@@ -122,7 +129,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.target<JSFunction>();
+  Handle<JSFunction> function = args.target();
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
   Handle<FunctionTemplateInfo> fun_data(function->shared()->get_api_func_data(),
@@ -145,9 +152,10 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
   RelocatableArguments(Isolate* isolate, int length, Object** arguments)
       : BuiltinArguments(length, arguments), Relocatable(isolate) {}
 
-  virtual inline void IterateInstance(ObjectVisitor* v) {
+  virtual inline void IterateInstance(RootVisitor* v) {
     if (length() == 0) return;
-    v->VisitPointers(lowest_address(), highest_address() + 1);
+    v->VisitRootPointers(Root::kRelocatable, lowest_address(),
+                         highest_address() + 1);
   }
 
  private:

@@ -54,6 +54,17 @@ function isIdentifier(name, ecmaVersion) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+const alwaysOrNever = { enum: ["always", "never"] };
+const optionsObject = {
+    type: "object",
+    properties: {
+        includeCommonJSModuleExports: {
+            type: "boolean"
+        }
+    },
+    additionalProperties: false
+};
+
 module.exports = {
     meta: {
         docs: {
@@ -62,23 +73,34 @@ module.exports = {
             recommended: false
         },
 
-        schema: [
-            {
-                type: "object",
-                properties: {
-                    includeCommonJSModuleExports: {
-                        type: "boolean"
-                    }
-                },
-                additionalProperties: false
-            }
-        ]
+        schema: {
+            anyOf: [{
+                type: "array",
+                additionalItems: false,
+                items: [alwaysOrNever, optionsObject]
+            }, {
+                type: "array",
+                additionalItems: false,
+                items: [optionsObject]
+            }]
+        }
     },
 
     create(context) {
-
-        const includeModuleExports = context.options[0] && context.options[0].includeCommonJSModuleExports;
+        const options = (typeof context.options[0] === "object" ? context.options[0] : context.options[1]) || {};
+        const nameMatches = typeof context.options[0] === "string" ? context.options[0] : "always";
+        const includeModuleExports = options.includeCommonJSModuleExports;
         const ecmaVersion = context.parserOptions && context.parserOptions.ecmaVersion ? context.parserOptions.ecmaVersion : 5;
+
+        /**
+         * Compares identifiers based on the nameMatches option
+         * @param {string} x the first identifier
+         * @param {string} y the second identifier
+         * @returns {boolean} whether the two identifiers should warn.
+         */
+        function shouldWarn(x, y) {
+            return (nameMatches === "always" && x !== y) || (nameMatches === "never" && x === y);
+        }
 
         /**
          * Reports
@@ -89,15 +111,34 @@ module.exports = {
          * @returns {void}
          */
         function report(node, name, funcName, isProp) {
+            let message;
+
+            if (nameMatches === "always" && isProp) {
+                message = "Function name `{{funcName}}` should match property name `{{name}}`";
+            } else if (nameMatches === "always") {
+                message = "Function name `{{funcName}}` should match variable name `{{name}}`";
+            } else if (isProp) {
+                message = "Function name `{{funcName}}` should not match property name `{{name}}`";
+            } else {
+                message = "Function name `{{funcName}}` should not match variable name `{{name}}`";
+            }
             context.report({
                 node,
-                message: isProp ? "Function name `{{funcName}}` should match property name `{{name}}`"
-                                : "Function name `{{funcName}}` should match variable name `{{name}}`",
+                message,
                 data: {
                     name,
                     funcName
                 }
             });
+        }
+
+        /**
+         * Determines whether a given node is a string literal
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} `true` if the node is a string literal
+         */
+        function isStringLiteral(node) {
+            return node.type === "Literal" && typeof node.value === "string";
         }
 
         //--------------------------------------------------------------------------
@@ -107,40 +148,43 @@ module.exports = {
         return {
 
             VariableDeclarator(node) {
-                if (!node.init || node.init.type !== "FunctionExpression") {
+                if (!node.init || node.init.type !== "FunctionExpression" || node.id.type !== "Identifier") {
                     return;
                 }
-                if (node.init.id && node.id.name !== node.init.id.name) {
+                if (node.init.id && shouldWarn(node.id.name, node.init.id.name)) {
                     report(node, node.id.name, node.init.id.name, false);
                 }
             },
 
             AssignmentExpression(node) {
-                if (node.right.type !== "FunctionExpression" ||
-                   (node.left.computed && node.left.property.type !== "Literal") ||
-                    (!includeModuleExports && isModuleExports(node.left))
-                   ) {
+                if (
+                    node.right.type !== "FunctionExpression" ||
+                    (node.left.computed && node.left.property.type !== "Literal") ||
+                    (!includeModuleExports && isModuleExports(node.left)) ||
+                    (node.left.type !== "Identifier" && node.left.type !== "MemberExpression")
+                ) {
                     return;
                 }
 
-                const isProp = node.left.type === "MemberExpression" ? true : false;
+                const isProp = node.left.type === "MemberExpression";
                 const name = isProp ? astUtils.getStaticPropertyName(node.left) : node.left.name;
 
-                if (node.right.id && isIdentifier(name) && name !== node.right.id.name) {
+                if (node.right.id && isIdentifier(name) && shouldWarn(name, node.right.id.name)) {
                     report(node, name, node.right.id.name, isProp);
                 }
             },
 
             Property(node) {
-                if (node.value.type !== "FunctionExpression" || !node.value.id || node.computed && node.key.type !== "Literal") {
+                if (node.value.type !== "FunctionExpression" || !node.value.id || node.computed && !isStringLiteral(node.key)) {
                     return;
                 }
-                if (node.key.type === "Identifier" && node.key.name !== node.value.id.name) {
+                if (node.key.type === "Identifier" && shouldWarn(node.key.name, node.value.id.name)) {
                     report(node, node.key.name, node.value.id.name, true);
-                } else if (node.key.type === "Literal" &&
-                           isIdentifier(node.key.value, ecmaVersion) &&
-                           node.key.value !== node.value.id.name
-                          ) {
+                } else if (
+                    isStringLiteral(node.key) &&
+                    isIdentifier(node.key.value, ecmaVersion) &&
+                    shouldWarn(node.key.value, node.value.id.name)
+                ) {
                     report(node, node.key.value, node.value.id.name, true);
                 }
             }

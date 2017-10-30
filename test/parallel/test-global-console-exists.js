@@ -1,37 +1,41 @@
 /* eslint-disable required-modules */
-// ordinarily test files must require('common') but that action causes
-// the global console to be compiled, defeating the purpose of this test
 
 'use strict';
 
-const common = require('../common');
+// Ordinarily test files must require('common') but that action causes
+// the global console to be compiled, defeating the purpose of this test.
+
 const assert = require('assert');
 const EventEmitter = require('events');
-const leak_warning = /EventEmitter memory leak detected\. 2 hello listeners/;
+const leakWarning = /EventEmitter memory leak detected\. 2 hello listeners/;
 
-var write_calls = 0;
-
-process.on('warning', (warning) => {
+let writeTimes = 0;
+let warningTimes = 0;
+process.on('warning', () => {
   // This will be called after the default internal
   // process warning handler is called. The default
   // process warning writes to the console, which will
   // invoke the monkeypatched process.stderr.write
   // below.
-  assert.strictEqual(write_calls, 1);
-  EventEmitter.defaultMaxListeners = old_default;
-  // when we get here, we should be done
+  assert.strictEqual(writeTimes, 1);
+  EventEmitter.defaultMaxListeners = oldDefault;
+  warningTimes++;
+});
+
+process.on('exit', () => {
+  assert.strictEqual(warningTimes, 1);
 });
 
 process.stderr.write = (data) => {
-  if (write_calls === 0)
-    assert.ok(data.match(leak_warning));
+  if (writeTimes === 0)
+    assert.ok(leakWarning.test(data));
   else
-    common.fail('stderr.write should be called only once');
+    assert.fail('stderr.write should be called only once');
 
-  write_calls++;
+  writeTimes++;
 };
 
-const old_default = EventEmitter.defaultMaxListeners;
+const oldDefault = EventEmitter.defaultMaxListeners;
 EventEmitter.defaultMaxListeners = 1;
 
 const e = new EventEmitter();

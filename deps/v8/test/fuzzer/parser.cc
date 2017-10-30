@@ -7,13 +7,58 @@
 #include <stdint.h>
 
 #include "include/v8.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
 #include "test/fuzzer/fuzzer-support.h"
 
+#include <cctype>
+#include <list>
+
+bool IsValidInput(const uint8_t* data, size_t size) {
+  std::list<char> parentheses;
+  const char* ptr = reinterpret_cast<const char*>(data);
+
+  for (size_t i = 0; i != size; ++i) {
+    // Check that all characters in the data are valid.
+    if (!(std::isspace(ptr[i]) || std::isprint(ptr[i]))) {
+      return false;
+    }
+
+    // Check balance of parentheses in the data.
+    switch (ptr[i]) {
+      case '(':
+      case '[':
+      case '{':
+        parentheses.push_back(ptr[i]);
+        break;
+      case ')':
+        if (parentheses.back() != '(') return false;
+        parentheses.pop_back();
+        break;
+      case ']':
+        if (parentheses.back() != '[') return false;
+        parentheses.pop_back();
+        break;
+      case '}':
+        if (parentheses.back() != '{') return false;
+        parentheses.pop_back();
+        break;
+      default:
+        break;
+    }
+  }
+
+  return parentheses.empty();
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  if (!IsValidInput(data, size)) {
+    return 0;
+  }
+
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
 
@@ -34,11 +79,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
-  v8::internal::Zone zone(i_isolate->allocator());
-  v8::internal::ParseInfo info(&zone, script);
-  info.set_global();
-  v8::internal::Parser parser(&info);
-  parser.Parse(&info);
+  v8::internal::ParseInfo info(script);
+  if (!v8::internal::parsing::ParseProgram(&info, i_isolate)) {
+    i_isolate->OptionalRescheduleException(true);
+  }
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
   return 0;

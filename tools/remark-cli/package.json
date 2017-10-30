@@ -1,0 +1,32 @@
+{
+  "name": "remark-cli",
+  "version": "3.0.1",
+  "description": "CLI to process markdown with remark using plugins",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "remark",
+    "cli",
+    "bin"
+  ],
+  "dependencies": {
+    "markdown-extensions": "^1.1.0",
+    "remark": "^7.0.0",
+    "unified-args": "^3.0.0"
+  },
+  "homepage": "http://remark.js.org",
+  "repository": "https://github.com/wooorm/remark/tree/master/packages/remark-cli",
+  "bugs": "https://github.com/wooorm/remark/issues",
+  "author": "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)",
+  "contributors": [
+    "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"
+  ],
+  "bin": {
+    "remark": "cli.js"
+  },
+  "files": [
+    "cli.js"
+  ],
+  "scripts": {},
+  "xo": false
+}

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 ******************************************************************************
 *   file name:  nfrule.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -30,6 +30,7 @@
 #include "nfrlist.h"
 #include "nfsubs.h"
 #include "patternprops.h"
+#include "putilimp.h"
 
 U_NAMESPACE_BEGIN
 
@@ -715,6 +716,12 @@ NFRule::_appendRuleText(UnicodeString& result) const
     result.append(gSemicolon);
 }
 
+int64_t NFRule::getDivisor() const
+{
+    return util64_pow(radix, exponent);
+}
+
+
 //-----------------------------------------------------------------------
 // formatting
 //-----------------------------------------------------------------------
@@ -749,7 +756,7 @@ NFRule::doFormat(int64_t number, UnicodeString& toInsertInto, int32_t pos, int32
             toInsertInto.insert(pos, ruleText.tempSubString(pluralRuleEnd + 2));
         }
         toInsertInto.insert(pos,
-            rulePatternFormat->format((int32_t)(number/uprv_pow(radix, exponent)), status));
+            rulePatternFormat->format((int32_t)(number/util64_pow(radix, exponent)), status));
         if (pluralRuleStart > 0) {
             toInsertInto.insert(pos, ruleText.tempSubString(0, pluralRuleStart));
         }
@@ -798,10 +805,10 @@ NFRule::doFormat(double number, UnicodeString& toInsertInto, int32_t pos, int32_
         if (0 <= pluralVal && pluralVal < 1) {
             // We're in a fractional rule, and we have to match the NumeratorSubstitution behavior.
             // 2.3 can become 0.2999999999999998 for the fraction due to rounding errors.
-            pluralVal = uprv_round(pluralVal * uprv_pow(radix, exponent));
+            pluralVal = uprv_round(pluralVal * util64_pow(radix, exponent));
         }
         else {
-            pluralVal = pluralVal / uprv_pow(radix, exponent);
+            pluralVal = pluralVal / util64_pow(radix, exponent);
         }
         toInsertInto.insert(pos, rulePatternFormat->format((int32_t)(pluralVal), status));
         if (pluralRuleStart > 0) {
@@ -827,7 +834,7 @@ NFRule::doFormat(double number, UnicodeString& toInsertInto, int32_t pos, int32_
 * this one in its list; false if it should use this rule
 */
 UBool
-NFRule::shouldRollBack(double number) const
+NFRule::shouldRollBack(int64_t number) const
 {
     // we roll back if the rule contains a modulus substitution,
     // the number being formatted is an even multiple of the rule's
@@ -847,7 +854,7 @@ NFRule::shouldRollBack(double number) const
     // multiple of 100.  This is called the "rollback rule."
     if ((sub1 != NULL && sub1->isModulusSubstitution()) || (sub2 != NULL && sub2->isModulusSubstitution())) {
         int64_t re = util64_pow(radix, exponent);
-        return uprv_fmod(number, (double)re) == 0 && (baseValue % re) != 0;
+        return (number % re) == 0 && (baseValue % re) != 0;
     }
     return FALSE;
 }

@@ -5,7 +5,7 @@
  * @author Nicholas C. Zakas
  */
 
-/* eslint no-console:off, no-process-exit:off */
+/* eslint no-console:off */
 
 "use strict";
 
@@ -36,39 +36,39 @@ const concat = require("concat-stream"),
 // Execution
 //------------------------------------------------------------------------------
 
-process.on("uncaughtException", function(err) {
+process.once("uncaughtException", err => {
 
     // lazy load
     const lodash = require("lodash");
 
     if (typeof err.messageTemplate === "string" && err.messageTemplate.length > 0) {
         const template = lodash.template(fs.readFileSync(path.resolve(__dirname, `../messages/${err.messageTemplate}.txt`), "utf-8"));
+        const pkg = require("../package.json");
 
-        console.log("\nOops! Something went wrong! :(");
-        console.log(`\n${template(err.messageData || {})}`);
+        console.error("\nOops! Something went wrong! :(");
+        console.error(`\nESLint: ${pkg.version}.\n${template(err.messageData || {})}`);
     } else {
-        console.log(err.message);
-        console.log(err.stack);
+
+        console.error(err.message);
+        console.error(err.stack);
     }
 
-    process.exit(1);
+    process.exitCode = 1;
 });
 
 if (useStdIn) {
-    process.stdin.pipe(concat({ encoding: "string" }, function(text) {
+    process.stdin.pipe(concat({ encoding: "string" }, text => {
         process.exitCode = cli.execute(process.argv, text);
     }));
 } else if (init) {
     const configInit = require("../lib/config/config-initializer");
 
-    configInit.initializeConfig(function(err) {
-        if (err) {
-            process.exitCode = 1;
-            console.error(err.message);
-            console.error(err.stack);
-        } else {
-            process.exitCode = 0;
-        }
+    configInit.initializeConfig().then(() => {
+        process.exitCode = 0;
+    }).catch(err => {
+        process.exitCode = 1;
+        console.error(err.message);
+        console.error(err.stack);
     });
 } else {
     process.exitCode = cli.execute(process.argv);

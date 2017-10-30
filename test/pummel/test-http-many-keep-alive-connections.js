@@ -1,16 +1,37 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expected = 10000;
-var responses = 0;
-var requests = 0;
-var connection;
+const expected = 10000;
+let responses = 0;
+let requests = 0;
+let connection;
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   requests++;
-  assert.equal(req.connection, connection);
+  assert.strictEqual(req.connection, connection);
   res.writeHead(200);
   res.end('hello world\n');
 });
@@ -20,7 +41,7 @@ server.once('connection', function(c) {
 });
 
 server.listen(common.PORT, function connect() {
-  var request = http.get({
+  const request = http.get({
     port: common.PORT,
     path: '/',
     headers: {
@@ -43,6 +64,6 @@ server.listen(common.PORT, function connect() {
 });
 
 process.on('exit', function() {
-  assert.equal(expected, responses);
-  assert.equal(expected, requests);
+  assert.strictEqual(expected, responses);
+  assert.strictEqual(expected, requests);
 });

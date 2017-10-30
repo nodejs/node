@@ -5,15 +5,16 @@
 [![Downloads][downloads-image]][downloads-url]
 [![Bountysource](https://www.bountysource.com/badge/tracker?tracker_id=282608)](https://www.bountysource.com/trackers/282608-eslint?utm_source=282608&utm_medium=shield&utm_campaign=TRACKER_BADGE)
 [![Join the chat at https://gitter.im/eslint/eslint](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/eslint/eslint?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Feslint%2Feslint.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Feslint%2Feslint?ref=badge_shield)
 
 # ESLint
 
-[Website](http://eslint.org) |
-[Configuring](http://eslint.org/docs/user-guide/configuring) |
-[Rules](http://eslint.org/docs/rules/) |
-[Contributing](http://eslint.org/docs/developer-guide/contributing) |
-[Reporting Bugs](http://eslint.org/docs/developer-guide/contributing/reporting-bugs) |
-[Code of Conduct](https://jquery.org/conduct/) |
+[Website](https://eslint.org) |
+[Configuring](https://eslint.org/docs/user-guide/configuring) |
+[Rules](https://eslint.org/docs/rules/) |
+[Contributing](https://eslint.org/docs/developer-guide/contributing) |
+[Reporting Bugs](https://eslint.org/docs/developer-guide/contributing/reporting-bugs) |
+[Code of Conduct](https://js.foundation/community/code-of-conduct) |
 [Twitter](https://twitter.com/geteslint) |
 [Mailing List](https://groups.google.com/group/eslint) |
 [Chat Room](https://gitter.im/eslint/eslint)
@@ -87,17 +88,17 @@ After running `eslint --init`, you'll have a `.eslintrc` file in your directory.
 }
 ```
 
-The names `"semi"` and `"quotes"` are the names of [rules](http://eslint.org/docs/rules) in ESLint. The first value is the error level of the rule and can be one of these values:
+The names `"semi"` and `"quotes"` are the names of [rules](https://eslint.org/docs/rules) in ESLint. The first value is the error level of the rule and can be one of these values:
 
 * `"off"` or `0` - turn the rule off
 * `"warn"` or `1` - turn the rule on as a warning (doesn't affect exit code)
 * `"error"` or `2` - turn the rule on as an error (exit code will be 1)
 
-The three error levels allow you fine-grained control over how ESLint applies rules (for more configuration options and details, see the [configuration docs](http://eslint.org/docs/user-guide/configuring)).
+The three error levels allow you fine-grained control over how ESLint applies rules (for more configuration options and details, see the [configuration docs](https://eslint.org/docs/user-guide/configuring)).
 
 ## Sponsors
 
-* Site search ([eslint.org](http://eslint.org)) is sponsored by [Algolia](https://www.algolia.com)
+* Site search ([eslint.org](https://eslint.org)) is sponsored by [Algolia](https://www.algolia.com)
 
 ## Team
 
@@ -112,6 +113,7 @@ These folks keep the project moving and are resources for help.
 * Toru Nagashima ([@mysticatea](https://github.com/mysticatea))
 * Alberto Rodríguez ([@alberto](https://github.com/alberto))
 * Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
+* Teddy Katz ([@not-an-aardvark](https://github.com/not-an-aardvark))
 
 ### Development Team
 
@@ -122,27 +124,31 @@ These folks keep the project moving and are resources for help.
 * Michael Ficarra ([@michaelficarra](https://github.com/michaelficarra))
 * Mark Pedrotti ([@pedrottimark](https://github.com/pedrottimark))
 * Oleg Gaidarenko ([@markelog](https://github.com/markelog))
-* Mike Sherov [@mikesherov](https://github.com/mikesherov))
+* Mike Sherov ([@mikesherov](https://github.com/mikesherov))
 * Henry Zhu ([@hzoo](https://github.com/hzoo))
 * Marat Dulin ([@mdevils](https://github.com/mdevils))
 * Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox))
 * Kevin Partington ([@platinumazure](https://github.com/platinumazure))
 * Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
 * James Henry ([@JamesHenry](https://github.com/JamesHenry))
-* Teddy Katz ([@not-an-aardvark](https://github.com/not-an-aardvark))
+* Reyad Attiyat ([@soda0289](https://github.com/soda0289))
 
 ## Releases
 
 We have scheduled releases every two weeks on Friday or Saturday.
 
+## Code of Conduct
+
+ESLint adheres to the [JS Foundation Code of Conduct](https://js.foundation/community/code-of-conduct).
+
 ## Filing Issues
 
 Before filing an issue, please be sure to read the guidelines for what you're reporting:
 
-* [Bug Report](http://eslint.org/docs/developer-guide/contributing/reporting-bugs)
-* [Propose a New Rule](http://eslint.org/docs/developer-guide/contributing/new-rules)
-* [Proposing a Rule Change](http://eslint.org/docs/developer-guide/contributing/rule-changes)
-* [Request a Change](http://eslint.org/docs/developer-guide/contributing/changes)
+* [Bug Report](https://eslint.org/docs/developer-guide/contributing/reporting-bugs)
+* [Propose a New Rule](https://eslint.org/docs/developer-guide/contributing/new-rules)
+* [Proposing a Rule Change](https://eslint.org/docs/developer-guide/contributing/rule-changes)
+* [Request a Change](https://eslint.org/docs/developer-guide/contributing/changes)
 
 ## Semantic Versioning Policy
 
@@ -165,11 +171,14 @@ ESLint follows [semantic versioning](http://semver.org). However, due to the nat
 * Major release (likely to break your lint build)
     * `eslint:recommended` is updated.
     * A new option to an existing rule that results in ESLint reporting more errors by default.
-    * An existing rule is removed.
     * An existing formatter is removed.
     * Part of the public API is removed or changed in an incompatible way.
 
 According to our policy, any minor update may report more errors than the previous release (ex: from a bug fix). As such, we recommend using the tilde (`~`) in `package.json` e.g. `"eslint": "~3.1.0"` to guarantee the results of your builds.
+
+## License
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Feslint%2Feslint.svg?type=large)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Feslint%2Feslint?ref=badge_large)
 
 ## Frequently Asked Questions
 
@@ -185,11 +194,11 @@ Despite being slower, we believe that ESLint is fast enough to replace JSHint wi
 
 ### I heard ESLint is going to replace JSCS?
 
-Yes. Since we are solving the same problems, ESLint and JSCS teams have decided to join forces and work together in the development of ESLint instead of competing with each other. You can read more about this in both [ESLint](http://eslint.org/blog/2016/04/welcoming-jscs-to-eslint) and [JSCS](https://medium.com/@markelog/jscs-end-of-the-line-bc9bf0b3fdb2#.u76sx334n) announcements.
+Yes. Since we are solving the same problems, ESLint and JSCS teams have decided to join forces and work together in the development of ESLint instead of competing with each other. You can read more about this in both [ESLint](https://eslint.org/blog/2016/04/welcoming-jscs-to-eslint) and [JSCS](https://medium.com/@markelog/jscs-end-of-the-line-bc9bf0b3fdb2#.u76sx334n) announcements.
 
 ### So, should I stop using JSCS and start using ESLint?
 
-Maybe, depending on how much you need it. [JSCS has reached end of life](http://eslint.org/blog/2016/07/jscs-end-of-life), but if it is working for you then there is no reason to move yet. We are still working to smooth the transition. You can see our progress [here](https://github.com/eslint/eslint/milestones/JSCS%20Compatibility). We’ll announce when all of the changes necessary to support JSCS users in ESLint are complete and will start encouraging JSCS users to switch to ESLint at that time.
+Maybe, depending on how much you need it. [JSCS has reached end of life](https://eslint.org/blog/2016/07/jscs-end-of-life), but if it is working for you then there is no reason to move yet. We are still working to smooth the transition. You can see our progress [here](https://github.com/eslint/eslint/milestones/JSCS%20Compatibility). We’ll announce when all of the changes necessary to support JSCS users in ESLint are complete and will start encouraging JSCS users to switch to ESLint at that time.
 
 If you are having issues with JSCS, you can try to move to ESLint. We are focusing our time and energy on JSCS compatibility issues.
 
@@ -200,20 +209,17 @@ ESLint does both traditional linting (looking for problematic patterns) and styl
 
 ### Does ESLint support JSX?
 
-Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](http://eslint.org/docs/user-guide/configuring).). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
+Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](https://eslint.org/docs/user-guide/configuring).). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
 
 ### What about ECMAScript 6 support?
 
-ESLint has full support for ECMAScript 6. By default, this support is off. You can enable ECMAScript 6 support through [configuration](http://eslint.org/docs/user-guide/configuring).
+ESLint has full support for ECMAScript 6. By default, this support is off. You can enable ECMAScript 6 syntax and global variables through [configuration](https://eslint.org/docs/user-guide/configuring).
 
 ### What about experimental features?
 
 ESLint doesn't natively support experimental ECMAScript language features. You can use [babel-eslint](https://github.com/babel/babel-eslint) to use any option available in Babel.
 
-Once a language feature has been adopted into the ECMAScript standard, we will accept
-issues and pull requests related to the new feature, subject to our [contributing
-guidelines](http://eslint.org/docs/developer-guide/contributing). Until then, please use
-the appropriate parser and plugin(s) for your experimental feature.
+Once a language feature has been adopted into the ECMAScript standard (stage 4 according to the [TC39 process](https://tc39.github.io/process-document/)), we will accept issues and pull requests related to the new feature, subject to our [contributing guidelines](https://eslint.org/docs/developer-guide/contributing). Until then, please use the appropriate parser and plugin(s) for your experimental feature.
 
 ### Where to ask for help?
 

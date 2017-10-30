@@ -1,0 +1,249 @@
+Tests that Runtime.evaluate works with awaitPromise flag.
+
+Running test: testResolvedPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testRejectedPromise
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            text : Uncaught (in promise)
+        }
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testRejectedPromiseWithError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 11
+            exception : {
+                className : Error
+                description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 13
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 10
+                        functionName : foo
+                        lineNumber : 12
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 2
+                        functionName : throwError
+                        lineNumber : 14
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) Error: MyError
+        }
+        result : {
+            className : Error
+            description : Error: MyError     at foo (<anonymous>:13:11)     at throwError (<anonymous>:15:3)     at <anonymous>
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+Running test: testRejectedPromiseWithSyntaxError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 5
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 21
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 4
+                        functionName : foo
+                        lineNumber : 20
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 2
+                        functionName : throwSyntaxError
+                        lineNumber : 22
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) SyntaxError: Unexpected token }
+        }
+        result : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token }     at foo (<anonymous>:21:5)     at throwSyntaxError (<anonymous>:23:3)     at <anonymous>
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+Running test: testPrimitiveValueInsteadOfPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : boolean
+            value : true
+        }
+    }
+}
+
+Running test: testObjectInsteadOfPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+            }
+        }
+    }
+}
+
+Running test: testPendingPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+                a : 239
+            }
+        }
+    }
+}
+
+Running test: testExceptionInEvaluate
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testThenableJob
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+
+Running test: testLastEvaluatedResult
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+
+Running test: testRuntimeDisable
+Resolving promise..
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Promise resolved
+
+Running test: testImmediatelyResolvedAfterAfterContextDestroyed
+Destroying context..
+{
+    error : {
+        code : -32000
+        message : Execution context was destroyed.
+    }
+    id : <messageId>
+}
+Context destroyed
+Triggering weak callback..

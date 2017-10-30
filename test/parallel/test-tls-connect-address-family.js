@@ -1,14 +1,10 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
-if (!common.hasIPv6) {
+if (!common.hasIPv6)
   common.skip('no IPv6 support');
-  return;
-}
 
 const assert = require('assert');
 const tls = require('tls');
@@ -18,10 +14,10 @@ function runTest() {
   const ciphers = 'AECDH-NULL-SHA';
   tls.createServer({ ciphers }, common.mustCall(function() {
     this.close();
-  })).listen(common.PORT, '::1', common.mustCall(function() {
+  })).listen(0, '::1', common.mustCall(function() {
     const options = {
       host: 'localhost',
-      port: common.PORT,
+      port: this.address().port,
       family: 6,
       ciphers: ciphers,
       rejectUnauthorized: false,
@@ -34,12 +30,11 @@ function runTest() {
   }));
 }
 
-dns.lookup('localhost', {family: 6, all: true}, (err, addresses) => {
+dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
   if (err) {
-    if (err.code === 'ENOTFOUND') {
+    if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')
       common.skip('localhost does not resolve to ::1');
-      return;
-    }
+
     throw err;
   }
 

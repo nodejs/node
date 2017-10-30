@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const ee = new EventEmitter();
 const foo = Symbol('foo');
-const listener = common.mustCall(function() {});
+const listener = common.mustCall();
 
 ee.on(foo, listener);
 assert.deepStrictEqual(ee.listeners(foo), [listener]);

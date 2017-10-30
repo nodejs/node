@@ -6,7 +6,14 @@
 #include "src/builtins/builtins-utils.h"
 
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
+#include "src/contexts.h"
+#include "src/counters.h"
 #include "src/elements.h"
+#include "src/isolate.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +24,7 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
   // This is an extended version of ECMA-262 7.1.11 handling signed values
   // Try to convert object to a number and clamp values to [kMinInt, kMaxInt]
   if (object->IsSmi()) {
-    *out = Smi::cast(object)->value();
+    *out = Smi::ToInt(object);
     return true;
   } else if (object->IsHeapNumber()) {
     double value = HeapNumber::cast(object)->value();
@@ -31,7 +38,7 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
       *out = static_cast<int>(value);
     }
     return true;
-  } else if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
+  } else if (object->IsNullOrUndefined(isolate)) {
     *out = 0;
     return true;
   } else if (object->IsBoolean()) {
@@ -53,8 +60,14 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
   Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
-  *out = Max(0, Smi::cast(len_obj)->value());
-  return *out <= object->elements()->length();
+  *out = Max(0, Smi::ToInt(len_obj));
+
+  FixedArray* parameters = FixedArray::cast(object->elements());
+  if (object->HasSloppyArgumentsElements()) {
+    FixedArray* arguments = FixedArray::cast(parameters->get(1));
+    return *out <= arguments->length();
+  }
+  return *out <= parameters->length();
 }
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
@@ -111,7 +124,7 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   int args_length = args->length();
   if (first_added_arg >= args_length) return true;
 
-  if (IsFastObjectElementsKind(origin_kind)) return true;
+  if (IsObjectElementsKind(origin_kind)) return true;
   ElementsKind target_kind = origin_kind;
   {
     DisallowHeapAllocation no_gc;
@@ -119,9 +132,9 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
       Object* arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
-          target_kind = FAST_DOUBLE_ELEMENTS;
+          target_kind = PACKED_DOUBLE_ELEMENTS;
         } else {
-          target_kind = FAST_ELEMENTS;
+          target_kind = PACKED_ELEMENTS;
           break;
         }
       }
@@ -143,14 +156,15 @@ MUST_USE_RESULT static Object* CallJsIntrinsic(Isolate* isolate,
   int argc = args.length() - 1;
   ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at<Object>(i + 1);
+    argv[i] = args.at(i + 1);
   }
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Execution::Call(isolate, function, args.receiver(), argc, argv.start()));
 }
+}  // namespace
 
-Object* DoArrayPush(Isolate* isolate, BuiltinArguments args) {
+BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1)) {
@@ -159,11 +173,11 @@ Object* DoArrayPush(Isolate* isolate, BuiltinArguments args) {
   // Fast Elements Path
   int to_add = args.length() - 1;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   if (to_add == 0) return Smi::FromInt(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
-  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
@@ -172,20 +186,6 @@ Object* DoArrayPush(Isolate* isolate, BuiltinArguments args) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = accessor->Push(array, &args, to_add);
   return Smi::FromInt(new_length);
-}
-}  // namespace
-
-BUILTIN(ArrayPush) { return DoArrayPush(isolate, args); }
-
-// TODO(verwaest): This is a temporary helper until the FastArrayPush stub can
-// tailcall to the builtin directly.
-RUNTIME_FUNCTION(Runtime_ArrayPush) {
-  DCHECK_EQ(2, args.length());
-  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
-  // Rewrap the arguments as builtins arguments.
-  int argc = incoming->length() + BuiltinArguments::kNumExtraArgsWithReceiver;
-  BuiltinArguments caller_args(argc, incoming->arguments() + 1);
-  return DoArrayPush(isolate, caller_args);
 }
 
 BUILTIN(ArrayPop) {
@@ -197,7 +197,7 @@ BUILTIN(ArrayPop) {
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  uint32_t len = static_cast<uint32_t>(Smi::cast(array->length())->value());
+  uint32_t len = static_cast<uint32_t>(Smi::ToInt(array->length()));
   if (len == 0) return isolate->heap()->undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
@@ -228,7 +228,7 @@ BUILTIN(ArrayShift) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   if (len == 0) return heap->undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
@@ -250,7 +250,7 @@ BUILTIN(ArrayUnshift) {
   if (to_add == 0) return array->length();
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
-  DCHECK_LE(to_add, Smi::kMaxValue - Smi::cast(array->length())->value());
+  DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
@@ -279,7 +279,7 @@ BUILTIN(ArraySlice) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
-    len = Smi::cast(array->length())->value();
+    len = Smi::ToInt(array->length());
   } else if (receiver->IsJSObject() &&
              GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
                                       &len)) {
@@ -352,7 +352,7 @@ BUILTIN(ArraySplice) {
       return CallJsIntrinsic(isolate, isolate->array_splice(), args);
     }
   }
-  int len = Smi::cast(array->length())->value();
+  int len = Smi::ToInt(array->length());
   // clip relative start to [0, len]
   int actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
                                           : Min(relative_start, len);
@@ -407,14 +407,18 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<Object> storage,
+  ArrayConcatVisitor(Isolate* isolate, Handle<HeapObject> storage,
                      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
-        bit_field_(FastElementsField::encode(fast_elements) |
-                   ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(storage->IsFixedArray())) {
+        bit_field_(
+            FastElementsField::encode(fast_elements) |
+            ExceedsLimitField::encode(false) |
+            IsFixedArrayField::encode(storage->IsFixedArray()) |
+            HasSimpleElementsField::encode(storage->IsFixedArray() ||
+                                           storage->map()->instance_type() >
+                                               LAST_CUSTOM_ELEMENTS_RECEIVER)) {
     DCHECK(!(this->fast_elements() && !is_fixed_array()));
   }
 
@@ -456,8 +460,9 @@ class ArrayConcatVisitor {
         SeededNumberDictionary::cast(*storage_));
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
+    Handle<JSObject> not_a_prototype_holder;
     Handle<SeededNumberDictionary> result =
-        SeededNumberDictionary::AtNumberPut(dict, index, elm, false);
+        SeededNumberDictionary::Set(dict, index, elm, not_a_prototype_holder);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -492,22 +497,27 @@ class ArrayConcatVisitor {
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map = JSObject::GetElementsTransitionMap(
-        array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
-    array->set_map(*map);
+        array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_length(*length);
     array->set_elements(*storage_fixed_array());
+    array->synchronized_set_map(*map);
     return array;
   }
 
-  // Storage is either a FixedArray (if is_fixed_array()) or a JSReciever
-  // (otherwise)
-  Handle<FixedArray> storage_fixed_array() {
-    DCHECK(is_fixed_array());
-    return Handle<FixedArray>::cast(storage_);
-  }
-  Handle<JSReceiver> storage_jsreceiver() {
+  MUST_USE_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
-    return Handle<JSReceiver>::cast(storage_);
+    Handle<JSReceiver> result = Handle<JSReceiver>::cast(storage_);
+    Handle<Object> length =
+        isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
+    RETURN_ON_EXCEPTION(
+        isolate_,
+        JSReceiver::SetProperty(result, isolate_->factory()->length_string(),
+                                length, STRICT),
+        JSReceiver);
+    return result;
+  }
+  bool has_simple_elements() const {
+    return HasSimpleElementsField::decode(bit_field_);
   }
 
  private:
@@ -524,9 +534,10 @@ class ArrayConcatVisitor {
           if (!element->IsTheHole(isolate_)) {
             // The object holding this backing store has just been allocated, so
             // it cannot yet be used as a prototype.
+            Handle<JSObject> not_a_prototype_holder;
             Handle<SeededNumberDictionary> new_storage =
-                SeededNumberDictionary::AtNumberPut(slow_storage, i, element,
-                                                    false);
+                SeededNumberDictionary::Set(slow_storage, i, element,
+                                            not_a_prototype_holder);
             if (!new_storage.is_identical_to(slow_storage)) {
               slow_storage = loop_scope.CloseAndEscape(new_storage);
             }
@@ -541,12 +552,14 @@ class ArrayConcatVisitor {
 
   inline void set_storage(FixedArray* storage) {
     DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
   class FastElementsField : public BitField<bool, 0, 1> {};
   class ExceedsLimitField : public BitField<bool, 1, 1> {};
   class IsFixedArrayField : public BitField<bool, 2, 1> {};
+  class HasSimpleElementsField : public BitField<bool, 3, 1> {};
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -556,6 +569,11 @@ class ArrayConcatVisitor {
     bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
   }
   bool is_fixed_array() const { return IsFixedArrayField::decode(bit_field_); }
+  Handle<FixedArray> storage_fixed_array() {
+    DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
+    return Handle<FixedArray>::cast(storage_);
+  }
 
   Isolate* isolate_;
   Handle<Object> storage_;  // Always a global handle.
@@ -570,10 +588,10 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       DCHECK(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
@@ -585,8 +603,8 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case PACKED_DOUBLE_ELEMENTS:
+    case HOLEY_DOUBLE_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       DCHECK(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
@@ -627,42 +645,34 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       UNREACHABLE();
-      return 0;
   }
   // As an estimate, we assume that the prototype doesn't contain any
   // inherited elements.
   return element_count;
 }
 
-// Used for sorting indices in a List<uint32_t>.
-int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
-  uint32_t a = *ap;
-  uint32_t b = *bp;
-  return (a == b) ? 0 : (a < b) ? -1 : 1;
-}
-
 void CollectElementIndices(Handle<JSObject> object, uint32_t range,
-                           List<uint32_t>* indices) {
+                           std::vector<uint32_t>* indices) {
   Isolate* isolate = object->GetIsolate();
   ElementsKind kind = object->GetElementsKind();
   switch (kind) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
       FixedArray* elements = FixedArray::cast(object->elements());
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!elements->get(i)->IsTheHole(isolate)) {
-          indices->Add(i);
+          indices->push_back(i);
         }
       }
       break;
     }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
       if (object->elements()->IsFixedArray()) {
         DCHECK(object->elements()->length() == 0);
         break;
@@ -673,7 +683,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) {
-          indices->Add(i);
+          indices->push_back(i);
         }
       }
       break;
@@ -689,7 +699,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         if (index < range) {
-          indices->Add(index);
+          indices->push_back(index);
         }
       });
       break;
@@ -705,20 +715,23 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
           length = range;
           // We will add all indices, so we might as well clear it first
           // and avoid duplicates.
-          indices->Clear();
+          indices->clear();
         }
         for (uint32_t i = 0; i < length; i++) {
-          indices->Add(i);
+          indices->push_back(i);
         }
         if (length == range) return;  // All indices accounted for already.
         break;
       }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
+      DisallowHeapAllocation no_gc;
+      FixedArrayBase* elements = object->elements();
+      JSObject* raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < range; i++) {
-        if (accessor->HasElement(object, i)) {
-          indices->Add(i);
+        if (accessor->HasElement(raw_object, i, elements)) {
+          indices->push_back(i);
         }
       }
       break;
@@ -733,12 +746,12 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       uint32_t i = 0;
       uint32_t limit = Min(length, range);
       for (; i < limit; i++) {
-        indices->Add(i);
+        indices->push_back(i);
       }
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (; i < range; i++) {
-        if (accessor->HasElement(object, i)) {
-          indices->Add(i);
+        if (accessor->HasElement(*object, i)) {
+          indices->push_back(i);
         }
       }
       break;
@@ -772,7 +785,6 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
   visitor->increase_index_offset(length);
   return true;
 }
-
 /**
  * A helper function that visits "array" elements of a JSReceiver in numerical
  * order.
@@ -802,16 +814,17 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
-  if (!HasOnlySimpleElements(isolate, *receiver)) {
+  if (!HasOnlySimpleElements(isolate, *receiver) ||
+      !visitor->has_simple_elements()) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
 
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case PACKED_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(array->elements()));
@@ -836,8 +849,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       });
       break;
     }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
+    case HOLEY_DOUBLE_ELEMENTS:
+    case PACKED_DOUBLE_ELEMENTS: {
       // Empty array is FixedArray but not FixedDoubleArray.
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
@@ -875,13 +888,15 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
     case DICTIONARY_ELEMENTS: {
       Handle<SeededNumberDictionary> dict(array->element_dictionary());
-      List<uint32_t> indices(dict->Capacity() / 2);
+      std::vector<uint32_t> indices;
+      indices.reserve(dict->Capacity() / 2);
+
       // Collect all indices in the object and the prototypes less
       // than length. This might introduce duplicates in the indices list.
       CollectElementIndices(array, length, &indices);
-      indices.Sort(&compareUInt32);
-      int n = indices.length();
-      FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < n, (void)0, {
+      std::sort(indices.begin(), indices.end());
+      size_t n = indices.size();
+      FOR_WITH_HANDLE_SCOPE(isolate, size_t, j = 0, j, j < n, (void)0, {
         uint32_t index = indices[j];
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -949,10 +964,10 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   // that mutate other arguments (but will otherwise be precise).
   // The number of elements is precise if there are no inherited elements.
 
-  ElementsKind kind = FAST_SMI_ELEMENTS;
+  ElementsKind kind = PACKED_SMI_ELEMENTS;
 
   uint32_t estimate_result_length = 0;
-  uint32_t estimate_nof_elements = 0;
+  uint32_t estimate_nof = 0;
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < argument_count, i++, {
     Handle<Object> obj((*args)[i], isolate);
     uint32_t length_estimate;
@@ -969,7 +984,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     } else {
       if (obj->IsHeapObject()) {
         kind = GetMoreGeneralElementsKind(
-            kind, obj->IsNumber() ? FAST_DOUBLE_ELEMENTS : FAST_ELEMENTS);
+            kind, obj->IsNumber() ? PACKED_DOUBLE_ELEMENTS : PACKED_ELEMENTS);
       }
       length_estimate = 1;
       element_estimate = 1;
@@ -980,20 +995,21 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     } else {
       estimate_result_length += length_estimate;
     }
-    if (JSObject::kMaxElementCount - estimate_nof_elements < element_estimate) {
-      estimate_nof_elements = JSObject::kMaxElementCount;
+    if (JSObject::kMaxElementCount - estimate_nof < element_estimate) {
+      estimate_nof = JSObject::kMaxElementCount;
     } else {
-      estimate_nof_elements += element_estimate;
+      estimate_nof += element_estimate;
     }
   });
 
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
-  bool fast_case =
-      is_array_species && (estimate_nof_elements * 2) >= estimate_result_length;
+  bool fast_case = is_array_species &&
+                   (estimate_nof * 2) >= estimate_result_length &&
+                   isolate->IsIsConcatSpreadableLookupChainIntact();
 
-  if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
+  if (fast_case && kind == PACKED_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
     int j = 0;
@@ -1004,7 +1020,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj((*args)[i], isolate);
         if (obj->IsSmi()) {
-          double_storage->set(j, Smi::cast(*obj)->value());
+          double_storage->set(j, Smi::ToInt(*obj));
           j++;
         } else if (obj->IsNumber()) {
           double_storage->set(j, obj->Number());
@@ -1014,8 +1030,8 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           JSArray* array = JSArray::cast(*obj);
           uint32_t length = static_cast<uint32_t>(array->length()->Number());
           switch (array->GetElementsKind()) {
-            case FAST_HOLEY_DOUBLE_ELEMENTS:
-            case FAST_DOUBLE_ELEMENTS: {
+            case HOLEY_DOUBLE_ELEMENTS:
+            case PACKED_DOUBLE_ELEMENTS: {
               // Empty array is FixedArray but not FixedDoubleArray.
               if (length == 0) break;
               FixedDoubleArray* elements =
@@ -1036,8 +1052,8 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
               }
               break;
             }
-            case FAST_HOLEY_SMI_ELEMENTS:
-            case FAST_SMI_ELEMENTS: {
+            case HOLEY_SMI_ELEMENTS:
+            case PACKED_SMI_ELEMENTS: {
               Object* the_hole = isolate->heap()->the_hole_value();
               FixedArray* elements(FixedArray::cast(array->elements()));
               for (uint32_t i = 0; i < length; i++) {
@@ -1046,14 +1062,14 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                   failure = true;
                   break;
                 }
-                int32_t int_value = Smi::cast(element)->value();
+                int32_t int_value = Smi::ToInt(element);
                 double_storage->set(j, int_value);
                 j++;
               }
               break;
             }
-            case FAST_HOLEY_ELEMENTS:
-            case FAST_ELEMENTS:
+            case HOLEY_ELEMENTS:
+            case PACKED_ELEMENTS:
             case DICTIONARY_ELEMENTS:
             case NO_ELEMENTS:
               DCHECK_EQ(0u, length);
@@ -1071,25 +1087,22 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  Handle<Object> storage;
+  Handle<HeapObject> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
   } else if (is_array_species) {
-    // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
-    uint32_t at_least_space_for =
-        estimate_nof_elements + (estimate_nof_elements >> 2);
-    storage = SeededNumberDictionary::New(isolate, at_least_space_for);
+    storage = SeededNumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> length(Smi::kZero, isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
         Execution::New(isolate, species, species, 1, &length));
-    storage = storage_object;
+    storage = Handle<HeapObject>::cast(storage_object);
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1117,7 +1130,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   if (is_array_species) {
     return *visitor.ToArray();
   } else {
-    return *visitor.storage_jsreceiver();
+    RETURN_RESULT_OR_FAILURE(isolate, visitor.ToJSReceiver());
   }
 }
 
@@ -1168,7 +1181,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
       }
       // The Array length is guaranted to be <= kHalfOfMaxInt thus we won't
       // overflow.
-      result_len += Smi::cast(array->length())->value();
+      result_len += Smi::ToInt(array->length());
       DCHECK(result_len >= 0);
       // Throw an Error if we overflow the FixedArray limits
       if (FixedDoubleArray::kMaxLength < result_len ||
@@ -1190,15 +1203,9 @@ BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
   Handle<Object> receiver = args.receiver();
-  // TODO(bmeurer): Do we really care about the exact exception message here?
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Array.prototype.concat")));
-  }
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, receiver, Object::ToObject(isolate, args.receiver()));
+      isolate, receiver,
+      Object::ToObject(isolate, args.receiver(), "Array.prototype.concat"));
   args[0] = *receiver;
 
   Handle<JSArray> result_array;
@@ -1224,895 +1231,6 @@ BUILTIN(ArrayConcat) {
     if (isolate->has_pending_exception()) return isolate->heap()->exception();
   }
   return Slow_ArrayConcat(&args, species, isolate);
-}
-
-void Builtins::Generate_ArrayIsArray(CodeStubAssembler* assembler) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-
-  Node* object = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
-
-  Label call_runtime(assembler), return_true(assembler),
-      return_false(assembler);
-
-  assembler->GotoIf(assembler->WordIsSmi(object), &return_false);
-  Node* instance_type = assembler->LoadInstanceType(object);
-
-  assembler->GotoIf(assembler->Word32Equal(
-                        instance_type, assembler->Int32Constant(JS_ARRAY_TYPE)),
-                    &return_true);
-
-  // TODO(verwaest): Handle proxies in-place.
-  assembler->Branch(assembler->Word32Equal(
-                        instance_type, assembler->Int32Constant(JS_PROXY_TYPE)),
-                    &call_runtime, &return_false);
-
-  assembler->Bind(&return_true);
-  assembler->Return(assembler->BooleanConstant(true));
-
-  assembler->Bind(&return_false);
-  assembler->Return(assembler->BooleanConstant(false));
-
-  assembler->Bind(&call_runtime);
-  assembler->Return(
-      assembler->CallRuntime(Runtime::kArrayIsArray, context, object));
-}
-
-void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Node* array = assembler->Parameter(0);
-  Node* search_element = assembler->Parameter(1);
-  Node* start_from = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3 + 2);
-
-  Node* int32_zero = assembler->Int32Constant(0);
-  Node* int32_one = assembler->Int32Constant(1);
-
-  Node* the_hole = assembler->TheHoleConstant();
-  Node* undefined = assembler->UndefinedConstant();
-  Node* heap_number_map = assembler->HeapNumberMapConstant();
-
-  Variable len_var(assembler, MachineRepresentation::kWord32),
-      index_var(assembler, MachineRepresentation::kWord32),
-      start_from_var(assembler, MachineRepresentation::kWord32);
-
-  Label init_k(assembler), return_true(assembler), return_false(assembler),
-      call_runtime(assembler);
-
-  Label init_len(assembler);
-
-  index_var.Bind(int32_zero);
-  len_var.Bind(int32_zero);
-
-  // Take slow path if not a JSArray, if retrieving elements requires
-  // traversing prototype, or if access checks are required.
-  assembler->BranchIfFastJSArray(array, context, &init_len, &call_runtime);
-
-  assembler->Bind(&init_len);
-  {
-    // Handle case where JSArray length is not an Smi in the runtime
-    Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
-
-    len_var.Bind(assembler->SmiToWord(len));
-    assembler->Branch(assembler->Word32Equal(len_var.value(), int32_zero),
-                      &return_false, &init_k);
-  }
-
-  assembler->Bind(&init_k);
-  {
-    Label done(assembler), init_k_smi(assembler), init_k_heap_num(assembler),
-        init_k_zero(assembler), init_k_n(assembler);
-    Callable call_to_integer = CodeFactory::ToInteger(assembler->isolate());
-    Node* tagged_n = assembler->CallStub(call_to_integer, context, start_from);
-
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
-                      &init_k_heap_num);
-
-    assembler->Bind(&init_k_smi);
-    {
-      start_from_var.Bind(assembler->SmiToWord32(tagged_n));
-      assembler->Goto(&init_k_n);
-    }
-
-    assembler->Bind(&init_k_heap_num);
-    {
-      Label do_return_false(assembler);
-      Node* fp_len = assembler->ChangeInt32ToFloat64(len_var.value());
-      Node* fp_n = assembler->LoadHeapNumberValue(tagged_n);
-      assembler->GotoIf(assembler->Float64GreaterThanOrEqual(fp_n, fp_len),
-                        &do_return_false);
-      start_from_var.Bind(assembler->TruncateFloat64ToWord32(fp_n));
-      assembler->Goto(&init_k_n);
-
-      assembler->Bind(&do_return_false);
-      {
-        index_var.Bind(int32_zero);
-        assembler->Goto(&return_false);
-      }
-    }
-
-    assembler->Bind(&init_k_n);
-    {
-      Label if_positive(assembler), if_negative(assembler), done(assembler);
-      assembler->Branch(
-          assembler->Int32LessThan(start_from_var.value(), int32_zero),
-          &if_negative, &if_positive);
-
-      assembler->Bind(&if_positive);
-      {
-        index_var.Bind(start_from_var.value());
-        assembler->Goto(&done);
-      }
-
-      assembler->Bind(&if_negative);
-      {
-        index_var.Bind(
-            assembler->Int32Add(len_var.value(), start_from_var.value()));
-        assembler->Branch(
-            assembler->Int32LessThan(index_var.value(), int32_zero),
-            &init_k_zero, &done);
-      }
-
-      assembler->Bind(&init_k_zero);
-      {
-        index_var.Bind(int32_zero);
-        assembler->Goto(&done);
-      }
-
-      assembler->Bind(&done);
-    }
-  }
-
-  static int32_t kElementsKind[] = {
-      FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
-      FAST_HOLEY_ELEMENTS, FAST_DOUBLE_ELEMENTS,    FAST_HOLEY_DOUBLE_ELEMENTS,
-  };
-
-  Label if_smiorobjects(assembler), if_packed_doubles(assembler),
-      if_holey_doubles(assembler);
-  Label* element_kind_handlers[] = {&if_smiorobjects,   &if_smiorobjects,
-                                    &if_smiorobjects,   &if_smiorobjects,
-                                    &if_packed_doubles, &if_holey_doubles};
-
-  Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
-  Node* elements = assembler->LoadElements(array);
-  assembler->Switch(elements_kind, &return_false, kElementsKind,
-                    element_kind_handlers, arraysize(kElementsKind));
-
-  assembler->Bind(&if_smiorobjects);
-  {
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-    Label ident_loop(assembler, &index_var),
-        heap_num_loop(assembler, &search_num),
-        string_loop(assembler, &index_var), simd_loop(assembler),
-        undef_loop(assembler, &index_var), not_smi(assembler),
-        not_heap_num(assembler);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&heap_num_loop);
-
-    assembler->Bind(&not_smi);
-    assembler->GotoIf(assembler->WordEqual(search_element, undefined),
-                      &undef_loop);
-    Node* map = assembler->LoadMap(search_element);
-    assembler->GotoIf(assembler->WordNotEqual(map, heap_number_map),
-                      &not_heap_num);
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-    assembler->Goto(&heap_num_loop);
-
-    assembler->Bind(&not_heap_num);
-    Node* search_type = assembler->LoadMapInstanceType(map);
-    assembler->GotoIf(
-        assembler->Int32LessThan(
-            search_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-        &string_loop);
-    assembler->GotoIf(
-        assembler->WordEqual(search_type,
-                             assembler->Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
-    assembler->Goto(&ident_loop);
-
-    assembler->Bind(&ident_loop);
-    {
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordEqual(element_k, search_element),
-                        &return_true);
-
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&ident_loop);
-    }
-
-    assembler->Bind(&undef_loop);
-    {
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordEqual(element_k, undefined),
-                        &return_true);
-      assembler->GotoIf(assembler->WordEqual(element_k, the_hole),
-                        &return_true);
-
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&undef_loop);
-    }
-
-    assembler->Bind(&heap_num_loop);
-    {
-      Label nan_loop(assembler, &index_var),
-          not_nan_loop(assembler, &index_var);
-      assembler->BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                      &not_nan_loop);
-
-      assembler->Bind(&not_nan_loop);
-      {
-        Label continue_loop(assembler), not_smi(assembler);
-        assembler->GotoUnless(
-            assembler->Int32LessThan(index_var.value(), len_var.value()),
-            &return_false);
-        Node* element_k =
-            assembler->LoadFixedArrayElement(elements, index_var.value());
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
-        assembler->Branch(
-            assembler->Float64Equal(search_num.value(),
-                                    assembler->SmiToFloat64(element_k)),
-            &return_true, &continue_loop);
-
-        assembler->Bind(&not_smi);
-        assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
-                                                  heap_number_map),
-                          &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
-            &return_true, &continue_loop);
-
-        assembler->Bind(&continue_loop);
-        index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-        assembler->Goto(&not_nan_loop);
-      }
-
-      assembler->Bind(&nan_loop);
-      {
-        Label continue_loop(assembler);
-        assembler->GotoUnless(
-            assembler->Int32LessThan(index_var.value(), len_var.value()),
-            &return_false);
-        Node* element_k =
-            assembler->LoadFixedArrayElement(elements, index_var.value());
-        assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-        assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
-                                                  heap_number_map),
-                          &continue_loop);
-        assembler->BranchIfFloat64IsNaN(
-            assembler->LoadHeapNumberValue(element_k), &return_true,
-            &continue_loop);
-
-        assembler->Bind(&continue_loop);
-        index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-        assembler->Goto(&nan_loop);
-      }
-    }
-
-    assembler->Bind(&string_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-      assembler->GotoUnless(assembler->Int32LessThan(
-                                assembler->LoadInstanceType(element_k),
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-                            &continue_loop);
-
-      // TODO(bmeurer): Consider inlining the StringEqual logic here.
-      Callable callable = CodeFactory::StringEqual(assembler->isolate());
-      Node* result =
-          assembler->CallStub(callable, context, search_element, element_k);
-      assembler->Branch(
-          assembler->WordEqual(assembler->BooleanConstant(true), result),
-          &return_true, &continue_loop);
-
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&string_loop);
-    }
-
-    assembler->Bind(&simd_loop);
-    {
-      Label continue_loop(assembler, &index_var),
-          loop_body(assembler, &index_var);
-      Node* map = assembler->LoadMap(search_element);
-
-      assembler->Goto(&loop_body);
-      assembler->Bind(&loop_body);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler->LoadMap(element_k);
-      assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                      &return_true, &continue_loop);
-
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&loop_body);
-    }
-  }
-
-  assembler->Bind(&if_packed_doubles);
-  {
-    Label nan_loop(assembler, &index_var), not_nan_loop(assembler, &index_var),
-        hole_loop(assembler, &index_var), search_notnan(assembler);
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&not_nan_loop);
-
-    assembler->Bind(&search_notnan);
-    assembler->GotoIf(assembler->WordNotEqual(
-                          assembler->LoadMap(search_element), heap_number_map),
-                      &return_false);
-
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-
-    assembler->BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                    &not_nan_loop);
-
-    // Search for HeapNumber
-    assembler->Bind(&not_nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&not_nan_loop);
-    }
-
-    // Search for NaN
-    assembler->Bind(&nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&nan_loop);
-    }
-  }
-
-  assembler->Bind(&if_holey_doubles);
-  {
-    Label nan_loop(assembler, &index_var), not_nan_loop(assembler, &index_var),
-        hole_loop(assembler, &index_var), search_notnan(assembler);
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&not_nan_loop);
-
-    assembler->Bind(&search_notnan);
-    assembler->GotoIf(assembler->WordEqual(search_element, undefined),
-                      &hole_loop);
-    assembler->GotoIf(assembler->WordNotEqual(
-                          assembler->LoadMap(search_element), heap_number_map),
-                      &return_false);
-
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-
-    assembler->BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                    &not_nan_loop);
-
-    // Search for HeapNumber
-    assembler->Bind(&not_nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64());
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&not_nan_loop);
-    }
-
-    // Search for NaN
-    assembler->Bind(&nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64());
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&nan_loop);
-    }
-
-    // Search for the Hole
-    assembler->Bind(&hole_loop);
-    {
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64());
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &return_true);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &return_true);
-      }
-
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&hole_loop);
-    }
-  }
-
-  assembler->Bind(&return_true);
-  assembler->Return(assembler->BooleanConstant(true));
-
-  assembler->Bind(&return_false);
-  assembler->Return(assembler->BooleanConstant(false));
-
-  assembler->Bind(&call_runtime);
-  assembler->Return(assembler->CallRuntime(Runtime::kArrayIncludes_Slow,
-                                           context, array, search_element,
-                                           start_from));
-}
-
-void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Node* array = assembler->Parameter(0);
-  Node* search_element = assembler->Parameter(1);
-  Node* start_from = assembler->Parameter(2);
-  Node* context = assembler->Parameter(3 + 2);
-
-  Node* int32_zero = assembler->Int32Constant(0);
-  Node* int32_one = assembler->Int32Constant(1);
-
-  Node* undefined = assembler->UndefinedConstant();
-  Node* heap_number_map = assembler->HeapNumberMapConstant();
-
-  Variable len_var(assembler, MachineRepresentation::kWord32),
-      index_var(assembler, MachineRepresentation::kWord32),
-      start_from_var(assembler, MachineRepresentation::kWord32);
-
-  Label init_k(assembler), return_found(assembler), return_not_found(assembler),
-      call_runtime(assembler);
-
-  Label init_len(assembler);
-
-  index_var.Bind(int32_zero);
-  len_var.Bind(int32_zero);
-
-  // Take slow path if not a JSArray, if retrieving elements requires
-  // traversing prototype, or if access checks are required.
-  assembler->BranchIfFastJSArray(array, context, &init_len, &call_runtime);
-
-  assembler->Bind(&init_len);
-  {
-    // Handle case where JSArray length is not an Smi in the runtime
-    Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
-
-    len_var.Bind(assembler->SmiToWord(len));
-    assembler->Branch(assembler->Word32Equal(len_var.value(), int32_zero),
-                      &return_not_found, &init_k);
-  }
-
-  assembler->Bind(&init_k);
-  {
-    Label done(assembler), init_k_smi(assembler), init_k_heap_num(assembler),
-        init_k_zero(assembler), init_k_n(assembler);
-    Callable call_to_integer = CodeFactory::ToInteger(assembler->isolate());
-    Node* tagged_n = assembler->CallStub(call_to_integer, context, start_from);
-
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
-                      &init_k_heap_num);
-
-    assembler->Bind(&init_k_smi);
-    {
-      start_from_var.Bind(assembler->SmiToWord32(tagged_n));
-      assembler->Goto(&init_k_n);
-    }
-
-    assembler->Bind(&init_k_heap_num);
-    {
-      Label do_return_not_found(assembler);
-      Node* fp_len = assembler->ChangeInt32ToFloat64(len_var.value());
-      Node* fp_n = assembler->LoadHeapNumberValue(tagged_n);
-      assembler->GotoIf(assembler->Float64GreaterThanOrEqual(fp_n, fp_len),
-                        &do_return_not_found);
-      start_from_var.Bind(assembler->TruncateFloat64ToWord32(fp_n));
-      assembler->Goto(&init_k_n);
-
-      assembler->Bind(&do_return_not_found);
-      {
-        index_var.Bind(int32_zero);
-        assembler->Goto(&return_not_found);
-      }
-    }
-
-    assembler->Bind(&init_k_n);
-    {
-      Label if_positive(assembler), if_negative(assembler), done(assembler);
-      assembler->Branch(
-          assembler->Int32LessThan(start_from_var.value(), int32_zero),
-          &if_negative, &if_positive);
-
-      assembler->Bind(&if_positive);
-      {
-        index_var.Bind(start_from_var.value());
-        assembler->Goto(&done);
-      }
-
-      assembler->Bind(&if_negative);
-      {
-        index_var.Bind(
-            assembler->Int32Add(len_var.value(), start_from_var.value()));
-        assembler->Branch(
-            assembler->Int32LessThan(index_var.value(), int32_zero),
-            &init_k_zero, &done);
-      }
-
-      assembler->Bind(&init_k_zero);
-      {
-        index_var.Bind(int32_zero);
-        assembler->Goto(&done);
-      }
-
-      assembler->Bind(&done);
-    }
-  }
-
-  static int32_t kElementsKind[] = {
-      FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
-      FAST_HOLEY_ELEMENTS, FAST_DOUBLE_ELEMENTS,    FAST_HOLEY_DOUBLE_ELEMENTS,
-  };
-
-  Label if_smiorobjects(assembler), if_packed_doubles(assembler),
-      if_holey_doubles(assembler);
-  Label* element_kind_handlers[] = {&if_smiorobjects,   &if_smiorobjects,
-                                    &if_smiorobjects,   &if_smiorobjects,
-                                    &if_packed_doubles, &if_holey_doubles};
-
-  Node* map = assembler->LoadMap(array);
-  Node* bit_field2 = assembler->LoadMapBitField2(map);
-  Node* elements_kind =
-      assembler->BitFieldDecode<Map::ElementsKindBits>(bit_field2);
-  Node* elements = assembler->LoadElements(array);
-  assembler->Switch(elements_kind, &return_not_found, kElementsKind,
-                    element_kind_handlers, arraysize(kElementsKind));
-
-  assembler->Bind(&if_smiorobjects);
-  {
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-    Label ident_loop(assembler, &index_var),
-        heap_num_loop(assembler, &search_num),
-        string_loop(assembler, &index_var), simd_loop(assembler),
-        undef_loop(assembler, &index_var), not_smi(assembler),
-        not_heap_num(assembler);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&heap_num_loop);
-
-    assembler->Bind(&not_smi);
-    assembler->GotoIf(assembler->WordEqual(search_element, undefined),
-                      &undef_loop);
-    Node* map = assembler->LoadMap(search_element);
-    assembler->GotoIf(assembler->WordNotEqual(map, heap_number_map),
-                      &not_heap_num);
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-    assembler->Goto(&heap_num_loop);
-
-    assembler->Bind(&not_heap_num);
-    Node* search_type = assembler->LoadMapInstanceType(map);
-    assembler->GotoIf(
-        assembler->Int32LessThan(
-            search_type, assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-        &string_loop);
-    assembler->GotoIf(
-        assembler->WordEqual(search_type,
-                             assembler->Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
-    assembler->Goto(&ident_loop);
-
-    assembler->Bind(&ident_loop);
-    {
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordEqual(element_k, search_element),
-                        &return_found);
-
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&ident_loop);
-    }
-
-    assembler->Bind(&undef_loop);
-    {
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordEqual(element_k, undefined),
-                        &return_found);
-
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&undef_loop);
-    }
-
-    assembler->Bind(&heap_num_loop);
-    {
-      Label not_nan_loop(assembler, &index_var);
-      assembler->BranchIfFloat64IsNaN(search_num.value(), &return_not_found,
-                                      &not_nan_loop);
-
-      assembler->Bind(&not_nan_loop);
-      {
-        Label continue_loop(assembler), not_smi(assembler);
-        assembler->GotoUnless(
-            assembler->Int32LessThan(index_var.value(), len_var.value()),
-            &return_not_found);
-        Node* element_k =
-            assembler->LoadFixedArrayElement(elements, index_var.value());
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
-        assembler->Branch(
-            assembler->Float64Equal(search_num.value(),
-                                    assembler->SmiToFloat64(element_k)),
-            &return_found, &continue_loop);
-
-        assembler->Bind(&not_smi);
-        assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
-                                                  heap_number_map),
-                          &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
-            &return_found, &continue_loop);
-
-        assembler->Bind(&continue_loop);
-        index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-        assembler->Goto(&not_nan_loop);
-      }
-    }
-
-    assembler->Bind(&string_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-      assembler->GotoUnless(assembler->Int32LessThan(
-                                assembler->LoadInstanceType(element_k),
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-                            &continue_loop);
-
-      // TODO(bmeurer): Consider inlining the StringEqual logic here.
-      Callable callable = CodeFactory::StringEqual(assembler->isolate());
-      Node* result =
-          assembler->CallStub(callable, context, search_element, element_k);
-      assembler->Branch(
-          assembler->WordEqual(assembler->BooleanConstant(true), result),
-          &return_found, &continue_loop);
-
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&string_loop);
-    }
-
-    assembler->Bind(&simd_loop);
-    {
-      Label continue_loop(assembler, &index_var),
-          loop_body(assembler, &index_var);
-      Node* map = assembler->LoadMap(search_element);
-
-      assembler->Goto(&loop_body);
-      assembler->Bind(&loop_body);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-
-      Node* element_k =
-          assembler->LoadFixedArrayElement(elements, index_var.value());
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler->LoadMap(element_k);
-      assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                      &return_found, &continue_loop);
-
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&loop_body);
-    }
-  }
-
-  assembler->Bind(&if_packed_doubles);
-  {
-    Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&not_nan_loop);
-
-    assembler->Bind(&search_notnan);
-    assembler->GotoIf(assembler->WordNotEqual(
-                          assembler->LoadMap(search_element), heap_number_map),
-                      &return_not_found);
-
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-
-    assembler->BranchIfFloat64IsNaN(search_num.value(), &return_not_found,
-                                    &not_nan_loop);
-
-    // Search for HeapNumber
-    assembler->Bind(&not_nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&not_nan_loop);
-    }
-  }
-
-  assembler->Bind(&if_holey_doubles);
-  {
-    Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
-    Variable search_num(assembler, MachineRepresentation::kFloat64);
-
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler->SmiToFloat64(search_element));
-    assembler->Goto(&not_nan_loop);
-
-    assembler->Bind(&search_notnan);
-    assembler->GotoIf(assembler->WordNotEqual(
-                          assembler->LoadMap(search_element), heap_number_map),
-                      &return_not_found);
-
-    search_num.Bind(assembler->LoadHeapNumberValue(search_element));
-
-    assembler->BranchIfFloat64IsNaN(search_num.value(), &return_not_found,
-                                    &not_nan_loop);
-
-    // Search for HeapNumber
-    assembler->Bind(&not_nan_loop);
-    {
-      Label continue_loop(assembler);
-      assembler->GotoUnless(
-          assembler->Int32LessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-
-      if (kPointerSize == kDoubleSize) {
-        Node* element = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint64());
-        Node* the_hole = assembler->Int64Constant(kHoleNanInt64);
-        assembler->GotoIf(assembler->Word64Equal(element, the_hole),
-                          &continue_loop);
-      } else {
-        Node* element_upper = assembler->LoadFixedDoubleArrayElement(
-            elements, index_var.value(), MachineType::Uint32(),
-            kIeeeDoubleExponentWordOffset);
-        assembler->GotoIf(
-            assembler->Word32Equal(element_upper,
-                                   assembler->Int32Constant(kHoleNanUpper32)),
-            &continue_loop);
-      }
-
-      Node* element_k = assembler->LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
-      assembler->Bind(&continue_loop);
-      index_var.Bind(assembler->Int32Add(index_var.value(), int32_one));
-      assembler->Goto(&not_nan_loop);
-    }
-  }
-
-  assembler->Bind(&return_found);
-  assembler->Return(assembler->ChangeInt32ToTagged(index_var.value()));
-
-  assembler->Bind(&return_not_found);
-  assembler->Return(assembler->NumberConstant(-1));
-
-  assembler->Bind(&call_runtime);
-  assembler->Return(assembler->CallRuntime(Runtime::kArrayIndexOf, context,
-                                           array, search_element, start_from));
 }
 
 }  // namespace internal

@@ -9,15 +9,16 @@
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
+#include "src/objects-inl.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/unicode.h"
 #include "src/utils.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -174,7 +175,6 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
     switch (insn & BYTECODE_MASK) {
       BYTECODE(BREAK)
         UNREACHABLE();
-        return RegExpImpl::RE_FAILURE;
       BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
           return RegExpImpl::RE_EXCEPTION;

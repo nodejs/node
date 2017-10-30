@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 
@@ -14,17 +15,18 @@ namespace internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
-  Processor(Isolate* isolate, DeclarationScope* closure_scope, Variable* result,
-            AstValueFactory* ast_value_factory)
+  Processor(uintptr_t stack_limit, DeclarationScope* closure_scope,
+            Variable* result, AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, ast_value_factory->zone()) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(stack_limit);
   }
 
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
@@ -33,9 +35,10 @@ class Processor final : public AstVisitor<Processor> {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, zone_) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }
@@ -77,6 +80,22 @@ class Processor final : public AstVisitor<Processor> {
   // was hoping for.
   bool is_set_;
 
+  bool breakable_;
+
+  class BreakableScope final {
+   public:
+    explicit BreakableScope(Processor* processor, bool breakable = true)
+        : processor_(processor), previous_(processor->breakable_) {
+      processor->breakable_ = processor->breakable_ || breakable;
+    }
+
+    ~BreakableScope() { processor_->breakable_ = previous_; }
+
+   private:
+    Processor* processor_;
+    bool previous_;
+  };
+
   Zone* zone_;
   DeclarationScope* closure_scope_;
   AstNodeFactory factory_;
@@ -93,11 +112,9 @@ class Processor final : public AstVisitor<Processor> {
 
 
 Statement* Processor::AssignUndefinedBefore(Statement* s) {
-  Expression* result_proxy = factory()->NewVariableProxy(result_);
   Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  Expression* assignment = factory()->NewAssignment(Token::ASSIGN, result_proxy,
-                                                    undef, kNoSourcePosition);
-  Block* b = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
+  Expression* assignment = SetResult(undef);
+  Block* b = factory()->NewBlock(2, false);
   b->statements()->Add(
       factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
   b->statements()->Add(s, zone());
@@ -106,7 +123,13 @@ Statement* Processor::AssignUndefinedBefore(Statement* s) {
 
 
 void Processor::Process(ZoneList<Statement*>* statements) {
-  for (int i = statements->length() - 1; i >= 0; --i) {
+  // If we're in a breakable scope (named block, iteration, or switch), we walk
+  // all statements. The last value producing statement before the break needs
+  // to assign to .result. If we're not in a breakable scope, only the last
+  // value producing statement in the block assigns to .result, so we can stop
+  // early.
+  for (int i = statements->length() - 1; i >= 0 && (breakable_ || !is_set_);
+       --i) {
     Visit(statements->at(i));
     statements->Set(i, replacement_);
   }
@@ -122,7 +145,10 @@ void Processor::VisitBlock(Block* node) {
   // with some JS VMs: For instance, using smjs, print(eval('var x = 7'))
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
-  if (!node->ignore_completion_value()) Process(node->statements());
+  if (!node->ignore_completion_value()) {
+    BreakableScope scope(this, node->labels() != nullptr);
+    Process(node->statements());
+  }
   replacement_ = node;
 }
 
@@ -140,35 +166,33 @@ void Processor::VisitExpressionStatement(ExpressionStatement* node) {
 void Processor::VisitIfStatement(IfStatement* node) {
   // Rewrite both branches.
   bool set_after = is_set_;
+
   Visit(node->then_statement());
   node->set_then_statement(replacement_);
   bool set_in_then = is_set_;
+
   is_set_ = set_after;
   Visit(node->else_statement());
   node->set_else_statement(replacement_);
-  is_set_ = is_set_ && set_in_then;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = set_in_then && is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitIterationStatement(IterationStatement* node) {
-  // Rewrite the body.
-  bool set_after = is_set_;
-  is_set_ = false;  // We are in a loop, so we can't rely on [set_after].
+  // The statement may have to produce a value, so always assign undefined
+  // before.
+  // TODO(verwaest): Omit it if we know that there's no break/continue leaving
+  // it early.
+  DCHECK(breakable_ || !is_set_);
+  BreakableScope scope(this);
+
   Visit(node->body());
   node->set_body(replacement_);
-  is_set_ = is_set_ && set_after;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
@@ -200,73 +224,70 @@ void Processor::VisitForOfStatement(ForOfStatement* node) {
 void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   // Rewrite both try and catch block.
   bool set_after = is_set_;
+
   Visit(node->try_block());
   node->set_try_block(static_cast<Block*>(replacement_));
   bool set_in_try = is_set_;
+
   is_set_ = set_after;
   Visit(node->catch_block());
   node->set_catch_block(static_cast<Block*>(replacement_));
-  is_set_ = is_set_ && set_in_try;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ && set_in_try ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
-  // Rewrite both try and finally block (in reverse order).
-  bool set_after = is_set_;
-  is_set_ = true;  // Don't normally need to assign in finally block.
-  Visit(node->finally_block());
-  node->set_finally_block(replacement_->AsBlock());
-  {  // Save .result value at the beginning of the finally block and restore it
-     // at the end again: ".backup = .result; ...; .result = .backup"
-     // This is necessary because the finally block does not normally contribute
-     // to the completion value.
-     CHECK_NOT_NULL(closure_scope());
-     Variable* backup = closure_scope()->NewTemporary(
-         factory()->ast_value_factory()->dot_result_string());
-     Expression* backup_proxy = factory()->NewVariableProxy(backup);
-     Expression* result_proxy = factory()->NewVariableProxy(result_);
-     Expression* save = factory()->NewAssignment(
-         Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
-     Expression* restore = factory()->NewAssignment(
-         Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
-     node->finally_block()->statements()->InsertAt(
-         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
-     node->finally_block()->statements()->Add(
-         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+  // Only rewrite finally if it could contain 'break' or 'continue'. Always
+  // rewrite try.
+  if (breakable_) {
+    // Only set result before a 'break' or 'continue'.
+    is_set_ = true;
+    Visit(node->finally_block());
+    node->set_finally_block(replacement_->AsBlock());
+    // Save .result value at the beginning of the finally block and restore it
+    // at the end again: ".backup = .result; ...; .result = .backup"
+    // This is necessary because the finally block does not normally contribute
+    // to the completion value.
+    CHECK_NOT_NULL(closure_scope());
+    Variable* backup = closure_scope()->NewTemporary(
+        factory()->ast_value_factory()->dot_result_string());
+    Expression* backup_proxy = factory()->NewVariableProxy(backup);
+    Expression* result_proxy = factory()->NewVariableProxy(result_);
+    Expression* save = factory()->NewAssignment(
+        Token::ASSIGN, backup_proxy, result_proxy, kNoSourcePosition);
+    Expression* restore = factory()->NewAssignment(
+        Token::ASSIGN, result_proxy, backup_proxy, kNoSourcePosition);
+    node->finally_block()->statements()->InsertAt(
+        0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
+    node->finally_block()->statements()->Add(
+        factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
   }
-  is_set_ = set_after;
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
 void Processor::VisitSwitchStatement(SwitchStatement* node) {
-  // Rewrite statements in all case clauses (in reverse order).
+  // The statement may have to produce a value, so always assign undefined
+  // before.
+  // TODO(verwaest): Omit it if we know that there's no break/continue leaving
+  // it early.
+  DCHECK(breakable_ || !is_set_);
+  BreakableScope scope(this);
+  // Rewrite statements in all case clauses.
   ZoneList<CaseClause*>* clauses = node->cases();
-  bool set_after = is_set_;
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
   }
-  is_set_ = is_set_ && set_after;
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
@@ -285,12 +306,9 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 void Processor::VisitWithStatement(WithStatement* node) {
   Visit(node->statement());
   node->set_statement(replacement_);
-  replacement_ = node;
 
-  if (!is_set_) {
-    is_set_ = true;
-    replacement_ = AssignUndefinedBefore(node);
-  }
+  replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
+  is_set_ = true;
 }
 
 
@@ -335,32 +353,45 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  RuntimeCallTimerScope runtimeTimer(
+      info->runtime_call_stats(),
+      &RuntimeCallStats::CompileRewriteReturnResult);
+
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
-  if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
-  DeclarationScope* closure_scope = scope->GetClosureScope();
+  DCHECK_EQ(scope, scope->GetClosureScope());
+
+  if (!(scope->is_script_scope() || scope->is_eval_scope() ||
+        scope->is_module_scope())) {
+    return true;
+  }
 
   ZoneList<Statement*>* body = function->body();
+  DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
-    Variable* result = closure_scope->NewTemporary(
+    Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
-    // The name string must be internalized at this point.
-    DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), closure_scope, result,
-                        info->ast_value_factory());
+    Processor processor(info->stack_limit(), scope->AsDeclarationScope(),
+                        result, info->ast_value_factory());
     processor.Process(body);
-    if (processor.HasStackOverflow()) return false;
 
+    DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
     if (processor.result_assigned()) {
       int pos = kNoSourcePosition;
-      VariableProxy* result_proxy =
+      Expression* result_value =
           processor.factory()->NewVariableProxy(result, pos);
       Statement* result_statement =
-          processor.factory()->NewReturnStatement(result_proxy, pos);
+          processor.factory()->NewReturnStatement(result_value, pos);
       body->Add(result_statement, info->zone());
     }
+
+    if (processor.HasStackOverflow()) return false;
   }
 
   return true;
@@ -368,6 +399,10 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
                        DoExpression* expr, AstValueFactory* factory) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   Block* block = expr->block();
   DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
   DCHECK(block->scope() == nullptr ||

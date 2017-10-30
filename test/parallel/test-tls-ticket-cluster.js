@@ -1,29 +1,47 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
 
-var cluster = require('cluster');
-var fs = require('fs');
-var join = require('path').join;
+const assert = require('assert');
+const tls = require('tls');
+const cluster = require('cluster');
+const fixtures = require('../common/fixtures');
 
-var workerCount = 4;
-var expectedReqCount = 16;
+const workerCount = 4;
+const expectedReqCount = 16;
 
 if (cluster.isMaster) {
-  var reusedCount = 0;
-  var reqCount = 0;
-  var lastSession = null;
-  var shootOnce = false;
+  let reusedCount = 0;
+  let reqCount = 0;
+  let lastSession = null;
+  let shootOnce = false;
+  let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting');
-    var c = tls.connect(common.PORT, {
+    console.error('[master] connecting', workerPort);
+    const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
     }, function() {
@@ -41,12 +59,13 @@ if (cluster.isMaster) {
   }
 
   function fork() {
-    var worker = cluster.fork();
-    worker.on('message', function(msg) {
+    const worker = cluster.fork();
+    worker.on('message', function({ msg, port }) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
       } else if (msg === 'listening' && !shootOnce) {
+        workerPort = port || workerPort;
         shootOnce = true;
         shoot();
       }
@@ -56,37 +75,37 @@ if (cluster.isMaster) {
       console.error('[master] worker died');
     });
   }
-  for (var i = 0; i < workerCount; i++) {
+  for (let i = 0; i < workerCount; i++) {
     fork();
   }
 
   process.on('exit', function() {
-    assert.equal(reqCount, expectedReqCount);
-    assert.equal(reusedCount + 1, reqCount);
+    assert.strictEqual(reqCount, expectedReqCount);
+    assert.strictEqual(reusedCount + 1, reqCount);
   });
   return;
 }
 
-var keyFile = join(common.fixturesDir, 'agent.key');
-var certFile = join(common.fixturesDir, 'agent.crt');
-var key = fs.readFileSync(keyFile);
-var cert = fs.readFileSync(certFile);
-var options = {
-  key: key,
-  cert: cert
-};
+const key = fixtures.readSync('agent.key');
+const cert = fixtures.readSync('agent.crt');
 
-var server = tls.createServer(options, function(c) {
+const options = { key, cert };
+
+const server = tls.createServer(options, function(c) {
   if (c.isSessionReused()) {
-    process.send('reused');
+    process.send({ msg: 'reused' });
   } else {
-    process.send('not-reused');
+    process.send({ msg: 'not-reused' });
   }
   c.end();
 });
 
-server.listen(common.PORT, function() {
-  process.send('listening');
+server.listen(0, function() {
+  const { port } = server.address();
+  process.send({
+    msg: 'listening',
+    port,
+  });
 });
 
 process.on('message', function listener(msg) {

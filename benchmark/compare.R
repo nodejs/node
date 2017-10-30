@@ -46,8 +46,8 @@ statistics = ddply(dat, "name", function(subdat) {
   improvement = sprintf("%.2f %%", ((new.mu - old.mu) / old.mu * 100));
 
   p.value = NA;
-  significant = 'NA';
-  # Check if there is enough data to calulate the calculate the p-value
+  confidence = 'NA';
+  # Check if there is enough data to calculate the calculate the p-value
   if (length(old.rate) > 1 && length(new.rate) > 1) {
     # Perform a statistics test to see of there actually is a difference in
     # performance.
@@ -56,19 +56,19 @@ statistics = ddply(dat, "name", function(subdat) {
 
     # Add user friendly stars to the table. There should be at least one star
     # before you can say that there is an improvement.
-    significant = '';
+    confidence = '';
     if (p.value < 0.001) {
-      significant = '***';
+      confidence = '***';
     } else if (p.value < 0.01) {
-      significant = '**';
+      confidence = '**';
     } else if (p.value < 0.05) {
-      significant = '*';
+      confidence = '*';
     }
   }
 
   r = list(
     improvement = improvement,
-    significant = significant,
+    confidence = confidence,
     p.value = p.value
   );
   return(data.frame(r));

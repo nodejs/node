@@ -12,20 +12,20 @@ if (process.argv[2] === 'child') {
 
 } else {
   (function runTest(flags) {
-    var execArgv = [flags.pop()];
-    var args = [__filename, 'child'];
-    var cntr = 0;
+    const execArgv = [flags.pop()];
+    let args = [__filename, 'child'];
+    let cntr = 0;
     args = execArgv.concat(args);
     if (!args[0]) args.shift();
     execFile(process.execPath, args, function(err, stdout, stderr) {
-      assert.equal(err, null);
-      assert.equal(stdout, '');
+      assert.strictEqual(err, null);
+      assert.strictEqual(stdout, '');
       if (/WARNING[\s\S]*fs\.readFileSync/.test(stderr))
         cntr++;
       if (args[0] === '--trace-sync-io') {
-        assert.equal(cntr, 1);
+        assert.strictEqual(cntr, 1);
       } else if (args[0] === __filename) {
-        assert.equal(cntr, 0);
+        assert.strictEqual(cntr, 0);
       } else {
         throw new Error('UNREACHABLE');
       }
