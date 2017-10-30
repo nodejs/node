@@ -615,6 +615,11 @@ Used when attempting to perform an operation outside the bounds of a `Buffer`.
 Used when an attempt has been made to create a `Buffer` larger than the
 maximum allowed size.
 
+<a id="ERR_CANNOT_WATCH_SIGINT"></a>
+### ERR_CANNOT_WATCH_SIGINT
+
+Used when Node.js is unable to watch for the `SIGINT` signal.
+
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 ### ERR_CHILD_CLOSED_BEFORE_REPLY
 
@@ -1246,14 +1251,6 @@ range.
 ### ERR_PARSE_HISTORY_DATA
 
 Used by the `REPL` module when it cannot parse data from the REPL history file.
-
-<a id="ERR_REPL_STARTSIGINTWATCHDOG_FAILED"></a>
-### ERR_REPL_STARTSIGINTWATCHDOG_FAILED
-
-The `SigintWatchdog` is an internal utility used by the `repl` module to
-monitor for interupt (`SIGINT`) signals received by the process. If this
-utility cannot be started, the `repl` will not function correctly, so an
-error is thrown.
 
 <a id="ERR_REQUIRE_ESM"></a>
 ### ERR_REQUIRE_ESM
