@@ -4,9 +4,7 @@
 #include "node_internals.h"
 #include "node_stat_watcher.h"
 
-#include "env.h"
 #include "env-inl.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "util.h"

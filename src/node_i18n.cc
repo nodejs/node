@@ -24,9 +24,7 @@
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
 #include "node.h"
-#include "env.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 

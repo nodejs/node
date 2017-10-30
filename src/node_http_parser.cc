@@ -2,11 +2,9 @@
 #include "node_buffer.h"
 #include "node_http_parser.h"
 
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
-#include "stream_base.h"
 #include "stream_base-inl.h"
 #include "util.h"
 #include "util-inl.h"

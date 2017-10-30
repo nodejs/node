@@ -1,6 +1,5 @@
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
-#include "util.h"
 #include "util-inl.h"
 #include <limits.h>
 #include <string.h>

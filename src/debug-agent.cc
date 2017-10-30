@@ -23,11 +23,9 @@
 
 #include "node.h"
 #include "node_internals.h"  // arraysize
-#include "env.h"
 #include "env-inl.h"
 #include "v8.h"
 #include "v8-debug.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <string.h>

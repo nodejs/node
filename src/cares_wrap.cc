@@ -1,14 +1,11 @@
 #define CARES_STATICLIB
 #include "ares.h"
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "tree.h"
-#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 
