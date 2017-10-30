@@ -31,8 +31,8 @@
     'inspector_all_sources': [
       '<@(inspector_generated_sources)',
       '<(inspector_generated_injected_script)',
-      '../../include/v8-inspector.h',
-      '../../include/v8-inspector-protocol.h',
+      '../include/v8-inspector.h',
+      '../include/v8-inspector-protocol.h',
       'inspector/injected-script.cc',
       'inspector/injected-script.h',
       'inspector/inspected-context.cc',
