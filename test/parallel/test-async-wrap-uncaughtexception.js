@@ -33,7 +33,7 @@ hooks = async_hooks.createHook({
 }).enable();
 
 
-process.on('uncaughtException', common.mustCall(() => {
+process.once('uncaughtException', common.mustCall(() => {
   assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[2]++;
 }));
