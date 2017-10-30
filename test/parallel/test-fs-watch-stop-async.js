@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
 const fs = require('fs');
 
-const watch = fs.watchFile(__filename, () => {});
+const watch = fs.watchFile(__filename, common.mustNotCall());
 let triggered;
 const listener = common.mustCall(() => {
   triggered = true;
@@ -12,8 +13,8 @@ const listener = common.mustCall(() => {
 triggered = false;
 watch.once('stop', listener);  // Should trigger.
 watch.stop();
-assert.equal(triggered, false);
+assert.strictEqual(triggered, false);
 setImmediate(() => {
-  assert.equal(triggered, true);
+  assert.strictEqual(triggered, true);
   watch.removeListener('stop', listener);
 });

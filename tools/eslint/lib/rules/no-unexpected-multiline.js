@@ -5,8 +5,15 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
 module.exports = {
     meta: {
         docs: {
@@ -23,6 +30,9 @@ module.exports = {
         const FUNCTION_MESSAGE = "Unexpected newline between function and ( of function call.";
         const PROPERTY_MESSAGE = "Unexpected newline between object and [ of property access.";
         const TAGGED_TEMPLATE_MESSAGE = "Unexpected newline between template tag and template literal.";
+        const DIVISION_MESSAGE = "Unexpected newline between numerator and division operator.";
+
+        const REGEX_FLAG_MATCHER = /^[gimuy]+$/;
 
         const sourceCode = context.getSourceCode();
 
@@ -35,17 +45,11 @@ module.exports = {
          * @private
          */
         function checkForBreakAfter(node, msg) {
-            let nodeExpressionEnd = node;
-            let openParen = sourceCode.getTokenAfter(node);
-
-            // Move along until the end of the wrapped expression
-            while (openParen.value === ")") {
-                nodeExpressionEnd = openParen;
-                openParen = sourceCode.getTokenAfter(nodeExpressionEnd);
-            }
+            const openParen = sourceCode.getTokenAfter(node, astUtils.isNotClosingParenToken);
+            const nodeExpressionEnd = sourceCode.getTokenBefore(openParen);
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {
-                context.report(node, openParen.loc.start, msg, { char: openParen.value });
+                context.report({ node, loc: openParen.loc.start, message: msg, data: { char: openParen.value } });
             }
         }
 
@@ -66,7 +70,7 @@ module.exports = {
                 if (node.tag.loc.end.line === node.quasi.loc.start.line) {
                     return;
                 }
-                context.report(node, node.loc.start, TAGGED_TEMPLATE_MESSAGE);
+                context.report({ node, loc: node.loc.start, message: TAGGED_TEMPLATE_MESSAGE });
             },
 
             CallExpression(node) {
@@ -74,6 +78,19 @@ module.exports = {
                     return;
                 }
                 checkForBreakAfter(node.callee, FUNCTION_MESSAGE);
+            },
+
+            "BinaryExpression[operator='/'] > BinaryExpression[operator='/'].left"(node) {
+                const secondSlash = sourceCode.getTokenAfter(node, token => token.value === "/");
+                const tokenAfterOperator = sourceCode.getTokenAfter(secondSlash);
+
+                if (
+                    tokenAfterOperator.type === "Identifier" &&
+                    REGEX_FLAG_MATCHER.test(tokenAfterOperator.value) &&
+                    secondSlash.range[1] === tokenAfterOperator.range[0]
+                ) {
+                    checkForBreakAfter(node.left, DIVISION_MESSAGE);
+                }
             }
         };
 

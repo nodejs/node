@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -16,16 +14,16 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(1),
-                B(Inc), U8(5),
-  /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(3),
-  /*   48 S> */ B(Return),
+  /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(Inc), U8(4),
+  /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -38,18 +36,19 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 17
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(1),
-                B(ToNumber), R(0),
-                B(Dec), U8(5),
-  /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(3),
+  /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(ToNumber), R(0), U8(4),
                 B(Ldar), R(0),
-  /*   48 S> */ B(Return),
+                B(Dec), U8(4),
+  /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+                B(Ldar), R(0),
+  /*   47 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -62,16 +61,16 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   46 S> */ B(LdaGlobal), U8(1),
-                B(Dec), U8(5),
-  /*   55 E> */ B(StaGlobalStrict), U8(0), U8(3),
-  /*   68 S> */ B(Return),
+  /*   46 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(Dec), U8(4),
+  /*   55 E> */ B(StaGlobalStrict), U8(0), U8(2),
+  /*   67 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]
@@ -84,18 +83,19 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 17
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(1),
-                B(ToNumber), R(0),
-                B(Inc), U8(5),
-  /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(3),
+  /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
+                B(ToNumber), R(0), U8(4),
                 B(Ldar), R(0),
-  /*   54 S> */ B(Return),
+                B(Inc), U8(4),
+  /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(2),
+                B(Ldar), R(0),
+  /*   53 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]

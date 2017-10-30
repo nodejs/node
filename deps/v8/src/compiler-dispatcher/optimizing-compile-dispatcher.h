@@ -7,12 +7,13 @@
 
 #include <queue>
 
+#include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
-#include "src/list.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -20,8 +21,10 @@ namespace internal {
 class CompilationJob;
 class SharedFunctionInfo;
 
-class OptimizingCompileDispatcher {
+class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
  public:
+  enum class BlockingBehavior { kBlock, kDontBlock };
+
   explicit OptimizingCompileDispatcher(Isolate* isolate)
       : isolate_(isolate),
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
@@ -30,15 +33,15 @@ class OptimizingCompileDispatcher {
         blocked_jobs_(0),
         ref_count_(0),
         recompilation_delay_(FLAG_concurrent_recompilation_delay) {
-    base::NoBarrier_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
+    base::Relaxed_Store(&mode_, static_cast<base::AtomicWord>(COMPILE));
     input_queue_ = NewArray<CompilationJob*>(input_queue_capacity_);
   }
 
   ~OptimizingCompileDispatcher();
 
-  void Run();
   void Stop();
-  void Flush();
+  void Flush(BlockingBehavior blocking_behavior);
+  // Takes ownership of |job|.
   void QueueForOptimization(CompilationJob* job);
   void Unblock();
   void InstallOptimizedFunctions();

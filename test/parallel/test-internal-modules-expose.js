@@ -2,6 +2,10 @@
 // Flags: --expose_internals
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const config = process.binding('config');
 
-assert.equal(typeof require('internal/freelist').FreeList, 'function');
+console.log(config, process.argv);
+
+assert.strictEqual(typeof require('internal/freelist'), 'function');
+assert.strictEqual(config.exposeInternals, true);

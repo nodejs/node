@@ -30,14 +30,22 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "src/v8.h"
-
+#include "src/factory.h"
+#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Create) {
   CcTest::InitializeVM();
@@ -63,8 +71,8 @@ TEST(Create) {
 #endif
   }
 
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectAllGarbage();
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {
@@ -74,3 +82,6 @@ TEST(Create) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

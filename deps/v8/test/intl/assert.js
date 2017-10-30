@@ -27,6 +27,14 @@
 
 // Some methods are taken from v8/test/mjsunit/mjsunit.js
 
+
+function classOf(object) {
+   // Argument must not be null or undefined.
+   var string = Object.prototype.toString.call(object);
+   // String has format [object <ClassName>].
+   return string.substring(8, string.length - 1);
+}
+
 /**
  * Compares two objects for key/value equality.
  * Returns true if they are equal, false otherwise.
@@ -172,12 +180,12 @@ function assertDoesNotThrow(code, user_message = '') {
 function assertInstanceof(obj, type) {
   if (!(obj instanceof type)) {
     var actualTypeName = null;
-    var actualConstructor = Object.prototypeOf(obj).constructor;
+    var actualConstructor = Object.getPrototypeOf(obj).constructor;
     if (typeof actualConstructor == "function") {
       actualTypeName = actualConstructor.name || String(actualConstructor);
     }
     throw new Error('Object <' + obj + '> is not an instance of <' +
-         (type.name || type) + '>' +
-         (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
+                    (type.name || type) + '>' +
+                    (actualTypeName ? ' but of < ' + actualTypeName + '>' : ''));
   }
 }

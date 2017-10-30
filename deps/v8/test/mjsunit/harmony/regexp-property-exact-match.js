@@ -36,7 +36,7 @@ assertThrows("/\\p{BidiClass=LeftToRight}/u");
 assertThrows("/\\p{BidiC=LeftToRight}/u");
 assertThrows("/\\p{bidi_c=Left_To_Right}/u");
 
-assertDoesNotThrow("/\\p{Block=CJK}/u");
+assertThrows("/\\p{Block=CJK}/u");
 assertThrows("/\\p{Block = CJK}/u");
 assertThrows("/\\p{Block=cjk}/u");
 assertThrows("/\\p{BLK=CJK}/u");

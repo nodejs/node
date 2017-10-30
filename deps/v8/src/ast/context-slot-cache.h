@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/ast/modules.h"
-#include "src/ast/variables.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +38,7 @@ class ContextSlotCache {
     for (int i = 0; i < kLength; ++i) {
       keys_[i].data = NULL;
       keys_[i].name = NULL;
-      values_[i] = kNotFound;
+      values_[i] = static_cast<uint32_t>(kNotFound);
     }
   }
 

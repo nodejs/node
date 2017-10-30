@@ -1,18 +1,26 @@
 'use strict';
-module.exports = function (fn, errMsg) {
+const mimicFn = require('mimic-fn');
+
+module.exports = (fn, opts) => {
+	// TODO: Remove this in v3
+	if (opts === true) {
+		throw new TypeError('The second argument is now an options object');
+	}
+
 	if (typeof fn !== 'function') {
 		throw new TypeError('Expected a function');
 	}
 
-	var ret;
-	var called = false;
-	var fnName = fn.displayName || fn.name || (/function ([^\(]+)/.exec(fn.toString()) || [])[1];
+	opts = opts || {};
 
-	var onetime = function () {
+	let ret;
+	let called = false;
+	const fnName = fn.displayName || fn.name || '<anonymous>';
+
+	const onetime = function () {
 		if (called) {
-			if (errMsg === true) {
-				fnName = fnName ? fnName + '()' : 'Function';
-				throw new Error(fnName + ' can only be called once.');
+			if (opts.throw === true) {
+				throw new Error(`Function \`${fnName}\` can only be called once`);
 			}
 
 			return ret;
@@ -25,7 +33,7 @@ module.exports = function (fn, errMsg) {
 		return ret;
 	};
 
-	onetime.displayName = fnName;
+	mimicFn(onetime, fn);
 
 	return onetime;
 };

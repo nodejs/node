@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "src/base/platform/mutex.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -64,6 +65,7 @@ class String;
   V(REG_EXP_TAG, "RegExp")                                               \
   V(SCRIPT_TAG, "Script")                                                \
   V(STORE_IC_TAG, "StoreIC")                                             \
+  V(STORE_GLOBAL_IC_TAG, "StoreGlobalIC")                                \
   V(STORE_POLYMORPHIC_IC_TAG, "StorePolymorphicIC")                      \
   V(STUB_TAG, "Stub")                                                    \
   V(NATIVE_FUNCTION_TAG, "Function")                                     \
@@ -89,7 +91,7 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                Name* name) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared, Name* name) = 0;
+                               SharedFunctionInfo* shared, Name* source) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared, Name* source,
                                int line, int column) = 0;
@@ -104,7 +106,9 @@ class CodeEventListener {
   virtual void CodeMovingGCEvent() = 0;
   virtual void CodeDisableOptEvent(AbstractCode* code,
                                    SharedFunctionInfo* shared) = 0;
-  virtual void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) = 0;
+  enum DeoptKind { kSoft, kLazy, kEager };
+  virtual void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                              int fp_to_sp_delta) = 0;
 };
 
 class CodeEventDispatcher {
@@ -114,13 +118,16 @@ class CodeEventDispatcher {
   CodeEventDispatcher() {}
 
   bool AddListener(CodeEventListener* listener) {
+    base::LockGuard<base::Mutex> guard(&mutex_);
     return listeners_.insert(listener).second;
   }
   void RemoveListener(CodeEventListener* listener) {
+    base::LockGuard<base::Mutex> guard(&mutex_);
     listeners_.erase(listener);
   }
 
-#define CODE_EVENT_DISPATCH(code) \
+#define CODE_EVENT_DISPATCH(code)              \
+  base::LockGuard<base::Mutex> guard(&mutex_); \
   for (auto it = listeners_.begin(); it != listeners_.end(); ++it) (*it)->code
 
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
@@ -166,13 +173,15 @@ class CodeEventDispatcher {
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared) {
     CODE_EVENT_DISPATCH(CodeDisableOptEvent(code, shared));
   }
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) {
-    CODE_EVENT_DISPATCH(CodeDeoptEvent(code, pc, fp_to_sp_delta));
+  void CodeDeoptEvent(Code* code, CodeEventListener::DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) {
+    CODE_EVENT_DISPATCH(CodeDeoptEvent(code, kind, pc, fp_to_sp_delta));
   }
 #undef CODE_EVENT_DISPATCH
 
  private:
   std::unordered_set<CodeEventListener*> listeners_;
+  base::Mutex mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };

@@ -6,6 +6,14 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const lodash = require("lodash");
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -66,9 +74,14 @@ module.exports = {
          */
         function checkFunction(node) {
             if (node.params.length > numParams) {
-                context.report(node, "This function has too many parameters ({{count}}). Maximum allowed is {{max}}.", {
-                    count: node.params.length,
-                    max: numParams
+                context.report({
+                    node,
+                    message: "{{name}} has too many parameters ({{count}}). Maximum allowed is {{max}}.",
+                    data: {
+                        name: lodash.upperFirst(astUtils.getFunctionNameWithKind(node)),
+                        count: node.params.length,
+                        max: numParams
+                    }
                 });
             }
         }

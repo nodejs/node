@@ -180,9 +180,9 @@ module.exports = {
                 return "non-alpha";
             } else if (firstChar === firstCharLower) {
                 return "lower";
-            } else {
-                return "upper";
             }
+            return "upper";
+
         }
 
         /**
@@ -227,7 +227,7 @@ module.exports = {
                 callee = callee.property;
             }
 
-            context.report(node, callee.loc.start, message);
+            context.report({ node, loc: callee.loc.start, message });
         }
 
         //--------------------------------------------------------------------------

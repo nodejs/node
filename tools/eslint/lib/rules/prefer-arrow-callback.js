@@ -11,7 +11,7 @@
 
 /**
  * Checks whether or not a given variable is a function name.
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is a function name.
  */
 function isFunctionName(variable) {
@@ -31,8 +31,8 @@ function checkMetaProperty(node, metaName, propertyName) {
 
 /**
  * Gets the variable object of `arguments` which is defined implicitly.
- * @param {escope.Scope} scope - A scope to get.
- * @returns {escope.Variable} The found variable object.
+ * @param {eslint-scope.Scope} scope - A scope to get.
+ * @returns {eslint-scope.Variable} The found variable object.
  */
 function getVariableOfArguments(scope) {
     const variables = scope.variables;
@@ -63,7 +63,7 @@ function getVariableOfArguments(scope) {
  *   {boolean} retv.isLexicalThis - `true` if the node is with `.bind(this)`.
  */
 function getCallbackInfo(node) {
-    const retv = {isCallback: false, isLexicalThis: false};
+    const retv = { isCallback: false, isLexicalThis: false };
     let parent = node.parent;
 
     while (node) {
@@ -88,7 +88,6 @@ function getCallbackInfo(node) {
                         parent.parent.arguments.length === 1 &&
                         parent.parent.arguments[0].type === "ThisExpression"
                     );
-                    node = parent;
                     parent = parent.parent;
                 } else {
                     return retv;
@@ -133,7 +132,7 @@ function hasDuplicateParams(paramsList) {
 module.exports = {
     meta: {
         docs: {
-            description: "require arrow functions as callbacks",
+            description: "require using arrow functions for callbacks",
             category: "ECMAScript 6",
             recommended: false
         },
@@ -159,7 +158,7 @@ module.exports = {
     create(context) {
         const options = context.options[0] || {};
 
-        const allowUnboundThis = options.allowUnboundThis !== false;  // default to true
+        const allowUnboundThis = options.allowUnboundThis !== false; // default to true
         const allowNamedFunctions = options.allowNamedFunctions;
         const sourceCode = context.getSourceCode();
 
@@ -176,7 +175,7 @@ module.exports = {
          * @returns {void}
          */
         function enterScope() {
-            stack.push({this: false, super: false, meta: false});
+            stack.push({ this: false, super: false, meta: false });
         }
 
         /**
@@ -277,15 +276,23 @@ module.exports = {
                             const paramsRightParen = sourceCode.getTokenBefore(node.body);
                             const asyncKeyword = node.async ? "async " : "";
                             const paramsFullText = sourceCode.text.slice(paramsLeftParen.range[0], paramsRightParen.range[1]);
+                            const arrowFunctionText = `${asyncKeyword}${paramsFullText} => ${sourceCode.getText(node.body)}`;
 
-                            if (callbackInfo.isLexicalThis) {
+                            /*
+                             * If the callback function has `.bind(this)`, replace it with an arrow function and remove the binding.
+                             * Otherwise, just replace the arrow function itself.
+                             */
+                            const replacedNode = callbackInfo.isLexicalThis ? node.parent.parent : node;
 
-                                // If the callback function has `.bind(this)`, replace it with an arrow function and remove the binding.
-                                return fixer.replaceText(node.parent.parent, `${asyncKeyword}${paramsFullText} => ${sourceCode.getText(node.body)}`);
-                            }
+                            /*
+                             * If the replaced node is part of a BinaryExpression, LogicalExpression, or MemberExpression, then
+                             * the arrow function needs to be parenthesized, because `foo || () => {}` is invalid syntax even
+                             * though `foo || function() {}` is valid.
+                             */
+                            const needsParens = replacedNode.parent.type !== "CallExpression" && replacedNode.parent.type !== "ConditionalExpression";
+                            const replacementText = needsParens ? `(${arrowFunctionText})` : arrowFunctionText;
 
-                            // Otherwise, only replace the `function` keyword and parameters with the arrow function parameters.
-                            return fixer.replaceTextRange([node.start, node.body.start], `${asyncKeyword}${paramsFullText} => `);
+                            return fixer.replaceText(replacedNode, replacementText);
                         }
                     });
                 }

@@ -41,16 +41,13 @@ module.exports = {
 
         /**
          * Reports a given reference.
-         * @param {escope.Reference} reference - A reference to report.
+         * @param {eslint-scope.Reference} reference - A reference to report.
          * @returns {void}
          */
         function report(reference) {
             const identifier = reference.identifier;
 
-            context.report(
-                identifier,
-                "'{{name}}' used outside of binding context.",
-                {name: identifier.name});
+            context.report({ node: identifier, message: "'{{name}}' used outside of binding context.", data: { name: identifier.name } });
         }
 
         /**

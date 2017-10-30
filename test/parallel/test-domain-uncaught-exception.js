@@ -25,7 +25,7 @@ function test1() {
   d.run(function() {
     setTimeout(function onTimeout() {
       throw new Error('boom!');
-    });
+    }, 1);
   });
 }
 
@@ -59,7 +59,7 @@ function test3() {
   const d3 = domain.create();
   const d4 = domain.create();
 
-  d3.on('error', function onErrorInD3Domain(err) {
+  d3.on('error', function onErrorInD3Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -88,7 +88,7 @@ function test4() {
   const d5 = domain.create();
   const d6 = domain.create();
 
-  d5.on('error', function onErrorInD2Domain(err) {
+  d5.on('error', function onErrorInD2Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -96,7 +96,7 @@ function test4() {
     d6.run(function() {
       setTimeout(function onTimeout() {
         throw new Error('boom!');
-      });
+      }, 1);
     });
   });
 }
@@ -115,7 +115,7 @@ function test5() {
   const d7 = domain.create();
   const d8 = domain.create();
 
-  d8.on('error', function onErrorInD3Domain(err) {
+  d8.on('error', function onErrorInD3Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -139,7 +139,7 @@ function test6() {
   const d9 = domain.create();
   const d10 = domain.create();
 
-  d10.on('error', function onErrorInD2Domain(err) {
+  d10.on('error', function onErrorInD2Domain() {
     process.send('errorHandledByDomain');
   });
 
@@ -147,7 +147,7 @@ function test6() {
     d10.run(function() {
       setTimeout(function onTimeout() {
         throw new Error('boom!');
-      });
+      }, 1);
     });
   });
 }
@@ -182,19 +182,18 @@ if (process.argv[2] === 'child') {
       // Make sure that all expected messages were sent from the
       // child process
       test.expectedMessages.forEach(function(expectedMessage) {
-        if (test.messagesReceived === undefined ||
-          test.messagesReceived.indexOf(expectedMessage) === -1)
-          assert(false, 'test ' + test.fn.name +
-              ' should have sent message: ' + expectedMessage +
-              ' but didn\'t');
+        const msgs = test.messagesReceived;
+        if (msgs === undefined || !msgs.includes(expectedMessage)) {
+          assert.fail(`test ${test.fn.name} should have sent message: ${
+            expectedMessage} but didn't`);
+        }
       });
 
       if (test.messagesReceived) {
         test.messagesReceived.forEach(function(receivedMessage) {
-          if (test.expectedMessages.indexOf(receivedMessage) === -1) {
-            assert(false, 'test ' + test.fn.name +
-              ' should not have sent message: ' + receivedMessage +
-              ' but did');
+          if (!test.expectedMessages.includes(receivedMessage)) {
+            assert.fail(`test ${test.fn.name} should not have sent message: ${
+              receivedMessage} but did`);
           }
         });
       }

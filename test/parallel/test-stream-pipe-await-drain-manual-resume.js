@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const stream = require('stream');
+const assert = require('assert');
 
 // A consumer stream with a very low highWaterMark, which starts in a state
 // where it buffers the chunk it receives rather than indicating that they
@@ -14,7 +15,7 @@ const queue = [];
 
 writable._write = (chunk, encoding, cb) => {
   if (isCurrentlyBufferingWrites)
-    queue.push({chunk, cb});
+    queue.push({ chunk, cb });
   else
     cb();
 };
@@ -26,6 +27,11 @@ const readable = new stream.Readable({
 readable.pipe(writable);
 
 readable.once('pause', common.mustCall(() => {
+  assert.strictEqual(
+    readable._readableState.awaitDrain,
+    1,
+    'awaitDrain doesn\'t increase'
+  );
   // First pause, resume manually. The next write() to writable will still
   // return false, because chunks are still being buffered, so it will increase
   // the awaitDrain counter again.
@@ -34,6 +40,11 @@ readable.once('pause', common.mustCall(() => {
   }));
 
   readable.once('pause', common.mustCall(() => {
+    assert.strictEqual(
+      readable._readableState.awaitDrain,
+      1,
+      '.resume() does not reset counter'
+    );
     // Second pause, handle all chunks from now on. Once all callbacks that
     // are currently queued up are handled, the awaitDrain drain counter should
     // fall back to 0 and all chunks that are pending on the readable side
@@ -50,5 +61,10 @@ readable.push(Buffer.alloc(100));  // Should get through to the writable.
 readable.push(null);
 
 writable.on('finish', common.mustCall(() => {
+  assert.strictEqual(
+    readable._readableState.awaitDrain,
+    0,
+    'awaitDrain not 0 after all chunks are written'
+  );
   // Everything okay, all chunks were written.
 }));

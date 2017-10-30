@@ -1,0 +1,30 @@
+Tests possible breakpoints in array literal
+{
+    id : <messageId>
+    result : {
+        locations : [
+            [0] : {
+                columnNumber : 0
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [1] : {
+                columnNumber : 6
+                lineNumber : 0
+                scriptId : <scriptId>
+            }
+            [2] : {
+                columnNumber : 7
+                lineNumber : 0
+                scriptId : <scriptId>
+                type : return
+            }
+            [3] : {
+                columnNumber : 8
+                lineNumber : 0
+                scriptId : <scriptId>
+                type : return
+            }
+        ]
+    }
+}

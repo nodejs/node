@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -60,8 +60,8 @@
 # endif
 #endif
 
-#if U_USE_STRTOD_L && !U_PLATFORM_USES_ONLY_WIN32_API
-# if U_PLATFORM == U_PF_CYGWIN
+#if U_USE_STRTOD_L
+# if U_PLATFORM_USES_ONLY_WIN32_API || U_PLATFORM == U_PF_CYGWIN
 #   include <locale.h>
 # else
 #   include <xlocale.h>

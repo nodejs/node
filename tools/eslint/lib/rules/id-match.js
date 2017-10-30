@@ -63,8 +63,8 @@ module.exports = {
          * @returns {boolean} whether an error should be reported or not
          */
         function shouldReport(effectiveParent, name) {
-            return effectiveParent.type !== "CallExpression"
-                && effectiveParent.type !== "NewExpression" &&
+            return effectiveParent.type !== "CallExpression" &&
+                effectiveParent.type !== "NewExpression" &&
                 isInvalid(name);
         }
 
@@ -75,9 +75,13 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report(node, "Identifier '{{name}}' does not match the pattern '{{pattern}}'.", {
-                name: node.name,
-                pattern
+            context.report({
+                node,
+                message: "Identifier '{{name}}' does not match the pattern '{{pattern}}'.",
+                data: {
+                    name: node.name,
+                    pattern
+                }
             });
         }
 

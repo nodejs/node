@@ -89,9 +89,7 @@ int MAIN(int argc, char **argv)
     X509_LOOKUP *lookup = NULL;
     X509_VERIFY_PARAM *vpm = NULL;
     int crl_download = 0;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
 
     cert_ctx = X509_STORE_new();
     if (cert_ctx == NULL)
@@ -160,9 +158,7 @@ int MAIN(int argc, char **argv)
             break;
     }
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (vpm)
         X509_STORE_set1_param(cert_ctx, vpm);
@@ -255,6 +251,7 @@ int MAIN(int argc, char **argv)
     sk_X509_pop_free(untrusted, X509_free);
     sk_X509_pop_free(trusted, X509_free);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    release_engine(e);
     apps_shutdown();
     OPENSSL_EXIT(ret < 0 ? 2 : ret);
 }

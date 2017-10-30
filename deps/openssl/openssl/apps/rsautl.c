@@ -88,9 +88,7 @@ int MAIN(int argc, char **argv)
     ENGINE *e = NULL;
     BIO *in = NULL, *out = NULL;
     char *infile = NULL, *outfile = NULL;
-# ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-# endif
     char *keyfile = NULL;
     char rsa_mode = RSA_VERIFY, key_type = KEY_PRIVKEY;
     int keyform = FORMAT_PEM;
@@ -195,9 +193,7 @@ int MAIN(int argc, char **argv)
         BIO_printf(bio_err, "A private key is needed for this operation\n");
         goto end;
     }
-# ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-# endif
     if (!app_passwd(bio_err, passargin, NULL, &passin, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
@@ -327,6 +323,7 @@ int MAIN(int argc, char **argv)
         BIO_write(out, rsa_out, rsa_outlen);
  end:
     RSA_free(rsa);
+    release_engine(e);
     BIO_free(in);
     BIO_free_all(out);
     if (rsa_in)

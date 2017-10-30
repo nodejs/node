@@ -1,0 +1,47 @@
+{
+  "_from": "strip-ansi@^3.0.1",
+  "_id": "strip-ansi@3.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-ajhfuIU9lS1f8F0Oiq+UJ43GPc8=",
+  "_location": "/libnpx/yargs/cliui/strip-ansi",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "strip-ansi@^3.0.1",
+    "name": "strip-ansi",
+    "escapedName": "strip-ansi",
+    "rawSpec": "^3.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^3.0.1"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/cliui",
+    "/libnpx/yargs/cliui/string-width",
+    "/libnpx/yargs/cliui/wrap-ansi"
+  ],
+  "_resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-3.0.1.tgz",
+  "_shasum": "6a385fb8853d952d5ff05d0e8aaf94278dc63dcf",
+  "_shrinkwrap": null,
+  "_spec": "strip-ansi@^3.0.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/cliui",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "ansi-regex": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "> Strip [ANSI escape codes](http://en.wikipedia.org/wiki/ANSI_escape_code)",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "name": "strip-ansi",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "3.0.1"
+}

@@ -31,9 +31,9 @@
 
 var count = 1e5;
 var arr = new Array(count);
-assertFalse(%HasFastDoubleElements(arr));
+assertFalse(%HasDoubleElements(arr));
 for (var i = 0; i < count; i++) {
   arr[i] = 0;
 }
-assertFalse(%HasFastDoubleElements(arr));
-assertTrue(%HasFastSmiElements(arr));
+assertFalse(%HasDoubleElements(arr));
+assertTrue(%HasSmiElements(arr));

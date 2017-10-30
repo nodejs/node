@@ -61,19 +61,26 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     PropertyDetails details = descs->GetDetails(i);
     Name* key = descs->GetKey(i);
     Handle<Object> value;
-    switch (details.type()) {
-      case DATA:
+    if (details.location() == kField) {
+      if (details.kind() == kData) {
         value = JSObject::FastPropertyAt(Handle<JSObject>::cast(obj),
                                          details.representation(),
                                          FieldIndex::ForDescriptor(map, i));
-        break;
-      case DATA_CONSTANT:
-        value = handle(descs->GetConstant(i), isolate);
-        break;
-      case ACCESSOR:
-      case ACCESSOR_CONSTANT:
+      } else {
+        DCHECK_EQ(kAccessor, details.kind());
         // Bail out to slow path.
         return false;
+      }
+
+    } else {
+      DCHECK_EQ(kDescriptor, details.location());
+      if (details.kind() == kData) {
+        value = handle(descs->GetValue(i), isolate);
+      } else {
+        DCHECK_EQ(kAccessor, details.kind());
+        // Bail out to slow path.
+        return false;
+      }
     }
     Heap* heap = isolate->heap();
     if (key == heap->enumerable_string()) {

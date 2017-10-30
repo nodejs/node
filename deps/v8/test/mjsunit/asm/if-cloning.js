@@ -7,7 +7,7 @@ var if0 = (function Module() {
   function if0(i, j) {
     i = i|0;
     j = j|0;
-    if (i == 0 ? j == 0 : 0) return 1;
+    if ((i | 0) == 0 ? (j | 0) == 0 : 0) return 1;
     return 0;
   }
   return {if0: if0};
@@ -23,7 +23,7 @@ var if1 = (function Module() {
   function if1(i, j) {
     i = i|0;
     j = j|0;
-    if (i == 0 ? j == 0 : 1) return 0;
+    if ((i | 0) == 0 ? (j | 0) == 0 : 1) return 0;
     return 1;
   }
   return {if1: if1};

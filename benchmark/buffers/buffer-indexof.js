@@ -1,21 +1,35 @@
 'use strict';
-var common = require('../common.js');
-var fs = require('fs');
+const common = require('../common.js');
+const fs = require('fs');
 const path = require('path');
 
-var bench = common.createBenchmark(main, {
-  search: ['@', 'SQ', '10x', '--l', 'Alice', 'Gryphon', 'Panther',
-           'Ou est ma chatte?', 'found it very', 'among mad people',
-           'neighbouring pool', 'Soo--oop', 'aaaaaaaaaaaaaaaaa',
-           'venture to go near the house till she had brought herself down to',
-           '</i> to the Caterpillar'],
+const searchStrings = [
+  '@',
+  'SQ',
+  '10x',
+  '--l',
+  'Alice',
+  'Gryphon',
+  'Panther',
+  'Ou est ma chatte?',
+  'found it very',
+  'among mad people',
+  'neighbouring pool',
+  'Soo--oop',
+  'aaaaaaaaaaaaaaaaa',
+  'venture to go near the house till she had brought herself down to',
+  '</i> to the Caterpillar'
+];
+
+const bench = common.createBenchmark(main, {
+  search: searchStrings,
   encoding: ['undefined', 'utf8', 'ucs2', 'binary'],
   type: ['buffer', 'string'],
   iter: [1]
 });
 
 function main(conf) {
-  var iter = (conf.iter) * 100000;
+  const iter = (conf.iter) * 100000;
   var aliceBuffer = fs.readFileSync(
     path.resolve(__dirname, '../fixtures/alice.html')
   );

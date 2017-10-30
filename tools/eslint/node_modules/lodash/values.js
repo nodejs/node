@@ -28,7 +28,7 @@ var baseValues = require('./_baseValues'),
  * // => ['h', 'i']
  */
 function values(object) {
-  return object ? baseValues(object, keys(object)) : [];
+  return object == null ? [] : baseValues(object, keys(object));
 }
 
 module.exports = values;

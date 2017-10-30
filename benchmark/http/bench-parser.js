@@ -10,17 +10,17 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 const CRLF = '\r\n';
 
 const bench = common.createBenchmark(main, {
-  fields: [4, 8, 16, 32],
+  len: [4, 8, 16, 32],
   n: [1e5],
 });
 
 
 function main(conf) {
-  const fields = conf.fields >>> 0;
+  const len = conf.len >>> 0;
   const n = conf.n >>> 0;
   var header = `GET /hello HTTP/1.1${CRLF}Content-Type: text/plain${CRLF}`;
 
-  for (var i = 0; i < fields; i++) {
+  for (var i = 0; i < len; i++) {
     header += `X-Filler${i}: ${Math.random().toString(36).substr(2)}${CRLF}`;
   }
   header += CRLF;

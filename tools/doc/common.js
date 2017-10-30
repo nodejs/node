@@ -34,6 +34,11 @@ function extractAndParseYAML(text) {
     meta.deprecated = arrify(deprecated);
   }
 
+  meta.changes = meta.changes || [];
+  meta.changes.forEach((entry) => {
+    entry.description = entry.description.replace(/^\^\s*/, '');
+  });
+
   return meta;
 }
 

@@ -123,7 +123,7 @@ architecture dependent I<DES_key_schedule> via the
 DES_set_key_checked() or DES_set_key_unchecked() function.
 
 DES_set_key_checked() will check that the key passed is of odd parity
-and is not a week or semi-weak key.  If the parity is wrong, then -1
+and is not a weak or semi-weak key.  If the parity is wrong, then -1
 is returned.  If the key is a weak key, then -2 is returned.  If an
 error is returned, the key schedule is not generated.
 

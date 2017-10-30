@@ -1,7 +1,7 @@
 'use strict';
 // Flags: --no-warnings
 
-// The --no-warnings flag only supresses writing the warning to stderr, not the
+// The --no-warnings flag only suppresses writing the warning to stderr, not the
 // emission of the corresponding event. This test file can be run without it.
 
 const common = require('../common');
@@ -10,7 +10,7 @@ process.noDeprecation = true;
 const assert = require('assert');
 
 function listener() {
-  common.fail('received unexpected warning');
+  assert.fail('received unexpected warning');
 }
 
 process.addListener('warning', listener);

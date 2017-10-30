@@ -3,7 +3,8 @@
 require('../common');
 const assert = require('assert');
 
-[ 'hex',
+[
+  'hex',
   'utf8',
   'utf-8',
   'ascii',
@@ -13,11 +14,13 @@ const assert = require('assert');
   'ucs2',
   'ucs-2',
   'utf16le',
-  'utf-16le' ].forEach((enc) => {
-    assert.strictEqual(Buffer.isEncoding(enc), true);
-  });
+  'utf-16le'
+].forEach((enc) => {
+  assert.strictEqual(Buffer.isEncoding(enc), true);
+});
 
-[ 'utf9',
+[
+  'utf9',
   'utf-7',
   'Unicode-FTW',
   'new gnu gun',
@@ -28,6 +31,7 @@ const assert = require('assert');
   [],
   1,
   0,
-  -1 ].forEach((enc) => {
-    assert.strictEqual(Buffer.isEncoding(enc), false);
-  });
+  -1
+].forEach((enc) => {
+  assert.strictEqual(Buffer.isEncoding(enc), false);
+});

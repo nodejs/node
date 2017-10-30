@@ -23,9 +23,10 @@ class PoolTest(unittest.TestCase):
   def testException(self):
     results = set()
     pool = Pool(3)
-    for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
-      # Item 10 will not appear in results due to an internal exception.
-      results.add(result.value)
+    with self.assertRaises(Exception):
+      for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
+        # Item 10 will not appear in results due to an internal exception.
+        results.add(result.value)
     expect = set(range(0, 12))
     expect.remove(10)
     self.assertEquals(expect, results)

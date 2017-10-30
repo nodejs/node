@@ -38,8 +38,8 @@ module.exports = {
 
             if (!stateMap[key]) {
                 stateMap[key] = {
-                    nonStatic: {init: false, get: false, set: false},
-                    static: {init: false, get: false, set: false}
+                    nonStatic: { init: false, get: false, set: false },
+                    static: { init: false, get: false, set: false }
                 };
             }
 
@@ -101,7 +101,7 @@ module.exports = {
                 }
 
                 if (isDuplicate) {
-                    context.report(node, "Duplicate name '{{name}}'.", {name});
+                    context.report({ node, message: "Duplicate name '{{name}}'.", data: { name } });
                 }
             }
         };

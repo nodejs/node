@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/deoptimizer.h"
 #include "src/codegen.h"
-#include "src/full-codegen/full-codegen.h"
+#include "src/deoptimizer.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
@@ -13,92 +12,6 @@ namespace internal {
 
 // LAY + LGHI/LHI + BRCL
 const int Deoptimizer::table_entry_size_ = 16;
-
-int Deoptimizer::patch_size() {
-#if V8_TARGET_ARCH_S390X
-  const int kCallInstructionSize = 16;
-#else
-  const int kCallInstructionSize = 10;
-#endif
-  return kCallInstructionSize;
-}
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  // Empty because there is no need for relocation information for the code
-  // patching in Deoptimizer::PatchCodeForDeoptimization below.
-}
-
-void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
-  Address code_start_address = code->instruction_start();
-
-  // Invalidate the relocation information, as it will become invalid by the
-  // code patching below, and is not needed any more.
-  code->InvalidateRelocation();
-
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 2);
-    patcher.masm()->bkpt(0);
-
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              2);
-      osr_patcher.masm()->bkpt(0);
-    }
-  }
-
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-#ifdef DEBUG
-  Address prev_call_address = NULL;
-#endif
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-    Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
-    // We need calls to have a predictable size in the unoptimized code, but
-    // this is optimized code, so we don't have to have a predictable size.
-    int call_size_in_bytes = MacroAssembler::CallSizeNotPredictableCodeSize(
-        deopt_entry, kRelocInfo_NONEPTR);
-    DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(isolate, call_address, call_size_in_bytes);
-    patcher.masm()->Call(deopt_entry, kRelocInfo_NONEPTR);
-    DCHECK(prev_call_address == NULL ||
-           call_address >= prev_call_address + patch_size());
-    DCHECK(call_address + patch_size() <= code->instruction_end());
-#ifdef DEBUG
-    prev_call_address = call_address;
-#endif
-  }
-}
-
-void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler());
-  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
-  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(r2.code(), params);
-  output_frame->SetRegister(r3.code(), handler);
-}
-
-void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < DoubleRegister::kNumRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-}
 
 #define __ masm()->
 
@@ -113,26 +26,36 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all double registers before messing with them.
   __ lay(sp, MemOperand(sp, -kDoubleRegsSize));
-  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister dreg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
     __ StoreDouble(dreg, MemOperand(sp, offset));
   }
+  // Save all float registers before messing with them.
+  __ lay(sp, MemOperand(sp, -kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    const FloatRegister dreg = FloatRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ StoreFloat32(dreg, MemOperand(sp, offset));
+  }
 
   // Push all GPRs onto the stack
   __ lay(sp, MemOperand(sp, -kNumberOfRegisters * kPointerSize));
   __ StoreMultipleP(r0, sp, MemOperand(sp));  // Save all 16 registers
 
-  __ mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ mov(ip, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                       isolate())));
   __ StoreP(fp, MemOperand(ip));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ LoadP(r4, MemOperand(sp, kSavedRegistersAreaSize));
@@ -193,12 +116,24 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     // TODO(joransiu): MVC opportunity
     __ LoadDouble(d0, MemOperand(sp, src_offset));
     __ StoreDouble(d0, MemOperand(r3, dst_offset));
   }
 
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  // Copy float registers to
+  // float_registers_[FloatRegister::kNumRegisters]
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    // TODO(joransiu): MVC opportunity
+    __ LoadFloat32(d0, MemOperand(sp, src_offset));
+    __ StoreFloat32(d0, MemOperand(r3, dst_offset));
+  }
   // Remove the bailout id and the saved registers from the stack.
   __ la(sp, MemOperand(sp, kSavedRegistersAreaSize + (1 * kPointerSize)));
 

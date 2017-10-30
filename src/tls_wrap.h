@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
 
@@ -14,13 +35,15 @@
 
 #include <openssl/ssl.h>
 
+#include <string>
+
 namespace node {
 
 // Forward-declarations
-class NodeBIO;
 class WriteWrap;
 namespace crypto {
 class SecureContext;
+class NodeBIO;
 }
 
 class TLSWrap : public AsyncWrap,
@@ -53,6 +76,8 @@ class TLSWrap : public AsyncWrap,
   void NewSessionDoneCb();
 
   size_t self_size() const override { return sizeof(*this); }
+
+  void clear_stream() { stream_ = nullptr; }
 
  protected:
   static const int kClearOutChunkSize = 16384;
@@ -107,6 +132,7 @@ class TLSWrap : public AsyncWrap,
 
   AsyncWrap* GetAsyncWrap() override;
   bool IsIPCPipe() override;
+  uint32_t UpdateWriteQueueSize(uint32_t write_queue_size = 0);
 
   // Resource implementation
   static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
@@ -121,11 +147,11 @@ class TLSWrap : public AsyncWrap,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  static void OnDestructImpl(void* ctx);
 
   void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
-  // If |msg| is not nullptr, caller is responsible for calling `delete[] *msg`.
-  v8::Local<v8::Value> GetSSLError(int status, int* err, const char** msg);
+  v8::Local<v8::Value> GetSSLError(int status, int* err, std::string* msg);
 
   static void OnClientHelloParseEnd(void* arg);
   static void Wrap(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -148,7 +174,7 @@ class TLSWrap : public AsyncWrap,
   StreamBase* stream_;
   BIO* enc_in_;
   BIO* enc_out_;
-  NodeBIO* clear_in_;
+  crypto::NodeBIO* clear_in_;
   size_t write_size_;
   typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
   WriteItemList write_item_queue_;
@@ -156,12 +182,16 @@ class TLSWrap : public AsyncWrap,
   bool started_;
   bool established_;
   bool shutdown_;
-  const char* error_;
+  std::string error_;
   int cycle_depth_;
 
   // If true - delivered EOF to the js-land, either after `close_notify`, or
   // after the `UV_EOF` on socket.
   bool eof_;
+
+ private:
+  static void UpdateWriteQueueSize(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 }  // namespace node

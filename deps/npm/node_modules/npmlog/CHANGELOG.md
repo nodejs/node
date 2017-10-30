@@ -1,3 +1,16 @@
+### v4.0.2
+
+* Added installation instructions.
+
+### v4.0.1
+
+* Fix bugs where `log.progressEnabled` got out of sync with how `gauge` kept
+  track of these things resulting in a progressbar that couldn't be disabled.
+
+### v4.0.0
+
+* Allow creating log levels that are an empty string or 0.
+
 ### v3.1.2
 
 * Update to `gauge@1.6.0` adding support for default values for template

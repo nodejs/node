@@ -18,7 +18,7 @@ var baseSortedIndex = require('./_baseSortedIndex'),
  * // => 3
  */
 function sortedLastIndexOf(array, value) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (length) {
     var index = baseSortedIndex(array, value, true) - 1;
     if (eq(array[index], value)) {

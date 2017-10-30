@@ -81,9 +81,9 @@ module.exports = {
             }
 
             if (callbackStack.length > THRESHOLD) {
-                const opts = {num: callbackStack.length, max: THRESHOLD};
+                const opts = { num: callbackStack.length, max: THRESHOLD };
 
-                context.report(node, "Too many nested callbacks ({{num}}). Maximum allowed is {{max}}.", opts);
+                context.report({ node, message: "Too many nested callbacks ({{num}}). Maximum allowed is {{max}}.", data: opts });
             }
         }
 

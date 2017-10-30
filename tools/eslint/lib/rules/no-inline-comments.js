@@ -46,7 +46,7 @@ module.exports = {
 
             // Should be empty if there was only whitespace around the comment
             if (!isDirective && (preamble || postamble)) {
-                context.report(node, "Unexpected comment inline with code.");
+                context.report({ node, message: "Unexpected comment inline with code." });
             }
         }
 
@@ -55,10 +55,11 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
+            Program() {
+                const comments = sourceCode.getAllComments();
 
-            LineComment: testCodeAroundComment,
-            BlockComment: testCodeAroundComment
-
+                comments.filter(token => token.type !== "Shebang").forEach(testCodeAroundComment);
+            }
         };
     }
 };

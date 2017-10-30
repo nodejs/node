@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 import os
+import sys
 import tarfile
 from itertools import chain
 
@@ -13,4 +14,13 @@ for root, dirs, files in chain(os.walk("data"), os.walk("harness")):
   dirs[:] = [d for d in dirs if not d.endswith('.git')]
   for name in files:
     # These names are for gyp, which expects slashes on all platforms.
-    print('/'.join(root.split(os.sep) + [name]))
+    pathname = '/'.join(root.split(os.sep) + [name])
+    # For gyp, quote the name in case it includes spaces
+    if len(sys.argv) > 1 and sys.argv[1] == '--quoted':
+      pathname = '"' + pathname + '"'
+      # Temporary hack until we upgrade to gn swarming:
+      # gyp doesn't handle files containing $ in the name very well, so we just
+      # exclude them from the 'sources' list and hope that other changes cause
+      # the archive to be rebuilt.
+      if '$' in pathname: continue
+    print(pathname)

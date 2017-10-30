@@ -27,8 +27,6 @@
 
 // Test that a function declaration cannot overwrite a read-only property.
 
-// Flags: --es52-globals
-
 function foobl() {}
 assertTrue(typeof this.foobl == "function");
 assertTrue(Object.getOwnPropertyDescriptor(this, "foobl").writable);

@@ -30,11 +30,8 @@ module.exports = {
          * @returns {void}
          */
         function checkReference(references) {
-            astUtils.getModifyingReferences(references).forEach(function(reference) {
-                context.report(
-                    reference.identifier,
-                    "'{{name}}' is a function.",
-                    {name: reference.identifier.name});
+            astUtils.getModifyingReferences(references).forEach(reference => {
+                context.report({ node: reference.identifier, message: "'{{name}}' is a function.", data: { name: reference.identifier.name } });
             });
         }
 

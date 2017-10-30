@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/spaces.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -18,11 +22,13 @@ bool IsTracked(i::JSArrayBuffer* buf) {
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 // The following tests make sure that JSArrayBuffer tracking works expected when
 // moving the objects through various spaces during GC phases.
 
 TEST(ArrayBuffer_OnlyMC) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -50,6 +56,7 @@ TEST(ArrayBuffer_OnlyMC) {
 }
 
 TEST(ArrayBuffer_OnlyScavenge) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -79,6 +86,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
 }
 
 TEST(ArrayBuffer_ScavengeAndMC) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -110,6 +118,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
+  if (FLAG_never_compact) return;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   LocalContext env;
@@ -125,10 +135,10 @@ TEST(ArrayBuffer_Compaction) {
   heap::GcAndSweep(heap, NEW_SPACE);
 
   Page* page_before_gc = Page::FromAddress(buf1->address());
-  page_before_gc->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromAddress(buf1->address());
   CHECK(IsTracked(*buf1));
@@ -149,6 +159,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 #ifdef VERIFY_HEAP
   i::FLAG_verify_heap = false;
 #endif  // VERIFY_HEAP
+  ManualGCScope manual_gc_scope;
 
   CcTest::InitializeVM();
   LocalContext env;
@@ -175,7 +186,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
       CHECK(IsTracked(*buf2));
     }
 
-    heap->CollectGarbage(OLD_SPACE);
+    CcTest::CollectGarbage(OLD_SPACE);
     // |Externalize| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
@@ -186,6 +197,8 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -221,6 +234,8 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -255,6 +270,8 @@ TEST(ArrayBuffer_LivePromotion) {
 }
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
+  if (!i::FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved across semispace
   // copy.
   CcTest::InitializeVM();
@@ -303,6 +320,12 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     v8::Context::New(isolate)->Enter();
     Heap* heap = i_isolate->heap();
 
+    // Ensure heap is in a clean state.
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                            GarbageCollectionReason::kTesting);
+
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
     heap::FillCurrentPage(heap->new_space());
@@ -314,5 +337,41 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
   }
 }
 
+TEST(ArrayBuffer_RetainedSizeIncreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+    const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+    CHECK_EQ(kArraybufferSize, retained_after - retained_before);
+  }
+}
+
+TEST(ArrayBuffer_RetainedSizeDecreases) {
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+
+  const size_t retained_before = ArrayBufferTracker::RetainedInNewSpace(heap);
+  {
+    const size_t kArraybufferSize = 117;
+    v8::HandleScope handle_scope(isolate);
+    Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, kArraybufferSize);
+    USE(ab);
+  }
+  heap::GcAndSweep(heap, OLD_SPACE);
+  const size_t retained_after = ArrayBufferTracker::RetainedInNewSpace(heap);
+  CHECK_EQ(0, retained_after - retained_before);
+}
+
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

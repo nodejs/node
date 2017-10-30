@@ -1,4 +1,7 @@
 'use strict'
+
+const BB = require('bluebird')
+
 var fs = require('graceful-fs')
 var path = require('path')
 
@@ -31,17 +34,16 @@ test('bitbucket-https-url-with-creds-package', function (t) {
   ]
 
   var npm = requireInject.installGlobally('../../lib/npm.js', {
-    'child_process': {
-      'execFile': function (cmd, args, options, cb) {
-        process.nextTick(function () {
-          if (args[0] !== 'clone') return cb(null, '', '')
+    'pacote/lib/util/git': {
+      'revs': (repo, opts) => {
+        return BB.resolve().then(() => {
           var cloneUrl = cloneUrls.shift()
           if (cloneUrl) {
-            t.is(args[3], cloneUrl[0], cloneUrl[1])
+            t.is(repo, cloneUrl[0], cloneUrl[1])
           } else {
             t.fail('too many attempts to clone')
           }
-          cb(new Error())
+          throw new Error('git.revs mock fails on purpose')
         })
       }
     }
@@ -55,8 +57,8 @@ test('bitbucket-https-url-with-creds-package', function (t) {
   }
   npm.load(opts, function (er) {
     t.ifError(er, 'npm loaded without error')
-    npm.commands.install([], function (er) {
-      t.ok(er, 'mocked install failed as expected')
+    npm.commands.install([], function (err) {
+      t.match(err.message, /mock fails on purpose/, 'mocked install failed as expected')
       t.end()
     })
   })

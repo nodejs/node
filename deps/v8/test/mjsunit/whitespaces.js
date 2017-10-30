@@ -19,7 +19,6 @@ var whitespaces = [
 
   // Unicode 6.3.0 whitespaces (category 'Zs')
   0x1680,  // Ogham Space Mark
-  0x180E,  // Mongolian Vowel Separator
   0x2000,  // EN QUAD
   0x2001,  // EM QUAD
   0x2002,  // EN SPACE

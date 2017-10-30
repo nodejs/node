@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -38,11 +39,13 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Handle<Object> exc,
+void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
+  exc->Print();
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
   v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);
@@ -51,7 +54,7 @@ void CheckExceptionInfos(Handle<Object> exc,
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
-    v8::String::Utf8Value funName(frame->GetFunctionName());
+    v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
     CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
@@ -62,17 +65,14 @@ void CheckExceptionInfos(Handle<Object> exc,
 
 // Trigger a trap for executing unreachable.
 TEST(Unreachable) {
+  // Create a WasmRunner with stack checks and traps enabled.
+  WasmRunner<void> r(kExecuteCompiled, "main", true);
   TestSignatures sigs;
-  TestingModule module;
 
-  WasmFunctionCompiler comp1(sigs.v_v(), &module,
-                             ArrayVector("exec_unreachable"));
-  // Set the execution context, such that a runtime error can be thrown.
-  comp1.SetModuleContext();
-  BUILD(comp1, WASM_UNREACHABLE);
-  uint32_t wasm_index = comp1.CompileAndAdd();
+  BUILD(r, WASM_UNREACHABLE);
+  uint32_t wasm_index = r.function()->func_index;
 
-  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index);
+  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -85,35 +85,37 @@ TEST(Unreachable) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},  // --
-      {"callFn", 1, 24}                                     // --
+      {"main", static_cast<int>(wasm_index) + 1, 2},  // --
+      {"callFn", 1, 24}                               // --
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }
 
 // Trigger a trap for loading from out-of-bounds.
 TEST(IllegalLoad) {
+  WasmRunner<void> r(kExecuteCompiled, "main", true);
   TestSignatures sigs;
-  TestingModule module;
 
-  WasmFunctionCompiler comp1(sigs.v_v(), &module, ArrayVector("mem_oob"));
-  // Set the execution context, such that a runtime error can be thrown.
-  comp1.SetModuleContext();
-  BUILD(comp1, WASM_IF(WASM_ONE,
-                       WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-3))));
-  uint32_t wasm_index = comp1.CompileAndAdd();
+  r.builder().AddMemory(0L);
 
-  WasmFunctionCompiler comp2(sigs.v_v(), &module, ArrayVector("call_mem_oob"));
+  BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
+                                                    WASM_I32V_1(-3)),
+                                      WASM_DROP)));
+  uint32_t wasm_index_1 = r.function()->func_index;
+
+  WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
   // Insert a NOP such that the position of the call is not one.
-  BUILD(comp2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index));
-  uint32_t wasm_index_2 = comp2.CompileAndAdd();
+  BUILD(f2, WASM_NOP, WASM_CALL_FUNCTION0(wasm_index_1));
+  uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -126,14 +128,16 @@ TEST(IllegalLoad) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 7},    // --
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 3},  // --
-      {"callFn", 1, 24}                                       // --
+      {"main", static_cast<int>(wasm_index_1) + 1, 8},       // --
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 3},  // --
+      {"callFn", 1, 24}                                      // --
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }

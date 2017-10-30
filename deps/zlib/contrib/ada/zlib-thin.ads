@@ -436,7 +436,7 @@ private
 
    pragma Import (C, inflateBackInit, "inflateBackInit_");
 
-   --  I stopped binding the inflateBack routines, becouse realize that
+   --  I stopped binding the inflateBack routines, because realize that
    --  it does not support zlib and gzip headers for now, and have no
    --  symmetric deflateBack routines.
    --  ZLib-Ada is symmetric regarding deflate/inflate data transformation

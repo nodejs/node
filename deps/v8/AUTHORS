@@ -1,4 +1,4 @@
-# Below is a list of people and organizations that have contributed
+﻿# Below is a list of people and organizations that have contributed
 # to the V8 project.  Names should be added to the list like so:
 #
 #   Name/Organization <email address>
@@ -20,7 +20,7 @@ Imagination Technologies, LLC <*@imgtec.com>
 Loongson Technology Corporation Limited <*@loongson.cn>
 Code Aurora Forum <*@codeaurora.org>
 Home Jinni Inc. <*@homejinni.com>
-IBM Inc. <*@*.ibm.com>
+IBM Inc. <*@*ibm.com>
 Samsung <*@*.samsung.com>
 Joyent, Inc <*@joyent.com>
 RT-RK Computer Based System <*@rt-rk.com>
@@ -28,6 +28,8 @@ Amazon, Inc <*@amazon.com>
 ST Microelectronics <*@st.com>
 Yandex LLC <*@yandex-team.ru>
 StrongLoop, Inc. <*@strongloop.com>
+Facebook, Inc. <*@fb.com>
+Facebook, Inc. <*@oculus.com>
 
 Aaron Bieber <deftly@gmail.com>
 Abdulla Kamar <abdulla.kamar@gmail.com>
@@ -48,6 +50,7 @@ Bert Belder <bertbelder@gmail.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Caitlin Potter <caitpotter88@gmail.com>
 Craig Schlenter <craig.schlenter@gmail.com>
+Choongwoo Han <cwhan.tunz@gmail.com>
 Chris Nardi <hichris123@gmail.com>
 Christopher A. Taylor <chris@gameclosure.com>
 Daniel Andersson <kodandersson@gmail.com>
@@ -63,11 +66,13 @@ Felix Geisendörfer <haimuiba@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
 Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
 Geoffrey Garside <ggarside@gmail.com>
-Han Choongwoo <cwhan.tunz@gmail.com>
+Gwang Yoon Hwang <ryumiel@company100.net>
+Henrique Ferreiro <henrique.ferreiro@gmail.com>
 Hirofumi Mako <mkhrfm@gmail.com>
 Honggyu Kim <honggyu.kp@gmail.com>
 Ioseb Dzmanashvili <ioseb.dzmanashvili@gmail.com>
 Isiah Meadows <impinball@gmail.com>
+Jaime Bernardo <jaime@janeasystems.com>
 Jan de Mooij <jandemooij@gmail.com>
 Jay Freeman <saurik@saurik.com>
 James Pike <g00gle@chilon.net>
@@ -79,10 +84,13 @@ Julien Brianceau <jbriance@cisco.com>
 JunHo Seo <sejunho@gmail.com>
 Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
 Karl Skomski <karl@skomski.com>
+Kevin Gibbons <bakkot@gmail.com>
+Loo Rong Jie <loorongjie@gmail.com>
 Luis Reis <luis.m.reis@gmail.com>
 Luke Zarko <lukezarko@gmail.com>
 Maciej Małecki <me@mmalecki.com>
 Marcin Cieślak <saper@marcincieslak.com>
+Mateusz Czeladka <mateusz.szczap@gmail.com>
 Mathias Bynens <mathias@qiwi.be>
 Matt Hanselman <mjhanselman@gmail.com>
 Matthew Sporleder <msporleder@gmail.com>
@@ -95,18 +103,25 @@ Mike Pennisi <mike@mikepennisi.com>
 Milton Chiang <milton.chiang@mediatek.com>
 Myeong-bo Shim <m0609.shim@samsung.com>
 Nicolas Antonius Ernst Leopold Maria Kaiser <nikai@nikai.net>
+Niklas Hambüchen <mail@nh2.me>
+Noj Vek <nojvek@gmail.com>
 Oleksandr Chekhovskyi <oleksandr.chekhovskyi@gmail.com>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
+Peter Rybin <peter.rybin@gmail.com>
 Peter Varga <pvarga@inf.u-szeged.hu>
+Peter Wong <peter.wm.wong@gmail.com>
 Paul Lind <plind44@gmail.com>
+Qiuyi Zhang <qiuyi.zqy@alibaba-inc.com>
 Rafal Krypa <rafal@krypa.net>
 Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
+Rob Wu <rob@robwu.nl>
 Robert Mustacchi <rm@fingolfin.org>
 Robert Nagy <robert.nagy@gmail.com>
 Ryan Dahl <ry@tinyclouds.org>
 Sakthipriyan Vairamani (thefourtheye) <thechargingvolcano@gmail.com>
+Sander Mathijs van Veen <sander@leaningtech.com>
 Sandro Santilli <strk@keybit.net>
 Sanjoy Das <sanjoy@playingwithpointers.com>
 Seo Sanghyeon <sanxiyn@gmail.com>
@@ -116,6 +131,7 @@ Victor Costan <costan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
 Vladimir Krivosheev <develar@gmail.com>
 Vladimir Shutoff <vovan@shutoff.ru>
+Wiktor Garbacz <wiktor.garbacz@gmail.com>
 Yu Yin <xwafish@gmail.com>
 Zac Hansen <xaxxon@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>

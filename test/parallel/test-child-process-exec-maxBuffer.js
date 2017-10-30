@@ -11,6 +11,17 @@ function checkFactory(streamName) {
 }
 
 {
+  const cmd = `"${process.execPath}" -e "console.log('hello world');"`;
+  const options = { maxBuffer: Infinity };
+
+  cp.exec(cmd, options, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout.trim(), 'hello world');
+    assert.strictEqual(stderr, '');
+  }));
+}
+
+{
   const cmd = 'echo "hello world"';
 
   cp.exec(cmd, { maxBuffer: 5 }, checkFactory('stdout'));
@@ -21,11 +32,11 @@ const unicode = '中文测试'; // length = 4, byte length = 12
 {
   const cmd = `"${process.execPath}" -e "console.log('${unicode}');"`;
 
-  cp.exec(cmd, {maxBuffer: 10}, checkFactory('stdout'));
+  cp.exec(cmd, { maxBuffer: 10 }, checkFactory('stdout'));
 }
 
 {
-  const cmd = `"${process.execPath}" -e "console.('${unicode}');"`;
+  const cmd = `"${process.execPath}" -e "console.error('${unicode}');"`;
 
-  cp.exec(cmd, {maxBuffer: 10}, checkFactory('stderr'));
+  cp.exec(cmd, { maxBuffer: 10 }, checkFactory('stderr'));
 }

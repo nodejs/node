@@ -4,9 +4,12 @@
 
 #include <memory>
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/pipeline-statistics.h"
-#include "src/compiler/zone-pool.h"
+#include "src/compiler/zone-stats.h"
+#include "src/isolate.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -15,13 +18,13 @@ namespace compiler {
 void PipelineStatistics::CommonStats::Begin(
     PipelineStatistics* pipeline_stats) {
   DCHECK(!scope_);
-  scope_.reset(new ZonePool::StatsScope(pipeline_stats->zone_pool_));
+  scope_.reset(new ZoneStats::StatsScope(pipeline_stats->zone_stats_));
   timer_.Start();
   outer_zone_initial_size_ = pipeline_stats->OuterZoneSize();
   allocated_bytes_at_start_ =
       outer_zone_initial_size_ -
       pipeline_stats->total_stats_.outer_zone_initial_size_ +
-      pipeline_stats->zone_pool_->GetCurrentAllocatedBytes();
+      pipeline_stats->zone_stats_->GetCurrentAllocatedBytes();
 }
 
 
@@ -42,12 +45,11 @@ void PipelineStatistics::CommonStats::End(
   timer_.Stop();
 }
 
-
 PipelineStatistics::PipelineStatistics(CompilationInfo* info,
-                                       ZonePool* zone_pool)
+                                       ZoneStats* zone_stats)
     : isolate_(info->isolate()),
       outer_zone_(info->zone()),
-      zone_pool_(zone_pool),
+      zone_stats_(zone_stats),
       compilation_stats_(isolate_->GetTurboStatistics()),
       source_size_(0),
       phase_kind_name_(nullptr),

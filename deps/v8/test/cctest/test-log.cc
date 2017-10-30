@@ -34,13 +34,14 @@
 #include <cmath>
 #endif  // __linux__
 
-#include "src/v8.h"
-
-#include "src/log.h"
+#include "src/api.h"
 #include "src/log-utils.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -375,8 +376,9 @@ TEST(LogCallbacks) {
     ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
 #endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data, "code-creation,Callback,-2,%p,1,\"method1\"",
-                static_cast<void*>(ObjMethod1_entry));
+    i::SNPrintF(ref_data,
+                "code-creation,Callback,-2,-1,0x%" V8PRIxPTR ",1,\"method1\"",
+                reinterpret_cast<intptr_t>(ObjMethod1_entry));
 
     CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
@@ -428,8 +430,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record,
-                "code-creation,Callback,-2,%p,1,\"get prop1\"",
-                static_cast<void*>(Prop1Getter_entry));
+                "code-creation,Callback,-2,-1,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                reinterpret_cast<intptr_t>(Prop1Getter_entry));
     CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
     Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
@@ -438,8 +440,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record,
-                "code-creation,Callback,-2,%p,1,\"set prop1\"",
-                static_cast<void*>(Prop1Setter_entry));
+                "code-creation,Callback,-2,-1,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                reinterpret_cast<intptr_t>(Prop1Setter_entry));
     CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
     Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
@@ -448,8 +450,8 @@ TEST(LogAccessorCallbacks) {
 #endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record,
-                "code-creation,Callback,-2,%p,1,\"get prop2\"",
-                static_cast<void*>(Prop2Getter_entry));
+                "code-creation,Callback,-2,-1,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                reinterpret_cast<intptr_t>(Prop2Getter_entry));
     CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
     log.Dispose();
   }
@@ -486,7 +488,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "})(this);");
     logger->StopProfiler();
     reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-        i::Heap::kMakeHeapIterableMask);
+        i::Heap::kMakeHeapIterableMask, i::GarbageCollectionReason::kTesting);
     logger->StringEvent("test-logging-done", "");
 
     // Iterate heap to find compiled functions, will write to log.
@@ -514,13 +516,13 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     v8::TryCatch try_catch(isolate);
     v8::Local<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
-      v8::String::Utf8Value exception(try_catch.Exception());
+      v8::String::Utf8Value exception(isolate, try_catch.Exception());
       printf("compile: %s\n", *exception);
       CHECK(false);
     }
     v8::Local<v8::Value> result;
     if (!script->Run(initialize_logger.env()).ToLocal(&result)) {
-      v8::String::Utf8Value exception(try_catch.Exception());
+      v8::String::Utf8Value exception(isolate, try_catch.Exception());
       printf("run: %s\n", *exception);
       CHECK(false);
     }

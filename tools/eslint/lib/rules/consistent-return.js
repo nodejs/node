@@ -8,6 +8,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
+const lodash = require("lodash");
+
 const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -31,6 +33,18 @@ function isIdentifier(node, name) {
  */
 function isUnreachable(segment) {
     return !segment.reachable;
+}
+
+/**
+* Checks whether a given node is a `constructor` method in an ES6 class
+* @param {ASTNode} node A node to check
+* @returns {boolean} `true` if the node is a `constructor` method
+*/
+function isClassConstructor(node) {
+    return node.type === "FunctionExpression" &&
+        node.parent &&
+        node.parent.type === "MethodDefinition" &&
+        node.parent.kind === "constructor";
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +83,7 @@ module.exports = {
          * @returns {void}
          */
         function checkLastSegment(node) {
-            let loc, type;
+            let loc, name;
 
             /*
              * Skip if it expected no return value or unreachable.
@@ -77,7 +91,8 @@ module.exports = {
              */
             if (!funcInfo.hasReturnValue ||
                 funcInfo.codePath.currentSegments.every(isUnreachable) ||
-                astUtils.isES5Constructor(node)
+                astUtils.isES5Constructor(node) ||
+                isClassConstructor(node)
             ) {
                 return;
             }
@@ -86,13 +101,12 @@ module.exports = {
             if (node.type === "Program") {
 
                 // The head of program.
-                loc = {line: 1, column: 0};
-                type = "program";
+                loc = { line: 1, column: 0 };
+                name = "program";
             } else if (node.type === "ArrowFunctionExpression") {
 
                 // `=>` token
-                loc = context.getSourceCode().getTokenBefore(node.body).loc.start;
-                type = "function";
+                loc = context.getSourceCode().getTokenBefore(node.body, astUtils.isArrowToken).loc.start;
             } else if (
                 node.parent.type === "MethodDefinition" ||
                 (node.parent.type === "Property" && node.parent.method)
@@ -100,33 +114,36 @@ module.exports = {
 
                 // Method name.
                 loc = node.parent.key.loc.start;
-                type = "method";
             } else {
 
                 // Function name or `function` keyword.
                 loc = (node.id || node).loc.start;
-                type = "function";
+            }
+
+            if (!name) {
+                name = astUtils.getFunctionNameWithKind(node);
             }
 
             // Reports.
             context.report({
                 node,
                 loc,
-                message: "Expected to return a value at the end of this {{type}}.",
-                data: {type}
+                message: "Expected to return a value at the end of {{name}}.",
+                data: { name }
             });
         }
 
         return {
 
             // Initializes/Disposes state of each code path.
-            onCodePathStart(codePath) {
+            onCodePathStart(codePath, node) {
                 funcInfo = {
                     upper: funcInfo,
                     codePath,
                     hasReturn: false,
                     hasReturnValue: false,
-                    message: ""
+                    message: "",
+                    node
                 };
             },
             onCodePathEnd() {
@@ -145,8 +162,11 @@ module.exports = {
                 if (!funcInfo.hasReturn) {
                     funcInfo.hasReturn = true;
                     funcInfo.hasReturnValue = hasReturnValue;
-                    funcInfo.message = "Expected {{which}} return value.";
+                    funcInfo.message = "{{name}} expected {{which}} return value.";
                     funcInfo.data = {
+                        name: funcInfo.node.type === "Program"
+                            ? "Program"
+                            : lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node)),
                         which: hasReturnValue ? "a" : "no"
                     };
                 } else if (funcInfo.hasReturnValue !== hasReturnValue) {

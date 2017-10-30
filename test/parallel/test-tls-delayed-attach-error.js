@@ -1,29 +1,28 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
-var fs = require('fs');
-var net = require('net');
 
-var bonkers = Buffer.alloc(1024, 42);
+const tls = require('tls');
+const net = require('net');
+const fixtures = require('../common/fixtures');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const bonkers = Buffer.alloc(1024, 42);
+
+const options = {
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
-var server = net.createServer(common.mustCall(function(c) {
+const server = net.createServer(common.mustCall(function(c) {
   setTimeout(common.mustCall(function() {
-    var s = new tls.TLSSocket(c, {
+    const s = new tls.TLSSocket(c, {
       isServer: true,
       secureContext: tls.createSecureContext(options)
     });
 
-    s.on('_tlsError', common.mustCall(function() {}));
+    s.on('_tlsError', common.mustCall());
 
     s.on('close', function() {
       server.close();
@@ -31,7 +30,7 @@ var server = net.createServer(common.mustCall(function(c) {
     });
   }), 200);
 })).listen(0, function() {
-  var c = net.connect({port: this.address().port}, function() {
+  const c = net.connect({ port: this.address().port }, function() {
     c.write(bonkers);
   });
 });

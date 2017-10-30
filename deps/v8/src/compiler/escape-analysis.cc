@@ -12,13 +12,14 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/node.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -124,6 +125,8 @@ const Alias EscapeStatusAnalysis::kNotReachable =
 const Alias EscapeStatusAnalysis::kUntrackable =
     std::numeric_limits<Alias>::max() - 1;
 
+namespace impl {
+
 class VirtualObject : public ZoneObject {
  public:
   enum Status {
@@ -167,6 +170,9 @@ class VirtualObject : public ZoneObject {
   bool IsCreatedPhi(size_t offset) { return phi_[offset]; }
 
   void SetField(size_t offset, Node* node, bool created_phi = false) {
+    TRACE("    VirtualObject(%p)[%zu] changes from #%i to #%i\n",
+          static_cast<void*>(this), offset,
+          fields_[offset] ? fields_[offset]->id() : -1, node ? node->id() : -1);
     fields_[offset] = node;
     phi_[offset] = created_phi;
   }
@@ -201,7 +207,7 @@ class VirtualObject : public ZoneObject {
   }
   bool UpdateFrom(const VirtualObject& other);
   bool MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                 CommonOperatorBuilder* common);
+                 CommonOperatorBuilder* common, bool initialMerge);
   void SetObjectState(Node* node) { object_state_ = node; }
   Node* GetObjectState() const { return object_state_; }
   bool IsCopyRequired() const { return status_ & kCopyRequired; }
@@ -233,6 +239,8 @@ class VirtualObject : public ZoneObject {
 DEFINE_OPERATORS_FOR_FLAGS(VirtualObject::StatusFlags)
 
 bool VirtualObject::UpdateFrom(const VirtualObject& other) {
+  TRACE("%p.UpdateFrom(%p)\n", static_cast<void*>(this),
+        static_cast<const void*>(&other));
   bool changed = status_ != other.status_;
   status_ = other.status_;
   phi_ = other.phi_;
@@ -252,10 +260,14 @@ bool VirtualObject::UpdateFrom(const VirtualObject& other) {
 class VirtualState : public ZoneObject {
  public:
   VirtualState(Node* owner, Zone* zone, size_t size)
-      : info_(size, nullptr, zone), owner_(owner) {}
+      : info_(size, nullptr, zone),
+        initialized_(static_cast<int>(size), zone),
+        owner_(owner) {}
 
   VirtualState(Node* owner, const VirtualState& state)
       : info_(state.info_.size(), nullptr, state.info_.get_allocator().zone()),
+        initialized_(state.initialized_.length(),
+                     state.info_.get_allocator().zone()),
         owner_(owner) {
     for (size_t i = 0; i < info_.size(); ++i) {
       if (state.info_[i]) {
@@ -280,6 +292,7 @@ class VirtualState : public ZoneObject {
 
  private:
   ZoneVector<VirtualObject*> info_;
+  BitVector initialized_;
   Node* owner_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualState);
@@ -375,6 +388,7 @@ VirtualObject* VirtualState::VirtualObjectFromAlias(size_t alias) {
 
 void VirtualState::SetVirtualObject(Alias alias, VirtualObject* obj) {
   info_[alias] = obj;
+  if (obj) initialized_.Add(alias);
 }
 
 bool VirtualState::UpdateFrom(VirtualState* from, Zone* zone) {
@@ -418,20 +432,6 @@ bool IsEquivalentPhi(Node* node1, Node* node2) {
   return true;
 }
 
-bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
-  if (phi->opcode() != IrOpcode::kPhi) return false;
-  if (phi->op()->ValueInputCount() != inputs.size()) {
-    return false;
-  }
-  for (size_t i = 0; i < inputs.size(); ++i) {
-    Node* input = NodeProperties::GetValueInput(phi, static_cast<int>(i));
-    if (!IsEquivalentPhi(input, inputs[i])) {
-      return false;
-    }
-  }
-  return true;
-}
-
 }  // namespace
 
 bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
@@ -440,12 +440,18 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
   int value_input_count = static_cast<int>(cache->fields().size());
   Node* rep = GetField(i);
   if (!rep || !IsCreatedPhi(i)) {
+    for (Node* input : cache->fields()) {
+      CHECK_NOT_NULL(input);
+      CHECK(!input->IsDead());
+    }
     Node* control = NodeProperties::GetControlInput(at);
     cache->fields().push_back(control);
     Node* phi = graph->NewNode(
         common->Phi(MachineRepresentation::kTagged, value_input_count),
         value_input_count + 1, &cache->fields().front());
+    NodeProperties::SetType(phi, Type::Any());
     SetField(i, phi, true);
+
 #ifdef DEBUG
     if (FLAG_trace_turbo_escape) {
       PrintF("    Creating Phi #%d as merge of", phi->id());
@@ -471,19 +477,22 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
 }
 
 bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                              CommonOperatorBuilder* common) {
+                              CommonOperatorBuilder* common,
+                              bool initialMerge) {
   DCHECK(at->opcode() == IrOpcode::kEffectPhi ||
          at->opcode() == IrOpcode::kPhi);
   bool changed = false;
   for (size_t i = 0; i < field_count(); ++i) {
-    if (Node* field = cache->GetFields(i)) {
+    if (!initialMerge && GetField(i) == nullptr) continue;
+    Node* field = cache->GetFields(i);
+    if (field && !IsCreatedPhi(i)) {
       changed = changed || GetField(i) != field;
       SetField(i, field);
       TRACE("    Field %zu agree on rep #%d\n", i, field->id());
     } else {
-      int arity = at->opcode() == IrOpcode::kEffectPhi
-                      ? at->op()->EffectInputCount()
-                      : at->op()->ValueInputCount();
+      size_t arity = at->opcode() == IrOpcode::kEffectPhi
+                         ? at->op()->EffectInputCount()
+                         : at->op()->ValueInputCount();
       if (cache->fields().size() == arity) {
         changed = MergeFields(i, at, cache, graph, common) || changed;
       } else {
@@ -516,8 +525,11 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         fields = std::min(obj->field_count(), fields);
       }
     }
-    if (cache->objects().size() == cache->states().size()) {
+    if (cache->objects().size() == cache->states().size() &&
+        (mergeObject || !initialized_.Contains(alias))) {
+      bool initialMerge = false;
       if (!mergeObject) {
+        initialMerge = true;
         VirtualObject* obj = new (zone)
             VirtualObject(cache->objects().front()->id(), this, zone, fields,
                           cache->objects().front()->IsInitialized());
@@ -542,7 +554,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         PrintF("\n");
       }
 #endif  // DEBUG
-      changed = mergeObject->MergeFrom(cache, at, graph, common) || changed;
+      changed =
+          mergeObject->MergeFrom(cache, at, graph, common, initialMerge) ||
+          changed;
     } else {
       if (mergeObject) {
         TRACE("  Alias %d, virtual object removed\n", alias);
@@ -553,6 +567,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
   }
   return changed;
 }
+
+}  // namespace impl
+using namespace impl;
 
 EscapeStatusAnalysis::EscapeStatusAnalysis(EscapeAnalysis* object_analysis,
                                            Graph* graph, Zone* zone)
@@ -612,6 +629,11 @@ void EscapeStatusAnalysis::ResizeStatusVector() {
 size_t EscapeStatusAnalysis::GetStatusVectorSize() { return status_.size(); }
 
 void EscapeStatusAnalysis::RunStatusAnalysis() {
+  // TODO(tebbi): This checks for faulty VirtualObject states, which can happen
+  // due to bug https://bugs.chromium.org/p/v8/issues/detail?id=6302. As a
+  // workaround, we set everything to escaped if such a faulty state was
+  // detected.
+  bool all_objects_complete = object_analysis_->AllObjectsComplete();
   ResizeStatusVector();
   while (!status_stack_.empty()) {
     Node* node = status_stack_.back();
@@ -619,6 +641,7 @@ void EscapeStatusAnalysis::RunStatusAnalysis() {
     status_[node->id()] &= ~kOnStack;
     Process(node);
     status_[node->id()] |= kVisited;
+    if (!all_objects_complete) SetEscaped(node);
   }
 }
 
@@ -670,6 +693,15 @@ void EscapeStatusAnalysis::Process(Node* node) {
         if (IsAllocation(rep) && CheckUsesForEscape(node, rep)) {
           RevisitInputs(rep);
           RevisitUses(rep);
+        }
+      } else {
+        Node* from = NodeProperties::GetValueInput(node, 0);
+        from = object_analysis_->ResolveReplacement(from);
+        if (SetEscaped(from)) {
+          TRACE("Setting #%d (%s) to escaped because of unresolved load #%i\n",
+                from->id(), from->op()->mnemonic(), node->id());
+          RevisitInputs(from);
+          RevisitUses(from);
         }
       }
       RevisitUses(node);
@@ -775,6 +807,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStateValues:
       case IrOpcode::kReferenceEqual:
       case IrOpcode::kFinishRegion:
+      case IrOpcode::kCheckMaps:
         if (IsEscaped(use) && SetEscaped(rep)) {
           TRACE(
               "Setting #%d (%s) to escaped because of use by escaping node "
@@ -795,10 +828,36 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kSelect:
       // TODO(mstarzinger): The following list of operators will eventually be
       // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
+      case IrOpcode::kConvertTaggedHoleToUndefined:
+      case IrOpcode::kStringEqual:
+      case IrOpcode::kStringLessThan:
+      case IrOpcode::kStringLessThanOrEqual:
+      case IrOpcode::kTypeGuard:
+      case IrOpcode::kPlainPrimitiveToNumber:
+      case IrOpcode::kPlainPrimitiveToWord32:
+      case IrOpcode::kPlainPrimitiveToFloat64:
+      case IrOpcode::kStringCharAt:
+      case IrOpcode::kStringCharCodeAt:
+      case IrOpcode::kSeqStringCharCodeAt:
+      case IrOpcode::kStringIndexOf:
+      case IrOpcode::kStringToLowerCaseIntl:
+      case IrOpcode::kStringToUpperCaseIntl:
       case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kObjectIsDetectableCallable:
+      case IrOpcode::kObjectIsNaN:
+      case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
+      case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
+      case IrOpcode::kObjectIsSymbol:
       case IrOpcode::kObjectIsUndetectable:
+      case IrOpcode::kNumberLessThan:
+      case IrOpcode::kNumberLessThanOrEqual:
+      case IrOpcode::kNumberEqual:
+#define CASE(opcode) case IrOpcode::k##opcode:
+        SIMPLIFIED_NUMBER_BINOP_LIST(CASE)
+        SIMPLIFIED_NUMBER_UNOP_LIST(CASE)
+#undef CASE
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
@@ -807,13 +866,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         }
         break;
       default:
-        if (use->op()->EffectInputCount() == 0 &&
-            uses->op()->EffectInputCount() > 0 &&
-            !IrOpcode::IsJsOpcode(use->opcode())) {
-          TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
-                use->op()->mnemonic());
-          UNREACHABLE();
-        }
+        DCHECK(use->op()->EffectInputCount() > 0 ||
+               uses->op()->EffectInputCount() == 0 ||
+               IrOpcode::IsJsOpcode(use->opcode()));
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
                 rep->id(), rep->op()->mnemonic(), use->id(),
@@ -833,6 +888,7 @@ void EscapeStatusAnalysis::ProcessFinishRegion(Node* node) {
   }
   if (CheckUsesForEscape(node, true)) {
     RevisitInputs(node);
+    RevisitUses(node);
   }
 }
 
@@ -853,11 +909,16 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       status_analysis_(new (zone) EscapeStatusAnalysis(this, graph, zone)),
       virtual_states_(zone),
       replacements_(zone),
-      cache_(nullptr) {}
+      cycle_detection_(zone),
+      cache_(nullptr) {
+  // Type slot_not_analyzed_ manually.
+  double v = OpParameter<double>(slot_not_analyzed_);
+  NodeProperties::SetType(slot_not_analyzed_, Type::Range(v, v, zone));
+}
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
-void EscapeAnalysis::Run() {
+bool EscapeAnalysis::Run() {
   replacements_.resize(graph()->NodeCount());
   status_analysis_->AssignAliases();
   if (status_analysis_->AliasCount() > 0) {
@@ -866,6 +927,9 @@ void EscapeAnalysis::Run() {
     status_analysis_->ResizeStatusVector();
     RunObjectAnalysis();
     status_analysis_->RunStatusAnalysis();
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -935,6 +999,25 @@ bool EscapeStatusAnalysis::IsNotReachable(Node* node) {
   return aliases_[node->id()] == kNotReachable;
 }
 
+bool EscapeAnalysis::AllObjectsComplete() {
+  for (VirtualState* state : virtual_states_) {
+    if (state) {
+      for (size_t i = 0; i < state->size(); ++i) {
+        if (VirtualObject* object = state->VirtualObjectFromAlias(i)) {
+          if (!object->AllFieldsClear()) {
+            for (size_t i = 0; i < object->field_count(); ++i) {
+              if (object->GetField(i) == nullptr) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
 void EscapeAnalysis::RunObjectAnalysis() {
   virtual_states_.resize(graph()->NodeCount());
   ZoneDeque<Node*> queue(zone());
@@ -956,6 +1039,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
           // VirtualObjects, and we want to delay phis to improve performance.
           if (use->opcode() == IrOpcode::kEffectPhi) {
             if (!status_analysis_->IsInQueue(use->id())) {
+              status_analysis_->SetInQueue(use->id(), true);
               queue.push_front(use);
             }
           } else if ((use->opcode() != IrOpcode::kLoadField &&
@@ -977,6 +1061,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
       danglers.clear();
     }
   }
+
 #ifdef DEBUG
   if (FLAG_trace_turbo_escape) {
     DebugPrint();
@@ -1034,6 +1119,21 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
   return false;
 }
 
+namespace {
+
+bool HasFrameStateInput(const Operator* op) {
+  if (op->opcode() == IrOpcode::kCall ||
+      op->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
+      op->opcode() == IrOpcode::kTailCall) {
+    const CallDescriptor* d = CallDescriptorOf(op);
+    return d->NeedsFrameState();
+  } else {
+    return OperatorProperties::HasFrameStateInput(op);
+  }
+}
+
+}  // namespace
+
 bool EscapeAnalysis::Process(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
@@ -1057,6 +1157,9 @@ bool EscapeAnalysis::Process(Node* node) {
     case IrOpcode::kLoadElement:
       ProcessLoadElement(node);
       break;
+    case IrOpcode::kCheckMaps:
+      ProcessCheckMaps(node);
+      break;
     case IrOpcode::kStart:
       ProcessStart(node);
       break;
@@ -1069,6 +1172,9 @@ bool EscapeAnalysis::Process(Node* node) {
       }
       ProcessAllocationUsers(node);
       break;
+  }
+  if (HasFrameStateInput(node->op())) {
+    virtual_states_[node->id()]->SetCopyRequired();
   }
   return true;
 }
@@ -1091,6 +1197,10 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
       case IrOpcode::kFinishRegion:
       case IrOpcode::kObjectIsSmi:
         break;
+      case IrOpcode::kCheckMaps: {
+        CheckMapsParameters params = CheckMapsParametersOf(node->op());
+        if (params.flags() == CheckMapsFlag::kNone) break;
+      }  // Fallthrough.
       default:
         VirtualState* state = virtual_states_[node->id()];
         if (VirtualObject* obj =
@@ -1125,7 +1235,17 @@ VirtualObject* EscapeAnalysis::CopyForModificationAt(VirtualObject* obj,
                                                      Node* node) {
   if (obj->NeedCopyForModification()) {
     state = CopyForModificationAt(state, node);
-    return state->Copy(obj, status_analysis_->GetAlias(obj->id()));
+    // TODO(tebbi): this copies the complete virtual state. Replace with a more
+    // precise analysis of which objects are actually affected by the change.
+    Alias changed_alias = status_analysis_->GetAlias(obj->id());
+    for (Alias alias = 0; alias < state->size(); ++alias) {
+      if (VirtualObject* next_obj = state->VirtualObjectFromAlias(alias)) {
+        if (alias != changed_alias && next_obj->NeedCopyForModification()) {
+          state->Copy(next_obj, alias);
+        }
+      }
+    }
+    return state->Copy(obj, changed_alias);
   }
   return obj;
 }
@@ -1145,6 +1265,11 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   DCHECK_NOT_NULL(virtual_states_[effect->id()]);
   if (virtual_states_[node->id()]) {
+    TRACE("Updating virtual state %p at %s#%d from virtual state %p at %s#%d\n",
+          static_cast<void*>(virtual_states_[node->id()]),
+          node->op()->mnemonic(), node->id(),
+          static_cast<void*>(virtual_states_[effect->id()]),
+          effect->op()->mnemonic(), effect->id());
     virtual_states_[node->id()]->UpdateFrom(virtual_states_[effect->id()],
                                             zone());
   } else {
@@ -1153,8 +1278,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
           static_cast<void*>(virtual_states_[effect->id()]),
           effect->op()->mnemonic(), effect->id(), node->op()->mnemonic(),
           node->id());
-    if (status_analysis_->IsEffectBranchPoint(effect) ||
-        OperatorProperties::HasFrameStateInput(node->op())) {
+    if (status_analysis_->IsEffectBranchPoint(effect)) {
       virtual_states_[node->id()]->SetCopyRequired();
       TRACE(", effect input %s#%d is branch point", effect->op()->mnemonic(),
             effect->id());
@@ -1329,9 +1453,21 @@ bool EscapeAnalysis::CompareVirtualObjects(Node* left, Node* right) {
 
 namespace {
 
+#ifdef DEBUG
+bool IsOffsetForFieldAccessCorrect(const FieldAccess& access) {
+#if V8_TARGET_LITTLE_ENDIAN
+  return (access.offset % kPointerSize) == 0;
+#else
+  return ((access.offset +
+           (1 << ElementSizeLog2Of(access.machine_type.representation()))) %
+          kPointerSize) == 0;
+#endif
+}
+#endif
+
 int OffsetForFieldAccess(Node* node) {
   FieldAccess access = FieldAccessOf(node->op());
-  DCHECK_EQ(access.offset % kPointerSize, 0);
+  DCHECK(IsOffsetForFieldAccessCorrect(access));
   return access.offset / kPointerSize;
 }
 
@@ -1345,42 +1481,6 @@ int OffsetForElementAccess(Node* node, int index) {
 
 }  // namespace
 
-void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
-                                        VirtualState* state) {
-  TRACE("Load #%d from phi #%d", load->id(), from->id());
-
-  cache_->fields().clear();
-  for (int i = 0; i < load->op()->ValueInputCount(); ++i) {
-    Node* input = NodeProperties::GetValueInput(load, i);
-    cache_->fields().push_back(input);
-  }
-
-  cache_->LoadVirtualObjectsForFieldsFrom(state,
-                                          status_analysis_->GetAliasMap());
-  if (cache_->objects().size() == cache_->fields().size()) {
-    cache_->GetFields(offset);
-    if (cache_->fields().size() == cache_->objects().size()) {
-      Node* rep = replacement(load);
-      if (!rep || !IsEquivalentPhi(rep, cache_->fields())) {
-        int value_input_count = static_cast<int>(cache_->fields().size());
-        cache_->fields().push_back(NodeProperties::GetControlInput(from));
-        Node* phi = graph()->NewNode(
-            common()->Phi(MachineRepresentation::kTagged, value_input_count),
-            value_input_count + 1, &cache_->fields().front());
-        status_analysis_->ResizeStatusVector();
-        SetReplacement(load, phi);
-        TRACE(" got phi created.\n");
-      } else {
-        TRACE(" has already phi #%d.\n", rep->id());
-      }
-    } else {
-      TRACE(" has incomplete field info.\n");
-    }
-  } else {
-    TRACE(" has incomplete virtual object info.\n");
-  }
-}
-
 void EscapeAnalysis::ProcessLoadField(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kLoadField);
   ForwardVirtualState(node);
@@ -1389,20 +1489,68 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
   if (VirtualObject* object = GetVirtualObject(state, from)) {
     if (!object->IsTracked()) return;
     int offset = OffsetForFieldAccess(node);
-    if (static_cast<size_t>(offset) >= object->field_count()) return;
+    if (static_cast<size_t>(offset) >= object->field_count()) {
+      // We have a load from a field that is not inside the {object}. This
+      // can only happen with conflicting type feedback and for dead {node}s.
+      // For now, we just mark the {object} as escaping.
+      // TODO(turbofan): Consider introducing an Undefined or None operator
+      // that we can replace this load with, since we know it's dead code.
+      if (status_analysis_->SetEscaped(from)) {
+        TRACE(
+            "Setting #%d (%s) to escaped because load field #%d from "
+            "offset %d outside of object\n",
+            from->id(), from->op()->mnemonic(), node->id(), offset);
+      }
+      return;
+    }
     Node* value = object->GetField(offset);
     if (value) {
       value = ResolveReplacement(value);
     }
     // Record that the load has this alias.
     UpdateReplacement(state, node, value);
-  } else if (from->opcode() == IrOpcode::kPhi &&
-             FieldAccessOf(node->op()).offset % kPointerSize == 0) {
-    int offset = OffsetForFieldAccess(node);
-    // Only binary phis are supported for now.
-    ProcessLoadFromPhi(offset, from, node, state);
   } else {
     UpdateReplacement(state, node, nullptr);
+  }
+}
+
+void EscapeAnalysis::ProcessCheckMaps(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kCheckMaps);
+  ForwardVirtualState(node);
+  Node* checked = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
+  if (FLAG_turbo_experimental) {
+    VirtualState* state = virtual_states_[node->id()];
+    if (VirtualObject* object = GetVirtualObject(state, checked)) {
+      if (!object->IsTracked()) {
+        if (status_analysis_->SetEscaped(node)) {
+          TRACE(
+              "Setting #%d (%s) to escaped because checked object #%i is not "
+              "tracked\n",
+              node->id(), node->op()->mnemonic(), object->id());
+        }
+        return;
+      }
+      CheckMapsParameters params = CheckMapsParametersOf(node->op());
+
+      Node* value = object->GetField(HeapObject::kMapOffset / kPointerSize);
+      if (value) {
+        value = ResolveReplacement(value);
+        // TODO(tebbi): We want to extend this beyond constant folding with a
+        // CheckMapsValue operator that takes the load-eliminated map value as
+        // input.
+        if (value->opcode() == IrOpcode::kHeapConstant &&
+            params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
+                OpParameter<Handle<HeapObject>>(value))))) {
+          TRACE("CheckMaps #%i seems to be redundant (until now).\n",
+                node->id());
+          return;
+        }
+      }
+    }
+  }
+  if (status_analysis_->SetEscaped(node)) {
+    TRACE("Setting #%d (%s) to escaped (checking #%i)\n", node->id(),
+          node->op()->mnemonic(), checked->id());
   }
 }
 
@@ -1428,9 +1576,6 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
       }
       // Record that the load has this alias.
       UpdateReplacement(state, node, value);
-    } else if (from->opcode() == IrOpcode::kPhi) {
-      int offset = OffsetForElementAccess(node, index.Value());
-      ProcessLoadFromPhi(offset, from, node, state);
     } else {
       UpdateReplacement(state, node, nullptr);
     }
@@ -1454,19 +1599,31 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
   if (VirtualObject* object = GetVirtualObject(state, to)) {
     if (!object->IsTracked()) return;
     int offset = OffsetForFieldAccess(node);
-    if (static_cast<size_t>(offset) >= object->field_count()) return;
+    if (static_cast<size_t>(offset) >= object->field_count()) {
+      // We have a store to a field that is not inside the {object}. This
+      // can only happen with conflicting type feedback and for dead {node}s.
+      // For now, we just mark the {object} as escaping.
+      // TODO(turbofan): Consider just eliminating the store in the reducer
+      // pass, as it's dead code anyways.
+      if (status_analysis_->SetEscaped(to)) {
+        TRACE(
+            "Setting #%d (%s) to escaped because store field #%d to "
+            "offset %d outside of object\n",
+            to->id(), to->op()->mnemonic(), node->id(), offset);
+      }
+      return;
+    }
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
-    // TODO(mstarzinger): The following is a workaround to not track the code
-    // entry field in virtual JSFunction objects. We only ever store the inner
-    // pointer into the compile lazy stub in this field and the deoptimizer has
-    // this assumption hard-coded in {TranslatedState::MaterializeAt} as well.
+    // TODO(mstarzinger): The following is a workaround to not track some well
+    // known raw fields. We only ever store default initial values into these
+    // fields which are hard-coded in {TranslatedState::MaterializeAt} as well.
     if (val->opcode() == IrOpcode::kInt32Constant ||
         val->opcode() == IrOpcode::kInt64Constant) {
-      DCHECK_EQ(JSFunction::kCodeEntryOffset, FieldAccessOf(node->op()).offset);
+      DCHECK(FieldAccessOf(node->op()).offset == Name::kHashFieldOffset);
       val = slot_not_analyzed_;
     }
+    object = CopyForModificationAt(object, state, node);
     if (object->GetField(offset) != val) {
-      object = CopyForModificationAt(object, state, node);
       object->SetField(offset, val);
     }
   }
@@ -1489,8 +1646,8 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
       int offset = OffsetForElementAccess(node, index.Value());
       if (static_cast<size_t>(offset) >= object->field_count()) return;
       Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 2));
+      object = CopyForModificationAt(object, state, node);
       if (object->GetField(offset) != val) {
-        object = CopyForModificationAt(object, state, node);
         object->SetField(offset, val);
       }
     }
@@ -1505,8 +1662,8 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
     }
     if (VirtualObject* object = GetVirtualObject(state, to)) {
       if (!object->IsTracked()) return;
+      object = CopyForModificationAt(object, state, node);
       if (!object->AllFieldsClear()) {
-        object = CopyForModificationAt(object, state, node);
         object->ClearAllFields();
         TRACE("Cleared all fields of @%d:#%d\n",
               status_analysis_->GetAlias(object->id()), object->id());
@@ -1527,13 +1684,16 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         cache_->fields().clear();
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
-            cache_->fields().push_back(field);
+            cache_->fields().push_back(ResolveReplacement(field));
+          } else {
+            return nullptr;
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());
         Node* new_object_state =
-            graph()->NewNode(common()->ObjectState(input_count, vobj->id()),
+            graph()->NewNode(common()->ObjectState(vobj->id(), input_count),
                              input_count, &cache_->fields().front());
+        NodeProperties::SetType(new_object_state, Type::OtherInternal());
         vobj->SetObjectState(new_object_state);
         TRACE(
             "Creating object state #%d for vobj %p (from node #%d) at effect "
@@ -1555,6 +1715,27 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
     }
   }
   return nullptr;
+}
+
+bool EscapeAnalysis::IsCyclicObjectState(Node* effect, Node* node) {
+  if ((node->opcode() == IrOpcode::kFinishRegion ||
+       node->opcode() == IrOpcode::kAllocate) &&
+      IsVirtual(node)) {
+    if (VirtualObject* vobj = GetVirtualObject(virtual_states_[effect->id()],
+                                               ResolveReplacement(node))) {
+      if (cycle_detection_.find(vobj) != cycle_detection_.end()) return true;
+      cycle_detection_.insert(vobj);
+      bool cycle_detected = false;
+      for (size_t i = 0; i < vobj->field_count(); ++i) {
+        if (Node* field = vobj->GetField(i)) {
+          if (IsCyclicObjectState(effect, field)) cycle_detected = true;
+        }
+      }
+      cycle_detection_.erase(vobj);
+      return cycle_detected;
+    }
+  }
+  return false;
 }
 
 void EscapeAnalysis::DebugPrintState(VirtualState* state) {
@@ -1608,6 +1789,8 @@ bool EscapeAnalysis::ExistsVirtualAllocate() {
 }
 
 Graph* EscapeAnalysis::graph() const { return status_analysis_->graph(); }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

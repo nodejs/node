@@ -5,10 +5,12 @@
 #include "src/heap/scavenge-job.h"
 
 #include "src/base/platform/time.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +19,8 @@ namespace internal {
 const double ScavengeJob::kMaxAllocationLimitAsFractionOfNewSpace = 0.8;
 
 void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
+  VMState<GC> state(isolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
   Heap* heap = isolate()->heap();
   double deadline_in_ms =
       deadline_in_seconds *
@@ -34,7 +38,7 @@ void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
                                  new_space_capacity)) {
     if (EnoughIdleTimeForScavenge(
             idle_time_in_ms, scavenge_speed_in_bytes_per_ms, new_space_size)) {
-      heap->CollectGarbage(NEW_SPACE, "idle task: scavenge");
+      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kIdleTask);
     } else {
       // Immediately request another idle task that can get larger idle time.
       job_->RescheduleIdleTask(heap);

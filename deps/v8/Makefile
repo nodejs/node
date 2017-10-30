@@ -51,6 +51,10 @@ endif
 ifeq ($(objectprint), on)
   GYPFLAGS += -Dv8_object_print=1
 endif
+# verifycsa=on
+ifeq ($(verifycsa), on)
+  GYPFLAGS += -Dv8_enable_verify_csa=1
+endif
 # verifyheap=on
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
@@ -58,6 +62,10 @@ endif
 # tracemaps=on
 ifeq ($(tracemaps), on)
   GYPFLAGS += -Dv8_trace_maps=1
+endif
+# concurrentmarking=on
+ifeq ($(concurrentmarking), on)
+  GYPFLAGS += -Dv8_enable_concurrent_marking=1
 endif
 # backtrace=off
 ifeq ($(backtrace), off)
@@ -163,6 +171,14 @@ endif
 ifeq ($(goma), on)
   GYPFLAGS += -Duse_goma=1
 endif
+# v8_os_page_size=0, when 0 or not specified use build OS page size
+ifdef v8_os_page_size
+  ifneq ($(v8_os_page_size), 0)
+    ifneq ($(snapshot), off)
+      GYPFLAGS += -Dv8_os_page_size=$(v8_os_page_size)
+    endif
+  endif
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
@@ -228,7 +244,6 @@ ifdef android_ndk_root
 endif
 
 # ----------------- available targets: --------------------
-# - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
 # - every combination <arch>.<mode>, e.g. "ia32.release"
@@ -244,14 +259,13 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64 s390 \
-         s390x
-ARCHES32 = ia32 arm mips mipsel x87 ppc s390
+ARCHES = ia32 x64 arm arm64 mips mipsel mips64 mips64el ppc ppc64 s390 s390x
+ARCHES32 = ia32 arm mips mipsel ppc s390
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
 ANDROID_ARCHES = android_ia32 android_x64 android_arm android_arm64 \
-		 android_mipsel android_x87
+		 android_mipsel
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
@@ -261,9 +275,7 @@ GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   test/cctest/cctest.gyp test/fuzzer/fuzzer.gyp \
 	   test/unittests/unittests.gyp src/v8.gyp \
 	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
-	   buildtools/third_party/libc++abi/libc++abi.gyp \
-	   buildtools/third_party/libc++/libc++.gyp samples/samples.gyp \
-	   src/third_party/vtune/v8vtune.gyp src/d8.gyp
+	   samples/samples.gyp src/third_party/vtune/v8vtune.gyp src/d8.gyp
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)
@@ -454,12 +466,6 @@ $(ENVFILE).new:
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
 	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS) -Dtarget_arch=$(CXX_TARGET_ARCH)" > $(ENVFILE).new;
-
-# Heap constants for grokdump.
-DUMP_FILE = tools/v8heapconst.py
-grokdump: ia32.release
-	@cat $(DUMP_FILE).tmpl > $(DUMP_FILE)
-	@$(OUTDIR)/ia32.release/d8 --dump-heap-constants >> $(DUMP_FILE)
 
 # Support for the GNU GLOBAL Source Code Tag System.
 gtags.files: $(GYPFILES) $(ENVFILE)

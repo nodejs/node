@@ -1,0 +1,11 @@
+include_rules = [
+  "-src",
+  "+src/base/atomic-utils.h",
+  "+src/base/macros.h",
+  "+src/base/platform/platform.h",
+  "+src/flags.h",
+  "+src/inspector/test-interface.h",
+  "+src/locked-queue-inl.h",
+  "+src/utils.h",
+  "+src/vector.h",
+]

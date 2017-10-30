@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbo-type-feedback
+// Flags: --allow-natives-syntax
 
 (function AddSubtractSmis() {
   function f0(a, b, c) {

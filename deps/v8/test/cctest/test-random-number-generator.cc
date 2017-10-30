@@ -25,13 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/flags.h"
+#include "src/isolate.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static const int64_t kRandomSeeds[] = {-1, 1, 42, 100, 1234567890, 987654321};
 
@@ -172,3 +174,6 @@ TEST_RANDOM_BIT(30)
 TEST_RANDOM_BIT(31)
 
 #undef TEST_RANDOM_BIT
+
+}  // namespace internal
+}  // namespace v8

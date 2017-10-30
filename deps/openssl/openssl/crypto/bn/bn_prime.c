@@ -252,7 +252,6 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
     BN_CTX *ctx = NULL;
     BIGNUM *A1, *A1_odd, *check; /* taken from ctx */
     BN_MONT_CTX *mont = NULL;
-    const BIGNUM *A = NULL;
 
     if (BN_cmp(a, BN_value_one()) <= 0)
         return 0;
@@ -278,24 +277,14 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
         goto err;
     BN_CTX_start(ctx);
 
-    /* A := abs(a) */
-    if (a->neg) {
-        BIGNUM *t;
-        if ((t = BN_CTX_get(ctx)) == NULL)
-            goto err;
-        BN_copy(t, a);
-        t->neg = 0;
-        A = t;
-    } else
-        A = a;
     A1 = BN_CTX_get(ctx);
     A1_odd = BN_CTX_get(ctx);
     check = BN_CTX_get(ctx);
     if (check == NULL)
         goto err;
 
-    /* compute A1 := A - 1 */
-    if (!BN_copy(A1, A))
+    /* compute A1 := a - 1 */
+    if (!BN_copy(A1, a))
         goto err;
     if (!BN_sub_word(A1, 1))
         goto err;
@@ -311,11 +300,11 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
     if (!BN_rshift(A1_odd, A1, k))
         goto err;
 
-    /* Montgomery setup for computations mod A */
+    /* Montgomery setup for computations mod a */
     mont = BN_MONT_CTX_new();
     if (mont == NULL)
         goto err;
-    if (!BN_MONT_CTX_set(mont, A, ctx))
+    if (!BN_MONT_CTX_set(mont, a, ctx))
         goto err;
 
     for (i = 0; i < checks; i++) {
@@ -323,9 +312,9 @@ int BN_is_prime_fasttest_ex(const BIGNUM *a, int checks, BN_CTX *ctx_passed,
             goto err;
         if (!BN_add_word(check, 1))
             goto err;
-        /* now 1 <= check < A */
+        /* now 1 <= check < a */
 
-        j = witness(check, A, A1, A1_odd, k, ctx, mont);
+        j = witness(check, a, A1, A1_odd, k, ctx, mont);
         if (j == -1)
             goto err;
         if (j) {

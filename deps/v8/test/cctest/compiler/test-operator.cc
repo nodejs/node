@@ -281,6 +281,9 @@ TEST(Operator_CountsOrder) {
   CHECK_EQ(66, op.ControlOutputCount());
 }
 
+#undef NONE
+#undef FOLD
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

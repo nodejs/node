@@ -27,11 +27,12 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "src/v8.h"
-
 #include "include/v8-profiler.h"
+#include "src/api.h"
+#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 
@@ -344,8 +345,9 @@ class TestSetup {
 
 TEST(RecordTickSample) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
@@ -405,19 +407,19 @@ TEST(RecordTickSample) {
   delete entry3;
 }
 
-
-static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
+static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
   CHECK_EQ((*expectedId)++, node->id());
-  for (int i = 0; i < node->children()->length(); i++) {
-    CheckNodeIds(node->children()->at(i), expectedId);
+  for (const ProfileNode* child : *node->children()) {
+    CheckNodeIds(child, expectedId);
   }
 }
 
 
 TEST(SampleIds) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", true);
   ProfileGenerator generator(&profiles);
@@ -473,8 +475,9 @@ TEST(SampleIds) {
 
 TEST(NoSamples) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
   ProfileGenerator generator(&profiles);
@@ -502,8 +505,7 @@ TEST(NoSamples) {
 
 static const ProfileNode* PickChild(const ProfileNode* parent,
                                     const char* name) {
-  for (int i = 0; i < parent->children()->length(); ++i) {
-    const ProfileNode* child = parent->children()->at(i);
+  for (const ProfileNode* child : *parent->children()) {
     if (strcmp(child->entry()->name(), name) == 0) return child;
   }
   return NULL;
@@ -514,7 +516,6 @@ TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -551,11 +552,10 @@ TEST(RecordStackTraceAtStartProfiling) {
   CHECK(const_cast<ProfileNode*>(current));
   current = PickChild(current, "c");
   CHECK(const_cast<ProfileNode*>(current));
-  CHECK(current->children()->length() == 0 ||
-        current->children()->length() == 1);
-  if (current->children()->length() == 1) {
+  CHECK(current->children()->empty() || current->children()->size() == 1);
+  if (current->children()->size() == 1) {
     current = PickChild(current, "startProfiling");
-    CHECK_EQ(0, current->children()->length());
+    CHECK(current->children()->empty());
   }
 }
 
@@ -582,7 +582,8 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
                                            const char* name) {
   for (int i = 0; i < parent->GetChildrenCount(); ++i) {
     const v8::CpuProfileNode* child = parent->GetChild(i);
-    v8::String::Utf8Value function_name(child->GetFunctionName());
+    v8::String::Utf8Value function_name(CcTest::isolate(),
+                                        child->GetFunctionName());
     if (strcmp(*function_name, name) == 0) return child;
   }
   return NULL;
@@ -593,7 +594,6 @@ TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
   i::FLAG_turbo_inlining = false;
-  i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -663,8 +663,6 @@ int GetFunctionLineNumber(CpuProfiler& profiler, LocalContext& env,
 }
 
 TEST(LineNumber) {
-  i::FLAG_use_inlining = false;
-
   CcTest::InitializeVM();
   LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();
@@ -681,7 +679,7 @@ TEST(LineNumber) {
 
   profiler.processor()->StopSynchronously();
 
-  bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
+  bool is_lazy = i::FLAG_lazy;
   CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
            GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));
@@ -693,6 +691,9 @@ TEST(LineNumber) {
 }
 
 TEST(BailoutReason) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_always_opt = false;
+  i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);
@@ -700,14 +701,21 @@ TEST(BailoutReason) {
   i::ProfilerExtension::set_profiler(iprofiler.get());
 
   CHECK_EQ(0, iprofiler->GetProfilesCount());
-  v8::Local<v8::Script> script =
-      v8_compile(v8_str("function Debugger() {\n"
-                        "  debugger;\n"
-                        "  startProfiling();\n"
-                        "}\n"
-                        "Debugger();\n"
-                        "stopProfiling();"));
-  script->Run(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
+  v8::Local<v8::Function> function = CompileRun(
+                                         "function Debugger() {\n"
+                                         "  startProfiling();\n"
+                                         "}"
+                                         "Debugger")
+                                         .As<v8::Function>();
+  i::Handle<i::JSFunction> i_function =
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
+  USE(i_function);
+
+  CompileRun(
+      "%OptimizeFunctionOnNextCall(Debugger);"
+      "%NeverOptimizeFunction(Debugger);"
+      "Debugger();"
+      "stopProfiling()");
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   CHECK(profile);
@@ -717,11 +725,11 @@ TEST(BailoutReason) {
   // The tree should look like this:
   //  (root)
   //   ""
-  //     kDebuggerStatement
+  //     kOptimizationDisabledForTest
   current = PickChild(current, "");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "Debugger");
   CHECK(const_cast<v8::CpuProfileNode*>(current));
-  CHECK(!strcmp("DebuggerStatement", current->GetBailoutReason()));
+  CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
 }

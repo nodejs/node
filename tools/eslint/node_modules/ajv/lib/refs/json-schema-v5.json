@@ -1,7 +1,7 @@
 {
     "id": "https://raw.githubusercontent.com/epoberezkin/ajv/master/lib/refs/json-schema-v5.json#",
     "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "Core schema meta-schema (v5 proposals)",
+    "description": "Core schema meta-schema (v5 proposals - deprecated)",
     "definitions": {
         "schemaArray": {
             "type": "array",
@@ -234,95 +234,17 @@
                 { "$ref": "#/definitions/$data" }
             ]
         },
-        "formatMaximum": {
-            "anyOf": [
-                { "type": "string" },
-                { "$ref": "#/definitions/$data" }
-            ]
-        },
-        "formatMinimum": {
-            "anyOf": [
-                { "type": "string" },
-                { "$ref": "#/definitions/$data" }
-            ]
-        },
-        "formatExclusiveMaximum": {
-            "anyOf": [
-                {
-                    "type": "boolean",
-                    "default": false
-                },
-                { "$ref": "#/definitions/$data" }
-            ]
-        },
-        "formatExclusiveMinimum": {
-            "anyOf": [
-                {
-                    "type": "boolean",
-                    "default": false
-                },
-                { "$ref": "#/definitions/$data" }
-            ]
-        },
         "constant": {
             "anyOf": [
                 {},
                 { "$ref": "#/definitions/$data" }
             ]
         },
-        "contains": { "$ref": "#" },
-        "patternGroups": {
-            "type": "object",
-            "additionalProperties": {
-                "type": "object",
-                "required": [ "schema" ],
-                "properties": {
-                    "maximum": {
-                        "anyOf": [
-                            { "$ref": "#/definitions/positiveInteger" },
-                            { "$ref": "#/definitions/$data" }
-                        ]
-                    },
-                    "minimum": {
-                        "anyOf": [
-                            { "$ref": "#/definitions/positiveIntegerDefault0" },
-                            { "$ref": "#/definitions/$data" }
-                        ]
-                    },
-                    "schema": { "$ref": "#" }
-                },
-                "additionalProperties": false
-            },
-            "default": {}
-        },
-        "switch": {
-            "type": "array",
-            "items": {
-                "required": [ "then" ],
-                "properties": {
-                    "if": { "$ref": "#" },
-                    "then": {
-                        "anyOf": [
-                            { "type": "boolean" },
-                            { "$ref": "#" }
-                        ]
-                    },
-                    "continue": { "type": "boolean" }
-                },
-                "additionalProperties": false,
-                "dependencies": {
-                    "continue": [ "if" ]
-                }
-            }
-        }
+        "contains": { "$ref": "#" }
     },
     "dependencies": {
         "exclusiveMaximum": [ "maximum" ],
-        "exclusiveMinimum": [ "minimum" ],
-        "formatMaximum": [ "format" ],
-        "formatMinimum": [ "format" ],
-        "formatExclusiveMaximum": [ "formatMaximum" ],
-        "formatExclusiveMinimum": [ "formatMinimum" ]
+        "exclusiveMinimum": [ "minimum" ]
     },
     "default": {}
 }

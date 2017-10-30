@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   size_t bytes_read = fread(data, 1, size, input);
   fclose(input);
 
-  if (bytes_read != size) {
+  if (bytes_read != static_cast<size_t>(size)) {
     free(data);
     fprintf(stderr, "Failed to read %s\n", argv[1]);
     return 1;

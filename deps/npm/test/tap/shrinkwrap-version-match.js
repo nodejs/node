@@ -16,21 +16,24 @@ var modCdir = path.resolve(testdir, 'modC')
 var fixture = new Tacks(Dir({
   'package.json': File({
     dependencies: {
-      modA: 'file://' + modAdir,
+      modA: 'file://' + modAdir
+    },
+    devDependencies: {
       modC: 'file://' + modCdir
     }
   }),
   'npm-shrinkwrap.json': File({
+    requires: true,
+    lockfileVersion: 1,
     dependencies: {
       modA: {
-        version: '1.0.0',
-        from: 'modA',
-        resolved: 'file://' + modAdir
+        version: 'file://' + modAdir,
+        requires: {
+          modB: 'file://' + modB1dir
+        }
       },
       modB: {
-        version: '1.0.0',
-        from: 'modB@1',
-        resolved: 'file://' + modB1dir
+        version: 'file://' + modB1dir
       }
     }
   }),

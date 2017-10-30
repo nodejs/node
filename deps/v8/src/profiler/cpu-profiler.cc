@@ -92,7 +92,7 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
 
 
 void ProfilerEventsProcessor::StopSynchronously() {
-  if (!base::NoBarrier_AtomicExchange(&running_, 0)) return;
+  if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
   Join();
 }
 
@@ -143,7 +143,7 @@ ProfilerEventsProcessor::SampleProcessingResult
 
 
 void ProfilerEventsProcessor::Run() {
-  while (!!base::NoBarrier_Load(&running_)) {
+  while (!!base::Relaxed_Load(&running_)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
     base::TimeTicks now;
@@ -277,6 +277,21 @@ void CpuProfiler::ResetProfiles() {
   profiles_->set_cpu_profiler(this);
 }
 
+void CpuProfiler::CreateEntriesForRuntimeCallStats() {
+  static_entries_.clear();
+  RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
+  CodeMap* code_map = generator_->code_map();
+  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
+    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+    DCHECK(counter->name());
+    std::unique_ptr<CodeEntry> entry(
+        new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                      CodeEntry::kEmptyNamePrefix, "native V8Runtime"));
+    code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
+    static_entries_.push_back(std::move(entry));
+  }
+}
+
 void CpuProfiler::CollectSample() {
   if (processor_) {
     processor_->AddCurrentStack(isolate_);
@@ -285,6 +300,7 @@ void CpuProfiler::CollectSample() {
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, record_samples)) {
+    TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     StartProcessorIfNotStarted();
   }
 }
@@ -308,6 +324,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   generator_.reset(new ProfileGenerator(profiles_.get()));
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
+  CreateEntriesForRuntimeCallStats();
   logger->SetUpProfilerListener();
   ProfilerListener* profiler_listener = logger->profiler_listener();
   profiler_listener->AddObserver(this);
@@ -326,32 +343,20 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   processor_->StartSynchronously();
 }
 
-
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
   StopProcessorIfLastProfile(title);
-  CpuProfile* result = profiles_->StopProfiling(title);
-  if (result) {
-    result->Print();
-  }
-  return result;
+  return profiles_->StopProfiling(title);
 }
-
 
 CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  if (!is_profiling_) return nullptr;
-  const char* profile_title = profiles_->GetName(title);
-  StopProcessorIfLastProfile(profile_title);
-  return profiles_->StopProfiling(profile_title);
+  return StopProfiling(profiles_->GetName(title));
 }
-
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (profiles_->IsLastProfile(title)) {
-    StopProcessor();
-  }
+  if (!profiles_->IsLastProfile(title)) return;
+  StopProcessor();
 }
-
 
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();

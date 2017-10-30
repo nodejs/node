@@ -41,25 +41,27 @@ module.exports = {
     create(context) {
         const style = context.options[0] || "last",
             sourceCode = context.getSourceCode();
-        let exceptions = {};
+        const exceptions = {
+            ArrayPattern: true,
+            ArrowFunctionExpression: true,
+            CallExpression: true,
+            FunctionDeclaration: true,
+            FunctionExpression: true,
+            ImportDeclaration: true,
+            ObjectPattern: true
+        };
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
-            exceptions = context.options[1].exceptions;
+            const keys = Object.keys(context.options[1].exceptions);
+
+            for (let i = 0; i < keys.length; i++) {
+                exceptions[keys[i]] = context.options[1].exceptions[keys[i]];
+            }
         }
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-
-        /**
-         * Determines if a given token is a comma operator.
-         * @param {ASTNode} token The token to check.
-         * @returns {boolean} True if the token is a comma, false if not.
-         * @private
-         */
-        function isComma(token) {
-            return !!token && (token.type === "Punctuator") && (token.value === ",");
-        }
 
         /**
          * Modified text based on the style
@@ -119,7 +121,7 @@ module.exports = {
             if (astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
                     astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
-                return;
+                // do nothing.
 
             } else if (!astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
                     !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
@@ -166,21 +168,21 @@ module.exports = {
          */
         function validateComma(node, property) {
             const items = node[property],
-                arrayLiteral = (node.type === "ArrayExpression");
+                arrayLiteral = (node.type === "ArrayExpression" || node.type === "ArrayPattern");
 
             if (items.length > 1 || arrayLiteral) {
 
                 // seed as opening [
                 let previousItemToken = sourceCode.getFirstToken(node);
 
-                items.forEach(function(item) {
+                items.forEach(item => {
                     const commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
                         currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
                         reportItem = item || currentItemToken,
                         tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
 
                     // Check if previous token is wrapped in parentheses
-                    if (tokenBeforeComma && tokenBeforeComma.value === ")") {
+                    if (tokenBeforeComma && astUtils.isClosingParenToken(tokenBeforeComma)) {
                         previousItemToken = tokenBeforeComma;
                     }
 
@@ -198,12 +200,16 @@ module.exports = {
                      * All comparisons are done based on these tokens directly, so
                      * they are always valid regardless of an undefined item.
                      */
-                    if (isComma(commaToken)) {
+                    if (astUtils.isCommaToken(commaToken)) {
                         validateCommaItemSpacing(previousItemToken, commaToken,
-                                currentItemToken, reportItem);
+                            currentItemToken, reportItem);
                     }
 
-                    previousItemToken = item ? sourceCode.getLastToken(item) : previousItemToken;
+                    if (item) {
+                        const tokenAfterItem = sourceCode.getTokenAfter(item, astUtils.isNotClosingParenToken);
+
+                        previousItemToken = tokenAfterItem ? sourceCode.getTokenBefore(tokenAfterItem) : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                    }
                 });
 
                 /*
@@ -217,7 +223,7 @@ module.exports = {
                     const lastToken = sourceCode.getLastToken(node),
                         nextToLastToken = sourceCode.getTokenBefore(lastToken);
 
-                    if (isComma(nextToLastToken)) {
+                    if (astUtils.isCommaToken(nextToLastToken)) {
                         validateCommaItemSpacing(
                             sourceCode.getTokenBefore(nextToLastToken),
                             nextToLastToken,
@@ -245,9 +251,44 @@ module.exports = {
                 validateComma(node, "properties");
             };
         }
+        if (!exceptions.ObjectPattern) {
+            nodes.ObjectPattern = function(node) {
+                validateComma(node, "properties");
+            };
+        }
         if (!exceptions.ArrayExpression) {
             nodes.ArrayExpression = function(node) {
                 validateComma(node, "elements");
+            };
+        }
+        if (!exceptions.ArrayPattern) {
+            nodes.ArrayPattern = function(node) {
+                validateComma(node, "elements");
+            };
+        }
+        if (!exceptions.FunctionDeclaration) {
+            nodes.FunctionDeclaration = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.FunctionExpression) {
+            nodes.FunctionExpression = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.ArrowFunctionExpression) {
+            nodes.ArrowFunctionExpression = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.CallExpression) {
+            nodes.CallExpression = function(node) {
+                validateComma(node, "arguments");
+            };
+        }
+        if (!exceptions.ImportDeclaration) {
+            nodes.ImportDeclaration = function(node) {
+                validateComma(node, "specifiers");
             };
         }
 

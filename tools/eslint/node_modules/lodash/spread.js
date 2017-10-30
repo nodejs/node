@@ -48,7 +48,7 @@ function spread(func, start) {
   if (typeof func != 'function') {
     throw new TypeError(FUNC_ERROR_TEXT);
   }
-  start = start === undefined ? 0 : nativeMax(toInteger(start), 0);
+  start = start == null ? 0 : nativeMax(toInteger(start), 0);
   return baseRest(function(args) {
     var array = args[start],
         otherArgs = castSlice(args, 0, start);

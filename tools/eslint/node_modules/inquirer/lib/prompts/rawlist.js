@@ -2,14 +2,13 @@
  * `rawlist` type prompt
  */
 
-var _ = require("lodash");
-var util = require("util");
-var chalk = require("chalk");
-var Base = require("./base");
-var Separator = require("../objects/separator");
-var observe = require("../utils/events");
-var Paginator = require("../utils/paginator");
-
+var _ = require('lodash');
+var util = require('util');
+var chalk = require('chalk');
+var Base = require('./base');
+var Separator = require('../objects/separator');
+var observe = require('../utils/events');
+var Paginator = require('../utils/paginator');
 
 /**
  * Module exports
@@ -17,16 +16,15 @@ var Paginator = require("../utils/paginator");
 
 module.exports = Prompt;
 
-
 /**
  * Constructor
  */
 
 function Prompt() {
-  Base.apply( this, arguments );
+  Base.apply(this, arguments);
 
   if (!this.opt.choices) {
-    this.throwParamError("choices");
+    this.throwParamError('choices');
   }
 
   this.opt.validChoices = this.opt.choices.filter(Separator.exclude);
@@ -35,13 +33,13 @@ function Prompt() {
   this.rawDefault = 0;
 
   _.extend(this.opt, {
-    validate: function( index ) {
-      return this.opt.choices.getChoice( index ) != null;
-    }.bind(this)
+    validate: function (val) {
+      return val != null;
+    }
   });
 
   var def = this.opt.default;
-  if ( _.isNumber(def) && def >= 0 && def < this.opt.choices.realLength ) {
+  if (_.isNumber(def) && def >= 0 && def < this.opt.choices.realLength) {
     this.selected = this.rawDefault = def;
   }
 
@@ -50,8 +48,7 @@ function Prompt() {
 
   this.paginator = new Paginator();
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Start the Inquiry session
@@ -59,25 +56,24 @@ util.inherits( Prompt, Base );
  * @return {this}
  */
 
-Prompt.prototype._run = function( cb ) {
+Prompt.prototype._run = function (cb) {
   this.done = cb;
 
   // Once user confirm (enter key)
   var events = observe(this.rl);
-  var submit = events.line.map( this.filterInput.bind(this) );
+  var submit = events.line.map(this.getCurrentValue.bind(this));
 
-  var validation = this.handleSubmitEvents( submit );
-  validation.success.forEach( this.onEnd.bind(this) );
-  validation.error.forEach( this.onError.bind(this) );
+  var validation = this.handleSubmitEvents(submit);
+  validation.success.forEach(this.onEnd.bind(this));
+  validation.error.forEach(this.onError.bind(this));
 
-  events.keypress.takeUntil( validation.success ).forEach( this.onKeypress.bind(this) );
+  events.keypress.takeUntil(validation.success).forEach(this.onKeypress.bind(this));
 
   // Init the prompt
   this.render();
 
   return this;
 };
-
 
 /**
  * Render the prompt to screen
@@ -89,12 +85,12 @@ Prompt.prototype.render = function (error) {
   var message = this.getQuestion();
   var bottomContent = '';
 
-  if ( this.status === "answered" ) {
-    message += chalk.cyan(this.opt.choices.getChoice(this.selected).name);
+  if (this.status === 'answered') {
+    message += chalk.cyan(this.answer);
   } else {
     var choicesStr = renderChoices(this.opt.choices, this.selected);
     message += this.paginator.paginate(choicesStr, this.selected, this.opt.pageSize);
-    message += "\n  Answer: ";
+    message += '\n  Answer: ';
   }
 
   message += this.rl.line;
@@ -110,39 +106,40 @@ Prompt.prototype.render = function (error) {
  * When user press `enter` key
  */
 
-Prompt.prototype.filterInput = function( input ) {
-  if ( input == null || input === "" ) {
-    return this.rawDefault;
+Prompt.prototype.getCurrentValue = function (index) {
+  if (index == null || index === '') {
+    index = this.rawDefault;
   } else {
-    return input - 1;
+    index -= 1;
   }
+
+  var choice = this.opt.choices.getChoice(index);
+  return choice ? choice.value : null;
 };
 
-Prompt.prototype.onEnd = function( state ) {
-  this.status = "answered";
-  this.selected = state.value;
-
-  var selectedChoice = this.opt.choices.getChoice( this.selected );
+Prompt.prototype.onEnd = function (state) {
+  this.status = 'answered';
+  this.answer = state.value;
 
   // Re-render prompt
   this.render();
 
   this.screen.done();
-  this.done( selectedChoice.value );
+  this.done(state.value);
 };
 
-Prompt.prototype.onError = function() {
-  this.render("Please enter a valid index");
+Prompt.prototype.onError = function () {
+  this.render('Please enter a valid index');
 };
 
 /**
  * When user press a key
  */
 
-Prompt.prototype.onKeypress = function() {
+Prompt.prototype.onKeypress = function () {
   var index = this.rl.line.length ? Number(this.rl.line) - 1 : 0;
 
-  if ( this.opt.choices.getChoice(index) ) {
+  if (this.opt.choices.getChoice(index)) {
     this.selected = index;
   } else {
     this.selected = undefined;
@@ -150,7 +147,6 @@ Prompt.prototype.onKeypress = function() {
 
   this.render();
 };
-
 
 /**
  * Function for rendering list choices
@@ -174,7 +170,7 @@ function renderChoices(choices, pointer) {
     var index = i - separatorOffset;
     var display = (index + 1) + ') ' + choice.name;
     if (index === pointer) {
-      display = chalk.cyan( display );
+      display = chalk.cyan(display);
     }
     output += display;
   });

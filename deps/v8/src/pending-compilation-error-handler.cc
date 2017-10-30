@@ -4,28 +4,38 @@
 
 #include "src/pending-compilation-error-handler.h"
 
+#include "src/ast/ast-value-factory.h"
 #include "src/debug/debug.h"
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+Handle<String> PendingCompilationErrorHandler::ArgumentString(
+    Isolate* isolate) {
+  if (arg_ != NULL) return arg_->string();
+  if (char_arg_ != NULL) {
+    return isolate->factory()
+        ->NewStringFromUtf8(CStrVector(char_arg_))
+        .ToHandleChecked();
+  }
+  return isolate->factory()->undefined_string();
+}
+
+Handle<String> PendingCompilationErrorHandler::FormatMessage(Isolate* isolate) {
+  return MessageTemplate::FormatMessage(isolate, message_,
+                                        ArgumentString(isolate));
+}
 
 void PendingCompilationErrorHandler::ThrowPendingError(Isolate* isolate,
                                                        Handle<Script> script) {
   if (!has_pending_error_) return;
   MessageLocation location(script, start_position_, end_position_);
   Factory* factory = isolate->factory();
-  Handle<String> argument;
-  if (arg_ != NULL) {
-    argument = arg_->string();
-  } else if (char_arg_ != NULL) {
-    argument =
-        factory->NewStringFromUtf8(CStrVector(char_arg_)).ToHandleChecked();
-  } else if (!handle_arg_.is_null()) {
-    argument = handle_arg_;
-  }
+  Handle<String> argument = ArgumentString(isolate);
   isolate->debug()->OnCompileError(script);
 
   Handle<Object> error;

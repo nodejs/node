@@ -154,8 +154,7 @@ static void ReadDiyFp(Vector<const char> buffer,
 static bool DoubleStrtod(Vector<const char> trimmed,
                          int exponent,
                          double* result) {
-#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87 || defined(USE_SIMULATOR)) && \
-    !defined(_MSC_VER)
+#if (V8_TARGET_ARCH_IA32 || defined(USE_SIMULATOR)) && !defined(_MSC_VER)
   // On x86 the floating-point stack can be 64 or 80 bits wide. If it is
   // 80 bits wide (as is the case on Linux) then double-rounding occurs and the
   // result is not accurate.
@@ -223,7 +222,6 @@ static DiyFp AdjustmentPowerOfTen(int exponent) {
     case 7: return DiyFp(V8_2PART_UINT64_C(0x98968000, 00000000), -40);
     default:
       UNREACHABLE();
-      return DiyFp(0, 0);
   }
 }
 

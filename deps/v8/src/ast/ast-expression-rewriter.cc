@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-expression-rewriter.h"
+#include "src/ast/ast.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -19,11 +20,10 @@ namespace internal {
   } while (false)
 #define NOTHING() DCHECK_NULL(replacement_)
 
-
-void AstExpressionRewriter::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    AST_REWRITE_LIST_ELEMENT(Declaration, declarations, i);
+void AstExpressionRewriter::VisitDeclarations(Declaration::List* declarations) {
+  for (Declaration::List::Iterator it = declarations->begin();
+       it != declarations->end(); ++it) {
+    AST_REWRITE(Declaration, *it, it = replacement);
   }
 }
 
@@ -31,7 +31,7 @@ void AstExpressionRewriter::VisitDeclarations(
 void AstExpressionRewriter::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     AST_REWRITE_LIST_ELEMENT(Statement, statements, i);
-    // Not stopping when a jump statement is found.
+    if (statements->at(i)->IsJump()) break;
   }
 }
 
@@ -201,10 +201,9 @@ void AstExpressionRewriter::VisitClassLiteral(ClassLiteral* node) {
   AST_REWRITE_PROPERTY(FunctionLiteral, node, constructor);
   ZoneList<typename ClassLiteral::Property*>* properties = node->properties();
   for (int i = 0; i < properties->length(); i++) {
-    VisitObjectLiteralProperty(properties->at(i));
+    VisitLiteralProperty(properties->at(i));
   }
 }
-
 
 void AstExpressionRewriter::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* node) {
@@ -243,13 +242,11 @@ void AstExpressionRewriter::VisitObjectLiteral(ObjectLiteral* node) {
   REWRITE_THIS(node);
   ZoneList<typename ObjectLiteral::Property*>* properties = node->properties();
   for (int i = 0; i < properties->length(); i++) {
-    VisitObjectLiteralProperty(properties->at(i));
+    VisitLiteralProperty(properties->at(i));
   }
 }
 
-
-void AstExpressionRewriter::VisitObjectLiteralProperty(
-    ObjectLiteralProperty* property) {
+void AstExpressionRewriter::VisitLiteralProperty(LiteralProperty* property) {
   if (property == nullptr) return;
   AST_REWRITE_PROPERTY(Expression, property, key);
   AST_REWRITE_PROPERTY(Expression, property, value);
@@ -268,13 +265,24 @@ void AstExpressionRewriter::VisitAssignment(Assignment* node) {
   AST_REWRITE_PROPERTY(Expression, node, value);
 }
 
+void AstExpressionRewriter::VisitCompoundAssignment(CompoundAssignment* node) {
+  VisitAssignment(node);
+}
 
 void AstExpressionRewriter::VisitYield(Yield* node) {
   REWRITE_THIS(node);
-  AST_REWRITE_PROPERTY(Expression, node, generator_object);
   AST_REWRITE_PROPERTY(Expression, node, expression);
 }
 
+void AstExpressionRewriter::VisitYieldStar(YieldStar* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, expression);
+}
+
+void AstExpressionRewriter::VisitAwait(Await* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, expression);
+}
 
 void AstExpressionRewriter::VisitThrow(Throw* node) {
   REWRITE_THIS(node);
@@ -376,6 +384,15 @@ void AstExpressionRewriter::VisitEmptyParentheses(EmptyParentheses* node) {
   NOTHING();
 }
 
+void AstExpressionRewriter::VisitGetIterator(GetIterator* node) {
+  AST_REWRITE_PROPERTY(Expression, node, iterable);
+}
+
+void AstExpressionRewriter::VisitImportCallExpression(
+    ImportCallExpression* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, argument);
+}
 
 void AstExpressionRewriter::VisitDoExpression(DoExpression* node) {
   REWRITE_THIS(node);

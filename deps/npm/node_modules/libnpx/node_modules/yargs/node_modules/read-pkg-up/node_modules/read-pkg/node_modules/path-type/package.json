@@ -1,0 +1,45 @@
+{
+  "_from": "path-type@^2.0.0",
+  "_id": "path-type@2.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-8BLMuEFbcJb8LaoQVMPXI4lZTHM=",
+  "_location": "/libnpx/yargs/read-pkg-up/read-pkg/path-type",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "path-type@^2.0.0",
+    "name": "path-type",
+    "escapedName": "path-type",
+    "rawSpec": "^2.0.0",
+    "saveSpec": null,
+    "fetchSpec": "^2.0.0"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs/read-pkg-up/read-pkg"
+  ],
+  "_resolved": "https://registry.npmjs.org/path-type/-/path-type-2.0.0.tgz",
+  "_shasum": "f012ccb8415b7096fc2daa1054c3d72389594c73",
+  "_shrinkwrap": null,
+  "_spec": "path-type@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs/node_modules/read-pkg-up/node_modules/read-pkg",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {
+    "pify": "^2.0.0"
+  },
+  "deprecated": false,
+  "description": "> Check if a path is a file, directory, or symlink",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "name": "path-type",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "2.0.0"
+}

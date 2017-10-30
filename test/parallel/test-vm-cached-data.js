@@ -3,7 +3,6 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const spawnSync = require('child_process').spawnSync;
-const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
   return `(function ${tag}() { return '${tag}'; })`;
@@ -15,8 +14,8 @@ function produce(source, count) {
 
   const out = spawnSync(process.execPath, [ '-e', `
     'use strict';
-    var assert = require('assert');
-    var vm = require('vm');
+    const assert = require('assert');
+    const vm = require('vm');
 
     var data;
     for (var i = 0; i < ${count}; i++) {
@@ -32,7 +31,7 @@ function produce(source, count) {
     console.log(data);
   `, source]);
 
-  assert.equal(out.status, 0, out.stderr + '');
+  assert.strictEqual(out.status, 0, String(out.stderr));
 
   return Buffer.from(out.stdout.toString(), 'base64');
 }
@@ -47,7 +46,7 @@ function testProduceConsume() {
     cachedData: data
   });
   assert(!script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'original');
+  assert.strictEqual(script.runInThisContext()(), 'original');
 }
 testProduceConsume();
 
@@ -68,7 +67,7 @@ function testRejectInvalid() {
     cachedData: data
   });
   assert(script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'invalid_1');
+  assert.strictEqual(script.runInThisContext()(), 'invalid_1');
 }
 testRejectInvalid();
 
@@ -89,4 +88,4 @@ assert.throws(() => {
   new vm.Script('function abc() {}', {
     cachedData: 'ohai'
   });
-});
+}, /^TypeError: options\.cachedData must be a Buffer instance$/);

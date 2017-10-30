@@ -5,6 +5,7 @@
 #include "src/profiler/tick-sample.h"
 
 #include "include/v8-profiler.h"
+#include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/msan.h"
 #include "src/simulator.h"
@@ -224,12 +225,7 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   i::SafeStackFrameIterator it(isolate, reinterpret_cast<i::Address>(regs->fp),
                                reinterpret_cast<i::Address>(regs->sp),
                                js_entry_sp);
-
-  // If at this point iterator does not see any frames,
-  // is usually means something is wrong with the FP,
-  // e.g. it is used as a general purpose register in the function.
-  // Bailout.
-  if (it.done()) return false;
+  if (it.done()) return true;
 
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame &&
@@ -237,20 +233,37 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
     frames[i++] = isolate->c_function();
   }
+  i::RuntimeCallTimer* timer =
+      isolate->counters()->runtime_call_stats()->current_timer();
   for (; !it.done() && i < frames_limit; it.Advance()) {
-    if (!it.frame()->is_interpreted()) {
-      frames[i++] = it.frame()->pc();
-      continue;
+    while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
+           i < frames_limit) {
+      frames[i++] = reinterpret_cast<i::Address>(timer->counter());
+      timer = timer->parent();
     }
-    // For interpreted frames use the bytecode array pointer as the pc.
-    i::InterpretedFrame* frame = static_cast<i::InterpretedFrame*>(it.frame());
-    // Since the sampler can interrupt execution at any point the
-    // bytecode_array might be garbage, so don't dereference it.
-    i::Address bytecode_array =
-        reinterpret_cast<i::Address>(frame->GetBytecodeArray()) -
-        i::kHeapObjectTag;
-    frames[i++] = bytecode_array + i::BytecodeArray::kHeaderSize +
-                  frame->GetBytecodeOffset();
+    if (i == frames_limit) break;
+    if (it.frame()->is_interpreted()) {
+      // For interpreted frames use the bytecode array pointer as the pc.
+      i::InterpretedFrame* frame =
+          static_cast<i::InterpretedFrame*>(it.frame());
+      // Since the sampler can interrupt execution at any point the
+      // bytecode_array might be garbage, so don't actually dereference it. We
+      // avoid the frame->GetXXX functions since they call BytecodeArray::cast,
+      // which has a heap access in its DCHECK.
+      i::Object* bytecode_array = i::Memory::Object_at(
+          frame->fp() + i::InterpreterFrameConstants::kBytecodeArrayFromFp);
+      i::Object* bytecode_offset = i::Memory::Object_at(
+          frame->fp() + i::InterpreterFrameConstants::kBytecodeOffsetFromFp);
+
+      // If the bytecode array is a heap object and the bytecode offset is a
+      // Smi, use those, otherwise fall back to using the frame's pc.
+      if (HAS_HEAP_OBJECT_TAG(bytecode_array) && HAS_SMI_TAG(bytecode_offset)) {
+        frames[i++] = reinterpret_cast<i::Address>(bytecode_array) +
+                      i::Internals::SmiValue(bytecode_offset);
+        continue;
+      }
+    }
+    frames[i++] = it.frame()->pc();
   }
   sample_info->frames_count = i;
   return true;

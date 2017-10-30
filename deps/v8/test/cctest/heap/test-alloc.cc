@@ -30,13 +30,16 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
+#include "src/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+namespace heap {
 
-
-AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
+AllocationResult HeapTester::AllocateAfterFailures() {
   Heap* heap = CcTest::heap();
 
   // New space.
@@ -46,7 +49,7 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   // Make sure we can allocate through optimized allocation functions
   // for specific kinds.
   heap->AllocateFixedArray(100).ToObjectChecked();
-  heap->AllocateHeapNumber(0.42).ToObjectChecked();
+  heap->AllocateHeapNumber().ToObjectChecked();
   Object* object = heap->AllocateJSObject(
       *CcTest::i_isolate()->object_function()).ToObjectChecked();
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
@@ -60,10 +63,12 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
-  static const int kLargeObjectSpaceFillerLength = 3 * (Page::kPageSize / 10);
-  static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
-      kLargeObjectSpaceFillerLength);
-  CHECK(kLargeObjectSpaceFillerSize > heap->old_space()->AreaSize());
+  static const size_t kLargeObjectSpaceFillerLength =
+      3 * (Page::kPageSize / 10);
+  static const size_t kLargeObjectSpaceFillerSize =
+      FixedArray::SizeFor(kLargeObjectSpaceFillerLength);
+  CHECK_GT(kLargeObjectSpaceFillerSize,
+           static_cast<size_t>(heap->old_space()->AreaSize()));
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     heap->AllocateFixedArray(
         kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
@@ -86,12 +91,11 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   return heap->true_value();
 }
 
-
-Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
+Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
   // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  CcTest::CollectAllAvailableGarbage();
   AlwaysAllocateScope scope(CcTest::i_isolate());
   return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
@@ -112,15 +116,12 @@ void TestGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  info.GetReturnValue().Set(v8::Utils::ToLocal(
-      v8::internal::HeapTester::TestAllocateAfterFailures()));
+  info.GetReturnValue().Set(
+      v8::Utils::ToLocal(HeapTester::TestAllocateAfterFailures()));
 }
 
-
-void TestSetter(
-    v8::Local<v8::Name> name,
-    v8::Local<v8::Value> value,
-    const v8::PropertyCallbackInfo<void>& info) {
+void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
+                const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   UNREACHABLE();
 }
 
@@ -155,8 +156,8 @@ TEST(StressJS) {
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(map, 1);
 
-  AccessorConstantDescriptor d(Handle<Name>(Name::cast(foreign->name())),
-                               foreign, attrs);
+  Descriptor d = Descriptor::AccessorConstant(
+      Handle<Name>(Name::cast(foreign->name())), foreign, attrs);
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.
@@ -195,6 +196,7 @@ unsigned int Pseudorandom() {
   return lo & 0xFFFF;
 }
 
+namespace {
 
 // Plain old data class.  Represents a block of allocated memory.
 class Block {
@@ -206,6 +208,7 @@ class Block {
   int size;
 };
 
+}  // namespace
 
 TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
@@ -214,18 +217,18 @@ TEST(CodeRange) {
   code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
-  List< ::Block> blocks(1000);
+  std::vector<Block> blocks;
+  blocks.reserve(1000);
 
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than
-      // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
+      // kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxRegularHeapObjectSize.
-      size_t requested =
-          (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
-          Pseudorandom() % 5000 + 1;
+      size_t requested = (kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
+                         Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
 
       // The request size has to be at least 2 code guard pages larger than the
@@ -234,19 +237,22 @@ TEST(CodeRange) {
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
       CHECK(base != NULL);
-      blocks.Add(::Block(base, static_cast<int>(allocated)));
+      blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {
       // Free a block.
-      int index = Pseudorandom() % blocks.length();
+      size_t index = Pseudorandom() % blocks.size();
       code_range.FreeRawMemory(blocks[index].base, blocks[index].size);
       current_allocated -= blocks[index].size;
-      if (index < blocks.length() - 1) {
-        blocks[index] = blocks.RemoveLast();
-      } else {
-        blocks.RemoveLast();
+      if (index < blocks.size() - 1) {
+        blocks[index] = blocks.back();
       }
+      blocks.pop_back();
     }
   }
 }
+
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8

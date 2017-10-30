@@ -135,13 +135,14 @@ module.exports = {
          */
         function checkUnnecessaryQuotes(node) {
             const key = node.key;
-            let tokens;
 
             if (node.method || node.computed || node.shorthand) {
                 return;
             }
 
             if (key.type === "Literal" && typeof key.value === "string") {
+                let tokens;
+
                 try {
                     tokens = espree.tokenize(key.value);
                 } catch (e) {
@@ -162,7 +163,7 @@ module.exports = {
                     context.report({
                         node,
                         message: MESSAGE_UNNECESSARY,
-                        data: {property: key.value},
+                        data: { property: key.value },
                         fix: fixer => fixer.replaceText(key, getUnquotedKey(key))
                     });
                 }
@@ -170,14 +171,14 @@ module.exports = {
                 context.report({
                     node,
                     message: MESSAGE_RESERVED,
-                    data: {property: key.name},
+                    data: { property: key.name },
                     fix: fixer => fixer.replaceText(key, getQuotedKey(key))
                 });
             } else if (NUMBERS && key.type === "Literal" && typeof key.value === "number") {
                 context.report({
                     node,
                     message: MESSAGE_NUMERIC,
-                    data: {property: key.value},
+                    data: { property: key.value },
                     fix: fixer => fixer.replaceText(key, getQuotedKey(key))
                 });
             }
@@ -195,7 +196,7 @@ module.exports = {
                 context.report({
                     node,
                     message: MESSAGE_UNQUOTED,
-                    data: {property: key.name || key.value},
+                    data: { property: key.name || key.value },
                     fix: fixer => fixer.replaceText(key, getQuotedKey(key))
                 });
             }
@@ -213,9 +214,8 @@ module.exports = {
             let keywordKeyName = null,
                 necessaryQuotes = false;
 
-            node.properties.forEach(function(property) {
+            node.properties.forEach(property => {
                 const key = property.key;
-                let tokens;
 
                 if (!key || property.method || property.computed || property.shorthand) {
                     return;
@@ -226,6 +226,8 @@ module.exports = {
                     quotedProps.push(property);
 
                     if (checkQuotesRedundancy) {
+                        let tokens;
+
                         try {
                             tokens = espree.tokenize(key.value);
                         } catch (e) {
@@ -257,7 +259,7 @@ module.exports = {
                     context.report({
                         node: property,
                         message: "Properties should be quoted as '{{property}}' is a reserved word.",
-                        data: {property: keywordKeyName},
+                        data: { property: keywordKeyName },
                         fix: fixer => fixer.replaceText(property.key, getQuotedKey(property.key))
                     });
                 });
@@ -266,7 +268,7 @@ module.exports = {
                     context.report({
                         node: property,
                         message: "Inconsistently quoted property '{{key}}' found.",
-                        data: {key: property.key.name || property.key.value},
+                        data: { key: property.key.name || property.key.value },
                         fix: fixer => fixer.replaceText(property.key, getQuotedKey(property.key))
                     });
                 });

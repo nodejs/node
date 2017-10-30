@@ -51,7 +51,7 @@ module.exports = {
                 const variable = astUtils.getVariableByName(scope, "Symbol");
 
                 if (variable && variable.defs.length === 0) {
-                    variable.references.forEach(function(reference) {
+                    variable.references.forEach(reference => {
                         const node = reference.identifier;
 
                         if (astUtils.isCallee(node)) {

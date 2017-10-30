@@ -7,13 +7,19 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-const ALL_IRREGULARS = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]/;
-const IRREGULAR_WHITESPACE = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg;
+const ALL_IRREGULARS = /[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]/;
+const IRREGULAR_WHITESPACE = /[\f\v\u0085\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg;
 const IRREGULAR_LINE_TERMINATORS = /[\u2028\u2029]/mg;
-const LINE_BREAK = /\r\n|\r|\n|\u2028|\u2029/g;
+const LINE_BREAK = astUtils.createGlobalLinebreakMatcher();
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -54,9 +60,6 @@ module.exports = {
         // Module store of errors that we have found
         let errors = [];
 
-        // Comment nodes.  We accumulate these as we go, so we can be sure to trigger them after the whole `Program` entity is parsed, even for top-of-file comments.
-        const commentNodes = [];
-
         // Lookup the `skipComments` option, which defaults to `false`.
         const options = context.options[0] || {};
         const skipComments = !!options.skipComments;
@@ -65,6 +68,7 @@ module.exports = {
         const skipTemplates = !!options.skipTemplates;
 
         const sourceCode = context.getSourceCode();
+        const commentNodes = sourceCode.getAllComments();
 
         /**
          * Removes errors that occur inside a string node
@@ -76,7 +80,7 @@ module.exports = {
             const locStart = node.loc.start;
             const locEnd = node.loc.end;
 
-            errors = errors.filter(function(error) {
+            errors = errors.filter(error => {
                 const errorLoc = error[1];
 
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
@@ -142,7 +146,7 @@ module.exports = {
         function checkForIrregularWhitespace(node) {
             const sourceLines = sourceCode.lines;
 
-            sourceLines.forEach(function(sourceLine, lineIndex) {
+            sourceLines.forEach((sourceLine, lineIndex) => {
                 const lineNumber = lineIndex + 1;
                 let match;
 
@@ -183,16 +187,6 @@ module.exports = {
         }
 
         /**
-         * Stores a comment node (`LineComment` or `BlockComment`) for later stripping of errors within; a necessary deferring of processing to deal with top-of-file comments.
-         * @param {ASTNode} node The comment node
-         * @returns {void}
-         * @private
-         */
-        function rememberCommentNode(node) {
-            commentNodes.push(node);
-        }
-
-        /**
          * A no-op function to act as placeholder for comment accumulation when the `skipComments` option is `false`.
          * @returns {void}
          * @private
@@ -214,7 +208,6 @@ module.exports = {
                  * We can later filter the errors when they are found to be not an
                  * issue in nodes we don't care about.
                  */
-
                 checkForIrregularWhitespace(node);
                 checkForIrregularLineTerminators(node);
             };
@@ -222,18 +215,15 @@ module.exports = {
             nodes.Identifier = removeInvalidNodeErrorsInIdentifierOrLiteral;
             nodes.Literal = removeInvalidNodeErrorsInIdentifierOrLiteral;
             nodes.TemplateElement = skipTemplates ? removeInvalidNodeErrorsInTemplateLiteral : noop;
-            nodes.LineComment = skipComments ? rememberCommentNode : noop;
-            nodes.BlockComment = skipComments ? rememberCommentNode : noop;
             nodes["Program:exit"] = function() {
-
                 if (skipComments) {
 
-                    // First strip errors occurring in comment nodes.  We have to do this post-`Program` to deal with top-of-file comments.
+                    // First strip errors occurring in comment nodes.
                     commentNodes.forEach(removeInvalidNodeErrorsInComment);
                 }
 
                 // If we have any errors remaining report on them
-                errors.forEach(function(error) {
+                errors.forEach(error => {
                     context.report.apply(context, error);
                 });
             };

@@ -316,6 +316,7 @@
 
   assertFalse(Array.prototype.includes.call(arrayLikeWithTraps, "c", 2.1));
   assertFalse(Array.prototype.includes.call(arrayLikeWithTraps, "c", +Infinity));
+  assertFalse(["a", "b", "c"].includes("a", +Infinity));
   assertTrue(["a", "b", "c"].includes("a", -Infinity));
   assertTrue(["a", "b", "c"].includes("c", 2.9));
   assertTrue(["a", "b", "c"].includes("c", NaN));

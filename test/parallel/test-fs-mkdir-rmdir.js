@@ -24,14 +24,15 @@ fs.rmdirSync(d);
 assert(!common.fileExists(d));
 
 // Similarly test the Async version
-fs.mkdir(d, 0o666, function(err) {
+fs.mkdir(d, 0o666, common.mustCall(function(err) {
   assert.ifError(err);
 
-  fs.mkdir(d, 0o666, function(err) {
-    assert.ok(err.message.match(/^EEXIST/), 'got EEXIST message');
-    assert.equal(err.code, 'EEXIST', 'got EEXIST code');
-    assert.equal(err.path, d, 'got proper path for EEXIST');
+  fs.mkdir(d, 0o666, common.mustCall(function(err) {
+    assert.ok(err, 'got no error');
+    assert.ok(/^EEXIST/.test(err.message), 'got no EEXIST message');
+    assert.strictEqual(err.code, 'EEXIST', 'got no EEXIST code');
+    assert.strictEqual(err.path, d, 'got no proper path for EEXIST');
 
     fs.rmdir(d, assert.ifError);
-  });
-});
+  }));
+}));

@@ -1,36 +1,52 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const Countdown = require('../common/countdown');
 
-var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+const server = http.createServer(common.mustCall((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
-}).listen(0, function() {
-  var agent = new http.Agent({maxSockets: 1});
+}, 2)).listen(0, common.mustCall(() => {
+  const agent = new http.Agent({ maxSockets: 1 });
 
-  agent.on('free', function(socket, host, port) {
-    console.log('freeing socket. destroyed? ', socket.destroyed);
-  });
+  agent.on('free', common.mustCall(3));
 
-  var requestOptions = {
+  const requestOptions = {
     agent: agent,
     host: 'localhost',
-    port: this.address().port,
+    port: server.address().port,
     path: '/'
   };
 
-  var request1 = http.get(requestOptions, function(response) {
+  const request1 = http.get(requestOptions, common.mustCall((response) => {
     // assert request2 is queued in the agent
-    var key = agent.getName(requestOptions);
+    const key = agent.getName(requestOptions);
     assert.strictEqual(agent.requests[key].length, 1);
-    console.log('got response1');
-    request1.socket.on('close', function() {
-      console.log('request1 socket closed');
-    });
-    response.pipe(process.stdout);
-    response.on('end', function() {
-      console.log('response1 done');
+    request1.socket.on('close', common.mustCall());
+    response.resume();
+    response.on('end', common.mustCall(() => {
       /////////////////////////////////
       //
       // THE IMPORTANT PART
@@ -44,43 +60,29 @@ var server = http.createServer(function(req, res) {
       // is triggered.
       request1.socket.destroy();
 
-      response.once('close', function() {
+      // TODO(jasnell): This close event does not appear to be triggered.
+      // is it necessary?
+      response.once('close', () => {
         // assert request2 was removed from the queue
         assert(!agent.requests[key]);
-        console.log("waiting for request2.onSocket's nextTick");
-        process.nextTick(function() {
+        process.nextTick(() => {
           // assert that the same socket was not assigned to request2,
           // since it was destroyed.
           assert.notStrictEqual(request1.socket, request2.socket);
           assert(!request2.socket.destroyed, 'the socket is destroyed');
         });
       });
-    });
-  });
+    }));
+  }));
 
-  var request2 = http.get(requestOptions, function(response) {
+  const request2 = http.get(requestOptions, common.mustCall((response) => {
     assert(!request2.socket.destroyed);
     assert(request1.socket.destroyed);
     // assert not reusing the same socket, since it was destroyed.
     assert.notStrictEqual(request1.socket, request2.socket);
-    console.log('got response2');
-    var gotClose = false;
-    var gotResponseEnd = false;
-    request2.socket.on('close', function() {
-      console.log('request2 socket closed');
-      gotClose = true;
-      done();
-    });
-    response.pipe(process.stdout);
-    response.on('end', function() {
-      console.log('response2 done');
-      gotResponseEnd = true;
-      done();
-    });
-
-    function done() {
-      if (gotResponseEnd && gotClose)
-        server.close();
-    }
-  });
-});
+    const countdown = new Countdown(2, common.mustCall(() => server.close()));
+    request2.socket.on('close', common.mustCall(() => countdown.dec()));
+    response.on('end', common.mustCall(() => countdown.dec()));
+    response.resume();
+  }));
+}));

@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var EventEmitter = require('events');
+const assert = require('assert');
+const EventEmitter = require('events');
 
-var emitter = new EventEmitter();
+const emitter = new EventEmitter();
 
 assert.strictEqual(emitter.getMaxListeners(), EventEmitter.defaultMaxListeners);
 
@@ -14,6 +14,6 @@ emitter.setMaxListeners(3);
 assert.strictEqual(emitter.getMaxListeners(), 3);
 
 // https://github.com/nodejs/node/issues/523 - second call should not throw.
-var recv = {};
-EventEmitter.prototype.on.call(recv, 'event', function() {});
-EventEmitter.prototype.on.call(recv, 'event', function() {});
+const recv = {};
+EventEmitter.prototype.on.call(recv, 'event', () => {});
+EventEmitter.prototype.on.call(recv, 'event', () => {});

@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_NODE_CRYPTO_H_
 #define SRC_NODE_CRYPTO_H_
 
@@ -63,10 +84,7 @@ enum CheckResult {
 
 extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
-extern X509_STORE* root_cert_store;
-
-// Forward declaration
-class Connection;
+extern void UseExtraCaCerts(const std::string& file);
 
 class SecureContext : public BaseObject {
  public:
@@ -76,7 +94,6 @@ class SecureContext : public BaseObject {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  X509_STORE* ca_store_;
   SSL_CTX* ctx_;
   X509* cert_;
   X509* issuer_;
@@ -131,7 +148,6 @@ class SecureContext : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        ca_store_(nullptr),
         ctx_(nullptr),
         cert_(nullptr),
         issuer_(nullptr) {
@@ -140,27 +156,19 @@ class SecureContext : public BaseObject {
   }
 
   void FreeCTXMem() {
-    if (ctx_) {
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
-      if (ctx_->cert_store == root_cert_store) {
-        // SSL_CTX_free() will attempt to free the cert_store as well.
-        // Since we want our root_cert_store to stay around forever
-        // we just clear the field. Hopefully OpenSSL will not modify this
-        // struct in future versions.
-        ctx_->cert_store = nullptr;
-      }
-      SSL_CTX_free(ctx_);
-      if (cert_ != nullptr)
-        X509_free(cert_);
-      if (issuer_ != nullptr)
-        X509_free(issuer_);
-      ctx_ = nullptr;
-      ca_store_ = nullptr;
-      cert_ = nullptr;
-      issuer_ = nullptr;
-    } else {
-      CHECK_EQ(ca_store_, nullptr);
+    if (!ctx_) {
+      return;
     }
+
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+    SSL_CTX_free(ctx_);
+    if (cert_ != nullptr)
+      X509_free(cert_);
+    if (issuer_ != nullptr)
+      X509_free(issuer_);
+    ctx_ = nullptr;
+    cert_ = nullptr;
+    issuer_ = nullptr;
   }
 };
 
@@ -257,7 +265,7 @@ class SSLWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // SSL_set_max_send_fragment
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   static void GetNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -271,7 +279,7 @@ class SSLWrap {
                                      const unsigned char* in,
                                      unsigned int inlen,
                                      void* arg);
-#endif  // OPENSSL_NPN_NEGOTIATED
+#endif  // OPENSSL_NO_NEXTPROTONEG
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -336,7 +344,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   void NewSessionDoneCb();
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   v8::Persistent<v8::Object> npnProtos_;
   v8::Persistent<v8::Value> selectedNPNProto_;
 #endif
@@ -382,19 +390,19 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
 
   int HandleSSLError(const char* func, int rv, ZeroStatus zs, SyscallStatus ss);
 
-  void ClearError();
   void SetShutdownFlags();
 
   Connection(Environment* env,
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_SSLCONNECTION),
         SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),
         hello_offset_(0) {
     MakeWeak<Connection>(this);
+    Wrap(wrap, this);
     hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
                         OnClientHelloParseEnd,
                         this);
@@ -419,7 +427,6 @@ class CipherBase : public BaseObject {
   ~CipherBase() override {
     if (!initialised_)
       return;
-    delete[] auth_tag_;
     EVP_CIPHER_CTX_cleanup(&ctx_);
   }
 
@@ -442,8 +449,6 @@ class CipherBase : public BaseObject {
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool GetAuthTag(char** out, unsigned int* out_len) const;
-  bool SetAuthTag(const char* data, unsigned int len);
   bool SetAAD(const char* data, unsigned int len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -461,21 +466,18 @@ class CipherBase : public BaseObject {
              v8::Local<v8::Object> wrap,
              CipherKind kind)
       : BaseObject(env, wrap),
-        cipher_(nullptr),
         initialised_(false),
         kind_(kind),
-        auth_tag_(nullptr),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
   }
 
  private:
   EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
-  const EVP_CIPHER* cipher_; /* coverity[member_decl] */
   bool initialised_;
-  CipherKind kind_;
-  char* auth_tag_;
+  const CipherKind kind_;
   unsigned int auth_tag_len_;
+  char auth_tag_[EVP_GCM_TLS_TAG_LEN];
 };
 
 class Hmac : public BaseObject {
@@ -491,7 +493,6 @@ class Hmac : public BaseObject {
  protected:
   void HmacInit(const char* hash_type, const char* key, int key_len);
   bool HmacUpdate(const char* data, int len);
-  bool HmacDigest(unsigned char** md_value, unsigned int* md_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HmacInit(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -578,8 +579,10 @@ class Sign : public SignBase {
   Error SignFinal(const char* key_pem,
                   int key_pem_len,
                   const char* passphrase,
-                  unsigned char** sig,
-                  unsigned int *sig_len);
+                  unsigned char* sig,
+                  unsigned int *sig_len,
+                  int padding,
+                  int saltlen);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -602,6 +605,8 @@ class Verify : public SignBase {
                     int key_pem_len,
                     const char* sig,
                     int siglen,
+                    int padding,
+                    int saltlen,
                     bool* verify_result);
 
  protected:
@@ -684,6 +689,10 @@ class DiffieHellman : public BaseObject {
   }
 
  private:
+  static void GetField(const v8::FunctionCallbackInfo<v8::Value>& args,
+                       BIGNUM* (DH::*field), const char* err_if_null);
+  static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
+                     BIGNUM* (DH::*field), const char* what);
   bool VerifyContext();
 
   bool initialised_;
@@ -708,7 +717,7 @@ class ECDH : public BaseObject {
         key_(key),
         group_(EC_KEY_get0_group(key_)) {
     MakeWeak<ECDH>(this);
-    ASSERT_NE(group_, nullptr);
+    CHECK_NE(group_, nullptr);
   }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

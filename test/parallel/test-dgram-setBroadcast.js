@@ -4,36 +4,22 @@ const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-const setup = () => {
-  return dgram.createSocket({type: 'udp4', reuseAddr: true});
-};
+{
+  // Should throw EBADF if the socket is never bound.
+  const socket = dgram.createSocket('udp4');
 
-const teardown = (socket) => {
-  if (socket.close)
-    socket.close();
-};
-
-const runTest = (testCode, expectError) => {
-  const socket = setup();
-  const assertion = expectError ? assert.throws : assert.doesNotThrow;
-  const wrapped = () => { testCode(socket); };
-  assertion(wrapped, expectError);
-  teardown(socket);
-};
-
-// Should throw EBADF if socket is never bound.
-runTest((socket) => { socket.setBroadcast(true); }, /EBADF/);
-
-// Should not throw if broadcast set to false after binding.
-runTest((socket) => {
-  socket.bind(0, common.localhostIPv4, () => {
-    socket.setBroadcast(false);
-  });
-});
-
-// Should not throw if broadcast set to true after binding.
-runTest((socket) => {
-  socket.bind(0, common.localhostIPv4, () => {
+  assert.throws(() => {
     socket.setBroadcast(true);
-  });
-});
+  }, /^Error: setBroadcast EBADF$/);
+}
+
+{
+  // Can call setBroadcast() after binding the socket.
+  const socket = dgram.createSocket('udp4');
+
+  socket.bind(0, common.mustCall(() => {
+    socket.setBroadcast(true);
+    socket.setBroadcast(false);
+    socket.close();
+  }));
+}

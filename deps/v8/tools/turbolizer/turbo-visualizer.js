@@ -188,13 +188,6 @@ document.onload = (function(d3){
               }
             }
 
-            var eventMenu = document.getElementById('event-selector');
-            eventMenu.innerHTML = '';
-            for (var event in jsonObj.eventCounts) {
-              var optionElement = document.createElement("option");
-              optionElement.text = event;
-              eventMenu.add(optionElement, null);
-            }
             disassemblyView.initializePerfProfile(jsonObj.eventCounts);
             disassemblyView.show(disassemblyPhase.data, null);
 
@@ -214,10 +207,6 @@ document.onload = (function(d3){
             selectMenu.onchange = function(item) {
               window.sessionStorage.setItem("lastSelectedPhase", selectMenu.selectedIndex);
               displayPhase(jsonObj.phases[selectMenu.selectedIndex]);
-            }
-
-            eventMenu.onchange = function(item) {
-              disassemblyView.show(disassemblyView.data, null);
             }
 
             fitPanesToParents();

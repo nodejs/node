@@ -1,10 +1,33 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
+
 const assert = require('assert');
 const cluster = require('cluster');
 
 assert.strictEqual('NODE_UNIQUE_ID' in process.env, false,
-                   'NODE_UNIQUE_ID should be removed on startup');
+                   `NODE_UNIQUE_ID (${process.env.NODE_UNIQUE_ID}) ` +
+                   'should be removed on startup');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach((name, index) => {
@@ -14,10 +37,7 @@ function forEach(obj, fn) {
 
 
 if (cluster.isWorker) {
-  const http = require('http');
-  http.Server(function() {
-
-  }).listen(common.PORT, '127.0.0.1');
+  require('http').Server(common.mustNotCall()).listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
 
   const checks = {
@@ -56,7 +76,6 @@ if (cluster.isWorker) {
     }
   };
 
-  var worker;
   const stateNames = Object.keys(checks.worker.states);
 
   //Check events, states, and emit arguments
@@ -72,7 +91,7 @@ if (cluster.isWorker) {
       checks.cluster.equal[name] = worker === arguments[0];
 
       //Check state
-      var state = stateNames[index];
+      const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     }));
   });
@@ -83,10 +102,10 @@ if (cluster.isWorker) {
   }));
 
   //Kill process when worker is killed
-  cluster.on('exit', common.mustCall(() => {}));
+  cluster.on('exit', common.mustCall());
 
   //Create worker
-  worker = cluster.fork();
+  const worker = cluster.fork();
   assert.strictEqual(worker.id, 1);
   assert(worker instanceof cluster.Worker,
          'the worker is not a instance of the Worker constructor');
@@ -109,11 +128,15 @@ if (cluster.isWorker) {
 
         case 'listening':
           assert.strictEqual(arguments.length, 1);
-          const expect = { address: '127.0.0.1',
-                           port: common.PORT,
-                           addressType: 4,
-                           fd: undefined };
-          assert.deepStrictEqual(arguments[0], expect);
+          assert.strictEqual(Object.keys(arguments[0]).length, 4);
+          assert.strictEqual(arguments[0].address, '127.0.0.1');
+          assert.strictEqual(arguments[0].addressType, 4);
+          assert(arguments[0].hasOwnProperty('fd'));
+          assert.strictEqual(arguments[0].fd, undefined);
+          const port = arguments[0].port;
+          assert(Number.isInteger(port));
+          assert(port >= 1);
+          assert(port <= 65535);
           break;
 
         default:

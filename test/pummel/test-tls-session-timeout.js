@@ -1,15 +1,32 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
-if (!common.opensslCli) {
+if (!common.opensslCli)
   common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 doTest();
 
@@ -22,19 +39,18 @@ doTest();
 //   that we used has expired by now.
 
 function doTest() {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const fixtures = require('../common/fixtures');
+  const spawn = require('child_process').spawn;
 
-  var SESSION_TIMEOUT = 1;
+  const SESSION_TIMEOUT = 1;
 
-  var keyFile = join(common.fixturesDir, 'agent.key');
-  var certFile = join(common.fixturesDir, 'agent.crt');
-  var key = fs.readFileSync(keyFile);
-  var cert = fs.readFileSync(certFile);
-  var options = {
+  const key = fixtures.path('agent.key');
+  const cert = fixtures.path('agent.crt');
+  const options = {
     key: key,
     cert: cert,
     ca: [cert],
@@ -47,49 +63,48 @@ function doTest() {
   // file containing a proper serialization of a session ticket.
   // To avoid a source control diff, we copy the ticket to a temporary file.
 
-  var sessionFileName = (function() {
-    var ticketFileName = 'tls-session-ticket.txt';
-    var fixturesPath = join(common.fixturesDir, ticketFileName);
-    var tmpPath = join(common.tmpDir, ticketFileName);
-    fs.writeFileSync(tmpPath, fs.readFileSync(fixturesPath));
+  const sessionFileName = (function() {
+    const ticketFileName = 'tls-session-ticket.txt';
+    const tmpPath = join(common.tmpDir, ticketFileName);
+    fs.writeFileSync(tmpPath, fixtures.readSync(ticketFileName));
     return tmpPath;
   }());
 
   // Expects a callback -- cb(connectionType : enum ['New'|'Reused'])
 
-  var Client = function(cb) {
-    var flags = [
+  function Client(cb) {
+    const flags = [
       's_client',
-      '-connect', 'localhost:' + common.PORT,
+      '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
-    var client = spawn(common.opensslCli, flags, {
+    const client = spawn(common.opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
     });
 
-    var clientOutput = '';
+    let clientOutput = '';
     client.stdout.on('data', function(data) {
       clientOutput += data.toString();
     });
     client.on('exit', function(code) {
-      var connectionType;
-      var grepConnectionType = function(line) {
-        var matches = line.match(/(New|Reused), /);
+      let connectionType;
+      const grepConnectionType = (line) => {
+        const matches = line.match(/(New|Reused), /);
         if (matches) {
           connectionType = matches[1];
           return true;
         }
       };
-      var lines = clientOutput.split('\n');
+      const lines = clientOutput.split('\n');
       if (!lines.some(grepConnectionType)) {
         throw new Error('unexpected output from openssl client');
       }
       cb(connectionType);
     });
-  };
+  }
 
-  var server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
       if (er.code !== 'ECONNRESET')
         throw er;

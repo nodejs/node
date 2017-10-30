@@ -4,6 +4,7 @@
 
 #include "src/ostreams.h"
 #include "src/objects.h"
+#include "src/objects/string.h"
 
 #if V8_OS_WIN
 #if _MSC_VER < 1900
@@ -106,9 +107,26 @@ std::ostream& operator<<(std::ostream& os, const AsUC32& c) {
 }
 
 std::ostream& operator<<(std::ostream& os, const AsHex& hex) {
-  char buf[20];
-  snprintf(buf, sizeof(buf), "%.*" PRIx64, hex.min_width, hex.value);
+  // Each byte uses up to two characters. Plus two characters for the prefix,
+  // plus null terminator.
+  DCHECK_GE(sizeof(hex.value) * 2, hex.min_width);
+  static constexpr size_t kMaxHexLength = 3 + sizeof(hex.value) * 2;
+  char buf[kMaxHexLength];
+  snprintf(buf, kMaxHexLength, "%s%.*" PRIx64, hex.with_prefix ? "0x" : "",
+           hex.min_width, hex.value);
   return os << buf;
+}
+
+std::ostream& operator<<(std::ostream& os, const AsHexBytes& hex) {
+  uint8_t bytes = hex.min_bytes;
+  while (bytes < sizeof(hex.value) && (hex.value >> (bytes * 8) != 0)) ++bytes;
+  for (uint8_t b = 0; b < bytes; ++b) {
+    if (b) os << " ";
+    uint8_t printed_byte =
+        hex.byte_order == AsHexBytes::kLittleEndian ? b : bytes - b - 1;
+    os << AsHex((hex.value >> (8 * printed_byte)) & 0xff, 2);
+  }
+  return os;
 }
 
 }  // namespace internal

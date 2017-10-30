@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *****************************************************************************************
@@ -15,6 +15,8 @@
 #include "unicode/plurrule.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
+#include "unicode/unum.h"
+#include "unicode/numfmt.h"
 
 U_NAMESPACE_USE
 
@@ -54,5 +56,48 @@ uplrules_select(const UPluralRules *uplrules,
     return result.extract(keyword, capacity, *status);
 }
 
+U_CAPI int32_t U_EXPORT2
+uplrules_selectWithFormat(const UPluralRules *uplrules,
+                          double number,
+                          const UNumberFormat *fmt,
+                          UChar *keyword, int32_t capacity,
+                          UErrorCode *status)
+{
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    const PluralRules* plrules = reinterpret_cast<const PluralRules*>(uplrules);
+    const NumberFormat* nf = reinterpret_cast<const NumberFormat*>(fmt);
+    if (plrules == NULL || nf == NULL || ((keyword == NULL)? capacity != 0 : capacity < 0)) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    Formattable obj(number);
+    UnicodeString result = plrules->select(obj, *nf, *status);
+    return result.extract(keyword, capacity, *status);
+}
+
+U_CAPI UEnumeration* U_EXPORT2
+uplrules_getKeywords(const UPluralRules *uplrules,
+                     UErrorCode *status)
+{
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    const PluralRules* plrules = reinterpret_cast<const PluralRules*>(uplrules);
+    if (plrules == NULL) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return NULL;
+    }
+    StringEnumeration *senum = plrules->getKeywords(*status);
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    if (senum == NULL) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
+    return uenum_openFromStringEnumeration(senum, status);
+}
 
 #endif /* #if !UCONFIG_NO_FORMATTING */

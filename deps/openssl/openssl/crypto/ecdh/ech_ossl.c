@@ -212,7 +212,9 @@ static int ecdh_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
         BN_CTX_end(ctx);
     if (ctx)
         BN_CTX_free(ctx);
-    if (buf)
+    if (buf) {
+        OPENSSL_cleanse(buf, buflen);
         OPENSSL_free(buf);
+    }
     return (ret);
 }

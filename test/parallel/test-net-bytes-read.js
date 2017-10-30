@@ -23,14 +23,14 @@ const server = net.createServer((socket) => {
     });
 
     socket.on('end', common.mustCall(() => {
-      assert.equal(socket.bytesRead, prev);
-      assert.equal(big.length, prev);
+      assert.strictEqual(socket.bytesRead, prev);
+      assert.strictEqual(big.length, prev);
     }));
 
     socket.on('close', common.mustCall(() => {
       assert(!socket._handle);
-      assert.equal(socket.bytesRead, prev);
-      assert.equal(big.length, prev);
+      assert.strictEqual(socket.bytesRead, prev);
+      assert.strictEqual(big.length, prev);
     }));
   });
   socket.end();

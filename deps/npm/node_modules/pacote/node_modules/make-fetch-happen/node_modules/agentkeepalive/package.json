@@ -1,0 +1,82 @@
+{
+  "_from": "agentkeepalive@^3.3.0",
+  "_id": "agentkeepalive@3.3.0",
+  "_inBundle": false,
+  "_integrity": "sha512-9yhcpXti2ZQE7bxuCsjjWNIZoQOd9sZ1ZBovHG0YeCRohFv73SLvcm73PC9T3olM4GyozaQb+4MGdQpcD8m7NQ==",
+  "_location": "/pacote/make-fetch-happen/agentkeepalive",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "agentkeepalive@^3.3.0",
+    "name": "agentkeepalive",
+    "escapedName": "agentkeepalive",
+    "rawSpec": "^3.3.0",
+    "saveSpec": null,
+    "fetchSpec": "^3.3.0"
+  },
+  "_requiredBy": [
+    "/pacote/make-fetch-happen"
+  ],
+  "_resolved": "https://registry.npmjs.org/agentkeepalive/-/agentkeepalive-3.3.0.tgz",
+  "_shasum": "6d5de5829afd3be2712201a39275fd11c651857c",
+  "_spec": "agentkeepalive@^3.3.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/pacote/node_modules/make-fetch-happen",
+  "author": {
+    "name": "fengmk2",
+    "email": "fengmk2@gmail.com",
+    "url": "https://fengmk2.com"
+  },
+  "browser": "browser.js",
+  "bugs": {
+    "url": "https://github.com/node-modules/agentkeepalive/issues"
+  },
+  "bundleDependencies": false,
+  "ci": {
+    "version": "4.3.2, 4, 6, 7, 8"
+  },
+  "dependencies": {
+    "humanize-ms": "^1.2.1"
+  },
+  "deprecated": false,
+  "description": "Missing keepalive http.Agent",
+  "devDependencies": {
+    "autod": "^2.8.0",
+    "egg-bin": "^1.10.3",
+    "egg-ci": "^1.7.0",
+    "eslint": "^3.19.0",
+    "eslint-config-egg": "^4.2.0",
+    "pedding": "^1.1.0"
+  },
+  "engines": {
+    "node": ">= 4.0.0"
+  },
+  "files": [
+    "index.js",
+    "browser.js",
+    "lib"
+  ],
+  "homepage": "https://github.com/node-modules/agentkeepalive#readme",
+  "keywords": [
+    "http",
+    "https",
+    "agent",
+    "keepalive",
+    "agentkeepalive"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "agentkeepalive",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/node-modules/agentkeepalive.git"
+  },
+  "scripts": {
+    "autod": "autod",
+    "ci": "npm run lint && npm run cov",
+    "cov": "egg-bin cov",
+    "lint": "eslint lib test index.js",
+    "test": "egg-bin test"
+  },
+  "version": "3.3.0"
+}

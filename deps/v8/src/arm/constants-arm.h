@@ -190,6 +190,7 @@ enum {
   B7 = 1 << 7,
   B8 = 1 << 8,
   B9 = 1 << 9,
+  B10 = 1 << 10,
   B12 = 1 << 12,
   B16 = 1 << 16,
   B17 = 1 << 17,
@@ -217,7 +218,6 @@ enum {
   kOff12Mask = (1 << 12) - 1,
   kOff8Mask = (1 << 8) - 1
 };
-
 
 enum BarrierOption {
   OSHLD = 0x1,
@@ -324,31 +324,38 @@ enum LFlag {
   Short = 0 << 22   // Short load/store coprocessor.
 };
 
+// Neon sizes.
+enum NeonSize { Neon8 = 0x0, Neon16 = 0x1, Neon32 = 0x2, Neon64 = 0x3 };
 
 // NEON data type
 enum NeonDataType {
-  NeonS8 = 0x1,   // U = 0, imm3 = 0b001
-  NeonS16 = 0x2,  // U = 0, imm3 = 0b010
-  NeonS32 = 0x4,  // U = 0, imm3 = 0b100
-  NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
-  NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
-  NeonU32 = 1 << 24 | 0x4,   // U = 1, imm3 = 0b100
-  NeonDataTypeSizeMask = 0x7,
-  NeonDataTypeUMask = 1 << 24
+  NeonS8 = 0,
+  NeonS16 = 1,
+  NeonS32 = 2,
+  // Gap to make it easier to extract U and size.
+  NeonU8 = 4,
+  NeonU16 = 5,
+  NeonU32 = 6
 };
+
+inline int NeonU(NeonDataType dt) { return static_cast<int>(dt) >> 2; }
+inline int NeonSz(NeonDataType dt) { return static_cast<int>(dt) & 0x3; }
+
+// Convert sizes to data types (U bit is clear).
+inline NeonDataType NeonSizeToDataType(NeonSize size) {
+  DCHECK_NE(Neon64, size);
+  return static_cast<NeonDataType>(size);
+}
+
+inline NeonSize NeonDataTypeToSize(NeonDataType dt) {
+  return static_cast<NeonSize>(NeonSz(dt));
+}
 
 enum NeonListType {
   nlt_1 = 0x7,
   nlt_2 = 0xA,
   nlt_3 = 0x6,
   nlt_4 = 0x2
-};
-
-enum NeonSize {
-  Neon8 = 0x0,
-  Neon16 = 0x1,
-  Neon32 = 0x2,
-  Neon64 = 0x3
 };
 
 // -----------------------------------------------------------------------------
@@ -374,9 +381,9 @@ const int32_t  kDefaultStopCode = -1;
 // Type of VFP register. Determines register encoding.
 enum VFPRegPrecision {
   kSinglePrecision = 0,
-  kDoublePrecision = 1
+  kDoublePrecision = 1,
+  kSimd128Precision = 2
 };
-
 
 // VFP FPSCR constants.
 enum VFPConversionMode {
@@ -477,39 +484,41 @@ class Instruction {
     *reinterpret_cast<Instr*>(this) = value;
   }
 
-  // Read one particular bit out of the instruction bits.
+  // Extract a single bit from the instruction bits and return it as bit 0 in
+  // the result.
   inline int Bit(int nr) const {
     return (InstructionBits() >> nr) & 1;
   }
 
-  // Read a bit field's value out of the instruction bits.
+  // Extract a bit field <hi:lo> from the instruction bits and return it in the
+  // least-significant bits of the result.
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
   }
 
-  // Read a bit field out of the instruction bits.
+  // Read a bit field <hi:lo>, leaving its position unchanged in the result.
   inline int BitField(int hi, int lo) const {
     return InstructionBits() & (((2 << (hi - lo)) - 1) << lo);
   }
 
   // Static support.
 
-  // Read one particular bit out of the instruction bits.
+  // Extract a single bit from the instruction bits and return it as bit 0 in
+  // the result.
   static inline int Bit(Instr instr, int nr) {
     return (instr >> nr) & 1;
   }
 
-  // Read the value of a bit field out of the instruction bits.
+  // Extract a bit field <hi:lo> from the instruction bits and return it in the
+  // least-significant bits of the result.
   static inline int Bits(Instr instr, int hi, int lo) {
     return (instr >> lo) & ((2 << (hi - lo)) - 1);
   }
 
-
-  // Read a bit field out of the instruction bits.
+  // Read a bit field <hi:lo>, leaving its position unchanged in the result.
   static inline int BitField(Instr instr, int hi, int lo) {
     return instr & (((2 << (hi - lo)) - 1) << lo);
   }
-
 
   // Accessors for the different named fields used in the ARM encoding.
   // The naming of these accessor corresponds to figure A3-1.
@@ -525,13 +534,11 @@ class Instruction {
 
 
   // Generally applicable fields
-  inline Condition ConditionValue() const {
-    return static_cast<Condition>(Bits(31, 28));
-  }
+  inline int ConditionValue() const { return Bits(31, 28); }
   inline Condition ConditionField() const {
     return static_cast<Condition>(BitField(31, 28));
   }
-  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionValue);
+  DECLARE_STATIC_TYPED_ACCESSOR(int, ConditionValue);
   DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
 
   inline int TypeValue() const { return Bits(27, 25); }
@@ -667,15 +674,22 @@ class Instruction {
 
 
  private:
-  // Join split register codes, depending on single or double precision.
+  // Join split register codes, depending on register precision.
   // four_bit is the position of the least-significant bit of the four
   // bit specifier. one_bit is the position of the additional single bit
   // specifier.
   inline int VFPGlueRegValue(VFPRegPrecision pre, int four_bit, int one_bit) {
     if (pre == kSinglePrecision) {
       return (Bits(four_bit + 3, four_bit) << 1) | Bit(one_bit);
+    } else {
+      int reg_num = (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
+      if (pre == kDoublePrecision) {
+        return reg_num;
+      }
+      DCHECK_EQ(kSimd128Precision, pre);
+      DCHECK_EQ(reg_num & 1, 0);
+      return reg_num / 2;
     }
-    return (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
   }
 
   // We need to prevent the creation of instances of class Instruction.

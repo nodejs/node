@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  ucase.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -37,18 +37,8 @@ U_NAMESPACE_END
 
 /* library API -------------------------------------------------------------- */
 
-U_CDECL_BEGIN
-
-struct UCaseProps;
-typedef struct UCaseProps UCaseProps;
-
-U_CDECL_END
-
-U_CAPI const UCaseProps * U_EXPORT2
-ucase_getSingleton(void);
-
 U_CFUNC void U_EXPORT2
-ucase_addPropertyStarts(const UCaseProps *csp, const USetAdder *sa, UErrorCode *pErrorCode);
+ucase_addPropertyStarts(const USetAdder *sa, UErrorCode *pErrorCode);
 
 /**
  * Requires non-NULL locale ID but otherwise does the equivalent of
@@ -56,7 +46,7 @@ ucase_addPropertyStarts(const UCaseProps *csp, const USetAdder *sa, UErrorCode *
  * Accepts both 2- and 3-letter codes and accepts case variants.
  */
 U_CFUNC int32_t
-ucase_getCaseLocale(const char *locale, int32_t *locCache);
+ucase_getCaseLocale(const char *locale);
 
 /* Casing locale types for ucase_getCaseLocale */
 enum {
@@ -87,16 +77,16 @@ enum {
 /* single-code point functions */
 
 U_CAPI UChar32 U_EXPORT2
-ucase_tolower(const UCaseProps *csp, UChar32 c);
+ucase_tolower(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_toupper(const UCaseProps *csp, UChar32 c);
+ucase_toupper(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_totitle(const UCaseProps *csp, UChar32 c);
+ucase_totitle(UChar32 c);
 
 U_CAPI UChar32 U_EXPORT2
-ucase_fold(const UCaseProps *csp, UChar32 c, uint32_t options);
+ucase_fold(UChar32 c, uint32_t options);
 
 /**
  * Adds all simple case mappings and the full case folding for c to sa,
@@ -108,7 +98,7 @@ ucase_fold(const UCaseProps *csp, UChar32 c, uint32_t options);
  * - for k include the Kelvin sign
  */
 U_CFUNC void U_EXPORT2
-ucase_addCaseClosure(const UCaseProps *csp, UChar32 c, const USetAdder *sa);
+ucase_addCaseClosure(UChar32 c, const USetAdder *sa);
 
 /**
  * Maps the string to single code points and adds the associated case closure
@@ -123,7 +113,7 @@ ucase_addCaseClosure(const UCaseProps *csp, UChar32 c, const USetAdder *sa);
  * @return TRUE if the string was found
  */
 U_CFUNC UBool U_EXPORT2
-ucase_addStringCaseClosure(const UCaseProps *csp, const UChar *s, int32_t length, const USetAdder *sa);
+ucase_addStringCaseClosure(const UChar *s, int32_t length, const USetAdder *sa);
 
 #ifdef __cplusplus
 U_NAMESPACE_BEGIN
@@ -157,17 +147,17 @@ U_NAMESPACE_END
 
 /** @return UCASE_NONE, UCASE_LOWER, UCASE_UPPER, UCASE_TITLE */
 U_CAPI int32_t U_EXPORT2
-ucase_getType(const UCaseProps *csp, UChar32 c);
+ucase_getType(UChar32 c);
 
 /** @return like ucase_getType() but also sets UCASE_IGNORABLE if c is case-ignorable */
 U_CAPI int32_t U_EXPORT2
-ucase_getTypeOrIgnorable(const UCaseProps *csp, UChar32 c);
+ucase_getTypeOrIgnorable(UChar32 c);
 
 U_CAPI UBool U_EXPORT2
-ucase_isSoftDotted(const UCaseProps *csp, UChar32 c);
+ucase_isSoftDotted(UChar32 c);
 
 U_CAPI UBool U_EXPORT2
-ucase_isCaseSensitive(const UCaseProps *csp, UChar32 c);
+ucase_isCaseSensitive(UChar32 c);
 
 /* string case mapping functions */
 
@@ -240,10 +230,7 @@ enum {
  * @param context Pointer to be passed into iter.
  * @param pString If the mapping result is a string, then the pointer is
  *                written to *pString.
- * @param locale Locale ID for locale-dependent mappings.
- * @param locCache Initialize to 0; may be used to cache the result of parsing
- *                 the locale ID for subsequent calls.
- *                 Can be NULL.
+ * @param caseLocale Case locale value from ucase_getCaseLocale().
  * @return Output code point or string length, see UCASE_MAX_STRING_LENGTH.
  *
  * @see UCaseContextIterator
@@ -251,25 +238,25 @@ enum {
  * @internal
  */
 U_CAPI int32_t U_EXPORT2
-ucase_toFullLower(const UCaseProps *csp, UChar32 c,
+ucase_toFullLower(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullUpper(const UCaseProps *csp, UChar32 c,
+ucase_toFullUpper(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullTitle(const UCaseProps *csp, UChar32 c,
+ucase_toFullTitle(UChar32 c,
                   UCaseContextIterator *iter, void *context,
                   const UChar **pString,
-                  const char *locale, int32_t *locCache);
+                  int32_t caseLocale);
 
 U_CAPI int32_t U_EXPORT2
-ucase_toFullFolding(const UCaseProps *csp, UChar32 c,
+ucase_toFullFolding(UChar32 c,
                     const UChar **pString,
                     uint32_t options);
 
@@ -283,10 +270,10 @@ U_CDECL_BEGIN
  * @internal
  */
 typedef int32_t U_CALLCONV
-UCaseMapFull(const UCaseProps *csp, UChar32 c,
+UCaseMapFull(UChar32 c,
              UCaseContextIterator *iter, void *context,
              const UChar **pString,
-             const char *locale, int32_t *locCache);
+             int32_t caseLocale);
 
 U_CDECL_END
 

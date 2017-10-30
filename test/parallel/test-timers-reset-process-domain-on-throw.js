@@ -28,7 +28,7 @@ function err() {
   function handleDomainError(e) {
     // In the domain's error handler, the current active domain should be the
     // domain within which the error was thrown.
-    assert.equal(process.domain, d);
+    assert.strictEqual(process.domain, d);
   }
 }
 

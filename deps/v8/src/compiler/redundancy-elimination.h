@@ -16,6 +16,8 @@ class RedundancyElimination final : public AdvancedReducer {
   RedundancyElimination(Editor* editor, Zone* zone);
   ~RedundancyElimination() final;
 
+  const char* reducer_name() const override { return "RedundancyElimination"; }
+
   Reduction Reduce(Node* node) final;
 
  private:
@@ -34,6 +36,7 @@ class RedundancyElimination final : public AdvancedReducer {
 
     EffectPathChecks const* AddCheck(Zone* zone, Node* node) const;
     Node* LookupCheck(Node* node) const;
+    Node* LookupBoundsCheckFor(Node* node) const;
 
    private:
     EffectPathChecks(Check* head, size_t size) : head_(head), size_(size) {}
@@ -61,6 +64,8 @@ class RedundancyElimination final : public AdvancedReducer {
 
   Reduction TakeChecksFromFirstEffect(Node* node);
   Reduction UpdateChecks(Node* node, EffectPathChecks const* checks);
+
+  Reduction TryReuseBoundsCheckForFirstInput(Node* node);
 
   Zone* zone() const { return zone_; }
 

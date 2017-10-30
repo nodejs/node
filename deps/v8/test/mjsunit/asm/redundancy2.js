@@ -7,9 +7,9 @@
 function module(stdlib, foreign, heap) {
     "use asm";
     function foo(i) {
-      var j = 0;
       i = i|0;
-      switch (i) {
+      var j = 0;
+      switch (i | 0) {
         case 0:
           j = i+1|0;
           break;
@@ -20,10 +20,10 @@ function module(stdlib, foreign, heap) {
           j = i;
           break;
       }
-      return j;
+      return j | 0;
     }
     return { foo: foo };
 }
 
 var foo = module(this, {}, new ArrayBuffer(64*1024)).foo;
-print(foo(1));
+assertEquals(2, foo(2));

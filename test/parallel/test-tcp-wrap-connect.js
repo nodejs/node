@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var TCP = process.binding('tcp_wrap').TCP;
-var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
-var ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
+const assert = require('assert');
+const TCP = process.binding('tcp_wrap').TCP;
+const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
+const ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
 
 function makeConnection() {
-  var client = new TCP();
+  const client = new TCP();
 
-  var req = new TCPConnectWrap();
-  var err = client.connect(req, '127.0.0.1', this.address().port);
+  const req = new TCPConnectWrap();
+  const err = client.connect(req, '127.0.0.1', this.address().port);
   assert.strictEqual(err, 0);
 
   req.oncomplete = function(status, client_, req_, readable, writable) {
@@ -19,8 +19,8 @@ function makeConnection() {
     assert.strictEqual(true, readable);
     assert.strictEqual(true, writable);
 
-    var shutdownReq = new ShutdownWrap();
-    var err = client.shutdown(shutdownReq);
+    const shutdownReq = new ShutdownWrap();
+    const err = client.shutdown(shutdownReq);
     assert.strictEqual(err, 0);
 
     shutdownReq.oncomplete = function(status, client_, req_) {
@@ -35,11 +35,11 @@ function makeConnection() {
 
 /////
 
-var connectCount = 0;
-var endCount = 0;
-var shutdownCount = 0;
+let connectCount = 0;
+let endCount = 0;
+let shutdownCount = 0;
 
-var server = require('net').Server(function(s) {
+const server = require('net').Server(function(s) {
   connectCount++;
   s.resume();
   s.on('end', function() {

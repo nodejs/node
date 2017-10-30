@@ -6,42 +6,14 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
+// Requirements
 //------------------------------------------------------------------------------
 
-/**
- * Checks whether the given token is an opening parenthesis or not.
- *
- * @param {Token} token - The token to check.
- * @returns {boolean} `true` if the token is an opening parenthesis.
- */
-function isOpeningParen(token) {
-    return token.type === "Punctuator" && token.value === "(";
-}
+const astUtils = require("../ast-utils");
 
-/**
- * Checks whether the given token is an closing parenthesis or not.
- *
- * @param {Token} token - The token to check.
- * @returns {boolean} `true` if the token is an closing parenthesis.
- */
-function isClosingParen(token) {
-    return token.type === "Punctuator" && token.value === ")";
-}
-
-/**
- * Checks whether the given node is inside of another given node.
- *
- * @param {ASTNode|Token} inner - The inner node to check.
- * @param {ASTNode|Token} outer - The outer node to check.
- * @returns {boolean} `true` if the `inner` is in `outer`.
- */
-function isInRange(inner, outer) {
-    const ir = inner.range;
-    const or = outer.range;
-
-    return or[0] <= ir[0] && ir[1] <= or[1];
-}
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -65,14 +37,15 @@ module.exports = {
 
         return {
             NewExpression(node) {
-                let token = sourceCode.getTokenAfter(node.callee);
-
-                // Skip ')'
-                while (token && isClosingParen(token)) {
-                    token = sourceCode.getTokenAfter(token);
+                if (node.arguments.length !== 0) {
+                    return; // shortcut: if there are arguments, there have to be parens
                 }
 
-                if (!(token && isOpeningParen(token) && isInRange(token, node))) {
+                const lastToken = sourceCode.getLastToken(node);
+                const hasLastParen = lastToken && astUtils.isClosingParenToken(lastToken);
+                const hasParens = hasLastParen && astUtils.isOpeningParenToken(sourceCode.getTokenBefore(lastToken));
+
+                if (!hasParens) {
                     context.report({
                         node,
                         message: "Missing '()' invoking a constructor.",

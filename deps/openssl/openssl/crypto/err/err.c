@@ -172,6 +172,7 @@ static ERR_STRING_DATA ERR_str_functs[] = {
 # endif
     {ERR_PACK(0, SYS_F_OPENDIR, 0), "opendir"},
     {ERR_PACK(0, SYS_F_FREAD, 0), "fread"},
+    {ERR_PACK(0, SYS_F_FFLUSH, 0), "fflush"},
     {0, NULL},
 };
 
@@ -867,6 +868,9 @@ void ERR_error_string_n(unsigned long e, char *buf, size_t len)
     char lsbuf[64], fsbuf[64], rsbuf[64];
     const char *ls, *fs, *rs;
     unsigned long l, f, r;
+
+    if (len == 0)
+        return;
 
     l = ERR_GET_LIB(e);
     f = ERR_GET_FUNC(e);

@@ -1,6 +1,7 @@
 /**
  * @fileoverview Require or disallow newlines around directives.
  * @author Kai Cataldo
+ * @deprecated
  */
 
 "use strict";
@@ -16,7 +17,8 @@ module.exports = {
         docs: {
             description: "require or disallow newlines around directives",
             category: "Stylistic Issues",
-            recommended: false
+            recommended: false,
+            replacedBy: ["padding-line-between-statements"]
         },
         schema: [{
             oneOf: [
@@ -31,14 +33,15 @@ module.exports = {
                         },
                         after: {
                             enum: ["always", "never"]
-                        },
+                        }
                     },
                     additionalProperties: false,
                     minProperties: 2
                 }
             ]
         }],
-        fixable: "whitespace"
+        fixable: "whitespace",
+        deprecated: true
     },
 
     create(context) {
@@ -57,10 +60,26 @@ module.exports = {
          * @returns {boolean} Whether or not the passed in node is preceded by a blank newline.
          */
         function hasNewlineBefore(node) {
-            const tokenBefore = sourceCode.getTokenOrCommentBefore(node);
+            const tokenBefore = sourceCode.getTokenBefore(node, { includeComments: true });
             const tokenLineBefore = tokenBefore ? tokenBefore.loc.end.line : 0;
 
             return node.loc.start.line - tokenLineBefore >= 2;
+        }
+
+        /**
+        * Gets the last token of a node that is on the same line as the rest of the node.
+        * This will usually be the last token of the node, but it will be the second-to-last token if the node has a trailing
+        * semicolon on a different line.
+        * @param {ASTNode} node A directive node
+        * @returns {Token} The last token of the node on the line
+        */
+        function getLastTokenOnLine(node) {
+            const lastToken = sourceCode.getLastToken(node);
+            const secondToLastToken = sourceCode.getTokenBefore(lastToken);
+
+            return astUtils.isSemicolonToken(lastToken) && lastToken.loc.start.line > secondToLastToken.loc.end.line
+                ? secondToLastToken
+                : lastToken;
         }
 
         /**
@@ -69,9 +88,10 @@ module.exports = {
          * @returns {boolean} Whether or not the passed in node is followed by a blank newline.
          */
         function hasNewlineAfter(node) {
-            const tokenAfter = sourceCode.getTokenOrCommentAfter(node);
+            const lastToken = getLastTokenOnLine(node);
+            const tokenAfter = sourceCode.getTokenAfter(lastToken, { includeComments: true });
 
-            return tokenAfter.loc.start.line - node.loc.end.line >= 2;
+            return tokenAfter.loc.start.line - lastToken.loc.end.line >= 2;
         }
 
         /**
@@ -91,10 +111,12 @@ module.exports = {
                     location
                 },
                 fix(fixer) {
+                    const lastToken = getLastTokenOnLine(node);
+
                     if (expected) {
-                        return location === "before" ? fixer.insertTextBefore(node, "\n") : fixer.insertTextAfter(node, "\n");
+                        return location === "before" ? fixer.insertTextBefore(node, "\n") : fixer.insertTextAfter(lastToken, "\n");
                     }
-                    return fixer.removeRange(location === "before" ? [node.range[0] - 1, node.range[0]] : [node.range[1], node.range[1] + 1]);
+                    return fixer.removeRange(location === "before" ? [node.range[0] - 1, node.range[0]] : [lastToken.range[1], lastToken.range[1] + 1]);
                 }
             });
         }
@@ -112,17 +134,12 @@ module.exports = {
             }
 
             const firstDirective = directives[0];
-            const hasTokenOrCommentBefore = !!sourceCode.getTokenOrCommentBefore(firstDirective);
+            const leadingComments = sourceCode.getCommentsBefore(firstDirective);
 
             // Only check before the first directive if it is preceded by a comment or if it is at the top of
             // the file and expectLineBefore is set to "never". This is to not force a newline at the top of
             // the file if there are no comments as well as for compatibility with padded-blocks.
-            if (
-                firstDirective.leadingComments && firstDirective.leadingComments.length ||
-
-                // Shebangs are not added to leading comments but are accounted for by the following.
-                node.type === "Program" && hasTokenOrCommentBefore
-            ) {
+            if (leadingComments.length) {
                 if (expectLineBefore === "always" && !hasNewlineBefore(firstDirective)) {
                     reportError(firstDirective, "before", true);
                 }
@@ -133,7 +150,7 @@ module.exports = {
             } else if (
                 node.type === "Program" &&
                 expectLineBefore === "never" &&
-                !hasTokenOrCommentBefore &&
+                !leadingComments.length &&
                 hasNewlineBefore(firstDirective)
             ) {
                 reportError(firstDirective, "before", false);

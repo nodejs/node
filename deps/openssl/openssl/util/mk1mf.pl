@@ -1207,6 +1207,7 @@ sub read_options
 		"no-ssl3-method" => 0,
 		"no-tlsext" => \$no_tlsext,
 		"no-tls1" => \$no_tls1,
+		"no-dtls1" => 0,
 		"no-srp" => \$no_srp,
 		"no-cms" => \$no_cms,
 		"no-jpake" => \$no_jpake,

@@ -169,6 +169,9 @@ function removeConnection(prevSegments, nextSegments) {
  * @returns {void}
  */
 function makeLooped(state, fromSegments, toSegments) {
+    fromSegments = CodePathSegment.flattenUnusedSegments(fromSegments);
+    toSegments = CodePathSegment.flattenUnusedSegments(toSegments);
+
     const end = Math.min(fromSegments.length, toSegments.length);
 
     for (let i = 0; i < end; ++i) {
@@ -221,36 +224,35 @@ function finalizeTestSegmentsOfFor(context, choiceContext, head) {
 
 /**
  * A class which manages state to analyze code paths.
- *
- * @constructor
- * @param {IdGenerator} idGenerator - An id generator to generate id for code
- *   path segments.
- * @param {Function} onLooped - A callback function to notify looping.
  */
-function CodePathState(idGenerator, onLooped) {
-    this.idGenerator = idGenerator;
-    this.notifyLooped = onLooped;
-    this.forkContext = ForkContext.newRoot(idGenerator);
-    this.choiceContext = null;
-    this.switchContext = null;
-    this.tryContext = null;
-    this.loopContext = null;
-    this.breakContext = null;
+class CodePathState {
 
-    this.currentSegments = [];
-    this.initialSegment = this.forkContext.head[0];
+    /**
+     * @param {IdGenerator} idGenerator - An id generator to generate id for code
+     *   path segments.
+     * @param {Function} onLooped - A callback function to notify looping.
+     */
+    constructor(idGenerator, onLooped) {
+        this.idGenerator = idGenerator;
+        this.notifyLooped = onLooped;
+        this.forkContext = ForkContext.newRoot(idGenerator);
+        this.choiceContext = null;
+        this.switchContext = null;
+        this.tryContext = null;
+        this.loopContext = null;
+        this.breakContext = null;
 
-    // returnedSegments and thrownSegments push elements into finalSegments also.
-    const final = this.finalSegments = [];
-    const returned = this.returnedForkContext = [];
-    const thrown = this.thrownForkContext = [];
+        this.currentSegments = [];
+        this.initialSegment = this.forkContext.head[0];
 
-    returned.add = addToReturnedOrThrown.bind(null, returned, thrown, final);
-    thrown.add = addToReturnedOrThrown.bind(null, thrown, returned, final);
-}
+        // returnedSegments and thrownSegments push elements into finalSegments also.
+        const final = this.finalSegments = [];
+        const returned = this.returnedForkContext = [];
+        const thrown = this.thrownForkContext = [];
 
-CodePathState.prototype = {
-    constructor: CodePathState,
+        returned.add = addToReturnedOrThrown.bind(null, returned, thrown, final);
+        thrown.add = addToReturnedOrThrown.bind(null, thrown, returned, final);
+    }
 
     /**
      * The head segments.
@@ -258,7 +260,7 @@ CodePathState.prototype = {
      */
     get headSegments() {
         return this.forkContext.head;
-    },
+    }
 
     /**
      * The parent forking context.
@@ -269,7 +271,7 @@ CodePathState.prototype = {
         const current = this.forkContext;
 
         return current && current.upper;
-    },
+    }
 
     /**
      * Creates and stacks new forking context.
@@ -285,7 +287,7 @@ CodePathState.prototype = {
         );
 
         return this.forkContext;
-    },
+    }
 
     /**
      * Pops and merges the last forking context.
@@ -298,7 +300,7 @@ CodePathState.prototype = {
         this.forkContext.replaceHead(lastContext.makeNext(0, -1));
 
         return lastContext;
-    },
+    }
 
     /**
      * Creates a new path.
@@ -306,7 +308,7 @@ CodePathState.prototype = {
      */
     forkPath() {
         this.forkContext.add(this.parentForkContext.makeNext(-1, -1));
-    },
+    }
 
     /**
      * Creates a bypass path.
@@ -316,7 +318,7 @@ CodePathState.prototype = {
      */
     forkBypassPath() {
         this.forkContext.add(this.parentForkContext.head);
-    },
+    }
 
     //--------------------------------------------------------------------------
     // ConditionalExpression, LogicalExpression, IfStatement
@@ -362,7 +364,7 @@ CodePathState.prototype = {
             falseForkContext: ForkContext.newEmpty(this.forkContext),
             processed: false
         };
-    },
+    }
 
     /**
      * Pops the last choice context and finalizes it.
@@ -449,7 +451,7 @@ CodePathState.prototype = {
         forkContext.replaceHead(prevForkContext.makeNext(0, -1));
 
         return context;
-    },
+    }
 
     /**
      * Makes a code path segment of the right-hand operand of a logical
@@ -468,8 +470,8 @@ CodePathState.prototype = {
              * Creates the next path from own true/false fork context.
              */
             const prevForkContext =
-                context.kind === "&&" ? context.trueForkContext :
-                /* kind === "||" */ context.falseForkContext;
+                context.kind === "&&" ? context.trueForkContext
+                /* kind === "||" */ : context.falseForkContext;
 
             forkContext.replaceHead(prevForkContext.makeNext(0, -1));
             prevForkContext.clear();
@@ -494,7 +496,7 @@ CodePathState.prototype = {
 
             forkContext.replaceHead(forkContext.makeNext(-1, -1));
         }
-    },
+    }
 
     /**
      * Makes a code path segment of the `if` block.
@@ -521,7 +523,7 @@ CodePathState.prototype = {
         forkContext.replaceHead(
             context.trueForkContext.makeNext(0, -1)
         );
-    },
+    }
 
     /**
      * Makes a code path segment of the `else` block.
@@ -544,7 +546,7 @@ CodePathState.prototype = {
         forkContext.replaceHead(
             context.falseForkContext.makeNext(0, -1)
         );
-    },
+    }
 
     //--------------------------------------------------------------------------
     // SwitchStatement
@@ -570,7 +572,7 @@ CodePathState.prototype = {
         };
 
         this.pushBreakContext(true, label);
-    },
+    }
 
     /**
      * Pops the last context of SwitchStatement and finalizes it.
@@ -649,7 +651,7 @@ CodePathState.prototype = {
          * This is a path after switch statement.
          */
         this.forkContext.replaceHead(brokenForkContext.makeNext(0, -1));
-    },
+    }
 
     /**
      * Makes a code path segment for a `SwitchCase` node.
@@ -696,7 +698,7 @@ CodePathState.prototype = {
 
         context.lastIsDefault = isDefault;
         context.countForks += 1;
-    },
+    }
 
     //--------------------------------------------------------------------------
     // TryStatement
@@ -723,7 +725,7 @@ CodePathState.prototype = {
             lastOfTryIsReachable: false,
             lastOfCatchIsReachable: false
         };
-    },
+    }
 
     /**
      * Pops the last context of TryStatement and finalizes it.
@@ -777,7 +779,7 @@ CodePathState.prototype = {
         if (!context.lastOfTryIsReachable && !context.lastOfCatchIsReachable) {
             this.forkContext.makeUnreachable();
         }
-    },
+    }
 
     /**
      * Makes a code path segment for a `catch` block.
@@ -802,7 +804,7 @@ CodePathState.prototype = {
         this.pushForkContext();
         this.forkBypassPath();
         this.forkContext.add(thrownSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for a `finally` block.
@@ -844,26 +846,28 @@ CodePathState.prototype = {
          * This segment will leave at the end of this finally block.
          */
         const segments = forkContext.makeNext(-1, -1);
-        let j;
 
         for (let i = 0; i < forkContext.count; ++i) {
             const prevSegsOfLeavingSegment = [headOfLeavingSegments[i]];
 
-            for (j = 0; j < returned.segmentsList.length; ++j) {
+            for (let j = 0; j < returned.segmentsList.length; ++j) {
                 prevSegsOfLeavingSegment.push(returned.segmentsList[j][i]);
             }
-            for (j = 0; j < thrown.segmentsList.length; ++j) {
+            for (let j = 0; j < thrown.segmentsList.length; ++j) {
                 prevSegsOfLeavingSegment.push(thrown.segmentsList[j][i]);
             }
 
-            segments.push(CodePathSegment.newNext(
-                this.idGenerator.next(),
-                prevSegsOfLeavingSegment));
+            segments.push(
+                CodePathSegment.newNext(
+                    this.idGenerator.next(),
+                    prevSegsOfLeavingSegment
+                )
+            );
         }
 
         this.pushForkContext(true);
         this.forkContext.add(segments);
-    },
+    }
 
     /**
      * Makes a code path segment from the first throwable node to the `catch`
@@ -889,7 +893,7 @@ CodePathState.prototype = {
 
         context.thrownForkContext.add(forkContext.head);
         forkContext.replaceHead(forkContext.makeNext(-1, -1));
-    },
+    }
 
     //--------------------------------------------------------------------------
     // Loop Statements
@@ -969,7 +973,7 @@ CodePathState.prototype = {
             default:
                 throw new Error(`unknown type: "${type}"`);
         }
-    },
+    }
 
     /**
      * Pops the last context of a loop statement and finalizes it.
@@ -983,21 +987,21 @@ CodePathState.prototype = {
 
         const forkContext = this.forkContext;
         const brokenForkContext = this.popBreakContext().brokenForkContext;
-        let choiceContext;
 
         // Creates a looped path.
         switch (context.type) {
             case "WhileStatement":
             case "ForStatement":
-                choiceContext = this.popChoiceContext();
+                this.popChoiceContext();
                 makeLooped(
                     this,
                     forkContext.head,
-                    context.continueDestSegments);
+                    context.continueDestSegments
+                );
                 break;
 
             case "DoWhileStatement": {
-                choiceContext = this.popChoiceContext();
+                const choiceContext = this.popChoiceContext();
 
                 if (!choiceContext.processed) {
                     choiceContext.trueForkContext.add(forkContext.head);
@@ -1014,7 +1018,8 @@ CodePathState.prototype = {
                     makeLooped(
                         this,
                         segmentsList[i],
-                        context.entrySegments);
+                        context.entrySegments
+                    );
                 }
                 break;
             }
@@ -1025,7 +1030,8 @@ CodePathState.prototype = {
                 makeLooped(
                     this,
                     forkContext.head,
-                    context.leftSegments);
+                    context.leftSegments
+                );
                 break;
 
             /* istanbul ignore next */
@@ -1039,7 +1045,7 @@ CodePathState.prototype = {
         } else {
             forkContext.replaceHead(brokenForkContext.makeNext(0, -1));
         }
-    },
+    }
 
     /**
      * Makes a code path segment for the test part of a WhileStatement.
@@ -1056,7 +1062,7 @@ CodePathState.prototype = {
         context.test = test;
         context.continueDestSegments = testSegments;
         forkContext.replaceHead(testSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the body part of a WhileStatement.
@@ -1078,7 +1084,7 @@ CodePathState.prototype = {
             context.brokenForkContext.addAll(choiceContext.falseForkContext);
         }
         forkContext.replaceHead(choiceContext.trueForkContext.makeNext(0, -1));
-    },
+    }
 
     /**
      * Makes a code path segment for the body part of a DoWhileStatement.
@@ -1093,7 +1099,7 @@ CodePathState.prototype = {
         // Update state.
         context.entrySegments = bodySegments;
         forkContext.replaceHead(bodySegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the test part of a DoWhileStatement.
@@ -1114,7 +1120,7 @@ CodePathState.prototype = {
 
             forkContext.replaceHead(testSegments);
         }
-    },
+    }
 
     /**
      * Makes a code path segment for the test part of a ForStatement.
@@ -1133,7 +1139,7 @@ CodePathState.prototype = {
         context.endOfInitSegments = endOfInitSegments;
         context.continueDestSegments = context.testSegments = testSegments;
         forkContext.replaceHead(testSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the update part of a ForStatement.
@@ -1150,7 +1156,8 @@ CodePathState.prototype = {
             finalizeTestSegmentsOfFor(
                 context,
                 choiceContext,
-                forkContext.head);
+                forkContext.head
+            );
         } else {
             context.endOfInitSegments = forkContext.head;
         }
@@ -1160,7 +1167,7 @@ CodePathState.prototype = {
 
         context.continueDestSegments = context.updateSegments = updateSegments;
         forkContext.replaceHead(updateSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the body part of a ForStatement.
@@ -1181,13 +1188,15 @@ CodePathState.prototype = {
                 makeLooped(
                     this,
                     context.endOfUpdateSegments,
-                    context.testSegments);
+                    context.testSegments
+                );
             }
         } else if (context.testSegments) {
             finalizeTestSegmentsOfFor(
                 context,
                 choiceContext,
-                forkContext.head);
+                forkContext.head
+            );
         } else {
             context.endOfInitSegments = forkContext.head;
         }
@@ -1211,7 +1220,7 @@ CodePathState.prototype = {
         }
         context.continueDestSegments = context.continueDestSegments || bodySegments;
         forkContext.replaceHead(bodySegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the left part of a ForInStatement and a
@@ -1228,7 +1237,7 @@ CodePathState.prototype = {
         context.prevSegments = forkContext.head;
         context.leftSegments = context.continueDestSegments = leftSegments;
         forkContext.replaceHead(leftSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the right part of a ForInStatement and a
@@ -1247,7 +1256,7 @@ CodePathState.prototype = {
         // Update state.
         context.endOfLeftSegments = forkContext.head;
         forkContext.replaceHead(rightSegments);
-    },
+    }
 
     /**
      * Makes a code path segment for the body part of a ForInStatement and a
@@ -1269,7 +1278,7 @@ CodePathState.prototype = {
         // Update state.
         context.brokenForkContext.add(forkContext.head);
         forkContext.replaceHead(bodySegments);
-    },
+    }
 
     //--------------------------------------------------------------------------
     // Control Statements
@@ -1291,7 +1300,7 @@ CodePathState.prototype = {
             brokenForkContext: ForkContext.newEmpty(this.forkContext)
         };
         return this.breakContext;
-    },
+    }
 
     /**
      * Removes the top item of the break context stack.
@@ -1315,7 +1324,7 @@ CodePathState.prototype = {
         }
 
         return context;
-    },
+    }
 
     /**
      * Makes a path for a `break` statement.
@@ -1341,7 +1350,7 @@ CodePathState.prototype = {
         }
 
         forkContext.replaceHead(forkContext.makeUnreachable(-1, -1));
-    },
+    }
 
     /**
      * Makes a path for a `continue` statement.
@@ -1377,7 +1386,7 @@ CodePathState.prototype = {
             }
         }
         forkContext.replaceHead(forkContext.makeUnreachable(-1, -1));
-    },
+    }
 
     /**
      * Makes a path for a `return` statement.
@@ -1394,7 +1403,7 @@ CodePathState.prototype = {
             getReturnContext(this).returnedForkContext.add(forkContext.head);
             forkContext.replaceHead(forkContext.makeUnreachable(-1, -1));
         }
-    },
+    }
 
     /**
      * Makes a path for a `throw` statement.
@@ -1411,7 +1420,7 @@ CodePathState.prototype = {
             getThrowContext(this).thrownForkContext.add(forkContext.head);
             forkContext.replaceHead(forkContext.makeUnreachable(-1, -1));
         }
-    },
+    }
 
     /**
      * Makes the final path.
@@ -1424,6 +1433,6 @@ CodePathState.prototype = {
             this.returnedForkContext.add(segments);
         }
     }
-};
+}
 
 module.exports = CodePathState;

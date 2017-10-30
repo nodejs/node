@@ -13,7 +13,7 @@ var NAN = 0 / 0;
  * @returns {number} Returns the mean.
  */
 function baseMean(array, iteratee) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   return length ? (baseSum(array, iteratee) / length) : NAN;
 }
 

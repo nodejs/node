@@ -1,29 +1,51 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
+
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var util = require('util');
-var net = require('net');
-var http = require('http');
+const util = require('util');
+const net = require('net');
+const http = require('http');
 
 
-var requests_recv = 0;
-var requests_sent = 0;
-var request_upgradeHead = null;
+let requests_recv = 0;
+let requests_sent = 0;
+let request_upgradeHead = null;
 
 function createTestServer() {
   return new testServer();
 }
 
 function testServer() {
-  http.Server.call(this, function() {});
+  http.Server.call(this, () => {});
 
   this.on('connection', function() {
     requests_recv++;
   });
 
   this.on('request', function(req, res) {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('okay');
     res.end();
   });
@@ -37,7 +59,7 @@ function testServer() {
     request_upgradeHead = upgradeHead;
 
     socket.on('data', function(d) {
-      var data = d.toString('utf8');
+      const data = d.toString('utf8');
       if (data === 'kill') {
         socket.end();
       } else {
@@ -60,9 +82,9 @@ function writeReq(socket, data, encoding) {
   connection: Upgrade with listener
 -----------------------------------------------*/
 function test_upgrade_with_listener() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
-  var state = 0;
+  let state = 0;
 
   conn.on('connect', function() {
     writeReq(conn,
@@ -76,20 +98,20 @@ function test_upgrade_with_listener() {
   conn.on('data', function(data) {
     state++;
 
-    assert.equal('string', typeof data);
+    assert.strictEqual('string', typeof data);
 
     if (state === 1) {
-      assert.equal('HTTP/1.1 101', data.substr(0, 12));
-      assert.equal('WjN}|M(6', request_upgradeHead.toString('utf8'));
+      assert.strictEqual('HTTP/1.1 101', data.substr(0, 12));
+      assert.strictEqual('WjN}|M(6', request_upgradeHead.toString('utf8'));
       conn.write('test', 'utf8');
     } else if (state === 2) {
-      assert.equal('test', data);
+      assert.strictEqual('test', data);
       conn.write('kill', 'utf8');
     }
   });
 
   conn.on('end', function() {
-    assert.equal(2, state);
+    assert.strictEqual(2, state);
     conn.end();
     server.removeAllListeners('upgrade');
     test_upgrade_no_listener();
@@ -99,10 +121,10 @@ function test_upgrade_with_listener() {
 /*-----------------------------------------------
   connection: Upgrade, no listener
 -----------------------------------------------*/
-var test_upgrade_no_listener_ended = false;
+let test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -127,7 +149,7 @@ function test_upgrade_no_listener() {
   connection: normal
 -----------------------------------------------*/
 function test_standard_http() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -135,8 +157,8 @@ function test_standard_http() {
   });
 
   conn.once('data', function(data) {
-    assert.equal('string', typeof data);
-    assert.equal('HTTP/1.1 200', data.substr(0, 12));
+    assert.strictEqual('string', typeof data);
+    assert.strictEqual('HTTP/1.1 200', data.substr(0, 12));
     conn.end();
   });
 
@@ -146,7 +168,7 @@ function test_standard_http() {
 }
 
 
-var server = createTestServer();
+const server = createTestServer();
 
 server.listen(0, function() {
   // All tests get chained after this:
@@ -158,7 +180,7 @@ server.listen(0, function() {
   Fin.
 -----------------------------------------------*/
 process.on('exit', function() {
-  assert.equal(3, requests_recv);
-  assert.equal(3, requests_sent);
+  assert.strictEqual(3, requests_recv);
+  assert.strictEqual(3, requests_sent);
   assert.ok(test_upgrade_no_listener_ended);
 });

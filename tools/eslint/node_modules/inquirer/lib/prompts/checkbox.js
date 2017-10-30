@@ -2,15 +2,14 @@
  * `list` type prompt
  */
 
-var _ = require("lodash");
-var util = require("util");
-var chalk = require("chalk");
-var cliCursor = require("cli-cursor");
-var figures = require("figures");
-var Base = require("./base");
-var observe = require("../utils/events");
-var Paginator = require("../utils/paginator");
-
+var _ = require('lodash');
+var util = require('util');
+var chalk = require('chalk');
+var cliCursor = require('cli-cursor');
+var figures = require('figures');
+var Base = require('./base');
+var observe = require('../utils/events');
+var Paginator = require('../utils/paginator');
 
 /**
  * Module exports
@@ -18,36 +17,34 @@ var Paginator = require("../utils/paginator");
 
 module.exports = Prompt;
 
-
 /**
  * Constructor
  */
 
 function Prompt() {
-  Base.apply( this, arguments );
+  Base.apply(this, arguments);
 
   if (!this.opt.choices) {
-    this.throwParamError("choices");
+    this.throwParamError('choices');
   }
 
-  if ( _.isArray(this.opt.default) ) {
-    this.opt.choices.forEach(function( choice ) {
-      if ( this.opt.default.indexOf(choice.value) >= 0 ) {
+  if (_.isArray(this.opt.default)) {
+    this.opt.choices.forEach(function (choice) {
+      if (this.opt.default.indexOf(choice.value) >= 0) {
         choice.checked = true;
       }
     }, this);
   }
 
-  this.firstRender = true;
   this.pointer = 0;
+  this.firstRender = true;
 
   // Make sure no default is set (so it won't be printed)
   this.opt.default = null;
 
   this.paginator = new Paginator();
 }
-util.inherits( Prompt, Base );
-
+util.inherits(Prompt, Base);
 
 /**
  * Start the Inquiry session
@@ -55,27 +52,31 @@ util.inherits( Prompt, Base );
  * @return {this}
  */
 
-Prompt.prototype._run = function( cb ) {
+Prompt.prototype._run = function (cb) {
   this.done = cb;
 
   var events = observe(this.rl);
 
-  var validation = this.handleSubmitEvents( events.line );
-  validation.success.forEach( this.onEnd.bind(this) );
-  validation.error.forEach( this.onError.bind(this) );
+  var validation = this.handleSubmitEvents(
+    events.line.map(this.getCurrentValue.bind(this))
+  );
+  validation.success.forEach(this.onEnd.bind(this));
+  validation.error.forEach(this.onError.bind(this));
 
-  events.normalizedUpKey.takeUntil( validation.success ).forEach( this.onUpKey.bind(this) );
-  events.normalizedDownKey.takeUntil( validation.success ).forEach( this.onDownKey.bind(this) );
-  events.numberKey.takeUntil( validation.success ).forEach( this.onNumberKey.bind(this) );
-  events.spaceKey.takeUntil( validation.success ).forEach( this.onSpaceKey.bind(this) );
+  events.normalizedUpKey.takeUntil(validation.success).forEach(this.onUpKey.bind(this));
+  events.normalizedDownKey.takeUntil(validation.success).forEach(this.onDownKey.bind(this));
+  events.numberKey.takeUntil(validation.success).forEach(this.onNumberKey.bind(this));
+  events.spaceKey.takeUntil(validation.success).forEach(this.onSpaceKey.bind(this));
+  events.aKey.takeUntil(validation.success).forEach(this.onAllKey.bind(this));
+  events.iKey.takeUntil(validation.success).forEach(this.onInverseKey.bind(this));
 
   // Init the prompt
   cliCursor.hide();
   this.render();
+  this.firstRender = false;
 
   return this;
 };
-
 
 /**
  * Render the prompt to screen
@@ -87,86 +88,108 @@ Prompt.prototype.render = function (error) {
   var message = this.getQuestion();
   var bottomContent = '';
 
-  if ( this.firstRender ) {
-    message += "(Press <space> to select)";
+  if (this.firstRender) {
+    message += '(Press ' + chalk.cyan.bold('<space>') + ' to select, ' + chalk.cyan.bold('<a>') + ' to toggle all, ' + chalk.cyan.bold('<i>') + ' to inverse selection)';
   }
 
   // Render choices or answer depending on the state
-  if ( this.status === "answered" ) {
-    message += chalk.cyan( this.selection.join(", ") );
+  if (this.status === 'answered') {
+    message += chalk.cyan(this.selection.join(', '));
   } else {
     var choicesStr = renderChoices(this.opt.choices, this.pointer);
     var indexPosition = this.opt.choices.indexOf(this.opt.choices.getChoice(this.pointer));
-    message += "\n" + this.paginator.paginate(choicesStr, indexPosition, this.opt.pageSize);
+    message += '\n' + this.paginator.paginate(choicesStr, indexPosition, this.opt.pageSize);
   }
 
   if (error) {
     bottomContent = chalk.red('>> ') + error;
   }
 
-  this.firstRender = false;
-
   this.screen.render(message, bottomContent);
 };
-
 
 /**
  * When user press `enter` key
  */
 
-Prompt.prototype.onEnd = function( state ) {
-
-  this.status = "answered";
+Prompt.prototype.onEnd = function (state) {
+  this.status = 'answered';
 
   // Rerender prompt (and clean subline error)
   this.render();
 
   this.screen.done();
   cliCursor.show();
-  this.done( state.value );
+  this.done(state.value);
 };
 
-Prompt.prototype.onError = function ( state ) {
+Prompt.prototype.onError = function (state) {
   this.render(state.isValid);
 };
 
 Prompt.prototype.getCurrentValue = function () {
-  var choices = this.opt.choices.filter(function( choice ) {
-    return !!choice.checked && !choice.disabled;
+  var choices = this.opt.choices.filter(function (choice) {
+    return Boolean(choice.checked) && !choice.disabled;
   });
 
-  this.selection = _.map(choices, "short");
-  return _.map(choices, "value");
+  this.selection = _.map(choices, 'short');
+  return _.map(choices, 'value');
 };
 
-Prompt.prototype.onUpKey = function() {
+Prompt.prototype.onUpKey = function () {
   var len = this.opt.choices.realLength;
   this.pointer = (this.pointer > 0) ? this.pointer - 1 : len - 1;
   this.render();
 };
 
-Prompt.prototype.onDownKey = function() {
+Prompt.prototype.onDownKey = function () {
   var len = this.opt.choices.realLength;
   this.pointer = (this.pointer < len - 1) ? this.pointer + 1 : 0;
   this.render();
 };
 
-Prompt.prototype.onNumberKey = function( input ) {
-  if ( input <= this.opt.choices.realLength ) {
+Prompt.prototype.onNumberKey = function (input) {
+  if (input <= this.opt.choices.realLength) {
     this.pointer = input - 1;
-    this.toggleChoice( this.pointer );
+    this.toggleChoice(this.pointer);
   }
   this.render();
 };
 
-Prompt.prototype.onSpaceKey = function( input ) {
+Prompt.prototype.onSpaceKey = function () {
   this.toggleChoice(this.pointer);
   this.render();
 };
 
-Prompt.prototype.toggleChoice = function( index ) {
-  var checked = this.opt.choices.getChoice(index).checked;
-  this.opt.choices.getChoice(index).checked = !checked;
+Prompt.prototype.onAllKey = function () {
+  var shouldBeChecked = Boolean(this.opt.choices.find(function (choice) {
+    return choice.type !== 'separator' && !choice.checked;
+  }));
+
+  this.opt.choices.forEach(function (choice) {
+    if (choice.type !== 'separator') {
+      choice.checked = shouldBeChecked;
+    }
+  });
+
+  this.render();
+};
+
+Prompt.prototype.onInverseKey = function () {
+  this.opt.choices.forEach(function (choice) {
+    if (choice.type !== 'separator') {
+      choice.checked = !choice.checked;
+    }
+  });
+
+  this.render();
+};
+
+Prompt.prototype.toggleChoice = function (index) {
+  var item = this.opt.choices.getChoice(index);
+  if (item !== undefined) {
+    this.opt.choices.getChoice(index).checked = !item.checked;
+  }
 };
 
 /**

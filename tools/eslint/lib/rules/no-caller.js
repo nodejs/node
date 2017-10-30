@@ -29,7 +29,7 @@ module.exports = {
                     propertyName = node.property.name;
 
                 if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {
-                    context.report(node, "Avoid arguments.{{property}}.", { property: propertyName });
+                    context.report({ node, message: "Avoid arguments.{{property}}.", data: { property: propertyName } });
                 }
 
             }

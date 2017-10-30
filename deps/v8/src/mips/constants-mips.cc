@@ -122,116 +122,44 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* MSARegisters::names_[kNumMSARegisters] = {
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",  "w9",  "w10",
+    "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20", "w21",
+    "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "w30", "w31"};
 
-// -----------------------------------------------------------------------------
-// Instructions.
+const MSARegisters::RegisterAlias MSARegisters::aliases_[] = {
+    {kInvalidRegister, NULL}};
 
-bool Instruction::IsForbiddenAfterBranchInstr(Instr instr) {
-  Opcode opcode = static_cast<Opcode>(instr & kOpcodeMask);
-  switch (opcode) {
-    case J:
-    case JAL:
-    case BEQ:
-    case BNE:
-    case BLEZ:  // POP06 bgeuc/bleuc, blezalc, bgezalc
-    case BGTZ:  // POP07 bltuc/bgtuc, bgtzalc, bltzalc
-    case BEQL:
-    case BNEL:
-    case BLEZL:  // POP26 bgezc, blezc, bgec/blec
-    case BGTZL:  // POP27 bgtzc, bltzc, bltc/bgtc
-    case BC:
-    case BALC:
-    case POP10:  // beqzalc, bovc, beqc
-    case POP30:  // bnezalc, bnvc, bnec
-    case POP66:  // beqzc, jic
-    case POP76:  // bnezc, jialc
-      return true;
-    case REGIMM:
-      switch (instr & kRtFieldMask) {
-        case BLTZ:
-        case BGEZ:
-        case BLTZAL:
-        case BGEZAL:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    case SPECIAL:
-      switch (instr & kFunctionFieldMask) {
-        case JR:
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-      break;
-    case COP1:
-      switch (instr & kRsFieldMask) {
-        case BC1:
-        case BC1EQZ:
-        case BC1NEZ:
-          return true;
-          break;
-        default:
-          return false;
-      }
-      break;
-    default:
-      return false;
-  }
-}
-
-
-bool Instruction::IsLinkingInstruction() const {
-  switch (OpcodeFieldRaw()) {
-    case JAL:
-      return true;
-    case POP76:
-      if (RsFieldRawNoAssert() == JIALC)
-        return true;  // JIALC
-      else
-        return false;  // BNEZC
-    case REGIMM:
-      switch (RtFieldRaw()) {
-        case BGEZAL:
-        case BLTZAL:
-          return true;
-      default:
-        return false;
-      }
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JALR:
-          return true;
-        default:
-          return false;
-      }
-    default:
-      return false;
-  }
-}
-
-
-bool Instruction::IsTrap() const {
-  if (OpcodeFieldRaw() != SPECIAL) {
-    return false;
+const char* MSARegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumMSARegisters)) {
+    result = names_[creg];
   } else {
-    switch (FunctionFieldRaw()) {
-      case BREAK:
-      case TGE:
-      case TGEU:
-      case TLT:
-      case TLTU:
-      case TEQ:
-      case TNE:
-        return true;
-      default:
-        return false;
+    result = "nocreg";
+  }
+  return result;
+}
+
+int MSARegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumMSARegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
     }
   }
-}
 
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
+  }
+
+  // No Cregister with the reguested name found.
+  return kInvalidMSARegister;
+}
 
 }  // namespace internal
 }  // namespace v8

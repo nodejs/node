@@ -1,0 +1,75 @@
+{
+  "_from": "JSONStream@~1.3.1",
+  "_id": "JSONStream@1.3.1",
+  "_inBundle": false,
+  "_integrity": "sha1-cH92HgHa6eFvG8+TcDt4xwlmV5o=",
+  "_location": "/JSONStream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "JSONStream@~1.3.1",
+    "name": "JSONStream",
+    "escapedName": "JSONStream",
+    "rawSpec": "~1.3.1",
+    "saveSpec": null,
+    "fetchSpec": "~1.3.1"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/JSONStream/-/JSONStream-1.3.1.tgz",
+  "_shasum": "707f761e01dae9e16f1bcf93703b78c70966579a",
+  "_spec": "JSONStream@~1.3.1",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Dominic Tarr",
+    "email": "dominic.tarr@gmail.com",
+    "url": "http://bit.ly/dominictarr"
+  },
+  "bin": {
+    "JSONStream": "./index.js"
+  },
+  "bugs": {
+    "url": "https://github.com/dominictarr/JSONStream/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "jsonparse": "^1.2.0",
+    "through": ">=2.2.7 <3"
+  },
+  "deprecated": false,
+  "description": "rawStream.pipe(JSONStream.parse()).pipe(streamOfObjects)",
+  "devDependencies": {
+    "assertions": "~2.2.2",
+    "event-stream": "~0.7.0",
+    "it-is": "~1",
+    "render": "~0.1.1",
+    "tape": "~2.12.3",
+    "trees": "~0.0.3"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "homepage": "http://github.com/dominictarr/JSONStream",
+  "keywords": [
+    "json",
+    "stream",
+    "streaming",
+    "parser",
+    "async",
+    "parsing"
+  ],
+  "license": "(MIT OR Apache-2.0)",
+  "name": "JSONStream",
+  "optionalDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dominictarr/JSONStream.git"
+  },
+  "scripts": {
+    "test": "set -e; for t in test/*.js; do echo '***' $t '***'; node $t; done"
+  },
+  "version": "1.3.1"
+}

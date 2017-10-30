@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("../ast-utils");
-const esUtils = require("esutils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -74,10 +73,11 @@ module.exports = {
          * @private
          */
         function isCollapsedOneLiner(node) {
-            const before = sourceCode.getTokenBefore(node),
-                last = sourceCode.getLastToken(node);
+            const before = sourceCode.getTokenBefore(node);
+            const last = sourceCode.getLastToken(node);
+            const lastExcludingSemicolon = astUtils.isSemicolonToken(last) ? sourceCode.getTokenBefore(last) : last;
 
-            return before.loc.start.line === last.loc.end.line;
+            return before.loc.start.line === lastExcludingSemicolon.loc.end.line;
         }
 
         /**
@@ -94,18 +94,22 @@ module.exports = {
         }
 
         /**
+         * Checks if the given token is an `else` token or not.
+         *
+         * @param {Token} token - The token to check.
+         * @returns {boolean} `true` if the token is an `else` token.
+         */
+        function isElseKeywordToken(token) {
+            return token.value === "else" && token.type === "Keyword";
+        }
+
+        /**
          * Gets the `else` keyword token of a given `IfStatement` node.
          * @param {ASTNode} node - A `IfStatement` node to get.
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
-            let token = sourceCode.getTokenAfter(node.consequent);
-
-            while (token.type !== "Keyword" || token.value !== "else") {
-                token = sourceCode.getTokenAfter(token);
-            }
-
-            return token;
+            return node.alternate && sourceCode.getFirstTokenBetween(node.consequent, node.alternate, isElseKeywordToken);
         }
 
         /**
@@ -169,7 +173,7 @@ module.exports = {
             const tokenAfter = sourceCode.getTokenAfter(closingBracket);
             const lastBlockNode = sourceCode.getNodeByRangeIndex(tokenBefore.range[0]);
 
-            if (tokenBefore.value === ";") {
+            if (astUtils.isSemicolonToken(tokenBefore)) {
 
                 // If the last statement already has a semicolon, don't add another one.
                 return false;
@@ -195,7 +199,7 @@ module.exports = {
                 return true;
             }
 
-            if (/^[(\[\/`+-]/.test(tokenAfter.value)) {
+            if (/^[([/`+-]/.test(tokenAfter.value)) {
 
                 // If the next token starts with a character that would disrupt ASI, insert a semicolon.
                 return true;
@@ -234,8 +238,8 @@ module.exports = {
                     // `do while` expressions sometimes need a space to be inserted after `do`.
                     // e.g. `do{foo()} while (bar)` should be corrected to `do foo() while (bar)`
                     const needsPrecedingSpace = node.type === "DoWhileStatement" &&
-                        sourceCode.getTokenBefore(bodyNode).end === bodyNode.start &&
-                        esUtils.code.isIdentifierPartES6(sourceCode.getText(bodyNode).charCodeAt(1));
+                        sourceCode.getTokenBefore(bodyNode).range[1] === bodyNode.range[0] &&
+                        !astUtils.canTokensBeAdjacent("do", sourceCode.getFirstToken(bodyNode, { skip: 1 }));
 
                     const openingBracket = sourceCode.getFirstToken(bodyNode);
                     const closingBracket = sourceCode.getLastToken(bodyNode);
@@ -289,7 +293,9 @@ module.exports = {
                 }
             } else if (multiOrNest) {
                 if (hasBlock && body.body.length === 1 && isOneLiner(body.body[0])) {
-                    expected = false;
+                    const leadingComments = sourceCode.getCommentsBefore(body.body[0]);
+
+                    expected = leadingComments.length > 0;
                 } else if (!isOneLiner(body)) {
                     expected = true;
                 }
@@ -337,14 +343,14 @@ module.exports = {
                  * all have braces.
                  * If all nodes shouldn't have braces, make sure they don't.
                  */
-                const expected = preparedChecks.some(function(preparedCheck) {
+                const expected = preparedChecks.some(preparedCheck => {
                     if (preparedCheck.expected !== null) {
                         return preparedCheck.expected;
                     }
                     return preparedCheck.actual;
                 });
 
-                preparedChecks.forEach(function(preparedCheck) {
+                preparedChecks.forEach(preparedCheck => {
                     preparedCheck.expected = expected;
                 });
             }
@@ -359,7 +365,7 @@ module.exports = {
         return {
             IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
-                    prepareIfChecks(node).forEach(function(preparedCheck) {
+                    prepareIfChecks(node).forEach(preparedCheck => {
                         preparedCheck.check();
                     });
                 }

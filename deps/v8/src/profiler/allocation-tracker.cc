@@ -193,7 +193,7 @@ void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
 AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(base::HashMap::PointersMatch),
+      id_to_function_info_index_(),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";
@@ -252,8 +252,7 @@ void AllocationTracker::AllocationEvent(Address addr, int size) {
 
 
 static uint32_t SnapshotObjectIdHash(SnapshotObjectId id) {
-  return ComputeIntegerHash(static_cast<uint32_t>(id),
-                            v8::internal::kZeroHashSeed);
+  return ComputeIntegerHash(static_cast<uint32_t>(id));
 }
 
 
@@ -302,8 +301,7 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
     Script* script, int start, FunctionInfo* info)
     : start_position_(start),
       info_(info) {
-  script_ = Handle<Script>::cast(
-      script->GetIsolate()->global_handles()->Create(script));
+  script_ = script->GetIsolate()->global_handles()->Create(script);
   GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
                           &HandleWeakScript, v8::WeakCallbackType::kParameter);
 }

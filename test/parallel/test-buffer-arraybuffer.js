@@ -1,9 +1,8 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
-const Buffer = require('buffer').Buffer;
 const LENGTH = 16;
 
 const ab = new ArrayBuffer(LENGTH);
@@ -13,9 +12,9 @@ const buf = Buffer.from(ab);
 
 
 assert.ok(buf instanceof Buffer);
-assert.equal(buf.parent, buf.buffer);
-assert.equal(buf.buffer, ab);
-assert.equal(buf.length, ab.byteLength);
+assert.strictEqual(buf.parent, buf.buffer);
+assert.strictEqual(buf.buffer, ab);
+assert.strictEqual(buf.length, ab.byteLength);
 
 
 buf.fill(0xC);
@@ -44,7 +43,7 @@ assert.throws(function() {
 }, TypeError);
 
 // write{Double,Float}{LE,BE} with noAssert should not crash, cf. #3766
-var b = Buffer.allocUnsafe(1);
+const b = Buffer.allocUnsafe(1);
 b.writeFloatLE(11.11, 0, true);
 b.writeFloatBE(11.11, 0, true);
 b.writeDoubleLE(11.11, 0, true);
@@ -66,16 +65,16 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer.from(ab.buffer, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'offset' is out of bounds/.test(err.message));
-    return true;
-  });
-  assert.throws(() => Buffer.from(ab.buffer, 3, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'length' is out of bounds/.test(err.message));
-    return true;
-  });
+  assert.throws(() => Buffer.from(ab.buffer, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
+  assert.throws(() => Buffer.from(ab.buffer, 3, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
 }
 
 // Test the deprecated Buffer() version also
@@ -94,14 +93,58 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer(ab.buffer, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'offset' is out of bounds/.test(err.message));
-    return true;
-  });
-  assert.throws(() => Buffer(ab.buffer, 3, 6), (err) => {
-    assert(err instanceof RangeError);
-    assert(/'length' is out of bounds/.test(err.message));
-    return true;
-  });
+  assert.throws(() => Buffer(ab.buffer, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
+  assert.throws(() => Buffer(ab.buffer, 3, 6), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
+}
+
+{
+  // If byteOffset is not numeric, it defaults to 0.
+  const ab = new ArrayBuffer(10);
+  const expected = Buffer.from(ab, 0);
+  assert.deepStrictEqual(Buffer.from(ab, 'fhqwhgads'), expected);
+  assert.deepStrictEqual(Buffer.from(ab, NaN), expected);
+  assert.deepStrictEqual(Buffer.from(ab, {}), expected);
+  assert.deepStrictEqual(Buffer.from(ab, []), expected);
+
+  // If byteOffset can be converted to a number, it will be.
+  assert.deepStrictEqual(Buffer.from(ab, [1]), Buffer.from(ab, 1));
+
+  // If byteOffset is Infinity, throw.
+  assert.throws(() => {
+    Buffer.from(ab, Infinity);
+  }, common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"offset" is outside of buffer bounds'
+  }));
+}
+
+{
+  // If length is not numeric, it defaults to 0.
+  const ab = new ArrayBuffer(10);
+  const expected = Buffer.from(ab, 0, 0);
+  assert.deepStrictEqual(Buffer.from(ab, 0, 'fhqwhgads'), expected);
+  assert.deepStrictEqual(Buffer.from(ab, 0, NaN), expected);
+  assert.deepStrictEqual(Buffer.from(ab, 0, {}), expected);
+  assert.deepStrictEqual(Buffer.from(ab, 0, []), expected);
+
+  // If length can be converted to a number, it will be.
+  assert.deepStrictEqual(Buffer.from(ab, 0, [1]), Buffer.from(ab, 0, 1));
+
+  //If length is Infinity, throw.
+  assert.throws(() => {
+    Buffer.from(ab, 0, Infinity);
+  }, common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+    type: RangeError,
+    message: '"length" is outside of buffer bounds'
+  }));
 }

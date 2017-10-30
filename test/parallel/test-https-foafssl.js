@@ -1,27 +1,42 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-
-if (!common.opensslCli) {
-  common.skip('node compiled without OpenSSL CLI.');
-  return;
-}
-
-var assert = require('assert');
-var join = require('path').join;
-
-var fs = require('fs');
-var spawn = require('child_process').spawn;
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var https = require('https');
 
-var options = {
-  key: fs.readFileSync(common.fixturesDir + '/agent.key'),
-  cert: fs.readFileSync(common.fixturesDir + '/agent.crt'),
-  requestCert: true
+if (!common.opensslCli)
+  common.skip('node compiled without OpenSSL CLI.');
+
+const assert = require('assert');
+const fixtures = require('../common/fixtures');
+const https = require('https');
+const spawn = require('child_process').spawn;
+
+const options = {
+  key: fixtures.readSync('agent.key'),
+  cert: fixtures.readSync('agent.crt'),
+  requestCert: true,
+  rejectUnauthorized: false
 };
 
 const modulus = 'A6F44A9C25791431214F5C87AF9E040177A8BB89AC803F7E09BBC3A5519F' +
@@ -34,11 +49,11 @@ const modulus = 'A6F44A9C25791431214F5C87AF9E040177A8BB89AC803F7E09BBC3A5519F' +
                 'EBDAF1191F4A4E26D71879C4C7867B62FCD508E8CE66E82D128A71E91580' +
                 '9FCF44E8DE774067F1DE5D70B9C03687';
 
-var CRLF = '\r\n';
-var body = 'hello world\n';
-var cert;
+const CRLF = '\r\n';
+const body = 'hello world\n';
+let cert;
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('got request');
 
   cert = req.connection.getPeerCertificate();
@@ -51,22 +66,22 @@ var server = https.createServer(options, common.mustCall(function(req, res) {
 }));
 
 server.listen(0, function() {
-  var args = ['s_client',
-              '-quiet',
-              '-connect', `127.0.0.1:${this.address().port}`,
-              '-cert', join(common.fixturesDir, 'foafssl.crt'),
-              '-key', join(common.fixturesDir, 'foafssl.key')];
+  const args = ['s_client',
+                '-quiet',
+                '-connect', `127.0.0.1:${this.address().port}`,
+                '-cert', fixtures.path('foafssl.crt'),
+                '-key', fixtures.path('foafssl.key')];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args);
+  const client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {
-    var message = data.toString();
-    var contents = message.split(CRLF + CRLF).pop();
-    assert.equal(body, contents);
+    const message = data.toString();
+    const contents = message.split(CRLF + CRLF).pop();
+    assert.strictEqual(body, contents);
     server.close();
   });
 

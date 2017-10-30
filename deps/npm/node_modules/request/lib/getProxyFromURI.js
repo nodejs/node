@@ -1,33 +1,33 @@
 'use strict'
 
-function formatHostname(hostname) {
+function formatHostname (hostname) {
   // canonicalize the hostname, so that 'oogle.com' won't match 'google.com'
   return hostname.replace(/^\.*/, '.').toLowerCase()
 }
 
-function parseNoProxyZone(zone) {
+function parseNoProxyZone (zone) {
   zone = zone.trim().toLowerCase()
 
   var zoneParts = zone.split(':', 2)
-    , zoneHost = formatHostname(zoneParts[0])
-    , zonePort = zoneParts[1]
-    , hasPort = zone.indexOf(':') > -1
+  var zoneHost = formatHostname(zoneParts[0])
+  var zonePort = zoneParts[1]
+  var hasPort = zone.indexOf(':') > -1
 
   return {hostname: zoneHost, port: zonePort, hasPort: hasPort}
 }
 
-function uriInNoProxy(uri, noProxy) {
+function uriInNoProxy (uri, noProxy) {
   var port = uri.port || (uri.protocol === 'https:' ? '443' : '80')
-    , hostname = formatHostname(uri.hostname)
-    , noProxyList = noProxy.split(',')
+  var hostname = formatHostname(uri.hostname)
+  var noProxyList = noProxy.split(',')
 
   // iterate through the noProxyList until it finds a match.
-  return noProxyList.map(parseNoProxyZone).some(function(noProxyZone) {
+  return noProxyList.map(parseNoProxyZone).some(function (noProxyZone) {
     var isMatchedAt = hostname.indexOf(noProxyZone.hostname)
-      , hostnameMatched = (
-          isMatchedAt > -1 &&
-          (isMatchedAt === hostname.length - noProxyZone.hostname.length)
-        )
+    var hostnameMatched = (
+      isMatchedAt > -1 &&
+        (isMatchedAt === hostname.length - noProxyZone.hostname.length)
+    )
 
     if (noProxyZone.hasPort) {
       return (port === noProxyZone.port) && hostnameMatched
@@ -37,7 +37,7 @@ function uriInNoProxy(uri, noProxy) {
   })
 }
 
-function getProxyFromURI(uri) {
+function getProxyFromURI (uri) {
   // Decide the proper request proxy to use based on the request URI object and the
   // environmental variables (NO_PROXY, HTTP_PROXY, etc.)
   // respect NO_PROXY environment variables (see: http://lynx.isc.org/current/breakout/lynx_help/keystrokes/environments.html)
@@ -60,14 +60,14 @@ function getProxyFromURI(uri) {
 
   if (uri.protocol === 'http:') {
     return process.env.HTTP_PROXY ||
-           process.env.http_proxy || null
+      process.env.http_proxy || null
   }
 
   if (uri.protocol === 'https:') {
     return process.env.HTTPS_PROXY ||
-           process.env.https_proxy ||
-           process.env.HTTP_PROXY  ||
-           process.env.http_proxy  || null
+      process.env.https_proxy ||
+      process.env.HTTP_PROXY ||
+      process.env.http_proxy || null
   }
 
   // if none of that works, return null

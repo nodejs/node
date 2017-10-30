@@ -8,19 +8,23 @@
 #include <stdarg.h>
 #include <cmath>
 
+#include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/char-predicates-inl.h"
 #include "src/codegen.h"
 #include "src/conversions-inl.h"
 #include "src/dtoa.h"
 #include "src/factory.h"
+#include "src/handles.h"
 #include "src/list-inl.h"
 #include "src/strtod.h"
 #include "src/utils.h"
 
-#ifndef _STLP_VENDOR_CSTD
+#if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
-using std::fpclassify;
+#define FPCLASSIFY_NAMESPACE
+#else
+#define FPCLASSIFY_NAMESPACE std
 #endif
 
 namespace v8 {
@@ -120,7 +124,7 @@ double StringToInt(UnicodeCache* unicode_cache,
 
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
-  switch (fpclassify(v)) {
+  switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
     case FP_NAN: return "NaN";
     case FP_INFINITE: return (v < 0.0 ? "-Infinity" : "Infinity");
     case FP_ZERO: return "0";
@@ -168,7 +172,7 @@ const char* DoubleToCString(double v, Vector<char> buffer) {
         if (exponent < 0) exponent = -exponent;
         builder.AddDecimalInteger(exponent);
       }
-    return builder.Finalize();
+      return builder.Finalize();
     }
   }
 }
@@ -197,9 +201,8 @@ const char* IntToCString(int n, Vector<char> buffer) {
 char* DoubleToFixedCString(double value, int f) {
   const int kMaxDigitsBeforePoint = 21;
   const double kFirstNonFixed = 1e21;
-  const int kMaxDigitsAfterPoint = 20;
   DCHECK(f >= 0);
-  DCHECK(f <= kMaxDigitsAfterPoint);
+  DCHECK(f <= kMaxFractionDigits);
 
   bool negative = false;
   double abs_value = value;
@@ -211,7 +214,7 @@ char* DoubleToFixedCString(double value, int f) {
   // If abs_value has more than kMaxDigitsBeforePoint digits before the point
   // use the non-fixed conversion routine.
   if (abs_value >= kFirstNonFixed) {
-    char arr[100];
+    char arr[kMaxFractionDigits];
     Vector<char> buffer(arr, arraysize(arr));
     return StrDup(DoubleToCString(value, buffer));
   }
@@ -221,7 +224,7 @@ char* DoubleToFixedCString(double value, int f) {
   int sign;
   // Add space for the '\0' byte.
   const int kDecimalRepCapacity =
-      kMaxDigitsBeforePoint + kMaxDigitsAfterPoint + 1;
+      kMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   DoubleToAscii(value, DTOA_FIXED, f,
@@ -298,9 +301,8 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
 
 
 char* DoubleToExponentialCString(double value, int f) {
-  const int kMaxDigitsAfterPoint = 20;
   // f might be -1 to signal that f was undefined in JavaScript.
-  DCHECK(f >= -1 && f <= kMaxDigitsAfterPoint);
+  DCHECK(f >= -1 && f <= kMaxFractionDigits);
 
   bool negative = false;
   if (value < 0) {
@@ -314,10 +316,10 @@ char* DoubleToExponentialCString(double value, int f) {
   // f corresponds to the digits after the point. There is always one digit
   // before the point. The number of requested_digits equals hence f + 1.
   // And we have to add one character for the null-terminator.
-  const int kV8DtoaBufferCapacity = kMaxDigitsAfterPoint + 1 + 1;
+  const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1 + 1;
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
-  DCHECK(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
+  DCHECK(kBase10MaximalLength <= kMaxFractionDigits + 1);
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
@@ -344,8 +346,7 @@ char* DoubleToExponentialCString(double value, int f) {
 
 char* DoubleToPrecisionCString(double value, int p) {
   const int kMinimalDigits = 1;
-  const int kMaximalDigits = 21;
-  DCHECK(p >= kMinimalDigits && p <= kMaximalDigits);
+  DCHECK(p >= kMinimalDigits && p <= kMaxFractionDigits);
   USE(kMinimalDigits);
 
   bool negative = false;
@@ -358,7 +359,7 @@ char* DoubleToPrecisionCString(double value, int p) {
   int decimal_point;
   int sign;
   // Add one for the terminating null character.
-  const int kV8DtoaBufferCapacity = kMaximalDigits + 1;
+  const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1;
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
@@ -411,76 +412,91 @@ char* DoubleToPrecisionCString(double value, int p) {
   return result;
 }
 
-
 char* DoubleToRadixCString(double value, int radix) {
   DCHECK(radix >= 2 && radix <= 36);
-
+  DCHECK(std::isfinite(value));
+  DCHECK_NE(0.0, value);
   // Character array used for conversion.
   static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-  // Buffer for the integer part of the result. 1024 chars is enough
-  // for max integer value in radix 2.  We need room for a sign too.
-  static const int kBufferSize = 1100;
-  char integer_buffer[kBufferSize];
-  integer_buffer[kBufferSize - 1] = '\0';
+  // Temporary buffer for the result. We start with the decimal point in the
+  // middle and write to the left for the integer part and to the right for the
+  // fractional part. 1024 characters for the exponent and 52 for the mantissa
+  // either way, with additional space for sign, decimal point and string
+  // termination should be sufficient.
+  static const int kBufferSize = 2200;
+  char buffer[kBufferSize];
+  int integer_cursor = kBufferSize / 2;
+  int fraction_cursor = integer_cursor;
 
-  // Buffer for the decimal part of the result.  We only generate up
-  // to kBufferSize - 1 chars for the decimal part.
-  char decimal_buffer[kBufferSize];
-  decimal_buffer[kBufferSize - 1] = '\0';
+  bool negative = value < 0;
+  if (negative) value = -value;
 
-  // Make sure the value is positive.
-  bool is_negative = value < 0.0;
-  if (is_negative) value = -value;
-
-  // Get the integer part and the decimal part.
-  double integer_part = std::floor(value);
-  double decimal_part = value - integer_part;
-
-  // Convert the integer part starting from the back.  Always generate
-  // at least one digit.
-  int integer_pos = kBufferSize - 2;
-  do {
-    double remainder = modulo(integer_part, radix);
-    integer_buffer[integer_pos--] = chars[static_cast<int>(remainder)];
-    integer_part -= remainder;
-    integer_part /= radix;
-  } while (integer_part >= 1.0);
-  // Sanity check.
-  DCHECK(integer_pos > 0);
-  // Add sign if needed.
-  if (is_negative) integer_buffer[integer_pos--] = '-';
-
-  // Convert the decimal part.  Repeatedly multiply by the radix to
-  // generate the next char.  Never generate more than kBufferSize - 1
-  // chars.
-  //
-  // TODO(1093998): We will often generate a full decimal_buffer of
-  // chars because hitting zero will often not happen.  The right
-  // solution would be to continue until the string representation can
-  // be read back and yield the original value.  To implement this
-  // efficiently, we probably have to modify dtoa.
-  int decimal_pos = 0;
-  while ((decimal_part > 0.0) && (decimal_pos < kBufferSize - 1)) {
-    decimal_part *= radix;
-    decimal_buffer[decimal_pos++] =
-        chars[static_cast<int>(std::floor(decimal_part))];
-    decimal_part -= std::floor(decimal_part);
+  // Split the value into an integer part and a fractional part.
+  double integer = std::floor(value);
+  double fraction = value - integer;
+  // We only compute fractional digits up to the input double's precision.
+  double delta = 0.5 * (Double(value).NextDouble() - value);
+  delta = std::max(Double(0.0).NextDouble(), delta);
+  DCHECK_GT(delta, 0.0);
+  if (fraction > delta) {
+    // Insert decimal point.
+    buffer[fraction_cursor++] = '.';
+    do {
+      // Shift up by one digit.
+      fraction *= radix;
+      delta *= radix;
+      // Write digit.
+      int digit = static_cast<int>(fraction);
+      buffer[fraction_cursor++] = chars[digit];
+      // Calculate remainder.
+      fraction -= digit;
+      // Round to even.
+      if (fraction > 0.5 || (fraction == 0.5 && (digit & 1))) {
+        if (fraction + delta > 1) {
+          // We need to back trace already written digits in case of carry-over.
+          while (true) {
+            fraction_cursor--;
+            if (fraction_cursor == kBufferSize / 2) {
+              CHECK_EQ('.', buffer[fraction_cursor]);
+              // Carry over to the integer part.
+              integer += 1;
+              break;
+            }
+            char c = buffer[fraction_cursor];
+            // Reconstruct digit.
+            int digit = c > '9' ? (c - 'a' + 10) : (c - '0');
+            if (digit + 1 < radix) {
+              buffer[fraction_cursor++] = chars[digit + 1];
+              break;
+            }
+          }
+          break;
+        }
+      }
+    } while (fraction > delta);
   }
-  decimal_buffer[decimal_pos] = '\0';
 
-  // Compute the result size.
-  int integer_part_size = kBufferSize - 2 - integer_pos;
-  // Make room for zero termination.
-  unsigned result_size = integer_part_size + decimal_pos;
-  // If the number has a decimal part, leave room for the period.
-  if (decimal_pos > 0) result_size++;
-  // Allocate result and fill in the parts.
-  SimpleStringBuilder builder(result_size + 1);
-  builder.AddSubstring(integer_buffer + integer_pos + 1, integer_part_size);
-  if (decimal_pos > 0) builder.AddCharacter('.');
-  builder.AddSubstring(decimal_buffer, decimal_pos);
-  return builder.Finalize();
+  // Compute integer digits. Fill unrepresented digits with zero.
+  while (Double(integer / radix).Exponent() > 0) {
+    integer /= radix;
+    buffer[--integer_cursor] = '0';
+  }
+  do {
+    double remainder = modulo(integer, radix);
+    buffer[--integer_cursor] = chars[static_cast<int>(remainder)];
+    integer = (integer - remainder) / radix;
+  } while (integer > 0);
+
+  // Add sign and terminate string.
+  if (negative) buffer[--integer_cursor] = '-';
+  buffer[fraction_cursor++] = '\0';
+  DCHECK_LT(fraction_cursor, kBufferSize);
+  DCHECK_LE(0, integer_cursor);
+  // Allocate new string as return value.
+  char* result = NewArray<char>(fraction_cursor - integer_cursor);
+  memcpy(result, buffer + integer_cursor, fraction_cursor - integer_cursor);
+  return result;
 }
 
 

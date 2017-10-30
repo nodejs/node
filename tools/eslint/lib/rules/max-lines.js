@@ -90,7 +90,7 @@ module.exports = {
 
             token = comment;
             do {
-                token = sourceCode.getTokenOrCommentBefore(token);
+                token = sourceCode.getTokenBefore(token, { includeComments: true });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(token, comment)) {
@@ -99,7 +99,7 @@ module.exports = {
 
             token = comment;
             do {
-                token = sourceCode.getTokenOrCommentAfter(token);
+                token = sourceCode.getTokenAfter(token, { includeComments: true });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(comment, token)) {
@@ -114,26 +114,18 @@ module.exports = {
 
         return {
             "Program:exit"() {
-                let lines = sourceCode.lines.map(function(text, i) {
-                    return { lineNumber: i + 1, text };
-                });
+                let lines = sourceCode.lines.map((text, i) => ({ lineNumber: i + 1, text }));
 
                 if (skipBlankLines) {
-                    lines = lines.filter(function(l) {
-                        return l.text.trim() !== "";
-                    });
+                    lines = lines.filter(l => l.text.trim() !== "");
                 }
 
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = lodash.flatten(comments.map(function(comment) {
-                        return getLinesWithoutCode(comment);
-                    }));
+                    const commentLines = lodash.flatten(comments.map(comment => getLinesWithoutCode(comment)));
 
-                    lines = lines.filter(function(l) {
-                        return !lodash.includes(commentLines, l.lineNumber);
-                    });
+                    lines = lines.filter(l => !lodash.includes(commentLines, l.lineNumber));
                 }
 
                 if (lines.length > max) {
@@ -142,7 +134,7 @@ module.exports = {
                         message: "File must be at most {{max}} lines long. It's {{actual}} lines long.",
                         data: {
                             max,
-                            actual: lines.length,
+                            actual: lines.length
                         }
                     });
                 }

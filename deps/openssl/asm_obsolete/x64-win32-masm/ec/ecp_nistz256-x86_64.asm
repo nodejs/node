@@ -1537,7 +1537,7 @@ $L$SEH_begin_ecp_nistz256_point_add::
 	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rsi]
-	pshufd	xmm3,xmm5,1h
+	pshufd	xmm3,xmm5,0b1h
 	movdqu	xmm1,XMMWORD PTR[16+rsi]
 	movdqu	xmm2,XMMWORD PTR[32+rsi]
 	por	xmm5,xmm3
@@ -1567,7 +1567,7 @@ DB	102,72,15,110,199
 	call	__ecp_nistz256_sqr_montq
 
 	pcmpeqd	xmm5,xmm4
-	pshufd	xmm4,xmm1,1h
+	pshufd	xmm4,xmm1,0b1h
 	por	xmm4,xmm1
 	pshufd	xmm5,xmm5,0
 	pshufd	xmm3,xmm4,01eh
@@ -1948,7 +1948,7 @@ $L$SEH_begin_ecp_nistz256_point_add_affine::
 	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rbx]
-	pshufd	xmm3,xmm5,1h
+	pshufd	xmm3,xmm5,0b1h
 	movdqu	xmm1,XMMWORD PTR[16+rbx]
 	movdqu	xmm2,XMMWORD PTR[32+rbx]
 	por	xmm5,xmm3
@@ -1970,7 +1970,7 @@ DB	102,72,15,110,199
 	call	__ecp_nistz256_sqr_montq
 
 	pcmpeqd	xmm5,xmm4
-	pshufd	xmm4,xmm3,1h
+	pshufd	xmm4,xmm3,0b1h
 	mov	rax,QWORD PTR[rbx]
 
 	mov	r9,r12

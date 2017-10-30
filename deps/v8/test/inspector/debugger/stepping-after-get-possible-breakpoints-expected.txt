@@ -1,0 +1,11 @@
+Tests that stepping works after calling getPossibleBreakpoints
+-- call boo:
+(top)
+(top)
+boo
+(top)
+-- call foo:
+(top)
+(top)
+foo
+(top)

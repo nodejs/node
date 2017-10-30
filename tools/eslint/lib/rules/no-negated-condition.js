@@ -69,12 +69,12 @@ module.exports = {
                 }
 
                 if (isNegatedIf(node)) {
-                    context.report(node, "Unexpected negated condition.");
+                    context.report({ node, message: "Unexpected negated condition." });
                 }
             },
             ConditionalExpression(node) {
                 if (isNegatedIf(node)) {
-                    context.report(node, "Unexpected negated condition.");
+                    context.report({ node, message: "Unexpected negated condition." });
                 }
             }
         };

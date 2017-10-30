@@ -1,5 +1,17 @@
 Hi, figured we could actually use a changelog now:
 
+## 1.1.4 2017-04-21
+
+* Fix typo in package.json
+
+## 1.1.3 2017-04-21
+
+* Improve documentation and limit files included in the distribution.
+
+## 1.1.2 2016-03-15
+
+* Add tracker group cycle detection and tests for it
+
 ## 1.1.1 2016-01-29
 
 * Fix a typo in stream completion tracker

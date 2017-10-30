@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <unordered_set>
 #include <vector>
 #include "v8.h"  // NOLINT(build/include)
 
@@ -45,6 +46,20 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 #endif
 
 namespace v8 {
+
+/**
+ * TracingCpuProfiler monitors tracing being enabled/disabled
+ * and emits CpuProfile trace events once v8.cpu_profiler tracing category
+ * is enabled. It has no overhead unless the category is enabled.
+ */
+class V8_EXPORT TracingCpuProfiler {
+ public:
+  static std::unique_ptr<TracingCpuProfiler> Create(Isolate*);
+  virtual ~TracingCpuProfiler() = default;
+
+ protected:
+  TracingCpuProfiler() = default;
+};
 
 // TickSample captures the information collected for each sample.
 struct TickSample {
@@ -131,11 +146,25 @@ class V8_EXPORT CpuProfileNode {
   /** Returns function name (empty string for anonymous functions.) */
   Local<String> GetFunctionName() const;
 
+  /**
+   * Returns function name (empty string for anonymous functions.)
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetFunctionNameStr() const;
+
   /** Returns id of the script where function is located. */
   int GetScriptId() const;
 
   /** Returns resource name for script from where the function originates. */
   Local<String> GetScriptResourceName() const;
+
+  /**
+   * Returns resource name for script from where the function originates.
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetScriptResourceNameStr() const;
 
   /**
    * Returns the number, 1-based, of the line where the function originates.
@@ -360,12 +389,11 @@ class V8_EXPORT HeapGraphNode {
     kRegExp = 6,         // RegExp.
     kHeapNumber = 7,     // Number stored in the heap.
     kNative = 8,         // Native object (not from V8 heap).
-    kSynthetic = 9,      // Synthetic object, usualy used for grouping
+    kSynthetic = 9,      // Synthetic object, usually used for grouping
                          // snapshot items together.
     kConsString = 10,    // Concatenated string. A pair of pointers to strings.
     kSlicedString = 11,  // Sliced string. A fragment of another string.
-    kSymbol = 12,        // A Symbol (ES6).
-    kSimdValue = 13      // A SIMD value stored in the heap (Proposed ES7).
+    kSymbol = 12         // A Symbol (ES6).
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -602,6 +630,24 @@ class V8_EXPORT HeapProfiler {
     kSamplingForceGC = 1 << 0,
   };
 
+  typedef std::unordered_set<const v8::PersistentBase<v8::Value>*>
+      RetainerChildren;
+  typedef std::vector<std::pair<v8::RetainedObjectInfo*, RetainerChildren>>
+      RetainerGroups;
+  typedef std::vector<std::pair<const v8::PersistentBase<v8::Value>*,
+                                const v8::PersistentBase<v8::Value>*>>
+      RetainerEdges;
+
+  struct RetainerInfos {
+    RetainerGroups groups;
+    RetainerEdges edges;
+  };
+
+  /**
+   * Callback function invoked to retrieve all RetainerInfos from the embedder.
+   */
+  typedef RetainerInfos (*GetRetainerInfosCallback)(v8::Isolate* isolate);
+
   /**
    * Callback function invoked for obtaining RetainedObjectInfo for
    * the given JavaScript wrapper object. It is prohibited to enter V8
@@ -738,7 +784,7 @@ class V8_EXPORT HeapProfiler {
   /**
    * Returns the sampled profile of allocations allocated (and still live) since
    * StartSamplingHeapProfiler was called. The ownership of the pointer is
-   * transfered to the caller. Returns nullptr if sampling heap profiler is not
+   * transferred to the caller. Returns nullptr if sampling heap profiler is not
    * active.
    */
   AllocationProfile* GetAllocationProfile();
@@ -754,20 +800,14 @@ class V8_EXPORT HeapProfiler {
       uint16_t class_id,
       WrapperInfoCallback callback);
 
+  void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback);
+
   /**
    * Default value of persistent handle class ID. Must not be used to
    * define a class. Can be used to reset a class of a persistent
    * handle.
    */
   static const uint16_t kPersistentHandleNoClassId = 0;
-
-  /** Returns memory used for profiler internal data and snapshots. */
-  size_t GetProfilerMemorySize();
-
-  /**
-   * Sets a RetainedObjectInfo for an object group (see V8::SetObjectGroupId).
-   */
-  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
  private:
   HeapProfiler();

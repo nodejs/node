@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const esutils = require("esutils");
+const espree = require("espree");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -21,7 +22,16 @@ const arrayOrTypedArrayPattern = /Array$/;
 const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
 const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
 const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
-const thisTagPattern = /^[\s\*]*@this/m;
+const thisTagPattern = /^[\s*]*@this/m;
+
+
+const COMMENTS_IGNORE_PATTERN = /^\s*(?:eslint|jshint\s+|jslint\s+|istanbul\s+|globals?\s+|exported\s+|jscs)/;
+const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
+const LINEBREAK_MATCHER = /\r\n|[\r\n\u2028\u2029]/;
+const SHEBANG_MATCHER = /^#!([^\r\n]+)/;
+
+// A set of node types that can contain a list of statements
+const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
 
 /**
  * Checks reference if is non initializer and writable.
@@ -84,6 +94,56 @@ function getUpperFunction(node) {
 }
 
 /**
+ * Checks whether a given node is a function node or not.
+ * The following types are function nodes:
+ *
+ * - ArrowFunctionExpression
+ * - FunctionDeclaration
+ * - FunctionExpression
+ *
+ * @param {ASTNode|null} node - A node to check.
+ * @returns {boolean} `true` if the node is a function node.
+ */
+function isFunction(node) {
+    return Boolean(node && anyFunctionPattern.test(node.type));
+}
+
+/**
+ * Checks whether a given node is a loop node or not.
+ * The following types are loop nodes:
+ *
+ * - DoWhileStatement
+ * - ForInStatement
+ * - ForOfStatement
+ * - ForStatement
+ * - WhileStatement
+ *
+ * @param {ASTNode|null} node - A node to check.
+ * @returns {boolean} `true` if the node is a loop node.
+ */
+function isLoop(node) {
+    return Boolean(node && anyLoopPattern.test(node.type));
+}
+
+/**
+ * Checks whether the given node is in a loop or not.
+ *
+ * @param {ASTNode} node - The node to check.
+ * @returns {boolean} `true` if the node is in a loop.
+ */
+function isInLoop(node) {
+    while (node && !isFunction(node)) {
+        if (isLoop(node)) {
+            return true;
+        }
+
+        node = node.parent;
+    }
+
+    return false;
+}
+
+/**
  * Checks whether or not a node is `null` or `undefined`.
  * @param {ASTNode} node - A node to check.
  * @returns {boolean} Whether or not the node is a `null` or `undefined`.
@@ -91,7 +151,7 @@ function getUpperFunction(node) {
  */
 function isNullOrUndefined(node) {
     return (
-        (node.type === "Literal" && node.value === null) ||
+        module.exports.isNullLiteral(node) ||
         (node.type === "Identifier" && node.name === "undefined") ||
         (node.type === "UnaryExpression" && node.operator === "void")
     );
@@ -107,9 +167,9 @@ function isCallee(node) {
 }
 
 /**
- * Checks whether or not a node is `Reclect.apply`.
+ * Checks whether or not a node is `Reflect.apply`.
  * @param {ASTNode} node - A node to check.
- * @returns {boolean} Whether or not the node is a `Reclect.apply`.
+ * @returns {boolean} Whether or not the node is a `Reflect.apply`.
  */
 function isReflectApply(node) {
     return (
@@ -160,6 +220,15 @@ function isMethodWhichHasThisArg(node) {
 }
 
 /**
+ * Creates the negate function of the given function.
+ * @param {Function} f - The function to negate.
+ * @returns {Function} Negated function.
+ */
+function negate(f) {
+    return token => !f(token);
+}
+
+/**
  * Checks whether or not a node has a `@this` tag in its comments.
  * @param {ASTNode} node - A node to check.
  * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
@@ -176,9 +245,7 @@ function hasJSDocThisTag(node, sourceCode) {
     // because callbacks don't have its JSDoc comment.
     // e.g.
     //     sinon.test(/* @this sinon.Sandbox */function() { this.spy(); });
-    return sourceCode.getComments(node).leading.some(function(comment) {
-        return thisTagPattern.test(comment.value);
-    });
+    return sourceCode.getCommentsBefore(node).some(comment => thisTagPattern.test(comment.value));
 }
 
 /**
@@ -197,11 +264,158 @@ function isParenthesised(sourceCode, node) {
         nextToken.value === ")" && nextToken.range[0] >= node.range[1];
 }
 
+/**
+ * Checks if the given token is an arrow token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an arrow token.
+ */
+function isArrowToken(token) {
+    return token.value === "=>" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a comma token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a comma token.
+ */
+function isCommaToken(token) {
+    return token.value === "," && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a semicolon token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a semicolon token.
+ */
+function isSemicolonToken(token) {
+    return token.value === ";" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a colon token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a colon token.
+ */
+function isColonToken(token) {
+    return token.value === ":" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening parenthesis token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening parenthesis token.
+ */
+function isOpeningParenToken(token) {
+    return token.value === "(" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing parenthesis token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing parenthesis token.
+ */
+function isClosingParenToken(token) {
+    return token.value === ")" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening square bracket token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening square bracket token.
+ */
+function isOpeningBracketToken(token) {
+    return token.value === "[" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing square bracket token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing square bracket token.
+ */
+function isClosingBracketToken(token) {
+    return token.value === "]" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening brace token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening brace token.
+ */
+function isOpeningBraceToken(token) {
+    return token.value === "{" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing brace token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing brace token.
+ */
+function isClosingBraceToken(token) {
+    return token.value === "}" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a comment token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a comment token.
+ */
+function isCommentToken(token) {
+    return token.type === "Line" || token.type === "Block" || token.type === "Shebang";
+}
+
+/**
+ * Checks if the given token is a keyword token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a keyword token.
+ */
+function isKeywordToken(token) {
+    return token.type === "Keyword";
+}
+
+/**
+ * Gets the `(` token of the given function node.
+ *
+ * @param {ASTNode} node - The function node to get.
+ * @param {SourceCode} sourceCode - The source code object to get tokens.
+ * @returns {Token} `(` token.
+ */
+function getOpeningParenOfParams(node, sourceCode) {
+    return node.id
+        ? sourceCode.getTokenAfter(node.id, isOpeningParenToken)
+        : sourceCode.getFirstToken(node, isOpeningParenToken);
+}
+
+/**
+ * Creates a version of the LINEBREAK_MATCHER regex with the global flag.
+ * Global regexes are mutable, so this needs to be a function instead of a constant.
+ * @returns {RegExp} A global regular expression that matches line terminators
+ */
+function createGlobalLinebreakMatcher() {
+    return new RegExp(LINEBREAK_MATCHER.source, "g");
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 module.exports = {
+    COMMENTS_IGNORE_PATTERN,
+    LINEBREAKS,
+    LINEBREAK_MATCHER,
+    SHEBANG_MATCHER,
+    STATEMENT_LIST_PARENTS,
 
     /**
      * Determines whether two adjacent tokens are on the same line.
@@ -218,8 +432,34 @@ module.exports = {
     isCallee,
     isES5Constructor,
     getUpperFunction,
+    isFunction,
+    isLoop,
+    isInLoop,
     isArrayFromMethod,
     isParenthesised,
+    createGlobalLinebreakMatcher,
+
+    isArrowToken,
+    isClosingBraceToken,
+    isClosingBracketToken,
+    isClosingParenToken,
+    isColonToken,
+    isCommaToken,
+    isCommentToken,
+    isKeywordToken,
+    isNotClosingBraceToken: negate(isClosingBraceToken),
+    isNotClosingBracketToken: negate(isClosingBracketToken),
+    isNotClosingParenToken: negate(isClosingParenToken),
+    isNotColonToken: negate(isColonToken),
+    isNotCommaToken: negate(isCommaToken),
+    isNotOpeningBraceToken: negate(isOpeningBraceToken),
+    isNotOpeningBracketToken: negate(isOpeningBracketToken),
+    isNotOpeningParenToken: negate(isOpeningParenToken),
+    isNotSemicolonToken: negate(isSemicolonToken),
+    isOpeningBraceToken,
+    isOpeningBracketToken,
+    isOpeningParenToken,
+    isSemicolonToken,
 
     /**
      * Checks whether or not a given node is a string literal.
@@ -287,7 +527,7 @@ module.exports = {
 
     /**
      * Returns whether the provided node is an ESLint directive comment or not
-     * @param {LineComment|BlockComment} node The node to be checked
+     * @param {Line|Block} node The comment token to be checked
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
     isDirectiveComment(node) {
@@ -319,9 +559,9 @@ module.exports = {
     /**
      * Finds the variable by a given name in a given scope and its upper scopes.
      *
-     * @param {escope.Scope} initScope - A scope to start find.
+     * @param {eslint-scope.Scope} initScope - A scope to start find.
      * @param {string} name - A variable name to find.
-     * @returns {escope.Variable|null} A found variable or `null`.
+     * @returns {eslint-scope.Variable|null} A found variable or `null`.
      */
     getVariableByName(initScope, name) {
         let scope = initScope;
@@ -386,6 +626,9 @@ module.exports = {
                 //     // setup...
                 //     return function foo() { ... };
                 //   })();
+                //   obj.foo = (() =>
+                //     function foo() { ... }
+                //   )();
                 case "ReturnStatement": {
                     const func = getUpperFunction(parent);
 
@@ -395,6 +638,12 @@ module.exports = {
                     node = func.parent;
                     break;
                 }
+                case "ArrowFunctionExpression":
+                    if (node !== parent.body || !isCallee(parent)) {
+                        return true;
+                    }
+                    node = parent.parent;
+                    break;
 
                 // e.g.
                 //   var obj = { foo() { ... } };
@@ -415,16 +664,15 @@ module.exports = {
                 //   [Foo = function() { ... }] = a;
                 case "AssignmentExpression":
                 case "AssignmentPattern":
-                    if (parent.right === node) {
-                        if (parent.left.type === "MemberExpression") {
-                            return false;
-                        }
-                        if (isAnonymous &&
-                            parent.left.type === "Identifier" &&
-                            startsWithUpperCase(parent.left.name)
-                        ) {
-                            return false;
-                        }
+                    if (parent.left.type === "MemberExpression") {
+                        return false;
+                    }
+                    if (
+                        isAnonymous &&
+                        parent.left.type === "Identifier" &&
+                        startsWithUpperCase(parent.left.name)
+                    ) {
+                        return false;
                     }
                     return true;
 
@@ -553,6 +801,8 @@ module.exports = {
                     case "/":
                     case "%":
                         return 13;
+                    case "**":
+                        return 15;
 
                     // no default
                 }
@@ -561,57 +811,40 @@ module.exports = {
 
             case "UnaryExpression":
             case "AwaitExpression":
-                return 14;
-
-            case "UpdateExpression":
-                return 15;
-
-            case "CallExpression":
-
-                // IIFE is allowed to have parens in any position (#655)
-                if (node.callee.type === "FunctionExpression") {
-                    return -1;
-                }
                 return 16;
 
-            case "NewExpression":
+            case "UpdateExpression":
                 return 17;
 
-            // no default
+            case "CallExpression":
+                return 18;
+
+            case "NewExpression":
+                return 19;
+
+            default:
+                return 20;
         }
-        return 18;
     },
 
     /**
-     * Checks whether a given node is a loop node or not.
-     * The following types are loop nodes:
+     * Checks whether the given node is an empty block node or not.
      *
-     * - DoWhileStatement
-     * - ForInStatement
-     * - ForOfStatement
-     * - ForStatement
-     * - WhileStatement
-     *
-     * @param {ASTNode|null} node - A node to check.
-     * @returns {boolean} `true` if the node is a loop node.
+     * @param {ASTNode|null} node - The node to check.
+     * @returns {boolean} `true` if the node is an empty block.
      */
-    isLoop(node) {
-        return Boolean(node && anyLoopPattern.test(node.type));
+    isEmptyBlock(node) {
+        return Boolean(node && node.type === "BlockStatement" && node.body.length === 0);
     },
 
     /**
-     * Checks whether a given node is a function node or not.
-     * The following types are function nodes:
+     * Checks whether the given node is an empty function node or not.
      *
-     * - ArrowFunctionExpression
-     * - FunctionDeclaration
-     * - FunctionExpression
-     *
-     * @param {ASTNode|null} node - A node to check.
-     * @returns {boolean} `true` if the node is a function node.
+     * @param {ASTNode|null} node - The node to check.
+     * @returns {boolean} `true` if the node is an empty function.
      */
-    isFunction(node) {
-        return Boolean(node && anyFunctionPattern.test(node.type));
+    isEmptyFunction(node) {
+        return isFunction(node) && module.exports.isEmptyBlock(node.body);
     },
 
     /**
@@ -738,5 +971,339 @@ module.exports = {
      */
     isDecimalInteger(node) {
         return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/.test(node.raw);
+    },
+
+    /**
+     * Gets the name and kind of the given function node.
+     *
+     * - `function foo() {}`  .................... `function 'foo'`
+     * - `(function foo() {})`  .................. `function 'foo'`
+     * - `(function() {})`  ...................... `function`
+     * - `function* foo() {}`  ................... `generator function 'foo'`
+     * - `(function* foo() {})`  ................. `generator function 'foo'`
+     * - `(function*() {})`  ..................... `generator function`
+     * - `() => {}`  ............................. `arrow function`
+     * - `async () => {}`  ....................... `async arrow function`
+     * - `({ foo: function foo() {} })`  ......... `method 'foo'`
+     * - `({ foo: function() {} })`  ............. `method 'foo'`
+     * - `({ ['foo']: function() {} })`  ......... `method 'foo'`
+     * - `({ [foo]: function() {} })`  ........... `method`
+     * - `({ foo() {} })`  ....................... `method 'foo'`
+     * - `({ foo: function* foo() {} })`  ........ `generator method 'foo'`
+     * - `({ foo: function*() {} })`  ............ `generator method 'foo'`
+     * - `({ ['foo']: function*() {} })`  ........ `generator method 'foo'`
+     * - `({ [foo]: function*() {} })`  .......... `generator method`
+     * - `({ *foo() {} })`  ...................... `generator method 'foo'`
+     * - `({ foo: async function foo() {} })`  ... `async method 'foo'`
+     * - `({ foo: async function() {} })`  ....... `async method 'foo'`
+     * - `({ ['foo']: async function() {} })`  ... `async method 'foo'`
+     * - `({ [foo]: async function() {} })`  ..... `async method`
+     * - `({ async foo() {} })`  ................. `async method 'foo'`
+     * - `({ get foo() {} })`  ................... `getter 'foo'`
+     * - `({ set foo(a) {} })`  .................. `setter 'foo'`
+     * - `class A { constructor() {} }`  ......... `constructor`
+     * - `class A { foo() {} }`  ................. `method 'foo'`
+     * - `class A { *foo() {} }`  ................ `generator method 'foo'`
+     * - `class A { async foo() {} }`  ........... `async method 'foo'`
+     * - `class A { ['foo']() {} }`  ............. `method 'foo'`
+     * - `class A { *['foo']() {} }`  ............ `generator method 'foo'`
+     * - `class A { async ['foo']() {} }`  ....... `async method 'foo'`
+     * - `class A { [foo]() {} }`  ............... `method`
+     * - `class A { *[foo]() {} }`  .............. `generator method`
+     * - `class A { async [foo]() {} }`  ......... `async method`
+     * - `class A { get foo() {} }`  ............. `getter 'foo'`
+     * - `class A { set foo(a) {} }`  ............ `setter 'foo'`
+     * - `class A { static foo() {} }`  .......... `static method 'foo'`
+     * - `class A { static *foo() {} }`  ......... `static generator method 'foo'`
+     * - `class A { static async foo() {} }`  .... `static async method 'foo'`
+     * - `class A { static get foo() {} }`  ...... `static getter 'foo'`
+     * - `class A { static set foo(a) {} }`  ..... `static setter 'foo'`
+     *
+     * @param {ASTNode} node - The function node to get.
+     * @returns {string} The name and kind of the function node.
+     */
+    getFunctionNameWithKind(node) {
+        const parent = node.parent;
+        const tokens = [];
+
+        if (parent.type === "MethodDefinition" && parent.static) {
+            tokens.push("static");
+        }
+        if (node.async) {
+            tokens.push("async");
+        }
+        if (node.generator) {
+            tokens.push("generator");
+        }
+
+        if (node.type === "ArrowFunctionExpression") {
+            tokens.push("arrow", "function");
+        } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
+            if (parent.kind === "constructor") {
+                return "constructor";
+            } else if (parent.kind === "get") {
+                tokens.push("getter");
+            } else if (parent.kind === "set") {
+                tokens.push("setter");
+            } else {
+                tokens.push("method");
+            }
+        } else {
+            tokens.push("function");
+        }
+
+        if (node.id) {
+            tokens.push(`'${node.id.name}'`);
+        } else {
+            const name = module.exports.getStaticPropertyName(parent);
+
+            if (name) {
+                tokens.push(`'${name}'`);
+            }
+        }
+
+        return tokens.join(" ");
+    },
+
+    /**
+     * Gets the location of the given function node for reporting.
+     *
+     * - `function foo() {}`
+     *    ^^^^^^^^^^^^
+     * - `(function foo() {})`
+     *     ^^^^^^^^^^^^
+     * - `(function() {})`
+     *     ^^^^^^^^
+     * - `function* foo() {}`
+     *    ^^^^^^^^^^^^^
+     * - `(function* foo() {})`
+     *     ^^^^^^^^^^^^^
+     * - `(function*() {})`
+     *     ^^^^^^^^^
+     * - `() => {}`
+     *       ^^
+     * - `async () => {}`
+     *             ^^
+     * - `({ foo: function foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^
+     * - `({ foo: function() {} })`
+     *       ^^^^^^^^^^^^^
+     * - `({ ['foo']: function() {} })`
+     *       ^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: function() {} })`
+     *       ^^^^^^^^^^^^^^^
+     * - `({ foo() {} })`
+     *       ^^^
+     * - `({ foo: function* foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^^
+     * - `({ foo: function*() {} })`
+     *       ^^^^^^^^^^^^^^
+     * - `({ ['foo']: function*() {} })`
+     *       ^^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: function*() {} })`
+     *       ^^^^^^^^^^^^^^^^
+     * - `({ *foo() {} })`
+     *       ^^^^
+     * - `({ foo: async function foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^^^
+     * - `({ foo: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^
+     * - `({ ['foo']: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^
+     * - `({ async foo() {} })`
+     *       ^^^^^^^^^
+     * - `({ get foo() {} })`
+     *       ^^^^^^^
+     * - `({ set foo(a) {} })`
+     *       ^^^^^^^
+     * - `class A { constructor() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { foo() {} }`
+     *              ^^^
+     * - `class A { *foo() {} }`
+     *              ^^^^
+     * - `class A { async foo() {} }`
+     *              ^^^^^^^^^
+     * - `class A { ['foo']() {} }`
+     *              ^^^^^^^
+     * - `class A { *['foo']() {} }`
+     *              ^^^^^^^^
+     * - `class A { async ['foo']() {} }`
+     *              ^^^^^^^^^^^^^
+     * - `class A { [foo]() {} }`
+     *              ^^^^^
+     * - `class A { *[foo]() {} }`
+     *              ^^^^^^
+     * - `class A { async [foo]() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { get foo() {} }`
+     *              ^^^^^^^
+     * - `class A { set foo(a) {} }`
+     *              ^^^^^^^
+     * - `class A { static foo() {} }`
+     *              ^^^^^^^^^^
+     * - `class A { static *foo() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { static async foo() {} }`
+     *              ^^^^^^^^^^^^^^^^
+     * - `class A { static get foo() {} }`
+     *              ^^^^^^^^^^^^^^
+     * - `class A { static set foo(a) {} }`
+     *              ^^^^^^^^^^^^^^
+     *
+     * @param {ASTNode} node - The function node to get.
+     * @param {SourceCode} sourceCode - The source code object to get tokens.
+     * @returns {string} The location of the function node for reporting.
+     */
+    getFunctionHeadLoc(node, sourceCode) {
+        const parent = node.parent;
+        let start = null;
+        let end = null;
+
+        if (node.type === "ArrowFunctionExpression") {
+            const arrowToken = sourceCode.getTokenBefore(node.body, isArrowToken);
+
+            start = arrowToken.loc.start;
+            end = arrowToken.loc.end;
+        } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
+            start = parent.loc.start;
+            end = getOpeningParenOfParams(node, sourceCode).loc.start;
+        } else {
+            start = node.loc.start;
+            end = getOpeningParenOfParams(node, sourceCode).loc.start;
+        }
+
+        return {
+            start: Object.assign({}, start),
+            end: Object.assign({}, end)
+        };
+    },
+
+    /**
+    * Gets the parenthesized text of a node. This is similar to sourceCode.getText(node), but it also includes any parentheses
+    * surrounding the node.
+    * @param {SourceCode} sourceCode The source code object
+    * @param {ASTNode} node An expression node
+    * @returns {string} The text representing the node, with all surrounding parentheses included
+    */
+    getParenthesisedText(sourceCode, node) {
+        let leftToken = sourceCode.getFirstToken(node);
+        let rightToken = sourceCode.getLastToken(node);
+
+        while (
+            sourceCode.getTokenBefore(leftToken) &&
+            sourceCode.getTokenBefore(leftToken).type === "Punctuator" &&
+            sourceCode.getTokenBefore(leftToken).value === "(" &&
+            sourceCode.getTokenAfter(rightToken) &&
+            sourceCode.getTokenAfter(rightToken).type === "Punctuator" &&
+            sourceCode.getTokenAfter(rightToken).value === ")"
+        ) {
+            leftToken = sourceCode.getTokenBefore(leftToken);
+            rightToken = sourceCode.getTokenAfter(rightToken);
+        }
+
+        return sourceCode.getText().slice(leftToken.range[0], rightToken.range[1]);
+    },
+
+    /*
+     * Determine if a node has a possiblity to be an Error object
+     * @param  {ASTNode} node  ASTNode to check
+     * @returns {boolean} True if there is a chance it contains an Error obj
+     */
+    couldBeError(node) {
+        switch (node.type) {
+            case "Identifier":
+            case "CallExpression":
+            case "NewExpression":
+            case "MemberExpression":
+            case "TaggedTemplateExpression":
+            case "YieldExpression":
+            case "AwaitExpression":
+                return true; // possibly an error object.
+
+            case "AssignmentExpression":
+                return module.exports.couldBeError(node.right);
+
+            case "SequenceExpression": {
+                const exprs = node.expressions;
+
+                return exprs.length !== 0 && module.exports.couldBeError(exprs[exprs.length - 1]);
+            }
+
+            case "LogicalExpression":
+                return module.exports.couldBeError(node.left) || module.exports.couldBeError(node.right);
+
+            case "ConditionalExpression":
+                return module.exports.couldBeError(node.consequent) || module.exports.couldBeError(node.alternate);
+
+            default:
+                return false;
+        }
+    },
+
+    /**
+     * Determines whether the given node is a `null` literal.
+     * @param {ASTNode} node The node to check
+     * @returns {boolean} `true` if the node is a `null` literal
+     */
+    isNullLiteral(node) {
+
+        /*
+         * Checking `node.value === null` does not guarantee that a literal is a null literal.
+         * When parsing values that cannot be represented in the current environment (e.g. unicode
+         * regexes in Node 4), `node.value` is set to `null` because it wouldn't be possible to
+         * set `node.value` to a unicode regex. To make sure a literal is actually `null`, check
+         * `node.regex` instead. Also see: https://github.com/eslint/eslint/issues/8020
+         */
+        return node.type === "Literal" && node.value === null && !node.regex;
+    },
+
+    /**
+     * Determines whether two tokens can safely be placed next to each other without merging into a single token
+     * @param {Token|string} leftValue The left token. If this is a string, it will be tokenized and the last token will be used.
+     * @param {Token|string} rightValue The right token. If this is a string, it will be tokenized and the first token will be used.
+     * @returns {boolean} If the tokens cannot be safely placed next to each other, returns `false`. If the tokens can be placed
+     * next to each other, behavior is undefined (although it should return `true` in most cases).
+     */
+    canTokensBeAdjacent(leftValue, rightValue) {
+        let leftToken;
+
+        if (typeof leftValue === "string") {
+            const leftTokens = espree.tokenize(leftValue, { ecmaVersion: 2015 });
+
+            leftToken = leftTokens[leftTokens.length - 1];
+        } else {
+            leftToken = leftValue;
+        }
+
+        const rightToken = typeof rightValue === "string" ? espree.tokenize(rightValue, { ecmaVersion: 2015 })[0] : rightValue;
+
+        if (leftToken.type === "Punctuator" || rightToken.type === "Punctuator") {
+            if (leftToken.type === "Punctuator" && rightToken.type === "Punctuator") {
+                const PLUS_TOKENS = new Set(["+", "++"]);
+                const MINUS_TOKENS = new Set(["-", "--"]);
+
+                return !(
+                    PLUS_TOKENS.has(leftToken.value) && PLUS_TOKENS.has(rightToken.value) ||
+                    MINUS_TOKENS.has(leftToken.value) && MINUS_TOKENS.has(rightToken.value)
+                );
+            }
+            return true;
+        }
+
+        if (
+            leftToken.type === "String" || rightToken.type === "String" ||
+            leftToken.type === "Template" || rightToken.type === "Template"
+        ) {
+            return true;
+        }
+
+        if (leftToken.type !== "Numeric" && rightToken.type === "Numeric" && rightToken.value.startsWith(".")) {
+            return true;
+        }
+
+        return false;
     }
 };

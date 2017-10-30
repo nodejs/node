@@ -8,7 +8,6 @@
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/s390/assembler-s390.h"
-#include "src/s390/frames-s390.h"
 
 namespace v8 {
 namespace internal {
@@ -97,8 +96,7 @@ class RegExpMacroAssemblerS390 : public NativeRegExpMacroAssembler {
   static const int kCaptureArraySize = kCallerFrame;
   static const int kStackAreaBase = kCallerFrame + kPointerSize;
   // kDirectCall again
-  static const int kSecondaryReturnAddress = kStackAreaBase + 2 * kPointerSize;
-  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
+  static const int kIsolate = kStackAreaBase + 2 * kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.

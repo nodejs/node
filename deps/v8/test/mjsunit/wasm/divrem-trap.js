@@ -7,26 +7,8 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function assertTraps(code, msg) {
-  var threwException = true;
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-    threwException = false;
-  } catch (e) {
-    if (typeof type_opt === 'function') {
-      assertInstanceof(e, type_opt);
-    }
-    if (arguments.length >= 3) {
-      assertEquals(e.type, cause_opt);
-    }
-    // Success.
-    return;
-  }
-  throw new MjsUnitAssertionError("Did not throw exception");
+var assertTraps = function(messageId, code) {
+  assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[messageId]);
 }
 
 

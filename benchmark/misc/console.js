@@ -4,15 +4,16 @@ const common = require('../common.js');
 const assert = require('assert');
 const Writable = require('stream').Writable;
 const util = require('util');
-const v8 = require('v8');
 
-v8.setFlagsFromString('--allow_natives_syntax');
+const methods = [
+  'restAndSpread',
+  'argumentsAndApply',
+  'restAndApply',
+  'restAndConcat'
+];
 
-var bench = common.createBenchmark(main, {
-  method: ['restAndSpread',
-           'argumentsAndApply',
-           'restAndApply',
-           'restAndConcat'],
+const bench = common.createBenchmark(main, {
+  method: methods,
   concat: [1, 0],
   n: [1000000]
 });
@@ -20,7 +21,7 @@ var bench = common.createBenchmark(main, {
 const nullStream = createNullStream();
 
 function usingRestAndConcat(...args) {
-  nullStream.write('this is ' + args[0] + ' of ' + args[1] + '\n');
+  nullStream.write(`this is ${args[0]} of ${args[1]}\n`);
 }
 
 function usingRestAndSpreadTS(...args) {
@@ -36,25 +37,18 @@ function usingArgumentsAndApplyTS() {
 }
 
 function usingRestAndSpreadC(...args) {
-  nullStream.write(util.format(...args) + '\n');
+  nullStream.write(`${util.format(...args)}\n`);
 }
 
 function usingRestAndApplyC(...args) {
-  nullStream.write(util.format.apply(null, args) + '\n');
+  nullStream.write(`${util.format.apply(null, args)}\n`);
 }
 
 function usingArgumentsAndApplyC() {
-  nullStream.write(util.format.apply(null, arguments) + '\n');
-}
-
-function optimize(method, ...args) {
-  method(...args);
-  eval(`%OptimizeFunctionOnNextCall(${method.name})`);
-  method(...args);
+  nullStream.write(`${util.format.apply(null, arguments)}\n`);
 }
 
 function runUsingRestAndConcat(n) {
-  optimize(usingRestAndConcat, 'a', 1);
 
   var i = 0;
   bench.start();
@@ -66,7 +60,6 @@ function runUsingRestAndConcat(n) {
 function runUsingRestAndSpread(n, concat) {
 
   const method = concat ? usingRestAndSpreadC : usingRestAndSpreadTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
@@ -78,7 +71,6 @@ function runUsingRestAndSpread(n, concat) {
 function runUsingRestAndApply(n, concat) {
 
   const method = concat ? usingRestAndApplyC : usingRestAndApplyTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
@@ -90,7 +82,6 @@ function runUsingRestAndApply(n, concat) {
 function runUsingArgumentsAndApply(n, concat) {
 
   const method = concat ? usingArgumentsAndApplyC : usingArgumentsAndApplyTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
@@ -102,6 +93,8 @@ function runUsingArgumentsAndApply(n, concat) {
 function main(conf) {
   const n = +conf.n;
   switch (conf.method) {
+    // '' is a default case for tests
+    case '':
     case 'restAndSpread':
       runUsingRestAndSpread(n, conf.concat);
       break;

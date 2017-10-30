@@ -1,5 +1,7 @@
 # OS
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `os` module provides a number of operating system-related utility methods.
@@ -14,6 +16,8 @@ const os = require('os');
 added: v0.7.8
 -->
 
+* {string}
+
 A string constant defining the operating system-specific end-of-line marker:
 
 * `\n` on POSIX
@@ -23,6 +27,8 @@ A string constant defining the operating system-specific end-of-line marker:
 <!-- YAML
 added: v0.5.0
 -->
+
+* Returns: {string}
 
 The `os.arch()` method returns a string identifying the operating system CPU
 architecture *for which the Node.js binary was compiled*.
@@ -34,22 +40,29 @@ The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 Equivalent to [`process.arch`][].
 
 ## os.constants
+<!-- YAML
+added: v6.3.0
+-->
+
+* {Object}
 
 Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
-defined are described in [OS Constants][].
+defined are described in [OS Constants](#os_os_constants_1).
 
 ## os.cpus()
 <!-- YAML
 added: v0.3.3
 -->
 
+* Returns: {Array}
+
 The `os.cpus()` method returns an array of objects containing information about
-each CPU/core installed.
+each logical CPU core.
 
 The properties included on each object include:
 
-* `model` {String}
+* `model` {string}
 * `speed` {number} (in MHz)
 * `times` {Object}
   * `user` {number} The number of milliseconds the CPU has spent in user mode.
@@ -60,6 +73,7 @@ The properties included on each object include:
 
 For example:
 
+<!-- eslint-disable semi -->
 ```js
 [
   {
@@ -153,13 +167,15 @@ For example:
 ]
 ```
 
-*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values of
-all processors are always 0.
+*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values
+of all processors are always 0.
 
 ## os.endianness()
 <!-- YAML
 added: v0.9.4
 -->
+
+* Returns: {string}
 
 The `os.endianness()` method returns a string identifying the endianness of the
 CPU *for which the Node.js binary was compiled*.
@@ -174,6 +190,8 @@ Possible values are:
 added: v0.3.3
 -->
 
+* Returns: {integer}
+
 The `os.freemem()` method returns the amount of free system memory in bytes as
 an integer.
 
@@ -181,6 +199,8 @@ an integer.
 <!-- YAML
 added: v2.3.0
 -->
+
+* Returns: {string}
 
 The `os.homedir()` method returns the home directory of the current user as a
 string.
@@ -190,6 +210,8 @@ string.
 added: v0.3.3
 -->
 
+* Returns: {string}
+
 The `os.hostname()` method returns the hostname of the operating system as a
 string.
 
@@ -197,6 +219,8 @@ string.
 <!-- YAML
 added: v0.3.3
 -->
+
+* Returns: {Array}
 
 The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
 load averages.
@@ -213,6 +237,8 @@ Windows platforms. On Windows, the return value is always `[0, 0, 0]`.
 added: v0.6.0
 -->
 
+* Returns: {Object}
+
 The `os.networkInterfaces()` method returns an object containing only network
 interfaces that have been assigned a network address.
 
@@ -221,15 +247,19 @@ value is an array of objects that each describe an assigned network address.
 
 The properties available on the assigned network address object include:
 
-* `address` {String} The assigned IPv4 or IPv6 address
-* `netmask` {String} The IPv4 or IPv6 network mask
-* `family` {String} Either `IPv4` or `IPv6`
-* `mac` {String} The MAC address of the network interface
+* `address` {string} The assigned IPv4 or IPv6 address
+* `netmask` {string} The IPv4 or IPv6 network mask
+* `family` {string} Either `IPv4` or `IPv6`
+* `mac` {string} The MAC address of the network interface
 * `internal` {boolean} `true` if the network interface is a loopback or
   similar interface that is not remotely accessible; otherwise `false`
 * `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
   is `IPv6`)
+* `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
+  in CIDR notation. If the `netmask` is invalid, this property is set
+  to `null`
 
+<!-- eslint-skip -->
 ```js
 {
   lo: [
@@ -238,14 +268,16 @@ The properties available on the assigned network address object include:
       netmask: '255.0.0.0',
       family: 'IPv4',
       mac: '00:00:00:00:00:00',
-      internal: true
+      internal: true,
+      cidr: '127.0.0.1/8'
     },
     {
       address: '::1',
       netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
       family: 'IPv6',
       mac: '00:00:00:00:00:00',
-      internal: true
+      internal: true,
+      cidr: '::1/128'
     }
   ],
   eth0: [
@@ -254,14 +286,16 @@ The properties available on the assigned network address object include:
       netmask: '255.255.255.0',
       family: 'IPv4',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
+      internal: false,
+      cidr: '192.168.1.108/24'
     },
     {
       address: 'fe80::a00:27ff:fe4e:66a1',
       netmask: 'ffff:ffff:ffff:ffff::',
       family: 'IPv6',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
+      internal: false,
+      cidr: 'fe80::a00:27ff:fe4e:66a1/64'
     }
   ]
 }
@@ -271,6 +305,8 @@ The properties available on the assigned network address object include:
 <!-- YAML
 added: v0.5.0
 -->
+
+* Returns: {string}
 
 The `os.platform()` method returns a string identifying the operating system
 platform as set during compile time of Node.js.
@@ -296,17 +332,26 @@ to be experimental at this time.
 added: v0.3.3
 -->
 
+* Returns: {string}
+
 The `os.release()` method returns a string identifying the operating system
 release.
 
-*Note*: On POSIX systems, the operating system release is determined by calling
-uname(3). On Windows, `GetVersionExW()` is used. Please see
+*Note*: On POSIX systems, the operating system release is determined by
+calling [uname(3)][]. On Windows, `GetVersionExW()` is used. Please see
 https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.tmpdir()
 <!-- YAML
 added: v0.9.9
+changes:
+  - version: v2.0.0
+    pr-url: https://github.com/nodejs/node/pull/747
+    description: This function is now cross-platform consistent and no longer
+                 returns a path with a trailing slash on any platform
 -->
+
+* Returns: {string}
 
 The `os.tmpdir()` method returns a string specifying the operating system's
 default directory for temporary files.
@@ -316,6 +361,8 @@ default directory for temporary files.
 added: v0.3.3
 -->
 
+* Returns: {integer}
+
 The `os.totalmem()` method returns the total amount of system memory in bytes
 as an integer.
 
@@ -324,23 +371,27 @@ as an integer.
 added: v0.3.3
 -->
 
+* Returns: {string}
+
 The `os.type()` method returns a string identifying the operating system name
-as returned by uname(3). For example `'Linux'` on Linux, `'Darwin'` on OS X and
-`'Windows_NT'` on Windows.
+as returned by [uname(3)][]. For example `'Linux'` on Linux, `'Darwin'` on macOS
+and `'Windows_NT'` on Windows.
 
 Please see https://en.wikipedia.org/wiki/Uname#Examples for additional
-information about the output of running uname(3) on various operating systems.
+information about the output of running [uname(3)][] on various operating
+systems.
 
 ## os.uptime()
 <!-- YAML
 added: v0.3.3
 -->
 
+* Returns: {integer}
+
 The `os.uptime()` method returns the system uptime in number of seconds.
 
-*Note*: Within Node.js' internals, this number is represented as a `double`.
-However, fractional seconds are not returned and the value can typically be
-treated as an integer.
+*Note*: On Windows the returned value includes fractions of a second.
+Use `Math.floor()` to get whole seconds.
 
 ## os.userInfo([options])
 <!-- YAML
@@ -348,9 +399,10 @@ added: v6.0.0
 -->
 
 * `options` {Object}
-  * `encoding` {String} Character encoding used to interpret resulting strings.
+  * `encoding` {string} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
     values will be `Buffer` instances. (Default: 'utf8')
+* Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
 user -- on POSIX platforms, this is typically a subset of the password file. The
@@ -364,10 +416,17 @@ operating system response.
 
 ## OS Constants
 
-The following constants are exported by `os.constants`. **Note:** Not all
-constants will be available on every operating system.
+The following constants are exported by `os.constants`.
+
+*Note*: Not all constants will be available on every operating system.
 
 ### Signal Constants
+<!-- YAML
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/6093
+    description: Added support for `SIGINFO`.
+-->
 
 The following signal constants are exported by `os.constants.signals`:
 
@@ -1112,6 +1171,43 @@ The following error codes are specific to the Windows operating system:
   </tr>
 </table>
 
+### dlopen Constants
+
+If available on the operating system, the following constants
+are exported in `os.constants.dlopen`. See dlopen(3) for detailed
+information.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>RTLD_LAZY</code></td>
+    <td>Perform lazy binding. Node.js sets this flag by default.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_NOW</code></td>
+    <td>Resolve all undefined symbols in the library before dlopen(3)
+    returns.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_GLOBAL</code></td>
+    <td>Symbols defined by the library will be made available for symbol
+    resolution of subsequently loaded libraries.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_LOCAL</code></td>
+    <td>The converse of RTLD_GLOBAL. This is the default behavior if neither
+    flag is specified.</td>
+  </tr>
+  <tr>
+    <td><code>RTLD_DEEPBIND</code></td>
+    <td>Make a self-contained library use its own symbols in preference to
+    symbols from previously loaded libraries.</td>
+  </tr>
+</table>
+
 ### libuv Constants
 
 <table>
@@ -1127,4 +1223,4 @@ The following error codes are specific to the Windows operating system:
 
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
-[OS Constants]: #os_os_constants
+[uname(3)]: https://linux.die.net/man/3/uname

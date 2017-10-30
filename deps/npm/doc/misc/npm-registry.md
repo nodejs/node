@@ -21,6 +21,29 @@ The registry URL used is determined by the scope of the package (see
 supplied by the `registry` config parameter.  See `npm-config(1)`,
 `npmrc(5)`, and `npm-config(7)` for more on managing npm's configuration.
 
+## Does npm send any information about me back to the registry?
+
+Yes.
+
+When making requests of the registry npm adds two headers with information
+about your environment:
+
+* `Npm-Scope` – If your project is scoped, this header will contain its
+  scope. In the future npm hopes to build registry features that use this
+  information to allow you to customize your experience for your
+  organization.
+* `Npm-In-CI` – Set to "true" if npm believes this install is running in a
+  continous integration environment, "false" otherwise. This is detected by
+  looking for the following environment variables: `CI`, `TDDIUM`,
+  `JENKINS_URL`, `bamboo.buildKey`. If you'd like to learn more you may find
+  the [original PR](https://github.com/npm/npm-registry-client/pull/129)
+  interesting.
+  This is used to gather better metrics on how npm is used by humans, versus
+  build farms.
+
+The npm registry does not to correlate the information in these headers with
+any authenticated accounts that may be used in the same requests.
+
 ## Can I run my own private registry?
 
 Yes!

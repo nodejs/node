@@ -14,7 +14,7 @@ module.exports = {
         docs: {
             description: "disallow assignments to native objects or read-only global variables",
             category: "Best Practices",
-            recommended: false
+            recommended: true
         },
 
         schema: [
@@ -23,7 +23,7 @@ module.exports = {
                 properties: {
                     exceptions: {
                         type: "array",
-                        items: {type: "string"},
+                        items: { type: "string" },
                         uniqueItems: true
                     }
                 },

@@ -25,7 +25,9 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @returns {string}
  */
 exports.default = (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLine) => {
-  let output, realRowIndex, rowHeight;
+  let output;
+  let realRowIndex;
+  let rowHeight;
 
   const rowCount = rows.length;
 
@@ -59,5 +61,3 @@ exports.default = (rows, border, columnSizeIndex, rowSpanIndex, drawHorizontalLi
 
   return output;
 };
-
-module.exports = exports['default'];

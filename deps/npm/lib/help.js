@@ -12,6 +12,7 @@ var npm = require('./npm.js')
 var log = require('npmlog')
 var opener = require('opener')
 var glob = require('glob')
+var didYouMean = require('./utils/did-you-mean')
 var cmdList = require('./config/cmd-list').cmdList
 var shorthands = require('./config/cmd-list').shorthands
 var commands = cmdList.concat(Object.keys(shorthands))
@@ -38,7 +39,7 @@ function help (args, cb) {
     return npmUsage(valid, cb)
   }
 
-  // npm <cmd> -h: show command usage
+  // npm <command> -h: show command usage
   if (npm.config.get('usage') &&
       npm.commands[section] &&
       npm.commands[section].usage) {
@@ -169,7 +170,7 @@ function npmUsage (valid, cb) {
     npm.config.get('long') ? usages()
         : '    ' + wrap(commands),
     '',
-    'npm <cmd> -h     quick help on <cmd>',
+    'npm <command> -h     quick help on <command>',
     'npm -l           display full usage info',
     'npm help <term>  search for help on <term>',
     'npm help npm     involved overview',
@@ -181,11 +182,16 @@ function npmUsage (valid, cb) {
     '',
     'npm@' + npm.version + ' ' + path.dirname(__dirname)
   ].join('\n'))
+
+  if (npm.argv.length > 1) {
+    didYouMean(npm.argv[1], commands)
+  }
+
   cb(valid)
 }
 
 function usages () {
-  // return a string of <cmd>: <usage>
+  // return a string of <command>: <usage>
   var maxLen = 0
   return Object.keys(npm.commands).filter(function (c) {
     return c === npm.deref(c)

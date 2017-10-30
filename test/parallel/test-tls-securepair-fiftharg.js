@@ -1,21 +1,19 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
 
 const assert = require('assert');
-const fs = require('fs');
 const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
 const sslcontext = tls.createSecureContext({
-  cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-  key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+  cert: fixtures.readSync('test_cert.pem'),
+  key: fixtures.readSync('test_key.pem')
 });
 
-var catchedServername;
+let catchedServername;
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall(function(servername, cb) {
     catchedServername = servername;
@@ -23,7 +21,7 @@ const pair = tls.createSecurePair(sslcontext, true, false, false, {
 });
 
 // captured traffic from browser's request to https://www.google.com
-const sslHello = fs.readFileSync(common.fixturesDir + '/google_ssl_hello.bin');
+const sslHello = fixtures.readSync('google_ssl_hello.bin');
 
 pair.encrypted.write(sslHello);
 

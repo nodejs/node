@@ -4,99 +4,12 @@
 
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {
 
-
-int Deoptimizer::patch_size() {
-  const int kCallInstructionSizeInWords = 4;
-  return kCallInstructionSizeInWords * Assembler::kInstrSize;
-}
-
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  // Empty because there is no need for relocation information for the code
-  // patching in Deoptimizer::PatchCodeForDeoptimization below.
-}
-
-
-void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
-  Address code_start_address = code->instruction_start();
-  // Invalidate the relocation information, as it will become invalid by the
-  // code patching below, and is not needed any more.
-  code->InvalidateRelocation();
-
-  if (FLAG_zap_code_space) {
-    // Fail hard and early if we enter this code object again.
-    byte* pointer = code->FindCodeAgeSequence();
-    if (pointer != NULL) {
-      pointer += kNoCodeAgeSequenceLength;
-    } else {
-      pointer = code->instruction_start();
-    }
-    CodePatcher patcher(isolate, pointer, 1);
-    patcher.masm()->break_(0xCC);
-
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
-    int osr_offset = data->OsrPcOffset()->value();
-    if (osr_offset > 0) {
-      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
-                              1);
-      osr_patcher.masm()->break_(0xCC);
-    }
-  }
-
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-#ifdef DEBUG
-  Address prev_call_address = NULL;
-#endif
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-    Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
-    int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
-                                                      RelocInfo::NONE32);
-    int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
-    DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
-    DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(isolate, call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
-    DCHECK(prev_call_address == NULL ||
-           call_address >= prev_call_address + patch_size());
-    DCHECK(call_address + patch_size() <= code->instruction_end());
-
-#ifdef DEBUG
-    prev_call_address = call_address;
-#endif
-  }
-}
-
-
-void Deoptimizer::SetPlatformCompiledStubRegisters(
-    FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
-  ApiFunction function(descriptor->deoptimization_handler());
-  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
-  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
-  int params = descriptor->GetHandlerParameterCount();
-  output_frame->SetRegister(a0.code(), params);
-  output_frame->SetRegister(a1.code(), handler);
-}
-
-
-void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; ++i) {
-    double double_value = input_->GetDoubleRegister(i);
-    output_frame->SetDoubleRegister(i, double_value);
-  }
-}
 
 #define __ masm()->
 
@@ -114,15 +27,24 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kMaxNumRegisters;
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int offset = code * kDoubleSize;
-    __ sdc1(fpu_reg, MemOperand(sp, offset));
+    __ Sdc1(fpu_reg, MemOperand(sp, offset));
+  }
+
+  __ Subu(sp, sp, Operand(kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    const FloatRegister fpu_reg = FloatRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ swc1(fpu_reg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -134,11 +56,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     }
   }
 
-  __ li(a2, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ li(a2, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
+                                      isolate())));
   __ sw(fp, MemOperand(a2));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ lw(a2, MemOperand(sp, kSavedRegistersAreaSize));
@@ -198,9 +121,21 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ ldc1(f0, MemOperand(sp, src_offset));
-    __ sdc1(f0, MemOperand(a1, dst_offset));
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
+    __ Ldc1(f0, MemOperand(sp, src_offset));
+    __ Sdc1(f0, MemOperand(a1, dst_offset));
+  }
+
+  // Copy FPU registers to
+  // float_registers_[FloatRegister::kNumAllocatableRegisters]
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    __ lwc1(f0, MemOperand(sp, src_offset));
+    __ swc1(f0, MemOperand(a1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -270,7 +205,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
     int src_offset = code * kDoubleSize + double_regs_offset;
-    __ ldc1(fpu_reg, MemOperand(a1, src_offset));
+    __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.
@@ -305,17 +240,27 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
 
 // Maximum size of a table entry generated below.
+#ifdef _MIPS_ARCH_MIPS32R6
 const int Deoptimizer::table_entry_size_ = 2 * Assembler::kInstrSize;
+#else
+const int Deoptimizer::table_entry_size_ = 3 * Assembler::kInstrSize;
+#endif
 
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label table_start, done, done_special, trampoline_jump;
+  Label table_start, done, trampoline_jump;
   __ bind(&table_start);
+
+#ifdef _MIPS_ARCH_MIPS32R6
+  int kMaxEntriesBranchReach =
+      (1 << (kImm26Bits - 2)) / (table_entry_size_ / Assembler::kInstrSize);
+#else
   int kMaxEntriesBranchReach = (1 << (kImm16Bits - 2))/
      (table_entry_size_ /  Assembler::kInstrSize);
+#endif
 
   if (count() <= kMaxEntriesBranchReach) {
     // Common case.
@@ -323,9 +268,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
-      __ li(at, i);  // In the delay slot.
-
+      if (IsMipsArchVariant(kMips32r6)) {
+        __ li(at, i);
+        __ BranchShort(PROTECT, &done);
+      } else {
+        __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
+        __ li(at, i);                           // In the delay slot.
+        __ nop();
+      }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
     }
 
@@ -334,35 +284,31 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     __ bind(&done);
     __ Push(at);
   } else {
+    DCHECK(!IsMipsArchVariant(kMips32r6));
     // Uncommon case, the branch cannot reach.
-    // Create mini trampoline and adjust id constants to get proper value at
-    // the end of table.
-    for (int i = kMaxEntriesBranchReach; i > 1; i--) {
+    // Create mini trampoline to reach the end of the table
+    for (int i = 0, j = 0; i < count(); i++, j++) {
       Label start;
       __ bind(&start);
       DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
-      __ li(at, - i);  // In the delay slot.
+      if (j >= kMaxEntriesBranchReach) {
+        j = 0;
+        __ li(at, i);
+        __ bind(&trampoline_jump);
+        trampoline_jump = Label();
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);
+        __ nop();
+      } else {
+        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
+        __ li(at, i);                                      // In the delay slot.
+        __ nop();
+      }
       DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
-    }
-    // Entry with id == kMaxEntriesBranchReach - 1.
-    __ bind(&trampoline_jump);
-    __ BranchShort(USE_DELAY_SLOT, &done_special);
-    __ li(at, -1);
-
-    for (int i = kMaxEntriesBranchReach ; i < count(); i++) {
-      Label start;
-      __ bind(&start);
-      DCHECK(is_int16(i));
-      __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
-      __ li(at, i);  // In the delay slot.
     }
 
     DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
         count() * table_entry_size_);
-    __ bind(&done_special);
-    __ addiu(at, at, kMaxEntriesBranchReach);
-    __ bind(&done);
+    __ bind(&trampoline_jump);
     __ Push(at);
   }
 }

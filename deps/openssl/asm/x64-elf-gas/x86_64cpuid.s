@@ -107,14 +107,6 @@ OPENSSL_ia32_cpuid:
 	shrl	$14,%r10d
 	andl	$0xfff,%r10d
 
-	cmpl	$7,%r11d
-	jb	.Lnocacheinfo
-
-	movl	$7,%eax
-	xorl	%ecx,%ecx
-	cpuid
-	movl	%ebx,8(%rdi)
-
 .Lnocacheinfo:
 	movl	$1,%eax
 	cpuid
@@ -144,6 +136,15 @@ OPENSSL_ia32_cpuid:
 	orl	%ecx,%r9d
 
 	movl	%edx,%r10d
+
+	cmpl	$7,%r11d
+	jb	.Lno_extended_info
+	movl	$7,%eax
+	xorl	%ecx,%ecx
+	cpuid
+	movl	%ebx,8(%rdi)
+.Lno_extended_info:
+
 	btl	$27,%r9d
 	jnc	.Lclear_avx
 	xorl	%ecx,%ecx

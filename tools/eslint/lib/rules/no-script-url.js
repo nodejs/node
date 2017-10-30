@@ -31,7 +31,7 @@ module.exports = {
                     const value = node.value.toLowerCase();
 
                     if (value.indexOf("javascript:") === 0) {
-                        context.report(node, "Script URL is a form of eval.");
+                        context.report({ node, message: "Script URL is a form of eval." });
                     }
                 }
             }

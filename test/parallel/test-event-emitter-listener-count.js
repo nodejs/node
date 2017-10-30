@@ -5,11 +5,11 @@ const assert = require('assert');
 const EventEmitter = require('events');
 
 const emitter = new EventEmitter();
-emitter.on('foo', function() {});
-emitter.on('foo', function() {});
-emitter.on('baz', function() {});
+emitter.on('foo', () => {});
+emitter.on('foo', () => {});
+emitter.on('baz', () => {});
 // Allow any type
-emitter.on(123, function() {});
+emitter.on(123, () => {});
 
 assert.strictEqual(EventEmitter.listenerCount(emitter, 'foo'), 2);
 assert.strictEqual(emitter.listenerCount('foo'), 2);

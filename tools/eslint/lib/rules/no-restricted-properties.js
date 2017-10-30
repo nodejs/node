@@ -77,9 +77,9 @@ module.exports = {
             const propertyName = option.property;
 
             if (typeof objectName === "undefined") {
-                globallyRestrictedProperties.set(propertyName, {message: option.message});
+                globallyRestrictedProperties.set(propertyName, { message: option.message });
             } else if (typeof propertyName === "undefined") {
-                globallyRestrictedObjects.set(objectName, {message: option.message});
+                globallyRestrictedObjects.set(objectName, { message: option.message });
             } else {
                 if (!restrictedProperties.has(objectName)) {
                     restrictedProperties.set(objectName, new Map());
@@ -109,17 +109,27 @@ module.exports = {
             if (matchedObjectProperty) {
                 const message = matchedObjectProperty.message ? ` ${matchedObjectProperty.message}` : "";
 
-                context.report(node, "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}", {
-                    objectName,
-                    propertyName,
-                    message
+                context.report({
+                    node,
+                    // eslint-disable-next-line eslint-plugin/report-message-format
+                    message: "'{{objectName}}.{{propertyName}}' is restricted from being used.{{message}}",
+                    data: {
+                        objectName,
+                        propertyName,
+                        message
+                    }
                 });
             } else if (globalMatchedProperty) {
                 const message = globalMatchedProperty.message ? ` ${globalMatchedProperty.message}` : "";
 
-                context.report(node, "'{{propertyName}}' is restricted from being used.{{message}}", {
-                    propertyName,
-                    message
+                context.report({
+                    node,
+                    // eslint-disable-next-line eslint-plugin/report-message-format
+                    message: "'{{propertyName}}' is restricted from being used.{{message}}",
+                    data: {
+                        propertyName,
+                        message
+                    }
                 });
             }
         }

@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -57,12 +63,7 @@ module.exports = {
          * @returns {boolean} True if the node has a paren on each side.
          */
         function isParenthesised(node) {
-            const previousToken = sourceCode.getTokenBefore(node),
-                nextToken = sourceCode.getTokenAfter(node);
-
-            return previousToken && nextToken &&
-                previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+            return astUtils.isParenthesised(sourceCode, node);
         }
 
         /**
@@ -75,8 +76,8 @@ module.exports = {
                 nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) && previousToken && nextToken &&
-                previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+                astUtils.isOpeningParenToken(previousToken) && previousToken.range[1] <= node.range[0] &&
+                astUtils.isClosingParenToken(nextToken) && nextToken.range[0] >= node.range[1];
         }
 
         return {
@@ -101,7 +102,7 @@ module.exports = {
 
                 const child = sourceCode.getTokenAfter(node.expressions[0]);
 
-                context.report(node, child.loc.start, "Unexpected use of comma operator.");
+                context.report({ node, loc: child.loc.start, message: "Unexpected use of comma operator." });
             }
         };
 

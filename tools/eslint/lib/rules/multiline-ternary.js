@@ -20,13 +20,15 @@ module.exports = {
         },
         schema: [
             {
-                enum: ["always", "never"]
+                enum: ["always", "always-multiline", "never"]
             }
         ]
     },
 
     create(context) {
-        const multiline = context.options[0] !== "never";
+        const option = context.options[0];
+        const multiline = option !== "never";
+        const allowSingleLine = option === "always-multiline";
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -69,6 +71,10 @@ module.exports = {
                         reportError(node.consequent, node, false);
                     }
                 } else {
+                    if (allowSingleLine && node.loc.start.line === node.loc.end.line) {
+                        return;
+                    }
+
                     if (areTestAndConsequentOnSameLine) {
                         reportError(node.test, node, true);
                     }

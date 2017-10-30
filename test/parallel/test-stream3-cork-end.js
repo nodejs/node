@@ -12,17 +12,17 @@ const Writable = stream.Writable;
 // node version target: 0.12
 
 const expectedChunks = ['please', 'buffer', 'me', 'kindly'];
-var inputChunks = expectedChunks.slice(0);
-var seenChunks = [];
-var seenEnd = false;
+const inputChunks = expectedChunks.slice(0);
+let seenChunks = [];
+let seenEnd = false;
 
-var w = new Writable();
+const w = new Writable();
 // lets arrange to store the chunks
 w._write = function(chunk, encoding, cb) {
   // stream end event is not seen before the last write
   assert.ok(!seenEnd);
   // default encoding given none was specified
-  assert.equal(encoding, 'buffer');
+  assert.strictEqual(encoding, 'buffer');
 
   seenChunks.push(chunk);
   cb();
@@ -33,8 +33,8 @@ w.on('finish', () => {
 });
 
 function writeChunks(remainingChunks, callback) {
-  var writeChunk = remainingChunks.shift();
-  var writeState;
+  const writeChunk = remainingChunks.shift();
+  let writeState;
 
   if (writeChunk) {
     setImmediate(() => {
@@ -52,7 +52,7 @@ function writeChunks(remainingChunks, callback) {
 // do an initial write
 w.write('stuff');
 // the write was immediate
-assert.equal(seenChunks.length, 1);
+assert.strictEqual(seenChunks.length, 1);
 // reset the seen chunks
 seenChunks = [];
 
@@ -62,7 +62,7 @@ w.cork();
 // write the bufferedChunks
 writeChunks(inputChunks, () => {
   // should not have seen anything yet
-  assert.equal(seenChunks.length, 0);
+  assert.strictEqual(seenChunks.length, 0);
 
   // trigger flush and ending the stream
   w.end();
@@ -71,15 +71,15 @@ writeChunks(inputChunks, () => {
   assert.ok(!seenEnd);
 
   // buffered bytes should be seen in current tick
-  assert.equal(seenChunks.length, 4);
+  assert.strictEqual(seenChunks.length, 4);
 
   // did the chunks match
-  for (var i = 0, l = expectedChunks.length; i < l; i++) {
-    var seen = seenChunks[i];
+  for (let i = 0, l = expectedChunks.length; i < l; i++) {
+    const seen = seenChunks[i];
     // there was a chunk
     assert.ok(seen);
 
-    var expected = new Buffer(expectedChunks[i]);
+    const expected = Buffer.from(expectedChunks[i]);
     // it was what we expected
     assert.ok(seen.equals(expected));
   }

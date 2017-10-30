@@ -16,11 +16,14 @@ exports = module.exports = ProgressBar;
  *
  * Options:
  *
+ *   - `curr` current completed index
  *   - `total` total number of ticks to complete
  *   - `width` the displayed width of the progress bar defaulting to total
  *   - `stream` the output stream defaulting to stderr
+ *   - `head` head character defaulting to complete character
  *   - `complete` completion character defaulting to "="
  *   - `incomplete` incomplete character defaulting to "-"
+ *   - `renderThrottle` minimum time between updates in milliseconds defaulting to 16
  *   - `callback` optional function to call when the progress bar completes
  *   - `clear` will clear the progress bar upon termination
  *
@@ -32,6 +35,7 @@ exports = module.exports = ProgressBar;
  *   - `:elapsed` time elapsed in seconds
  *   - `:percent` completion percentage
  *   - `:eta` eta in seconds
+ *   - `:rate` rate of ticks per second
  *
  * @param {string} fmt
  * @param {object|number} options or total
@@ -52,15 +56,18 @@ function ProgressBar(fmt, options) {
   }
 
   this.fmt = fmt;
-  this.curr = 0;
+  this.curr = options.curr || 0;
   this.total = options.total;
   this.width = options.width || this.total;
   this.clear = options.clear
   this.chars = {
     complete   : options.complete || '=',
-    incomplete : options.incomplete || '-'
+    incomplete : options.incomplete || '-',
+    head       : options.head || (options.complete || '=')
   };
+  this.renderThrottle = options.renderThrottle !== 0 ? (options.renderThrottle || 16) : 0;
   this.callback = options.callback || function () {};
+  this.tokens = {};
   this.lastDraw = '';
 }
 
@@ -78,15 +85,21 @@ ProgressBar.prototype.tick = function(len, tokens){
 
   // swap tokens
   if ('object' == typeof len) tokens = len, len = 1;
+  if (tokens) this.tokens = tokens;
 
   // start time for eta
   if (0 == this.curr) this.start = new Date;
 
   this.curr += len
-  this.render(tokens);
+
+  // schedule render
+  if (!this.renderThrottleTimeout) {
+    this.renderThrottleTimeout = setTimeout(this.render.bind(this), this.renderThrottle);
+  }
 
   // progress complete
   if (this.curr >= this.total) {
+    if (this.renderThrottleTimeout) this.render();
     this.complete = true;
     this.terminate();
     this.callback(this);
@@ -103,6 +116,11 @@ ProgressBar.prototype.tick = function(len, tokens){
  */
 
 ProgressBar.prototype.render = function (tokens) {
+  clearTimeout(this.renderThrottleTimeout);
+  this.renderThrottleTimeout = null;
+
+  if (tokens) this.tokens = tokens;
+
   if (!this.stream.isTTY) return;
 
   var ratio = this.curr / this.total;
@@ -112,6 +130,7 @@ ProgressBar.prototype.render = function (tokens) {
   var incomplete, complete, completeLength;
   var elapsed = new Date - this.start;
   var eta = (percent == 100) ? 0 : elapsed * (this.total / this.curr - 1);
+  var rate = this.curr / (elapsed / 1000);
 
   /* populate the bar template with percentages and timestamps */
   var str = this.fmt
@@ -120,27 +139,36 @@ ProgressBar.prototype.render = function (tokens) {
     .replace(':elapsed', isNaN(elapsed) ? '0.0' : (elapsed / 1000).toFixed(1))
     .replace(':eta', (isNaN(eta) || !isFinite(eta)) ? '0.0' : (eta / 1000)
       .toFixed(1))
-    .replace(':percent', percent.toFixed(0) + '%');
+    .replace(':percent', percent.toFixed(0) + '%')
+    .replace(':rate', Math.round(rate));
 
   /* compute the available space (non-zero) for the bar */
   var availableSpace = Math.max(0, this.stream.columns - str.replace(':bar', '').length);
+  if(availableSpace && process.platform === 'win32'){
+    availableSpace = availableSpace - 1;
+  }
+
   var width = Math.min(this.width, availableSpace);
 
   /* TODO: the following assumes the user has one ':bar' token */
   completeLength = Math.round(width * ratio);
-  complete = Array(completeLength + 1).join(this.chars.complete);
-  incomplete = Array(width - completeLength + 1).join(this.chars.incomplete);
+  complete = Array(Math.max(0, completeLength + 1)).join(this.chars.complete);
+  incomplete = Array(Math.max(0, width - completeLength + 1)).join(this.chars.incomplete);
+
+  /* add head to the complete string */
+  if(completeLength > 0)
+    complete = complete.slice(0, -1) + this.chars.head;
 
   /* fill in the actual progress bar */
   str = str.replace(':bar', complete + incomplete);
 
   /* replace the extra tokens */
-  if (tokens) for (var key in tokens) str = str.replace(':' + key, tokens[key]);
+  if (this.tokens) for (var key in this.tokens) str = str.replace(':' + key, this.tokens[key]);
 
   if (this.lastDraw !== str) {
-    this.stream.clearLine();
     this.stream.cursorTo(0);
     this.stream.write(str);
+    this.stream.clearLine(1);
     this.lastDraw = str;
   }
 };
@@ -167,6 +195,25 @@ ProgressBar.prototype.update = function (ratio, tokens) {
 };
 
 /**
+ * "interrupt" the progress bar and write a message above it.
+ * @param {string} message The message to write.
+ * @api public
+ */
+
+ProgressBar.prototype.interrupt = function (message) {
+  // clear the current line
+  this.stream.clearLine();
+  // move the cursor to the start of the line
+  this.stream.cursorTo(0);
+  // write the message text
+  this.stream.write(message);
+  // terminate the line after writing the message
+  this.stream.write('\n');
+  // re-display the progress bar with its lastDraw
+  this.stream.write(this.lastDraw);
+};
+
+/**
  * Terminates a progress bar.
  *
  * @api public
@@ -174,7 +221,11 @@ ProgressBar.prototype.update = function (ratio, tokens) {
 
 ProgressBar.prototype.terminate = function () {
   if (this.clear) {
-    this.stream.clearLine();
-    this.stream.cursorTo(0);
-  } else console.log();
+    if (this.stream.clearLine) {
+      this.stream.clearLine();
+      this.stream.cursorTo(0);
+    }
+  } else {
+    this.stream.write('\n');
+  }
 };

@@ -90,9 +90,8 @@ int MAIN(int argc, char **argv)
     char *infile, *outfile, *prog;
     int print_certs = 0, text = 0, noout = 0, p7_print = 0;
     int ret = 1;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
+    ENGINE *e = NULL;
 
     apps_startup();
 
@@ -175,9 +174,7 @@ int MAIN(int argc, char **argv)
 
     ERR_load_crypto_strings();
 
-#ifndef OPENSSL_NO_ENGINE
-    setup_engine(bio_err, engine, 0);
-#endif
+    e = setup_engine(bio_err, engine, 0);
 
     in = BIO_new(BIO_s_file());
     out = BIO_new(BIO_s_file());
@@ -303,6 +300,7 @@ int MAIN(int argc, char **argv)
  end:
     if (p7 != NULL)
         PKCS7_free(p7);
+    release_engine(e);
     if (in != NULL)
         BIO_free(in);
     if (out != NULL)

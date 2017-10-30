@@ -158,6 +158,26 @@ TEST_F(CommonOperatorReducerTest, BranchWithBooleanNot) {
   }
 }
 
+TEST_F(CommonOperatorReducerTest, BranchWithSelect) {
+  Node* const value = Parameter(0);
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch = graph()->NewNode(
+        common()->Branch(hint),
+        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                         value, FalseConstant(), TrueConstant()),
+        control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Reduction const r = Reduce(branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(branch, r.replacement());
+    EXPECT_THAT(branch, IsBranch(value, control));
+    EXPECT_THAT(if_false, IsIfTrue(branch));
+    EXPECT_THAT(if_true, IsIfFalse(branch));
+    EXPECT_EQ(NegateBranchHint(hint), BranchHintOf(branch->op()));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Merge
@@ -341,7 +361,9 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                vtrue, vfalse, merge);
-  Node* ret = graph()->NewNode(common()->Return(), phi, ephi, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, ephi, merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));
@@ -352,6 +374,33 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
                                     IsReturn(vfalse, efalse, if_false)));
 }
 
+TEST_F(CommonOperatorReducerTest, MultiReturnWithPhiAndEffectPhiAndMerge) {
+  Node* cond = Parameter(2);
+  Node* branch = graph()->NewNode(common()->Branch(), cond, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->start();
+  Node* vtrue1 = Parameter(0);
+  Node* vtrue2 = Parameter(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->start();
+  Node* vfalse1 = Parameter(1);
+  Node* vfalse2 = Parameter(0);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
+  Node* phi1 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue1, vfalse1, merge);
+  Node* phi2 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue2, vfalse2, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(2), zero, phi1, phi2, ephi, merge);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+  StrictMock<MockAdvancedReducerEditor> editor;
+  Reduction const r = Reduce(&editor, ret);
+  // For now a return with multiple return values should not be reduced.
+  ASSERT_TRUE(!r.Changed());
+}
 
 // -----------------------------------------------------------------------------
 // Select

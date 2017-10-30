@@ -139,9 +139,9 @@ module.exports = {
             }
 
             if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report(node, "Getter is not present.");
+                context.report({ node, message: "Getter is not present." });
             } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report(node, "Setter is not present.");
+                context.report({ node, message: "Setter is not present." });
             }
         }
 

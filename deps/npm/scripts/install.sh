@@ -53,6 +53,11 @@ export npm_config_loglevel
 # make sure that node exists
 node=`which node 2>&1`
 ret=$?
+# if not found, try "nodejs" as it is the case on debian
+if [ $ret -ne 0 ]; then
+  node=`which nodejs 2>&1`
+  ret=$?
+fi
 if [ $ret -eq 0 ] && [ -x "$node" ]; then
   (exit 0)
 else
@@ -203,41 +208,7 @@ cd "$TMP" \
   && curl -SsL "$url" \
      | $tar -xzf - \
   && cd "$TMP"/* \
-  && (ver=`"$node" bin/read-package-json.js package.json version`
-      isnpm10=0
-      if [ $ret -eq 0 ]; then
-        if [ -d node_modules ]; then
-          if "$node" node_modules/semver/bin/semver -v "$ver" -r "1"
-          then
-            isnpm10=1
-          fi
-        else
-          if "$node" bin/semver -v "$ver" -r ">=1.0"; then
-            isnpm10=1
-          fi
-        fi
-      fi
-
-      ret=0
-      if [ $isnpm10 -eq 1 ] && [ -f "scripts/clean-old.sh" ]; then
-        if [ "x$skipclean" = "x" ]; then
-          (exit 0)
-        else
-          clean=no
-        fi
-        if [ "x$clean" = "xno" ] \
-            || [ "x$clean" = "xn" ]; then
-          echo "Skipping 0.x cruft clean" >&2
-          ret=0
-        elif [ "x$clean" = "xy" ] || [ "x$clean" = "xyes" ]; then
-          NODE="$node" /bin/bash "scripts/clean-old.sh" "-y"
-          ret=$?
-        else
-          NODE="$node" /bin/bash "scripts/clean-old.sh" </dev/tty
-          ret=$?
-        fi
-      fi
-
+  && (ret=0
       if [ $ret -ne 0 ]; then
         echo "Aborted 0.x cleanup.  Exiting." >&2
         exit $ret
@@ -256,8 +227,8 @@ cd "$TMP" \
         make="NOMAKE"
       fi
       if [ "$make" = "NOMAKE" ]; then
-        "$node" cli.js rm npm -gf
-        "$node" cli.js install -gf
+        "$node" bin/npm-cli.js rm npm -gf
+        "$node" bin/npm-cli.js install -gf $("$node" bin/npm-cli.js pack | tail -1)
       fi) \
   && cd "$BACK" \
   && rm -rf "$TMP" \

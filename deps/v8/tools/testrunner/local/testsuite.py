@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import fnmatch
 import imp
 import os
 
@@ -71,7 +72,7 @@ class TestSuite(object):
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
-      module = imp.load_module("testcfg", f, pathname, description)
+      module = imp.load_module(name + "_testcfg", f, pathname, description)
       return module.GetSuite(name, root)
     except ImportError:
       # Use default if no testcfg is present.
@@ -237,13 +238,12 @@ class TestSuite(object):
   def FilterTestCasesByArgs(self, args):
     """Filter test cases based on command-line arguments.
 
-    An argument with an asterisk in the end will match all test cases
-    that have the argument as a prefix. Without asterisk, only exact matches
+    args can be a glob: asterisks in any position of the argument
+    represent zero or more characters. Without asterisks, only exact matches
     will be used with the exeption of the test-suite name as argument.
     """
     filtered = []
     globs = []
-    exact_matches = []
     for a in args:
       argpath = a.split('/')
       if argpath[0] != self.name:
@@ -251,18 +251,11 @@ class TestSuite(object):
       if len(argpath) == 1 or (len(argpath) == 2 and argpath[1] == '*'):
         return  # Don't filter, run all tests in this suite.
       path = '/'.join(argpath[1:])
-      if path[-1] == '*':
-        path = path[:-1]
-        globs.append(path)
-      else:
-        exact_matches.append(path)
+      globs.append(path)
+
     for t in self.tests:
-      for a in globs:
-        if t.path.startswith(a):
-          filtered.append(t)
-          break
-      for a in exact_matches:
-        if t.path == a:
+      for g in globs:
+        if fnmatch.fnmatch(t.path, g):
           filtered.append(t)
           break
     self.tests = filtered
@@ -325,13 +318,22 @@ class GoogleTestSuite(TestSuite):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
     if utils.IsWindows():
       shell += ".exe"
-    output = commands.Execute(context.command_prefix +
-                              [shell, "--gtest_list_tests"] +
-                              context.extra_flags)
-    if output.exit_code != 0:
+
+    output = None
+    for i in xrange(3): # Try 3 times in case of errors.
+      output = commands.Execute(context.command_prefix +
+                                [shell, "--gtest_list_tests"] +
+                                context.extra_flags)
+      if output.exit_code == 0:
+        break
+      print "Test executable failed to list the tests (try %d).\n\nStdout:" % i
       print output.stdout
+      print "\nStderr:"
       print output.stderr
+      print "\nExit code: %d" % output.exit_code
+    else:
       raise Exception("Test executable failed to list the tests.")
+
     tests = []
     test_case = ''
     for line in output.stdout.splitlines():

@@ -6,7 +6,7 @@ const net = require('net');
 const NUM = 8;
 const connections = [];
 const clients = [];
-var clients_counter = 0;
+let clients_counter = 0;
 
 const server = net.createServer(function listener(c) {
   connections.push(c);
@@ -33,15 +33,15 @@ function checkAll() {
   const handles = process._getActiveHandles();
 
   clients.forEach(function(item) {
-    assert.ok(handles.indexOf(item) > -1);
+    assert.ok(handles.includes(item));
     item.destroy();
   });
 
   connections.forEach(function(item) {
-    assert.ok(handles.indexOf(item) > -1);
+    assert.ok(handles.includes(item));
     item.end();
   });
 
-  assert.ok(handles.indexOf(server) > -1);
+  assert.ok(handles.includes(server));
   server.close();
 }

@@ -22,7 +22,7 @@
           'actions': [
             {
               'action_name': 'archive_test262',
-              'inputs': ['archive.py', '<!@(python list.py)'],
+              'inputs': ['archive.py', '<!@(python list.py --quoted)'],
               'outputs': ['data.tar'],
               'action': ['python', 'archive.py'],
             },

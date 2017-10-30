@@ -180,6 +180,16 @@ function i32_abs(a) {
   return Math_abs(a | 0) | 0;
 }
 
+function i32_neg(a) {
+  a = a | 0;
+  return (-a) | 0;
+}
+
+function i32_invert(a) {
+  a = a | 0;
+  return (~a) | 0;
+}
+
 var inputs = [
   0, 1, 2, 3, 4,
   10, 20, 30, 31, 32, 33, 100, 2000,
@@ -226,7 +236,9 @@ var funcs = [
   i32_gteq,
   i32_min,
   i32_max,
-  i32_abs
+  i32_abs,
+  i32_neg,
+  i32_invert,
 ];
 
 (function () {

@@ -27,10 +27,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "src/list-inl.h"
+#include "src/list.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Use a testing allocator that clears memory before deletion.
 class ZeroingAllocationPolicy {
@@ -163,3 +166,6 @@ TEST(DeleteEmpty) {
     List<int> list(0);
   }
 }
+
+}  // namespace internal
+}  // namespace v8

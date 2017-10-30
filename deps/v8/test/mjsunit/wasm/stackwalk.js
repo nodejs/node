@@ -11,16 +11,16 @@ function makeFFI(func) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_i_dd);
-  builder.addImport("func", sig_index);
+  builder.addImport("mom", "func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, kArity2, 0, // --
+      kExprCallFunction, 0,        // --
     ])
     .exportFunc()
 
-  return builder.instantiate({func: func}).exports.main;
+  return builder.instantiate({mom: {func: func}}).exports.main;
 }
 
 

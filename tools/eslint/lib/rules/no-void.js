@@ -28,7 +28,7 @@ module.exports = {
         return {
             UnaryExpression(node) {
                 if (node.operator === "void") {
-                    context.report(node, "Expected 'undefined' and instead saw 'void'.");
+                    context.report({ node, message: "Expected 'undefined' and instead saw 'void'." });
                 }
             }
         };

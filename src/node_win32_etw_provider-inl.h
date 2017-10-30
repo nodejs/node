@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 
@@ -5,12 +26,6 @@
 
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
-
-#if defined(_WIN64)
-# define ETW_WRITE_INTPTR_DATA ETW_WRITE_INT64_DATA
-#else
-# define ETW_WRITE_INTPTR_DATA ETW_WRITE_INT32_DATA
-#endif
 
 namespace node {
 
@@ -79,7 +94,7 @@ extern int events_enabled;
     ETW_WRITE_ADDRESS_DATA(descriptors, &context);                            \
     ETW_WRITE_ADDRESS_DATA(descriptors + 1, &startAddr);                      \
     ETW_WRITE_INT64_DATA(descriptors + 2, &size);                             \
-    ETW_WRITE_INTPTR_DATA(descriptors + 3, &id);                              \
+    ETW_WRITE_INT32_DATA(descriptors + 3, &id);                               \
     ETW_WRITE_INT16_DATA(descriptors + 4, &flags);                            \
     ETW_WRITE_INT16_DATA(descriptors + 5, &rangeId);                          \
     ETW_WRITE_INT64_DATA(descriptors + 6, &sourceId);                         \
@@ -232,7 +247,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
     }
     void* context = nullptr;
     INT64 size = (INT64)len;
-    INT_PTR id = (INT_PTR)addr1;
+    INT32 id = (INT32)addr1;
     INT16 flags = 0;
     INT16 rangeid = 1;
     INT32 col = 1;

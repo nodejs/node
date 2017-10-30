@@ -10,6 +10,7 @@ namespace internal {
 
 class AstValueFactory;
 class DoExpression;
+class Isolate;
 class ParseInfo;
 class Parser;
 class DeclarationScope;

@@ -1083,8 +1083,9 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
  end:
 #endif
     bn_correct_top(rr);
-    if (r != rr)
-        BN_copy(r, rr);
+    if (r != rr && BN_copy(r, rr) == NULL)
+        goto err;
+
     ret = 1;
  err:
     bn_check_top(r);

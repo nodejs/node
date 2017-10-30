@@ -1,0 +1,68 @@
+{
+  "_from": "readable-stream@~1.1.10",
+  "_id": "readable-stream@1.1.14",
+  "_integrity": "sha1-fPTFTvZI44EwhMY23SB54WbAgdk=",
+  "_location": "/sorted-union-stream/from2/readable-stream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "readable-stream@~1.1.10",
+    "name": "readable-stream",
+    "escapedName": "readable-stream",
+    "rawSpec": "~1.1.10",
+    "saveSpec": null,
+    "fetchSpec": "~1.1.10"
+  },
+  "_requiredBy": [
+    "/sorted-union-stream/from2"
+  ],
+  "_resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-1.1.14.tgz",
+  "_shasum": "7cf4c54ef648e3813084c636dd2079e166c081d9",
+  "_shrinkwrap": null,
+  "_spec": "readable-stream@~1.1.10",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/sorted-union-stream/node_modules/from2",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bin": null,
+  "browser": {
+    "util": false
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/readable-stream/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "core-util-is": "~1.0.0",
+    "inherits": "~2.0.1",
+    "isarray": "0.0.1",
+    "string_decoder": "~0.10.x"
+  },
+  "deprecated": false,
+  "description": "Streams3, a user-land copy of the stream library from Node.js v0.11.x",
+  "devDependencies": {
+    "tap": "~0.2.6"
+  },
+  "homepage": "https://github.com/isaacs/readable-stream#readme",
+  "keywords": [
+    "readable",
+    "stream",
+    "pipe"
+  ],
+  "license": "MIT",
+  "main": "readable.js",
+  "name": "readable-stream",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/readable-stream.git"
+  },
+  "scripts": {
+    "test": "tap test/simple/*.js"
+  },
+  "version": "1.1.14"
+}

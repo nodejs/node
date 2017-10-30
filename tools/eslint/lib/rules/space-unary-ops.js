@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -70,21 +76,19 @@ module.exports = {
 
         /**
         * Checks if an override exists for a given operator.
-        * @param {ASTnode} node AST node
         * @param {string} operator Operator
         * @returns {boolean} Whether or not an override has been provided for the operator
         */
-        function overrideExistsForOperator(node, operator) {
+        function overrideExistsForOperator(operator) {
             return options.overrides && options.overrides.hasOwnProperty(operator);
         }
 
         /**
         * Gets the value that the override was set to for this operator
-        * @param {ASTnode} node AST node
         * @param {string} operator Operator
         * @returns {boolean} Whether or not an override enforces a space with this operator
         */
-        function overrideEnforcesSpaces(node, operator) {
+        function overrideEnforcesSpaces(operator) {
             return options.overrides[operator];
         }
 
@@ -147,8 +151,8 @@ module.exports = {
         function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken, word) {
             word = word || firstToken.value;
 
-            if (overrideExistsForOperator(node, word)) {
-                if (overrideEnforcesSpaces(node, word)) {
+            if (overrideExistsForOperator(word)) {
+                if (overrideEnforcesSpaces(word)) {
                     verifyWordHasSpaces(node, firstToken, secondToken, word);
                 } else {
                     verifyWordDoesntHaveSpaces(node, firstToken, secondToken, word);
@@ -244,7 +248,10 @@ module.exports = {
                             operator: firstToken.value
                         },
                         fix(fixer) {
-                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            if (astUtils.canTokensBeAdjacent(firstToken, secondToken)) {
+                                return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            }
+                            return null;
                         }
                     });
                 }
@@ -270,9 +277,11 @@ module.exports = {
         * @returns {void}
         */
         function checkForSpaces(node) {
-            const tokens = sourceCode.getFirstTokens(node, 2),
-                firstToken = tokens[0],
-                secondToken = tokens[1];
+            const tokens = node.type === "UpdateExpression" && !node.prefix
+                ? sourceCode.getLastTokens(node, 2)
+                : sourceCode.getFirstTokens(node, 2);
+            const firstToken = tokens[0];
+            const secondToken = tokens[1];
 
             if ((node.type === "NewExpression" || node.prefix) && firstToken.type === "Keyword") {
                 checkUnaryWordOperatorForSpaces(node, firstToken, secondToken);
@@ -281,8 +290,8 @@ module.exports = {
 
             const operator = node.prefix ? tokens[0].value : tokens[1].value;
 
-            if (overrideExistsForOperator(node, operator)) {
-                if (overrideEnforcesSpaces(node, operator)) {
+            if (overrideExistsForOperator(operator)) {
+                if (overrideEnforcesSpaces(operator)) {
                     verifyNonWordsHaveSpaces(node, firstToken, secondToken);
                 } else {
                     verifyNonWordsDontHaveSpaces(node, firstToken, secondToken);

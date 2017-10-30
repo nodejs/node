@@ -76,8 +76,7 @@ char* SimpleStringBuilder::Finalize() {
   return buffer_.start();
 }
 
-
-std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot slot) {
+std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
 }
 
@@ -357,8 +356,7 @@ void StringBuilder::AddFormattedList(const char* format, va_list list) {
   }
 }
 
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
@@ -387,8 +385,8 @@ void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
   }
 }
 
-
-MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
+V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
+    &MemCopyUint8Wrapper;
 MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
     &MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
@@ -398,7 +396,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     Isolate* isolate, MemCopyUint16Uint8Function stub);
 
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
-MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
+V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
+    &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
 MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
                                                 MemCopyUint8Function stub);
@@ -411,7 +410,7 @@ static bool g_memcopy_functions_initialized = false;
 void init_memcopy_functions(Isolate* isolate) {
   if (g_memcopy_functions_initialized) return;
   g_memcopy_functions_initialized = true;
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+#if V8_TARGET_ARCH_IA32
   MemMoveFunction generated_memmove = CreateMemMoveFunction(isolate);
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;

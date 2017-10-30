@@ -1,35 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-if (!common.hasCrypto) {
+const common = require('../common');
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  process.exit();
-}
-var tls = require('tls');
 
-var fs = require('fs');
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const assert = require('assert');
+const tls = require('tls');
+const fixtures = require('../common/fixtures');
 
-var nsuccess = 0;
-var nerror = 0;
+const key = fixtures.readKey('agent2-key.pem');
+const cert = fixtures.readKey('agent2-cert.pem');
+
+let nsuccess = 0;
+let nerror = 0;
 
 function loadDHParam(n) {
-  var path = common.fixturesDir;
-  if (n !== 'error') path += '/keys';
-  return fs.readFileSync(path + '/dh' + n + '.pem');
+  const params = [`dh${n}.pem`];
+  if (n !== 'error')
+    params.unshift('keys');
+  return fixtures.readSync(params);
 }
 
 function test(size, err, next) {
-  var options = {
+  const options = {
     key: key,
     cert: cert,
     dhparam: loadDHParam(size),
     ciphers: 'DHE-RSA-AES128-GCM-SHA256'
   };
 
-  var server = tls.createServer(options, function(conn) {
+  const server = tls.createServer(options, function(conn) {
     conn.end();
   });
 
@@ -42,7 +41,7 @@ function test(size, err, next) {
     // client set minimum DH parameter size to 2048 bits so that
     // it fails when it make a connection to the tls server where
     // dhparams is 1024 bits
-    var client = tls.connect({
+    const client = tls.connect({
       minDHSize: 2048,
       port: this.address().port,
       rejectUnauthorized: false
@@ -53,8 +52,7 @@ function test(size, err, next) {
     if (err) {
       client.on('error', function(e) {
         nerror++;
-        assert.strictEqual(e.message, 'DH parameter size 1024 is less'
-                           + ' than 2048');
+        assert.strictEqual(e.code, 'ERR_TLS_DH_PARAM_SIZE');
         server.close();
       });
     }
@@ -75,19 +73,21 @@ function testDHE2048() {
 
 testDHE1024();
 
-assert.throws(() => test(512, true, common.fail),
+assert.throws(() => test(512, true, common.mustNotCall()),
               /DH parameter is less than 1024 bits/);
 
+let errMessage = /minDHSize is not a positive number/;
 [0, -1, -Infinity, NaN].forEach((minDHSize) => {
   assert.throws(() => tls.connect({ minDHSize }),
-                /minDHSize is not a positive number/);
+                errMessage);
 });
 
+errMessage = /minDHSize is not a number/;
 [true, false, null, undefined, {}, [], '', '1'].forEach((minDHSize) => {
-  assert.throws(() => tls.connect({ minDHSize }), /minDHSize is not a number/);
+  assert.throws(() => tls.connect({ minDHSize }), errMessage);
 });
 
 process.on('exit', function() {
-  assert.equal(nsuccess, 1);
-  assert.equal(nerror, 1);
+  assert.strictEqual(nsuccess, 1);
+  assert.strictEqual(nerror, 1);
 });

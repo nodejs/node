@@ -1,6 +1,6 @@
 var apply = require('./_apply'),
     baseRest = require('./_baseRest'),
-    mergeDefaults = require('./_mergeDefaults'),
+    customDefaultsMerge = require('./_customDefaultsMerge'),
     mergeWith = require('./mergeWith');
 
 /**
@@ -23,7 +23,7 @@ var apply = require('./_apply'),
  * // => { 'a': { 'b': 2, 'c': 3 } }
  */
 var defaultsDeep = baseRest(function(args) {
-  args.push(undefined, mergeDefaults);
+  args.push(undefined, customDefaultsMerge);
   return apply(mergeWith, undefined, args);
 });
 

@@ -7,15 +7,15 @@
 function module(stdlib, foreign, heap) {
     "use asm";
     function foo(i) {
-      var j = 0;
       i = i|0;
-      if (i < 0) {
+      var j = 0;
+      if ((i | 0) < 0) {
         j = i+1|0;
       }
-      if (i > 0) {
+      if ((i | 0) > 0) {
         j = i+1|0;
       }
-      return j;
+      return j | 0;
     }
     return { foo: foo };
 }

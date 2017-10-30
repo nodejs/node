@@ -9,8 +9,8 @@
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
-#include "src/zone.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
     : graph_(graph),
       common_(common),
       zone_(zone),
-      limits_(zone),
+      limits_(graph->NodeCount(), zone),
       induction_vars_(zone) {}
 
 void LoopVariableOptimizer::Run() {
@@ -40,14 +40,13 @@ void LoopVariableOptimizer::Run() {
     queue.pop();
     queued.Set(node, false);
 
-    DCHECK(limits_.find(node->id()) == limits_.end());
+    DCHECK_NULL(limits_[node->id()]);
     bool all_inputs_visited = true;
     int inputs_end = (node->opcode() == IrOpcode::kLoop)
                          ? kFirstBackedge
                          : node->op()->ControlInputCount();
     for (int i = 0; i < inputs_end; i++) {
-      auto input = limits_.find(NodeProperties::GetControlInput(node, i)->id());
-      if (input == limits_.end()) {
+      if (limits_[NodeProperties::GetControlInput(node, i)->id()] == nullptr) {
         all_inputs_visited = false;
         break;
       }
@@ -55,7 +54,7 @@ void LoopVariableOptimizer::Run() {
     if (!all_inputs_visited) continue;
 
     VisitNode(node);
-    DCHECK(limits_.find(node->id()) != limits_.end());
+    DCHECK_NOT_NULL(limits_[node->id()]);
 
     // Queue control outputs.
     for (Edge edge : node->use_edges()) {
@@ -235,12 +234,14 @@ void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
   // Normalize to less than comparison.
   switch (cond->opcode()) {
     case IrOpcode::kJSLessThan:
+    case IrOpcode::kSpeculativeNumberLessThan:
       AddCmpToLimits(limits, cond, InductionVariable::kStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThan:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, !polarity);
       break;
     case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThanOrEqual:
@@ -304,9 +305,12 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   Node* initial = phi->InputAt(0);
   Node* arith = phi->InputAt(1);
   InductionVariable::ArithmeticType arithmeticType;
-  if (arith->opcode() == IrOpcode::kJSAdd) {
+  if (arith->opcode() == IrOpcode::kJSAdd ||
+      arith->opcode() == IrOpcode::kSpeculativeNumberAdd ||
+      arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
-  } else if (arith->opcode() == IrOpcode::kJSSubtract) {
+  } else if (arith->opcode() == IrOpcode::kJSSubtract ||
+             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;
@@ -314,7 +318,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
 
   // TODO(jarin) Support both sides.
   if (arith->InputAt(0) != phi) {
-    if (arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber ||
+    if ((arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber &&
+         arith->InputAt(0)->opcode() != IrOpcode::kSpeculativeToNumber) ||
         arith->InputAt(0)->InputAt(0) != phi) {
       return nullptr;
     }
@@ -400,6 +405,8 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
     }
   }
 }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

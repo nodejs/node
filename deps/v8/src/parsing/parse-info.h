@@ -5,9 +5,14 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <map>
+#include <memory>
+#include <vector>
+
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/parsing/preparsed-scope-data.h"
 
 namespace v8 {
 
@@ -15,28 +20,43 @@ class Extension;
 
 namespace internal {
 
+class AccountingAllocator;
 class AstRawString;
+class AstStringConstants;
 class AstValueFactory;
 class DeclarationScope;
 class FunctionLiteral;
+class RuntimeCallStats;
 class ScriptData;
-class SharedFunctionInfo;
+class SourceRangeMap;
 class UnicodeCache;
 class Utf16CharacterStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
-class ParseInfo {
+class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(Zone* zone);
-  ParseInfo(Zone* zone, Handle<JSFunction> function);
-  ParseInfo(Zone* zone, Handle<Script> script);
-  // TODO(all) Only used via Debug::FindSharedFunctionInfoInScript, remove?
-  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
+  explicit ParseInfo(AccountingAllocator* zone_allocator);
+  ParseInfo(Handle<Script> script);
+  ParseInfo(Handle<SharedFunctionInfo> shared);
 
   ~ParseInfo();
 
-  Zone* zone() const { return zone_; }
+  void InitFromIsolate(Isolate* isolate);
+
+  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+
+  // Either returns the ast-value-factory associcated with this ParseInfo, or
+  // creates and returns a new factory if none exists.
+  AstValueFactory* GetOrCreateAstValueFactory();
+
+  Zone* zone() const { return zone_.get(); }
+
+  // Sets this parse info to share the same zone as |other|
+  void ShareZone(ParseInfo* other);
+
+  // Sets this parse info to share the same ast value factory as |other|
+  void ShareAstValueFactory(ParseInfo* other);
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -45,19 +65,21 @@ class ParseInfo {
   void setter(bool val) { SetFlag(flag, val); }
 
   FLAG_ACCESSOR(kToplevel, is_toplevel, set_toplevel)
-  FLAG_ACCESSOR(kLazy, is_lazy, set_lazy)
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
-  FLAG_ACCESSOR(kGlobal, is_global, set_global)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
   FLAG_ACCESSOR(kNative, is_native, set_native)
   FLAG_ACCESSOR(kModule, is_module, set_module)
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
-  FLAG_ACCESSOR(kAstValueFactoryOwned, ast_value_factory_owned,
-                set_ast_value_factory_owned)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
-
+  FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
+  FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
+  FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
+  FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
+                set_collect_type_profile)
+  FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
+                set_block_coverage_enabled)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -69,31 +91,22 @@ class ParseInfo {
                                       : NO_PARSE_RESTRICTION;
   }
 
-  ScriptCompiler::ExternalSourceStream* source_stream() const {
-    return source_stream_;
+  Utf16CharacterStream* character_stream() const {
+    return character_stream_.get();
   }
-  void set_source_stream(ScriptCompiler::ExternalSourceStream* source_stream) {
-    source_stream_ = source_stream;
-  }
-
-  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() const {
-    return source_stream_encoding_;
-  }
-  void set_source_stream_encoding(
-      ScriptCompiler::StreamedSource::Encoding source_stream_encoding) {
-    source_stream_encoding_ = source_stream_encoding;
-  }
-
-  Utf16CharacterStream* character_stream() const { return character_stream_; }
-  void set_character_stream(Utf16CharacterStream* character_stream) {
-    character_stream_ = character_stream;
-  }
+  void set_character_stream(
+      std::unique_ptr<Utf16CharacterStream> character_stream);
+  void ResetCharacterStream();
 
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
   ScriptData** cached_data() const { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
+
+  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
+    return &consumed_preparsed_scope_data_;
+  }
 
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
@@ -107,9 +120,14 @@ class ParseInfo {
     script_scope_ = script_scope;
   }
 
-  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
-  void set_ast_value_factory(AstValueFactory* ast_value_factory) {
-    ast_value_factory_ = ast_value_factory;
+  DeclarationScope* asm_function_scope() const { return asm_function_scope_; }
+  void set_asm_function_scope(DeclarationScope* scope) {
+    asm_function_scope_ = scope;
+  }
+
+  AstValueFactory* ast_value_factory() const {
+    DCHECK(ast_value_factory_.get());
+    return ast_value_factory_.get();
   }
 
   const AstRawString* function_name() const { return function_name_; }
@@ -146,24 +164,55 @@ class ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int parameters_end_pos() const { return parameters_end_pos_; }
+  void set_parameters_end_pos(int parameters_end_pos) {
+    parameters_end_pos_ = parameters_end_pos;
+  }
+
+  int function_literal_id() const { return function_literal_id_; }
+  void set_function_literal_id(int function_literal_id) {
+    function_literal_id_ = function_literal_id;
+  }
+
+  int max_function_literal_id() const { return max_function_literal_id_; }
+  void set_max_function_literal_id(int max_function_literal_id) {
+    max_function_literal_id_ = max_function_literal_id;
+  }
+
+  const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+  void set_ast_string_constants(
+      const AstStringConstants* ast_string_constants) {
+    ast_string_constants_ = ast_string_constants;
+  }
+
+  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+  void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
+    runtime_call_stats_ = runtime_call_stats;
+  }
+
+  void AllocateSourceRangeMap();
+  SourceRangeMap* source_range_map() const { return source_range_map_; }
+  void set_source_range_map(SourceRangeMap* source_range_map) {
+    source_range_map_ = source_range_map;
+  }
+
   // Getters for individual compiler hints.
   bool is_declaration() const;
-  bool is_arrow() const;
-  bool is_async() const;
-  bool is_default_constructor() const;
   FunctionKind function_kind() const;
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
-  Isolate* isolate() const { return isolate_; }
-  Handle<SharedFunctionInfo> shared_info() const { return shared_; }
   Handle<Script> script() const { return script_; }
-  Handle<Context> context() const { return context_; }
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
+    return maybe_outer_scope_info_;
+  }
   void clear_script() { script_ = Handle<Script>::null(); }
-  void set_isolate(Isolate* isolate) { isolate_ = isolate; }
-  void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
-  void set_context(Handle<Context> context) { context_ = context; }
+  void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
+    maybe_outer_scope_info_ = outer_scope_info;
+  }
   void set_script(Handle<Script> script) { script_ = script; }
   //--------------------------------------------------------------------------
 
@@ -176,14 +225,16 @@ class ParseInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    shared_ = Handle<SharedFunctionInfo>(*shared_);
-    script_ = Handle<Script>(*script_);
-    context_ = Handle<Context>(*context_);
+    if (!script_.is_null()) {
+      script_ = Handle<Script>(*script_);
+    }
+    Handle<ScopeInfo> outer_scope_info;
+    if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
+      maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
+    }
   }
 
-#ifdef DEBUG
-  bool script_is_native() const;
-#endif  // DEBUG
+  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
 
  private:
   // Various configuration flags for parsing.
@@ -192,47 +243,54 @@ class ParseInfo {
     kToplevel = 1 << 0,
     kLazy = 1 << 1,
     kEval = 1 << 2,
-    kGlobal = 1 << 3,
-    kStrictMode = 1 << 4,
-    kNative = 1 << 5,
-    kParseRestriction = 1 << 6,
-    kModule = 1 << 7,
-    kAllowLazyParsing = 1 << 8,
-    kIsNamedExpression = 1 << 9,
-    kCallsEval = 1 << 10,
-    // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 11
+    kStrictMode = 1 << 3,
+    kNative = 1 << 4,
+    kParseRestriction = 1 << 5,
+    kModule = 1 << 6,
+    kAllowLazyParsing = 1 << 7,
+    kIsNamedExpression = 1 << 8,
+    kDebug = 1 << 9,
+    kSerializing = 1 << 10,
+    kLazyCompile = 1 << 11,
+    kCollectTypeProfile = 1 << 12,
+    kBlockCoverageEnabled = 1 << 13,
+    kIsAsmWasmBroken = 1 << 14,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  Zone* zone_;
+  std::shared_ptr<Zone> zone_;
   unsigned flags_;
-  ScriptCompiler::ExternalSourceStream* source_stream_;
-  ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
-  Utf16CharacterStream* character_stream_;
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
+  DeclarationScope* asm_function_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int parameters_end_pos_;
+  int function_literal_id_;
+  int max_function_literal_id_;
 
-  // TODO(titzer): Move handles and isolate out of ParseInfo.
-  Isolate* isolate_;
-  Handle<SharedFunctionInfo> shared_;
+  // TODO(titzer): Move handles out of ParseInfo.
   Handle<Script> script_;
-  Handle<Context> context_;
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
+  std::unique_ptr<Utf16CharacterStream> character_stream_;
   ScriptData** cached_data_;  // used if available, populated if requested.
-  AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
+  ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
+  std::shared_ptr<AstValueFactory> ast_value_factory_;
+  const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
+  RuntimeCallStats* runtime_call_stats_;
+  SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
+  std::shared_ptr<DeferredHandles> deferred_handles_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

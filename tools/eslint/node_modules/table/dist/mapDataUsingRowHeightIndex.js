@@ -27,7 +27,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 exports.default = (unmappedRows, rowHeightIndex, config) => {
   const tableWidth = unmappedRows[0].length;
 
-  const mappedRows = _lodash2.default.map(unmappedRows, (cells, index0) => {
+  const mappedRows = unmappedRows.map((cells, index0) => {
     const rowHeight = _lodash2.default.times(rowHeightIndex[index0], () => {
       return _lodash2.default.fill(Array(tableWidth), '');
     });
@@ -55,5 +55,3 @@ exports.default = (unmappedRows, rowHeightIndex, config) => {
 
   return _lodash2.default.flatten(mappedRows);
 };
-
-module.exports = exports['default'];

@@ -1,32 +1,42 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
-var _transformCalled = false;
-function _transform(d, e, n) {
-  _transformCalled = true;
+const _transform = common.mustCall(function _transform(d, e, n) {
   n();
-}
-
-var _flushCalled = false;
-function _flush(n) {
-  _flushCalled = true;
-  n();
-}
-
-var t = new Transform({
-  transform: _transform,
-  flush: _flush
 });
+
+const _final = common.mustCall(function _final(n) {
+  n();
+});
+
+const _flush = common.mustCall(function _flush(n) {
+  n();
+});
+
+const t = new Transform({
+  transform: _transform,
+  flush: _flush,
+  final: _final
+});
+
+const t2 = new Transform({});
 
 t.end(Buffer.from('blerg'));
 t.resume();
 
-process.on('exit', function() {
-  assert.equal(t._transform, _transform);
-  assert.equal(t._flush, _flush);
-  assert(_transformCalled);
-  assert(_flushCalled);
+common.expectsError(() => {
+  t2.end(Buffer.from('blerg'));
+}, {
+  type: Error,
+  code: 'ERR_METHOD_NOT_IMPLEMENTED',
+  message: 'The _transform method is not implemented'
+});
+
+process.on('exit', () => {
+  assert.strictEqual(t._transform, _transform);
+  assert.strictEqual(t._flush, _flush);
+  assert.strictEqual(t._final, _final);
 });

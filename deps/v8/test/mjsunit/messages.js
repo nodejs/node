@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony
-// Flags: --harmony-simd
 
 function test(f, expected, type) {
   try {
@@ -29,7 +28,7 @@ test(function() {
 
 // kApplyNonFunction
 test(function() {
-  Function.prototype.apply.call(1, []);
+  Reflect.apply(1, []);
 }, "Function.prototype.apply was called on 1, which is a number " +
    "and not a function", TypeError);
 
@@ -74,6 +73,10 @@ test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
+test(function() {
+  String.prototype.includes.call(null);
+}, "String.prototype.includes called on null or undefined", TypeError);
+
 // kCannotFreezeArrayBufferView
 test(function() {
   Object.freeze(new Uint16Array(1));
@@ -115,12 +118,17 @@ test(function() {
   var o = {};
   Object.preventExtensions(o);
   Object.defineProperty(o, "x", { value: 1 });
-}, "Cannot define property:x, object is not extensible.", TypeError);
+}, "Cannot define property x, object is not extensible", TypeError);
 
 // kFirstArgumentNotRegExp
 test(function() {
   "a".startsWith(/a/);
 }, "First argument to String.prototype.startsWith " +
+   "must not be a regular expression", TypeError);
+
+test(function() {
+  "a".includes(/a/);
+}, "First argument to String.prototype.includes " +
    "must not be a regular expression", TypeError);
 
 // kFlagsGetterNonObject
@@ -193,33 +201,33 @@ test(function() {
 }, "this is not a Date object.", TypeError);
 
 // kNotGeneric
-test(function() {
-  String.prototype.toString.call(1);
-}, "String.prototype.toString is not generic", TypeError);
+test(() => String.prototype.toString.call(1),
+    "String.prototype.toString requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  String.prototype.valueOf.call(1);
-}, "String.prototype.valueOf is not generic", TypeError);
+test(() => String.prototype.valueOf.call(1),
+    "String.prototype.valueOf requires that 'this' be a String",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.toString.call(1);
-}, "Boolean.prototype.toString is not generic", TypeError);
+test(() => Boolean.prototype.toString.call(1),
+    "Boolean.prototype.toString requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Boolean.prototype.valueOf.call(1);
-}, "Boolean.prototype.valueOf is not generic", TypeError);
+test(() => Boolean.prototype.valueOf.call(1),
+    "Boolean.prototype.valueOf requires that 'this' be a Boolean",
+    TypeError);
 
-test(function() {
-  Number.prototype.toString.call({});
-}, "Number.prototype.toString is not generic", TypeError);
+test(() => Number.prototype.toString.call({}),
+    "Number.prototype.toString requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Number.prototype.valueOf.call({});
-}, "Number.prototype.valueOf is not generic", TypeError);
+test(() => Number.prototype.valueOf.call({}),
+    "Number.prototype.valueOf requires that 'this' be a Number",
+    TypeError);
 
-test(function() {
-  Function.prototype.toString.call(1);
-}, "Function.prototype.toString is not generic", TypeError);
+test(() => Function.prototype.toString.call(1),
+    "Function.prototype.toString requires that 'this' be a Function",
+    TypeError);
 
 // kNotTypedArray
 test(function() {
@@ -242,7 +250,7 @@ test(function() {
   var o = {};
   Object.freeze(o);
   o.a = 1;
-}, "Can't add property a, object is not extensible", TypeError);
+}, "Cannot add property a, object is not extensible", TypeError);
 
 // kObjectSetterExpectingFunction
 test(function() {
@@ -320,11 +328,6 @@ test(function() {
   1 + Symbol();
 }, "Cannot convert a Symbol value to a number", TypeError);
 
-// kSimdToNumber
-test(function() {
-  1 + SIMD.Float32x4(1, 2, 3, 4);
-}, "Cannot convert a SIMD value to a number", TypeError);
-
 // kUndefinedOrNullToObject
 test(function() {
   Array.prototype.toString.call(null);
@@ -377,7 +380,7 @@ test(function() {
 // kParenthesisInArgString
 test(function() {
   new Function(")", "");
-}, "Function arg string contains parenthesis", SyntaxError);
+}, "Arg string terminates parameters early", SyntaxError);
 
 // === ReferenceError ===
 
@@ -388,6 +391,11 @@ test(function() {
 }, "o is not defined", ReferenceError);
 
 // === RangeError ===
+
+// kInvalidOffset
+test(function() {
+  new Uint8Array(new ArrayBuffer(1),2);
+}, "Start offset 2 is outside the bounds of the buffer", RangeError);
 
 // kArrayLengthOutOfRange
 test(function() {
@@ -418,7 +426,7 @@ test(function() {
 // kInvalidArrayBufferLength
 test(function() {
   new Uint16Array(-1);
-}, "Invalid typed array length", RangeError);
+}, "Invalid typed array length: -1", RangeError);
 
 // kNormalizationForm
 test(function() {
@@ -427,12 +435,12 @@ test(function() {
 
 // kNumberFormatRange
 test(function() {
-  Number(1).toFixed(100);
-}, "toFixed() digits argument must be between 0 and 20", RangeError);
+  Number(1).toFixed(101);
+}, "toFixed() digits argument must be between 0 and 100", RangeError);
 
 test(function() {
-  Number(1).toExponential(100);
-}, "toExponential() argument must be between 0 and 20", RangeError);
+  Number(1).toExponential(101);
+}, "toExponential() argument must be between 0 and 100", RangeError);
 
 // kStackOverflow
 test(function() {
@@ -442,8 +450,8 @@ test(function() {
 
 // kToPrecisionFormatRange
 test(function() {
-  Number(1).toPrecision(100);
-}, "toPrecision() argument must be between 1 and 21", RangeError);
+  Number(1).toPrecision(101);
+}, "toPrecision() argument must be between 1 and 100", RangeError);
 
 // kToPrecisionFormatRange
 test(function() {

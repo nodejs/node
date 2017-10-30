@@ -5,43 +5,54 @@
 #ifndef V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
-#include "src/compiler.h"
-#include "src/compiler/bytecode-branch-analysis.h"
-#include "src/compiler/bytecode-loop-analysis.h"
+#include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/type-hint-analyzer.h"
+#include "src/compiler/js-type-hint-lowering.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Reduction;
+class SourcePositionTable;
+
 // The BytecodeGraphBuilder produces a high-level IR graph based on
 // interpreter bytecodes.
 class BytecodeGraphBuilder {
  public:
-  BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                       JSGraph* jsgraph);
+  BytecodeGraphBuilder(
+      Zone* local_zone, Handle<SharedFunctionInfo> shared,
+      Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
+      JSGraph* jsgraph, CallFrequency invocation_frequency,
+      SourcePositionTable* source_positions,
+      int inlining_id = SourcePosition::kNotInlined,
+      JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
+      bool stack_check = true);
 
   // Creates a graph by visiting bytecodes.
-  bool CreateGraph();
+  void CreateGraph();
 
  private:
   class Environment;
-  class FrameStateBeforeAndAfter;
+  class OsrIteratorState;
+  struct SubEnvironment;
 
+  void RemoveMergeEnvironmentsBeforeOffset(int limit_offset);
+  void AdvanceToOsrEntryAndPeelLoops(
+      interpreter::BytecodeArrayIterator* iterator,
+      SourcePositionTableIterator* source_position_iterator);
+
+  void VisitSingleBytecode(
+      SourcePositionTableIterator* source_position_iterator);
   void VisitBytecodes();
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
-
-  // Get or create the node that represents the outer function context.
-  Node* GetFunctionContext();
-
-  // Get or create the node that represents the incoming new target value.
-  Node* GetNewTarget();
 
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
@@ -82,10 +93,15 @@ class BytecodeGraphBuilder {
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewIfValue(int32_t value) { return NewNode(common()->IfValue(value)); }
+  Node* NewIfDefault() { return NewNode(common()->IfDefault()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
   Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
     return NewNode(common()->Branch(hint), condition);
+  }
+  Node* NewSwitch(Node* condition, int control_output_count) {
+    return NewNode(common()->Switch(control_output_count), condition);
   }
 
   // Creates a new Phi node having {count} input values.
@@ -99,52 +115,124 @@ class BytecodeGraphBuilder {
 
   // The main node creation chokepoint. Adds context, frame state, effect,
   // and control dependencies depending on the operator.
-  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
-                 bool incomplete);
+  Node* MakeNode(const Operator* op, int value_input_count,
+                 Node* const* value_inputs, bool incomplete);
 
   Node** EnsureInputBufferSize(int size);
 
+  Node* const* GetCallArgumentsFromRegister(Node* callee, Node* receiver,
+                                            interpreter::Register first_arg,
+                                            int arg_count);
+  Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
+                             int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
-                             interpreter::Register receiver, size_t arity);
-  Node* ProcessCallNewArguments(const Operator* call_new_op, Node* callee,
-                                Node* new_target,
-                                interpreter::Register first_arg, size_t arity);
+                             interpreter::Register receiver, size_t reg_count);
+  Node* const* GetConstructArgumentsFromRegister(
+      Node* target, Node* new_target, interpreter::Register first_arg,
+      int arg_count);
+  Node* ProcessConstructArguments(const Operator* op, Node* const* args,
+                                  int arg_count);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
-                                    interpreter::Register first_arg,
-                                    size_t arity);
+                                    interpreter::Register receiver,
+                                    size_t reg_count);
 
-  void BuildCreateLiteral(const Operator* op);
+  // Prepare information for eager deoptimization. This information is carried
+  // by dedicated {Checkpoint} nodes that are wired into the effect chain.
+  // Conceptually this frame state is "before" a given operation.
+  void PrepareEagerCheckpoint();
+
+  // Prepare information for lazy deoptimization. This information is attached
+  // to the given node and the output value produced by the node is combined.
+  // Conceptually this frame state is "after" a given operation.
+  void PrepareFrameState(Node* node, OutputFrameStateCombine combine);
+
   void BuildCreateArguments(CreateArgumentsType type);
-  Node* BuildLoadContextSlot();
-  Node* BuildLoadGlobal(TypeofMode typeof_mode);
+  Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
+                        TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  Node* BuildNamedLoad();
-  void BuildNamedStore(LanguageMode language_mode);
-  Node* BuildKeyedLoad();
+
+  enum class StoreMode {
+    // Check the prototype chain before storing.
+    kNormal,
+    // Store value to the receiver without checking the prototype chain.
+    kOwn,
+  };
+  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
-  void BuildStaLookupSlot(LanguageMode language_mode);
-  void BuildCall(TailCallMode tail_call_mode);
-  void BuildThrow();
+  void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
+  void BuildCallVarArgs(ConvertReceiverMode receiver_mode);
+  void BuildCall(ConvertReceiverMode receiver_mode, Node* const* args,
+                 size_t arg_count, int slot_id);
+  void BuildCall(ConvertReceiverMode receiver_mode,
+                 std::initializer_list<Node*> args, int slot_id) {
+    BuildCall(receiver_mode, args.begin(), args.size(), slot_id);
+  }
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
+  void BuildTestingOp(const Operator* op);
   void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
-  void BuildForInPrepare();
-  void BuildForInNext();
-  void BuildInvokeIntrinsic();
+  void BuildHoleCheckAndThrow(Node* condition, Runtime::FunctionId runtime_id,
+                              Node* name = nullptr);
+
+  // Optional early lowering to the simplified operator level. Returns the node
+  // representing the lowered operation or {nullptr} if no lowering available.
+  // Note that the result has already been wired into the environment just like
+  // any other invocation of {NewNode} would do.
+  Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
+                                   FeedbackSlot slot);
+  Node* TryBuildSimplifiedForInNext(Node* receiver, Node* cache_array,
+                                    Node* cache_type, Node* index,
+                                    FeedbackSlot slot);
+  Node* TryBuildSimplifiedToNumber(Node* input, FeedbackSlot slot);
+  Node* TryBuildSimplifiedCall(const Operator* op, Node* const* args,
+                               int arg_count, FeedbackSlot slot);
+  Node* TryBuildSimplifiedConstruct(const Operator* op, Node* const* args,
+                                    int arg_count, FeedbackSlot slot);
+  Node* TryBuildSimplifiedLoadNamed(const Operator* op, Node* receiver,
+                                    FeedbackSlot slot);
+  Node* TryBuildSimplifiedLoadKeyed(const Operator* op, Node* receiver,
+                                    Node* key, FeedbackSlot slot);
+  Node* TryBuildSimplifiedStoreNamed(const Operator* op, Node* receiver,
+                                     Node* value, FeedbackSlot slot);
+  Node* TryBuildSimplifiedStoreKeyed(const Operator* op, Node* receiver,
+                                     Node* key, Node* value, FeedbackSlot slot);
+
+  // Applies the given early reduction onto the current environment.
+  void ApplyEarlyReduction(Reduction reduction);
+
+  // Check the context chain for extensions, for lookup fast paths.
+  Environment* CheckContextExtensions(uint32_t depth);
 
   // Helper function to create binary operation hint from the recorded
   // type feedback.
   BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
+  // Helper function to create compare operation hint from the recorded
+  // type feedback.
+  CompareOperationHint GetCompareOperationHint();
+
+  // Helper function to compute call frequency from the recorded type
+  // feedback.
+  CallFrequency ComputeCallFrequency(int slot_id) const;
+
   // Control flow plumbing.
   void BuildJump();
-  void BuildConditionalJump(Node* condition);
+  void BuildJumpIf(Node* condition);
+  void BuildJumpIfNot(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
-  void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
+  void BuildJumpIfNotEqual(Node* comperand);
+  void BuildJumpIfTrue();
+  void BuildJumpIfFalse();
+  void BuildJumpIfToBooleanTrue();
+  void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
+  void BuildJumpIfJSReceiver();
+
+  void BuildSwitchOnSmi(Node* condition);
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);
@@ -157,11 +245,16 @@ class BytecodeGraphBuilder {
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
   void BuildLoopExitsForBranch(int target_offset);
-  void BuildLoopExitsForFunctionExit();
-  void BuildLoopExitsUntilLoop(int loop_offset);
+  void BuildLoopExitsForFunctionExit(const BytecodeLivenessState* liveness);
+  void BuildLoopExitsUntilLoop(int loop_offset,
+                               const BytecodeLivenessState* liveness);
 
   // Simulates entry and exit of exception handlers.
-  void EnterAndExitExceptionHandlers(int current_offset);
+  void ExitThenEnterExceptionHandlers(int current_offset);
+
+  // Update the current position of the {SourcePositionTable} to that of the
+  // bytecode at {offset}, if any.
+  void UpdateSourcePosition(SourcePositionTableIterator* it, int offset);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
@@ -184,6 +277,9 @@ class BytecodeGraphBuilder {
   Zone* graph_zone() const { return graph()->zone(); }
   JSGraph* jsgraph() const { return jsgraph_; }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
+  SimplifiedOperatorBuilder* simplified() const {
+    return jsgraph_->simplified();
+  }
   Zone* local_zone() const { return local_zone_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
@@ -191,8 +287,11 @@ class BytecodeGraphBuilder {
   const Handle<HandlerTable>& exception_handler_table() const {
     return exception_handler_table_;
   }
-  const Handle<TypeFeedbackVector>& feedback_vector() const {
+  const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
+  }
+  const JSTypeHintLowering& type_hint_lowering() const {
+    return type_hint_lowering_;
   }
   const FrameStateFunctionInfo* frame_state_function_info() const {
     return frame_state_function_info_;
@@ -203,22 +302,39 @@ class BytecodeGraphBuilder {
   }
 
   void set_bytecode_iterator(
-      const interpreter::BytecodeArrayIterator* bytecode_iterator) {
+      interpreter::BytecodeArrayIterator* bytecode_iterator) {
     bytecode_iterator_ = bytecode_iterator;
   }
 
-  const BytecodeBranchAnalysis* branch_analysis() const {
-    return branch_analysis_;
+  const BytecodeAnalysis* bytecode_analysis() const {
+    return bytecode_analysis_;
   }
 
-  void set_branch_analysis(const BytecodeBranchAnalysis* branch_analysis) {
-    branch_analysis_ = branch_analysis;
+  void set_bytecode_analysis(const BytecodeAnalysis* bytecode_analysis) {
+    bytecode_analysis_ = bytecode_analysis;
   }
 
-  const BytecodeLoopAnalysis* loop_analysis() const { return loop_analysis_; }
+  int currently_peeled_loop_offset() const {
+    return currently_peeled_loop_offset_;
+  }
 
-  void set_loop_analysis(const BytecodeLoopAnalysis* loop_analysis) {
-    loop_analysis_ = loop_analysis;
+  void set_currently_peeled_loop_offset(int offset) {
+    currently_peeled_loop_offset_ = offset;
+  }
+
+  bool stack_check() const { return stack_check_; }
+
+  void set_stack_check(bool stack_check) { stack_check_ = stack_check; }
+
+  int current_exception_handler() { return current_exception_handler_; }
+
+  void set_current_exception_handler(int index) {
+    current_exception_handler_ = index;
+  }
+
+  bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
+  void mark_as_needing_eager_checkpoint(bool value) {
+    needs_eager_checkpoint_ = value;
   }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
@@ -227,15 +343,18 @@ class BytecodeGraphBuilder {
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
+  CallFrequency const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
-  Handle<TypeFeedbackVector> feedback_vector_;
+  Handle<FeedbackVector> feedback_vector_;
+  const JSTypeHintLowering type_hint_lowering_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
-  const BytecodeBranchAnalysis* branch_analysis_;
-  const BytecodeLoopAnalysis* loop_analysis_;
+  const BytecodeAnalysis* bytecode_analysis_;
   Environment* environment_;
-  BailoutId osr_ast_id_;
+  BailoutId osr_offset_;
+  int currently_peeled_loop_offset_;
+  bool stack_check_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -250,17 +369,27 @@ class BytecodeGraphBuilder {
   int input_buffer_size_;
   Node** input_buffer_;
 
+  // Optimization to only create checkpoints when the current position in the
+  // control-flow is not effect-dominated by another checkpoint already. All
+  // operations that do not have observable side-effects can be re-evaluated.
+  bool needs_eager_checkpoint_;
+
   // Nodes representing values in the activation record.
-  SetOncePointer<Node> function_context_;
   SetOncePointer<Node> function_closure_;
-  SetOncePointer<Node> new_target_;
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
 
+  StateValuesCache state_values_cache_;
+
+  // The source position table, to be populated.
+  SourcePositionTable* source_positions_;
+
+  SourcePosition const start_position_;
+
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;
-  static int const kBinaryOperationSmiHintIndex = 2;
+  static int const kBinaryOperationSmiHintIndex = 1;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };

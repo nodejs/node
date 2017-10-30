@@ -12,47 +12,73 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum IdentifyZeros { kIdentifyZeros, kDistinguishZeros };
+
 class Truncation final {
  public:
   // Constructors.
-  static Truncation None() { return Truncation(TruncationKind::kNone); }
-  static Truncation Bool() { return Truncation(TruncationKind::kBool); }
-  static Truncation Word32() { return Truncation(TruncationKind::kWord32); }
-  static Truncation Word64() { return Truncation(TruncationKind::kWord64); }
-  static Truncation Float32() { return Truncation(TruncationKind::kFloat32); }
-  static Truncation Float64() { return Truncation(TruncationKind::kFloat64); }
-  static Truncation Any() { return Truncation(TruncationKind::kAny); }
+  static Truncation None() {
+    return Truncation(TruncationKind::kNone, kIdentifyZeros);
+  }
+  static Truncation Bool() {
+    return Truncation(TruncationKind::kBool, kIdentifyZeros);
+  }
+  static Truncation Word32() {
+    return Truncation(TruncationKind::kWord32, kIdentifyZeros);
+  }
+  static Truncation Word64() {
+    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
+  static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kFloat64, identify_zeros);
+  }
+  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kAny, identify_zeros);
+  }
 
   static Truncation Generalize(Truncation t1, Truncation t2) {
-    return Truncation(Generalize(t1.kind(), t2.kind()));
+    return Truncation(
+        Generalize(t1.kind(), t2.kind()),
+        GeneralizeIdentifyZeros(t1.identify_zeros(), t2.identify_zeros()));
   }
 
   // Queries.
   bool IsUnused() const { return kind_ == TruncationKind::kNone; }
+  bool IsUsedAsBool() const {
+    return LessGeneral(kind_, TruncationKind::kBool);
+  }
   bool IsUsedAsWord32() const {
     return LessGeneral(kind_, TruncationKind::kWord32);
   }
   bool IsUsedAsFloat64() const {
     return LessGeneral(kind_, TruncationKind::kFloat64);
   }
-  bool IdentifiesNaNAndZero() {
+  bool IdentifiesUndefinedAndZero() {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
            LessGeneral(kind_, TruncationKind::kBool);
   }
-  bool IdentifiesUndefinedAndNaNAndZero() {
+  bool IdentifiesUndefinedAndNaN() {
     return LessGeneral(kind_, TruncationKind::kFloat64) ||
            LessGeneral(kind_, TruncationKind::kWord64);
   }
+  bool IdentifiesZeroAndMinusZero() const {
+    return identify_zeros() == kIdentifyZeros;
+  }
 
   // Operators.
-  bool operator==(Truncation other) const { return kind() == other.kind(); }
+  bool operator==(Truncation other) const {
+    return kind() == other.kind() && identify_zeros() == other.identify_zeros();
+  }
   bool operator!=(Truncation other) const { return !(*this == other); }
 
   // Debug utilities.
   const char* description() const;
   bool IsLessGeneralThan(Truncation other) {
-    return LessGeneral(kind(), other.kind());
+    return LessGeneral(kind(), other.kind()) &&
+           LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros());
   }
+
+  IdentifyZeros identify_zeros() const { return identify_zeros_; }
 
  private:
   enum class TruncationKind : uint8_t {
@@ -60,18 +86,25 @@ class Truncation final {
     kBool,
     kWord32,
     kWord64,
-    kFloat32,
     kFloat64,
     kAny
   };
 
-  explicit Truncation(TruncationKind kind) : kind_(kind) {}
+  explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
+      : kind_(kind), identify_zeros_(identify_zeros) {
+    DCHECK(kind == TruncationKind::kAny || kind == TruncationKind::kFloat64 ||
+           identify_zeros == kIdentifyZeros);
+  }
   TruncationKind kind() const { return kind_; }
 
   TruncationKind kind_;
+  IdentifyZeros identify_zeros_;
 
   static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2);
+  static IdentifyZeros GeneralizeIdentifyZeros(IdentifyZeros i1,
+                                               IdentifyZeros i2);
   static bool LessGeneral(TruncationKind rep1, TruncationKind rep2);
+  static bool LessGeneralIdentifyZeros(IdentifyZeros u1, IdentifyZeros u2);
 };
 
 enum class TypeCheckKind : uint8_t {
@@ -79,7 +112,8 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kNumber,
-  kNumberOrOddball
+  kNumberOrOddball,
+  kHeapObject
 };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
@@ -94,9 +128,10 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Number";
     case TypeCheckKind::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case TypeCheckKind::kHeapObject:
+      return os << "HeapObject";
   }
   UNREACHABLE();
-  return os;
 }
 
 // The {UseInfo} class is used to describe a use of an input of a node.
@@ -105,7 +140,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 //
 // 1. During propagation, the use info is used to inform the input node
 //    about what part of the input is used (we call this truncation) and what
-//    is the preferred representation.
+//    is the preferred representation. For conversions that will require
+//    checks, we also keep track of whether a minus zero check is needed.
 //
 // 2. During lowering, the use info is used to properly convert the input
 //    to the preferred representation. The preferred representation might be
@@ -127,8 +163,8 @@ class UseInfo {
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
   }
-  static UseInfo TruncatingFloat32() {
-    return UseInfo(MachineRepresentation::kFloat32, Truncation::Float32());
+  static UseInfo Float32() {
+    return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
   static UseInfo TruncatingFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
@@ -139,15 +175,30 @@ class UseInfo {
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
   }
+  static UseInfo TaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any());
+  }
+  static UseInfo TaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any());
+  }
 
   // Possibly deoptimizing conversions.
-  static UseInfo CheckedSignedSmallAsWord32() {
-    return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
+  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                   TypeCheckKind::kHeapObject);
+  }
+  static UseInfo CheckedSignedSmallAsTaggedSigned() {
+    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
   }
-  static UseInfo CheckedSigned32AsWord32() {
-    return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSigned32);
+  static UseInfo CheckedSignedSmallAsWord32(IdentifyZeros identify_zeros) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros),
+                   TypeCheckKind::kSignedSmall);
+  }
+  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSigned32);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
@@ -182,6 +233,11 @@ class UseInfo {
   MachineRepresentation representation() const { return representation_; }
   Truncation truncation() const { return truncation_; }
   TypeCheckKind type_check() const { return type_check_; }
+  CheckForMinusZeroMode minus_zero_check() const {
+    return truncation().IdentifiesZeroAndMinusZero()
+               ? CheckForMinusZeroMode::kDontCheckForMinusZero
+               : CheckForMinusZeroMode::kCheckForMinusZero;
+  }
 
  private:
   MachineRepresentation representation_;
@@ -209,6 +265,7 @@ class RepresentationChanger final {
                              UseInfo use_info);
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
+  const Operator* TaggedSignedOperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Float64OperatorFor(IrOpcode::Value opcode);
@@ -232,8 +289,16 @@ class RepresentationChanger final {
   bool testing_type_errors_;  // If {true}, don't abort on a type error.
   bool type_error_;           // Set when a type error is detected.
 
+  Node* GetTaggedSignedRepresentationFor(Node* node,
+                                         MachineRepresentation output_rep,
+                                         Type* output_type, Node* use_node,
+                                         UseInfo use_info);
+  Node* GetTaggedPointerRepresentationFor(Node* node,
+                                          MachineRepresentation output_rep,
+                                          Type* output_type, Node* use_node,
+                                          UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
-                                   Type* output_type);
+                                   Type* output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type* output_type, Truncation truncation);
@@ -251,11 +316,14 @@ class RepresentationChanger final {
   Node* TypeError(Node* node, MachineRepresentation output_rep,
                   Type* output_type, MachineRepresentation use);
   Node* MakeTruncatedInt32Constant(double value);
+  Node* InsertChangeBitToTagged(Node* node);
   Node* InsertChangeFloat32ToFloat64(Node* node);
   Node* InsertChangeFloat64ToInt32(Node* node);
   Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeInt32ToFloat64(Node* node);
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
+  Node* InsertChangeUint32ToFloat64(Node* node);
 
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
 

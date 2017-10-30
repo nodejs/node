@@ -2,6 +2,7 @@ var url = require('url')
 
 var log = require('npmlog')
 var npa = require('npm-package-arg')
+var config
 
 module.exports = mapToRegistry
 
@@ -52,7 +53,7 @@ function mapToRegistry (name, config, cb) {
   var uri
   log.silly('mapToRegistry', 'data', data)
   if (data.type === 'remote') {
-    uri = data.spec
+    uri = data.fetchSpec
   } else {
     uri = url.resolve(normalized, name)
   }
@@ -94,6 +95,8 @@ function scopeAuth (uri, registry, auth) {
     } else {
       log.silly('scopeAuth', uri, "doesn't share host with registry", registry)
     }
+    if (!config) config = require('../npm').config
+    if (config.get('otp')) cleaned.otp = config.get('otp')
   }
 
   return cleaned

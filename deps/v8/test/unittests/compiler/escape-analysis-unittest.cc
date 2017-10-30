@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
+#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types.h"
-#include "src/zone-containers.h"
+#include "src/compiler/types.h"
+#include "src/zone/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class EscapeAnalysisTest : public GraphTest {
+class EscapeAnalysisTest : public TypedGraphTest {
  public:
   EscapeAnalysisTest()
       : simplified_(zone()),
@@ -66,8 +66,8 @@ class EscapeAnalysisTest : public GraphTest {
     if (!control) {
       control = control_;
     }
-    return effect_ = graph()->NewNode(simplified()->Allocate(), size, effect,
-                                      control);
+    return effect_ = graph()->NewNode(simplified()->Allocate(Type::Any()), size,
+                                      effect, control);
   }
 
   Node* Constant(int num) {
@@ -119,8 +119,9 @@ class EscapeAnalysisTest : public GraphTest {
     if (!control) {
       control = control_;
     }
-    return control_ =
-               graph()->NewNode(common()->Return(), value, effect, control);
+    Node* zero = graph()->NewNode(common()->NumberConstant(0));
+    return control_ = graph()->NewNode(common()->Return(), zero, value, effect,
+                                       control);
   }
 
   void EndGraph() {
@@ -147,11 +148,9 @@ class EscapeAnalysisTest : public GraphTest {
   }
 
   FieldAccess FieldAccessAtIndex(int offset) {
-    FieldAccess access = {kTaggedBase,
-                          offset,
-                          MaybeHandle<Name>(),
-                          Type::Any(),
-                          MachineType::AnyTagged(),
+    FieldAccess access = {kTaggedBase,         offset,
+                          MaybeHandle<Name>(), MaybeHandle<Map>(),
+                          Type::Any(),         MachineType::AnyTagged(),
                           kFullWriteBarrier};
     return access;
   }
@@ -224,7 +223,7 @@ TEST_F(EscapeAnalysisTest, StraightNonEscape) {
 
   Transformation();
 
-  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -250,7 +249,7 @@ TEST_F(EscapeAnalysisTest, StraightNonEscapeNonConstStore) {
 
   Transformation();
 
-  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -272,7 +271,7 @@ TEST_F(EscapeAnalysisTest, StraightEscape) {
 
   Transformation();
 
-  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -300,7 +299,7 @@ TEST_F(EscapeAnalysisTest, StoreLoadEscape) {
 
   Transformation();
 
-  ASSERT_EQ(finish1, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(finish1, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -333,7 +332,7 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
 
   Transformation();
 
-  ASSERT_EQ(replacement_phi, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(replacement_phi, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -365,7 +364,7 @@ TEST_F(EscapeAnalysisTest, BranchEscapeOne) {
 
   Transformation();
 
-  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -400,7 +399,7 @@ TEST_F(EscapeAnalysisTest, BranchEscapeThroughStore) {
 
   Transformation();
 
-  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -425,7 +424,7 @@ TEST_F(EscapeAnalysisTest, DanglingLoadOrder) {
 
   Transformation();
 
-  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 1));
 }
 
 
@@ -438,9 +437,12 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
-  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values2 = graph()->NewNode(common()->StateValues(0));
-  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* state_values1 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values2 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
+  Node* state_values3 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   Node* frame_state = graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                            nullptr),
@@ -461,15 +463,14 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
 
   Transformation();
 
-  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 1));
   Node* object_state = NodeProperties::GetValueInput(state_values1, 0);
   ASSERT_EQ(object_state->opcode(), IrOpcode::kObjectState);
   ASSERT_EQ(1, object_state->op()->ValueInputCount());
   ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
 }
 
-
-TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
+TEST_F(EscapeAnalysisTest, DISABLED_DeoptReplacementIdentity) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize * 2));
@@ -479,9 +480,12 @@ TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
   Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
-  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values2 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* state_values1 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values2 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values3 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   Node* frame_state = graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                            nullptr),
@@ -502,7 +506,7 @@ TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
 
   Transformation();
 
-  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 1));
 
   Node* object_state = NodeProperties::GetValueInput(state_values1, 0);
   ASSERT_EQ(object_state->opcode(), IrOpcode::kObjectState);

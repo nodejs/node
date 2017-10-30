@@ -9,6 +9,8 @@
       'type': 'none',
       'dependencies': [
         '../src/d8.gyp:d8',
+        '../test/inspector/inspector.gyp:*',
+        '../test/mkgrokdump/mkgrokdump.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {
@@ -29,6 +31,7 @@
           'dependencies': [
             '../test/bot_default.gyp:*',
             '../test/benchmarks/benchmarks.gyp:*',
+            '../test/debugger/debugger.gyp:*',
             '../test/default.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
@@ -37,7 +40,6 @@
             '../test/optimize_for_size.gyp:*',
             '../test/perf.gyp:*',
             '../test/preparser/preparser.gyp:*',
-            '../test/simdjs/simdjs.gyp:*',
             '../test/test262/test262.gyp:*',
             '../test/webkit/webkit.gyp:*',
             '../tools/check-static-initializers.gyp:*',

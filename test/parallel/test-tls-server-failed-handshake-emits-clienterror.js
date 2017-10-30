@@ -1,10 +1,9 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
+
 const tls = require('tls');
 const net = require('net');
 const assert = require('assert');
@@ -21,8 +20,8 @@ const server = tls.createServer({})
   }).on('tlsClientError', common.mustCall(function(e) {
     assert.ok(e instanceof Error,
               'Instance of Error should be passed to error handler');
-    assert.ok(e.message.match(
-      /SSL routines:SSL23_GET_CLIENT_HELLO:unknown protocol/),
+    assert.ok(
+      /SSL routines:SSL23_GET_CLIENT_HELLO:unknown protocol/.test(e.message),
       'Expecting SSL unknown protocol');
 
     server.close();

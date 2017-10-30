@@ -7,7 +7,7 @@
 
 #include "src/objects.h"
 #include "src/regexp/regexp-ast.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -184,8 +184,14 @@ class RegExpParser BASE_EMBEDDED {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
-  bool ParseClassProperty(ZoneList<CharacterRange>* result);
-  CharacterRange ParseClassAtom(uc16* char_class);
+  // Parse inside a class. Either add escaped class to the range, or return
+  // false and pass parsed single character through |char_out|.
+  void ParseClassEscape(ZoneList<CharacterRange>* ranges, Zone* zone,
+                        bool add_unicode_case_equivalents, uc32* char_out,
+                        bool* is_class_escape);
+
+  char ParseClassEscape();
+
   RegExpTree* ReportError(Vector<const char> message);
   void Advance();
   void Advance(int dist);
@@ -199,6 +205,7 @@ class RegExpParser BASE_EMBEDDED {
   int captures_started() { return captures_started_; }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
+  bool dotall() const { return dotall_; }
   bool ignore_case() const { return ignore_case_; }
   bool multiline() const { return multiline_; }
   bool unicode() const { return unicode_; }
@@ -292,6 +299,10 @@ class RegExpParser BASE_EMBEDDED {
 
   Handle<FixedArray> CreateCaptureNameMap();
 
+  // Returns true iff the pattern contains named captures. May call
+  // ScanForCaptures to look ahead at the remaining pattern.
+  bool HasNamedCaptures();
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -312,17 +323,18 @@ class RegExpParser BASE_EMBEDDED {
   ZoneList<RegExpBackReference*>* named_back_references_;
   FlatStringReader* in_;
   uc32 current_;
+  bool dotall_;
   bool ignore_case_;
   bool multiline_;
   bool unicode_;
   int next_pos_;
   int captures_started_;
-  // The capture count is only valid after we have scanned for captures.
-  int capture_count_;
+  int capture_count_;  // Only valid after we have scanned for captures.
   bool has_more_;
   bool simple_;
   bool contains_anchor_;
   bool is_scanned_for_captures_;
+  bool has_named_captures_;  // Only valid after we have scanned for captures.
   bool failed_;
 };
 

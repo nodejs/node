@@ -16,10 +16,10 @@ const astUtils = require("../ast-utils"),
 // Constants
 //------------------------------------------------------------------------------
 
-const PREV_TOKEN = /^[\)\]\}>]$/;
-const NEXT_TOKEN = /^(?:[\(\[\{<~!]|\+\+?|--?)$/;
-const PREV_TOKEN_M = /^[\)\]\}>*]$/;
-const NEXT_TOKEN_M = /^[\{*]$/;
+const PREV_TOKEN = /^[)\]}>]$/;
+const NEXT_TOKEN = /^(?:[([{<~!]|\+\+?|--?)$/;
+const PREV_TOKEN_M = /^[)\]}>*]$/;
+const NEXT_TOKEN_M = /^[{*]$/;
 const TEMPLATE_OPEN_PAREN = /\$\{$/;
 const TEMPLATE_CLOSE_PAREN = /^\}/;
 const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
@@ -77,16 +77,16 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    before: {type: "boolean"},
-                    after: {type: "boolean"},
+                    before: { type: "boolean" },
+                    after: { type: "boolean" },
                     overrides: {
                         type: "object",
-                        properties: KEYS.reduce(function(retv, key) {
+                        properties: KEYS.reduce((retv, key) => {
                             retv[key] = {
                                 type: "object",
                                 properties: {
-                                    before: {type: "boolean"},
-                                    after: {type: "boolean"}
+                                    before: { type: "boolean" },
+                                    after: { type: "boolean" }
                                 },
                                 additionalProperties: false
                             };
@@ -342,11 +342,7 @@ module.exports = {
          */
         function checkSpacingAroundTokenBefore(node) {
             if (node) {
-                let token = sourceCode.getTokenBefore(node);
-
-                while (token.type !== "Keyword") {
-                    token = sourceCode.getTokenBefore(token);
-                }
+                const token = sourceCode.getTokenBefore(node, astUtils.isKeywordToken);
 
                 checkSpacingAround(token);
             }
@@ -363,7 +359,8 @@ module.exports = {
             const firstToken = node && sourceCode.getFirstToken(node);
 
             if (firstToken &&
-                (firstToken.type === "Keyword" || firstToken.value === "async")
+                ((firstToken.type === "Keyword" && firstToken.value === "function") ||
+                firstToken.value === "async")
             ) {
                 checkSpacingBefore(firstToken);
             }
@@ -439,14 +436,7 @@ module.exports = {
          */
         function checkSpacingForForOfStatement(node) {
             checkSpacingAroundFirstToken(node);
-
-            // `of` is not a keyword token.
-            let token = sourceCode.getTokenBefore(node.right);
-
-            while (token.value !== "of") {
-                token = sourceCode.getTokenBefore(token);
-            }
-            checkSpacingAround(token);
+            checkSpacingAround(sourceCode.getTokenBefore(node.right, astUtils.isNotOpeningParenToken));
         }
 
         /**
@@ -506,10 +496,24 @@ module.exports = {
                     node.value.async
                 )
             ) {
-                const token = sourceCode.getFirstToken(
-                    node,
-                    node.static ? 1 : 0
+                const token = sourceCode.getTokenBefore(
+                    node.key,
+                    tok => {
+                        switch (tok.value) {
+                            case "get":
+                            case "set":
+                            case "async":
+                                return true;
+                            default:
+                                return false;
+                        }
+                    }
                 );
+
+                if (!token) {
+                    throw new Error("Failed to find token get, set, or async beside method name");
+                }
+
 
                 checkSpacingAround(token);
             }

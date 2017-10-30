@@ -1,5 +1,7 @@
 # TTY
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `tty` module provides the `tty.ReadStream` and `tty.WriteStream` classes.
@@ -49,6 +51,13 @@ raw device. Defaults to `false`.
 <!-- YAML
 added: v0.7.7
 -->
+
+Allows configuration of `tty.ReadStream` so that it operates as a raw device.
+
+When in raw mode, input is always available character-by-character, not
+including modifiers. Additionally, all special processing of characters by the
+terminal is disabled, including echoing input characters.
+Note that `CTRL`+`C` will no longer cause a `SIGINT` when in this mode.
 
 * `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
   raw device. If `false`, configures the `tty.ReadStream` to operate in its
@@ -105,4 +114,5 @@ added: v0.5.8
 * `fd` {number} A numeric file descriptor
 
 The `tty.isatty()` method returns `true` if the given `fd` is associated with
-a TTY and `false` if is not.
+a TTY and `false` if it is not, including whenever `fd` is not a non-negative
+integer.

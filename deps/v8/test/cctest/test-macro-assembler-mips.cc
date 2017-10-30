@@ -41,24 +41,9 @@ using namespace v8::internal;
 typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
+typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
 
 #define __ masm->
-
-
-static byte to_non_zero(int n) {
-  return static_cast<unsigned>(n) % 255 + 1;
-}
-
-
-static bool all_zeroes(const byte* beg, const byte* end) {
-  CHECK(beg);
-  CHECK(beg <= end);
-  while (beg < end) {
-    if (*beg++ != 0)
-      return false;
-  }
-  return true;
-}
 
 TEST(BYTESWAP) {
   CcTest::InitializeVM();
@@ -107,7 +92,7 @@ TEST(BYTESWAP) {
   __ nop();
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   ::F3 f = FUNCTION_CAST<::F3>(code->entry());
@@ -125,81 +110,6 @@ TEST(BYTESWAP) {
   CHECK_EQ(static_cast<int32_t>(0x9F000000), t.r4);
   CHECK_EQ(static_cast<int32_t>(0xDE2C0000), t.r5);
 }
-
-TEST(CopyBytes) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-
-  const int data_size = 1 * KB;
-  size_t act_size;
-
-  // Allocate two blocks to copy data between.
-  byte* src_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(src_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-  byte* dest_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(dest_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-
-  // Storage for a0 and a1.
-  byte* a0_;
-  byte* a1_;
-
-  MacroAssembler assembler(isolate, NULL, 0,
-                           v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assembler;
-
-  // Code to be generated: The stuff in CopyBytes followed by a store of a0 and
-  // a1, respectively.
-  __ CopyBytes(a0, a1, a2, a3);
-  __ li(a2, Operand(reinterpret_cast<int>(&a0_)));
-  __ li(a3, Operand(reinterpret_cast<int>(&a1_)));
-  __ sw(a0, MemOperand(a2));
-  __ jr(ra);
-  __ sw(a1, MemOperand(a3));
-
-  CodeDesc desc;
-  masm->GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
-
-  // Initialise source data with non-zero bytes.
-  for (int i = 0; i < data_size; i++) {
-    src_buffer[i] = to_non_zero(i);
-  }
-
-  const int fuzz = 11;
-
-  for (int size = 0; size < 600; size++) {
-    for (const byte* src = src_buffer; src < src_buffer + fuzz; src++) {
-      for (byte* dest = dest_buffer; dest < dest_buffer + fuzz; dest++) {
-        memset(dest_buffer, 0, data_size);
-        CHECK(dest + size < dest_buffer + data_size);
-        (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int>(src),
-                                  reinterpret_cast<int>(dest), size, 0, 0);
-        // a0 and a1 should point at the first byte after the copied data.
-        CHECK_EQ(src + size, a0_);
-        CHECK_EQ(dest + size, a1_);
-        // Check that we haven't written outside the target area.
-        CHECK(all_zeroes(dest_buffer, dest));
-        CHECK(all_zeroes(dest + size, dest_buffer + data_size));
-        // Check the target area.
-        CHECK_EQ(0, memcmp(src, dest, size));
-      }
-    }
-  }
-
-  // Check that the source data hasn't been clobbered.
-  for (int i = 0; i < data_size; i++) {
-    CHECK(src_buffer[i] == to_non_zero(i));
-  }
-}
-
 
 static void TestNaN(const char *code) {
   // NaN value is different on MIPS and x86 architectures, and TEST(NaNx)
@@ -291,7 +201,7 @@ TEST(jump_tables4) {
   __ Branch(&near_start);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -358,7 +268,7 @@ TEST(jump_tables5) {
   __ nop();
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
@@ -373,6 +283,96 @@ TEST(jump_tables5) {
   }
 }
 
+TEST(jump_tables6) {
+  // Similar to test-assembler-mips jump_tables1, with extra test for branch
+  // trampoline required after emission of the dd table (where trampolines are
+  // blocked). This test checks if number of really generated instructions is
+  // greater than number of counted instructions from code, as we are expecting
+  // generation of trampoline in this case (when number of kFillInstr
+  // instructions is close to 32K)
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, nullptr, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  const int kSwitchTableCases = 40;
+
+  const int kInstrSize = Assembler::kInstrSize;
+  const int kMaxBranchOffset = Assembler::kMaxBranchOffset;
+  const int kTrampolineSlotsSize = Assembler::kTrampolineSlotsSize;
+  const int kSwitchTablePrologueSize = MacroAssembler::kSwitchTablePrologueSize;
+
+  const int kMaxOffsetForTrampolineStart =
+      kMaxBranchOffset - 16 * kTrampolineSlotsSize;
+  const int kFillInstr = (kMaxOffsetForTrampolineStart / kInstrSize) -
+                         (kSwitchTablePrologueSize + kSwitchTableCases) - 20;
+
+  int values[kSwitchTableCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kSwitchTableCases];
+  Label near_start, end, done;
+
+  __ Push(ra);
+  __ mov(v0, zero_reg);
+
+  int offs1 = masm->pc_offset();
+  int gen_insn = 0;
+
+  __ Branch(&end);
+  gen_insn += Assembler::IsCompactBranchSupported() ? 1 : 2;
+  __ bind(&near_start);
+
+  // Generate slightly less than 32K instructions, which will soon require
+  // trampoline for branch distance fixup.
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addiu(v0, v0, 1);
+  }
+  gen_insn += kFillInstr;
+
+  __ GenerateSwitchTable(a0, kSwitchTableCases,
+                         [&labels](size_t i) { return labels + i; });
+  gen_insn += (kSwitchTablePrologueSize + kSwitchTableCases);
+
+  for (int i = 0; i < kSwitchTableCases; ++i) {
+    __ bind(&labels[i]);
+    __ li(v0, values[i]);
+    __ Branch(&done);
+  }
+  gen_insn +=
+      ((Assembler::IsCompactBranchSupported() ? 3 : 4) * kSwitchTableCases);
+
+  // If offset from here to first branch instr is greater than max allowed
+  // offset for trampoline ...
+  CHECK_LT(kMaxOffsetForTrampolineStart, masm->pc_offset() - offs1);
+  // ... number of generated instructions must be greater then "gen_insn",
+  // as we are expecting trampoline generation
+  CHECK_LT(gen_insn, (masm->pc_offset() - offs1) / kInstrSize);
+
+  __ bind(&done);
+  __ Pop(ra);
+  __ jr(ra);
+  __ nop();
+
+  __ bind(&end);
+  __ Branch(&near_start);
+
+  CodeDesc desc;
+  masm->GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kSwitchTableCases; ++i) {
+    int res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %d\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
 
 static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = CcTest::i_isolate();
@@ -386,7 +386,7 @@ static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   __ nop();
 
   CodeDesc desc;
-  assembler.GetCode(&desc);
+  assembler.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -516,7 +516,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -530,11 +530,11 @@ TEST(cvt_s_w_Trunc_uw_s) {
   CcTest::InitializeVM();
   FOR_UINT32_INPUTS(i, cvt_trunc_uint32_test_values) {
     uint32_t input = *i;
-    CHECK_EQ(static_cast<float>(input),
-             run_Cvt<uint32_t>(input, [](MacroAssembler* masm) {
-               __ cvt_s_w(f0, f4);
-               __ Trunc_uw_s(f2, f0, f1);
-             }));
+    auto fn = [](MacroAssembler* masm) {
+      __ cvt_s_w(f0, f4);
+      __ Trunc_uw_s(f2, f0, f6);
+    };
+    CHECK_EQ(static_cast<float>(input), run_Cvt<uint32_t>(input, fn));
   }
 }
 
@@ -542,11 +542,11 @@ TEST(cvt_d_w_Trunc_w_d) {
   CcTest::InitializeVM();
   FOR_INT32_INPUTS(i, cvt_trunc_int32_test_values) {
     int32_t input = *i;
-    CHECK_EQ(static_cast<double>(input),
-             run_Cvt<int32_t>(input, [](MacroAssembler* masm) {
-               __ cvt_d_w(f0, f4);
-               __ Trunc_w_d(f2, f0);
-             }));
+    auto fn = [](MacroAssembler* masm) {
+      __ cvt_d_w(f0, f4);
+      __ Trunc_w_d(f2, f0);
+    };
+    CHECK_EQ(static_cast<double>(input), run_Cvt<int32_t>(input, fn));
   }
 }
 
@@ -621,7 +621,7 @@ static bool runOverflow(IN_TYPE valLeft, IN_TYPE valRight,
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -1008,8 +1008,8 @@ TEST(min_max_nan) {
 
   auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
-    __ LoadRoot(at, Heap::kNanValueRootIndex);
-    __ ldc1(dst, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ LoadRoot(t8, Heap::kNanValueRootIndex);
+    __ Ldc1(dst, FieldMemOperand(t8, HeapNumber::kValueOffset));
     __ Branch(back);
   };
 
@@ -1024,20 +1024,20 @@ TEST(min_max_nan) {
 
   __ push(s6);
   __ InitializeRootRegister();
-  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
-  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ Ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ Ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
   __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
   __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
-  __ MinNaNCheck_d(f10, f4, f8, &handle_mind_nan);
+  __ Float64Min(f10, f4, f8, &handle_mind_nan);
   __ bind(&back_mind_nan);
-  __ MaxNaNCheck_d(f12, f4, f8, &handle_maxd_nan);
+  __ Float64Max(f12, f4, f8, &handle_maxd_nan);
   __ bind(&back_maxd_nan);
-  __ MinNaNCheck_s(f14, f2, f6, &handle_mins_nan);
+  __ Float32Min(f14, f2, f6, &handle_mins_nan);
   __ bind(&back_mins_nan);
-  __ MaxNaNCheck_s(f16, f2, f6, &handle_maxs_nan);
+  __ Float32Max(f16, f2, f6, &handle_maxs_nan);
   __ bind(&back_maxs_nan);
-  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
-  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+  __ Sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ Sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
   __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
   __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
   __ pop(s6);
@@ -1050,7 +1050,7 @@ TEST(min_max_nan) {
   handle_snan(f16, &handle_maxs_nan, &back_maxs_nan);
 
   CodeDesc desc;
-  masm->GetCode(&desc);
+  masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   ::F3 f = FUNCTION_CAST<::F3>(code->entry());
@@ -1086,7 +1086,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
   __ nop();
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
@@ -1132,36 +1132,39 @@ TEST(Ulh) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulh(v0, MemOperand(a0, in_offset));
-                             __ Ush(v0, MemOperand(a0, out_offset), v0);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ mov(t0, a0);
-                             __ Ulh(a0, MemOperand(a0, in_offset));
-                             __ Ush(a0, MemOperand(t0, out_offset), v0);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ mov(t0, a0);
-                             __ Ulhu(a0, MemOperand(a0, in_offset));
-                             __ Ush(a0, MemOperand(t0, out_offset), t1);
-                           }));
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulhu(v0, MemOperand(a0, in_offset));
-                             __ Ush(v0, MemOperand(a0, out_offset), t1);
-                           }));
+        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulh(v0, MemOperand(a0, in_offset));
+          __ Ush(v0, MemOperand(a0, out_offset), v0);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_1));
+
+        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulh(a0, MemOperand(a0, in_offset));
+          __ Ush(a0, MemOperand(t0, out_offset), v0);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_2));
+
+        auto fn_3 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulhu(a0, MemOperand(a0, in_offset));
+          __ Ush(a0, MemOperand(t0, out_offset), t1);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_3));
+
+        auto fn_4 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulhu(v0, MemOperand(a0, in_offset));
+          __ Ush(v0, MemOperand(a0, out_offset), t1);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_4));
       }
     }
   }
@@ -1181,39 +1184,39 @@ TEST(Ulh_bitextension) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint16_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             Label success, fail, end, different;
-                             __ Ulh(t0, MemOperand(a0, in_offset));
-                             __ Ulhu(t1, MemOperand(a0, in_offset));
-                             __ Branch(&different, ne, t0, Operand(t1));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          Label success, fail, end, different;
+          __ Ulh(t0, MemOperand(a0, in_offset));
+          __ Ulhu(t1, MemOperand(a0, in_offset));
+          __ Branch(&different, ne, t0, Operand(t1));
 
-                             // If signed and unsigned values are same, check
-                             // the upper bits to see if they are zero
-                             __ sra(t0, t0, 15);
-                             __ Branch(&success, eq, t0, Operand(zero_reg));
-                             __ Branch(&fail);
+          // If signed and unsigned values are same, check
+          // the upper bits to see if they are zero
+          __ sra(t0, t0, 15);
+          __ Branch(&success, eq, t0, Operand(zero_reg));
+          __ Branch(&fail);
 
-                             // If signed and unsigned values are different,
-                             // check that the upper bits are complementary
-                             __ bind(&different);
-                             __ sra(t1, t1, 15);
-                             __ Branch(&fail, ne, t1, Operand(1));
-                             __ sra(t0, t0, 15);
-                             __ addiu(t0, t0, 1);
-                             __ Branch(&fail, ne, t0, Operand(zero_reg));
-                             // Fall through to success
+          // If signed and unsigned values are different,
+          // check that the upper bits are complementary
+          __ bind(&different);
+          __ sra(t1, t1, 15);
+          __ Branch(&fail, ne, t1, Operand(1));
+          __ sra(t0, t0, 15);
+          __ addiu(t0, t0, 1);
+          __ Branch(&fail, ne, t0, Operand(zero_reg));
+          // Fall through to success
 
-                             __ bind(&success);
-                             __ Ulh(t0, MemOperand(a0, in_offset));
-                             __ Ush(t0, MemOperand(a0, out_offset), v0);
-                             __ Branch(&end);
-                             __ bind(&fail);
-                             __ Ush(zero_reg, MemOperand(a0, out_offset), v0);
-                             __ bind(&end);
-                           }));
+          __ bind(&success);
+          __ Ulh(t0, MemOperand(a0, in_offset));
+          __ Ush(t0, MemOperand(a0, out_offset), v0);
+          __ Branch(&end);
+          __ bind(&fail);
+          __ Ush(zero_reg, MemOperand(a0, out_offset), v0);
+          __ bind(&end);
+        };
+        CHECK_EQ(true, run_Unaligned<uint16_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn));
       }
     }
   }
@@ -1233,22 +1236,23 @@ TEST(Ulw) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<uint32_t>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulw(v0, MemOperand(a0, in_offset));
-                             __ Usw(v0, MemOperand(a0, out_offset));
-                           }));
+        auto fn_1 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ Ulw(v0, MemOperand(a0, in_offset));
+          __ Usw(v0, MemOperand(a0, out_offset));
+        };
+        CHECK_EQ(true, run_Unaligned<uint32_t>(buffer_middle, in_offset,
+                                               out_offset, value, fn_1));
+
+        auto fn_2 = [](MacroAssembler* masm, int32_t in_offset,
+                       int32_t out_offset) {
+          __ mov(t0, a0);
+          __ Ulw(a0, MemOperand(a0, in_offset));
+          __ Usw(a0, MemOperand(t0, out_offset));
+        };
         CHECK_EQ(true,
-                 run_Unaligned<uint32_t>(
-                     buffer_middle, in_offset, out_offset, (uint32_t)value,
-                     [](MacroAssembler* masm, int32_t in_offset,
-                        int32_t out_offset) {
-                       __ mov(t0, a0);
-                       __ Ulw(a0, MemOperand(a0, in_offset));
-                       __ Usw(a0, MemOperand(t0, out_offset));
-                     }));
+                 run_Unaligned<uint32_t>(buffer_middle, in_offset, out_offset,
+                                         (uint32_t)value, fn_2));
       }
     }
   }
@@ -1268,13 +1272,13 @@ TEST(Ulwc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<float>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
-                             __ Uswc1(f0, MemOperand(a0, out_offset), t0);
-                           }));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          __ Ulwc1(f0, MemOperand(a0, in_offset), t0);
+          __ Uswc1(f0, MemOperand(a0, out_offset), t0);
+        };
+        CHECK_EQ(true, run_Unaligned<float>(buffer_middle, in_offset,
+                                            out_offset, value, fn));
       }
     }
   }
@@ -1294,16 +1298,357 @@ TEST(Uldc1) {
         int32_t in_offset = *j1 + *k1;
         int32_t out_offset = *j2 + *k2;
 
-        CHECK_EQ(true, run_Unaligned<double>(
-                           buffer_middle, in_offset, out_offset, value,
-                           [](MacroAssembler* masm, int32_t in_offset,
-                              int32_t out_offset) {
-                             __ Uldc1(f0, MemOperand(a0, in_offset), t0);
-                             __ Usdc1(f0, MemOperand(a0, out_offset), t0);
-                           }));
+        auto fn = [](MacroAssembler* masm, int32_t in_offset,
+                     int32_t out_offset) {
+          __ Uldc1(f0, MemOperand(a0, in_offset), t0);
+          __ Usdc1(f0, MemOperand(a0, out_offset), t0);
+        };
+        CHECK_EQ(true, run_Unaligned<double>(buffer_middle, in_offset,
+                                             out_offset, value, fn));
       }
     }
   }
+}
+
+static const std::vector<uint32_t> sltu_test_values() {
+  static const uint32_t kValues[] = {
+      0,          1,          0x7ffe,     0x7fff,     0x8000,
+      0x8001,     0xfffe,     0xffff,     0xffff7ffe, 0xffff7fff,
+      0xffff8000, 0xffff8001, 0xfffffffe, 0xffffffff,
+  };
+  return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+template <typename Func>
+bool run_Sltu(uint32_t rs, uint32_t rd, Func GenerateSltuInstructionFunc) {
+  typedef int32_t (*F_CVT)(uint32_t x0, uint32_t x1, int x2, int x3, int x4);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assm;
+
+  GenerateSltuInstructionFunc(masm, rd);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
+  int32_t res = reinterpret_cast<int32_t>(
+      CALL_GENERATED_CODE(isolate, f, rs, rd, 0, 0, 0));
+  return res == 1;
+}
+
+TEST(Sltu) {
+  CcTest::InitializeVM();
+
+  FOR_UINT32_INPUTS(i, sltu_test_values) {
+    FOR_UINT32_INPUTS(j, sltu_test_values) {
+      uint32_t rs = *i;
+      uint32_t rd = *j;
+
+      auto fn_1 = [](MacroAssembler* masm, uint32_t imm) {
+        __ Sltu(v0, a0, Operand(imm));
+      };
+      CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_1));
+
+      auto fn_2 = [](MacroAssembler* masm, uint32_t imm) {
+        __ Sltu(v0, a0, a1);
+      };
+      CHECK_EQ(rs < rd, run_Sltu(rs, rd, fn_2));
+    }
+  }
+}
+
+template <typename T, typename Inputs, typename Results>
+static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
+  T a = T::from_code(4);  // f4
+  T b = T::from_code(6);  // f6
+  T c = T::from_code(8);  // f8
+
+  Label ool_min_abc, ool_min_aab, ool_min_aba;
+  Label ool_max_abc, ool_max_aab, ool_max_aba;
+
+  Label done_min_abc, done_min_aab, done_min_aba;
+  Label done_max_abc, done_max_aab, done_max_aba;
+
+#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
+  __ lwc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
+  __ lwc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
+  __ fminmax(res, x, y, &ool);                                  \
+  __ bind(&done);                                               \
+  __ swc1(a, MemOperand(a1, offsetof(Results, res_field)))
+
+  // a = min(b, c);
+  FLOAT_MIN_MAX(Float32Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  // a = min(a, b);
+  FLOAT_MIN_MAX(Float32Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  // a = min(b, a);
+  FLOAT_MIN_MAX(Float32Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+
+  // a = max(b, c);
+  FLOAT_MIN_MAX(Float32Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  // a = max(a, b);
+  FLOAT_MIN_MAX(Float32Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  // a = max(b, a);
+  FLOAT_MIN_MAX(Float32Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+
+#undef FLOAT_MIN_MAX
+
+  __ jr(ra);
+  __ nop();
+
+  // Generate out-of-line cases.
+  __ bind(&ool_min_abc);
+  __ Float32MinOutOfLine(a, b, c);
+  __ Branch(&done_min_abc);
+
+  __ bind(&ool_min_aab);
+  __ Float32MinOutOfLine(a, a, b);
+  __ Branch(&done_min_aab);
+
+  __ bind(&ool_min_aba);
+  __ Float32MinOutOfLine(a, b, a);
+  __ Branch(&done_min_aba);
+
+  __ bind(&ool_max_abc);
+  __ Float32MaxOutOfLine(a, b, c);
+  __ Branch(&done_max_abc);
+
+  __ bind(&ool_max_aab);
+  __ Float32MaxOutOfLine(a, a, b);
+  __ Branch(&done_max_aab);
+
+  __ bind(&ool_max_aba);
+  __ Float32MaxOutOfLine(a, b, a);
+  __ Branch(&done_max_aba);
+
+  CodeDesc desc;
+  masm->GetCode(masm->isolate(), &desc);
+  Handle<Code> code = masm->isolate()->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  return FUNCTION_CAST<::F4>(code->entry());
+}
+
+TEST(macro_float_minmax_f32) {
+  // Test the Float32Min and Float32Max macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct Inputs {
+    float src1_;
+    float src2_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    float min_abc_;
+    float min_aab_;
+    float min_aba_;
+    float max_abc_;
+    float max_aab_;
+    float max_aba_;
+  };
+
+  ::F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(src1, src2, min, max)                                   \
+  do {                                                                       \
+    Inputs inputs = {src1, src2};                                            \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aba_)); \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+  } while (0)
+
+  float nan_a = std::numeric_limits<float>::quiet_NaN();
+  float nan_b = std::numeric_limits<float>::quiet_NaN();
+
+  CHECK_MINMAX(1.0f, -1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(0.0f, -1.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-1.0f, 0.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -1.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(-1.0f, -0.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(0.0f, 1.0f, 0.0f, 1.0f);
+  CHECK_MINMAX(1.0f, 0.0f, 0.0f, 1.0f);
+
+  CHECK_MINMAX(0.0f, 0.0f, 0.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -0.0f, -0.0f, -0.0f);
+  CHECK_MINMAX(-0.0f, 0.0f, -0.0f, 0.0f);
+  CHECK_MINMAX(0.0f, -0.0f, -0.0f, 0.0f);
+
+  CHECK_MINMAX(0.0f, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0f, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
+}
+
+template <typename T, typename Inputs, typename Results>
+static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
+  T a = T::from_code(4);  // f4
+  T b = T::from_code(6);  // f6
+  T c = T::from_code(8);  // f8
+
+  Label ool_min_abc, ool_min_aab, ool_min_aba;
+  Label ool_max_abc, ool_max_aab, ool_max_aba;
+
+  Label done_min_abc, done_min_aab, done_min_aba;
+  Label done_max_abc, done_max_aab, done_max_aba;
+
+#define FLOAT_MIN_MAX(fminmax, res, x, y, done, ool, res_field) \
+  __ Ldc1(x, MemOperand(a0, offsetof(Inputs, src1_)));          \
+  __ Ldc1(y, MemOperand(a0, offsetof(Inputs, src2_)));          \
+  __ fminmax(res, x, y, &ool);                                  \
+  __ bind(&done);                                               \
+  __ Sdc1(a, MemOperand(a1, offsetof(Results, res_field)))
+
+  // a = min(b, c);
+  FLOAT_MIN_MAX(Float64Min, a, b, c, done_min_abc, ool_min_abc, min_abc_);
+  // a = min(a, b);
+  FLOAT_MIN_MAX(Float64Min, a, a, b, done_min_aab, ool_min_aab, min_aab_);
+  // a = min(b, a);
+  FLOAT_MIN_MAX(Float64Min, a, b, a, done_min_aba, ool_min_aba, min_aba_);
+
+  // a = max(b, c);
+  FLOAT_MIN_MAX(Float64Max, a, b, c, done_max_abc, ool_max_abc, max_abc_);
+  // a = max(a, b);
+  FLOAT_MIN_MAX(Float64Max, a, a, b, done_max_aab, ool_max_aab, max_aab_);
+  // a = max(b, a);
+  FLOAT_MIN_MAX(Float64Max, a, b, a, done_max_aba, ool_max_aba, max_aba_);
+
+#undef FLOAT_MIN_MAX
+
+  __ jr(ra);
+  __ nop();
+
+  // Generate out-of-line cases.
+  __ bind(&ool_min_abc);
+  __ Float64MinOutOfLine(a, b, c);
+  __ Branch(&done_min_abc);
+
+  __ bind(&ool_min_aab);
+  __ Float64MinOutOfLine(a, a, b);
+  __ Branch(&done_min_aab);
+
+  __ bind(&ool_min_aba);
+  __ Float64MinOutOfLine(a, b, a);
+  __ Branch(&done_min_aba);
+
+  __ bind(&ool_max_abc);
+  __ Float64MaxOutOfLine(a, b, c);
+  __ Branch(&done_max_abc);
+
+  __ bind(&ool_max_aab);
+  __ Float64MaxOutOfLine(a, a, b);
+  __ Branch(&done_max_aab);
+
+  __ bind(&ool_max_aba);
+  __ Float64MaxOutOfLine(a, b, a);
+  __ Branch(&done_max_aba);
+
+  CodeDesc desc;
+  masm->GetCode(masm->isolate(), &desc);
+  Handle<Code> code = masm->isolate()->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  return FUNCTION_CAST<::F4>(code->entry());
+}
+
+TEST(macro_float_minmax_f64) {
+  // Test the Float64Min and Float64Max macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct Inputs {
+    double src1_;
+    double src2_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    double min_abc_;
+    double min_aab_;
+    double min_aba_;
+    double max_abc_;
+    double max_aab_;
+    double max_aba_;
+  };
+
+  ::F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(src1, src2, min, max)                                   \
+  do {                                                                       \
+    Inputs inputs = {src1, src2};                                            \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aba_)); \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+  } while (0)
+
+  double nan_a = std::numeric_limits<double>::quiet_NaN();
+  double nan_b = std::numeric_limits<double>::quiet_NaN();
+
+  CHECK_MINMAX(1.0, -1.0, -1.0, 1.0);
+  CHECK_MINMAX(-1.0, 1.0, -1.0, 1.0);
+  CHECK_MINMAX(0.0, -1.0, -1.0, 0.0);
+  CHECK_MINMAX(-1.0, 0.0, -1.0, 0.0);
+  CHECK_MINMAX(-0.0, -1.0, -1.0, -0.0);
+  CHECK_MINMAX(-1.0, -0.0, -1.0, -0.0);
+  CHECK_MINMAX(0.0, 1.0, 0.0, 1.0);
+  CHECK_MINMAX(1.0, 0.0, 0.0, 1.0);
+
+  CHECK_MINMAX(0.0, 0.0, 0.0, 0.0);
+  CHECK_MINMAX(-0.0, -0.0, -0.0, -0.0);
+  CHECK_MINMAX(-0.0, 0.0, -0.0, 0.0);
+  CHECK_MINMAX(0.0, -0.0, -0.0, 0.0);
+
+  CHECK_MINMAX(0.0, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
 }
 
 #undef __

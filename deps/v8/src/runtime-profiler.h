@@ -13,6 +13,7 @@ namespace internal {
 class Isolate;
 class JavaScriptFrame;
 class JSFunction;
+enum class OptimizationReason : uint8_t;
 
 class RuntimeProfiler {
  public:
@@ -26,12 +27,14 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  void MaybeOptimizeFullCodegen(JSFunction* function, JavaScriptFrame* frame,
-                                int frame_count);
-  void MaybeBaselineIgnition(JSFunction* function, JavaScriptFrame* frame);
-  void MaybeOptimizeIgnition(JSFunction* function, JavaScriptFrame* frame);
-  void Optimize(JSFunction* function, const char* reason);
-  void Baseline(JSFunction* function, const char* reason);
+  void MaybeOptimize(JSFunction* function, JavaScriptFrame* frame);
+  // Potentially attempts OSR from and returns whether no other
+  // optimization attempts should be made.
+  bool MaybeOSR(JSFunction* function, JavaScriptFrame* frame);
+  OptimizationReason ShouldOptimize(JSFunction* function,
+                                    JavaScriptFrame* frame);
+  void Optimize(JSFunction* function, OptimizationReason reason);
+  void Baseline(JSFunction* function, OptimizationReason reason);
 
   Isolate* isolate_;
   bool any_ic_changed_;

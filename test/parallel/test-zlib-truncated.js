@@ -15,6 +15,8 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
                     'm arcu mi, sodales non suscipit id, ultrices ut massa. S' +
                     'ed ac sem sit amet arcu malesuada fermentum. Nunc sed. ';
 
+const errMessage = /unexpected end of file/;
+
 [
   { comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync' },
   { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
@@ -22,46 +24,45 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
   { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' }
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
-    assert(!err);
+    assert.ifError(err);
     const truncated = compressed.slice(0, compressed.length / 2);
+    const toUTF8 = (buffer) => buffer.toString('utf-8');
 
     // sync sanity
     assert.doesNotThrow(function() {
       const decompressed = zlib[methods.decompSync](compressed);
-      assert.equal(decompressed, inputString);
+      assert.strictEqual(toUTF8(decompressed), inputString);
     });
 
     // async sanity
     zlib[methods.decomp](compressed, function(err, result) {
       assert.ifError(err);
-      assert.equal(result, inputString);
+      assert.strictEqual(toUTF8(result), inputString);
     });
 
     // sync truncated input test
     assert.throws(function() {
       zlib[methods.decompSync](truncated);
-    }, /unexpected end of file/);
+    }, errMessage);
 
     // async truncated input test
     zlib[methods.decomp](truncated, function(err, result) {
-      assert(/unexpected end of file/.test(err.message));
+      assert(errMessage.test(err.message));
     });
 
     const syncFlushOpt = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
 
     // sync truncated input test, finishFlush = Z_SYNC_FLUSH
     assert.doesNotThrow(function() {
-      const result = zlib[methods.decompSync](truncated, syncFlushOpt)
-        .toString();
-      assert.equal(result, inputString.substr(0, result.length));
+      const result = toUTF8(zlib[methods.decompSync](truncated, syncFlushOpt));
+      assert.strictEqual(result, inputString.substr(0, result.length));
     });
 
     // async truncated input test, finishFlush = Z_SYNC_FLUSH
     zlib[methods.decomp](truncated, syncFlushOpt, function(err, decompressed) {
       assert.ifError(err);
-
-      const result = decompressed.toString();
-      assert.equal(result, inputString.substr(0, result.length));
+      const result = toUTF8(decompressed);
+      assert.strictEqual(result, inputString.substr(0, result.length));
     });
   });
 });

@@ -3,7 +3,7 @@ require('../common');
 const repl = require('repl');
 const assert = require('assert');
 
-var replserver = new repl.REPLServer();
+const replserver = new repl.REPLServer();
 
 replserver._inTemplateLiteral = true;
 

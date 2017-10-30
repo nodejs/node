@@ -33,7 +33,7 @@ function chunk(array, size, guard) {
   } else {
     size = nativeMax(toInteger(size), 0);
   }
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (!length || size < 1) {
     return [];
   }

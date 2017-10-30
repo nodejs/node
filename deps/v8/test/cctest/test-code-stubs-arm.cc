@@ -27,13 +27,14 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/simulator.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
@@ -78,8 +79,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
-    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
-            reg_num)) {
+    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ push(reg);
@@ -108,8 +108,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 0; --reg_num) {
-    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
-            reg_num)) {
+    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ ldr(ip, MemOperand(sp, 0));
@@ -132,7 +131,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Ret(0);
 
   CodeDesc desc;
-  masm.GetCode(&desc);
+  masm.GetCode(isolate, &desc);
   Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));

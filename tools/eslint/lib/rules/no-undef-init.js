@@ -41,8 +41,12 @@ module.exports = {
                     context.report({
                         node,
                         message: "It's not necessary to initialize '{{name}}' to undefined.",
-                        data: {name},
+                        data: { name },
                         fix(fixer) {
+                            if (node.parent.kind === "var") {
+                                return null;
+                            }
+
                             if (node.id.type === "ArrayPattern" || node.id.type === "ObjectPattern") {
 
                                 // Don't fix destructuring assignment to `undefined`.

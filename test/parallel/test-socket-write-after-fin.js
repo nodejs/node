@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
-const expected = 'hello1hello2hello3\nTHUNDERMUSCLE!';
+const assert = require('assert');
+const net = require('net');
+const expected = 'hello1hello2hello3\nbye';
 
-var server = net.createServer({
+const server = net.createServer({
   allowHalfOpen: true
 }, common.mustCall(function(sock) {
-  var serverData = '';
+  let serverData = '';
 
   sock.setEncoding('utf8');
   sock.on('data', function(c) {
@@ -20,8 +20,8 @@ var server = net.createServer({
   }));
 }));
 server.listen(0, common.mustCall(function() {
-  var sock = net.connect(this.address().port);
-  var clientData = '';
+  const sock = net.connect(this.address().port);
+  let clientData = '';
 
   sock.setEncoding('utf8');
   sock.on('data', function(c) {
@@ -35,5 +35,6 @@ server.listen(0, common.mustCall(function() {
   sock.write('hello1');
   sock.write('hello2');
   sock.write('hello3\n');
-  sock.end('THUNDERMUSCLE!');
+  assert.strictEqual(sock.end('bye'), sock);
+
 }));

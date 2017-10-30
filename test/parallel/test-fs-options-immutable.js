@@ -1,4 +1,5 @@
 'use strict';
+const common = require('../common');
 
 /*
  * These tests make sure that the `options` object passed to these functions are
@@ -7,10 +8,10 @@
  * Refer: https://github.com/nodejs/node/issues/7655
  */
 
-const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+
 const errHandler = (e) => assert.ifError(e);
 const options = Object.freeze({});
 common.refreshTmpDir();
@@ -29,7 +30,7 @@ common.refreshTmpDir();
   assert.doesNotThrow(() => fs.readdirSync(__dirname, options));
 }
 
-{
+if (common.canCreateSymLink()) {
   const sourceFile = path.resolve(common.tmpDir, 'test-readlink');
   const linkFile = path.resolve(common.tmpDir, 'test-readlink-link');
 
@@ -58,19 +59,19 @@ common.refreshTmpDir();
   );
 }
 
-if (!common.isAix) {
-  // TODO(thefourtheye) Remove this guard once
-  // https://github.com/nodejs/node/issues/5085 is fixed
-  {
-    let watch;
-    assert.doesNotThrow(() => watch = fs.watch(__filename, options, () => {}));
-    watch.close();
-  }
+{
+  let watch;
+  assert.doesNotThrow(() => {
+    watch = fs.watch(__filename, options, common.mustNotCall());
+  });
+  watch.close();
+}
 
-  {
-    assert.doesNotThrow(() => fs.watchFile(__filename, options, () => {}));
-    fs.unwatchFile(__filename);
-  }
+{
+  assert.doesNotThrow(
+    () => fs.watchFile(__filename, options, common.mustNotCall())
+  );
+  fs.unwatchFile(__filename);
 }
 
 {
@@ -91,8 +92,8 @@ if (!common.isAix) {
 {
   const fileName = path.resolve(common.tmpDir, 'streams');
   assert.doesNotThrow(() => {
-    fs.WriteStream(fileName, options).once('open', () => {
+    fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
       assert.doesNotThrow(() => fs.ReadStream(fileName, options));
-    });
+    }));
   });
 }

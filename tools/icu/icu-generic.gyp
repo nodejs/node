@@ -30,15 +30,6 @@
       'type': 'none',
       'toolsets': [ 'host', 'target' ],
       'direct_dependent_settings': {
-        'conditions': [
-          [ 'icu_endianness == "l"', {
-             'defines': [
-                # ICU cannot swap the initial data without this.
-                # http://bugs.icu-project.org/trac/ticket/11046
-                'UCONFIG_NO_LEGACY_CONVERSION=1'
-             ],
-          }],
-        ],
         'defines': [
           'UCONFIG_NO_SERVICE=1',
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
@@ -228,6 +219,7 @@
               'actions': [
                 {
                   'action_name': 'icudata',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(icu_data_in)' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
                   'action': [ '<(PRODUCT_DIR)/genccode',
@@ -247,11 +239,12 @@
                 {
                   # trim down ICU
                   'action_name': 'icutrim',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
                   'action': [ 'python',
                               'icutrim.py',
-                              '-P', '../../<(CONFIGURATION_NAME)',
+                              '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
                               '-D', '<(icu_data_in)',
                               '--delete-tmp',
                               '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
@@ -263,9 +256,10 @@
                 {
                   # build final .dat -> .obj
                   'action_name': 'genccode',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
-                  'action': [ '../../<(CONFIGURATION_NAME)/genccode',
+                  'action': [ '<(PRODUCT_DIR)/genccode',
                               '-o',
                               '-d', '<(SHARED_INTERMEDIATE_DIR)/',
                               '-n', 'icudata',
@@ -461,7 +455,7 @@
         'conditions': [
           [ 'OS=="win"', {
             'link_settings': {
-              'libraries': [ '-lAdvAPI32.Lib', '-lUser32.lib' ],
+              'libraries': [ '-lAdvAPI32.lib', '-lUser32.lib' ],
             },
           }],
         ],
@@ -477,7 +471,6 @@
         '<@(icu_src_tools)',
         '<@(icu_src_common)',
         '<@(icu_src_i18n)',
-        '<@(icu_src_io)',
         '<@(icu_src_stubdata)',
       ],
       'sources!': [
@@ -489,7 +482,6 @@
       'include_dirs': [
         '<(icu_path)/source/common',
         '<(icu_path)/source/i18n',
-        '<(icu_path)/source/io',
         '<(icu_path)/source/tools/toolutil',
       ],
       'defines': [
@@ -509,13 +501,12 @@
         'include_dirs': [
           '<(icu_path)/source/common',
           '<(icu_path)/source/i18n',
-          '<(icu_path)/source/io',
           '<(icu_path)/source/tools/toolutil',
         ],
         'conditions': [
           [ 'OS=="win"', {
             'link_settings': {
-              'libraries': [ '-lAdvAPI32.Lib', '-lUser32.lib' ],
+              'libraries': [ '-lAdvAPI32.lib', '-lUser32.lib' ],
             },
           }],
         ],

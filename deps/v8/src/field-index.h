@@ -21,18 +21,14 @@ class FieldIndex final {
  public:
   FieldIndex() : bit_field_(0) {}
 
-  static FieldIndex ForPropertyIndex(Map* map,
-                                     int index,
+  static FieldIndex ForPropertyIndex(const Map* map, int index,
                                      bool is_double = false);
-  static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
-  static FieldIndex ForDescriptor(Map* map, int descriptor_index);
-  static FieldIndex ForLoadByFieldIndex(Map* map, int index);
-  static FieldIndex ForLoadByFieldOffset(Map* map, int index);
-  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
+  static FieldIndex ForInObjectOffset(int offset, const Map* map = NULL);
+  static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
+  static FieldIndex ForLoadByFieldIndex(const Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
-  int GetLoadByFieldOffset() const;
 
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);
@@ -68,8 +64,6 @@ class FieldIndex final {
     }
     return result;
   }
-
-  int GetKeyedLookupCacheIndex() const;
 
   int GetFieldAccessStubKey() const {
     return bit_field_ &

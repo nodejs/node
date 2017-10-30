@@ -44,37 +44,71 @@
       }
       prevRow[str2Len] = str2Len;
 
-      // calculate current row distance from previous row
-      for (i=0; i<str1Len; ++i) {
-        nextCol = i + 1;
-        
-        for (j=0; j<str2Len; ++j) {
-          curCol = nextCol;
+      var strCmp;
+      if (useCollator) {
+        // calculate current row distance from previous row using collator
+        for (i = 0; i < str1Len; ++i) {
+          nextCol = i + 1;
 
-          // substution
-          var strCmp = useCollator ? (0 === collator.compare(str1.charAt(i), String.fromCharCode(str2Char[j]))) : str1.charCodeAt(i) === str2Char[j];
-            
-          nextCol = prevRow[j] + ( strCmp ? 0 : 1 );
-          
-          // insertion
-          tmp = curCol + 1;
-          if (nextCol > tmp) {
-            nextCol = tmp;
-          }
-          // deletion
-          tmp = prevRow[j + 1] + 1;
-          if (nextCol > tmp) {
-            nextCol = tmp;
+          for (j = 0; j < str2Len; ++j) {
+            curCol = nextCol;
+
+            // substution
+            strCmp = 0 === collator.compare(str1.charAt(i), String.fromCharCode(str2Char[j]));
+
+            nextCol = prevRow[j] + (strCmp ? 0 : 1);
+
+            // insertion
+            tmp = curCol + 1;
+            if (nextCol > tmp) {
+              nextCol = tmp;
+            }
+            // deletion
+            tmp = prevRow[j + 1] + 1;
+            if (nextCol > tmp) {
+              nextCol = tmp;
+            }
+
+            // copy current col value into previous (in preparation for next iteration)
+            prevRow[j] = curCol;
           }
 
-          // copy current col value into previous (in preparation for next iteration)
-          prevRow[j] = curCol;
+          // copy last col value into previous (in preparation for next iteration)
+          prevRow[j] = nextCol;
         }
-
-        // copy last col value into previous (in preparation for next iteration)
-        prevRow[j] = nextCol;
       }
+      else {
+        // calculate current row distance from previous row without collator
+        for (i = 0; i < str1Len; ++i) {
+          nextCol = i + 1;
 
+          for (j = 0; j < str2Len; ++j) {
+            curCol = nextCol;
+
+            // substution
+            strCmp = str1.charCodeAt(i) === str2Char[j];
+
+            nextCol = prevRow[j] + (strCmp ? 0 : 1);
+
+            // insertion
+            tmp = curCol + 1;
+            if (nextCol > tmp) {
+              nextCol = tmp;
+            }
+            // deletion
+            tmp = prevRow[j + 1] + 1;
+            if (nextCol > tmp) {
+              nextCol = tmp;
+            }
+
+            // copy current col value into previous (in preparation for next iteration)
+            prevRow[j] = curCol;
+          }
+
+          // copy last col value into previous (in preparation for next iteration)
+          prevRow[j] = nextCol;
+        }
+      }
       return nextCol;
     }
 

@@ -26,7 +26,12 @@
 #include <errno.h>
 
 /* NOTE: Number should be big enough to trigger this problem */
+#if defined(__CYGWIN__) || defined(__MSYS__)
+/* Cygwin crashes or hangs in socket() with too many AF_INET sockets.  */
+static uv_udp_t sockets[1250];
+#else
 static uv_udp_t sockets[2500];
+#endif
 static uv_udp_send_t reqs[ARRAY_SIZE(sockets)];
 static char slab[1];
 static unsigned int recv_cb_called;

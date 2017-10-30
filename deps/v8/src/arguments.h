@@ -6,7 +6,7 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
-#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -41,7 +41,8 @@ class Arguments BASE_EMBEDDED {
                                         index * kPointerSize));
   }
 
-  template <class S> Handle<S> at(int index) {
+  template <class S = Object>
+  Handle<S> at(int index) {
     Object** value = &((*this)[index]);
     // This cast checks that the object we're accessing does indeed have the
     // expected type.
@@ -49,9 +50,7 @@ class Arguments BASE_EMBEDDED {
     return Handle<S>(reinterpret_cast<S**>(value));
   }
 
-  int smi_at(int index) {
-    return Smi::cast((*this)[index])->value();
-  }
+  int smi_at(int index) { return Smi::ToInt((*this)[index]); }
 
   double number_at(int index) {
     return (*this)[index]->Number();
@@ -81,24 +80,22 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-// TODO(cbruni): Convert the IsContext CHECK back to a DCHECK.
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
   static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));     \
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Object** args_object, \
                                        Isolate* isolate) {                    \
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Name);            \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
+                 "V8.Runtime_" #Name);                                        \
     Arguments args(args_length, args_object);                                 \
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(                            \
-        isolate, &tracing::TraceEventStatsTable::Name);                       \
     return __RT_impl_##Name(args, isolate);                                   \
   }                                                                           \
                                                                               \
   Type Name(int args_length, Object** args_object, Isolate* isolate) {        \
-    CHECK(isolate->context() == nullptr || isolate->context()->IsContext());  \
+    DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
     CLOBBER_DOUBLE_REGISTERS();                                               \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||       \
-                    FLAG_runtime_call_stats)) {                               \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
       return Stats_##Name(args_length, args_object, isolate);                 \
     }                                                                         \
     Arguments args(args_length, args_object);                                 \

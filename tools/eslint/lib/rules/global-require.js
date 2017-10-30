@@ -17,23 +17,21 @@ const ACCEPTABLE_PARENTS = [
 ];
 
 /**
- * Finds the escope reference in the given scope.
+ * Finds the eslint-scope reference in the given scope.
  * @param {Object} scope The scope to search.
  * @param {ASTNode} node The identifier node.
  * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
-    const references = scope.references.filter(function(reference) {
-        return reference.identifier.range[0] === node.range[0] &&
-            reference.identifier.range[1] === node.range[1];
-    });
+    const references = scope.references.filter(reference => reference.identifier.range[0] === node.range[0] &&
+            reference.identifier.range[1] === node.range[1]);
 
     /* istanbul ignore else: correctly returns null */
     if (references.length === 1) {
         return references[0];
-    } else {
-        return null;
     }
+    return null;
+
 }
 
 /**
@@ -65,12 +63,10 @@ module.exports = {
                 const currentScope = context.getScope();
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    const isGoodRequire = context.getAncestors().every(function(parent) {
-                        return ACCEPTABLE_PARENTS.indexOf(parent.type) > -1;
-                    });
+                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.indexOf(parent.type) > -1);
 
                     if (!isGoodRequire) {
-                        context.report(node, "Unexpected require().");
+                        context.report({ node, message: "Unexpected require()." });
                     }
                 }
             }

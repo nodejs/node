@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -60,7 +66,7 @@ module.exports = {
                     data: {
                         numberOfStatementsOnThisLine,
                         maxStatementsPerLine,
-                        statements: numberOfStatementsOnThisLine === 1 ? "statement" : "statements",
+                        statements: numberOfStatementsOnThisLine === 1 ? "statement" : "statements"
                     }
                 });
             }
@@ -74,12 +80,7 @@ module.exports = {
          * @returns {Token} The actual last token.
          */
         function getActualLastToken(node) {
-            let lastToken = sourceCode.getLastToken(node);
-
-            if (lastToken.value === ";") {
-                lastToken = sourceCode.getTokenBefore(lastToken);
-            }
-            return lastToken;
+            return sourceCode.getLastToken(node, astUtils.isNotSemicolonToken);
         }
 
         /**

@@ -6,7 +6,7 @@ npm-config(1) -- Manage the npm configuration files
     npm config set <key> <value> [-g|--global]
     npm config get <key>
     npm config delete <key>
-    npm config list
+    npm config list [-l] [--json]
     npm config edit
     npm get <key>
     npm set <key> <value> [-g|--global]
@@ -48,7 +48,8 @@ Echo the config value to stdout.
 
     npm config list
 
-Show all the config settings.
+Show all the config settings. Use `-l` to also show defaults. Use `--json`
+to show the settings in json format.
 
 ### delete
 

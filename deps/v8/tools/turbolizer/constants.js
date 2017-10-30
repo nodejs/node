@@ -20,5 +20,11 @@ var DISASSEMBLY_COLLAPSE_ID = 'disassembly-shrink';
 var DISASSEMBLY_EXPAND_ID = 'disassembly-expand';
 var COLLAPSE_PANE_BUTTON_VISIBLE = 'button-input';
 var COLLAPSE_PANE_BUTTON_INVISIBLE = 'button-input-invisible';
-var PROF_HIGH = 5;
-var PROF_MED = 0.5;
+var UNICODE_BLOCK = '&#9611;';
+var PROF_COLS = [
+  { perc:   0, col: { r: 255, g: 255, b: 255 } },
+  { perc: 0.5, col: { r: 255, g: 255, b: 128 } },
+  { perc:   5, col: { r: 255, g: 128, b:   0 } },
+  { perc:  15, col: { r: 255, g:   0, b:   0 } },
+  { perc: 100, col: { r:   0, g:   0, b:   0 } }
+];

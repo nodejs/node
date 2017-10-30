@@ -43,7 +43,6 @@ def Main(argv):
   alltests = map(unittest.TestLoader().loadTestsFromTestCase, [
     test_scripts.ToplevelTest,
     test_scripts.ScriptTest,
-    test_scripts.SystemTest,
   ])
   unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(alltests))
   cov.stop()

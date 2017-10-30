@@ -1,0 +1,6 @@
+{
+  "exclude": [
+    "**/internal/process/write-coverage.js"
+  ],
+  "reporter": ["html", "text"]
+}

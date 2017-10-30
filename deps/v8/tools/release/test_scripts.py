@@ -586,11 +586,7 @@ class ScriptTest(unittest.TestCase):
       Cmd("git log -1 --format=%B rev3", "Title\n\nBUG=321\nLOG=true\n"),
       Cmd("git log -1 --format=%an rev3", "author3@chromium.org"),
       Cmd("git log -1 --format=%s rev4", "Title text 4"),
-      Cmd("git log -1 --format=%B rev4",
-       ("Title\n\nBUG=456\nLOG=Y\n\n"
-        "Review URL: https://codereview.chromium.org/9876543210\n")),
-      URL("https://codereview.chromium.org/9876543210/description",
-          "Title\n\nBUG=456\nLOG=N\n\n"),
+      Cmd("git log -1 --format=%B rev4", "Title\n\nBUG=456\nLOG=N"),
       Cmd("git log -1 --format=%an rev4", "author4@chromium.org"),
     ])
 
@@ -861,7 +857,7 @@ Performance and stability improvements on all platforms."""
           "\"Version 3.22.5 (based on push_hash)\""
           " origin/candidates", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5", ""),
+      Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
       Cmd("git branch -D %s" % TEST_CONFIG["CANDIDATESBRANCH"], ""),
@@ -905,7 +901,9 @@ Performance and stability improvements on all platforms."""
 
 Log text 1 (issue 321).
 
-Performance and stability improvements on all platforms."""
+Performance and stability improvements on all platforms.
+
+TBR=reviewer@chromium.org"""
 
     def ResetChangeLog():
       last_change_log = """1999-04-05: Version 3.22.4
@@ -945,10 +943,7 @@ Performance and stability improvements on all platforms."""
           change_log)
 
     expectations = [
-      Cmd("git fetch origin "
-          "+refs/heads/*:refs/heads/* "
-          "+refs/pending/*:refs/pending/* "
-          "+refs/pending-tags/*:refs/pending-tags/*", ""),
+      Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
@@ -962,8 +957,9 @@ Performance and stability improvements on all platforms."""
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Cmd("git log -1 --format=%an rev1", "author1@chromium.org\n"),
+      Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
       Cmd("git reset --hard origin/master", ""),
-      Cmd("git checkout -b work-branch push_hash", ""),
+      Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
@@ -971,17 +967,14 @@ Performance and stability improvements on all platforms."""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git log -1 --format=%H --grep=\"Version 3.22.5\" origin/3.22.5",
-          ""),
-      Cmd("git push origin "
-          "refs/heads/work-branch:refs/pending/heads/3.22.5 "
-          "push_hash:refs/pending-tags/heads/3.22.5 "
-          "push_hash:refs/heads/3.22.5", ""),
+      Cmd("git cl upload --send-mail --email \"author@chromium.org\" "
+          "-f --bypass-hooks --gerrit --private", ""),
+      Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
           "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),
       Cmd("git tag 3.22.5 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5", ""),
+      Cmd("git push origin refs/tags/3.22.5:refs/tags/3.22.5", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", "* master\n  work-branch\n"),
       Cmd("git branch -D work-branch", ""),
@@ -1044,7 +1037,7 @@ Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_precise_blink_rel;master.tryserver.chromium.linux:linux_optional_gpu_tests_rel;master.tryserver.chromium.mac:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_trusty_blink_rel;master.tryserver.chromium.linux:linux_optional_gpu_tests_rel;master.tryserver.chromium.mac:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel;master.tryserver.chromium.android:android_optional_gpu_tests_rel
 
 TBR=reviewer@chromium.org"""
 
@@ -1126,7 +1119,7 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
-          "--use-commit-queue --bypass-hooks", "", cwd=chrome_dir),
+          "--use-commit-queue --bypass-hooks --gerrit", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
@@ -1278,7 +1271,7 @@ LOG=N
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+          "--bypass-hooks --cc \"ulan@chromium.org\" --gerrit", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -1295,7 +1288,7 @@ LOG=N
           "\" refs/remotes/origin/candidates",
           "hsh_to_tag"),
       Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
-      Cmd("git push origin 3.22.5.1", ""),
+      Cmd("git push origin refs/tags/3.22.5.1:refs/tags/3.22.5.1", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
@@ -1633,8 +1626,8 @@ NOTREECHECKS=true
       Cmd("git log -1 --format=%s ab56789", "Revert \"Something\""),
       Cmd("git log -1 ab12345", "Title4\nBUG=123\nBUG=234"),
       Cmd("git log -1 ab23456", "Title2\n BUG = v8:123,345"),
-      Cmd("git log -1 ab34567", "Title3\nLOG=n\nBUG=567, 456"),
-      Cmd("git log -1 ab45678", "Title1\nBUG="),
+      Cmd("git log -1 ab34567", "Title3\nLOG=n\nBug: 567, 456,345"),
+      Cmd("git log -1 ab45678", "Title1\nBug:"),
       Cmd("git log -1 ab56789", "Revert \"Something\"\nBUG=none"),
       Cmd("git log -1 -p ab12345", "patch4"),
       Cmd(("git apply --index --reject \"%s\"" %
@@ -1660,8 +1653,7 @@ NOTREECHECKS=true
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
-      Cmd("git cl comments -a \"%s\"" % info_msg, ""),
+          "--bypass-hooks --cc \"ulan@chromium.org\" --gerrit", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -1929,30 +1921,5 @@ Cr-Commit-Position: refs/heads/4.2.71@{#1}
     }
     self.assertEquals(expected_json, json.loads(FileToText(json_output)))
 
-
-
-
-class SystemTest(unittest.TestCase):
-  def testReload(self):
-    options = ScriptsBase(
-        TEST_CONFIG, DEFAULT_SIDE_EFFECT_HANDLER, {}).MakeOptions([])
-    step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
-                    options=options,
-                    side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
-    body = step.Reload(
-"""------------------------------------------------------------------------
-r17997 | machenbach@chromium.org | 2013-11-22 11:04:04 +0100 (...) | 6 lines
-
-Prepare push to trunk.  Now working on version 3.23.11.
-
-R=danno@chromium.org
-
-Review URL: https://codereview.chromium.org/83173002
-
-------------------------------------------------------------------------""")
-    self.assertEquals(
-"""Prepare push to trunk.  Now working on version 3.23.11.
-
-R=danno@chromium.org
-
-Committed: https://code.google.com/p/v8/source/detail?r=17997""", body)
+if __name__ == '__main__':
+  unittest.main()

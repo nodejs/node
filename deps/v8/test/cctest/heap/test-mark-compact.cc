@@ -39,25 +39,24 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/mark-compact-inl.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap/sequential-marking-deque.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
-using v8::Just;
+namespace v8 {
+namespace internal {
+namespace heap {
 
-
-TEST(MarkingDeque) {
+TEST(SequentialMarkingDeque) {
   CcTest::InitializeVM();
-  int mem_size = 20 * kPointerSize;
-  byte* mem = NewArray<byte>(20*kPointerSize);
-  Address low = reinterpret_cast<Address>(mem);
-  Address high = low + mem_size;
-  MarkingDeque s;
-  s.Initialize(low, high);
-
+  SequentialMarkingDeque s(CcTest::i_isolate()->heap());
+  s.SetUp();
+  s.StartUsing();
   Address original_address = reinterpret_cast<Address>(&s);
   Address current_address = original_address;
   while (!s.IsFull()) {
@@ -72,7 +71,9 @@ TEST(MarkingDeque) {
   }
 
   CHECK_EQ(original_address, current_address);
-  DeleteArray(mem);
+  s.StopUsing();
+  CcTest::i_isolate()->cancelable_task_manager()->CancelAndWait();
+  s.TearDown();
 }
 
 TEST(Promotion) {
@@ -84,19 +85,22 @@ TEST(Promotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
 
 HEAP_TEST(NoPromotion) {
+  // Page promotion allows pages to be moved to old space even in the case of
+  // OOM scenarios.
+  FLAG_page_promotion = false;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -105,15 +109,14 @@ HEAP_TEST(NoPromotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     heap->set_force_oom(true);
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    CcTest::CollectAllGarbage();
+    CcTest::CollectAllGarbage();
     CHECK(heap->InSpace(*array, NEW_SPACE));
   }
 }
@@ -130,7 +133,7 @@ HEAP_TEST(MarkCompactCollector) {
   Handle<JSGlobalObject> global(isolate->context()->global_object());
 
   // call mark-compact when heap is empty
-  heap->CollectGarbage(OLD_SPACE, "trigger 1");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // keep allocating garbage in new space until it fails
   const int arraysize = 100;
@@ -138,14 +141,14 @@ HEAP_TEST(MarkCompactCollector) {
   do {
     allocation = heap->AllocateFixedArray(arraysize);
   } while (!allocation.IsRetry());
-  heap->CollectGarbage(NEW_SPACE, "trigger 2");
+  CcTest::CollectGarbage(NEW_SPACE);
   heap->AllocateFixedArray(arraysize).ToObjectChecked();
 
   // keep allocating maps until it fails
   do {
     allocation = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (!allocation.IsRetry());
-  heap->CollectGarbage(MAP_SPACE, "trigger 3");
+  CcTest::CollectGarbage(MAP_SPACE);
   heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize).ToObjectChecked();
 
   { HandleScope scope(isolate);
@@ -157,7 +160,7 @@ HEAP_TEST(MarkCompactCollector) {
     factory->NewJSObject(function);
   }
 
-  heap->CollectGarbage(OLD_SPACE, "trigger 4");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
@@ -175,7 +178,7 @@ HEAP_TEST(MarkCompactCollector) {
     JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   }
 
-  heap->CollectGarbage(OLD_SPACE, "trigger 5");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
@@ -218,174 +221,17 @@ TEST(MapCompact) {
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  CcTest::heap()->CollectAllGarbage(Heap::kForceCompactionMask);
+  CcTest::CollectAllGarbage(Heap::kForceCompactionMask);
   // And now map pointers should be encodable again.
   CHECK(CcTest::heap()->map_space()->MapPointersEncodable());
 }
 #endif
-
-
-static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
-  std::pair<v8::Persistent<v8::Value>*, int>* p =
-      reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
-          data.GetParameter());
-  CHECK_EQ(1234, p->second);
-  NumberOfWeakCalls++;
-  p->first->Reset();
-}
-
-
-HEAP_TEST(ObjectGroups) {
-  FLAG_incremental_marking = false;
-  CcTest::InitializeVM();
-  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
-  NumberOfWeakCalls = 0;
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  Handle<Object> g1s2 =
-      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  Handle<Object> g1c1 =
-      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  std::pair<Handle<Object>*, int> g1s1_and_id(&g1s1, 1234);
-  GlobalHandles::MakeWeak(
-      g1s1.location(), reinterpret_cast<void*>(&g1s1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  std::pair<Handle<Object>*, int> g1s2_and_id(&g1s2, 1234);
-  GlobalHandles::MakeWeak(
-      g1s2.location(), reinterpret_cast<void*>(&g1s2_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  std::pair<Handle<Object>*, int> g1c1_and_id(&g1c1, 1234);
-  GlobalHandles::MakeWeak(
-      g1c1.location(), reinterpret_cast<void*>(&g1c1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-
-  Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  Handle<Object> g2s2 =
-    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  Handle<Object> g2c1 =
-    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
-  std::pair<Handle<Object>*, int> g2s1_and_id(&g2s1, 1234);
-  GlobalHandles::MakeWeak(
-      g2s1.location(), reinterpret_cast<void*>(&g2s1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  std::pair<Handle<Object>*, int> g2s2_and_id(&g2s2, 1234);
-  GlobalHandles::MakeWeak(
-      g2s2.location(), reinterpret_cast<void*>(&g2s2_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  std::pair<Handle<Object>*, int> g2c1_and_id(&g2c1, 1234);
-  GlobalHandles::MakeWeak(
-      g2c1.location(), reinterpret_cast<void*>(&g2c1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-
-  Handle<Object> root = global_handles->Create(*g1s1);  // make a root.
-
-  // Connect group 1 and 2, make a cycle.
-  Handle<FixedArray>::cast(g1s2)->set(0, *g2s2);
-  Handle<FixedArray>::cast(g2s1)->set(0, *g1s1);
-
-  {
-    Object** g1_objects[] = { g1s1.location(), g1s2.location() };
-    Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->SetReference(Handle<HeapObject>::cast(g1s1).location(),
-                                 g1c1.location());
-    global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->SetReference(Handle<HeapObject>::cast(g2s1).location(),
-                                 g2c1.location());
-  }
-  // Do a full GC
-  heap->CollectGarbage(OLD_SPACE);
-
-  // All object should be alive.
-  CHECK_EQ(0, NumberOfWeakCalls);
-
-  // Weaken the root.
-  std::pair<Handle<Object>*, int> root_and_id(&root, 1234);
-  GlobalHandles::MakeWeak(
-      root.location(), reinterpret_cast<void*>(&root_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  // But make children strong roots---all the objects (except for children)
-  // should be collectable now.
-  global_handles->ClearWeakness(g1c1.location());
-  global_handles->ClearWeakness(g2c1.location());
-
-  // Groups are deleted, rebuild groups.
-  {
-    Object** g1_objects[] = { g1s1.location(), g1s2.location() };
-    Object** g2_objects[] = { g2s1.location(), g2s2.location() };
-    global_handles->AddObjectGroup(g1_objects, 2, NULL);
-    global_handles->SetReference(Handle<HeapObject>::cast(g1s1).location(),
-                                 g1c1.location());
-    global_handles->AddObjectGroup(g2_objects, 2, NULL);
-    global_handles->SetReference(Handle<HeapObject>::cast(g2s1).location(),
-                                 g2c1.location());
-  }
-
-  heap->CollectGarbage(OLD_SPACE);
-
-  // All objects should be gone. 5 global handles in total.
-  CHECK_EQ(5, NumberOfWeakCalls);
-
-  // And now make children weak again and collect them.
-  GlobalHandles::MakeWeak(
-      g1c1.location(), reinterpret_cast<void*>(&g1c1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  GlobalHandles::MakeWeak(
-      g2c1.location(), reinterpret_cast<void*>(&g2c1_and_id),
-      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-
-  heap->CollectGarbage(OLD_SPACE);
-  CHECK_EQ(7, NumberOfWeakCalls);
-}
-
-
-class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
- public:
-  TestRetainedObjectInfo() : has_been_disposed_(false) {}
-
-  bool has_been_disposed() { return has_been_disposed_; }
-
-  virtual void Dispose() {
-    CHECK(!has_been_disposed_);
-    has_been_disposed_ = true;
-  }
-
-  virtual bool IsEquivalent(v8::RetainedObjectInfo* other) {
-    return other == this;
-  }
-
-  virtual intptr_t GetHash() { return 0; }
-
-  virtual const char* GetLabel() { return "whatever"; }
-
- private:
-  bool has_been_disposed_;
-};
-
-
-TEST(EmptyObjectGroups) {
-  CcTest::InitializeVM();
-  GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-
-  v8::HandleScope handle_scope(CcTest::isolate());
-
-  TestRetainedObjectInfo info;
-  global_handles->AddObjectGroup(NULL, 0, &info);
-  CHECK(info.has_been_disposed());
-}
-
 
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define V8_WITH_ASAN 1
 #endif
 #endif
-
 
 // Here is a memory use test that uses /proc, and is therefore Linux-only.  We
 // do not care how much memory the simulator uses, since it is only there for
@@ -413,7 +259,7 @@ static intptr_t MemoryInUse() {
   int fd = open("/proc/self/maps", O_RDONLY);
   if (fd < 0) return -1;
 
-  const int kBufSize = 10000;
+  const int kBufSize = 20000;
   char buffer[kBufSize];
   ssize_t length = read(fd, buffer, kBufSize);
   intptr_t line_start = 0;
@@ -483,4 +329,41 @@ TEST(RegressJoinThreadsOnIsolateDeinit) {
   }
 }
 
+TEST(Regress5829) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope sc(CcTest::isolate());
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  marking->StartBlackAllocationForTesting();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(10, TENURED);
+  Address old_end = array->address() + array->Size();
+  // Right trim the array without clearing the mark bits.
+  array->set_length(9);
+  heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
+                             ClearRecordedSlots::kNo);
+  heap->old_space()->EmptyAllocationInfo();
+  Page* page = Page::FromAddress(array->address());
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  for (auto object_and_size :
+       LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
+    CHECK(!object_and_size.first->IsFiller());
+  }
+}
+
 #endif  // __linux__ and !USE_SIMULATOR
+
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8

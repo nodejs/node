@@ -7,10 +7,11 @@
 
 #include <sys/types.h>
 #include "src/globals.h"
+#include "src/utils.h"
 
 namespace unibrow {
 
-class Utf8DecoderBase {
+class V8_EXPORT_PRIVATE Utf8DecoderBase {
  public:
   // Initialization done in subclass.
   inline Utf8DecoderBase();

@@ -138,7 +138,7 @@ int a2i_ASN1_ENUMERATED(BIO *bp, ASN1_ENUMERATED *bs, char *buf, int size)
         bufp = (unsigned char *)buf;
         if (first) {
             first = 0;
-            if ((bufp[0] == '0') && (buf[1] == '0')) {
+            if ((bufp[0] == '0') && (bufp[1] == '0')) {
                 bufp += 2;
                 i -= 2;
             }

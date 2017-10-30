@@ -21,7 +21,7 @@ const MODE_ALWAYS = "always",
 /**
  * Checks whether a given variable is shadowed or not.
  *
- * @param {escope.Variable} variable - A variable to check.
+ * @param {eslint-scope.Variable} variable - A variable to check.
  * @returns {boolean} `true` if the variable is shadowed.
  */
 function isShadowed(variable) {
@@ -145,7 +145,7 @@ module.exports = {
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
                 if (!isShadowed(variable)) {
-                    variable.references.forEach(function(reference) {
+                    variable.references.forEach(reference => {
                         const node = reference.identifier;
 
                         if (astUtils.isCallee(node)) {
@@ -157,7 +157,7 @@ module.exports = {
                 // Check `Number.parseInt()`
                 variable = astUtils.getVariableByName(scope, "Number");
                 if (!isShadowed(variable)) {
-                    variable.references.forEach(function(reference) {
+                    variable.references.forEach(reference => {
                         const node = reference.identifier.parent;
 
                         if (isParseIntMethod(node) && astUtils.isCallee(node)) {

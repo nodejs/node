@@ -89,7 +89,7 @@ module.exports = {
          */
         function isBeforeCallOfSuper() {
             return (
-                isInConstructorOfDerivedClass(funcInfo) &&
+                isInConstructorOfDerivedClass() &&
                 !funcInfo.codePath.currentSegments.every(isCalled)
             );
         }
@@ -179,7 +179,7 @@ module.exports = {
                     return;
                 }
 
-                codePath.traverseSegments(function(segment, controller) {
+                codePath.traverseSegments((segment, controller) => {
                     const info = segInfoMap[segment.id];
 
                     for (let i = 0; i < info.invalidNodes.length; ++i) {
@@ -206,7 +206,7 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentStart(segment) {
-                if (!isInConstructorOfDerivedClass(funcInfo)) {
+                if (!isInConstructorOfDerivedClass()) {
                     return;
                 }
 
@@ -230,14 +230,14 @@ module.exports = {
              * @returns {void}
              */
             onCodePathSegmentLoop(fromSegment, toSegment) {
-                if (!isInConstructorOfDerivedClass(funcInfo)) {
+                if (!isInConstructorOfDerivedClass()) {
                     return;
                 }
 
                 // Update information inside of the loop.
                 funcInfo.codePath.traverseSegments(
-                    {first: toSegment, last: fromSegment},
-                    function(segment, controller) {
+                    { first: toSegment, last: fromSegment },
+                    (segment, controller) => {
                         const info = segInfoMap[segment.id];
 
                         if (info.superCalled) {

@@ -1,10 +1,32 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Flags: --expose_gc
 
 const common = require('../common');
+const assert = require('assert');
 
 function newBuffer(size, value) {
-  var buffer = Buffer.allocUnsafe(size);
+  const buffer = Buffer.allocUnsafe(size);
   while (size--) {
     buffer[size] = value;
   }
@@ -13,33 +35,33 @@ function newBuffer(size, value) {
   return buffer;
 }
 
-var fs = require('fs');
-var testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
-var testFileFD = fs.openSync(testFileName, 'w');
+const fs = require('fs');
+const testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
+const testFileFD = fs.openSync(testFileName, 'w');
 console.log(testFileName);
 
 
-var kBufSize = 128 * 1024;
-var PASS = true;
-var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
-var bufPool = [];
+const kBufSize = 128 * 1024;
+let PASS = true;
+const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
+const bufPool = [];
 
 
-var tail = require('child_process').spawn('tail', ['-f', testFileName]);
+const tail = require('child_process').spawn('tail', ['-f', testFileName]);
 tail.stdout.on('data', tailCB);
 
 function tailCB(data) {
-  PASS = data.toString().indexOf('.') < 0;
+  PASS = !data.toString().includes('.');
 }
 
 
-var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
+const timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
 (function main() {
 
   if (PASS) {
     fs.write(testFileFD, newBuffer(kBufSize, 0x61), 0, kBufSize, -1, cb);
     global.gc();
-    var nuBuf = Buffer.allocUnsafe(kBufSize);
+    const nuBuf = Buffer.allocUnsafe(kBufSize);
     neverWrittenBuffer.copy(nuBuf);
     if (bufPool.push(nuBuf) > 100) {
       bufPool.length = 0;
@@ -59,7 +81,5 @@ var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
 
 
 function cb(err, written) {
-  if (err) {
-    throw err;
-  }
+  assert.ifError(err);
 }

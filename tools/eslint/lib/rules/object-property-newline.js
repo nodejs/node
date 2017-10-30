@@ -27,14 +27,16 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
     create(context) {
         const allowSameLine = context.options[0] && Boolean(context.options[0].allowMultiplePropertiesPerLine);
-        const errorMessage = allowSameLine ?
-            "Object properties must go on a new line if they aren't all on the same line." :
-            "Object properties must go on a new line.";
+        const errorMessage = allowSameLine
+            ? "Object properties must go on a new line if they aren't all on the same line."
+            : "Object properties must go on a new line.";
 
         const sourceCode = context.getSourceCode();
 
@@ -61,7 +63,18 @@ module.exports = {
                         context.report({
                             node,
                             loc: firstTokenOfCurrentProperty.loc.start,
-                            message: errorMessage
+                            message: errorMessage,
+                            fix(fixer) {
+                                const comma = sourceCode.getTokenBefore(firstTokenOfCurrentProperty);
+                                const rangeAfterComma = [comma.range[1], firstTokenOfCurrentProperty.range[0]];
+
+                                // Don't perform a fix if there are any comments between the comma and the next property.
+                                if (sourceCode.text.slice(rangeAfterComma[0], rangeAfterComma[1]).trim()) {
+                                    return null;
+                                }
+
+                                return fixer.replaceTextRange(rangeAfterComma, "\n");
+                            }
                         });
                     }
                 }

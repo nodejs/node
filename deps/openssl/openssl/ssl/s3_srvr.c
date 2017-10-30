@@ -311,7 +311,12 @@ int ssl3_accept(SSL *s)
                     goto end;
                 }
 
-                ssl3_init_finished_mac(s);
+                if (!ssl3_init_finished_mac(s)) {
+                    ret = -1;
+                    s->state = SSL_ST_ERR;
+                    goto end;
+                }
+
                 s->state = SSL3_ST_SR_CLNT_HELLO_A;
                 s->ctx->stats.sess_accept++;
             } else if (!s->s3->send_connection_binding &&
@@ -348,7 +353,11 @@ int ssl3_accept(SSL *s)
             s->state = SSL3_ST_SW_FLUSH;
             s->init_num = 0;
 
-            ssl3_init_finished_mac(s);
+            if (!ssl3_init_finished_mac(s)) {
+                ret = -1;
+                s->state = SSL_ST_ERR;
+                goto end;
+            }
             break;
 
         case SSL3_ST_SW_HELLO_REQ_C:
@@ -506,7 +515,7 @@ int ssl3_accept(SSL *s)
                     * if SSL_VERIFY_CLIENT_ONCE is set, don't request cert
                     * during re-negotiation:
                     */
-                   ((s->session->peer != NULL) &&
+                   (s->s3->tmp.finish_md_len != 0 &&
                     (s->verify_mode & SSL_VERIFY_CLIENT_ONCE)) ||
                    /*
                     * never request cert in anonymous ciphersuites (see
@@ -1465,9 +1474,9 @@ int ssl3_get_client_hello(SSL *s)
 
     /* Handles TLS extensions that we couldn't check earlier */
     if (s->version >= SSL3_VERSION) {
-        if (ssl_check_clienthello_tlsext_late(s) <= 0) {
+        if (!ssl_check_clienthello_tlsext_late(s, &al)) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_CLIENTHELLO_TLSEXT);
-            goto err;
+            goto f_err;
         }
     }
 
@@ -1601,6 +1610,9 @@ int ssl3_send_server_key_exchange(SSL *s)
     unsigned int u;
 #endif
 #ifndef OPENSSL_NO_DH
+# ifdef OPENSSL_NO_RSA
+    int j;
+# endif
     DH *dh = NULL, *dhp;
 #endif
 #ifndef OPENSSL_NO_ECDH
@@ -1701,6 +1713,12 @@ int ssl3_send_server_key_exchange(SSL *s)
         if (type & SSL_kEECDH) {
             const EC_GROUP *group;
 
+            if (s->s3->tmp.ecdh != NULL) {
+                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE,
+                       ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+
             ecdhp = cert->ecdh_tmp;
             if (s->cert->ecdh_tmp_auto) {
                 /* Get NID of appropriate shared curve */
@@ -1721,17 +1739,7 @@ int ssl3_send_server_key_exchange(SSL *s)
                 goto f_err;
             }
 
-            if (s->s3->tmp.ecdh != NULL) {
-                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE,
-                       ERR_R_INTERNAL_ERROR);
-                goto err;
-            }
-
             /* Duplicate the ECDH structure. */
-            if (ecdhp == NULL) {
-                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_R_ECDH_LIB);
-                goto err;
-            }
             if (s->cert->ecdh_tmp_auto)
                 ecdh = ecdhp;
             else if ((ecdh = EC_KEY_dup(ecdhp)) == NULL) {
@@ -1862,6 +1870,16 @@ int ssl3_send_server_key_exchange(SSL *s)
                 n += 1 + nr[i];
             else
 #endif
+#ifndef OPENSSL_NO_DH
+            /*
+             * for interoperability with some versions of the Microsoft TLS
+             * stack, we need to zero pad the DHE pub key to the same length
+             * as the prime, so use the length of the prime here
+             */
+            if ((i == 2) && (type & (SSL_kEDH)))
+                n += 2 + nr[0];
+            else
+#endif
                 n += 2 + nr[i];
         }
 
@@ -1894,6 +1912,20 @@ int ssl3_send_server_key_exchange(SSL *s)
             if ((i == 2) && (type & SSL_kSRP)) {
                 *p = nr[i];
                 p++;
+            } else
+#endif
+#ifndef OPENSSL_NO_DH
+            /*
+             * for interoperability with some versions of the Microsoft TLS
+             * stack, we need to zero pad the DHE pub key to the same length
+             * as the prime
+             */
+            if ((i == 2) && (type & (SSL_kEDH))) {
+                s2n(nr[0], p);
+                for (j = 0; j < (nr[0] - nr[2]); ++j) {
+                    *p = 0;
+                    ++p;
+                }
             } else
 #endif
                 s2n(nr[i], p);
@@ -2057,7 +2089,7 @@ int ssl3_send_certificate_request(SSL *s)
 
         if (SSL_USE_SIGALGS(s)) {
             const unsigned char *psigs;
-            nl = tls12_get_psigalgs(s, &psigs);
+            nl = tls12_get_psigalgs(s, 1, &psigs);
             s2n(nl, p);
             memcpy(p, psigs, nl);
             p += nl;
@@ -2991,6 +3023,11 @@ int ssl3_get_cert_verify(SSL *s)
 
     peer = s->session->peer;
     pkey = X509_get_pubkey(peer);
+    if (pkey == NULL) {
+        al = SSL_AD_INTERNAL_ERROR;
+        goto f_err;
+    }
+
     type = X509_certificate_type(peer, pkey);
 
     if (!(type & EVP_PKT_SIGN)) {
@@ -3127,7 +3164,9 @@ int ssl3_get_cert_verify(SSL *s)
             goto f_err;
         }
         if (i != 64) {
+#ifdef SSL_DEBUG
             fprintf(stderr, "GOST signature length is %d", i);
+#endif
         }
         for (idx = 0; idx < 64; idx++) {
             signature[63 - idx] = p[idx];
@@ -3436,8 +3475,22 @@ int ssl3_send_newsession_ticket(SSL *s)
          * all the work otherwise use generated values from parent ctx.
          */
         if (tctx->tlsext_ticket_key_cb) {
-            if (tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
-                                           &hctx, 1) < 0)
+            /* if 0 is returned, write en empty ticket */
+            int ret = tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
+                                                 &hctx, 1);
+
+            if (ret == 0) {
+                l2n(0, p); /* timeout */
+                s2n(0, p); /* length */
+                ssl_set_handshake_header(s, SSL3_MT_NEWSESSION_TICKET,
+                                         p - ssl_handshake_start(s));
+                s->state = SSL3_ST_SW_SESSION_TICKET_B;
+                OPENSSL_free(senc);
+                EVP_CIPHER_CTX_cleanup(&ctx);
+                HMAC_CTX_cleanup(&hctx);
+                return ssl_do_write(s);
+            }
+            if (ret < 0)
                 goto err;
         } else {
             if (RAND_bytes(iv, 16) <= 0)

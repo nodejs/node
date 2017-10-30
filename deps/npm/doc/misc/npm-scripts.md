@@ -3,12 +3,24 @@ npm-scripts(7) -- How npm handles the "scripts" field
 
 ## DESCRIPTION
 
-npm supports the "scripts" property of the package.json script, for the
+npm supports the "scripts" property of the package.json file, for the
 following scripts:
 
 * prepublish:
-  Run BEFORE the package is published.  (Also run on local `npm
-  install` without any arguments.)
+  Run BEFORE the package is packed and published, as well as on local `npm
+  install` without any arguments. (See below)
+* prepare:
+  Run both BEFORE the package is packed and published, and on local `npm
+  install` without any arguments (See below). This is run
+  AFTER `prepublish`, but BEFORE `prepublishOnly`.
+* prepublishOnly:
+  Run BEFORE the package is prepared and packed, ONLY on `npm publish`. (See
+  below.)
+* prepack:
+  run BEFORE a tarball is packed (on `npm pack`, `npm publish`, and when
+  installing git dependencies)
+* postpack:
+  Run AFTER the tarball has been generated and moved to its final destination.
 * publish, postpublish:
   Run AFTER the package is published.
 * preinstall:
@@ -43,7 +55,25 @@ names will be run for those as well (e.g. `premyscript`, `myscript`,
 `postmyscript`). Scripts from dependencies can be run with `npm explore
 <pkg> -- npm run <stage>`.
 
-## COMMON USES
+## PREPUBLISH AND PREPARE
+
+### DEPRECATION NOTE
+
+Since `npm@1.1.71`, the npm CLI has run the `prepublish` script for both `npm
+publish` and `npm install`, because it's a convenient way to prepare a package
+for use (some common use cases are described in the section below).  It has
+also turned out to be, in practice, [very
+confusing](https://github.com/npm/npm/issues/10074).  As of `npm@4.0.0`, a new
+event has been introduced, `prepare`, that preserves this existing behavior. A
+_new_ event, `prepublishOnly` has been added as a transitional strategy to
+allow users to avoid the confusing behavior of existing npm versions and only
+run on `npm publish` (for instance, running the tests one last time to ensure
+they're in good shape).
+
+See <https://github.com/npm/npm/issues/10074> for a much lengthier
+justification, with further reading, for this change.
+
+### USE CASES
 
 If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the

@@ -5,3 +5,5 @@
 function $DETACHBUFFER(buffer) {
   %ArrayBufferNeuter(buffer);
 }
+
+$262.detachArrayBuffer = $DETACHBUFFER;

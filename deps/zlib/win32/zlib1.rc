@@ -26,7 +26,7 @@ BEGIN
       VALUE "FileDescription",	"zlib data compression library\0"
       VALUE "FileVersion",	ZLIB_VERSION "\0"
       VALUE "InternalName",	"zlib1.dll\0"
-      VALUE "LegalCopyright",	"(C) 1995-2013 Jean-loup Gailly & Mark Adler\0"
+      VALUE "LegalCopyright",	"(C) 1995-2017 Jean-loup Gailly & Mark Adler\0"
       VALUE "OriginalFilename",	"zlib1.dll\0"
       VALUE "ProductName",	"zlib\0"
       VALUE "ProductVersion",	ZLIB_VERSION "\0"

@@ -29,15 +29,18 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/spaces.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 namespace {
 
@@ -50,27 +53,27 @@ static void TestHashMap(Handle<HashMap> table) {
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
   table = HashMap::Put(table, a, b);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
   // When the key does not exist in the map, Lookup returns the hole.
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
-  CcTest::heap()->CollectGarbage(NEW_SPACE);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CcTest::CollectGarbage(NEW_SPACE);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), *b);
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = HashMap::Put(table, a, factory->NewJSArray(13));
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK_NE(table->Lookup(a), *b);
 
   // Keys that have been removed are mapped to the hole.
   bool was_present = false;
   table = HashMap::Remove(table, a, &was_present);
   CHECK(was_present);
-  CHECK_EQ(table->NumberOfElements(), 0);
+  CHECK_EQ(0, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
   // Keys should map back to their respective values and also should get
@@ -82,17 +85,17 @@ static void TestHashMap(Handle<HashMap> table) {
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -100,7 +103,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    Object* identity_hash = key->GetIdentityHash(isolate);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
@@ -121,19 +124,19 @@ static void TestHashSet(Handle<HashSet> table) {
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
   table = HashSet::Add(table, a);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
   // Keys still have to be valid after objects were moved.
-  CcTest::heap()->CollectGarbage(NEW_SPACE);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CcTest::CollectGarbage(NEW_SPACE);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
   // Keys that are overwritten should not change number of elements.
   table = HashSet::Add(table, a);
-  CHECK_EQ(table->NumberOfElements(), 1);
+  CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
 
@@ -142,7 +145,7 @@ static void TestHashSet(Handle<HashSet> table) {
   // bool was_present = false;
   // table = HashSet::Remove(table, a, &was_present);
   // CHECK(was_present);
-  // CHECK_EQ(table->NumberOfElements(), 0);
+  // CHECK_EQ(0, table->NumberOfElements());
   // CHECK(!table->Has(a));
   // CHECK(!table->Has(b));
 
@@ -153,16 +156,16 @@ static void TestHashSet(Handle<HashSet> table) {
     table = HashSet::Add(table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys never added to the map which already have an identity hash
   // code should not be found.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK(JSReceiver::GetOrCreateIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetOrCreateIdentityHash(isolate)->IsSmi());
     CHECK(!table->Has(isolate, key));
-    CHECK(JSReceiver::GetIdentityHash(isolate, key)->IsSmi());
+    CHECK(key->GetIdentityHash(isolate)->IsSmi());
   }
 
   // Keys that don't have an identity hash should not be found and also
@@ -170,7 +173,7 @@ static void TestHashSet(Handle<HashSet> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
-    Object* identity_hash = JSReceiver::GetIdentityHash(isolate, key);
+    Object* identity_hash = key->GetIdentityHash(isolate);
     CHECK_EQ(CcTest::heap()->undefined_value(), identity_hash);
   }
 }
@@ -191,7 +194,7 @@ class ObjectHashTableTest: public ObjectHashTable {
 
   int lookup(int key) {
     Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
-    return Smi::cast(Lookup(key_obj))->value();
+    return Smi::ToInt(Lookup(key_obj));
   }
 
   int capacity() {
@@ -212,7 +215,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::FromInt(0), isolate));
+    t->Rehash();
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -225,7 +228,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::FromInt(0), isolate));
+    t->Rehash();
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -265,15 +268,15 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
 
 
 #ifdef DEBUG
-template<class HashMap>
-static void TestHashMapCausesGC(Handle<HashMap> table) {
+template <class HashMap>
+static void TestHashMapDoesNotCauseGC(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
 
-  // Simulate a full heap so that generating an identity hash code
-  // in subsequent calls will request GC.
+  // Even though we simulate a full heap, generating an identity hash
+  // code in subsequent calls will not request GC.
   heap::SimulateFullSpace(CcTest::heap()->new_space());
   heap::SimulateFullSpace(CcTest::heap()->old_space());
 
@@ -283,7 +286,7 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();
   HashMap::Put(table, key, key);
-  CHECK(gc_count < isolate->heap()->gc_count());
+  CHECK(gc_count == isolate->heap()->gc_count());
 }
 
 
@@ -292,22 +295,22 @@ TEST(ObjectHashTableCausesGC) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
+  TestHashMapDoesNotCauseGC(ObjectHashTable::New(isolate, 1));
 }
 #endif
 
-TEST(SetRequiresCopyOnCapacityChange) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
-  dict->SetRequiresCopyOnCapacityChange();
-  Handle<Name> key = isolate->factory()->InternalizeString(
-      v8::Utils::OpenHandle(*v8_str("key")));
-  Handle<Object> value = handle(Smi::FromInt(0), isolate);
-  Handle<NameDictionary> new_dict =
-      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
-  CHECK_NE(*dict, *new_dict);
+TEST(MaximumClonedShallowObjectProperties) {
+  // Assert that a NameDictionary with kMaximumClonedShallowObjectProperties is
+  // not in large-object space.
+  const int max_capacity = NameDictionary::ComputeCapacity(
+      ConstructorBuiltins::kMaximumClonedShallowObjectProperties);
+  const int max_literal_entry = max_capacity / NameDictionary::kEntrySize;
+  const int max_literal_index = NameDictionary::EntryToIndex(max_literal_entry);
+  CHECK_LE(NameDictionary::OffsetOfElementAt(max_literal_index),
+           kMaxRegularHeapObjectSize);
 }
 
 }  // namespace
+
+}  // namespace internal
+}  // namespace v8

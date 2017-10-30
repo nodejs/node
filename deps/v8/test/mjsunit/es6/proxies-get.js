@@ -35,6 +35,12 @@
   assertThrows("proxy.property", Error);
 })();
 
+(function testThrowOnTrapNotCallable() {
+  var handler = new Proxy({}, {get: 'not_callable' });
+  var proxy = new Proxy({}, handler);
+  assertThrows("proxy.property", Error);
+})();
+
 (function testFallback() {
   var target = {property:"value"};
   var proxy = new Proxy(target, {});
@@ -124,4 +130,84 @@
     "[[Get]](iterator, Symbol(Symbol.iterator))",
     "[[Get]](iterator, next)"
   ], log);
+})();
+
+(function testGetterWithSideEffect() {
+  var obj = {
+    key: 0
+  }
+  assertEquals(obj.key, 0);
+  var p = new Proxy(obj, {});
+  var q = new Proxy(p, {
+    get(target, name) {
+      if (name != 'key') return Reflect.get(target, name);
+      target.key++;
+      return target.key;
+    }
+  });
+
+  assertEquals(0, p.key);
+  // Assert the trap is not called twice.
+  assertEquals(1, q.key);
+})();
+
+(function testReceiverWithTrap() {
+  var obj = {};
+  var p = new Proxy(obj, {
+    get(target, name, receiver) {
+      if (name != 'key') return Reflect.get(target, name);
+
+      assertSame(target, obj);
+      assertSame(receiver, p);
+      return 42;
+    }
+  });
+  assertEquals(42, p.key);
+})();
+
+(function testReceiverWithoutTrap() {
+  var obj = {
+    get prop() {
+      assertSame(this, p);
+      return 42;
+    }
+  };
+  var p = new Proxy(obj, {});
+  assertEquals(42, p.prop);
+})();
+
+(function testGetPropertyDetailsBailout() {
+  var obj = {
+  }
+  var p = new Proxy(obj, {
+    getOwnPropertyDescriptor() {
+      throw new Error('Error from proxy getOwnPropertyDescriptor trap');
+    }
+  });
+  var q = new Proxy(p, {
+    get(target, name) {
+      return 42;
+    }
+  });
+  assertThrows(function(){ q.prop }, Error,
+    'Error from proxy getOwnPropertyDescriptor trap');
+})();
+
+
+(function testGetPropertyDetailsBailout2() {
+  var obj = {};
+  Object.defineProperty(obj, 'prop', {
+    value: 53,
+    configurable: false
+  });
+  var p = new Proxy(obj, {});
+  var q = new Proxy(p, {
+    get(target, name) {
+      return 42;
+    }
+  });
+  assertThrows(function(){ q.prop }, TypeError,
+    "'get' on proxy: property 'prop' is a read-only and non-configurable data" +
+    " property on the proxy target but the proxy did not return its actual" +
+    " value (expected '53' but got '42')");
 })();

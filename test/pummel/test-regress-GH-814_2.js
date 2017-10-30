@@ -1,19 +1,41 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Flags: --expose_gc
 
-var common = require('../common');
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
-var testFD = fs.openSync(testFileName, 'w');
-console.error(testFileName + '\n');
+const fs = require('fs');
+const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
+const testFD = fs.openSync(testFileName, 'w');
+console.error(`${testFileName}\n`);
 
 
-var tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
+const tailProc = require('child_process').spawn('tail', ['-f', testFileName]);
 tailProc.stdout.on('data', tailCB);
 
 function tailCB(data) {
-  PASS = data.toString().indexOf('.') < 0;
+  PASS = !data.toString().includes('.');
 
   if (PASS) {
     //console.error('i');
@@ -26,12 +48,12 @@ function tailCB(data) {
 }
 
 
-var PASS = true;
-var bufPool = [];
-var kBufSize = 16 * 1024 * 1024;
-var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
+let PASS = true;
+const bufPool = [];
+const kBufSize = 16 * 1024 * 1024;
+const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
 
-var timeToQuit = Date.now() + 5e3; //Test should last no more than this.
+const timeToQuit = Date.now() + 5e3; //Test should last no more than this.
 writer();
 
 function writer() {
@@ -50,7 +72,7 @@ function writer() {
       global.gc();
       global.gc();
       global.gc();
-      var nuBuf = Buffer.allocUnsafe(kBufSize);
+      const nuBuf = Buffer.allocUnsafe(kBufSize);
       neverWrittenBuffer.copy(nuBuf);
       if (bufPool.push(nuBuf) > 100) {
         bufPool.length = 0;
@@ -64,9 +86,7 @@ function writer() {
 
 function writerCB(err, written) {
   //console.error('cb.');
-  if (err) {
-    throw err;
-  }
+  assert.ifError(err);
 }
 
 
@@ -74,7 +94,7 @@ function writerCB(err, written) {
 
 
 function newBuffer(size, value) {
-  var buffer = Buffer.allocUnsafe(size);
+  const buffer = Buffer.allocUnsafe(size);
   while (size--) {
     buffer[size] = value;
   }

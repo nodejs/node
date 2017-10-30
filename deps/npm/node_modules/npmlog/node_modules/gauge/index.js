@@ -62,9 +62,8 @@ function Gauge (arg1, arg2) {
   this._$$doRedraw = callWith(this, this._doRedraw)
   this._$$handleSizeChange = callWith(this, this._handleSizeChange)
 
-  if (options.cleanupOnExit == null || options.cleanupOnExit) {
-    onExit(callWith(this, this.disable))
-  }
+  this._cleanupOnExit = options.cleanupOnExit == null || options.cleanupOnExit
+  this._removeOnExit = null
 
   if (options.enabled || (options.enabled == null && this._tty && this._tty.isTTY)) {
     this.enable()
@@ -74,6 +73,10 @@ function Gauge (arg1, arg2) {
 }
 Gauge.prototype = {}
 
+Gauge.prototype.isEnabled = function () {
+  return !this._disabled
+}
+
 Gauge.prototype.setTemplate = function (template) {
   this._gauge.setTemplate(template)
   if (this._showing) this._requestRedraw()
@@ -81,12 +84,12 @@ Gauge.prototype.setTemplate = function (template) {
 
 Gauge.prototype._computeTheme = function (theme) {
   if (!theme) theme = {}
-  if (theme && (Object.keys(theme).length === 0 || theme.hasUnicode != null || theme.hasColor != null)) {
+  if (typeof theme === 'string') {
+    theme = this._themes.getTheme(theme)
+  } else if (theme && (Object.keys(theme).length === 0 || theme.hasUnicode != null || theme.hasColor != null)) {
     var useUnicode = theme.hasUnicode == null ? hasUnicode() : theme.hasUnicode
     var useColor = theme.hasColor == null ? hasColor : theme.hasColor
     theme = this._themes.getDefault({hasUnicode: useUnicode, hasColor: useColor, platform: theme.platform})
-  } else if (typeof theme === 'string') {
-    theme = this._themes.getTheme(theme)
   }
   return theme
 }
@@ -143,6 +146,9 @@ Gauge.prototype.disable = function () {
 }
 
 Gauge.prototype._enableEvents = function () {
+  if (this._cleanupOnExit) {
+    this._removeOnExit = onExit(callWith(this, this.disable))
+  }
   this._tty.on('resize', this._$$handleSizeChange)
   if (this._fixedFramerate) {
     this.redrawTracker = setInterval(this._$$doRedraw, this._updateInterval)
@@ -153,6 +159,7 @@ Gauge.prototype._enableEvents = function () {
 Gauge.prototype._disableEvents = function () {
   this._tty.removeListener('resize', this._$$handleSizeChange)
   if (this._fixedFramerate) clearInterval(this.redrawTracker)
+  if (this._removeOnExit) this._removeOnExit()
 }
 
 Gauge.prototype.hide = function (cb) {
@@ -164,7 +171,6 @@ Gauge.prototype.hide = function (cb) {
 }
 
 Gauge.prototype.show = function (section, completed) {
-  if (this._disabled) return
   this._showing = true
   if (typeof section === 'string') {
     this._status.section = section
@@ -176,14 +182,15 @@ Gauge.prototype.show = function (section, completed) {
     }
   }
   if (completed != null) this._status.completed = completed
+  if (this._disabled) return
   this._requestRedraw()
 }
 
 Gauge.prototype.pulse = function (subsection) {
-  if (this._disabled) return
-  if (!this._showing) return
   this._status.subsection = subsection || ''
   this._status.spun ++
+  if (this._disabled) return
+  if (!this._showing) return
   this._requestRedraw()
 }
 

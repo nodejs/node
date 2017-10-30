@@ -6,7 +6,7 @@ const stream = require('stream');
 const assert = require('assert');
 const repl = require('repl');
 
-var output = '';
+let output = '';
 const inputStream = new stream.PassThrough();
 const outputStream = new stream.PassThrough();
 outputStream.on('data', function(d) {
@@ -23,7 +23,7 @@ r.defineCommand('say1', {
   help: 'help for say1',
   action: function(thing) {
     output = '';
-    this.write('hello ' + thing);
+    this.write(`hello ${thing}`);
     this.displayPrompt();
   }
 });
@@ -35,8 +35,9 @@ r.defineCommand('say2', function() {
 });
 
 inputStream.write('.help\n');
-assert(/\n.say1     help for say1\n/.test(output), 'help for say1 not present');
-assert(/\n.say2\n/.test(output), 'help for say2 not present');
+assert(/\n\.say1     help for say1\n/.test(output),
+       'help for say1 not present');
+assert(/\n\.say2\n/.test(output), 'help for say2 not present');
 inputStream.write('.say1 node developer\n');
 assert(/> hello node developer/.test(output), 'say1 outputted incorrectly');
 inputStream.write('.say2 node developer\n');

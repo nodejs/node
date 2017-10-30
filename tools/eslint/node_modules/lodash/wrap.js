@@ -1,4 +1,4 @@
-var identity = require('./identity'),
+var castFunction = require('./_castFunction'),
     partial = require('./partial');
 
 /**
@@ -24,8 +24,7 @@ var identity = require('./identity'),
  * // => '<p>fred, barney, &amp; pebbles</p>'
  */
 function wrap(value, wrapper) {
-  wrapper = wrapper == null ? identity : wrapper;
-  return partial(wrapper, value);
+  return partial(castFunction(wrapper), value);
 }
 
 module.exports = wrap;

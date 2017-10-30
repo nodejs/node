@@ -1,0 +1,66 @@
+{
+  "_from": "sorted-union-stream@~2.1.3",
+  "_id": "sorted-union-stream@2.1.3",
+  "_integrity": "sha1-x3lMfgd4gAUv9xqNSi27Sppjisc=",
+  "_location": "/sorted-union-stream",
+  "_phantomChildren": {
+    "inherits": "2.0.3",
+    "readable-stream": "2.2.9"
+  },
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "sorted-union-stream@~2.1.3",
+    "name": "sorted-union-stream",
+    "escapedName": "sorted-union-stream",
+    "rawSpec": "~2.1.3",
+    "saveSpec": null,
+    "fetchSpec": "~2.1.3"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/sorted-union-stream/-/sorted-union-stream-2.1.3.tgz",
+  "_shasum": "c7794c7e077880052ff71a8d4a2dbb4a9a638ac7",
+  "_shrinkwrap": null,
+  "_spec": "sorted-union-stream@~2.1.3",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Mathias Buus Madsen",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/mafintosh/sorted-union-stream/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "from2": "^1.3.0",
+    "stream-iterate": "^1.1.0"
+  },
+  "deprecated": false,
+  "description": "Get the union of two sorted streams",
+  "devDependencies": {
+    "standard": "^3.3.0",
+    "tape": "^3.0.0"
+  },
+  "homepage": "https://github.com/mafintosh/sorted-union-stream",
+  "keywords": [
+    "union",
+    "sorted",
+    "stream"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "sorted-union-stream",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/sorted-union-stream.git"
+  },
+  "scripts": {
+    "test": "tape test.js"
+  },
+  "version": "2.1.3"
+}

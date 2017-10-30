@@ -25,8 +25,6 @@ class HeapProfiler {
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler();
 
-  size_t GetMemorySizeUsedByProfiler();
-
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
@@ -64,7 +62,11 @@ class HeapProfiler {
 
   v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
                                                       Object** wrapper);
-  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
+
+  void SetGetRetainerInfosCallback(
+      v8::HeapProfiler::GetRetainerInfosCallback callback);
+
+  v8::HeapProfiler::RetainerInfos GetRetainerInfos(Isolate* isolate);
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
   bool is_tracking_allocations() const { return !!allocation_tracker_; }
@@ -73,6 +75,10 @@ class HeapProfiler {
   void ClearHeapObjectMap();
 
   Isolate* isolate() const { return heap()->isolate(); }
+
+  void QueryObjects(Handle<Context> context,
+                    debug::QueryObjectPredicate* predicate,
+                    v8::PersistentValueVector<v8::Object>* objects);
 
  private:
   Heap* heap() const;
@@ -86,6 +92,7 @@ class HeapProfiler {
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
+  v8::HeapProfiler::GetRetainerInfosCallback get_retainer_infos_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };

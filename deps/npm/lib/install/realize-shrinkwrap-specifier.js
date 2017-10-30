@@ -1,25 +1,21 @@
 'use strict'
-var realizePackageSpecifier = require('realize-package-specifier')
-var isRegistrySpecifier = require('./is-registry-specifier.js')
+var npa = require('npm-package-arg')
 
-module.exports = function (name, sw, where, cb) {
-  function lookup (ver, cb) {
-    realizePackageSpecifier(name + '@' + ver, where, cb)
-  }
-  if (sw.resolved) {
-    return lookup(sw.resolved, cb)
-  } else if (sw.from) {
-    return lookup(sw.from, function (err, spec) {
-      if (err || isRegistrySpecifier(spec)) {
-        return thenUseVersion()
-      } else {
-        return cb(null, spec)
+module.exports = function (name, sw, where) {
+  try {
+    if (sw.version && sw.integrity) {
+      return npa.resolve(name, sw.version, where)
+    } else if (sw.from) {
+      const spec = npa(sw.from, where)
+      if (spec.registry && sw.version) {
+        return npa.resolve(name, sw.version, where)
+      } else if (!sw.resolved) {
+        return spec
       }
-    })
-  } else {
-    return thenUseVersion()
-  }
-  function thenUseVersion () {
-    lookup(sw.version, cb)
-  }
+    }
+    if (sw.resolved) {
+      return npa.resolve(name, sw.resolved, where)
+    }
+  } catch (_) { }
+  return npa.resolve(name, sw.version, where)
 }

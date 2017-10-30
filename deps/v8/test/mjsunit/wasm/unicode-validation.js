@@ -45,11 +45,11 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
     internal_function_name, exported_function_name, shouldThrow) {
   var builder = new WasmModuleBuilder();
 
-  builder.addImportWithModule(imported_module_name, imported_function_name,
+  builder.addImport(imported_module_name, imported_function_name,
       kSig_v_v);
 
   builder.addFunction(internal_function_name, kSig_v_v)
-    .addBody([kExprCallImport, kArity0, 0])
+    .addBody([kExprCallFunction, 0])
     .exportAs(exported_function_name);
 
   // sanity check: does javascript agree with out shouldThrow annotation?
@@ -79,6 +79,7 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
   } catch (err) {
     if (!shouldThrow) print(err);
     assertTrue(shouldThrow, "Should not throw error on valid names");
+    assertTrue(err instanceof Error, "exception should be an Error");
     assertContains("UTF-8", err.toString());
   }
   assertEquals(shouldThrow, hasThrown,
@@ -117,5 +118,4 @@ checkAll(toByteArray("\xff"), true);
 checkAll(toByteArray("\xed\xa0\x8f"), true);        // surrogate code points
 checkAll(toByteArray("\xe0\x82\x80"), true);        // overlong sequence
 checkAll(toByteArray("\xf4\x90\x80\x80"), true);    // beyond limit: U+110000
-checkAll(toByteArray("\xef\xbf\xbe"), true);        // non-character; U+FFFE
 checkAll(toByteArray("with\x00null"), false);

@@ -81,20 +81,32 @@ int set_hex(char *in, unsigned char *out, int size);
 #define BSIZE   (8*1024)
 #define PROG    enc_main
 
-static void show_ciphers(const OBJ_NAME *name, void *bio_)
+struct doall_enc_ciphers {
+    BIO *bio;
+    int n;
+};
+
+static void show_ciphers(const OBJ_NAME *name, void *arg)
 {
-    BIO *bio = bio_;
-    static int n;
+    struct doall_enc_ciphers *dec = (struct doall_enc_ciphers *)arg;
+    const EVP_CIPHER *cipher;
 
     if (!islower((unsigned char)*name->name))
         return;
 
-    BIO_printf(bio, "-%-25s", name->name);
-    if (++n == 3) {
-        BIO_printf(bio, "\n");
-        n = 0;
+    /* Filter out ciphers that we cannot use */
+    cipher = EVP_get_cipherbyname(name->name);
+    if (cipher == NULL ||
+            (EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) != 0 ||
+            EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE)
+        return;
+
+    BIO_printf(dec->bio, "-%-25s", name->name);
+    if (++dec->n == 3) {
+        BIO_printf(dec->bio, "\n");
+        dec->n = 0;
     } else
-        BIO_printf(bio, " ");
+        BIO_printf(dec->bio, " ");
 }
 
 int MAIN(int, char **);
@@ -126,11 +138,11 @@ int MAIN(int argc, char **argv)
         NULL, *wbio = NULL;
 #define PROG_NAME_SIZE  39
     char pname[PROG_NAME_SIZE + 1];
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
+    ENGINE *e = NULL;
     const EVP_MD *dgst = NULL;
     int non_fips_allow = 0;
+    struct doall_enc_ciphers dec;
 
     apps_startup();
 
@@ -312,8 +324,10 @@ int MAIN(int argc, char **argv)
 #endif
 
             BIO_printf(bio_err, "Cipher Types\n");
+            dec.n = 0;
+            dec.bio = bio_err;
             OBJ_NAME_do_all_sorted(OBJ_NAME_TYPE_CIPHER_METH,
-                                   show_ciphers, bio_err);
+                                   show_ciphers, &dec);
             BIO_printf(bio_err, "\n");
 
             goto end;
@@ -322,9 +336,7 @@ int MAIN(int argc, char **argv)
         argv++;
     }
 
-#ifndef OPENSSL_NO_ENGINE
-    setup_engine(bio_err, engine, 0);
-#endif
+    e = setup_engine(bio_err, engine, 0);
 
     if (cipher && EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) {
         BIO_printf(bio_err,
@@ -674,6 +686,7 @@ int MAIN(int argc, char **argv)
     if (bzl != NULL)
         BIO_free(bzl);
 #endif
+    release_engine(e);
     if (pass)
         OPENSSL_free(pass);
     apps_shutdown();

@@ -1,27 +1,25 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-if (!common.hasCrypto) {
+if (!common.hasCrypto)
   common.skip('missing crypto');
-  return;
-}
-var tls = require('tls');
 
-var fs = require('fs');
-var net = require('net');
+const assert = require('assert');
+const tls = require('tls');
+const net = require('net');
+const fixtures = require('../common/fixtures');
 
-var out = '';
+let out = '';
 
-var server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+const server = tls.createServer({
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   c.end('hello');
 }).listen(0, function() {
-  var socket = new net.Socket();
+  const socket = new net.Socket();
 
-  var s = tls.connect({
+  const s = tls.connect({
     socket: socket,
     rejectUnauthorized: false
   }, function() {
@@ -38,5 +36,5 @@ var server = tls.createServer({
 });
 
 process.on('exit', function() {
-  assert.equal(out, 'hello');
+  assert.strictEqual(out, 'hello');
 });

@@ -4104,6 +4104,10 @@
 # define JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE          0x00002000
 #endif
 
+#ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+# define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE 0x00000002
+#endif
+
 /* from winternl.h */
 typedef struct _UNICODE_STRING {
   USHORT Length;
@@ -4145,7 +4149,7 @@ typedef const UNICODE_STRING *PCUNICODE_STRING;
       struct {
         UCHAR  DataBuffer[1];
       } GenericReparseBuffer;
-    } DUMMYUNIONNAME;
+    };
   } REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 #endif
 
@@ -4153,7 +4157,7 @@ typedef struct _IO_STATUS_BLOCK {
   union {
     NTSTATUS Status;
     PVOID Pointer;
-  } DUMMYUNIONNAME;
+  };
   ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
@@ -4606,6 +4610,10 @@ typedef NTSTATUS (NTAPI *sNtQueryDirectoryFile)
 #endif
 
 /* from winerror.h */
+#ifndef ERROR_ELEVATION_REQUIRED
+# define ERROR_ELEVATION_REQUIRED 740
+#endif
+
 #ifndef ERROR_SYMLINK_NOT_SUPPORTED
 # define ERROR_SYMLINK_NOT_SUPPORTED 1464
 #endif

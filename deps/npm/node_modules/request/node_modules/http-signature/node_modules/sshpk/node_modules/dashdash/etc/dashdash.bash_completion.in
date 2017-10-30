@@ -264,7 +264,7 @@ function _{{name}}_completer {
                 # We want *no* completions, i.e. some way to get the active
                 # 'complete -o default' to not do filename completion.
                 trace "  completing 'none' (hack to imply no completions)"
-                echo "##-no completions-##"
+                echo "##-no-completion- -results-##"
             elif [[ $argtype == "file" ]]; then
                 # 'complete -o default' gives the best filename completion, at least
                 # on Mac.
@@ -278,8 +278,9 @@ function _{{name}}_completer {
                 completions=$(complete_$argtype "$word")
                 if [[ -z "$completions" ]]; then
                     trace "  no custom '$argtype' completions"
-                    # These are in alpha order so they show up correctly.
-                    echo "##-no -$argtype- completions-##"
+                    # These are in ascii and "dictionary" order so they sort
+                    # correctly.
+                    echo "##-no-completion- -results-##"
                 else
                     echo $completions
                 fi

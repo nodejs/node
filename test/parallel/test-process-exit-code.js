@@ -1,6 +1,27 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 switch (process.argv[2]) {
   case 'child1':
@@ -22,14 +43,14 @@ switch (process.argv[2]) {
 function child1() {
   process.exitCode = 42;
   process.on('exit', function(code) {
-    assert.equal(code, 42);
+    assert.strictEqual(code, 42);
   });
 }
 
 function child2() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    assert.equal(code, 42);
+    assert.strictEqual(code, 42);
   });
   process.exit(42);
 }
@@ -37,7 +58,7 @@ function child2() {
 function child3() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    assert.equal(code, 0);
+    assert.strictEqual(code, 0);
   });
   process.exit(0);
 }
@@ -56,28 +77,29 @@ function child4() {
 function child5() {
   process.exitCode = 95;
   process.on('exit', function(code) {
-    assert.equal(code, 95);
+    assert.strictEqual(code, 95);
     process.exitCode = 99;
   });
 }
 
 function parent() {
+  const { spawn } = require('child_process');
+  const node = process.execPath;
+  const f = __filename;
+  const option = { stdio: [ 0, 1, 'ignore' ] };
+
+  const test = (arg, exit) => {
+    spawn(node, [f, arg], option).on('exit', (code) => {
+      assert.strictEqual(
+        code, exit,
+        `wrong exit for ${arg}\nexpected:${exit} but got:${code}`);
+      console.log('ok - %s exited with %d', arg, exit);
+    });
+  };
+
   test('child1', 42);
   test('child2', 42);
   test('child3', 0);
   test('child4', 1);
   test('child5', 99);
-}
-
-function test(arg, exit) {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var f = __filename;
-  var option = { stdio: [ 0, 1, 'ignore' ] };
-  spawn(node, [f, arg], option).on('exit', function(code) {
-    assert.equal(code, exit, 'wrong exit for ' +
-                 arg + '\nexpected:' + exit +
-                 ' but got:' + code);
-    console.log('ok - %s exited with %d', arg, exit);
-  });
 }

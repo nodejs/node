@@ -58,8 +58,7 @@ module.exports = {
                 }
 
                 if (paramIsShadowing(scope, node.param.name)) {
-                    context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
-                            { name: node.param.name });
+                    context.report({ node, message: "Value of '{{name}}' may be overwritten in IE 8 and earlier.", data: { name: node.param.name } });
                 }
             }
         };

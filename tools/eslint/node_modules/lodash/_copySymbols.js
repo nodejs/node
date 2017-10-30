@@ -2,7 +2,7 @@ var copyObject = require('./_copyObject'),
     getSymbols = require('./_getSymbols');
 
 /**
- * Copies own symbol properties of `source` to `object`.
+ * Copies own symbols of `source` to `object`.
  *
  * @private
  * @param {Object} source The object to copy symbols from.

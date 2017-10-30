@@ -1,0 +1,41 @@
+{
+  "_from": "get-caller-file@^1.0.1",
+  "_id": "get-caller-file@1.0.2",
+  "_inBundle": false,
+  "_integrity": "sha1-9wLmMSfn4jHBYKgMFVSstw1QR+U=",
+  "_location": "/libnpx/yargs/get-caller-file",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "get-caller-file@^1.0.1",
+    "name": "get-caller-file",
+    "escapedName": "get-caller-file",
+    "rawSpec": "^1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "^1.0.1"
+  },
+  "_requiredBy": [
+    "/libnpx/yargs"
+  ],
+  "_resolved": "https://registry.npmjs.org/get-caller-file/-/get-caller-file-1.0.2.tgz",
+  "_shasum": "f702e63127e7e231c160a80c1554acb70d5047e5",
+  "_shrinkwrap": null,
+  "_spec": "get-caller-file@^1.0.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/libnpx/node_modules/yargs",
+  "bin": null,
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "[![Build Status](https://travis-ci.org/ember-cli/ember-cli.svg?branch=master)](https://travis-ci.org/ember-cli/ember-cli) [![Build status](https://ci.appveyor.com/api/projects/status/ol2q94g1932cy14a/branch/master?svg=true)](https://ci.appveyor.com/project/embercli/get-caller-file/branch/master)",
+  "devDependencies": {
+    "chai": "^3.4.1",
+    "ensure-posix-path": "^1.0.1",
+    "mocha": "^2.3.4"
+  },
+  "name": "get-caller-file",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "scripts": {},
+  "version": "1.0.2"
+}

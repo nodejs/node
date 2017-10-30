@@ -29,6 +29,11 @@ var SetIterationBenchmark = new BenchmarkSuite('Set-Iteration', [1000], [
 ]);
 
 
+var SetIterationBenchmark = new BenchmarkSuite('Set-Iterator', [1000], [
+  new Benchmark('Iterator', false, false, 0, SetIterator, SetSetupSmi, SetTearDown),
+]);
+
+
 var set;
 
 
@@ -169,4 +174,11 @@ function SetForEach() {
       throw new Error();
     }
   });
+}
+
+
+function SetIterator() {
+  var result = 0;
+  for (const v of set) result += v;
+  return result;
 }

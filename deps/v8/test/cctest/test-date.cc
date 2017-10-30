@@ -25,12 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-
+#include "src/date.h"
 #include "src/global-handles.h"
+#include "src/isolate.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 class DateCacheMock: public DateCache {
  public:
@@ -193,7 +195,7 @@ TEST(DateParseLegacyUseCounter) {
   CHECK_EQ(1, legacy_parse_count);
 }
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 TEST(DateCacheVersion) {
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
@@ -214,4 +216,7 @@ TEST(DateCacheVersion) {
   CHECK(date_cache_version->IsNumber());
   CHECK_EQ(1.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
+
+}  // namespace internal
+}  // namespace v8

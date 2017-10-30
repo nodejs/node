@@ -8,7 +8,8 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,7 @@ class BuiltinArguments : public Arguments {
     return Arguments::operator[](index);
   }
 
-  template <class S>
+  template <class S = Object>
   Handle<S> at(int index) {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);
@@ -48,9 +49,8 @@ class BuiltinArguments : public Arguments {
   static const int kNumExtraArgs = 3;
   static const int kNumExtraArgsWithReceiver = 4;
 
-  template <class S>
-  Handle<S> target() {
-    return Arguments::at<S>(Arguments::length() - 1 - kTargetOffset);
+  Handle<JSFunction> target() {
+    return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
   }
   Handle<HeapObject> new_target() {
     return Arguments::at<HeapObject>(Arguments::length() - 1 -
@@ -76,32 +76,30 @@ class BuiltinArguments : public Arguments {
 // through the BuiltinArguments object args.
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-// TODO(cbruni): Convert the IsContext CHECK back to a DCHECK.
-#define BUILTIN(name)                                                        \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,  \
-                                                     Isolate* isolate);      \
-                                                                             \
-  V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                      \
-      int args_length, Object** args_object, Isolate* isolate) {             \
-    BuiltinArguments args(args_length, args_object);                         \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name); \
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(                           \
-        isolate, &tracing::TraceEventStatsTable::Builtin_##name);            \
-    return Builtin_Impl_##name(args, isolate);                               \
-  }                                                                          \
-                                                                             \
-  MUST_USE_RESULT Object* Builtin_##name(                                    \
-      int args_length, Object** args_object, Isolate* isolate) {             \
-    CHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||      \
-                    FLAG_runtime_call_stats)) {                              \
-      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);   \
-    }                                                                        \
-    BuiltinArguments args(args_length, args_object);                         \
-    return Builtin_Impl_##name(args, isolate);                               \
-  }                                                                          \
-                                                                             \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,  \
+#define BUILTIN(name)                                                         \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
+                                                     Isolate* isolate);       \
+                                                                              \
+  V8_NOINLINE static Object* Builtin_Impl_Stats_##name(                       \
+      int args_length, Object** args_object, Isolate* isolate) {              \
+    BuiltinArguments args(args_length, args_object);                          \
+    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Builtin_##name);  \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
+                 "V8.Builtin_" #name);                                        \
+    return Builtin_Impl_##name(args, isolate);                                \
+  }                                                                           \
+                                                                              \
+  MUST_USE_RESULT Object* Builtin_##name(                                     \
+      int args_length, Object** args_object, Isolate* isolate) {              \
+    DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
+      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);    \
+    }                                                                         \
+    BuiltinArguments args(args_length, args_object);                          \
+    return Builtin_Impl_##name(args, isolate);                                \
+  }                                                                           \
+                                                                              \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
                                                      Isolate* isolate)
 
 // ----------------------------------------------------------------------------
@@ -120,8 +118,7 @@ class BuiltinArguments : public Arguments {
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (args.receiver()->IsNull(isolate) ||                                     \
-      args.receiver()->IsUndefined(isolate)) {                                \
+  if (args.receiver()->IsNullOrUndefined(isolate)) {                          \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \

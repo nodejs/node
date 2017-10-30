@@ -57,7 +57,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            context.report(node, "Unexpected use of '{{operator}}'.", { operator: node.operator });
+            context.report({ node, message: "Unexpected use of '{{operator}}'.", data: { operator: node.operator } });
         }
 
         /**

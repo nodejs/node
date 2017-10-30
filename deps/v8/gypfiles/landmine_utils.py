@@ -76,7 +76,7 @@ def distributor():
 @memoize()
 def platform():
   """
-  Returns a string representing the platform this build is targetted for.
+  Returns a string representing the platform this build is targeted for.
   Possible values: 'win', 'mac', 'linux', 'ios', 'android'
   """
   if 'OS' in gyp_defines():

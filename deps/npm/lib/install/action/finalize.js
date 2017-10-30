@@ -1,92 +1,95 @@
 'use strict'
-var path = require('path')
-var rimraf = require('rimraf')
-var fs = require('graceful-fs')
-var mkdirp = require('mkdirp')
-var asyncMap = require('slide').asyncMap
-var rename = require('../../utils/rename.js')
+const path = require('path')
+const fs = require('graceful-fs')
+const Bluebird = require('bluebird')
+const rimraf = Bluebird.promisify(require('rimraf'))
+const mkdirp = Bluebird.promisify(require('mkdirp'))
+const lstat = Bluebird.promisify(fs.lstat)
+const readdir = Bluebird.promisify(fs.readdir)
+const symlink = Bluebird.promisify(fs.symlink)
+const gentlyRm = require('../../utils/gently-rm')
+const moduleStagingPath = require('../module-staging-path.js')
+const move = require('move-concurrently')
+const moveOpts = {fs: fs, Promise: Bluebird, maxConcurrency: 4}
+const getRequested = require('../get-requested.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
-  log.silly('finalize', pkg.path)
+module.exports = function (staging, pkg, log) {
+  log.silly('finalize', pkg.realpath)
 
-  var delpath = path.join(path.dirname(pkg.path), '.' + path.basename(pkg.path) + '.DELETE')
+  const extractedTo = moduleStagingPath(staging, pkg)
 
-  mkdirp(path.resolve(pkg.path, '..'), whenParentExists)
+  const delpath = path.join(path.dirname(pkg.realpath), '.' + path.basename(pkg.realpath) + '.DELETE')
+  let movedDestAway = false
 
-  function whenParentExists (mkdirEr) {
-    if (mkdirEr) return next(mkdirEr)
-    // We stat first, because we can't rely on ENOTEMPTY from Windows.
-    // Windows, by contrast, gives the generic EPERM of a folder already exists.
-    fs.lstat(pkg.path, destStatted)
+  const requested = pkg.package._requested || getRequested(pkg)
+  if (requested.type === 'directory') {
+    const relative = path.relative(path.dirname(pkg.path), pkg.realpath)
+    return makeParentPath(pkg.path)
+      .then(() => symlink(relative, pkg.path, 'junction'))
+      .catch((ex) => {
+        return rimraf(pkg.path).then(() => symlink(relative, pkg.path, 'junction'))
+      })
+  } else {
+    return makeParentPath(pkg.realpath)
+      .then(moveStagingToDestination)
+      .then(restoreOldNodeModules)
+      .catch((err) => {
+        if (movedDestAway) {
+          return rimraf(pkg.realpath).then(moveOldDestinationBack).then(() => {
+            throw err
+          })
+        } else {
+          throw err
+        }
+      })
+      .then(() => rimraf(delpath))
   }
 
-  function destStatted (doesNotExist) {
-    if (doesNotExist) {
-      rename(buildpath, pkg.path, whenMoved)
-    } else {
-      moveAway()
-    }
+  function makeParentPath (dir) {
+    return mkdirp(path.dirname(dir))
   }
 
-  function whenMoved (renameEr) {
-    if (!renameEr) return next()
-    if (renameEr.code !== 'ENOTEMPTY') return next(renameEr)
-    moveAway()
+  function moveStagingToDestination () {
+    return destinationIsClear()
+      .then(actuallyMoveStaging)
+      .catch(() => moveOldDestinationAway().then(actuallyMoveStaging))
   }
 
-  function moveAway () {
-    rename(pkg.path, delpath, whenOldMovedAway)
+  function destinationIsClear () {
+    return lstat(pkg.realpath).then(() => {
+      throw new Error('destination exists')
+    }, () => {})
   }
 
-  function whenOldMovedAway (renameEr) {
-    if (renameEr) return next(renameEr)
-    rename(buildpath, pkg.path, whenConflictMoved)
+  function actuallyMoveStaging () {
+    return move(extractedTo, pkg.realpath, moveOpts)
   }
 
-  function whenConflictMoved (renameEr) {
-    // if we got an error we'll try to put back the original module back,
-    // succeed or fail though we want the original error that caused this
-    if (renameEr) return rename(delpath, pkg.path, function () { next(renameEr) })
-    fs.readdir(path.join(delpath, 'node_modules'), makeTarget)
+  function moveOldDestinationAway () {
+    return rimraf(delpath).then(() => {
+      return move(pkg.realpath, delpath, moveOpts)
+    }).then(() => { movedDestAway = true })
   }
 
-  function makeTarget (readdirEr, files) {
-    if (readdirEr) return cleanup()
-    if (!files.length) return cleanup()
-    mkdirp(path.join(pkg.path, 'node_modules'), function (mkdirEr) { moveModules(mkdirEr, files) })
+  function moveOldDestinationBack () {
+    return move(delpath, pkg.realpath, moveOpts).then(() => { movedDestAway = false })
   }
 
-  function moveModules (mkdirEr, files) {
-    if (mkdirEr) return next(mkdirEr)
-    asyncMap(files, function (file, done) {
-      var from = path.join(delpath, 'node_modules', file)
-      var to = path.join(pkg.path, 'node_modules', file)
-      rename(from, to, done)
-    }, cleanup)
-  }
-
-  function cleanup (moveEr) {
-    if (moveEr) return next(moveEr)
-    rimraf(delpath, afterCleanup)
-  }
-
-  function afterCleanup (rimrafEr) {
-    if (rimrafEr) log.warn('finalize', rimrafEr)
-    next()
+  function restoreOldNodeModules () {
+    if (!movedDestAway) return
+    return readdir(path.join(delpath, 'node_modules')).catch(() => []).then((modules) => {
+      if (!modules.length) return
+      return mkdirp(path.join(pkg.realpath, 'node_modules')).then(() => Bluebird.map(modules, (file) => {
+        const from = path.join(delpath, 'node_modules', file)
+        const to = path.join(pkg.realpath, 'node_modules', file)
+        return move(from, to, moveOpts)
+      }))
+    })
   }
 }
 
-module.exports.rollback = function (buildpath, pkg, next) {
-  var top = path.resolve(buildpath, '..')
-  rimraf(pkg.path, function () {
-    removeEmptyParents(pkg.path)
-  })
-  function removeEmptyParents (pkgdir) {
-    if (path.relative(top, pkgdir)[0] === '.') return next()
-    fs.rmdir(pkgdir, function (er) {
-      // FIXME: Make sure windows does what we want here
-      if (er && er.code !== 'ENOENT') return next()
-      removeEmptyParents(path.resolve(pkgdir, '..'))
-    })
-  }
+module.exports.rollback = function (top, staging, pkg, next) {
+  const requested = pkg.package._requested || getRequested(pkg)
+  if (requested && requested.type === 'directory') return next()
+  gentlyRm(pkg.path, false, top, next)
 }

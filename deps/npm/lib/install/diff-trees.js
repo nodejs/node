@@ -1,7 +1,11 @@
 'use strict'
+var npm = require('../npm.js')
 var validate = require('aproba')
 var npa = require('npm-package-arg')
 var flattenTree = require('./flatten-tree.js')
+var isOnlyDev = require('./is-only-dev.js')
+var log = require('npmlog')
+var path = require('path')
 
 function nonRegistrySource (pkg) {
   validate('O', arguments)
@@ -9,13 +13,13 @@ function nonRegistrySource (pkg) {
   if (!requested) return false
 
   if (requested.type === 'hosted') return true
-  if (requested.type === 'local') return true
+  if (requested.type === 'file' || requested.type === 'directory') return true
   return false
 }
 
 function pkgAreEquiv (aa, bb) {
-  var aaSha = (aa.dist && aa.dist.shasum) || aa._shasum
-  var bbSha = (bb.dist && bb.dist.shasum) || bb._shasum
+  var aaSha = (aa.dist && aa.dist.integrity) || aa._integrity
+  var bbSha = (bb.dist && bb.dist.integrity) || bb._integrity
   if (aaSha === bbSha) return true
   if (aaSha || bbSha) return false
   if (nonRegistrySource(aa) || nonRegistrySource(bb)) return false
@@ -23,14 +27,14 @@ function pkgAreEquiv (aa, bb) {
   return false
 }
 
-function getNameAndVersion (pkg) {
-  var versionspec = pkg._shasum
+function getUniqueId (pkg) {
+  var versionspec = pkg._integrity
 
   if (!versionspec && nonRegistrySource(pkg)) {
     if (pkg._requested) {
-      versionspec = pkg._requested.spec
+      versionspec = pkg._requested.fetchSpec
     } else if (pkg._from) {
-      versionspec = npa(pkg._from).spec
+      versionspec = npa(pkg._from).fetchSpec
     }
   }
   if (!versionspec) {
@@ -48,15 +52,6 @@ module.exports = function (oldTree, newTree, differences, log, next) {
   pushAll(differences, sortActions(diffTrees(oldTree, newTree)))
   log.finish()
   next()
-}
-
-function isLink (node) {
-  return node && node.isLink
-}
-
-function requiredByAllLinked (node) {
-  if (!node.requiredBy.length) return false
-  return node.requiredBy.filter(isLink).length === node.requiredBy.length
 }
 
 function isNotTopOrExtraneous (node) {
@@ -113,52 +108,65 @@ var sortActions = module.exports.sortActions = function (differences) {
   return sorted
 }
 
-function diffTrees (oldTree, newTree) {
+function setAction (differences, action, pkg) {
+  differences.push([action, pkg])
+}
+
+var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   validate('OO', arguments)
   var differences = []
   var flatOldTree = flattenTree(oldTree)
   var flatNewTree = flattenTree(newTree)
   var toRemove = {}
-  var toRemoveByNameAndVer = {}
+  var toRemoveByUniqueId = {}
   // find differences
   Object.keys(flatOldTree).forEach(function (flatname) {
     if (flatNewTree[flatname]) return
     var pkg = flatOldTree[flatname]
+    if (pkg.isInLink && /^[.][.][/\\]/.test(path.relative(newTree.realpath, pkg.realpath))) return
+
     toRemove[flatname] = pkg
-    var namever = getNameAndVersion(pkg.package)
-    if (!toRemoveByNameAndVer[namever]) toRemoveByNameAndVer[namever] = []
-    toRemoveByNameAndVer[namever].push(flatname)
+    var pkgunique = getUniqueId(pkg.package)
+    if (!toRemoveByUniqueId[pkgunique]) toRemoveByUniqueId[pkgunique] = []
+    toRemoveByUniqueId[pkgunique].push(flatname)
   })
   Object.keys(flatNewTree).forEach(function (path) {
     var pkg = flatNewTree[path]
     pkg.oldPkg = flatOldTree[path]
-    pkg.isInLink = (pkg.oldPkg && isLink(pkg.oldPkg.parent)) ||
-                   (pkg.parent && isLink(pkg.parent)) ||
-                   requiredByAllLinked(pkg)
     if (pkg.oldPkg) {
       if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
-      if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {
-        differences.push(['update-linked', pkg])
-      } else {
-        differences.push(['update', pkg])
-      }
+      setAction(differences, 'update', pkg)
     } else {
-      var vername = getNameAndVersion(pkg.package)
-      if (toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length && !pkg.fromBundle) {
-        var flatname = toRemoveByNameAndVer[vername].shift()
+      var vername = getUniqueId(pkg.package)
+      var removing = toRemoveByUniqueId[vername] && toRemoveByUniqueId[vername].length
+      var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
+      if (removing && !bundlesOrFromBundle) {
+        var flatname = toRemoveByUniqueId[vername].shift()
         pkg.fromPath = toRemove[flatname].path
-        differences.push(['move', pkg])
+        setAction(differences, 'move', pkg)
         delete toRemove[flatname]
-      } else {
-        differences.push(['add', pkg])
+      } else if (!(pkg.isInLink && pkg.fromBundle)) {
+        setAction(differences, 'add', pkg)
       }
     }
   })
   Object
     .keys(toRemove)
-    .map(function (path) { return toRemove[path] })
-    .forEach(function (pkg) {
-      differences.push(['remove', pkg])
+    .map((path) => toRemove[path])
+    .forEach((pkg) => setAction(differences, 'remove', pkg))
+
+  const includeDev = npm.config.get('dev') ||
+    (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) ||
+    /^dev(elopment)?$/.test(npm.config.get('only')) ||
+    /^dev(elopment)?$/.test(npm.config.get('also'))
+  const includeProd = !/^dev(elopment)?$/.test(npm.config.get('only'))
+  if (!includeProd || !includeDev) {
+    log.silly('diff-trees', 'filtering actions:', 'includeDev', includeDev, 'includeProd', includeProd)
+    differences = differences.filter((diff) => {
+      const pkg = diff[1]
+      const pkgIsOnlyDev = isOnlyDev(pkg)
+      return (!includeProd && pkgIsOnlyDev) || (includeDev && pkgIsOnlyDev) || (includeProd && !pkgIsOnlyDev)
     })
+  }
   return differences
 }

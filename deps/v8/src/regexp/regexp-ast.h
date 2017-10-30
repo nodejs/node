@@ -6,9 +6,10 @@
 #define V8_REGEXP_REGEXP_AST_H_
 
 #include "src/objects.h"
+#include "src/objects/string.h"
 #include "src/utils.h"
-#include "src/zone-containers.h"
-#include "src/zone.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -21,11 +22,11 @@ namespace internal {
   VISIT(Atom)                             \
   VISIT(Quantifier)                       \
   VISIT(Capture)                          \
+  VISIT(Group)                            \
   VISIT(Lookaround)                       \
   VISIT(BackReference)                    \
   VISIT(Empty)                            \
   VISIT(Text)
-
 
 #define FORWARD_DECLARE(Name) class RegExp##Name;
 FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
@@ -79,8 +80,11 @@ class CharacterRange {
   CharacterRange() : from_(0), to_(0) {}
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
-  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                              Zone* zone);
+  // Add class escapes. Add case equivalent closure for \w and \W if necessary.
+  static void AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
+                             bool add_unicode_case_equivalents, Zone* zone);
   static Vector<const int> GetWordBounds();
   static inline CharacterRange Singleton(uc32 value) {
     return CharacterRange(value, value);
@@ -106,7 +110,7 @@ class CharacterRange {
   uc32 to() const { return to_; }
   void set_to(uc32 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
-  bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
+  bool IsEverything(uc32 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
   static void AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                  ZoneList<CharacterRange>* ranges,
@@ -288,9 +292,20 @@ class RegExpAssertion final : public RegExpTree {
 
 class RegExpCharacterClass final : public RegExpTree {
  public:
-  RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
-      : set_(ranges), is_negated_(is_negated) {}
-  explicit RegExpCharacterClass(uc16 type) : set_(type), is_negated_(false) {}
+  // NEGATED: The character class is negated and should match everything but
+  //     the specified ranges.
+  // CONTAINS_SPLIT_SURROGATE: The character class contains part of a split
+  //     surrogate and should not be unicode-desugared (crbug.com/641091).
+  enum Flag {
+    NEGATED = 1 << 0,
+    CONTAINS_SPLIT_SURROGATE = 1 << 1,
+  };
+  typedef base::Flags<Flag> Flags;
+
+  explicit RegExpCharacterClass(ZoneList<CharacterRange>* ranges,
+                                Flags flags = Flags())
+      : set_(ranges), flags_(flags) {}
+  explicit RegExpCharacterClass(uc16 type) : set_(type), flags_(0) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   RegExpCharacterClass* AsCharacterClass() override;
@@ -319,11 +334,14 @@ class RegExpCharacterClass final : public RegExpTree {
   // * : All characters, for advancing unanchored regexp
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
-  bool is_negated() { return is_negated_; }
+  bool is_negated() const { return (flags_ & NEGATED) != 0; }
+  bool contains_split_surrogate() const {
+    return (flags_ & CONTAINS_SPLIT_SURROGATE) != 0;
+  }
 
  private:
   CharacterSet set_;
-  bool is_negated_;
+  const Flags flags_;
 };
 
 
@@ -440,6 +458,26 @@ class RegExpCapture final : public RegExpTree {
   const ZoneVector<uc16>* name_;
 };
 
+class RegExpGroup final : public RegExpTree {
+ public:
+  explicit RegExpGroup(RegExpTree* body) : body_(body) {}
+  void* Accept(RegExpVisitor* visitor, void* data) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler,
+                     RegExpNode* on_success) override {
+    return body_->ToNode(compiler, on_success);
+  }
+  RegExpGroup* AsGroup() override;
+  bool IsAnchoredAtStart() override { return body_->IsAnchoredAtStart(); }
+  bool IsAnchoredAtEnd() override { return body_->IsAnchoredAtEnd(); }
+  bool IsGroup() override;
+  int min_match() override { return body_->min_match(); }
+  int max_match() override { return body_->max_match(); }
+  Interval CaptureRegisters() override { return body_->CaptureRegisters(); }
+  RegExpTree* body() { return body_; }
+
+ private:
+  RegExpTree* body_;
+};
 
 class RegExpLookaround final : public RegExpTree {
  public:

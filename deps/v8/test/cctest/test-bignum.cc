@@ -33,8 +33,8 @@
 #include "src/bignum.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static const int kBufferSize = 1024;
 
@@ -1540,3 +1540,6 @@ TEST(AssignPowerUInt16) {
                   "343362267A7E8833119D31D02E18DB5B0E8F6A64B0ED0D0062FFFF",
                   buffer));
 }
+
+}  // namespace internal
+}  // namespace v8

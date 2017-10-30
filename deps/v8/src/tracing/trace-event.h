@@ -6,12 +6,12 @@
 #define SRC_TRACING_TRACE_EVENT_H_
 
 #include <stddef.h>
+#include <memory>
 
 #include "base/trace_event/common/trace_event_common.h"
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
-#include "src/counters.h"
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -49,33 +49,6 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_ID_WITH_SCOPE(scope, id) \
   trace_event_internal::TraceID::WithScope(scope, id)
 
-// Sets the current sample state to the given category and name (both must be
-// constant strings). These states are intended for a sampling profiler.
-// Implementation note: we store category and name together because we don't
-// want the inconsistency/expense of storing two pointers.
-// |thread_bucket| is [0..2] and is used to statically isolate samples in one
-// thread from others.
-#define TRACE_EVENT_SET_SAMPLING_STATE_FOR_BUCKET(bucket_number, category, \
-                                                  name)                    \
-  v8::internal::tracing::TraceEventSamplingStateScope<bucket_number>::Set( \
-      category "\0" name)
-
-// Returns a current sampling state of the given bucket.
-#define TRACE_EVENT_GET_SAMPLING_STATE_FOR_BUCKET(bucket_number) \
-  v8::internal::tracing::TraceEventSamplingStateScope<bucket_number>::Current()
-
-// Creates a scope of a sampling state of the given bucket.
-//
-// {  // The sampling state is set within this scope.
-//    TRACE_EVENT_SAMPLING_STATE_SCOPE_FOR_BUCKET(0, "category", "name");
-//    ...;
-// }
-#define TRACE_EVENT_SCOPED_SAMPLING_STATE_FOR_BUCKET(bucket_number, category, \
-                                                     name)                    \
-  v8::internal::TraceEventSamplingStateScope<bucket_number>                   \
-      traceEventSamplingScope(category "\0" name);
-
-
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
   *INTERNAL_TRACE_EVENT_UID(category_group_enabled) &                    \
       (kEnabledForRecording_CategoryGroupEnabledFlags |                  \
@@ -99,8 +72,8 @@ enum CategoryGroupEnabledFlags {
 // for best performance when tracing is disabled.
 // const uint8_t*
 //     TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(const char* category_group)
-#define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED              \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform() \
+#define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED                \
+  v8::internal::tracing::TraceEventHelper::GetTracingController() \
       ->GetCategoryGroupEnabled
 
 // Get the number of times traces have been recorded. This is used to implement
@@ -121,29 +94,22 @@ enum CategoryGroupEnabledFlags {
 //                    const uint8_t* arg_types,
 //                    const uint64_t* arg_values,
 //                    unsigned int flags)
-#define TRACE_EVENT_API_ADD_TRACE_EVENT \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform()->AddTraceEvent
+#define TRACE_EVENT_API_ADD_TRACE_EVENT v8::internal::tracing::AddTraceEventImpl
 
 // Set the duration field of a COMPLETE trace event.
 // void TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION(
 //     const uint8_t* category_group_enabled,
 //     const char* name,
 //     uint64_t id)
-#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION             \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform() \
+#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION               \
+  v8::internal::tracing::TraceEventHelper::GetTracingController() \
       ->UpdateTraceEventDuration
 
 // Defines atomic operations used internally by the tracing system.
 #define TRACE_EVENT_API_ATOMIC_WORD v8::base::AtomicWord
-#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::NoBarrier_Load(&(var))
+#define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Relaxed_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
-  v8::base::NoBarrier_Store(&(var), (value))
-
-// The thread buckets for the sampling profiler.
-extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
-
-#define TRACE_EVENT_API_THREAD_BUCKET(thread_bucket) \
-  g_trace_state[thread_bucket]
+  v8::base::Relaxed_Store(&(var), (value))
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -281,25 +247,12 @@ extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
     uint64_t cid_;                                                         \
   };                                                                       \
   INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
-  INTERNAL_TRACE_EVENT_UID(scoped_context)(context.raw_id());
-
-#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() \
-  base::NoBarrier_Load(&v8::internal::tracing::kRuntimeCallStatsTracingEnabled)
+  INTERNAL_TRACE_EVENT_UID(scoped_context)(context);
 
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
   INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
 
-#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate, counter_id) \
-  INTERNAL_TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate, counter_id)
-
 #define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)  \
-  {                                                                            \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                    \
-        TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));                        \
-    base::NoBarrier_Store(                                                     \
-        &v8::internal::tracing::kRuntimeCallStatsTracingEnabled,               \
-        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE());     \
-  }                                                                            \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                      \
   v8::internal::tracing::CallStatsScopedTracer INTERNAL_TRACE_EVENT_UID(       \
       tracer);                                                                 \
@@ -309,13 +262,11 @@ extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
                     name);                                                     \
   }
 
-#define INTERNAL_TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(isolate,    \
-                                                               counter_id) \
-  v8::internal::tracing::CounterScope INTERNAL_TRACE_EVENT_UID(scope)(     \
-      isolate, counter_id);
-
 namespace v8 {
 namespace internal {
+
+class Isolate;
+
 namespace tracing {
 
 // Specify these values when the corresponding argument of AddTraceEvent is not
@@ -324,11 +275,9 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-extern base::Atomic32 kRuntimeCallStatsTracingEnabled;
-
 class TraceEventHelper {
  public:
-  static v8::Platform* GetCurrentPlatform();
+  static v8::TracingController* GetTracingController();
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -460,6 +409,28 @@ class TraceStringWithCopy {
   const char* str_;
 };
 
+static V8_INLINE uint64_t AddTraceEventImpl(
+    char phase, const uint8_t* category_group_enabled, const char* name,
+    const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values, unsigned int flags) {
+  std::unique_ptr<ConvertableToTraceFormat> arg_convertables[2];
+  if (num_args > 0 && arg_types[0] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertables[0].reset(reinterpret_cast<ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[0])));
+  }
+  if (num_args > 1 && arg_types[1] == TRACE_VALUE_TYPE_CONVERTABLE) {
+    arg_convertables[1].reset(reinterpret_cast<ConvertableToTraceFormat*>(
+        static_cast<intptr_t>(arg_values[1])));
+  }
+  DCHECK(num_args <= 2);
+  v8::TracingController* controller =
+      v8::internal::tracing::TraceEventHelper::GetTracingController();
+  return controller->AddTraceEvent(phase, category_group_enabled, name, scope,
+                                   id, bind_id, num_args, arg_names, arg_types,
+                                   arg_values, arg_convertables, flags);
+}
+
 // Define SetTraceValue for each allowed type. It stores the type and
 // value in the return arguments. This allows this API to avoid declaring any
 // structures so that it is portable to third_party libraries.
@@ -500,6 +471,19 @@ INTERNAL_DECLARE_SET_TRACE_VALUE(const TraceStringWithCopy&, as_string,
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE
 #undef INTERNAL_DECLARE_SET_TRACE_VALUE_INT
 
+static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
+                                    unsigned char* type, uint64_t* value) {
+  *type = TRACE_VALUE_TYPE_CONVERTABLE;
+  *value = static_cast<uint64_t>(reinterpret_cast<intptr_t>(convertable_value));
+}
+
+template <typename T>
+static V8_INLINE typename std::enable_if<
+    std::is_convertible<T*, ConvertableToTraceFormat*>::value>::type
+SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type, uint64_t* value) {
+  SetTraceValue(ptr.release(), type, value);
+}
+
 // These AddTraceEvent template
 // function is defined here instead of in the macro, because the arg_values
 // could be temporary objects, such as std::string. In order to store
@@ -512,36 +496,38 @@ static V8_INLINE uint64_t AddTraceEvent(char phase,
                                         uint64_t id, uint64_t bind_id,
                                         unsigned int flags) {
   return TRACE_EVENT_API_ADD_TRACE_EVENT(phase, category_group_enabled, name,
-                                         scope, id, bind_id, kZeroNumArgs, NULL,
-                                         NULL, NULL, flags);
+                                         scope, id, bind_id, kZeroNumArgs,
+                                         nullptr, nullptr, nullptr, flags);
 }
 
 template <class ARG1_TYPE>
 static V8_INLINE uint64_t AddTraceEvent(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    const char* arg1_name, const ARG1_TYPE& arg1_val) {
+    const char* arg1_name, ARG1_TYPE&& arg1_val) {
   const int num_args = 1;
-  uint8_t arg_types[1];
-  uint64_t arg_values[1];
-  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
+  uint8_t arg_type;
+  uint64_t arg_value;
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_type, &arg_value);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
-      &arg1_name, arg_types, arg_values, flags);
+      &arg1_name, &arg_type, &arg_value, flags);
 }
 
 template <class ARG1_TYPE, class ARG2_TYPE>
 static V8_INLINE uint64_t AddTraceEvent(
     char phase, const uint8_t* category_group_enabled, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, unsigned int flags,
-    const char* arg1_name, const ARG1_TYPE& arg1_val, const char* arg2_name,
-    const ARG2_TYPE& arg2_val) {
+    const char* arg1_name, ARG1_TYPE&& arg1_val, const char* arg2_name,
+    ARG2_TYPE&& arg2_val) {
   const int num_args = 2;
   const char* arg_names[2] = {arg1_name, arg2_name};
   unsigned char arg_types[2];
   uint64_t arg_values[2];
-  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
-  SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
+  SetTraceValue(std::forward<ARG1_TYPE>(arg1_val), &arg_types[0],
+                &arg_values[0]);
+  SetTraceValue(std::forward<ARG2_TYPE>(arg2_val), &arg_types[1],
+                &arg_values[1]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags);
@@ -582,48 +568,6 @@ class ScopedTracer {
   Data data_;
 };
 
-// Used by TRACE_EVENT_BINARY_EFFICIENTx macro. Do not use directly.
-class ScopedTraceBinaryEfficient {
- public:
-  ScopedTraceBinaryEfficient(const char* category_group, const char* name);
-  ~ScopedTraceBinaryEfficient();
-
- private:
-  const uint8_t* category_group_enabled_;
-  const char* name_;
-  uint64_t event_handle_;
-};
-
-// TraceEventSamplingStateScope records the current sampling state
-// and sets a new sampling state. When the scope exists, it restores
-// the sampling state having recorded.
-template <size_t BucketNumber>
-class TraceEventSamplingStateScope {
- public:
-  explicit TraceEventSamplingStateScope(const char* category_and_name) {
-    previous_state_ = TraceEventSamplingStateScope<BucketNumber>::Current();
-    TraceEventSamplingStateScope<BucketNumber>::Set(category_and_name);
-  }
-
-  ~TraceEventSamplingStateScope() {
-    TraceEventSamplingStateScope<BucketNumber>::Set(previous_state_);
-  }
-
-  static V8_INLINE const char* Current() {
-    return reinterpret_cast<const char*>(
-        TRACE_EVENT_API_ATOMIC_LOAD(g_trace_state[BucketNumber]));
-  }
-
-  static V8_INLINE void Set(const char* category_and_name) {
-    TRACE_EVENT_API_ATOMIC_STORE(g_trace_state[BucketNumber],
-                                 reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD>(
-                                     const_cast<char*>(category_and_name)));
-  }
-
- private:
-  const char* previous_state_;
-};
-
 // Do not use directly.
 class CallStatsScopedTracer {
  public:
@@ -634,134 +578,19 @@ class CallStatsScopedTracer {
     }
   }
 
-  void Initialize(Isolate* isolate, const uint8_t* category_group_enabled,
-                  const char* name);
+  void Initialize(v8::internal::Isolate* isolate,
+                  const uint8_t* category_group_enabled, const char* name);
 
  private:
   void AddEndTraceEvent();
   struct Data {
     const uint8_t* category_group_enabled;
     const char* name;
-    Isolate* isolate;
+    v8::internal::Isolate* isolate;
   };
   bool has_parent_scope_;
   Data* p_data_;
   Data data_;
-};
-
-// TraceEventCallStatsTimer is used to keep track of the stack of currently
-// active timers used for properly measuring the own time of a
-// RuntimeCallCounter.
-class TraceEventCallStatsTimer {
- public:
-  TraceEventCallStatsTimer() : counter_(nullptr), parent_(nullptr) {}
-  RuntimeCallCounter* counter() { return counter_; }
-  base::ElapsedTimer timer() { return timer_; }
-
- private:
-  friend class TraceEventStatsTable;
-
-  V8_INLINE void Start(RuntimeCallCounter* counter,
-                       TraceEventCallStatsTimer* parent) {
-    counter_ = counter;
-    parent_ = parent;
-    timer_.Start();
-  }
-
-  V8_INLINE TraceEventCallStatsTimer* Stop() {
-    base::TimeDelta delta = timer_.Elapsed();
-    timer_.Stop();
-    counter_->count++;
-    counter_->time += delta;
-    if (parent_ != nullptr) {
-      // Adjust parent timer so that it does not include sub timer's time.
-      parent_->counter_->time -= delta;
-    }
-    return parent_;
-  }
-
-  RuntimeCallCounter* counter_;
-  TraceEventCallStatsTimer* parent_;
-  base::ElapsedTimer timer_;
-};
-
-class TraceEventStatsTable {
- public:
-  typedef RuntimeCallCounter TraceEventStatsTable::*CounterId;
-
-#define CALL_RUNTIME_COUNTER(name) \
-  RuntimeCallCounter name = RuntimeCallCounter(#name);
-  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
-  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
-  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter API_##name = RuntimeCallCounter("API_" #name);
-  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) \
-  RuntimeCallCounter Handler_##name = RuntimeCallCounter(#name);
-  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-
-  // Starting measuring the time for a function. This will establish the
-  // connection to the parent counter for properly calculating the own times.
-  static void Enter(Isolate* isolate, TraceEventCallStatsTimer* timer,
-                    CounterId counter_id);
-
-  // Leave a scope for a measured runtime function. This will properly add
-  // the time delta to the current_counter and subtract the delta from its
-  // parent.
-  static void Leave(Isolate* isolate, TraceEventCallStatsTimer* timer);
-
-  void Reset();
-  const char* Dump();
-
-  TraceEventStatsTable() {
-    Reset();
-    in_use_ = false;
-  }
-
-  TraceEventCallStatsTimer* current_timer() { return current_timer_; }
-  bool InUse() { return in_use_; }
-
- private:
-  std::stringstream buffer_;
-  std::unique_ptr<char[]> buffer_c_str_;
-  size_t len_ = 0;
-  // Counter to track recursive time events.
-  TraceEventCallStatsTimer* current_timer_ = nullptr;
-  bool in_use_;
-};
-
-class CounterScope {
- public:
-  CounterScope(Isolate* isolate, TraceEventStatsTable::CounterId counter_id)
-      : isolate_(nullptr) {
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())) {
-      isolate_ = isolate;
-      TraceEventStatsTable::Enter(isolate_, &timer_, counter_id);
-    }
-  }
-  ~CounterScope() {
-    // A non-nullptr isolate_ means the stats table already entered the scope
-    // and started the timer, we need to leave the scope and reset the timer
-    // even when we stop tracing, otherwise we have the risk to have a dangling
-    // pointer.
-    if (V8_UNLIKELY(isolate_ != nullptr)) {
-      TraceEventStatsTable::Leave(isolate_, &timer_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  TraceEventCallStatsTimer timer_;
 };
 
 }  // namespace tracing

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compilation-info.h"
+#include "src/objects/string.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -79,21 +81,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsRegExp) {
-  FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
-
-  T.CheckFalse(T.NewObject("new Date()"));
-  T.CheckFalse(T.NewObject("(function() {})"));
-  T.CheckFalse(T.NewObject("([1])"));
-  T.CheckFalse(T.NewObject("({})"));
-  T.CheckTrue(T.NewObject("(/x/)"));
-  T.CheckFalse(T.undefined());
-  T.CheckFalse(T.null());
-  T.CheckFalse(T.Val("x"));
-  T.CheckFalse(T.Val(1));
-}
-
-
 TEST(IsSmi) {
   FunctionTester T("(function(a) { return %_IsSmi(a); })", flags);
 
@@ -127,15 +114,6 @@ TEST(StringCharCodeAt) {
   T.CheckCall(T.Val('e'), T.Val("huge fan!"), T.Val(3));
   T.CheckCall(T.Val('f'), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
   T.CheckCall(T.nan(), T.Val("not a fan!"), T.Val(23));
-}
-
-
-TEST(StringCharFromCode) {
-  FunctionTester T("(function(a) { return %_StringCharFromCode(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val(97));
-  T.CheckCall(T.Val("\xE2\x9D\x8A"), T.Val(0x274A));
-  T.CheckCall(T.Val(""), T.undefined());
 }
 
 

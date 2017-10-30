@@ -11,7 +11,7 @@ var mod = (function Module(stdlib, foreign, heap) {
   function mod(dividend, divisor) {
     dividend = dividend|0;
     divisor = divisor|0;
-    return (dividend % divisor) | 0;
+    return ((dividend | 0) % (divisor | 0)) | 0;
   }
   return { mod: mod };
 })(stdlib, foreign, heap).mod;

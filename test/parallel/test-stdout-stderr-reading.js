@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // verify that stdout is never read from.
-var net = require('net');
-var read = net.Socket.prototype.read;
+const net = require('net');
+const read = net.Socket.prototype.read;
 
 net.Socket.prototype.read = function() {
   if (this.fd === 1)
@@ -20,40 +20,40 @@ else
   parent();
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
+  const spawn = require('child_process').spawn;
+  const node = process.execPath;
 
-  var c1 = spawn(node, [__filename, 'child']);
-  var c1out = '';
+  const c1 = spawn(node, [__filename, 'child']);
+  let c1out = '';
   c1.stdout.setEncoding('utf8');
   c1.stdout.on('data', function(chunk) {
     c1out += chunk;
   });
   c1.stderr.setEncoding('utf8');
   c1.stderr.on('data', function(chunk) {
-    console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
+    console.error(`c1err: ${chunk.split('\n').join('\nc1err: ')}`);
   });
   c1.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
-    assert.equal(c1out, 'ok\n');
+    assert.strictEqual(c1out, 'ok\n');
     console.log('ok');
   }));
 
-  var c2 = spawn(node, ['-e', 'console.log("ok")']);
-  var c2out = '';
+  const c2 = spawn(node, ['-e', 'console.log("ok")']);
+  let c2out = '';
   c2.stdout.setEncoding('utf8');
   c2.stdout.on('data', function(chunk) {
     c2out += chunk;
   });
   c1.stderr.setEncoding('utf8');
   c1.stderr.on('data', function(chunk) {
-    console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
+    console.error(`c1err: ${chunk.split('\n').join('\nc1err: ')}`);
   });
   c2.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
-    assert.equal(c2out, 'ok\n');
+    assert.strictEqual(c2out, 'ok\n');
     console.log('ok');
   }));
 }

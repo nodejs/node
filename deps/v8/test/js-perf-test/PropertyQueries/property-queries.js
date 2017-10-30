@@ -71,7 +71,10 @@ function IntArray(size) {
 // Switch object's properties and elements to dictionary mode.
 function MakeDictionaryMode(obj) {
   obj.foo = 0;
+  obj.bar = 0;
+  // Delete the second-to-last property first to force normalization.
   delete obj.foo;
+  delete obj.bar;
   obj[1e9] = 0;
   return obj;
 }

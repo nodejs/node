@@ -8,16 +8,19 @@
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/heap/spaces-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
 static Address AllocateLabBackingStore(Heap* heap, intptr_t size_in_bytes) {
   AllocationResult result = heap->old_space()->AllocateRaw(
       static_cast<int>(size_in_bytes), kDoubleAligned);
-  Object* obj = result.ToObjectChecked();
-  Address adr = HeapObject::cast(obj)->address();
+  Address adr = result.ToObjectChecked()->address();
   return adr;
 }
 
@@ -281,5 +284,6 @@ TEST(AllocateAligned) {
 }
 #endif  // V8_HOST_ARCH_32_BIT
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

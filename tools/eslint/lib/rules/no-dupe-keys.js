@@ -42,7 +42,7 @@ class ObjectInfo {
         const name = astUtils.getStaticPropertyName(node);
 
         if (!this.properties.has(name)) {
-            this.properties.set(name, {get: false, set: false});
+            this.properties.set(name, { get: false, set: false });
         }
         return this.properties.get(name);
     }
@@ -123,7 +123,7 @@ module.exports = {
                         node: info.node,
                         loc: node.key.loc,
                         message: "Duplicate key '{{name}}'.",
-                        data: {name},
+                        data: { name }
                     });
                 }
 

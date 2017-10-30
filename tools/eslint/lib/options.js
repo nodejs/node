@@ -215,6 +215,12 @@ module.exports = optionator({
             description: "Prevent comments from changing config or rules"
         },
         {
+            option: "report-unused-disable-directives",
+            type: "Boolean",
+            default: false,
+            description: "Adds reported errors for unused eslint-disable directives"
+        },
+        {
             option: "print-config",
             type: "path::String",
             description: "Print the configuration for the given file"

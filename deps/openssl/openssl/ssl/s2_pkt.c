@@ -307,6 +307,9 @@ int ssl2_peek(SSL *s, void *buf, int len)
     return ssl2_read_internal(s, buf, len, 1);
 }
 
+/*
+ * Return values are as per SSL_read()
+ */
 static int read_n(SSL *s, unsigned int n, unsigned int max,
                   unsigned int extend)
 {
@@ -374,7 +377,7 @@ static int read_n(SSL *s, unsigned int n, unsigned int max,
 # endif
         if (i <= 0) {
             s->s2->rbuf_left += newb;
-            return (i);
+            return i;
         }
         newb += i;
     }
@@ -441,6 +444,9 @@ int ssl2_write(SSL *s, const void *_buf, int len)
     }
 }
 
+/*
+ * Return values are as per SSL_write()
+ */
 static int write_pending(SSL *s, const unsigned char *buf, unsigned int len)
 {
     int i;
@@ -477,7 +483,7 @@ static int write_pending(SSL *s, const unsigned char *buf, unsigned int len)
             s->rwstate = SSL_NOTHING;
             return (s->s2->wpend_ret);
         } else if (i <= 0)
-            return (i);
+            return i;
         s->s2->wpend_off += i;
         s->s2->wpend_len -= i;
     }

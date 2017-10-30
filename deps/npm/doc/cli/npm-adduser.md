@@ -3,7 +3,7 @@ npm-adduser(1) -- Add a registry user account
 
 ## SYNOPSIS
 
-    npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
+    npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
 
     aliases: login, add-user
 
@@ -33,7 +33,8 @@ your existing record.
 Default: https://registry.npmjs.org/
 
 The base URL of the npm package registry. If `scope` is also specified,
-this registry will only be used for packages with that scope. See `npm-scope(7)`.
+this registry will only be used for packages with that scope. `scope` defaults
+to the scope of the project directory you're currently in, if any. See `npm-scope(7)`.
 
 ### scope
 
@@ -64,6 +65,15 @@ private registries where metadata and package tarballs are stored on hosts with
 different hostnames. See `always-auth` in `npm-config(7)` for more details on
 always-auth. Registry-specific configuration of `always-auth` takes precedence
 over any global configuration.
+
+### auth-type
+
+* Default: `'legacy'`
+* Type: `'legacy'`, `'sso'`, `'saml'`, `'oauth'`
+
+What authentication strategy to use with `adduser`/`login`. Some npm registries
+(for example, npmE) might support alternative auth strategies besides classic
+username/password entry in legacy npm.
 
 ## SEE ALSO
 

@@ -126,7 +126,7 @@ static int long_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype,
      * set.
      */
     if (ltmp < 0)
-        utmp = -ltmp - 1;
+        utmp = 0 - (unsigned long)ltmp - 1;
     else
         utmp = ltmp;
     clen = BN_num_bits_word(utmp);
@@ -155,19 +155,41 @@ static int long_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype,
 static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
                     int utype, char *free_cont, const ASN1_ITEM *it)
 {
-    int neg, i;
+    int neg = -1, i;
     long ltmp;
     unsigned long utmp = 0;
     char *cp = (char *)pval;
+
+    if (len) {
+        /*
+         * Check possible pad byte.  Worst case, we're skipping past actual
+         * content, but since that's only with 0x00 and 0xff and we set neg
+         * accordingly, the result will be correct in the end anyway.
+         */
+        switch (cont[0]) {
+        case 0xff:
+            cont++;
+            len--;
+            neg = 1;
+            break;
+        case 0:
+            cont++;
+            len--;
+            neg = 0;
+            break;
+        }
+    }
     if (len > (int)sizeof(long)) {
         ASN1err(ASN1_F_LONG_C2I, ASN1_R_INTEGER_TOO_LARGE_FOR_LONG);
         return 0;
     }
-    /* Is it negative? */
-    if (len && (cont[0] & 0x80))
-        neg = 1;
-    else
-        neg = 0;
+    if (neg == -1) {
+        /* Is it negative? */
+        if (len && (cont[0] & 0x80))
+            neg = 1;
+        else
+            neg = 0;
+    }
     utmp = 0;
     for (i = 0; i < len; i++) {
         utmp <<= 8;
@@ -178,8 +200,8 @@ static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
     }
     ltmp = (long)utmp;
     if (neg) {
-        ltmp++;
         ltmp = -ltmp;
+        ltmp--;
     }
     if (ltmp == it->size) {
         ASN1err(ASN1_F_LONG_C2I, ASN1_R_INTEGER_TOO_LARGE_FOR_LONG);

@@ -6,9 +6,10 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/base/platform/time.h"
-#include "src/debug/debug.h"
 #include "src/flags.h"
 #include "src/isolate.h"
+#include "src/list-inl.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -84,13 +85,32 @@ TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
-
 base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
   return isolate()->random_number_generator();
 }
 
-
 TestWithZone::~TestWithZone() {}
+
+TestWithNativeContext::~TestWithNativeContext() {}
+
+Handle<Context> TestWithNativeContext::native_context() const {
+  return isolate()->native_context();
+}
+
+SaveFlags::SaveFlags() { non_default_flags_ = FlagList::argv(); }
+
+SaveFlags::~SaveFlags() {
+  FlagList::ResetAllFlags();
+  int argc = non_default_flags_->length();
+  FlagList::SetFlagsFromCommandLine(
+      &argc, const_cast<char**>(non_default_flags_->begin()),
+      false /* remove_flags */);
+  for (auto flag = non_default_flags_->begin();
+       flag != non_default_flags_->end(); ++flag) {
+    delete[] * flag;
+  }
+  delete non_default_flags_;
+}
 
 }  // namespace internal
 }  // namespace v8

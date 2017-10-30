@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+class SmallMapList;
 
 // The stub cache is used for megamorphic property accesses.
 // It maps (map, name, type) to property access handlers. The cache does not
@@ -34,26 +35,16 @@ class StubCache {
  public:
   struct Entry {
     Name* key;
-    Code* value;
+    Object* value;
     Map* map;
   };
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  Code* Set(Name* name, Map* map, Code* code);
-  Code* Get(Name* name, Map* map);
+  Object* Set(Name* name, Map* map, Object* handler);
+  Object* Get(Name* name, Map* map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
-  // Collect all maps that match the name.
-  void CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
-                           Handle<Context> native_context, Zone* zone);
-  // Generate code for probing the stub cache table.
-  // Arguments extra, extra2 and extra3 may be used to pass additional scratch
-  // registers. Set to no_reg if not needed.
-  // If leave_frame is true, then exit a frame before the tail call.
-  void GenerateProbe(MacroAssembler* masm, Register receiver, Register name,
-                     Register scratch, Register extra, Register extra2 = no_reg,
-                     Register extra3 = no_reg);
 
   enum Table { kPrimary, kSecondary };
 
@@ -80,7 +71,6 @@ class StubCache {
         return StubCache::secondary_;
     }
     UNREACHABLE();
-    return NULL;
   }
 
   Isolate* isolate() { return isolate_; }
@@ -98,7 +88,7 @@ class StubCache {
 
   // Some magic number used in primary and secondary hash computations.
   static const int kPrimaryMagic = 0x3d532433;
-  static const int kSecondaryMagic = 0xb16b00b5;
+  static const int kSecondaryMagic = 0xb16ca6e5;
 
   static int PrimaryOffsetForTesting(Name* name, Map* map) {
     return PrimaryOffset(name, map);

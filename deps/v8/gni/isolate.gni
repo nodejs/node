@@ -12,11 +12,21 @@ declare_args() {
 }
 
 template("v8_isolate_run") {
+  forward_variables_from(invoker,
+                         "*",
+                         [
+                           "deps",
+                           "isolate",
+                         ])
+
   # Remember target name as within the action scope the target name will be
   # different.
   name = target_name
-  if (name != "" && invoker.isolate != "" && invoker.deps != [] &&
-      v8_test_isolation_mode != "noop") {
+
+  assert(defined(invoker.deps))
+  assert(defined(invoker.isolate))
+
+  if (name != "" && v8_test_isolation_mode != "noop") {
     action(name + "_run") {
       testonly = true
 
@@ -46,6 +56,11 @@ template("v8_isolate_run") {
       }
 
       # Translate gn to gyp variables.
+      if (v8_code_coverage) {
+        coverage = "1"
+      } else {
+        coverage = "0"
+      }
       if (is_asan) {
         asan = "1"
       } else {
@@ -107,7 +122,6 @@ template("v8_isolate_run") {
         gcmole = "0"
       }
 
-
       # Note, all paths will be rebased in isolate_driver.py to be relative to
       # the isolate file.
       args = [
@@ -142,13 +156,15 @@ template("v8_isolate_run") {
         "--config-variable",
         "icu_use_data_file_flag=$icu_use_data_file_flag",
         "--config-variable",
+        "is_gn=1",
+        "--config-variable",
         "msan=$msan",
         "--config-variable",
         "tsan=$tsan",
         "--config-variable",
-        "coverage=0",
+        "coverage=$coverage",
         "--config-variable",
-        "sanitizer_coverage=0",
+        "sanitizer_coverage=$sanitizer_coverage_flags",
         "--config-variable",
         "component=$component",
         "--config-variable",
@@ -162,7 +178,7 @@ template("v8_isolate_run") {
       if (is_win) {
         args += [
           "--config-variable",
-          "msvs_version=2013",
+          "msvs_version=2015",
         ]
       } else {
         args += [
