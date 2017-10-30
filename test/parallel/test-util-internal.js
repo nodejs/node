@@ -11,7 +11,7 @@ const {
   arrow_message_private_symbol: kArrowMessagePrivateSymbolIndex
 } = process.binding('util');
 
-assert.deepStrictEqual(
+assert.strictEqual(
   getHiddenValue({}, kArrowMessagePrivateSymbolIndex),
   undefined);
 
