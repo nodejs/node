@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "stream_wrap.h"
-#include "stream_base.h"
 #include "stream_base-inl.h"
 
 #include "env-inl.h"
@@ -29,11 +28,9 @@
 #include "node_buffer.h"
 #include "node_counters.h"
 #include "pipe_wrap.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "tcp_wrap.h"
 #include "udp_wrap.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <stdlib.h>  // abort()

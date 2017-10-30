@@ -5,7 +5,6 @@
 
 #include "env.h"
 #include "async-wrap.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "node.h"
 #include "util.h"

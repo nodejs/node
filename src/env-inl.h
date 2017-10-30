@@ -27,7 +27,6 @@
 #include "aliased_buffer.h"
 #include "env.h"
 #include "node.h"
-#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
