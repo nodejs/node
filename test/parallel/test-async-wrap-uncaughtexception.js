@@ -42,5 +42,5 @@ process.on('uncaughtException', common.mustCall(() => {
 require('crypto').randomBytes(1, common.mustCall(() => {
   assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[1]++;
-  throw new Error('ah crap');
+  throw new Error();
 }));
