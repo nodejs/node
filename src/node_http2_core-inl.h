@@ -193,7 +193,8 @@ inline ssize_t Nghttp2Session::OnStreamReadFD(nghttp2_session* session,
   uv_fs_t read_req;
 
   if (length > 0) {
-    numchars = uv_fs_read(handle->loop_,
+    // TODO(addaleax): Never use synchronous I/O on the main thread.
+    numchars = uv_fs_read(handle->event_loop(),
                           &read_req,
                           fd, &data, 1,
                           offset, nullptr);
@@ -541,11 +542,9 @@ inline void Nghttp2Session::SendPendingData() {
 // Initialize the Nghttp2Session handle by creating and
 // assigning the Nghttp2Session instance and associated
 // uv_loop_t.
-inline int Nghttp2Session::Init(uv_loop_t* loop,
-                               const nghttp2_session_type type,
-                               nghttp2_option* options,
-                               nghttp2_mem* mem) {
-  loop_ = loop;
+inline int Nghttp2Session::Init(const nghttp2_session_type type,
+                                nghttp2_option* options,
+                                nghttp2_mem* mem) {
   session_type_ = type;
   DEBUG_HTTP2("Nghttp2Session %s: initializing session\n", TypeName());
   destroying_ = false;
@@ -581,14 +580,6 @@ inline int Nghttp2Session::Init(uv_loop_t* loop,
     nghttp2_option_del(opts);
   }
 
-  // For every node::Http2Session instance, there is a uv_prep_t handle
-  // whose callback is triggered on every tick of the event loop. When
-  // run, nghttp2 is prompted to send any queued data it may have stored.
-  uv_prepare_init(loop_, &prep_);
-  uv_prepare_start(&prep_, [](uv_prepare_t* t) {
-    Nghttp2Session* session = ContainerOf(&Nghttp2Session::prep_, t);
-    session->SendPendingData();
-  });
   return ret;
 }
 
@@ -596,26 +587,18 @@ inline void Nghttp2Session::MarkDestroying() {
   destroying_ = true;
 }
 
-inline int Nghttp2Session::Free() {
-#if defined(DEBUG) && DEBUG
-  CHECK(session_ != nullptr);
-#endif
+inline Nghttp2Session::~Nghttp2Session() {
+  Close();
+}
+
+inline void Nghttp2Session::Close() {
+  if (IsClosed())
+    return;
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
-  // Stop the loop
-  CHECK_EQ(uv_prepare_stop(&prep_), 0);
-  auto PrepClose = [](uv_handle_t* handle) {
-    Nghttp2Session* session =
-        ContainerOf(&Nghttp2Session::prep_,
-                    reinterpret_cast<uv_prepare_t*>(handle));
-    session->OnFreeSession();
-  };
-  uv_close(reinterpret_cast<uv_handle_t*>(&prep_), PrepClose);
   nghttp2_session_terminate_session(session_, NGHTTP2_NO_ERROR);
   nghttp2_session_del(session_);
   session_ = nullptr;
-  loop_ = nullptr;
   DEBUG_HTTP2("Nghttp2Session %s: session freed\n", TypeName());
-  return 1;
 }
 
 // Write data received from the socket to the underlying nghttp2_session.
@@ -813,7 +796,6 @@ inline int Nghttp2Stream::SubmitFile(int fd,
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider prov;
-  prov.source.ptr = this;
   prov.source.fd = fd;
   prov.read_callback = Nghttp2Session::OnStreamReadFD;
 

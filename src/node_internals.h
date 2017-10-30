@@ -303,6 +303,8 @@ class InternalCallbackScope {
                         v8::Local<v8::Object> object,
                         const async_context& asyncContext,
                         ResourceExpectation expect = kRequireResource);
+  // Utility that can be used by AsyncWrap classes.
+  explicit InternalCallbackScope(AsyncWrap* async_wrap);
   ~InternalCallbackScope();
   void Close();
 

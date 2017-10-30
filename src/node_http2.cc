@@ -69,8 +69,56 @@ Http2Options::Http2Options(Environment* env) {
   }
 }
 
-void Http2Session::OnFreeSession() {
-  ::delete this;
+
+Http2Session::Http2Session(Environment* env,
+                           Local<Object> wrap,
+                           nghttp2_session_type type)
+    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
+      StreamBase(env) {
+  MakeWeak<Http2Session>(this);
+
+  Http2Options opts(env);
+
+  padding_strategy_ = opts.GetPaddingStrategy();
+
+  Init(type, *opts);
+
+  // For every node::Http2Session instance, there is a uv_prepare_t handle
+  // whose callback is triggered on every tick of the event loop. When
+  // run, nghttp2 is prompted to send any queued data it may have stored.
+  prep_ = new uv_prepare_t();
+  uv_prepare_init(env->event_loop(), prep_);
+  prep_->data = static_cast<void*>(this);
+  uv_prepare_start(prep_, [](uv_prepare_t* t) {
+    Http2Session* session = static_cast<Http2Session*>(t->data);
+    HandleScope scope(session->env()->isolate());
+    Context::Scope context_scope(session->env()->context());
+
+    // Sending data may call arbitrary JS code, so keep track of
+    // async context.
+    InternalCallbackScope callback_scope(session);
+    session->SendPendingData();
+  });
+}
+
+Http2Session::~Http2Session() {
+  CHECK(persistent().IsEmpty());
+  Close();
+}
+
+void Http2Session::Close() {
+  if (!object().IsEmpty())
+    ClearWrap(object());
+  persistent().Reset();
+
+  this->Nghttp2Session::Close();
+  // Stop the loop
+  CHECK_EQ(uv_prepare_stop(prep_), 0);
+  auto prep_close = [](uv_handle_t* handle) {
+    delete reinterpret_cast<uv_prepare_t*>(handle);
+  };
+  uv_close(reinterpret_cast<uv_handle_t*>(prep_), prep_close);
+  prep_ = nullptr;
 }
 
 ssize_t Http2Session::OnMaxFrameSizePadding(size_t frameLen,
@@ -364,7 +412,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
 
   if (!skipUnconsume)
     session->Unconsume();
-  session->Free();
+  session->Close();
 }
 
 void Http2Session::Destroying(const FunctionCallbackInfo<Value>& args) {

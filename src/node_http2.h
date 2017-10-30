@@ -343,24 +343,8 @@ class Http2Session : public AsyncWrap,
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
-               nghttp2_session_type type) :
-               AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
-               StreamBase(env) {
-    Wrap(object(), this);
-
-    Http2Options opts(env);
-
-    padding_strategy_ = opts.GetPaddingStrategy();
-
-    Init(env->event_loop(), type, *opts);
-  }
-
-  ~Http2Session() override {
-    CHECK_EQ(false, persistent().IsEmpty());
-    ClearWrap(object());
-    persistent().Reset();
-    CHECK_EQ(true, persistent().IsEmpty());
-  }
+               nghttp2_session_type type);
+  ~Http2Session() override;
 
   static void OnStreamAllocImpl(size_t suggested_size,
                                 uv_buf_t* buf,
@@ -369,9 +353,8 @@ class Http2Session : public AsyncWrap,
                                const uv_buf_t* bufs,
                                uv_handle_type pending,
                                void* ctx);
- protected:
-  void OnFreeSession() override;
 
+ protected:
   ssize_t OnMaxFrameSizePadding(size_t frameLength,
                                 size_t maxPayloadLen);
 
@@ -449,6 +432,9 @@ class Http2Session : public AsyncWrap,
     return 0;
   }
 
+  uv_loop_t* event_loop() const override {
+    return env()->event_loop();
+  }
  public:
   void Consume(Local<External> external);
   void Unconsume();
@@ -488,6 +474,8 @@ class Http2Session : public AsyncWrap,
     return stream_buf_;
   }
 
+  void Close() override;
+
  private:
   StreamBase* stream_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
@@ -496,6 +484,7 @@ class Http2Session : public AsyncWrap,
 
   // use this to allow timeout tracking during long-lasting writes
   uint32_t chunks_sent_since_last_write_ = 0;
+  uv_prepare_t* prep_ = nullptr;
 
   char stream_buf_[kAllocBufferSize];
 };
