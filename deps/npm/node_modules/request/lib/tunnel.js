@@ -1,7 +1,7 @@
 'use strict'
 
 var url = require('url')
-  , tunnel = require('tunnel-agent')
+var tunnel = require('tunnel-agent')
 
 var defaultProxyHeaderWhiteList = [
   'accept',
@@ -31,10 +31,10 @@ var defaultProxyHeaderExclusiveList = [
   'proxy-authorization'
 ]
 
-function constructProxyHost(uriObject) {
+function constructProxyHost (uriObject) {
   var port = uriObject.port
-    , protocol = uriObject.protocol
-    , proxyHost = uriObject.hostname + ':'
+  var protocol = uriObject.protocol
+  var proxyHost = uriObject.hostname + ':'
 
   if (port) {
     proxyHost += port
@@ -47,7 +47,7 @@ function constructProxyHost(uriObject) {
   return proxyHost
 }
 
-function constructProxyHeaderWhiteList(headers, proxyHeaderWhiteList) {
+function constructProxyHeaderWhiteList (headers, proxyHeaderWhiteList) {
   var whiteList = proxyHeaderWhiteList
     .reduce(function (set, header) {
       set[header.toLowerCase()] = true
@@ -68,40 +68,39 @@ function constructTunnelOptions (request, proxyHeaders) {
   var proxy = request.proxy
 
   var tunnelOptions = {
-    proxy : {
-      host      : proxy.hostname,
-      port      : +proxy.port,
-      proxyAuth : proxy.auth,
-      headers   : proxyHeaders
+    proxy: {
+      host: proxy.hostname,
+      port: +proxy.port,
+      proxyAuth: proxy.auth,
+      headers: proxyHeaders
     },
-    headers            : request.headers,
-    ca                 : request.ca,
-    cert               : request.cert,
-    key                : request.key,
-    passphrase         : request.passphrase,
-    pfx                : request.pfx,
-    ciphers            : request.ciphers,
-    rejectUnauthorized : request.rejectUnauthorized,
-    secureOptions      : request.secureOptions,
-    secureProtocol     : request.secureProtocol
+    headers: request.headers,
+    ca: request.ca,
+    cert: request.cert,
+    key: request.key,
+    passphrase: request.passphrase,
+    pfx: request.pfx,
+    ciphers: request.ciphers,
+    rejectUnauthorized: request.rejectUnauthorized,
+    secureOptions: request.secureOptions,
+    secureProtocol: request.secureProtocol
   }
 
   return tunnelOptions
 }
 
-function constructTunnelFnName(uri, proxy) {
+function constructTunnelFnName (uri, proxy) {
   var uriProtocol = (uri.protocol === 'https:' ? 'https' : 'http')
   var proxyProtocol = (proxy.protocol === 'https:' ? 'Https' : 'Http')
   return [uriProtocol, proxyProtocol].join('Over')
 }
 
-function getTunnelFn(request) {
+function getTunnelFn (request) {
   var uri = request.uri
   var proxy = request.proxy
   var tunnelFnName = constructTunnelFnName(uri, proxy)
   return tunnel[tunnelFnName]
 }
-
 
 function Tunnel (request) {
   this.request = request
@@ -114,8 +113,8 @@ function Tunnel (request) {
 
 Tunnel.prototype.isEnabled = function () {
   var self = this
-    , request = self.request
-  // Tunnel HTTPS by default. Allow the user to override this setting.
+  var request = self.request
+    // Tunnel HTTPS by default. Allow the user to override this setting.
 
   // If self.tunnelOverride is set (the user specified a value), use it.
   if (typeof self.tunnelOverride !== 'undefined') {
@@ -133,7 +132,7 @@ Tunnel.prototype.isEnabled = function () {
 
 Tunnel.prototype.setup = function (options) {
   var self = this
-    , request = self.request
+  var request = self.request
 
   options = options || {}
 

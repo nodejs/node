@@ -9,6 +9,8 @@ var mod_util = require('util');
  * Public interface
  */
 exports.sprintf = jsSprintf;
+exports.printf = jsPrintf;
+exports.fprintf = jsFprintf;
 
 /*
  * Stripped down version of s[n]printf(3c).  We make a best effort to throw an
@@ -107,6 +109,10 @@ function jsSprintf(fmt)
 			    arg.toString());
 			break;
 
+		case 'x':
+			ret += doPad(pad, width, left, arg.toString(16));
+			break;
+
 		case 'j': /* non-standard */
 			if (width === 0)
 				width = 10;
@@ -125,6 +131,17 @@ function jsSprintf(fmt)
 
 	ret += fmt;
 	return (ret);
+}
+
+function jsPrintf() {
+	var args = Array.prototype.slice.call(arguments);
+	args.unshift(process.stdout);
+	jsFprintf.apply(null, args);
+}
+
+function jsFprintf(stream) {
+	var args = Array.prototype.slice.call(arguments, 1);
+	return (stream.write(jsSprintf.apply(this, args)));
 }
 
 function doPad(chr, width, left, str)

@@ -1,3 +1,118 @@
+## v5.5.1 (2017-10-04):
+
+A very quick, record time, patch release, of a bug fix to a (sigh) last minute bug fix.
+
+* [`e628e058b`](https://github.com/npm/npm/commit/e628e058b)
+  Fix login to properly recognize OTP request and store bearer tokens.
+  ([@Rebecca Turner](https://github.com/Rebecca Turner))
+
+## v5.5.0 (2017-10-04):
+
+Hey y'all, this is a big new feature release!  We've got some security
+related goodies plus a some quality-of-life improvements for anyone who uses
+the public registry (so, virtually everyone).
+
+The changes largely came together in one piece, so I'm just gonna leave the commit line here:
+
+* [`f6ebf5e8b`](https://github.com/npm/npm/commit/f6ebf5e8bd6a212c7661e248c62c423f2b54d978)
+  [`f97ad6a38`](https://github.com/npm/npm/commit/f97ad6a38412581d059108ea29be470acb4fa510)
+  [`f644018e6`](https://github.com/npm/npm/commit/f644018e6ef1ff7523c6ec60ae55a24e87a9d9ae)
+  [`8af91528c`](https://github.com/npm/npm/commit/8af91528ce6277cd3a8c7ca8c8102671baf10d2f)
+  [`346a34260`](https://github.com/npm/npm/commit/346a34260b5fba7de62717135f3e083cc4820853)
+  Two factor authentication, profile editing and token management.
+  ([@iarna](https://github.com/iarna))
+
+### TWO FACTOR AUTHENTICATION
+
+You can now enable two-factor authentication for your npm account.  You can
+even do it from the CLI.  In fact, you have to, for the time being:
+
+```
+npm profile enable-tfa
+```
+
+With the default two-factor authentication mode you'll be prompted to enter
+a one-time password when logging in, when publishing and when modifying access rights to
+your modules.
+
+### TOKEN MANAGEMENT
+
+You can now create, list and delete authentication tokens from the comfort
+of the command line.  Authentication tokens created this way can have NEW
+restrictions placed on them.  For instance, you can create a `read-only`
+token to give to your CI.  It will be able to download your private modules
+but it won't be able to publish or modify modules.  You can also create
+tokens that can only be used from certain network addresses.  This way you
+can lock down access to your corporate VPN or other trusted machines.
+
+Deleting tokens isn't new, you could [do it via the
+website](https://www.npmjs.com/settings/tokens) but now you can do it via
+the CLI as well.
+
+### CHANGE YOUR PASSWORD, SET YOUR EMAIL
+
+You can finally change your password from the CLI with `npm profile set
+password`!  You can also update your email address with `npm profile set
+email <address>`. If you change your email address we'll send you a new
+verification email so you verify that its yours.
+
+### AND EVERYTHING ELSE ON YOUR PROFILE
+
+You can also update all of the other attributes of your profile that
+previously you could only update via the website: `fullname`, `homepage`,
+`freenode`, `twitter` and `github`.
+
+### AVAILABLE STAND ALONE
+
+All of these features were implemented in a stand alone library, so if you
+have use for them in your own project you can find them in
+[npm-profile](https://www.npmjs.com/package/npm-profile) on the registry.
+There's also a little mini-cli written just for it at
+[npm-profile-cli](https://www.npmjs.com/package/npm-profile-cli).  You might
+also be interested in the [API
+documentation](https://github.com/npm/registry/tree/master/docs) for these
+new features: [user profile editing](https://github.com/npm/registry/blob/master/docs/user/profile.md) and
+[authentication](https://github.com/npm/registry/blob/master/docs/user/authentication.md).
+
+### BUG FIXES
+
+* [`5ee55dc71`](https://github.com/npm/npm/commit/5ee55dc71b8b74b8418c3d5ec17483a07b3b6777)
+  install.sh: Drop support for upgrading from npm@1 as npm@5 can't run on
+  any Node.js version that ships npm@1. This fixes an issue some folks were seeing when trying
+  to upgrade using `curl | http://npmjs.com/install.sh`.
+  ([@iarna](https://github.com/iarna))
+* [`5cad1699a`](https://github.com/npm/npm/commit/5cad1699a7a0fc85ac7f77a95087a9647f75e344)
+  `npm-lifecycle@1.0.3` Fix a bug where when more than one lifecycle script
+  got queued to run, npm would crash.
+  ([@zkat](https://github.com/zkat))
+* [`cd256cbb2`](https://github.com/npm/npm/commit/cd256cbb2f97fcbcb82237e94b66eac80e493626)
+  `npm-packlist@1.1.9` Fix a bug where test directories would always be
+  excluded from published modules.
+  ([@isaacs](https://github.com/isaacs))
+* [`2a11f0215`](https://github.com/npm/npm/commit/2a11f021561acb1eb1ad4ad45ad955793b1eb4af)
+  Fix formatting of unsupported version warning
+  ([@iarna](https://github.com/iarna))
+
+### DEPENDENCY UPDATES
+
+* [`6d2a285a5`](https://github.com/npm/npm/commit/6d2a285a58655f10834f64d38449eb1f3c8b6c47)
+  `npm-registry-client@8.5.0`
+* [`69e64e27b`](https://github.com/npm/npm/commit/69e64e27bf58efd0b76b3cf6e8182c77f8cc452f)
+  `request@2.83.0`
+* [`34e0f4209`](https://github.com/npm/npm/commit/34e0f42090f6153eb5462f742e402813e4da56c8)
+  `abbrev@1.1.1`
+* [`10d31739d`](https://github.com/npm/npm/commit/10d31739d39765f1f0249f688bd934ffad92f872)
+  `aproba@1.2.0`
+* [`2b02e86c0`](https://github.com/npm/npm/commit/2b02e86c06cf2a5fe7146404f5bfd27f190ee4f4)
+  `meant@1.0.1`
+* [`b81fff808`](https://github.com/npm/npm/commit/b81fff808ee269361d3dcf38c1b6019f1708ae02)
+  `rimraf@2.6.2`:
+  Fixes a long standing bug in rimraf's attempts to work around Windows limitations
+  where it owns a file and can change its perms but can't remove it without
+  first changing its perms. This _may_ be an improvement for Windows users of npm under
+  some circumstances.
+  ([@isaacs](https://github.com/isaacs))
+
 ## v5.4.2 (2017-09-14):
 
 This is a small bug fix release wrapping up most of the issues introduced with 5.4.0.

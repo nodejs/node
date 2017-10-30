@@ -2,6 +2,17 @@
 
 Like the `Did you mean?` in git for npm
 
+## API
+### meant(item, list)
++ item {String} A key for finding an approximate value
++ list {Array} A list for comparing with the item
+
+```js
+const meant = require('meant')
+const result = meant('foa', ['foo', 'bar', 'baz'])
+// => [ 'foo' ]
+```
+
 ## Installation
 
 Download node at [nodejs.org](http://nodejs.org) and install it, if you haven't already.

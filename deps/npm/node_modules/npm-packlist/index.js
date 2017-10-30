@@ -33,7 +33,6 @@ const defaultRules = [
   '.DS_Store',
   '._*',
   '*.orig',
-  '/test{,s}/',
   'package-lock.json'
 ]
 

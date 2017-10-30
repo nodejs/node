@@ -87,4 +87,3 @@ test('cleanup', function (t) {
   cleanup()
   t.done()
 })
-

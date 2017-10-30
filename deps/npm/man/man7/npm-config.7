@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "September 2017" "" ""
+.TH "NPM\-CONFIG" "7" "October 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -373,6 +373,16 @@ cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIF
 .RE
 .P
 It is \fInot\fR the path to a certificate file (and there is no "certfile" option)\.
+.SS cidr
+.RS 0
+.IP \(bu 2
+Default: \fBnull\fP
+.IP \(bu 2
+Type: String, Array, null
+
+.RE
+.P
+This is a list of CIDR address to be used when configuring limited access tokens with the \fBnpm token create\fP command\.
 .SS color
 .RS 0
 .IP \(bu 2
@@ -964,6 +974,17 @@ Type: Boolean
 Attempt to install packages in the \fBoptionalDependencies\fP object\.  Note
 that if these packages fail to install, the overall installation
 process is not aborted\.
+.SS otp
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+This is a one\-time password from a two\-factor authenticator\.  It's needed
+when publishing or changing package permissions with \fBnpm access\fP\|\.
 .SS package\-lock
 .RS 0
 .IP \(bu 2
@@ -1066,6 +1087,16 @@ Type: url
 A proxy to use for outgoing http requests\. If the \fBHTTP_PROXY\fP or
 \fBhttp_proxy\fP environment variables are set, proxy settings will be
 honored by the underlying \fBrequest\fP library\.
+.SS read\-only
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+This is used to mark a token as unable to publish when configuring limited access tokens with the \fBnpm token create\fP command\.
 .SS rebuild\-bundle
 .RS 0
 .IP \(bu 2

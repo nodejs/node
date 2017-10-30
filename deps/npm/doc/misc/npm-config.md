@@ -269,6 +269,13 @@ PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with newlines repla
 
 It is _not_ the path to a certificate file (and there is no "certfile" option).
 
+### cidr
+
+* Default: `null`
+* Type: String, Array, null
+
+This is a list of CIDR address to be used when configuring limited access tokens with the `npm token create` command.
+
 ### color
 
 * Default: true
@@ -699,6 +706,14 @@ Attempt to install packages in the `optionalDependencies` object.  Note
 that if these packages fail to install, the overall installation
 process is not aborted.
 
+### otp
+
+* Default: null
+* Type: Number
+
+This is a one-time password from a two-factor authenticator.  It's needed
+when publishing or changing package permissions with `npm access`.
+
 ### package-lock
 
 * Default: true
@@ -772,6 +787,13 @@ Set to `false` to suppress the progress bar.
 A proxy to use for outgoing http requests. If the `HTTP_PROXY` or
 `http_proxy` environment variables are set, proxy settings will be
 honored by the underlying `request` library.
+
+### read-only
+
+* Default: false
+* Type: Boolean
+
+This is used to mark a token as unable to publish when configuring limited access tokens with the `npm token create` command.
 
 ### rebuild-bundle
 

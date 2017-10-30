@@ -70,6 +70,11 @@ awkwardness is a feature: It reminds you of the complexity you're adding to
 your API when you do this sort of thing.
 
 
+### Browser support
+
+This has no dependencies and should work in browsers, though you'll have
+noisier stack traces.
+
 ### Why this exists
 
 I wanted a very simple argument validator. It needed to do two things:

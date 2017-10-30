@@ -204,7 +204,7 @@ function dequeue () {
 
 function runCmd (note, cmd, pkg, env, stage, wd, opts, cb) {
   if (running) {
-    queue.push([note, cmd, pkg, env, stage, wd, cb])
+    queue.push([note, cmd, pkg, env, stage, wd, opts, cb])
     return
   }
 

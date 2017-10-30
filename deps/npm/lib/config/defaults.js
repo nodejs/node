@@ -128,6 +128,8 @@ Object.defineProperty(exports, 'defaults', {get: function () {
 
     cert: null,
 
+    cidr: null,
+
     color: true,
     depth: Infinity,
     description: true,
@@ -179,6 +181,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'onload-script': false,
     only: null,
     optional: true,
+    otp: null,
     'package-lock': true,
     parseable: false,
     'prefer-offline': false,
@@ -192,6 +195,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
                     'node/{node-version} ' +
                     '{platform} ' +
                     '{arch}',
+    'read-only': false,
     'rebuild-bundle': true,
     registry: 'https://registry.npmjs.org/',
     rollback: true,
@@ -257,6 +261,7 @@ exports.types = {
   'cache-max': Number,
   'cache-min': Number,
   cert: [null, String],
+  cidr: [null, String, Array],
   color: ['always', Boolean],
   depth: Number,
   description: Boolean,
@@ -309,6 +314,7 @@ exports.types = {
   only: [null, 'dev', 'development', 'prod', 'production'],
   optional: Boolean,
   'package-lock': Boolean,
+  otp: Number,
   parseable: Boolean,
   'prefer-offline': Boolean,
   'prefer-online': Boolean,
@@ -316,6 +322,7 @@ exports.types = {
   production: Boolean,
   progress: Boolean,
   proxy: [null, false, url], // allow proxy to be disabled explicitly
+  'read-only': Boolean,
   'rebuild-bundle': Boolean,
   registry: [null, url],
   rollback: Boolean,
@@ -405,6 +412,7 @@ exports.shorthands = {
   m: ['--message'],
   p: ['--parseable'],
   porcelain: ['--parseable'],
+  readonly: ['--read-only'],
   g: ['--global'],
   S: ['--save'],
   D: ['--save-dev'],

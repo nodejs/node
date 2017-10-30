@@ -116,11 +116,14 @@ module.exports = {
     }
     assert.object(options, 'options');
     assert.arrayOfString(options.headers, 'options.headers');
-    assert.optionalNumber(options.clockSkew, 'options.clockSkew');
+    assert.optionalFinite(options.clockSkew, 'options.clockSkew');
 
-    if (!request.headers.authorization)
-      throw new MissingHeaderError('no authorization header present in ' +
-                                   'the request');
+    var authzHeaderName = options.authorizationHeaderName || 'authorization';
+
+    if (!request.headers[authzHeaderName]) {
+      throw new MissingHeaderError('no ' + authzHeaderName + ' header ' +
+                                   'present in the request');
+    }
 
     options.clockSkew = options.clockSkew || 300;
 
@@ -134,18 +137,10 @@ module.exports = {
     var parsed = {
       scheme: '',
       params: {},
-      signingString: '',
-
-      get algorithm() {
-        return this.params.algorithm.toUpperCase();
-      },
-
-      get keyId() {
-        return this.params.keyId;
-      }
+      signingString: ''
     };
 
-    var authz = request.headers.authorization;
+    var authz = request.headers[authzHeaderName];
     for (i = 0; i < authz.length; i++) {
       var c = authz.charAt(i);
 
@@ -302,7 +297,7 @@ module.exports = {
     options.headers.forEach(function (hdr) {
       // Remember that we already checked any headers in the params
       // were in the request, so if this passes we're good.
-      if (parsed.params.headers.indexOf(hdr) < 0)
+      if (parsed.params.headers.indexOf(hdr.toLowerCase()) < 0)
         throw new MissingHeaderError(hdr + ' was not a signed header');
     });
 
@@ -312,6 +307,8 @@ module.exports = {
                                      ' is not a supported algorithm');
     }
 
+    parsed.algorithm = parsed.params.algorithm.toUpperCase();
+    parsed.keyId = parsed.params.keyId;
     return parsed;
   }
 

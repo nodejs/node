@@ -48,12 +48,11 @@ This uses the following rules:
     1. .npmignore and .gitignore files (their effect is in the package
        already, there's no need to include them in the package)
     2. editor junk like `.*.swp`, `._*` and `.*.orig` files
-    3. A `/test/` or `/tests/` folder at the root
-    4. `.npmrc` files (these may contain private configs)
-    5. The `node_modules/.bin` folder
-    6. Waf and gyp cruft like `/build/config.gypi` and `.lock-wscript`
-    7. Darwin's `.DS_Store` files because wtf are those even
-    8. `npm-debug.log` files at the root of a project
+    3. `.npmrc` files (these may contain private configs)
+    4. The `node_modules/.bin` folder
+    5. Waf and gyp cruft like `/build/config.gypi` and `.lock-wscript`
+    6. Darwin's `.DS_Store` files because wtf are those even
+    7. `npm-debug.log` files at the root of a project
 
     You can explicitly re-include any of these with a `files` list in
     `package.json` or a negated ignore file rule.

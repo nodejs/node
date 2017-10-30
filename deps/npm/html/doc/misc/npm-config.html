@@ -226,6 +226,12 @@ well as for the CA information to be stored in a file on disk.</p>
 PEM format (Windows calls it &quot;Base-64 encoded X.509 (.CER)&quot;) with newlines replaced by the string &quot;\n&quot;. For example:</p>
 <pre><code>cert=&quot;-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----&quot;
 </code></pre><p>It is <em>not</em> the path to a certificate file (and there is no &quot;certfile&quot; option).</p>
+<h3 id="cidr">cidr</h3>
+<ul>
+<li>Default: <code>null</code></li>
+<li>Type: String, Array, null</li>
+</ul>
+<p>This is a list of CIDR address to be used when configuring limited access tokens with the <code>npm token create</code> command.</p>
 <h3 id="color">color</h3>
 <ul>
 <li>Default: true</li>
@@ -600,6 +606,13 @@ installed.</p>
 <p>Attempt to install packages in the <code>optionalDependencies</code> object.  Note
 that if these packages fail to install, the overall installation
 process is not aborted.</p>
+<h3 id="otp">otp</h3>
+<ul>
+<li>Default: null</li>
+<li>Type: Number</li>
+</ul>
+<p>This is a one-time password from a two-factor authenticator.  It&#39;s needed
+when publishing or changing package permissions with <code>npm access</code>.</p>
 <h3 id="package-lock">package-lock</h3>
 <ul>
 <li>Default: true</li>
@@ -664,6 +677,12 @@ operations, if <code>process.stderr</code> is a TTY.</p>
 <p>A proxy to use for outgoing http requests. If the <code>HTTP_PROXY</code> or
 <code>http_proxy</code> environment variables are set, proxy settings will be
 honored by the underlying <code>request</code> library.</p>
+<h3 id="read-only">read-only</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>This is used to mark a token as unable to publish when configuring limited access tokens with the <code>npm token create</code> command.</p>
 <h3 id="rebuild-bundle">rebuild-bundle</h3>
 <ul>
 <li>Default: true</li>
@@ -990,5 +1009,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@5.4.2</p>
+<p id="footer">npm-config &mdash; npm@5.5.1</p>
 

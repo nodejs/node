@@ -63,4 +63,3 @@ function setup () {
   fs.writeFileSync(npmrc, configContents, 'ascii')
   process.chdir(pkg)
 }
-
