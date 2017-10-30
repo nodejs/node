@@ -1,4 +1,3 @@
-//
 'use strict';
 
 // This test ensures that servers are able to send data independent of window
