@@ -1,8 +1,6 @@
-#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "node_wrap.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <string.h>

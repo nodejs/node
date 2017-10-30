@@ -1,7 +1,6 @@
 #include "node.h"
 #include "node_watchdog.h"
 #include "v8.h"
-#include "env.h"
 #include "env-inl.h"
 
 namespace node {

@@ -21,7 +21,6 @@
 #define NODE_GC_DONE(arg0, arg1, arg2)
 #endif
 
-#include "env.h"
 #include "env-inl.h"
 
 namespace node {
