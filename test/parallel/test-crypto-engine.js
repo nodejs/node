@@ -35,8 +35,8 @@ common.expectsError(
       assert(err.info, 'does not have info property');
       assert(Array.isArray(err.opensslErrorStack),
              'opensslErrorStack must be an array');
-      assert(typeof err.info.code, 'number');
-      assert(typeof err.info.message, 'string');
+      assert.strictEqual(typeof err.info.code, 'number');
+      assert.strictEqual(typeof err.info.message, 'string');
     }
   }
 );
