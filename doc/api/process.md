@@ -1326,6 +1326,19 @@ system platform on which the Node.js process is running. For instance
 console.log(`This platform is ${process.platform}`);
 ```
 
+## process.ppid
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer}
+
+The `process.ppid` property returns the PID of the current parent process.
+
+```js
+console.log(`The parent process is pid ${process.ppid}`);
+```
+
 ## process.release
 <!-- YAML
 added: v3.0.0
