@@ -1465,6 +1465,7 @@ All paddings are defined in `crypto.constants`.
 added: v6.6.0
 -->
 
+This function is based on a constant-time algorithm.
 Returns true if `a` is equal to `b`, without leaking timing information that
 would allow an attacker to guess one of the values. This is suitable for
 comparing HMAC digests or secret values like authentication cookies or
