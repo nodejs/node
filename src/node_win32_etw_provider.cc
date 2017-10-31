@@ -1,4 +1,4 @@
-#include "node_dtrace.h"
+#include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
 
