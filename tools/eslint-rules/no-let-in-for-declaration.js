@@ -14,7 +14,7 @@
 
 module.exports = {
   create(context) {
-
+    const sourceCode = context.getSourceCode();
     const msg = 'Use of `let` as the loop variable in a for-loop is ' +
                 'not recommended. Please use `var` instead.';
 
@@ -23,7 +23,12 @@ module.exports = {
      */
     function testForLoop(node) {
       if (node.init && node.init.kind === 'let') {
-        context.report(node.init, msg);
+        context.report({
+          node: node.init,
+          message: msg,
+          fix: (fixer) =>
+            fixer.replaceText(sourceCode.getFirstToken(node.init), 'var')
+        });
       }
     }
 
@@ -33,7 +38,12 @@ module.exports = {
      */
     function testForInOfLoop(node) {
       if (node.left && node.left.kind === 'let') {
-        context.report(node.left, msg);
+        context.report({
+          node: node.left,
+          message: msg,
+          fix: (fixer) =>
+            fixer.replaceText(sourceCode.getFirstToken(node.left), 'var')
+        });
       }
     }
 
