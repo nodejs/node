@@ -1004,6 +1004,12 @@ The `inspector` module is not available for use.
 While using the `inspector` module, an attempt was made to use the inspector
 before it was connected.
 
+<a id="ERR_INSPECTOR_NO_DOMAIN_OVERRIDE"></a>
+### ERR_INSPECTOR_NO_DOMAIN_OVERRIDE
+
+The `ERR_INSPECTOR_NO_DOMAIN_OVERRIDE` error code indicates an attemp to
+override one of the V8 built in inspector protocol domains.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 

@@ -259,10 +259,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   }
 
   void dispatchProtocolMessage(const StringView& message) {
-    if (v8_inspector::V8InspectorSession::canDispatchMethod(message) ||
-        !dispatchToNodeDispatcher(message)) {
+    if (!dispatchToNodeDispatcher(message))
       session_->dispatchProtocolMessage(message);
-    }
   }
 
   bool waitForFrontendMessage() {
