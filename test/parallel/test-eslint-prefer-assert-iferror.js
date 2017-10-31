@@ -15,11 +15,13 @@ new RuleTester().run('prefer-assert-iferror', rule, {
   invalid: [
     {
       code: 'if (err) throw err;',
-      errors: [{ message: 'Use assert.ifError(err) instead.' }]
+      errors: [{ message: 'Use assert.ifError(err) instead.' }],
+      output: 'assert.ifError(err);'
     },
     {
       code: 'if (error) { throw error; }',
-      errors: [{ message: 'Use assert.ifError(error) instead.' }]
+      errors: [{ message: 'Use assert.ifError(error) instead.' }],
+      output: 'assert.ifError(error);'
     }
   ]
 });
