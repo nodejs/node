@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 #include "node_win32_etw_provider-inl.h"
 
