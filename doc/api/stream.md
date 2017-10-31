@@ -1526,17 +1526,17 @@ class StringWritable extends Writable {
     super(options);
     const state = this._writableState;
     this._decoder = new StringDecoder(state.defaultEncoding);
-    this._data = '';
+    this.data = '';
   }
   _write(chunk, encoding, callback) {
     if (encoding === 'buffer') {
       chunk = this._decoder.write(chunk);
     }
-    this._data += chunk;
+    this.data += chunk;
     callback();
   }
   _final(callback) {
-    this._data += this._decoder.end();
+    this.data += this._decoder.end();
     callback();
   }
 }
@@ -1548,7 +1548,7 @@ w.write('currency: ');
 w.write(euro[0]);
 w.end(euro[1]);
 
-console.log(w._data); // currency: €
+console.log(w.data); // currency: €
 ```
 
 ### Implementing a Readable Stream
