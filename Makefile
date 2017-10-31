@@ -971,19 +971,6 @@ bench: bench-net bench-http bench-fs bench-tls
 
 bench-ci: bench
 
-lint-md-clean:
-	$(RM) -r tools/remark-cli/node_modules
-	$(RM) -r tools/remark-preset-lint-node/node_modules
-	$(RM) tools/.*mdlintstamp
-
-lint-md-build:
-	@if [ ! -d tools/remark-cli/node_modules ]; then \
-		echo "Markdown linter: installing remark-cli into tools/"; \
-		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
-	@if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
-		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
-		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
-
 LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
@@ -1002,7 +989,7 @@ tools/.miscmdlintstamp: $(LINT_MD_FILES)
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
-lint-md: | lint-md-build tools/.mdlintstamp
+lint-md: tools/.mdlintstamp
 
 LINT_JS_TARGETS = benchmark doc lib test tools
 LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
@@ -1157,8 +1144,6 @@ lint-clean:
   lint-js-ci \
   list-gtests \
   lint-md \
-  lint-md-build \
-  lint-md-clean \
   pkg \
   release-only \
   run-ci \
