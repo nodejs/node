@@ -23,12 +23,17 @@ const bindingModules = cryptoModules.concat(['tls_wrap']);
 module.exports = function(context) {
   const missingCheckNodes = [];
   const requireNodes = [];
+  var commonModuleNode = null;
   var hasSkipCall = false;
 
   function testCryptoUsage(node) {
     if (utils.isRequired(node, requireModules) ||
         utils.isBinding(node, bindingModules)) {
       requireNodes.push(node);
+    }
+
+    if (utils.isCommonModule(node)) {
+      commonModuleNode = node;
     }
   }
 
@@ -75,7 +80,20 @@ module.exports = function(context) {
 
   function report(nodes) {
     nodes.forEach((node) => {
-      context.report(node, msg);
+      context.report({
+        node,
+        message: msg,
+        fix: (fixer) => {
+          if (commonModuleNode) {
+            return fixer.insertTextAfter(
+              commonModuleNode,
+              '\nif (!common.hasCrypto) {' +
+              ' common.skip("missing crypto");' +
+              '}'
+            );
+          }
+        }
+      });
     });
   }
 
