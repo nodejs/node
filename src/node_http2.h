@@ -158,6 +158,7 @@ HTTP_KNOWN_HEADER_MAX
   V(CONTINUE, 100)                                                            \
   V(SWITCHING_PROTOCOLS, 101)                                                 \
   V(PROCESSING, 102)                                                          \
+  V(EARLY_HINTS, 103)                                                         \
   V(OK, 200)                                                                  \
   V(CREATED, 201)                                                             \
   V(ACCEPTED, 202)                                                            \
