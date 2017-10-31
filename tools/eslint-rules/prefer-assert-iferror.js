@@ -5,9 +5,12 @@
 
 'use strict';
 
+const utils = require('./rules-utils.js');
+
 module.exports = {
   create(context) {
     const sourceCode = context.getSourceCode();
+    var assertImported = false;
 
     function hasSameTokens(nodeA, nodeB) {
       const aTokens = sourceCode.getTokens(nodeA);
@@ -20,8 +23,15 @@ module.exports = {
         });
     }
 
+    function checkAssertNode(node) {
+      if (utils.isRequired(node, ['assert'])) {
+        assertImported = true;
+      }
+    }
+
     return {
-      IfStatement(node) {
+      'CallExpression': (node) => checkAssertNode(node),
+      'IfStatement': (node) => {
         const firstStatement = node.consequent.type === 'BlockStatement' ?
           node.consequent.body[0] :
           node.consequent;
@@ -30,10 +40,19 @@ module.exports = {
           firstStatement.type === 'ThrowStatement' &&
           hasSameTokens(node.test, firstStatement.argument)
         ) {
+          const argument = sourceCode.getText(node.test);
           context.report({
             node: firstStatement,
             message: 'Use assert.ifError({{argument}}) instead.',
-            data: { argument: sourceCode.getText(node.test) }
+            data: { argument },
+            fix: (fixer) => {
+              if (assertImported) {
+                return fixer.replaceText(
+                  node,
+                  `assert.ifError(${argument});`
+                );
+              }
+            }
           });
         }
       }
