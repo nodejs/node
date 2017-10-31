@@ -13,6 +13,17 @@ module.exports.isRequired = function(node, modules) {
 };
 
 /**
+* Return true if common module is required
+* in AST Node under inspection
+*/
+var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
+module.exports.isCommonModule = function(node) {
+  return node.callee.name === 'require' &&
+         node.arguments.length !== 0 &&
+         commonModuleRegExp.test(node.arguments[0].value);
+};
+
+/**
  * Returns true if any of the passed in modules are used in
  * binding calls.
  */
