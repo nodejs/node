@@ -9,8 +9,8 @@ Select a Node.js version below to view the changelog history:
 * [Node.js 8](doc/changelogs/CHANGELOG_V8.md)
 * [Node.js 7](doc/changelogs/CHANGELOG_V7.md)
 * [Node.js 6](doc/changelogs/CHANGELOG_V6.md)
-* [Node.js 4](doc/changelogs/CHANGELOG_V4.md)
 * [Node.js 5](doc/changelogs/CHANGELOG_V5.md),
+* [Node.js 4](doc/changelogs/CHANGELOG_V4.md)
   [0.12](doc/changelogs/CHANGELOG_V012.md),
   [0.10](doc/changelogs/CHANGELOG_V010.md),
   [io.js](doc/changelogs/CHANGELOG_IOJS.md) and [Archive](doc/changelogs/CHANGELOG_ARCHIVE.md)
