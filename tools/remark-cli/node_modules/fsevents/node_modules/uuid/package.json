@@ -1,0 +1,81 @@
+{
+  "_args": [
+    [
+      "uuid@3.0.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "uuid@3.0.1",
+  "_id": "uuid@3.0.1",
+  "_inBundle": true,
+  "_integrity": "sha1-ZUS7ot/ajBzxfmKaOjBeK7H+5sE=",
+  "_location": "/fsevents/uuid",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "uuid@3.0.1",
+    "name": "uuid",
+    "escapedName": "uuid",
+    "rawSpec": "3.0.1",
+    "saveSpec": null,
+    "fetchSpec": "3.0.1"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/uuid/-/uuid-3.0.1.tgz",
+  "_spec": "3.0.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bin": {
+    "uuid": "./bin/uuid"
+  },
+  "browser": {
+    "./lib/rng.js": "./lib/rng-browser.js"
+  },
+  "bugs": {
+    "url": "https://github.com/kelektiv/node-uuid/issues"
+  },
+  "contributors": [
+    {
+      "name": "Robert Kieffer",
+      "email": "robert@broofa.com"
+    },
+    {
+      "name": "Christoph Tavan",
+      "email": "dev@tavan.de"
+    },
+    {
+      "name": "AJ ONeal",
+      "email": "coolaj86@gmail.com"
+    },
+    {
+      "name": "Vincent Voyer",
+      "email": "vincent@zeroload.net"
+    },
+    {
+      "name": "Roman Shtylman",
+      "email": "shtylman@gmail.com"
+    }
+  ],
+  "description": "RFC4122 (v1 and v4) generator",
+  "devDependencies": {
+    "mocha": "3.1.2"
+  },
+  "homepage": "https://github.com/kelektiv/node-uuid#readme",
+  "keywords": [
+    "uuid",
+    "guid",
+    "rfc4122"
+  ],
+  "license": "MIT",
+  "name": "uuid",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kelektiv/node-uuid.git"
+  },
+  "scripts": {
+    "test": "mocha test/test.js"
+  },
+  "version": "3.0.1"
+}

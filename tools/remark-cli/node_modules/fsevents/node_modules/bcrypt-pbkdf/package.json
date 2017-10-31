@@ -1,0 +1,40 @@
+{
+  "_args": [
+    [
+      "bcrypt-pbkdf@1.0.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "bcrypt-pbkdf@1.0.1",
+  "_id": "bcrypt-pbkdf@1.0.1",
+  "_inBundle": true,
+  "_integrity": "sha1-Y7xdy2EzG5K8Bf1SiVPDNGKgb40=",
+  "_location": "/fsevents/bcrypt-pbkdf",
+  "_optional": true,
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "bcrypt-pbkdf@1.0.1",
+    "name": "bcrypt-pbkdf",
+    "escapedName": "bcrypt-pbkdf",
+    "rawSpec": "1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "1.0.1"
+  },
+  "_requiredBy": [
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/bcrypt-pbkdf/-/bcrypt-pbkdf-1.0.1.tgz",
+  "_spec": "1.0.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "dependencies": {
+    "tweetnacl": "^0.14.3"
+  },
+  "description": "Port of the OpenBSD bcrypt_pbkdf function to pure JS",
+  "devDependencies": {},
+  "license": "BSD-3-Clause",
+  "main": "index.js",
+  "name": "bcrypt-pbkdf",
+  "version": "1.0.1"
+}

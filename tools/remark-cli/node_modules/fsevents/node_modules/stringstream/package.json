@@ -1,0 +1,54 @@
+{
+  "_args": [
+    [
+      "stringstream@0.0.5",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "stringstream@0.0.5",
+  "_id": "stringstream@0.0.5",
+  "_inBundle": true,
+  "_integrity": "sha1-TkhM1N5aC7vuGORjB3EKioFiGHg=",
+  "_location": "/fsevents/stringstream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "stringstream@0.0.5",
+    "name": "stringstream",
+    "escapedName": "stringstream",
+    "rawSpec": "0.0.5",
+    "saveSpec": null,
+    "fetchSpec": "0.0.5"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/stringstream/-/stringstream-0.0.5.tgz",
+  "_spec": "0.0.5",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Michael Hart",
+    "email": "michael.hart.au@gmail.com",
+    "url": "http://github.com/mhart"
+  },
+  "bugs": {
+    "url": "https://github.com/mhart/StringStream/issues"
+  },
+  "description": "Encode and decode streams into string streams",
+  "homepage": "https://github.com/mhart/StringStream#readme",
+  "keywords": [
+    "string",
+    "stream",
+    "base64",
+    "gzip"
+  ],
+  "license": "MIT",
+  "main": "stringstream.js",
+  "name": "stringstream",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mhart/StringStream.git"
+  },
+  "version": "0.0.5"
+}

@@ -1,0 +1,61 @@
+{
+  "_args": [
+    [
+      "combined-stream@1.0.5",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "combined-stream@1.0.5",
+  "_id": "combined-stream@1.0.5",
+  "_inBundle": true,
+  "_integrity": "sha1-k4NwpXtKUd6ix3wV1cX9+JUWQAk=",
+  "_location": "/fsevents/combined-stream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "combined-stream@1.0.5",
+    "name": "combined-stream",
+    "escapedName": "combined-stream",
+    "rawSpec": "1.0.5",
+    "saveSpec": null,
+    "fetchSpec": "1.0.5"
+  },
+  "_requiredBy": [
+    "/fsevents/form-data",
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/combined-stream/-/combined-stream-1.0.5.tgz",
+  "_spec": "1.0.5",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Felix Geisendörfer",
+    "email": "felix@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/felixge/node-combined-stream/issues"
+  },
+  "dependencies": {
+    "delayed-stream": "~1.0.0"
+  },
+  "description": "A stream that emits multiple other streams one after another.",
+  "devDependencies": {
+    "far": "~0.0.7"
+  },
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "homepage": "https://github.com/felixge/node-combined-stream",
+  "license": "MIT",
+  "main": "./lib/combined_stream",
+  "name": "combined-stream",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/felixge/node-combined-stream.git"
+  },
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "version": "1.0.5"
+}

@@ -1,0 +1,35 @@
+os: Visual Studio 2015
+
+environment:
+  matrix:
+    - nodejs_version: 0.10
+    - nodejs_version: 4
+    - nodejs_version: 6
+
+platform:
+  - x64
+  - x86
+
+shallow_clone: true
+
+install:
+  - ps: Install-Product node $env:nodejs_version $env:Platform
+  - ps: Set-ExecutionPolicy Unrestricted -Scope CurrentUser -Force
+  # https://github.com/nodejs/node-gyp/issues/972#issuecomment-231055109
+  - npm install --production node-gyp
+  - node --version
+  - npm --version
+  #- SET PATH=%APPDATA%\npm;%PATH%
+  #- npm install -g node-gyp
+  - npm install -g node-gyp@3.2.1
+  - node -e "console.log(process.arch);"
+  - IF /I "%PLATFORM%" == "x64" set PATH=C:\Python27-x64;%PATH%
+  - IF /I "%PLATFORM%" == "x86" SET PATH=C:\python27;%PATH%
+  - IF /I "%PLATFORM%" == "x64" CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+  - IF /I "%PLATFORM%" == "x86" CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+  - npm install
+  - npm test
+
+build: off
+test: off
+deploy: off

@@ -1,0 +1,68 @@
+{
+  "_args": [
+    [
+      "asn1@0.2.3",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "asn1@0.2.3",
+  "_id": "asn1@0.2.3",
+  "_inBundle": true,
+  "_integrity": "sha1-2sh4dxPJlmhJ/IGAd36+nB3fO4Y=",
+  "_location": "/fsevents/asn1",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "asn1@0.2.3",
+    "name": "asn1",
+    "escapedName": "asn1",
+    "rawSpec": "0.2.3",
+    "saveSpec": null,
+    "fetchSpec": "0.2.3"
+  },
+  "_requiredBy": [
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/asn1/-/asn1-0.2.3.tgz",
+  "_spec": "0.2.3",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Mark Cavage",
+    "email": "mcavage@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mcavage/node-asn1/issues"
+  },
+  "contributors": [
+    {
+      "name": "David Gwynne",
+      "email": "loki@animata.net"
+    },
+    {
+      "name": "Yunong Xiao",
+      "email": "yunong@joyent.com"
+    },
+    {
+      "name": "Alex Wilson",
+      "email": "alex.wilson@joyent.com"
+    }
+  ],
+  "dependencies": {},
+  "description": "Contains parsers and serializers for ASN.1 (currently BER only)",
+  "devDependencies": {
+    "tap": "0.4.8"
+  },
+  "homepage": "https://github.com/mcavage/node-asn1#readme",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "asn1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mcavage/node-asn1.git"
+  },
+  "scripts": {
+    "test": "tap ./tst"
+  },
+  "version": "0.2.3"
+}

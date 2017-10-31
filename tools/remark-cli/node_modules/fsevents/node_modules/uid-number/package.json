@@ -1,0 +1,54 @@
+{
+  "_args": [
+    [
+      "uid-number@0.0.6",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "uid-number@0.0.6",
+  "_id": "uid-number@0.0.6",
+  "_inBundle": true,
+  "_integrity": "sha1-DqEOgDXo61uOREnwbaHHMGY7qoE=",
+  "_location": "/fsevents/uid-number",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "uid-number@0.0.6",
+    "name": "uid-number",
+    "escapedName": "uid-number",
+    "rawSpec": "0.0.6",
+    "saveSpec": null,
+    "fetchSpec": "0.0.6"
+  },
+  "_requiredBy": [
+    "/fsevents/tar-pack"
+  ],
+  "_resolved": "https://registry.npmjs.org/uid-number/-/uid-number-0.0.6.tgz",
+  "_spec": "0.0.6",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/uid-number/issues"
+  },
+  "dependencies": {},
+  "description": "Convert a username/group name to a uid/gid number",
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "homepage": "https://github.com/isaacs/uid-number#readme",
+  "license": "ISC",
+  "main": "uid-number.js",
+  "name": "uid-number",
+  "optionalDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/uid-number.git"
+  },
+  "version": "0.0.6"
+}

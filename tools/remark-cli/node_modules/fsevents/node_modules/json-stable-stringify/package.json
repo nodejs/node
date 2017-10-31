@@ -1,0 +1,77 @@
+{
+  "_args": [
+    [
+      "json-stable-stringify@1.0.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "json-stable-stringify@1.0.1",
+  "_id": "json-stable-stringify@1.0.1",
+  "_inBundle": true,
+  "_integrity": "sha1-mnWdOcXy/1A/1TAGRu1EX4jE+a8=",
+  "_location": "/fsevents/json-stable-stringify",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "json-stable-stringify@1.0.1",
+    "name": "json-stable-stringify",
+    "escapedName": "json-stable-stringify",
+    "rawSpec": "1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "1.0.1"
+  },
+  "_requiredBy": [
+    "/fsevents/ajv"
+  ],
+  "_resolved": "https://registry.npmjs.org/json-stable-stringify/-/json-stable-stringify-1.0.1.tgz",
+  "_spec": "1.0.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "bugs": {
+    "url": "https://github.com/substack/json-stable-stringify/issues"
+  },
+  "dependencies": {
+    "jsonify": "~0.0.0"
+  },
+  "description": "deterministic JSON.stringify() with custom sorting to get deterministic hashes from stringified results",
+  "devDependencies": {
+    "tape": "~1.0.4"
+  },
+  "homepage": "https://github.com/substack/json-stable-stringify",
+  "keywords": [
+    "json",
+    "stringify",
+    "deterministic",
+    "hash",
+    "sort",
+    "stable"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "json-stable-stringify",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/json-stable-stringify.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "ff/5",
+      "ff/latest",
+      "chrome/15",
+      "chrome/latest",
+      "safari/latest",
+      "opera/latest"
+    ]
+  },
+  "version": "1.0.1"
+}
