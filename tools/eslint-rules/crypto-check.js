@@ -14,7 +14,7 @@ const utils = require('./rules-utils.js');
 // Rule Definition
 //------------------------------------------------------------------------------
 const msg = 'Please add a hasCrypto check to allow this test to be skipped ' +
-            'when Node is built "--without-ssl".';
+  'when Node is built "--without-ssl".';
 
 const cryptoModules = ['crypto', 'http2'];
 const requireModules = cryptoModules.concat(['tls', 'https']);
@@ -23,12 +23,17 @@ const bindingModules = cryptoModules.concat(['tls_wrap']);
 module.exports = function(context) {
   const missingCheckNodes = [];
   const requireNodes = [];
+  const commonModuleNodes = [];
   var hasSkipCall = false;
 
   function testCryptoUsage(node) {
     if (utils.isRequired(node, requireModules) ||
         utils.isBinding(node, bindingModules)) {
       requireNodes.push(node);
+    }
+
+    if (utils.isCommonModule(node)) {
+      commonModuleNodes.push(node);
     }
   }
 
@@ -75,7 +80,16 @@ module.exports = function(context) {
 
   function report(nodes) {
     nodes.forEach((node) => {
-      context.report(node, msg);
+      context.report({
+        node,
+        message: msg,
+        fix: (fixer) => {
+          return fixer.insertTextAfter(
+            commonModuleNodes[0],
+            '\nif (!common.hasCrypto)\n  common.skip("missing crypto");'
+          );
+        }
+      });
     });
   }
 

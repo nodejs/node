@@ -13,20 +13,32 @@ new RuleTester().run('crypto-check', rule, {
     'foo',
     'crypto',
     `
-      if (!common.hasCrypto) {
-        common.skip();
-      }
-      require('crypto');
+    if (!common.hasCrypto) {
+      common.skip();
+    }
+    require('crypto');
     `
   ],
   invalid: [
     {
       code: 'require("crypto")',
-      errors: [{ message }]
+      errors: [{ message }],
+      output: `
+      if (!common.hasCrypto) {
+        common.skip();
+      }
+      require('crypto');
+      `
     },
     {
       code: 'if (common.foo) {} require("crypto")',
-      errors: [{ message }]
+      errors: [{ message }],
+      output:  `
+      if (!common.hasCrypto) {
+        common.skip();
+      }
+      require('crypto');
+      `
     }
   ]
 });
