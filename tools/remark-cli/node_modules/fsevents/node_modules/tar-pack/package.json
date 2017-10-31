@@ -1,0 +1,60 @@
+{
+  "_args": [
+    [
+      "tar-pack@3.4.0",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "tar-pack@3.4.0",
+  "_id": "tar-pack@3.4.0",
+  "_inBundle": true,
+  "_integrity": "sha1-I74tf2cagzk3bL2wuP4/3r8xeYQ=",
+  "_location": "/fsevents/tar-pack",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "tar-pack@3.4.0",
+    "name": "tar-pack",
+    "escapedName": "tar-pack",
+    "rawSpec": "3.4.0",
+    "saveSpec": null,
+    "fetchSpec": "3.4.0"
+  },
+  "_requiredBy": [
+    "/fsevents/node-pre-gyp"
+  ],
+  "_resolved": "https://registry.npmjs.org/tar-pack/-/tar-pack-3.4.0.tgz",
+  "_spec": "3.4.0",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bugs": {
+    "url": "https://github.com/ForbesLindesay/tar-pack/issues"
+  },
+  "dependencies": {
+    "debug": "^2.2.0",
+    "fstream": "^1.0.10",
+    "fstream-ignore": "^1.0.5",
+    "once": "^1.3.3",
+    "readable-stream": "^2.1.4",
+    "rimraf": "^2.5.1",
+    "tar": "^2.2.1",
+    "uid-number": "^0.0.6"
+  },
+  "description": "Package and un-package modules of some sort (in tar/gz bundles).",
+  "devDependencies": {
+    "mkdirp": "*",
+    "mocha": "*",
+    "rfile": "*"
+  },
+  "homepage": "https://github.com/ForbesLindesay/tar-pack#readme",
+  "license": "BSD-2-Clause",
+  "name": "tar-pack",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ForbesLindesay/tar-pack.git"
+  },
+  "scripts": {
+    "test": "mocha -R list"
+  },
+  "version": "3.4.0"
+}

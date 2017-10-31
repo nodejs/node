@@ -1,0 +1,66 @@
+{
+  "_args": [
+    [
+      "fstream@1.0.11",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "fstream@1.0.11",
+  "_id": "fstream@1.0.11",
+  "_inBundle": true,
+  "_integrity": "sha1-XB+x8RdHcRTwYyoOtLcbPLD9MXE=",
+  "_location": "/fsevents/fstream",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "fstream@1.0.11",
+    "name": "fstream",
+    "escapedName": "fstream",
+    "rawSpec": "1.0.11",
+    "saveSpec": null,
+    "fetchSpec": "1.0.11"
+  },
+  "_requiredBy": [
+    "/fsevents/fstream-ignore",
+    "/fsevents/tar",
+    "/fsevents/tar-pack"
+  ],
+  "_resolved": "https://registry.npmjs.org/fstream/-/fstream-1.0.11.tgz",
+  "_spec": "1.0.11",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/fstream/issues"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "inherits": "~2.0.0",
+    "mkdirp": ">=0.5 0",
+    "rimraf": "2"
+  },
+  "description": "Advanced file system stream things",
+  "devDependencies": {
+    "standard": "^4.0.0",
+    "tap": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=0.6"
+  },
+  "homepage": "https://github.com/npm/fstream#readme",
+  "license": "ISC",
+  "main": "fstream.js",
+  "name": "fstream",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/fstream.git"
+  },
+  "scripts": {
+    "test": "standard && tap examples/*.js"
+  },
+  "version": "1.0.11"
+}

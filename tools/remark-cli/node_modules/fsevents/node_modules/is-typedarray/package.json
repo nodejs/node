@@ -1,0 +1,62 @@
+{
+  "_args": [
+    [
+      "is-typedarray@1.0.0",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "is-typedarray@1.0.0",
+  "_id": "is-typedarray@1.0.0",
+  "_inBundle": true,
+  "_integrity": "sha1-5HnICFjfDBsR3dppQPlgEfzaSpo=",
+  "_location": "/fsevents/is-typedarray",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "is-typedarray@1.0.0",
+    "name": "is-typedarray",
+    "escapedName": "is-typedarray",
+    "rawSpec": "1.0.0",
+    "saveSpec": null,
+    "fetchSpec": "1.0.0"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-typedarray/-/is-typedarray-1.0.0.tgz",
+  "_spec": "1.0.0",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Hugh Kennedy",
+    "email": "hughskennedy@gmail.com",
+    "url": "http://hughsk.io/"
+  },
+  "bugs": {
+    "url": "https://github.com/hughsk/is-typedarray/issues"
+  },
+  "dependencies": {},
+  "description": "Detect whether or not an object is a Typed Array",
+  "devDependencies": {
+    "tape": "^2.13.1"
+  },
+  "homepage": "https://github.com/hughsk/is-typedarray",
+  "keywords": [
+    "typed",
+    "array",
+    "detect",
+    "is",
+    "util"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "is-typedarray",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hughsk/is-typedarray.git"
+  },
+  "scripts": {
+    "test": "node test"
+  },
+  "version": "1.0.0"
+}

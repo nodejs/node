@@ -1,0 +1,71 @@
+{
+  "_args": [
+    [
+      "sntp@1.0.9",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "sntp@1.0.9",
+  "_id": "sntp@1.0.9",
+  "_inBundle": true,
+  "_integrity": "sha1-ZUEYTMkK7qbG57NeJlkIJEPGYZg=",
+  "_location": "/fsevents/sntp",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "sntp@1.0.9",
+    "name": "sntp",
+    "escapedName": "sntp",
+    "rawSpec": "1.0.9",
+    "saveSpec": null,
+    "fetchSpec": "1.0.9"
+  },
+  "_requiredBy": [
+    "/fsevents/hawk"
+  ],
+  "_resolved": "https://registry.npmjs.org/sntp/-/sntp-1.0.9.tgz",
+  "_spec": "1.0.9",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Eran Hammer",
+    "email": "eran@hammer.io",
+    "url": "http://hueniverse.com"
+  },
+  "bugs": {
+    "url": "https://github.com/hueniverse/sntp/issues"
+  },
+  "contributors": [],
+  "dependencies": {
+    "hoek": "2.x.x"
+  },
+  "description": "SNTP Client",
+  "devDependencies": {
+    "lab": "4.x.x"
+  },
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "homepage": "https://github.com/hueniverse/sntp#readme",
+  "keywords": [
+    "sntp",
+    "ntp",
+    "time"
+  ],
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "http://github.com/hueniverse/sntp/raw/master/LICENSE"
+    }
+  ],
+  "main": "index",
+  "name": "sntp",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hueniverse/sntp.git"
+  },
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "version": "1.0.9"
+}

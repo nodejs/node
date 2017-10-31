@@ -1,0 +1,58 @@
+{
+  "_args": [
+    [
+      "jsbn@0.1.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "jsbn@0.1.1",
+  "_id": "jsbn@0.1.1",
+  "_inBundle": true,
+  "_integrity": "sha1-peZUwuWi3rXyAdls77yoDA7y9RM=",
+  "_location": "/fsevents/jsbn",
+  "_optional": true,
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "jsbn@0.1.1",
+    "name": "jsbn",
+    "escapedName": "jsbn",
+    "rawSpec": "0.1.1",
+    "saveSpec": null,
+    "fetchSpec": "0.1.1"
+  },
+  "_requiredBy": [
+    "/fsevents/ecc-jsbn",
+    "/fsevents/jodid25519",
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/jsbn/-/jsbn-0.1.1.tgz",
+  "_spec": "0.1.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Tom Wu"
+  },
+  "bugs": {
+    "url": "https://github.com/andyperlitch/jsbn/issues"
+  },
+  "description": "The jsbn library is a fast, portable implementation of large-number math in pure JavaScript, enabling public-key crypto and other applications on desktop and mobile browsers.",
+  "homepage": "https://github.com/andyperlitch/jsbn#readme",
+  "keywords": [
+    "biginteger",
+    "bignumber",
+    "big",
+    "integer"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "jsbn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andyperlitch/jsbn.git"
+  },
+  "scripts": {
+    "test": "mocha test.js"
+  },
+  "version": "0.1.1"
+}

@@ -1,0 +1,69 @@
+{
+  "_args": [
+    [
+      "rimraf@2.6.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "rimraf@2.6.1",
+  "_id": "rimraf@2.6.1",
+  "_inBundle": true,
+  "_integrity": "sha1-wjOOxkPfeht/5cVPqG9XQopV8z0=",
+  "_location": "/fsevents/rimraf",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "rimraf@2.6.1",
+    "name": "rimraf",
+    "escapedName": "rimraf",
+    "rawSpec": "2.6.1",
+    "saveSpec": null,
+    "fetchSpec": "2.6.1"
+  },
+  "_requiredBy": [
+    "/fsevents/fstream",
+    "/fsevents/node-pre-gyp",
+    "/fsevents/tar-pack"
+  ],
+  "_resolved": "https://registry.npmjs.org/rimraf/-/rimraf-2.6.1.tgz",
+  "_spec": "2.6.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bin": {
+    "rimraf": "./bin.js"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/rimraf/issues"
+  },
+  "dependencies": {
+    "glob": "^7.0.5"
+  },
+  "description": "A deep deletion module for node (like `rm -rf`)",
+  "devDependencies": {
+    "mkdirp": "^0.5.1",
+    "tap": "^10.1.2"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "bin.js",
+    "rimraf.js"
+  ],
+  "homepage": "https://github.com/isaacs/rimraf#readme",
+  "license": "ISC",
+  "main": "rimraf.js",
+  "name": "rimraf",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/rimraf.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "2.6.1"
+}

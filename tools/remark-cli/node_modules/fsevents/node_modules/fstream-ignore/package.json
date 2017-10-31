@@ -1,0 +1,64 @@
+{
+  "_args": [
+    [
+      "fstream-ignore@1.0.5",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "fstream-ignore@1.0.5",
+  "_id": "fstream-ignore@1.0.5",
+  "_inBundle": true,
+  "_integrity": "sha1-nDHa40dnAY/h0kmyTa2mfQktoQU=",
+  "_location": "/fsevents/fstream-ignore",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "fstream-ignore@1.0.5",
+    "name": "fstream-ignore",
+    "escapedName": "fstream-ignore",
+    "rawSpec": "1.0.5",
+    "saveSpec": null,
+    "fetchSpec": "1.0.5"
+  },
+  "_requiredBy": [
+    "/fsevents/tar-pack"
+  ],
+  "_resolved": "https://registry.npmjs.org/fstream-ignore/-/fstream-ignore-1.0.5.tgz",
+  "_spec": "1.0.5",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/fstream-ignore/issues"
+  },
+  "dependencies": {
+    "fstream": "^1.0.0",
+    "inherits": "2",
+    "minimatch": "^3.0.0"
+  },
+  "description": "A thing for ignoring files based on globs",
+  "devDependencies": {
+    "mkdirp": "",
+    "rimraf": "",
+    "tap": "^5.7.1"
+  },
+  "files": [
+    "ignore.js"
+  ],
+  "homepage": "https://github.com/isaacs/fstream-ignore#readme",
+  "license": "ISC",
+  "main": "ignore.js",
+  "name": "fstream-ignore",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/fstream-ignore.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js --cov"
+  },
+  "version": "1.0.5"
+}

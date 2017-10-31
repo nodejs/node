@@ -1,0 +1,68 @@
+{
+  "_args": [
+    [
+      "ecc-jsbn@0.1.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "ecc-jsbn@0.1.1",
+  "_id": "ecc-jsbn@0.1.1",
+  "_inBundle": true,
+  "_integrity": "sha1-D8c6ntXw1Tw4GTOYUj735UN3dQU=",
+  "_location": "/fsevents/ecc-jsbn",
+  "_optional": true,
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "ecc-jsbn@0.1.1",
+    "name": "ecc-jsbn",
+    "escapedName": "ecc-jsbn",
+    "rawSpec": "0.1.1",
+    "saveSpec": null,
+    "fetchSpec": "0.1.1"
+  },
+  "_requiredBy": [
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz",
+  "_spec": "0.1.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Jeremie Miller",
+    "email": "jeremie@jabber.org",
+    "url": "http://jeremie.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/quartzjer/ecc-jsbn/issues"
+  },
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "description": "ECC JS code based on JSBN",
+  "homepage": "https://github.com/quartzjer/ecc-jsbn",
+  "keywords": [
+    "jsbn",
+    "ecc",
+    "browserify"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "Jeremie Miller",
+      "email": "jeremie@jabber.org",
+      "url": "http://jeremie.com/"
+    },
+    {
+      "name": "Ryan Bennett",
+      "url": "https://github.com/rynomad"
+    }
+  ],
+  "name": "ecc-jsbn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quartzjer/ecc-jsbn.git"
+  },
+  "version": "0.1.1"
+}

@@ -1,0 +1,12 @@
+diff --git a/lib/util/versioning.js b/lib/util/versioning.js
+index 8ebbe3a..13e1e0b 100644
+--- a/lib/util/versioning.js
++++ b/lib/util/versioning.js
+@@ -283,6 +283,7 @@ module.exports.evaluate = function(package_json,options) {
+         module_main: package_json.main,
+         toolset : options.toolset || '' // address https://github.com/mapbox/node-pre-gyp/issues/119
+     };
++    opts.module_name = eval_template(opts.module_name,opts);
+     // support host mirror with npm config `--{module_name}_binary_host_mirror`
+     // e.g.: https://github.com/node-inspector/v8-profiler/blob/master/package.json#L25
+     // > npm install v8-profiler --profiler_binary_host_mirror=https://npm.taobao.org/mirrors/node-inspector/

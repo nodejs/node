@@ -1,0 +1,62 @@
+{
+  "_args": [
+    [
+      "boom@2.10.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "boom@2.10.1",
+  "_id": "boom@2.10.1",
+  "_inBundle": true,
+  "_integrity": "sha1-OciRjO/1eZ+D+UkqhI9iWt0Mdm8=",
+  "_location": "/fsevents/boom",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "boom@2.10.1",
+    "name": "boom",
+    "escapedName": "boom",
+    "rawSpec": "2.10.1",
+    "saveSpec": null,
+    "fetchSpec": "2.10.1"
+  },
+  "_requiredBy": [
+    "/fsevents/cryptiles",
+    "/fsevents/hawk"
+  ],
+  "_resolved": "https://registry.npmjs.org/boom/-/boom-2.10.1.tgz",
+  "_spec": "2.10.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bugs": {
+    "url": "https://github.com/hapijs/boom/issues"
+  },
+  "dependencies": {
+    "hoek": "2.x.x"
+  },
+  "description": "HTTP-friendly error objects",
+  "devDependencies": {
+    "code": "1.x.x",
+    "lab": "7.x.x"
+  },
+  "engines": {
+    "node": ">=0.10.40"
+  },
+  "homepage": "https://github.com/hapijs/boom#readme",
+  "keywords": [
+    "error",
+    "http"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "lib/index.js",
+  "name": "boom",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/boom.git"
+  },
+  "scripts": {
+    "test": "lab -a code -t 100 -L",
+    "test-cov-html": "lab -a code -r html -o coverage.html -L"
+  },
+  "version": "2.10.1"
+}
