@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Prohibit the use of assert operators ( ===, !==, ==, != )
+ */
+
 'use strict';
 
 const astSelector = 'ExpressionStatement[expression.type="CallExpression"]' +
@@ -21,7 +25,19 @@ module.exports = function(context) {
       const arg = node.expression.arguments[0];
       const assertMethod = preferedAssertMethod[arg.operator];
       if (assertMethod) {
-        context.report(node, parseError(assertMethod, arg.operator));
+        context.report({
+          node,
+          message: parseError(assertMethod, arg.operator),
+          fix: (fixer) => {
+            const sourceCode = context.getSourceCode();
+            const left = sourceCode.getText(arg.left);
+            const right = sourceCode.getText(arg.right);
+            return fixer.replaceText(
+              node,
+              `assert.${assertMethod}(${left}, ${right});`
+            );
+          }
+        });
       }
     }
   };
