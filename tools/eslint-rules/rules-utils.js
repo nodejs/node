@@ -25,6 +25,16 @@ module.exports.isBinding = function(node, modules) {
 };
 
 /**
+ * Return true if common module is required
+ * in AST Node under inspection
+ */
+var commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
+module.exports.isCommonModule = function(node) {
+  return node.callee.name === 'require' &&
+         commonModuleRegExp.test(node.arguments[0].value);
+};
+
+/**
  * Returns true is the node accesses any property in the properties
  * array on the 'common' object.
  */
@@ -45,8 +55,8 @@ module.exports.usesCommonProperty = function(node, properties) {
 module.exports.inSkipBlock = function(node) {
   var hasSkipBlock = false;
   if (node.test &&
-      node.test.type === 'UnaryExpression' &&
-      node.test.operator === '!') {
+    node.test.type === 'UnaryExpression' &&
+    node.test.operator === '!') {
     const consequent = node.consequent;
     if (consequent.body) {
       consequent.body.some(function(expressionStatement) {
@@ -64,8 +74,8 @@ module.exports.inSkipBlock = function(node) {
 
 function hasSkip(expression) {
   return expression &&
-         expression.callee &&
-         (expression.callee.name === 'skip' ||
-         expression.callee.property &&
-         expression.callee.property.name === 'skip');
+    expression.callee &&
+    (expression.callee.name === 'skip' ||
+      expression.callee.property &&
+      expression.callee.property.name === 'skip');
 }
