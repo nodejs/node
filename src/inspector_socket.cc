@@ -1,4 +1,5 @@
 #include "inspector_socket.h"
+#include "util.h"
 #include "util-inl.h"
 
 #define NODE_WANT_INTERNALS 1

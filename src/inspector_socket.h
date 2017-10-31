@@ -2,6 +2,7 @@
 #define SRC_INSPECTOR_SOCKET_H_
 
 #include "http_parser.h"
+#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 

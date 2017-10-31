@@ -20,8 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_stat_watcher.h"
+#include "async-wrap.h"
 #include "async-wrap-inl.h"
+#include "env.h"
 #include "env-inl.h"
+#include "util.h"
 #include "util-inl.h"
 
 #include <string.h>

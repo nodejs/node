@@ -1,6 +1,8 @@
 #include "node.h"
 #include "node_i18n.h"
+#include "env.h"
 #include "env-inl.h"
+#include "util.h"
 #include "util-inl.h"
 #include "node_debug_options.h"
 
