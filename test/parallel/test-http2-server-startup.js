@@ -1,4 +1,3 @@
-//
 'use strict';
 
 // Tests the basic operation of creating a plaintext or TLS
