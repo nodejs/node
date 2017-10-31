@@ -462,7 +462,7 @@ added: v9.0.0
 
 * `val1` {any}
 * `val2` {any}
-* Returns: {string}
+* Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val` and `val2`.
 Otherwise, returns `false`.
