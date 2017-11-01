@@ -13,16 +13,26 @@ new RuleTester().run('no-unescaped-regexp-dot', rule, {
     '/.*/',
     '/.?/',
     '/.{5}/',
-    String.raw`/\\\./`
+    String.raw`/\\\./`,
+    RegExp(/^\.$/),
+    RegExp(/^.+$/),
+    RegExp(/^\\\.$/),
   ],
   invalid: [
     {
       code: '/./',
-      errors: [{ message: 'Unescaped dot character in regular expression' }]
+      errors: [{ message: 'Unescaped dot character in regular expression' }],
+      output: '/\\./'
     },
     {
       code: String.raw`/\\./`,
-      errors: [{ message: 'Unescaped dot character in regular expression' }]
+      errors: [{ message: 'Unescaped dot character in regular expression' }],
+      output: String.raw`/\./`,
+    },
+    {
+      code: 'RegExp(/^\\.$/)',
+      errors: [{ message: 'Unescaped dot character in regular expression' }],
+      output: RegExp(/^\.$/),
     }
   ]
 });

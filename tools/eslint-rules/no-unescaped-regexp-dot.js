@@ -16,10 +16,29 @@ module.exports = function(context) {
 
   function report(node, startOffset) {
     const indexOfDot = sourceCode.getIndexFromLoc(node.loc.start) + startOffset;
+    const expression = sourceCode.getText(node);
+    const dotOffset = expression.indexOf('.');
+    var correctedExpression = '';
+
+    if (expression.charAt(dotOffset - 1) === '\\') {
+      correctedExpression = expression.slice(0, dotOffset - 1) +
+                            expression.slice(dotOffset);
+    } else {
+      correctedExpression = expression.slice(0, dotOffset) +
+                            '\\' +
+                            expression.slice(dotOffset);
+    }
+
     context.report({
       node,
       loc: sourceCode.getLocFromIndex(indexOfDot),
-      message: 'Unescaped dot character in regular expression'
+      message: 'Unescaped dot character in regular expression',
+      fix: (fixer) => {
+        return fixer.replaceText(
+          node,
+          correctedExpression
+        );
+      }
     });
   }
 
