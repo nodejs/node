@@ -843,32 +843,33 @@ int Http2Session::DoWrite(WriteWrap* req_wrap,
   return 0;
 }
 
-void Http2Session::AllocateSend(uv_buf_t* buf) {
-  buf->base = stream_alloc();
-  buf->len = kAllocBufferSize;
+WriteWrap* Http2Session::AllocateSend() {
+  HandleScope scope(env()->isolate());
+  auto AfterWrite = [](WriteWrap* req, int status) {
+    req->Dispose();
+  };
+  Local<Object> obj =
+      env()->write_wrap_constructor_function()
+          ->NewInstance(env()->context()).ToLocalChecked();
+  // Base the amount allocated on the remote peers max frame size
+  uint32_t size =
+      nghttp2_session_get_remote_settings(
+          session(),
+          NGHTTP2_SETTINGS_MAX_FRAME_SIZE);
+  // Max frame size + 9 bytes for the header
+  return WriteWrap::New(env(), obj, this, AfterWrite, size + 9);
 }
 
-void Http2Session::Send(uv_buf_t* buf, size_t length) {
+void Http2Session::Send(WriteWrap* req, char* buf, size_t length) {
   DEBUG_HTTP2("Http2Session: Attempting to send data\n");
   if (stream_ == nullptr || !stream_->IsAlive() || stream_->IsClosing()) {
     return;
   }
-  HandleScope scope(env()->isolate());
-  auto AfterWrite = [](WriteWrap* req_wrap, int status) {
-    req_wrap->Dispose();
-  };
-  Local<Object> req_wrap_obj =
-      env()->write_wrap_constructor_function()
-          ->NewInstance(env()->context()).ToLocalChecked();
-  WriteWrap* write_req = WriteWrap::New(env(),
-                                        req_wrap_obj,
-                                        this,
-                                        AfterWrite);
 
   chunks_sent_since_last_write_++;
-  uv_buf_t actual = uv_buf_init(buf->base, length);
-  if (stream_->DoWrite(write_req, &actual, 1, nullptr)) {
-    write_req->Dispose();
+  uv_buf_t actual = uv_buf_init(buf, length);
+  if (stream_->DoWrite(req, &actual, 1, nullptr)) {
+    req->Dispose();
   }
 }
 

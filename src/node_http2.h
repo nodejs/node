@@ -430,7 +430,6 @@ class Http2Session : public AsyncWrap,
       nghttp2_headers_category cat,
       uint8_t flags) override;
   void OnStreamClose(int32_t id, uint32_t code) override;
-  void Send(uv_buf_t* bufs, size_t total) override;
   void OnDataChunk(Nghttp2Stream* stream, uv_buf_t* chunk) override;
   void OnSettings(bool ack) override;
   void OnPriority(int32_t stream,
@@ -444,7 +443,9 @@ class Http2Session : public AsyncWrap,
   void OnFrameError(int32_t id, uint8_t type, int error_code) override;
   void OnTrailers(Nghttp2Stream* stream,
                   const SubmitTrailers& submit_trailers) override;
-  void AllocateSend(uv_buf_t* buf) override;
+
+  void Send(WriteWrap* req, char* buf, size_t length) override;
+  WriteWrap* AllocateSend();
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
