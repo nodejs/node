@@ -1,7 +1,9 @@
 // Flags: --experimental-modules
 /* eslint-disable required-modules */
 
-import * as fs from 'fs';
 import assert from 'assert';
+import fs, { readFile } from 'fs';
 
-assert.deepStrictEqual(Object.keys(fs), ['default']);
+assert(fs);
+assert(fs.readFile);
+assert(readFile);

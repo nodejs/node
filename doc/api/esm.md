@@ -83,8 +83,9 @@ All CommonJS, JSON, and C++ modules can be used with `import`.
 Modules loaded this way will only be loaded once, even if their query
 or fragment string differs between `import` statements.
 
-When loaded via `import` these modules will provide a single `default` export
-representing the value of `module.exports` at the time they finished evaluating.
+When loaded via `import` these modules will provide a `default` export
+representing the value of `module.exports` at the time they finished evaluating,
+and named exports for each key of `module.exports`.
 
 ```js
 import fs from 'fs';
@@ -95,6 +96,11 @@ fs.readFile('./foo.txt', (err, body) => {
     console.log(body);
   }
 });
+```
+
+```js
+import { readFileSync } from 'fs';
+console.log(readFileSync('./foo.txt').toString());
 ```
 
 ## Loader hooks
