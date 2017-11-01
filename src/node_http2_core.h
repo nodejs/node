@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "stream_base.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "nghttp2/nghttp2.h"
@@ -153,7 +154,6 @@ class Nghttp2Session {
   // Removes a stream instance from this session
   inline void RemoveStream(int32_t id);
 
-  virtual void Send(uv_buf_t* buf, size_t length) {}
   virtual void OnHeaders(
       Nghttp2Stream* stream,
       std::queue<nghttp2_header>* headers,
@@ -176,7 +176,10 @@ class Nghttp2Session {
                             int error_code) {}
   virtual ssize_t GetPadding(size_t frameLength,
                              size_t maxFrameLength) { return 0; }
-  virtual void AllocateSend(uv_buf_t* buf) = 0;
+
+  inline void SendPendingData();
+  virtual void Send(WriteWrap* req, char* buf, size_t length) = 0;
+  virtual WriteWrap* AllocateSend() = 0;
 
   virtual bool HasGetPaddingCallback() { return false; }
 
@@ -198,8 +201,6 @@ class Nghttp2Session {
 
   virtual void OnTrailers(Nghttp2Stream* stream,
                           const SubmitTrailers& submit_trailers) {}
-
-  inline void SendPendingData();
 
   virtual uv_loop_t* event_loop() const = 0;
 

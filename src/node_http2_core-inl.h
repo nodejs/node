@@ -490,10 +490,10 @@ inline void Nghttp2Session::SendPendingData() {
   if (IsDestroying())
     return;
 
-  uv_buf_t dest;
-  AllocateSend(&dest);
+  WriteWrap* req = nullptr;
+  char* dest = nullptr;
+  size_t destRemaining = 0;
   size_t destLength = 0;             // amount of data stored in dest
-  size_t destRemaining = dest.len;   // amount space remaining in dest
   size_t destOffset = 0;             // current write offset of dest
 
   const uint8_t* src;                // pointer to the serialized data
@@ -501,6 +501,11 @@ inline void Nghttp2Session::SendPendingData() {
 
   // While srcLength is greater than zero
   while ((srcLength = nghttp2_session_mem_send(session_, &src)) > 0) {
+    if (req == nullptr) {
+      req = AllocateSend();
+      destRemaining = req->self_size();
+      dest = req->Extra();
+    }
     DEBUG_HTTP2("Nghttp2Session %s: nghttp2 has %d bytes to send\n",
                 TypeName(), srcLength);
     size_t srcRemaining = srcLength;
@@ -512,18 +517,20 @@ inline void Nghttp2Session::SendPendingData() {
     while (srcRemaining > destRemaining) {
       DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
                   TypeName(), destLength + destRemaining);
-      memcpy(dest.base + destOffset, src + srcOffset, destRemaining);
+      memcpy(dest + destOffset, src + srcOffset, destRemaining);
       destLength += destRemaining;
-      Send(&dest, destLength);
+      Send(req, dest, destLength);
       destOffset = 0;
       destLength = 0;
       srcRemaining -= destRemaining;
       srcOffset += destRemaining;
-      destRemaining = dest.len;
+      req = AllocateSend();
+      destRemaining = req->self_size();
+      dest = req->Extra();
     }
 
     if (srcRemaining > 0) {
-      memcpy(dest.base + destOffset, src + srcOffset, srcRemaining);
+      memcpy(dest + destOffset, src + srcOffset, srcRemaining);
       destLength += srcRemaining;
       destOffset += srcRemaining;
       destRemaining -= srcRemaining;
@@ -535,7 +542,7 @@ inline void Nghttp2Session::SendPendingData() {
   if (destLength > 0) {
     DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
                 TypeName(), destLength);
-    Send(&dest, destLength);
+    Send(req, dest, destLength);
   }
 }
 
