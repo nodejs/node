@@ -11,7 +11,12 @@ const message = 'Use of the Buffer() constructor has been deprecated. ' +
 
 new RuleTester().run('buffer-constructor', rule, {
   valid: [
-    'Buffer.from(foo)'
+    'Buffer.from(foo)',
+    'Buffer.from(foo, bar)',
+    'Buffer.alloc(foo)',
+    'Buffer.alloc(foo, bar)',
+    'Buffer.allocUnsafe(foo)',
+    'Buffer.allocUnsafe(foo, bar)'
   ],
   invalid: [
     {
@@ -19,7 +24,15 @@ new RuleTester().run('buffer-constructor', rule, {
       errors: [{ message }]
     },
     {
+      code: 'Buffer(foo, bar)',
+      errors: [{ message }]
+    },
+    {
       code: 'new Buffer(foo)',
+      errors: [{ message }]
+    },
+    {
+      code: 'new Buffer(foo, bar)',
       errors: [{ message }]
     }
   ]
