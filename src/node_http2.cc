@@ -5,6 +5,7 @@
 #include "node_http2_state.h"
 
 #include <queue>
+#include <algorithm>
 
 namespace node {
 
@@ -19,8 +20,6 @@ using v8::Uint32Array;
 using v8::Undefined;
 
 namespace http2 {
-
-Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
     Callbacks(false),
@@ -66,6 +65,10 @@ Http2Options::Http2Options(Environment* env) {
         static_cast<padding_strategy_type>(
             buffer.GetValue(IDX_OPTIONS_PADDING_STRATEGY));
     SetPaddingStrategy(strategy);
+  }
+
+  if (flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS)) {
+    SetMaxHeaderPairs(buffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS]);
   }
 }
 
@@ -173,11 +176,14 @@ inline void Http2Settings::RefreshDefaults(Environment* env) {
       DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE;
   buffer[IDX_SETTINGS_MAX_FRAME_SIZE] =
       DEFAULT_SETTINGS_MAX_FRAME_SIZE;
+  buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE] =
+      DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
   buffer[IDX_SETTINGS_COUNT] =
     (1 << IDX_SETTINGS_HEADER_TABLE_SIZE) |
     (1 << IDX_SETTINGS_ENABLE_PUSH) |
     (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE) |
-    (1 << IDX_SETTINGS_MAX_FRAME_SIZE);
+    (1 << IDX_SETTINGS_MAX_FRAME_SIZE) |
+    (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
 
@@ -192,7 +198,10 @@ Http2Session::Http2Session(Environment* env,
 
   padding_strategy_ = opts.GetPaddingStrategy();
 
-  Init(type, *opts);
+  int32_t maxHeaderPairs = opts.GetMaxHeaderPairs();
+  maxHeaderPairs = type == NGHTTP2_SESSION_SERVER ?
+      std::max(maxHeaderPairs, 4) : std::max(maxHeaderPairs, 1);
+  Init(type, *opts, nullptr, maxHeaderPairs);
 
   // For every node::Http2Session instance, there is a uv_prepare_t handle
   // whose callback is triggered on every tick of the event loop. When
@@ -911,7 +920,8 @@ void Http2Session::OnTrailers(Nghttp2Stream* stream,
 
 void Http2Session::OnHeaders(
     Nghttp2Stream* stream,
-    std::queue<nghttp2_header>* headers,
+    nghttp2_header* headers,
+    size_t count,
     nghttp2_headers_category cat,
     uint8_t flags) {
   Local<Context> context = env()->context();
@@ -936,10 +946,11 @@ void Http2Session::OnHeaders(
   // like {name1: value1, name2: value2, name3: [value3, value4]}. We do it
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
-  do {
+  size_t n = 0;
+  while (count > 0) {
     size_t j = 0;
-    while (!headers->empty() && j < arraysize(argv) / 2) {
-      nghttp2_header item = headers->front();
+    while (count > 0 && j < arraysize(argv) / 2) {
+      nghttp2_header item = headers[n++];
       // The header name and value are passed as external one-byte strings
       name_str =
           ExternalHeader::New<true>(env(), item.name).ToLocalChecked();
@@ -947,7 +958,7 @@ void Http2Session::OnHeaders(
           ExternalHeader::New<false>(env(), item.value).ToLocalChecked();
       argv[j * 2] = name_str;
       argv[j * 2 + 1] = value_str;
-      headers->pop();
+      count--;
       j++;
     }
     // For performance, we pass name and value pairs to array.protototype.push
@@ -956,7 +967,7 @@ void Http2Session::OnHeaders(
     if (j > 0) {
       fn->Call(env()->context(), holder, j * 2, argv).ToLocalChecked();
     }
-  } while (!headers->empty());
+  }
 
   Local<Value> args[4] = {
     Integer::New(isolate, stream->id()),
