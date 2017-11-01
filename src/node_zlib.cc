@@ -427,7 +427,7 @@ class ZCtx : public AsyncWrap {
     if (args.Length() == 5) {
       fprintf(stderr,
           "WARNING: You are likely using a version of node-tar or npm that "
-          "uses the internals of Node.js in an invalid way.\nPlease use "
+          "is incompatible with this version of Node.js.\nPlease use "
           "either the version of npm that is bundled with Node.js, or "
           "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
           "that is compatible with Node.js 9 and above.\n");
