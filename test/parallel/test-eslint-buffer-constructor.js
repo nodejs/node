@@ -21,19 +21,23 @@ new RuleTester().run('buffer-constructor', rule, {
   invalid: [
     {
       code: 'Buffer(foo)',
-      errors: [{ message }]
+      errors: [{ message }],
+      output: 'Buffer.from(foo)'
     },
     {
       code: 'Buffer(foo, bar)',
-      errors: [{ message }]
+      errors: [{ message }],
+      output: 'Buffer.from(foo, bar)'
     },
     {
       code: 'new Buffer(foo)',
-      errors: [{ message }]
+      errors: [{ message }],
+      output: 'Buffer.from(foo)'
     },
     {
       code: 'new Buffer(foo, bar)',
-      errors: [{ message }]
+      errors: [{ message }],
+      output: 'Buffer.from(foo, bar)'
     }
   ]
 });
