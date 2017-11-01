@@ -299,6 +299,14 @@ const char* nghttp2_errname(int rv) {
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
 
+// This allows for 4 default-sized frames with their frame headers
+static const size_t kAllocBufferSize = 4 * (16384 + 9);
+
+typedef uint32_t(*get_setting)(nghttp2_session* session,
+                               nghttp2_settings_id id);
+
+class Http2Session;
+
 // The Http2Options class is used to parse the options object passed in to
 // a Http2Session object and convert those into an appropriate nghttp2_option
 // struct. This is the primary mechanism by which the Http2Session object is
@@ -331,11 +339,35 @@ class Http2Options {
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
 };
 
-// This allows for 4 default-sized frames with their frame headers
-static const size_t kAllocBufferSize = 4 * (16384 + 9);
+// The Http2Settings class is used to parse the settings passed in for
+// an Http2Session, converting those into an array of nghttp2_settings_entry
+// structs.
+class Http2Settings {
+ public:
+  explicit Http2Settings(Environment* env);
 
-typedef uint32_t(*get_setting)(nghttp2_session* session,
-                               nghttp2_settings_id id);
+  size_t length() const { return count_; }
+
+  nghttp2_settings_entry* operator*() {
+    return *entries_;
+  }
+
+  // Returns a Buffer instance with the serialized SETTINGS payload
+  inline Local<Value> Pack();
+
+  // Resets the default values in the settings buffer
+  static inline void RefreshDefaults(Environment* env);
+
+  // Update the local or remote settings for the given session
+  static inline void Update(Environment* env,
+                            Http2Session* session,
+                            get_setting fn);
+
+ private:
+  Environment* env_;
+  size_t count_ = 0;
+  MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
+};
 
 class Http2Session : public AsyncWrap,
                      public StreamBase,
@@ -462,6 +494,9 @@ class Http2Session : public AsyncWrap,
   static void DestroyStream(const FunctionCallbackInfo<Value>& args);
   static void FlushData(const FunctionCallbackInfo<Value>& args);
   static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
+
+  template <get_setting fn>
+  static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);
