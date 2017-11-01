@@ -430,7 +430,7 @@ class ZCtx : public AsyncWrap {
           "uses the internals of Node.js in an invalid way.\nPlease use "
           "either the version of npm that is bundled with Node.js, or "
           "a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) "
-          "that is compatible with Node 9 and above.\n");
+          "that is compatible with Node.js 9 and above.\n");
     }
     CHECK(args.Length() == 7 &&
       "init(windowBits, level, memLevel, strategy, writeResult, writeCallback,"
