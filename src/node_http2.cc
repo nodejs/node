@@ -20,8 +20,6 @@ using v8::Undefined;
 
 namespace http2 {
 
-Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
-
 Nghttp2Session::Callbacks Nghttp2Session::callback_struct_saved[2] = {
     Callbacks(false),
     Callbacks(true)};

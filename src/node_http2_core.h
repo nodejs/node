@@ -298,37 +298,21 @@ class Nghttp2Session {
 
 class Nghttp2Stream {
  public:
-  static inline Nghttp2Stream* Init(
-      int32_t id,
-      Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      int options = 0);
+  // Resets the state of the stream instance to defaults
+  Nghttp2Stream(
+    int32_t id,
+    Nghttp2Session* session,
+    nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
+    int options = 0);
 
-  inline ~Nghttp2Stream() {
-#if defined(DEBUG) && DEBUG
-    CHECK_EQ(session_, nullptr);
-#endif
-    DEBUG_HTTP2("Nghttp2Stream %d: freed\n", id_);
-  }
+  inline ~Nghttp2Stream() {}
 
   inline void FlushDataChunks();
-
-  // Resets the state of the stream instance to defaults
-  inline void ResetState(
-      int32_t id,
-      Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      int options = 0);
 
   // Destroy this stream instance and free all held memory.
   // Note that this will free queued outbound and inbound
   // data chunks and inbound headers, so it's important not
   // to call this until those are fully consumed.
-  //
-  // Also note: this does not actually destroy the instance.
-  // instead, it frees the held memory, removes the stream
-  // from the parent session, and returns the instance to
-  // the FreeList so that it can be reused.
   inline void Destroy();
 
   // Returns true if this stream has been destroyed
@@ -454,14 +438,17 @@ class Nghttp2Stream {
   }
 
  private:
-  // The Parent HTTP/2 Session
-  Nghttp2Session* session_ = nullptr;
-
   // The Stream Identifier
-  int32_t id_ = 0;
+  int32_t id_;
+
+  // The Parent HTTP/2 Session
+  Nghttp2Session* session_;
 
   // Internal state flags
-  int flags_ = 0;
+  int flags_ = NGHTTP2_STREAM_FLAG_NONE;
+
+  // The RST_STREAM code used to close this stream
+  int32_t code_ = NGHTTP2_NO_ERROR;
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
@@ -479,11 +466,6 @@ class Nghttp2Stream {
 
   // Inbound Data... This is the data received via DATA frames for this stream.
   std::queue<uv_buf_t> data_chunks_;
-
-  // The RST_STREAM code used to close this stream
-  int32_t code_ = NGHTTP2_NO_ERROR;
-
-  int32_t prev_local_window_size_ = 65535;
 
   // True if this stream will have outbound trailers
   bool getTrailers_ = false;

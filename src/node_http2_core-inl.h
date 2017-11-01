@@ -5,16 +5,9 @@
 
 #include "node_http2_core.h"
 #include "node_internals.h"  // arraysize
-#include "freelist.h"
 
 namespace node {
 namespace http2 {
-
-#define FREELIST_MAX 10240
-
-// Instances of Nghttp2Stream are created and pooled in order to speed
-// allocation under load.
-extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 #ifdef NODE_DEBUG_HTTP2
 inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
@@ -45,7 +38,7 @@ inline int Nghttp2Session::OnBeginHeadersCallback(nghttp2_session* session,
 
   Nghttp2Stream* stream = handle->FindStream(id);
   if (stream == nullptr) {
-    Nghttp2Stream::Init(id, handle, frame->headers.cat);
+    new Nghttp2Stream(id, handle, frame->headers.cat);
   } else {
     stream->StartHeaders(frame->headers.cat);
   }
@@ -637,44 +630,17 @@ inline void Nghttp2Session::RemoveStream(int32_t id) {
 
 // Implementation for Nghttp2Stream functions
 
-inline Nghttp2Stream* Nghttp2Stream::Init(
+Nghttp2Stream::Nghttp2Stream(
     int32_t id,
     Nghttp2Session* session,
     nghttp2_headers_category category,
-    int options) {
-  DEBUG_HTTP2("Nghttp2Stream %d: initializing stream\n", id);
-  Nghttp2Stream* stream = stream_free_list.pop();
-  stream->ResetState(id, session, category, options);
-  session->AddStream(stream);
-  return stream;
-}
-
-
-// Resets the state of the stream instance to defaults
-inline void Nghttp2Stream::ResetState(
-    int32_t id,
-    Nghttp2Session* session,
-    nghttp2_headers_category category,
-    int options) {
-  DEBUG_HTTP2("Nghttp2Stream %d: resetting stream state\n", id);
-  session_ = session;
-  while (!queue_.empty()) {
-    nghttp2_stream_write* head = queue_.front();
-    delete head;
-    queue_.pop();
-  }
-  while (!data_chunks_.empty())
-    data_chunks_.pop();
-  while (!current_headers_.empty())
-    current_headers_.pop();
-  current_headers_category_ = category;
-  flags_ = NGHTTP2_STREAM_FLAG_NONE;
-  id_ = id;
-  code_ = NGHTTP2_NO_ERROR;
-  prev_local_window_size_ = 65535;
-  queue_index_ = 0;
-  queue_offset_ = 0;
+    int options) : id_(id),
+                   session_(session),
+                   current_headers_category_(category) {
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
+  if (options & STREAM_OPTION_EMPTY_PAYLOAD)
+    Shutdown();
+  session->AddStream(this);
 }
 
 
@@ -687,14 +653,16 @@ inline void Nghttp2Stream::Destroy() {
   Nghttp2Session* session = this->session_;
 
   if (session != nullptr) {
-    // Remove this stream from the associated session
     session_->RemoveStream(this->id());
     session_ = nullptr;
   }
 
   // Free any remaining incoming data chunks.
-  while (!data_chunks_.empty())
+  while (!data_chunks_.empty()) {
+    uv_buf_t buf = data_chunks_.front();
+    free(buf.base);
     data_chunks_.pop();
+  }
 
   // Free any remaining outgoing data chunks.
   while (!queue_.empty()) {
@@ -708,8 +676,7 @@ inline void Nghttp2Stream::Destroy() {
   while (!current_headers_.empty())
     current_headers_.pop();
 
-  // Return this stream instance to the freelist
-  stream_free_list.push(this);
+  delete this;
 }
 
 // Submit informational headers for a stream.
@@ -759,9 +726,9 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
                                             id_, nva, len,
                                             nullptr);
   if (ret > 0) {
-    auto stream = Nghttp2Stream::Init(ret, session_);
-    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
-      stream->Shutdown();
+    auto stream = new Nghttp2Stream(ret, session_,
+                                    NGHTTP2_HCAT_HEADERS,
+                                    options);
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;
@@ -837,11 +804,7 @@ inline int32_t Nghttp2Session::SubmitRequest(
                                        provider, nullptr);
   // Assign the Nghttp2Stream handle
   if (ret > 0) {
-    Nghttp2Stream* stream = Nghttp2Stream::Init(ret, this,
-                                                NGHTTP2_HCAT_HEADERS,
-                                                options);
-    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
-      stream->Shutdown();
+    auto stream = new Nghttp2Stream(ret, this, NGHTTP2_HCAT_HEADERS, options);
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;
