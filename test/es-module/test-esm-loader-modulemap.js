@@ -16,7 +16,8 @@ const stubModuleUrl = new URL('file://tmp/test');
 const stubModule = createDynamicModule(['default'], stubModuleUrl);
 const loader = new Loader();
 const moduleMap = new ModuleMap();
-const moduleJob = new ModuleJob(loader, stubModule.module);
+const moduleJob = new ModuleJob(loader, stubModule.module,
+                                () => new Promise(() => {}));
 
 common.expectsError(
   () => moduleMap.get(1),
