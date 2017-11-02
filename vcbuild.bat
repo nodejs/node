@@ -110,7 +110,7 @@ if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
-if /i "%1"=="static"           set enable_static=1&goto arg-ok
+if /i "%1"=="static"        set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
@@ -466,7 +466,6 @@ if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 call :run-python tools\test.py %test_args%
-goto test-v8
 
 :test-v8
 if not defined custom_v8_test goto lint-cpp
