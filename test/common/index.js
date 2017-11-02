@@ -744,6 +744,9 @@ exports.expectsError = function expectsError(fn, settings, exact) {
         }
       });
     }
+    if ('additional' in settings && typeof settings.additional === 'function') {
+      settings.additional.call(undefined, error);
+    }
     return true;
   }, exact);
   if (fn) {
