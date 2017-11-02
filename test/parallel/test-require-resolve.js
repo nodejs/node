@@ -24,6 +24,7 @@ require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
+assert.strictEqual(require.resolve.length, 1);
 assert.strictEqual(
   fixtures.path('a.js').toLowerCase(),
   require.resolve(fixtures.path('a')).toLowerCase());
