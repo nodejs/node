@@ -15,12 +15,18 @@ let hooks = null;
 //                under some conditions on variaous platforms. Using the once
 //                handler here avoids the flakiness but ignores the underlying
 //                cause of the flakiness.
-process.once('beforeExit', common.mustCall(() => {
+var n = 0;
+process.once('beforeExit', () => {
+  console.log('.', call_log);
+  if (++n === 2) {
+    console.log('x');
+    process.exit(1);
+  }
   process.removeAllListeners('uncaughtException');
   hooks.disable();
-  assert.strictEqual(typeof call_id, 'number');
-  assert.deepStrictEqual(call_log, [1, 1, 1, 1]);
-}));
+//  assert.strictEqual(typeof call_id, 'number');
+//  assert.deepStrictEqual(call_log, [1, 1, 1, 1]);
+});
 
 
 hooks = async_hooks.createHook({
