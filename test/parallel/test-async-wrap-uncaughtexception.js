@@ -10,7 +10,11 @@ const call_log = [0, 0, 0, 0];  // [before, callback, exception, after];
 let call_id = null;
 let hooks = null;
 
-
+// TODO(jasnell): This is using process.once because, for some as yet unknown
+//                reason, the 'beforeExit' event may be emitted more than once
+//                under some conditions on variaous platforms. Using the once
+//                handler here avoids the flakiness but ignores the underlying
+//                cause of the flakiness.
 process.once('beforeExit', common.mustCall(() => {
   process.removeAllListeners('uncaughtException');
   hooks.disable();
