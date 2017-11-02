@@ -285,25 +285,6 @@ MaybeLocal<Module> ModuleWrap::ResolveCallback(Local<Context> context,
 
 namespace {
 
-URL __init_cwd() {
-  std::string specifier = "file://";
-#ifdef _WIN32
-  // MAX_PATH is in characters, not bytes. Make sure we have enough headroom.
-  char buf[MAX_PATH * 4];
-#else
-  char buf[PATH_MAX];
-#endif
-
-  size_t cwd_len = sizeof(buf);
-  int err = uv_cwd(buf, &cwd_len);
-  if (err) {
-    return URL("");
-  }
-  specifier += buf;
-  specifier += "/";
-  return URL(specifier);
-}
-static URL INITIAL_CWD(__init_cwd());
 inline bool is_relative_or_absolute_path(std::string specifier) {
   auto len = specifier.length();
   if (len <= 0) {
