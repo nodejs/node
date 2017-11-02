@@ -85,13 +85,15 @@ or fragment string differs between `import` statements.
 
 CommonJS modules, when imported, will be handled in one of two ways. By default
 they will provide a single `default` export representing the value of
-`module.exports` at the time they finish evaluating. However, they may also
-provide `@@esModuleInterop` or `__esModule` to use named exports, representing
-each enumerable key of `module.exports` at the time they finish evaluating.
+`module.exports` at the time they finish evaluating.
+CJS modules may also provide a boolean `@@esModuleInterop` or `__esModule`
+export indicating that the enumerable keys of `module.exports` should be used
+as named exports.
 In both cases, this should be thought of  like a "snapshot" of the exports at
 the time of importing; asynchronously modifying `module.exports` will not
 affect the values of the exports. Builtin libraries are provided with named
 exports as if they were using `@@esModuleInterop`.
+
 
 ```js
 import { readFile } from 'fs';
