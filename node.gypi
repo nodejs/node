@@ -11,11 +11,6 @@
       'defines': [
         'NODE_SHARED_MODE',
       ],
-      'conditions': [
-        [ 'node_module_version!="" and OS!="win"', {
-          'product_extension': '<(shlib_suffix)',
-        }]
-      ],
     }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'deps/v8/src/d8.gyp:d8' ],
