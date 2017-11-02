@@ -1036,19 +1036,18 @@ __ecp_nistz256_sqr_montx:
 	adoxq	%rbp,%r13
 .byte	0x67,0x67
 	mulxq	%rdx,%rcx,%rax
-	movq	%r8,%rdx
+	movq	.Lpoly+24(%rip),%rdx
 	adoxq	%rcx,%r14
 	shlxq	%rsi,%r8,%rcx
 	adoxq	%rax,%r15
 	shrxq	%rsi,%r8,%rax
-	movq	.Lpoly+24(%rip),%rbp
+	movq	%rdx,%rbp
 
 
 	addq	%rcx,%r9
 	adcq	%rax,%r10
 
-	mulxq	%rbp,%rcx,%r8
-	movq	%r9,%rdx
+	mulxq	%r8,%rcx,%r8
 	adcq	%rcx,%r11
 	shlxq	%rsi,%r9,%rcx
 	adcq	$0,%r8
@@ -1058,8 +1057,7 @@ __ecp_nistz256_sqr_montx:
 	addq	%rcx,%r10
 	adcq	%rax,%r11
 
-	mulxq	%rbp,%rcx,%r9
-	movq	%r10,%rdx
+	mulxq	%r9,%rcx,%r9
 	adcq	%rcx,%r8
 	shlxq	%rsi,%r10,%rcx
 	adcq	$0,%r9
@@ -1069,8 +1067,7 @@ __ecp_nistz256_sqr_montx:
 	addq	%rcx,%r11
 	adcq	%rax,%r8
 
-	mulxq	%rbp,%rcx,%r10
-	movq	%r11,%rdx
+	mulxq	%r10,%rcx,%r10
 	adcq	%rcx,%r9
 	shlxq	%rsi,%r11,%rcx
 	adcq	$0,%r10
@@ -1080,12 +1077,12 @@ __ecp_nistz256_sqr_montx:
 	addq	%rcx,%r8
 	adcq	%rax,%r9
 
-	mulxq	%rbp,%rcx,%r11
+	mulxq	%r11,%rcx,%r11
 	adcq	%rcx,%r10
 	adcq	$0,%r11
 
 	xorq	%rdx,%rdx
-	adcq	%r8,%r12
+	addq	%r8,%r12
 	movq	.Lpoly+8(%rip),%rsi
 	adcq	%r9,%r13
 	movq	%r12,%r8
@@ -1094,8 +1091,7 @@ __ecp_nistz256_sqr_montx:
 	movq	%r13,%r9
 	adcq	$0,%rdx
 
-	xorl	%eax,%eax
-	sbbq	$-1,%r12
+	subq	$-1,%r12
 	movq	%r14,%r10
 	sbbq	%rsi,%r13
 	sbbq	$0,%r14
