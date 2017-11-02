@@ -83,13 +83,21 @@ All CommonJS, JSON, and C++ modules can be used with `import`.
 Modules loaded this way will only be loaded once, even if their query
 or fragment string differs between `import` statements.
 
-When loaded via `import` these modules will provide a `default` export
-representing the value of `module.exports` at the time they finished evaluating,
-and named exports for each key of `module.exports`.
+CommonJS modules, when imported, will be handled in one of two ways. By default
+they will provide a single `default` export representing the value of
+`module.exports` at the time they finish evaluating. However, they may also
+provide `__esModule` as per
+[babel spec](https://babeljs.io/docs/plugins/transform-es2015-modules-commonjs)
+to use named exports, representing each enumerable key of `module.exports` at
+the time they finish evaluating.
+In both cases, this should be thought of  like a "snapshot" of the exports at
+the time of importing; asynchronously modifying `module.exports` will not
+affect the values of the exports. Builtin libraries such as `fs` are provided
+with named exports as if they were using `__esModule`
 
 ```js
-import fs from 'fs';
-fs.readFile('./foo.txt', (err, body) => {
+import { readFile } from 'fs';
+readFile('./foo.txt', (err, body) => {
   if (err) {
     console.error(err);
   } else {
@@ -99,8 +107,12 @@ fs.readFile('./foo.txt', (err, body) => {
 ```
 
 ```js
-import { readFileSync } from 'fs';
-console.log(readFileSync('./foo.txt').toString());
+// main.mjs
+import { part } from './other.js';
+
+// other.js
+exports.part = () => {};
+exports.__esModule = true;
 ```
 
 ## Loader hooks

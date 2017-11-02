@@ -3,7 +3,12 @@
 
 import assert from 'assert';
 import fs, { readFile } from 'fs';
+import main, { named } from
+  '../fixtures/es-module-loaders/cjs-to-es-namespace.js';
 
 assert(fs);
 assert(fs.readFile);
-assert(readFile);
+assert.strictEqual(fs.readFile, readFile);
+
+assert.strictEqual(main, 1);
+assert.strictEqual(named, true);
