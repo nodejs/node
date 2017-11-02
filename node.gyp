@@ -979,23 +979,22 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
-              '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                  '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
             ],
           },
           'msvs_settings': {
             'VCLinkerTool': {
               'AdditionalOptions': [
                 '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/'
-                '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
               ],
             },
           },
           'conditions': [
             ['OS in "linux freebsd openbsd solaris android aix"', {
               'ldflags': [
-                '-Wl,--whole-archive,'
-                '<(OBJ_DIR)/<(STATIC_LIB_PREFIX)'
-                '<(node_core_target_name)<(STATIC_LIB_SUFFIX) ',
+                '-Wl,--whole-archive,<(OBJ_DIR)/<(STATIC_LIB_PREFIX)'
+                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX) ',
                 '-Wl,--no-whole-archive',
               ],
             }],
