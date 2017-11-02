@@ -1,10 +1,10 @@
-/* crypto/cmac/cmac.h */
+/* asn1t.h */
 /*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
+ * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
+ * 2006.
  */
 /* ====================================================================
- * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,33 +50,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
  */
 
-#ifndef HEADER_CMAC_H
-# define HEADER_CMAC_H
+/* Internal ASN1 template structures and functions: not for application use */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-# include <openssl/evp.h>
-
-/* Opaque */
-typedef struct CMAC_CTX_st CMAC_CTX;
-
-CMAC_CTX *CMAC_CTX_new(void);
-void CMAC_CTX_cleanup(CMAC_CTX *ctx);
-void CMAC_CTX_free(CMAC_CTX *ctx);
-EVP_CIPHER_CTX *CMAC_CTX_get0_cipher_ctx(CMAC_CTX *ctx);
-int CMAC_CTX_copy(CMAC_CTX *out, const CMAC_CTX *in);
-
-int CMAC_Init(CMAC_CTX *ctx, const void *key, size_t keylen,
-              const EVP_CIPHER *cipher, ENGINE *impl);
-int CMAC_Update(CMAC_CTX *ctx, const void *data, size_t dlen);
-int CMAC_Final(CMAC_CTX *ctx, unsigned char *out, size_t *poutlen);
-int CMAC_resume(CMAC_CTX *ctx);
-
-#ifdef  __cplusplus
-}
-#endif
-#endif
+void asn1_item_combine_free(ASN1_VALUE **pval, const ASN1_ITEM *it,
+                            int combine);

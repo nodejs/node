@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-ec,
 ec - EC key processing
 
 =head1 SYNOPSIS

@@ -190,10 +190,8 @@
      the failure that isn't a problem in OpenSSL itself (like a missing
      or malfunctioning bc).  If it is a problem with OpenSSL itself,
      try removing any compiler optimization flags from the CFLAG line
-     in Makefile.ssl and run "make clean; make". Please send a bug
-     report to <openssl-bugs@openssl.org>, including the output of
-     "make report" in order to be added to the request tracker at
-     http://www.openssl.org/support/rt.html.
+     in Makefile.ssl and run "make clean; make". To report a bug please open an
+     issue on GitHub, at https://github.com/openssl/openssl/issues.
 
   4. If everything tests ok, install OpenSSL with
 

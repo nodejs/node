@@ -482,6 +482,8 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
     } else {
         p = BN_CTX_get(ctx);
         q = BN_CTX_get(ctx);
+        if (q == NULL)
+            goto err;
     }
 
     if (!BN_lshift(test, BN_value_one(), L - 1))

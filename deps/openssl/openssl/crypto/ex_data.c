@@ -473,7 +473,14 @@ static int int_dup_ex_data(int class_index, CRYPTO_EX_DATA *to,
     if (j < mx)
         mx = j;
     if (mx > 0) {
-        if (!CRYPTO_set_ex_data(to, mx - 1, NULL))
+        /*
+         * Make sure the ex_data stack is at least |mx| elements long to avoid
+         * issues in the for loop that follows; so go get the |mx|'th element
+         * (if it does not exist CRYPTO_get_ex_data() returns NULL), and assign
+         * to itself. This is normally a no-op; but ensures the stack is the
+         * proper size
+         */
+        if (!CRYPTO_set_ex_data(to, mx - 1, CRYPTO_get_ex_data(to, mx - 1)))
             goto skip;
         storage = OPENSSL_malloc(mx * sizeof(CRYPTO_EX_DATA_FUNCS *));
         if (!storage)
