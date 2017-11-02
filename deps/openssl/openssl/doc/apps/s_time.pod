@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-s_time,
 s_time - SSL/TLS performance timing program
 
 =head1 SYNOPSIS

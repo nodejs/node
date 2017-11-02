@@ -101,6 +101,24 @@
 #include <openssl/crypto.h>
 #include <openssl/lhash.h>
 
+/*
+ * A hashing implementation that appears to be based on the linear hashing
+ * alogrithm:
+ * https://en.wikipedia.org/wiki/Linear_hashing
+ *
+ * Litwin, Witold (1980), "Linear hashing: A new tool for file and table
+ * addressing", Proc. 6th Conference on Very Large Databases: 212–223
+ * http://hackthology.com/pdfs/Litwin-1980-Linear_Hashing.pdf
+ *
+ * From the wikipedia article "Linear hashing is used in the BDB Berkeley
+ * database system, which in turn is used by many software systems such as
+ * OpenLDAP, using a C implementation derived from the CACM article and first
+ * published on the Usenet in 1988 by Esmond Pitt."
+ *
+ * The CACM paper is available here:
+ * https://pdfs.semanticscholar.org/ff4d/1c5deca6269cc316bfd952172284dbf610ee.pdf
+ */
+
 const char lh_version[] = "lhash" OPENSSL_VERSION_PTEXT;
 
 #undef MIN_NODES
@@ -108,7 +126,7 @@ const char lh_version[] = "lhash" OPENSSL_VERSION_PTEXT;
 #define UP_LOAD         (2*LH_LOAD_MULT) /* load times 256 (default 2) */
 #define DOWN_LOAD       (LH_LOAD_MULT) /* load times 256 (default 1) */
 
-static void expand(_LHASH *lh);
+static int expand(_LHASH *lh);
 static void contract(_LHASH *lh);
 static LHASH_NODE **getrn(_LHASH *lh, const void *data, unsigned long *rhash);
 
@@ -182,8 +200,9 @@ void *lh_insert(_LHASH *lh, void *data)
     void *ret;
 
     lh->error = 0;
-    if (lh->up_load <= (lh->num_items * LH_LOAD_MULT / lh->num_nodes))
-        expand(lh);
+    if (lh->up_load <= (lh->num_items * LH_LOAD_MULT / lh->num_nodes)
+            && !expand(lh))
+        return NULL;
 
     rn = getrn(lh, data, &hash);
 
@@ -300,19 +319,37 @@ void lh_doall_arg(_LHASH *lh, LHASH_DOALL_ARG_FN_TYPE func, void *arg)
     doall_util_fn(lh, 1, (LHASH_DOALL_FN_TYPE)0, func, arg);
 }
 
-static void expand(_LHASH *lh)
+static int expand(_LHASH *lh)
 {
     LHASH_NODE **n, **n1, **n2, *np;
-    unsigned int p, i, j;
-    unsigned long hash, nni;
+    unsigned int p, pmax, nni, j;
+    unsigned long hash;
+
+    nni = lh->num_alloc_nodes;
+    p = lh->p;
+    pmax = lh->pmax;
+    if (p + 1 >= pmax) {
+        j = nni * 2;
+        n = OPENSSL_realloc(lh->b, (int)(sizeof(LHASH_NODE *) * j));
+        if (n == NULL) {
+            lh->error++;
+            return 0;
+        }
+        lh->b = n;
+        memset(n + nni, 0, sizeof(*n) * (j - nni));
+        lh->pmax = nni;
+        lh->num_alloc_nodes = j;
+        lh->num_expand_reallocs++;
+        lh->p = 0;
+    } else {
+        lh->p++;
+    }
 
     lh->num_nodes++;
     lh->num_expands++;
-    p = (int)lh->p++;
     n1 = &(lh->b[p]);
-    n2 = &(lh->b[p + (int)lh->pmax]);
-    *n2 = NULL;                 /* 27/07/92 - eay - undefined pointer bug */
-    nni = lh->num_alloc_nodes;
+    n2 = &(lh->b[p + pmax]);
+    *n2 = NULL;
 
     for (np = *n1; np != NULL;) {
 #ifndef OPENSSL_NO_HASH_COMP
@@ -330,25 +367,7 @@ static void expand(_LHASH *lh)
         np = *n1;
     }
 
-    if ((lh->p) >= lh->pmax) {
-        j = (int)lh->num_alloc_nodes * 2;
-        n = (LHASH_NODE **)OPENSSL_realloc(lh->b,
-                                           (int)(sizeof(LHASH_NODE *) * j));
-        if (n == NULL) {
-            lh->error++;
-            lh->num_nodes--;
-            lh->p = 0;
-            return;
-        }
-        /* else */
-        for (i = (int)lh->num_alloc_nodes; i < j; i++) /* 26/02/92 eay */
-            n[i] = NULL;        /* 02/03/92 eay */
-        lh->pmax = lh->num_alloc_nodes;
-        lh->num_alloc_nodes = j;
-        lh->num_expand_reallocs++;
-        lh->p = 0;
-        lh->b = n;
-    }
+    return 1;
 }
 
 static void contract(_LHASH *lh)

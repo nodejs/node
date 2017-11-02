@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-gendsa,
 gendsa - generate a DSA private key from a set of parameters
 
 =head1 SYNOPSIS

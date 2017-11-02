@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-crl2pkcs7,
 crl2pkcs7 - Create a PKCS#7 structure from a CRL and certificates.
 
 =head1 SYNOPSIS

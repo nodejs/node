@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-ts,
 ts - Time Stamping Authority tool (client/server)
 
 =head1 SYNOPSIS

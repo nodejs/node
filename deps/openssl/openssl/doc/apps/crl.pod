@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-crl,
 crl - CRL utility
 
 =head1 SYNOPSIS
