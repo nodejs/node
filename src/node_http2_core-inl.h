@@ -502,7 +502,8 @@ inline void Nghttp2Session::SendPendingData() {
   // While srcLength is greater than zero
   while ((srcLength = nghttp2_session_mem_send(session_, &src)) > 0) {
     if (req == nullptr) {
-      destRemaining = AllocateSend(&req);
+      req = AllocateSend();
+      destRemaining = req->self_size();
       dest = req->Extra();
     }
     DEBUG_HTTP2("Nghttp2Session %s: nghttp2 has %d bytes to send\n",
@@ -523,7 +524,8 @@ inline void Nghttp2Session::SendPendingData() {
       destLength = 0;
       srcRemaining -= destRemaining;
       srcOffset += destRemaining;
-      destRemaining = AllocateSend(&req);
+      req = AllocateSend();
+      destRemaining = req->self_size();
       dest = req->Extra();
     }
 

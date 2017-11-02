@@ -179,7 +179,7 @@ class Nghttp2Session {
 
   inline void SendPendingData();
   virtual void Send(WriteWrap* req, char* buf, size_t length) = 0;
-  virtual size_t AllocateSend(WriteWrap** req) = 0;
+  virtual WriteWrap* AllocateSend() = 0;
 
   virtual bool HasGetPaddingCallback() { return false; }
 

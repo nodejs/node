@@ -893,7 +893,7 @@ int Http2Session::DoWrite(WriteWrap* req_wrap,
   return 0;
 }
 
-size_t Http2Session::AllocateSend(WriteWrap** req) {
+WriteWrap* Http2Session::AllocateSend() {
   HandleScope scope(env()->isolate());
   auto AfterWrite = [](WriteWrap* req, int status) {
     req->Dispose();
@@ -906,8 +906,8 @@ size_t Http2Session::AllocateSend(WriteWrap** req) {
       nghttp2_session_get_remote_settings(
           session(),
           NGHTTP2_SETTINGS_MAX_FRAME_SIZE);
-  *req = WriteWrap::New(env(), obj, this, AfterWrite, size);
-  return size;
+  // Max frame size + 9 bytes for the header
+  return WriteWrap::New(env(), obj, this, AfterWrite, size + 9);
 }
 
 void Http2Session::Send(WriteWrap* req, char* buf, size_t length) {

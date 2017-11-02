@@ -399,7 +399,7 @@ class Http2Session : public AsyncWrap,
                   const SubmitTrailers& submit_trailers) override;
 
   void Send(WriteWrap* req, char* buf, size_t length) override;
-  size_t AllocateSend(WriteWrap** req);
+  WriteWrap* AllocateSend();
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
