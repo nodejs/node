@@ -315,6 +315,11 @@
           'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
         ],
       },
+      'conditions': [
+        [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
+          'product_extension': '<(shlib_suffix)',
+        }]
+      ],
     },
     {
       'target_name': 'mkssldef',
