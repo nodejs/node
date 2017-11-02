@@ -317,7 +317,7 @@ int SSL_get_servername_type(const SSL *s);
  */
 int SSL_export_keying_material(SSL *s, unsigned char *out, size_t olen,
                                const char *label, size_t llen,
-                               const unsigned char *p, size_t plen,
+                               const unsigned char *context, size_t contextlen,
                                int use_context);
 
 int SSL_get_sigalgs(SSL *s, int idx,

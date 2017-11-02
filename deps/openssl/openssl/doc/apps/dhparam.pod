@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-dhparam,
 dhparam - DH parameter manipulation and generation
 
 =head1 SYNOPSIS
