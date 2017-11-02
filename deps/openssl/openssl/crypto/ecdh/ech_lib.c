@@ -225,9 +225,16 @@ ECDH_DATA *ecdh_check(EC_KEY *key)
              */
             ecdh_data_free(ecdh_data);
             ecdh_data = (ECDH_DATA *)data;
+        } else if (EC_KEY_get_key_method_data(key, ecdh_data_dup,
+                                              ecdh_data_free,
+                                              ecdh_data_free) != ecdh_data) {
+            /* Or an out of memory error in EC_KEY_insert_key_method_data. */
+            ecdh_data_free(ecdh_data);
+            return NULL;
         }
-    } else
+    } else {
         ecdh_data = (ECDH_DATA *)data;
+    }
 #ifdef OPENSSL_FIPS
     if (FIPS_mode() && !(ecdh_data->flags & ECDH_FLAG_FIPS_METHOD)
         && !(EC_KEY_get_flags(key) & EC_FLAG_NON_FIPS_ALLOW)) {
