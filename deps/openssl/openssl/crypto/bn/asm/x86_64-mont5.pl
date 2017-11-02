@@ -3090,11 +3090,19 @@ $code.=<<___;
 
 .align	32
 .Lsqrx8x_break:
-	sub	16+8(%rsp),%r8		# consume last carry
+	xor	$zero,$zero
+	sub	16+8(%rsp),%rbx		# mov 16(%rsp),%cf
+	adcx	$zero,%r8
 	mov	24+8(%rsp),$carry	# initial $tptr, borrow $carry
+	adcx	$zero,%r9
 	mov	0*8($aptr),%rdx		# a[8], modulo-scheduled
-	xor	%ebp,%ebp		# xor	$zero,$zero
+	adc	\$0,%r10
 	mov	%r8,0*8($tptr)
+	adc	\$0,%r11
+	adc	\$0,%r12
+	adc	\$0,%r13
+	adc	\$0,%r14
+	adc	\$0,%r15
 	cmp	$carry,$tptr		# cf=0, of=0
 	je	.Lsqrx8x_outer_loop
 
