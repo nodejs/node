@@ -86,14 +86,13 @@ or fragment string differs between `import` statements.
 CommonJS modules, when imported, will be handled in one of two ways. By default
 they will provide a single `default` export representing the value of
 `module.exports` at the time they finish evaluating. However, they may also
-provide `__esModule` as per
-[babel spec](https://babeljs.io/docs/plugins/transform-es2015-modules-commonjs)
-to use named exports, representing each enumerable key of `module.exports` at
-the time they finish evaluating.
-In both cases, this should be thought of  like a "snapshot" of the exports at
-the time of importing; asynchronously modifying `module.exports` will not
-affect the values of the exports. Builtin libraries such as `fs` are provided
-with named exports as if they were using `__esModule`
+provide `@@esModule` or `__esModule` to use named exports, representing each
+enumerable key of `module.exports` at the time they finish evaluating.
+`@@esModule` is available as `require('module').esModule` and prefered over
+`__esModule` In both cases, this should be thought of  like a "snapshot" of
+the exports at the time of importing; asynchronously modifying `module.exports`
+will not affect the values of the exports. Builtin libraries are provided with
+named exports as if they were using `@@esModule`.
 
 ```js
 import { readFile } from 'fs';
@@ -111,8 +110,9 @@ readFile('./foo.txt', (err, body) => {
 import { part } from './other.js';
 
 // other.js
+import { esModule } from 'module';
 exports.part = () => {};
-exports.__esModule = true;
+exports[esModule] = true;
 ```
 
 ## Loader hooks

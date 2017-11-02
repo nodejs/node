@@ -1,4 +1,6 @@
-exports.named = true;
-exports.default=  1;
+const { esModule } = require('module');
 
-Object.defineProperty(exports, '__esModule', { value: true });
+exports.named = true;
+exports.default = 1;
+
+exports[esModule] = true;
