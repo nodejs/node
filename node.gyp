@@ -994,7 +994,7 @@
             ['OS in "linux freebsd openbsd solaris android aix"', {
               'ldflags': [
                 '-Wl,--whole-archive,<(OBJ_DIR)/<(STATIC_LIB_PREFIX)'
-                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX) ',
+                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
                 '-Wl,--no-whole-archive',
               ],
             }],
