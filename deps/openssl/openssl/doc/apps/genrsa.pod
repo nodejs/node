@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-genrsa,
 genrsa - generate an RSA private key
 
 =head1 SYNOPSIS

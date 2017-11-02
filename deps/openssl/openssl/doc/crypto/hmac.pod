@@ -38,7 +38,8 @@ B<key_len> bytes long.
 It places the result in B<md> (which must have space for the output of
 the hash function, which is no more than B<EVP_MAX_MD_SIZE> bytes).
 If B<md> is NULL, the digest is placed in a static array.  The size of
-the output is placed in B<md_len>, unless it is B<NULL>.
+the output is placed in B<md_len>, unless it is B<NULL>. Note: passing a NULL
+value for B<md>  to use the static array is not thread safe.
 
 B<evp_md> can be EVP_sha1(), EVP_ripemd160() etc.
 

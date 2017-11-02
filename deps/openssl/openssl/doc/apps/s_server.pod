@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-s_server,
 s_server - SSL/TLS server program
 
 =head1 SYNOPSIS
@@ -219,6 +220,7 @@ Use the PSK identity hint B<hint> when using a PSK cipher suite.
 Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
+This option must be provided in order to use a PSK cipher.
 
 =item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
@@ -402,10 +404,6 @@ a web browser the command:
  openssl s_server -accept 443 -www
 
 can be used for example.
-
-Most web browsers (in particular Netscape and MSIE) only support RSA cipher
-suites, so they cannot connect to servers which don't use a certificate
-carrying an RSA key or a version of OpenSSL with RSA disabled.
 
 Although specifying an empty list of CAs when requesting a client certificate
 is strictly speaking a protocol violation, some SSL clients interpret this to

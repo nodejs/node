@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-verify,
 verify - Utility to verify certificates.
 
 =head1 SYNOPSIS
