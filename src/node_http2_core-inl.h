@@ -5,6 +5,7 @@
 
 #include "node_http2_core.h"
 #include "node_internals.h"  // arraysize
+#include <algorithm>
 
 namespace node {
 namespace http2 {
@@ -45,6 +46,28 @@ inline int Nghttp2Session::OnBeginHeadersCallback(nghttp2_session* session,
   return 0;
 }
 
+inline size_t GetBufferLength(nghttp2_rcbuf* buf) {
+  return nghttp2_rcbuf_get_buf(buf).len;
+}
+
+inline bool Nghttp2Stream::AddHeader(nghttp2_rcbuf* name,
+                                     nghttp2_rcbuf* value,
+                                     uint8_t flags) {
+  size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
+  if (current_headers_count_ + 1 == current_headers_.length() ||
+      current_headers_length_ + length > max_header_length_) {
+    return false;
+  }
+  current_headers_[current_headers_count_].name = name;
+  current_headers_[current_headers_count_].value = value;
+  current_headers_[current_headers_count_].flags = flags;
+  nghttp2_rcbuf_incref(name);
+  nghttp2_rcbuf_incref(value);
+  current_headers_count_++;
+  current_headers_length_ += length;
+  return true;
+}
+
 // nghttp2 calls this once for every header name-value pair in a HEADERS
 // or PUSH_PROMISE block. CONTINUATION frames are handled automatically
 // and transparently so we do not need to worry about those at all.
@@ -61,15 +84,12 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
       frame->push_promise.promised_stream_id :
       frame->hd.stream_id;
   Nghttp2Stream* stream = handle->FindStream(id);
-  // The header name and value are stored in a reference counted buffer
-  // provided to us by nghttp2. We need to increment the reference counter
-  // here, then decrement it when we're done using it later.
-  nghttp2_rcbuf_incref(name);
-  nghttp2_rcbuf_incref(value);
-  nghttp2_header header;
-  header.name = name;
-  header.value = value;
-  stream->headers()->emplace(header);
+  if (!stream->AddHeader(name, value, flags)) {
+    // This will only happen if the connected peer sends us more
+    // than the allowed number of header items at any given time
+    stream->SubmitRstStream(NGHTTP2_ENHANCE_YOUR_CALM);
+    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+  }
   return 0;
 }
 
@@ -440,6 +460,7 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 #endif
   OnHeaders(stream,
             stream->headers(),
+            stream->headers_count(),
             stream->headers_category(),
             frame->hd.flags);
 }
@@ -544,11 +565,14 @@ inline void Nghttp2Session::SendPendingData() {
 // uv_loop_t.
 inline int Nghttp2Session::Init(const nghttp2_session_type type,
                                 nghttp2_option* options,
-                                nghttp2_mem* mem) {
+                                nghttp2_mem* mem,
+                                uint32_t maxHeaderPairs) {
   session_type_ = type;
   DEBUG_HTTP2("Nghttp2Session %s: initializing session\n", TypeName());
   destroying_ = false;
   int ret = 0;
+
+  max_header_pairs_ = maxHeaderPairs;
 
   nghttp2_session_callbacks* callbacks
       = callback_struct_saved[HasGetPaddingCallback() ? 1 : 0].callbacks;
@@ -637,6 +661,20 @@ Nghttp2Stream::Nghttp2Stream(
     int options) : id_(id),
                    session_(session),
                    current_headers_category_(category) {
+  // Allocate a fixed incoming header size based on the current local setting
+  // for max header list size.
+  uint32_t maxHeaderListSize = session->GetMaxHeaderPairs();
+  if (maxHeaderListSize == 0)
+    maxHeaderListSize = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  current_headers_.AllocateSufficientStorage(maxHeaderListSize);
+
+  max_header_length_ =
+      std::min(
+        nghttp2_session_get_local_settings(
+          session->session(),
+          NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE),
+      MAX_MAX_HEADER_LIST_SIZE);
+
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   if (options & STREAM_OPTION_EMPTY_PAYLOAD)
     Shutdown();
@@ -671,10 +709,6 @@ inline void Nghttp2Stream::Destroy() {
     delete head;
     queue_.pop();
   }
-
-  // Free any remaining headers
-  while (!current_headers_.empty())
-    current_headers_.pop();
 
   delete this;
 }

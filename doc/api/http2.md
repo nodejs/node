@@ -1475,6 +1475,8 @@ added: v8.4.0
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+    **Default:** `1024`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1533,6 +1535,8 @@ added: v8.4.0
     `false`. See the [`'unknownProtocol'`][] event. See [ALPN negotiation][].
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+    **Default:** `1024`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1596,6 +1600,8 @@ added: v8.4.0
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
+  * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
+    **Default:** `1024`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
@@ -1773,8 +1779,8 @@ properties.
   concurrently at any given time in an `Http2Session`. The minimum value is
   0. The maximum allowed value is 2<sup>31</sup>-1.
 * `maxHeaderListSize` {number} Specifies the maximum size (uncompressed octets)
-  of header list that will be accepted. There is no default value. The minimum
-  allowed value is 0. The maximum allowed value is 2<sup>32</sup>-1.
+  of header list that will be accepted. The minimum allowed value is 0. The
+  maximum allowed value is 2<sup>32</sup>-1. **Default:** 65535.
 
 All additional properties on the settings object are ignored.
 
