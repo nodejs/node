@@ -34,7 +34,10 @@ function test(arg, port = '') {
     };
     proc.stdout.on('close', mustCall(() => onclose()));
     proc.stderr.on('close', mustCall(() => onclose()));
-    proc.on('exit', mustCall((exitCode) => assert.strictEqual(exitCode, 0)));
+    proc.on('exit', mustCall((exitCode, signal) => assert.strictEqual(
+      exitCode,
+      0,
+      `exitCode: ${exitCode}, signal: ${signal}`)));
   }
 }
 
