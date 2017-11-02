@@ -541,7 +541,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS] [link-module path-to-module]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
