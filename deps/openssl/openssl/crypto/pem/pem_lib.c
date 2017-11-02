@@ -536,7 +536,8 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
               ((c >= '0') && (c <= '9'))))
             break;
 #else
-        if (!(isupper(c) || (c == '-') || isdigit(c)))
+        if (!(isupper((unsigned char)c) || (c == '-')
+            || isdigit((unsigned char)c)))
             break;
 #endif
         header++;

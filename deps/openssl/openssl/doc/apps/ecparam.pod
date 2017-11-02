@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-ecparam,
 ecparam - EC parameter manipulation and generation
 
 =head1 SYNOPSIS

@@ -30,10 +30,12 @@ to the value 0.
 BN_free() frees the components of the B<BIGNUM>, and if it was created
 by BN_new(), also the structure itself. BN_clear_free() additionally
 overwrites the data before the memory is returned to the system.
+If B<a> is NULL, nothing is done.
 
 =head1 RETURN VALUES
 
-BN_new() returns a pointer to the B<BIGNUM>. If the allocation fails,
+BN_new() returns a pointer to the B<BIGNUM> initialised to the value 0.
+If the allocation fails,
 it returns B<NULL> and sets an error code that can be obtained
 by L<ERR_get_error(3)|ERR_get_error(3)>.
 

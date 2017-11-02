@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/asn1.h>
@@ -133,6 +134,11 @@ ASN1_BIT_STRING *c2i_ASN1_BIT_STRING(ASN1_BIT_STRING **a,
 
     if (len < 1) {
         i = ASN1_R_STRING_TOO_SHORT;
+        goto err;
+    }
+
+    if (len > INT_MAX) {
+        i = ASN1_R_STRING_TOO_LONG;
         goto err;
     }
 
