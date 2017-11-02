@@ -14,6 +14,7 @@ COVTESTS ?= test-cov
 GTEST_FILTER ?= "*"
 GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
+OFFLINE ?= false
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -976,17 +977,21 @@ lint-md-clean:
 	$(RM) -r tools/remark-preset-lint-node/node_modules
 
 lint-md-build:
+ifeq ($(OFFLINE),false)
 	@if [ ! -d tools/remark-cli/node_modules ]; then \
 		echo "Markdown linter: installing remark-cli into tools/"; \
 		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
 	@if [ ! -d tools/remark-preset-lint-node/node_modules ]; then \
 		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
 		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
+endif
 
 lint-md: lint-md-build
+ifeq ($(OFFLINE),false)
 	@echo "Running Markdown linter..."
 	$(NODE) tools/remark-cli/cli.js -q -f \
 		./*.md doc src lib benchmark tools/doc/ tools/icu/
+endif
 
 LINT_JS_TARGETS = benchmark doc lib test tools
 LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
