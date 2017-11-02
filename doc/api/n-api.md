@@ -3028,7 +3028,7 @@ reference to the class constructor for later `instanceof` checks.
 
 As an example:
 
-```
+```C
 napi_value MyClass_constructor = nullptr;
 status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
 assert(napi_ok == status);
@@ -3042,7 +3042,7 @@ if (is_instance) {
 }
 ```
 
-Of course you also need to make sure to free the reference once it is no longer needed.
+Of course the reference must be freed once it is no longer needed.
 
 ### *napi_define_class*
 <!-- YAML
