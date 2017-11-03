@@ -4725,6 +4725,25 @@ typedef DWORD (WINAPI *sPowerRegisterSuspendResumeNotification)
                HANDLE        Recipient,
                _PHPOWERNOTIFY RegistrationHandle);
 
+/* from Winuser.h */
+typedef VOID (CALLBACK* WINEVENTPROC)
+             (HWINEVENTHOOK hWinEventHook,
+              DWORD         event,
+              HWND          hwnd,
+              LONG          idObject,
+              LONG          idChild,
+              DWORD         idEventThread,
+              DWORD         dwmsEventTime);
+
+typedef HWINEVENTHOOK (WINAPI *sSetWinEventHook)
+                      (UINT         eventMin,
+                       UINT         eventMax,
+                       HMODULE      hmodWinEventProc,
+                       WINEVENTPROC lpfnWinEventProc,
+                       DWORD        idProcess,
+                       DWORD        idThread,
+                       UINT         dwflags);
+
 
 /* Ntdll function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
@@ -4752,5 +4771,8 @@ extern sGetFinalPathNameByHandleW pGetFinalPathNameByHandleW;
 
 /* Powrprof.dll function pointer */
 extern sPowerRegisterSuspendResumeNotification pPowerRegisterSuspendResumeNotification;
+
+/* User32.dll function pointer */
+extern sSetWinEventHook pSetWinEventHook;
 
 #endif /* UV_WIN_WINAPI_H_ */
