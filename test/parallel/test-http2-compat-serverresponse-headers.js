@@ -83,16 +83,16 @@ server.listen(0, common.mustCall(function() {
     assert.throws(function() {
       response.setHeader(real, null);
     }, common.expectsError({
-      code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+      code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       type: TypeError,
-      message: 'Value must not be undefined or null'
+      message: 'Invalid value "null" for header "foo-bar"'
     }));
     assert.throws(function() {
       response.setHeader(real, undefined);
     }, common.expectsError({
-      code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+      code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       type: TypeError,
-      message: 'Value must not be undefined or null'
+      message: 'Invalid value "undefined" for header "foo-bar"'
     }));
     common.expectsError(
       () => response.setHeader(), // header name undefined

@@ -44,9 +44,9 @@ const s = http.createServer(common.mustCall((req, res) => {
   common.expectsError(
     () => res.setHeader('foo', undefined),
     {
-      code: 'ERR_MISSING_ARGS',
+      code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       type: TypeError,
-      message: 'The "value" argument must be specified'
+      message: 'Invalid value "undefined" for header "foo"'
     }
   );
 
