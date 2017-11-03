@@ -310,17 +310,21 @@ std::string ReadFile(uv_file file) {
   uv_fs_t req;
   char buffer_memory[4096];
   uv_buf_t buf = uv_buf_init(buffer_memory, sizeof(buffer_memory));
+  int r;
+
   do {
-    uv_fs_read(uv_default_loop(),
-               &req,
-               file,
-               &buf,
-               1,
-               contents.length(),  // offset
-               nullptr);
-    if (req.result <= 0)
+    r = uv_fs_read(uv_default_loop(),
+                   &req,
+                   file,
+                   &buf,
+                   1,
+                   contents.length(),  // offset
+                   nullptr);
+    uv_fs_req_cleanup(&req);
+
+    if (r <= 0)
       break;
-    contents.append(buf.base, req.result);
+    contents.append(buf.base, r);
   } while (true);
   return contents;
 }
@@ -337,20 +341,29 @@ Maybe<uv_file> CheckFile(const URL& search,
   if (path.empty()) {
     return Nothing<uv_file>();
   }
-  uv_fs_open(nullptr, &fs_req, path.c_str(), O_RDONLY, 0, nullptr);
-  uv_file fd = fs_req.result;
+
+  uv_file fd = uv_fs_open(nullptr, &fs_req, path.c_str(), O_RDONLY, 0, nullptr);
+  uv_fs_req_cleanup(&fs_req);
+
   if (fd < 0) {
     return Nothing<uv_file>();
   }
 
   uv_fs_fstat(nullptr, &fs_req, fd, nullptr);
-  if (fs_req.statbuf.st_mode & S_IFDIR) {
+  uint64_t is_directory = fs_req.statbuf.st_mode & S_IFDIR;
+  uv_fs_req_cleanup(&fs_req);
+
+  if (is_directory) {
     uv_fs_close(nullptr, &fs_req, fd, nullptr);
+    uv_fs_req_cleanup(&fs_req);
     return Nothing<uv_file>();
   }
 
-  if (opt == CLOSE_AFTER_CHECK)
+  if (opt == CLOSE_AFTER_CHECK) {
     uv_fs_close(nullptr, &fs_req, fd, nullptr);
+    uv_fs_req_cleanup(&fs_req);
+  }
+
   return Just(fd);
 }
 
@@ -395,6 +408,7 @@ Maybe<URL> ResolveMain(Environment* env, const URL& search) {
   std::string pkg_src = ReadFile(check.FromJust());
   uv_fs_t fs_req;
   uv_fs_close(nullptr, &fs_req, check.FromJust(), nullptr);
+  uv_fs_req_cleanup(&fs_req);
 
   // It's not okay for the called of this method to not be able to tell
   // whether an exception is pending or not.
