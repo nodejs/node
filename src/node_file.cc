@@ -451,14 +451,6 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 # else
   Local<Value> blksize = Undefined(env->isolate());
 # endif
-#undef X
-
-  // Integers.
-#define X(name)                                                               \
-  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
-  if (name.IsEmpty())                                                         \
-    return Local<Object>();                                                   \
-
   X(dev)
   X(mode)
   X(nlink)
