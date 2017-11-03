@@ -808,7 +808,7 @@ requests and responses.
 <a id="ERR_HTTP2_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP2_INVALID_HEADER_VALUE
 
-Used to indicate that an invalid HTTP/2 header value has been specified.
+Used to indicate that an invalid HTTP2 header value has been specified.
 
 <a id="ERR_HTTP2_INVALID_INFO_STATUS"></a>
 ### ERR_HTTP2_INVALID_INFO_STATUS
