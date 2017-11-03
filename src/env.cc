@@ -263,7 +263,7 @@ void CollectExceptionInfo(Environment* env,
 
   if (syscall != nullptr) {
     obj->Set(env->context(), env->syscall_string(),
-             OneByteString(env->isolate(), syscall));
+             OneByteString(env->isolate(), syscall)).FromJust();
   }
 }
 
