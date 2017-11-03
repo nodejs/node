@@ -46,7 +46,7 @@ void inline debug_vfprintf(const char* format, ...) {
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
 
 #define MAX_MAX_HEADER_LIST_SIZE 16777215u
-#define DEFAULT_MAX_HEADER_LIST_PAIRS 1024u
+#define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
 
 
 class Nghttp2Session;
