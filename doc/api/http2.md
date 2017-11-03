@@ -1470,13 +1470,18 @@ not be emitted.
 ### http2.createServer(options[, onRequestHandler])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16676
+    description: Added the `maxHeaderListPairs` option with a default limit of
+                 128 header pairs.
 -->
 
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    **Default:** `1024`.
+    **Default:** `128`. The minimum value is `4`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1527,6 +1532,11 @@ server.listen(80);
 ### http2.createSecureServer(options[, onRequestHandler])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16676
+    description: Added the `maxHeaderListPairs` option with a default limit of
+                 128 header pairs.
 -->
 
 * `options` {Object}
@@ -1536,7 +1546,7 @@ added: v8.4.0
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    **Default:** `1024`.
+    **Default:** `128`. The minimum value is `4`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1594,6 +1604,11 @@ server.listen(80);
 ### http2.connect(authority[, options][, listener])
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16676
+    description: Added the `maxHeaderListPairs` option with a default limit of
+                 128 header pairs.
 -->
 
 * `authority` {string|URL}
@@ -1601,7 +1616,7 @@ added: v8.4.0
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    **Default:** `1024`.
+    **Default:** `128`. The minimum value is `1`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
@@ -1753,7 +1768,13 @@ server.on('stream', (stream, headers) => {
 ```
 
 ### Settings Object
-
+<!-- YAML
+added: v8.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16676
+    description: The `maxHeaderListSize` setting is now strictly enforced.
+-->
 The `http2.getDefaultSettings()`, `http2.getPackedSettings()`,
 `http2.createServer()`, `http2.createSecureServer()`,
 `http2session.settings()`, `http2session.localSettings`, and
