@@ -54,16 +54,17 @@ inline bool Nghttp2Stream::AddHeader(nghttp2_rcbuf* name,
                                      nghttp2_rcbuf* value,
                                      uint8_t flags) {
   size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
-  if (current_headers_count_ + 1 == current_headers_.length() ||
+  if (current_headers_.size() == max_header_pairs_ ||
       current_headers_length_ + length > max_header_length_) {
     return false;
   }
-  current_headers_[current_headers_count_].name = name;
-  current_headers_[current_headers_count_].value = value;
-  current_headers_[current_headers_count_].flags = flags;
+  nghttp2_header header;
+  header.name = name;
+  header.value = value;
+  header.flags = flags;
+  current_headers_.push_back(header);
   nghttp2_rcbuf_incref(name);
   nghttp2_rcbuf_incref(value);
-  current_headers_count_++;
   current_headers_length_ += length;
   return true;
 }
@@ -661,13 +662,13 @@ Nghttp2Stream::Nghttp2Stream(
     int options) : id_(id),
                    session_(session),
                    current_headers_category_(category) {
-  // Allocate a fixed incoming header size based on the current local setting
-  // for max header list size.
-  uint32_t maxHeaderListSize = session->GetMaxHeaderPairs();
-  if (maxHeaderListSize == 0)
-    maxHeaderListSize = DEFAULT_MAX_HEADER_LIST_PAIRS;
-  current_headers_.AllocateSufficientStorage(maxHeaderListSize);
+  // Limit the number of header pairs
+  max_header_pairs_ = session->GetMaxHeaderPairs();
+  if (max_header_pairs_ == 0)
+  max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  current_headers_.reserve(max_header_pairs_);
 
+  // Limit the number of header octets
   max_header_length_ =
       std::min(
         nghttp2_session_get_local_settings(

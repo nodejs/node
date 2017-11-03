@@ -9,6 +9,7 @@
 #include "nghttp2/nghttp2.h"
 
 #include <queue>
+#include <vector>
 #include <stdio.h>
 #include <unordered_map>
 
@@ -444,7 +445,7 @@ class Nghttp2Stream {
                         uint8_t flags);
 
   inline nghttp2_header* headers() {
-    return *current_headers_;
+    return current_headers_.data();
   }
 
   inline nghttp2_headers_category headers_category() const {
@@ -452,14 +453,14 @@ class Nghttp2Stream {
   }
 
   inline size_t headers_count() const {
-    return current_headers_count_;
+    return current_headers_.size();
   }
 
   void StartHeaders(nghttp2_headers_category category) {
     DEBUG_HTTP2("Nghttp2Stream %d: starting headers, category: %d\n",
                 id_, category);
-    current_headers_count_ = 0;
     current_headers_length_ = 0;
+    current_headers_.clear();
     current_headers_category_ = category;
   }
 
@@ -472,7 +473,7 @@ class Nghttp2Stream {
 
   // Internal state flags
   int flags_ = NGHTTP2_STREAM_FLAG_NONE;
-  uint32_t max_header_pairs_;
+  uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   uint32_t max_header_length_ = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
 
   // The RST_STREAM code used to close this stream
@@ -493,10 +494,8 @@ class Nghttp2Stream {
   // they are temporarily stored here until the OnFrameReceived is called
   // signalling the end of the HEADERS frame
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
-  size_t current_headers_count_ = 0;
-  uint32_t current_headers_length_ = 0;
-  MaybeStackBuffer<nghttp2_header, DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE>
-    current_headers_;
+  uint32_t current_headers_length_ = 0;  // total number of octets
+  std::vector<nghttp2_header> current_headers_;
 
   // Inbound Data... This is the data received via DATA frames for this stream.
   std::queue<uv_buf_t> data_chunks_;

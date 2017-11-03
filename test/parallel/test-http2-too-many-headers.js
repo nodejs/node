@@ -10,16 +10,16 @@ const {
 } = http2.constants;
 
 // By default, the maximum number of header fields allowed per
-// block is 1024, including the HTTP pseudo-header fields, by
-// setting one here, no request should be acccepted because it
-// does not allow for even the basic HTTP pseudo-headers
-const server = http2.createServer({ maxHeaderListPairs: 1 });
+// block is 128, including the HTTP pseudo-header fields. The
+// minimum value for servers is 4, setting this to any value
+// less than 4 will still leave the minimum to 4.
+const server = http2.createServer({ maxHeaderListPairs: 0 });
 server.on('stream', common.mustNotCall());
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  const req = client.request();
+  const req = client.request({ foo: 'bar' });
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     type: Error,

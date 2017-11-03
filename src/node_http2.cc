@@ -5,6 +5,7 @@
 #include "node_http2_state.h"
 
 #include <queue>
+#include <algorithm>
 
 namespace node {
 
@@ -197,7 +198,10 @@ Http2Session::Http2Session(Environment* env,
 
   padding_strategy_ = opts.GetPaddingStrategy();
 
-  Init(type, *opts, nullptr, opts.GetMaxHeaderPairs());
+  int32_t maxHeaderPairs = opts.GetMaxHeaderPairs();
+  maxHeaderPairs = type == NGHTTP2_SESSION_SERVER ?
+      std::max(maxHeaderPairs, 4) : std::max(maxHeaderPairs, 1);
+  Init(type, *opts, nullptr, maxHeaderPairs);
 
   // For every node::Http2Session instance, there is a uv_prepare_t handle
   // whose callback is triggered on every tick of the event loop. When
