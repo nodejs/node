@@ -26,17 +26,17 @@ server.listen(0, common.mustCall(() => {
     common.expectsError(
       () => response.setTrailer('test', undefined),
       {
-        code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+        code: 'ERR_HTTP_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Value must not be undefined or null'
+        message: 'Invalid value "undefined" for header "test"'
       }
     );
     common.expectsError(
       () => response.setTrailer('test', null),
       {
-        code: 'ERR_HTTP2_INVALID_HEADER_VALUE',
+        code: 'ERR_HTTP_INVALID_HEADER_VALUE',
         type: TypeError,
-        message: 'Value must not be undefined or null'
+        message: 'Invalid value "null" for header "test"'
       }
     );
     common.expectsError(

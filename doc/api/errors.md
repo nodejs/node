@@ -818,9 +818,11 @@ HTTP/1 connection specific headers are forbidden to be used in HTTP/2
 requests and responses.
 
 <a id="ERR_HTTP2_INVALID_HEADER_VALUE"></a>
-### ERR_HTTP2_INVALID_HEADER_VALUE
+### ERR_HTTP_INVALID_HEADER_VALUE
+<a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
+### ERR_HTTP_INVALID_HEADER_VALUE
 
-Used to indicate that an invalid HTTP/2 header value has been specified.
+Used to indicate that an invalid HTTP header value has been specified.
 
 <a id="ERR_HTTP2_INVALID_INFO_STATUS"></a>
 ### ERR_HTTP2_INVALID_INFO_STATUS
