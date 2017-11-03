@@ -13,7 +13,22 @@ const msg = 'Use of the Buffer() constructor has been deprecated. ' +
 
 function test(context, node) {
   if (node.callee.name === 'Buffer') {
-    context.report(node, msg);
+    const sourceCode = context.getSourceCode();
+    const argumentList = [];
+    node.arguments.forEach((argumentNode) => {
+      argumentList.push(sourceCode.getText(argumentNode));
+    });
+
+    context.report({
+      node,
+      message: msg,
+      fix: (fixer) => {
+        return fixer.replaceText(
+          node,
+          `Buffer.from(${argumentList.join(', ')})`
+        );
+      }
+    });
   }
 }
 
