@@ -160,6 +160,10 @@ char* WriteWrap::Extra(size_t offset) {
          offset;
 }
 
+size_t WriteWrap::ExtraSize() const {
+  return storage_size_ - ROUND_UP(sizeof(*this), kAlignSize);
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
