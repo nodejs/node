@@ -1287,9 +1287,7 @@ def ReadConfigurationInto(path, sections, defs):
     if prefix_match:
       prefix = SplitPath(prefix_match.group(1).strip())
       continue
-    print "Malformed line: '%s'." % line
-    return False
-  return True
+    raise Exception("Malformed line: '%s'." % line)
 
 
 # ---------------
