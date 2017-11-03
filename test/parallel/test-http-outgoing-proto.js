@@ -34,9 +34,9 @@ assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('test');
 }, common.expectsError({
-  code: 'ERR_MISSING_ARGS',
+  code: 'ERR_HTTP_INVALID_HEADER_VALUE',
   type: TypeError,
-  message: 'The "value" argument must be specified'
+  message: 'Invalid value "undefined" for header "test"'
 }));
 
 assert.throws(() => {
