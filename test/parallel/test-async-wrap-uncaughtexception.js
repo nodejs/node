@@ -12,8 +12,8 @@ let hooks = null;
 
 
 process.on('beforeExit', common.mustCall(() => {
-  process.removeAllListeners('uncaughtException');
   hooks.disable();
+  process.removeAllListeners('uncaughtException');
   assert.strictEqual(typeof call_id, 'number');
   assert.deepStrictEqual(call_log, [1, 1, 1, 1]);
 }));
