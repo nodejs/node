@@ -13,7 +13,6 @@ let hooks = null;
 
 process.on('beforeExit', common.mustCall(() => {
   process.removeAllListeners('uncaughtException');
-  hooks.disable();
   assert.strictEqual(typeof call_id, 'number');
   assert.deepStrictEqual(call_log, [1, 1, 1, 1]);
 }));
@@ -29,6 +28,7 @@ hooks = async_hooks.createHook({
   },
   after(id) {
     if (id === call_id) call_log[3]++;
+    hooks.disable();
   },
 }).enable();
 
