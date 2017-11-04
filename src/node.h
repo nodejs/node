@@ -173,6 +173,8 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 #include <assert.h>
 #include <stdint.h>
 
+#include <vector>
+
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
@@ -202,10 +204,20 @@ NODE_EXTERN extern bool force_fips_crypto;
 #endif
 
 NODE_EXTERN int Start(int argc, char *argv[]);
-NODE_EXTERN void Init(int* argc,
-                      const char** argv,
-                      int* exec_argc,
-                      const char*** exec_argv);
+
+struct ProcessArguments {
+  int argc;
+  char** argv;
+  std::vector<const char*> exec_argv;
+};
+
+NODE_EXTERN void Init(ProcessArguments* process_arguments);
+NODE_DEPRECATED(
+    "Use Init(ProcessArguments*)",
+    NODE_EXTERN void Init(int* argc,
+                          const char** argv,
+                          int* exec_argc,
+                          const char*** exec_argv));
 
 class IsolateData;
 class Environment;
@@ -234,12 +246,18 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     MultiIsolatePlatform* platform);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
-NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
-                                           v8::Local<v8::Context> context,
-                                           int argc,
-                                           const char* const* argv,
-                                           int exec_argc,
-                                           const char* const* exec_argv);
+NODE_EXTERN Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    v8::Local<v8::Context> context,
+    const ProcessArguments& process_arguments);
+NODE_DEPRECATED(
+    "Use CreateEnvironment(ProcessArguments*, ...)",
+    NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
+                                               v8::Local<v8::Context> context,
+                                               int argc,
+                                               const char* const* argv,
+                                               int exec_argc,
+                                               const char* const* exec_argv));
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);

@@ -528,10 +528,7 @@ class Environment {
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();
 
-  void Start(int argc,
-             const char* const* argv,
-             int exec_argc,
-             const char* const* exec_argv,
+  void Start(const ProcessArguments& process_arguments,
              bool start_profiler_idle_notifier);
   void AssignToContext(v8::Local<v8::Context> context);
   void CleanupHandles();

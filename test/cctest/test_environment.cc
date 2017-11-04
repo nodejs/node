@@ -13,6 +13,7 @@ using node::CreateEnvironment;
 using node::FreeEnvironment;
 using node::AtExit;
 using node::RunAtExit;
+using node::ProcessArguments;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -34,10 +35,13 @@ class EnvironmentTest : public NodeTestFixture {
                                         NodeTestFixture::CurrentLoop(),
                                         test_fixture->Platform());
       CHECK_NE(nullptr, isolate_data_);
-      environment_ = CreateEnvironment(isolate_data_,
-                                       context_,
-                                       1, *argv,
-                                       argv.nr_args(), *argv);
+      ProcessArguments process_arguments;
+      process_arguments.argc = 1;
+      process_arguments.argv = *argv;
+      process_arguments.exec_argv.insert(process_arguments.exec_argv.end(),
+                                         *argv, *argv + argv.nr_args());
+      environment_ = CreateEnvironment(isolate_data_, context_,
+                                       process_arguments);
       CHECK_NE(nullptr, environment_);
     }
 

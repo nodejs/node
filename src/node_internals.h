@@ -282,10 +282,7 @@ void ProcessEmitWarning(Environment* env, const char* fmt, ...);
 void FillStatsArray(double* fields, const uv_stat_t* s);
 
 void SetupProcessObject(Environment* env,
-                        int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv);
+                        const ProcessArguments& process_arguments);
 
 // Call _register<module_name> functions for all of
 // the built-in modules. Because built-in modules don't
