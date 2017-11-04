@@ -1041,7 +1041,8 @@ module.exports = {
         } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
             if (parent.kind === "constructor") {
                 return "constructor";
-            } else if (parent.kind === "get") {
+            }
+            if (parent.kind === "get") {
                 tokens.push("getter");
             } else if (parent.kind === "set") {
                 tokens.push("setter");

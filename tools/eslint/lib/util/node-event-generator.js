@@ -160,7 +160,7 @@ function tryParseSelector(rawSelector) {
         return esquery.parse(rawSelector.replace(/:exit$/, ""));
     } catch (err) {
         if (typeof err.offset === "number") {
-            throw new Error(`Syntax error in selector "${rawSelector}" at position ${err.offset}: ${err.message}`);
+            throw new SyntaxError(`Syntax error in selector "${rawSelector}" at position ${err.offset}: ${err.message}`);
         }
         throw err;
     }

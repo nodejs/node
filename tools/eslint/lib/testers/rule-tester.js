@@ -178,7 +178,7 @@ class RuleTester {
      */
     static setDefaultConfig(config) {
         if (typeof config !== "object") {
-            throw new Error("RuleTester.setDefaultConfig: config must be an object");
+            throw new TypeError("RuleTester.setDefaultConfig: config must be an object");
         }
         defaultConfig = config;
 
@@ -254,7 +254,7 @@ class RuleTester {
             linter = this.linter;
 
         if (lodash.isNil(test) || typeof test !== "object") {
-            throw new Error(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
+            throw new TypeError(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
         }
 
         requiredScenarios.forEach(scenarioType => {
@@ -369,6 +369,7 @@ class RuleTester {
             if (!lodash.isEqual(beforeAST, afterAST)) {
 
                 // Not using directly to avoid performance problem in node 6.1.0. See #6111
+                // eslint-disable-next-line no-restricted-properties
                 assert.deepEqual(beforeAST, afterAST, "Rule should not modify AST.");
             }
         }
@@ -384,7 +385,7 @@ class RuleTester {
             const result = runRuleForItem(item);
             const messages = result.messages;
 
-            assert.equal(messages.length, 0, util.format("Should have no errors but had %d: %s",
+            assert.strictEqual(messages.length, 0, util.format("Should have no errors but had %d: %s",
                 messages.length, util.inspect(messages)));
 
             assertASTDidntChange(result.beforeAST, result.afterAST);
@@ -408,7 +409,7 @@ class RuleTester {
                     `Expected '${actual}' to match ${expected}`
                 );
             } else {
-                assert.equal(actual, expected);
+                assert.strictEqual(actual, expected);
             }
         }
 
@@ -428,10 +429,10 @@ class RuleTester {
 
 
             if (typeof item.errors === "number") {
-                assert.equal(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
+                assert.strictEqual(messages.length, item.errors, util.format("Should have %d error%s but had %d: %s",
                     item.errors, item.errors === 1 ? "" : "s", messages.length, util.inspect(messages)));
             } else {
-                assert.equal(
+                assert.strictEqual(
                     messages.length, item.errors.length,
                     util.format(
                         "Should have %d error%s but had %d: %s",
@@ -460,23 +461,35 @@ class RuleTester {
                             assertMessageMatches(messages[i].message, item.errors[i].message);
                         }
 
+                        // The following checks use loose equality assertions for backwards compatibility.
+
                         if (item.errors[i].type) {
+
+                            // eslint-disable-next-line no-restricted-properties
                             assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}, found ${messages[i].nodeType}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("line")) {
+
+                            // eslint-disable-next-line no-restricted-properties
                             assert.equal(messages[i].line, item.errors[i].line, `Error line should be ${item.errors[i].line}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("column")) {
+
+                            // eslint-disable-next-line no-restricted-properties
                             assert.equal(messages[i].column, item.errors[i].column, `Error column should be ${item.errors[i].column}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("endLine")) {
+
+                            // eslint-disable-next-line no-restricted-properties
                             assert.equal(messages[i].endLine, item.errors[i].endLine, `Error endLine should be ${item.errors[i].endLine}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("endColumn")) {
+
+                            // eslint-disable-next-line no-restricted-properties
                             assert.equal(messages[i].endColumn, item.errors[i].endColumn, `Error endColumn should be ${item.errors[i].endColumn}`);
                         }
                     } else {
@@ -497,6 +510,7 @@ class RuleTester {
                 } else {
                     const fixResult = SourceCodeFixer.applyFixes(item.code, messages);
 
+                    // eslint-disable-next-line no-restricted-properties
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }
             }
