@@ -22,7 +22,7 @@
 'use strict';
 
 const common = require('../common');
-const R = require('_stream_readable');
+const R = require('stream/readable');
 const assert = require('assert');
 
 const util = require('util');

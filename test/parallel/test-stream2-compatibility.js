@@ -21,8 +21,8 @@
 
 'use strict';
 require('../common');
-const R = require('_stream_readable');
-const W = require('_stream_writable');
+const R = require('stream/readable');
+const W = require('stream/writable');
 const assert = require('assert');
 
 const util = require('util');
