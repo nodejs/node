@@ -15,3 +15,7 @@ rules:
   inspector-check: error
   ## common module is mandatory in tests
   required-modules: [error, common]
+
+# Global scoped methods and vars
+globals:
+  WebAssembly: false
