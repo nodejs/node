@@ -28,6 +28,13 @@ inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
 }
 #endif
 
+inline int32_t GetFrameID(const nghttp2_frame* frame) {
+  // If this is a push promise, we want to grab the id of the promised stream
+  return (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
+      frame->push_promise.promised_stream_id :
+      frame->hd.stream_id;
+}
+
 // nghttp2 calls this at the beginning a new HEADERS or PUSH_PROMISE frame.
 // We use it to ensure that an Nghttp2Stream instance is allocated to store
 // the state.
@@ -35,11 +42,7 @@ inline int Nghttp2Session::OnBeginHeadersCallback(nghttp2_session* session,
                                                   const nghttp2_frame* frame,
                                                   void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
-  // If this is a push promise frame, we want to grab the handle of
-  // the promised stream.
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-      frame->push_promise.promised_stream_id :
-      frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: beginning headers for stream %d\n",
               handle->TypeName(), id);
 
@@ -62,11 +65,7 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
                                             uint8_t flags,
                                             void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
-  // If this is a push promise frame, we want to grab the handle of
-  // the promised stream.
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-      frame->push_promise.promised_stream_id :
-      frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   Nghttp2Stream* stream = handle->FindStream(id);
   // The header name and value are stored in a reference counted buffer
   // provided to us by nghttp2. We need to increment the reference counter
@@ -418,7 +417,7 @@ inline void Nghttp2Stream::FlushDataChunks() {
 // see if the END_STREAM flag is set, and will flush the queued data chunks
 // to JS if the stream is flowing
 inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
-  int32_t id = frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling data frame for stream %d\n",
               TypeName(), id);
   Nghttp2Stream* stream = this->FindStream(id);
@@ -436,8 +435,7 @@ inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
 // The headers are collected as the frame is being processed and sent out
 // to the JS side only when the frame is fully processed.
 inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-    frame->push_promise.promised_stream_id : frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling headers frame for stream %d\n",
               TypeName(), id);
   Nghttp2Stream* stream = FindStream(id);
@@ -454,7 +452,7 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 // Notifies the JS layer that a PRIORITY frame has been received
 inline void Nghttp2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
   nghttp2_priority priority_frame = frame->priority;
-  int32_t id = frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling priority frame for stream %d\n",
               TypeName(), id);
 
@@ -548,39 +546,22 @@ inline int Nghttp2Session::Init(const nghttp2_session_type type,
   session_type_ = type;
   DEBUG_HTTP2("Nghttp2Session %s: initializing session\n", TypeName());
   destroying_ = false;
-  int ret = 0;
 
   nghttp2_session_callbacks* callbacks
       = callback_struct_saved[HasGetPaddingCallback() ? 1 : 0].callbacks;
 
-  nghttp2_option* opts;
-  if (options != nullptr) {
-    opts = options;
-  } else {
-    nghttp2_option_new(&opts);
-  }
+  CHECK_NE(options, nullptr);
 
-  switch (type) {
-    case NGHTTP2_SESSION_SERVER:
-      ret = nghttp2_session_server_new3(&session_,
-                                        callbacks,
-                                        this,
-                                        opts,
-                                        mem);
-      break;
-    case NGHTTP2_SESSION_CLIENT:
-      ret = nghttp2_session_client_new3(&session_,
-                                        callbacks,
-                                        this,
-                                        opts,
-                                        mem);
-      break;
-  }
-  if (opts != options) {
-    nghttp2_option_del(opts);
-  }
+  typedef int (*init_fn)(nghttp2_session** session,
+                         const nghttp2_session_callbacks* callbacks,
+                         void* user_data,
+                         const nghttp2_option* options,
+                         nghttp2_mem* mem);
+  init_fn fn = type == NGHTTP2_SESSION_SERVER ?
+      nghttp2_session_server_new3 :
+      nghttp2_session_client_new3;
 
-  return ret;
+  return fn(&session_, callbacks, this, options, mem);
 }
 
 inline void Nghttp2Session::MarkDestroying() {
