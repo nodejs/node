@@ -1,5 +1,7 @@
 # HTTP2
 
+<!--introduced_in=v8.4.0-->
+
 > Stability: 1 - Experimental
 
 The `http2` module provides an implementation of the [HTTP/2][] protocol. It

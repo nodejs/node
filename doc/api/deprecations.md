@@ -1,5 +1,7 @@
 # Deprecated APIs
 
+<!--introduced_in=v7.7.0-->
+
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
 unsafe, (b) an improved alternative API has been made available, or (c)
 breaking changes to the API are expected in a future major release.
