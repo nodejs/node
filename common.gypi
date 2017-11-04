@@ -414,7 +414,7 @@
       }],
       ['OS=="freebsd"', {
         'conditions': [
-          ['llvm_version < "4.0"', {
+          ['"0" < llvm_version < "4.0"', {
             # Use this flag because on FreeBSD std::pairs copy constructor is non-trivial.
             # Doesn't apply to llvm 4.0 (FreeBSD 11.1) or later.
             # Refs: https://lists.freebsd.org/pipermail/freebsd-toolchain/2016-March/002094.html
