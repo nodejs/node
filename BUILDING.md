@@ -215,7 +215,8 @@ Prerequisites:
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
 
-If the path to your build directory contains a space, the build will likely fail.
+If the path to your build directory contains a space or a non-ASCII character, the
+build will likely fail.
 
 ```console
 > .\vcbuild nosign
