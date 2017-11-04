@@ -1,5 +1,7 @@
 # Async Hooks
 
+<!--introduced_in=v8.1.0-->
+
 > Stability: 1 - Experimental
 
 The `async_hooks` module provides an API to register callbacks tracking the

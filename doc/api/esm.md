@@ -1,6 +1,6 @@
 # ECMAScript Modules
 
-<!--introduced_in=v9.x.x-->
+<!--introduced_in=v8.5.0-->
 
 > Stability: 1 - Experimental
 
