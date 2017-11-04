@@ -240,8 +240,8 @@ function processFile(filename, configHelper, options, linter) {
 function createIgnoreResult(filePath, baseDir) {
     let message;
     const isHidden = /^\./.test(path.basename(filePath));
-    const isInNodeModules = baseDir && /^node_modules/.test(path.relative(baseDir, filePath));
-    const isInBowerComponents = baseDir && /^bower_components/.test(path.relative(baseDir, filePath));
+    const isInNodeModules = baseDir && path.relative(baseDir, filePath).startsWith("node_modules");
+    const isInBowerComponents = baseDir && path.relative(baseDir, filePath).startsWith("bower_components");
 
     if (isHidden) {
         message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern '!<relative/path/to/filename>'\") to override.";

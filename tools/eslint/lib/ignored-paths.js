@@ -184,7 +184,7 @@ class IgnoredPaths {
                                     addPattern(this.ig.default, pattern);
                                 });
                             } else {
-                                throw new Error("Package.json eslintIgnore property requires an array of paths");
+                                throw new TypeError("Package.json eslintIgnore property requires an array of paths");
                             }
                         }
                     }

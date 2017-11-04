@@ -59,9 +59,11 @@ module.exports = {
 
             if (parentType === "IfStatement") {
                 return isPrecededByTokens(node, ["else", ")"]);
-            } else if (parentType === "DoWhileStatement") {
+            }
+            if (parentType === "DoWhileStatement") {
                 return isPrecededByTokens(node, ["do"]);
-            } else if (parentType === "SwitchCase") {
+            }
+            if (parentType === "SwitchCase") {
                 return isPrecededByTokens(node, [":"]);
             }
             return isPrecededByTokens(node, [")"]);

@@ -24,8 +24,15 @@ module.exports = {
             recommended: false
         },
 
-        schema: [],
-
+        schema: [{
+            type: "object",
+            properties: {
+                allowElseIf: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }],
         fixable: "code"
     },
 
@@ -134,13 +141,13 @@ module.exports = {
 
         /**
          * Check to see if the node is valid for evaluation,
-         * meaning it has an else and not an else-if
+         * meaning it has an else.
          *
          * @param {Node} node The node being evaluated
          * @returns {boolean} True if the node is valid
          */
         function hasElse(node) {
-            return node.alternate && node.consequent && node.alternate.type !== "IfStatement";
+            return node.alternate && node.consequent;
         }
 
         /**
@@ -189,14 +196,15 @@ module.exports = {
             return checkForReturnOrIf(node);
         }
 
+
         /**
-         * Check the if statement
+         * Check the if statement, but don't catch else-if blocks.
          * @returns {void}
          * @param {Node} node The node for the if statement to check
          * @private
          */
-        function IfStatement(node) {
-            const parent = context.getAncestors().pop();
+        function checkIfWithoutElse(node) {
+            const parent = node.parent;
             let consequents,
                 alternate;
 
@@ -221,13 +229,40 @@ module.exports = {
             }
         }
 
+        /**
+         * Check the if statement
+         * @returns {void}
+         * @param {Node} node The node for the if statement to check
+         * @private
+         */
+        function checkIfWithElse(node) {
+            const parent = node.parent;
+
+
+            /*
+             * Fixing this would require splitting one statement into two, so no error should
+             * be reported if this node is in a position where only one statement is allowed.
+             */
+            if (!astUtils.STATEMENT_LIST_PARENTS.has(parent.type)) {
+                return;
+            }
+
+            const alternate = node.alternate;
+
+            if (alternate && alwaysReturns(node.consequent)) {
+                displayReport(alternate);
+            }
+        }
+
+        const allowElseIf = !(context.options[0] && context.options[0].allowElseIf === false);
+
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
 
         return {
 
-            "IfStatement:exit": IfStatement
+            "IfStatement:exit": allowElseIf ? checkIfWithoutElse : checkIfWithElse
 
         };
 

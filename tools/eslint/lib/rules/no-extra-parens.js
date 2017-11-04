@@ -195,10 +195,12 @@ module.exports = {
         function containsAssignment(node) {
             if (node.type === "AssignmentExpression") {
                 return true;
-            } else if (node.type === "ConditionalExpression" &&
+            }
+            if (node.type === "ConditionalExpression" &&
                     (node.consequent.type === "AssignmentExpression" || node.alternate.type === "AssignmentExpression")) {
                 return true;
-            } else if ((node.left && node.left.type === "AssignmentExpression") ||
+            }
+            if ((node.left && node.left.type === "AssignmentExpression") ||
                     (node.right && node.right.type === "AssignmentExpression")) {
                 return true;
             }
@@ -219,7 +221,8 @@ module.exports = {
 
             if (node.type === "ReturnStatement") {
                 return node.argument && containsAssignment(node.argument);
-            } else if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
+            }
+            if (node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement") {
                 return containsAssignment(node.body);
             }
             return containsAssignment(node);

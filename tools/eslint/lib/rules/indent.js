@@ -235,10 +235,12 @@ class OffsetStorage {
     /**
      * @param {TokenInfo} tokenInfo a TokenInfo instance
      * @param {number} indentSize The desired size of each indentation level
+     * @param {string} indentType The indentation character
      */
-    constructor(tokenInfo, indentSize) {
+    constructor(tokenInfo, indentSize, indentType) {
         this._tokenInfo = tokenInfo;
         this._indentSize = indentSize;
+        this._indentType = indentType;
 
         this._tree = new BinarySearchTree();
         this._tree.insert(0, { offset: 0, from: null, force: false });
@@ -408,7 +410,7 @@ class OffsetStorage {
     /**
     * Gets the desired indent of a token
     * @param {Token} token The token
-    * @returns {number} The desired indent of the token
+    * @returns {string} The desired indent of the token
     */
     getDesiredIndent(token) {
         if (!this._desiredIndentCache.has(token)) {
@@ -417,7 +419,10 @@ class OffsetStorage {
 
                 // If the token is ignored, use the actual indent of the token as the desired indent.
                 // This ensures that no errors are reported for this token.
-                this._desiredIndentCache.set(token, this._tokenInfo.getTokenIndent(token).length / this._indentSize);
+                this._desiredIndentCache.set(
+                    token,
+                    this._tokenInfo.getTokenIndent(token)
+                );
             } else if (this._lockedFirstTokens.has(token)) {
                 const firstToken = this._lockedFirstTokens.get(token);
 
@@ -428,7 +433,7 @@ class OffsetStorage {
                     this.getDesiredIndent(this._tokenInfo.getFirstTokenOfLine(firstToken)) +
 
                         // (space between the start of the first element's line and the first element)
-                        (firstToken.loc.start.column - this._tokenInfo.getFirstTokenOfLine(firstToken).loc.start.column) / this._indentSize
+                        this._indentType.repeat(firstToken.loc.start.column - this._tokenInfo.getFirstTokenOfLine(firstToken).loc.start.column)
                 );
             } else {
                 const offsetInfo = this._getOffsetDescriptor(token);
@@ -436,9 +441,12 @@ class OffsetStorage {
                     offsetInfo.from &&
                     offsetInfo.from.loc.start.line === token.loc.start.line &&
                     !offsetInfo.force
-                ) ? 0 : offsetInfo.offset;
+                ) ? 0 : offsetInfo.offset * this._indentSize;
 
-                this._desiredIndentCache.set(token, offset + (offsetInfo.from ? this.getDesiredIndent(offsetInfo.from) : 0));
+                this._desiredIndentCache.set(
+                    token,
+                    (offsetInfo.from ? this.getDesiredIndent(offsetInfo.from) : "") + this._indentType.repeat(offset)
+                );
             }
         }
         return this._desiredIndentCache.get(token);
@@ -655,7 +663,7 @@ module.exports = {
 
         const sourceCode = context.getSourceCode();
         const tokenInfo = new TokenInfo(sourceCode);
-        const offsets = new OffsetStorage(tokenInfo, indentSize);
+        const offsets = new OffsetStorage(tokenInfo, indentSize, indentType === "space" ? " " : "\t");
         const parameterParens = new WeakSet();
 
         /**
@@ -688,27 +696,24 @@ module.exports = {
         /**
          * Reports a given indent violation
          * @param {Token} token Token violating the indent rule
-         * @param {int} neededIndentLevel Expected indentation level
-         * @param {int} gottenSpaces Actual number of indentation spaces for the token
-         * @param {int} gottenTabs Actual number of indentation tabs for the token
+         * @param {string} neededIndent Expected indentation string
          * @returns {void}
          */
-        function report(token, neededIndentLevel) {
+        function report(token, neededIndent) {
             const actualIndent = Array.from(tokenInfo.getTokenIndent(token));
             const numSpaces = actualIndent.filter(char => char === " ").length;
             const numTabs = actualIndent.filter(char => char === "\t").length;
-            const neededChars = neededIndentLevel * indentSize;
 
             context.report({
                 node: token,
-                message: createErrorMessage(neededChars, numSpaces, numTabs),
+                message: createErrorMessage(neededIndent.length, numSpaces, numTabs),
                 loc: {
                     start: { line: token.loc.start.line, column: 0 },
                     end: { line: token.loc.start.line, column: token.loc.start.column }
                 },
                 fix(fixer) {
                     const range = [token.range[0] - token.loc.start.column, token.range[0]];
-                    const newText = (indentType === "space" ? " " : "\t").repeat(neededChars);
+                    const newText = neededIndent;
 
                     return fixer.replaceTextRange(range, newText);
                 }
@@ -718,14 +723,13 @@ module.exports = {
         /**
          * Checks if a token's indentation is correct
          * @param {Token} token Token to examine
-         * @param {int} desiredIndentLevel needed indent level
+         * @param {string} desiredIndent Desired indentation of the string
          * @returns {boolean} `true` if the token's indentation is correct
          */
-        function validateTokenIndent(token, desiredIndentLevel) {
+        function validateTokenIndent(token, desiredIndent) {
             const indentation = tokenInfo.getTokenIndent(token);
-            const expectedChar = indentType === "space" ? " " : "\t";
 
-            return indentation === expectedChar.repeat(desiredIndentLevel * indentSize) ||
+            return indentation === desiredIndent ||
 
                 // To avoid conflicts with no-mixed-spaces-and-tabs, don't report mixed spaces and tabs.
                 indentation.includes(" ") && indentation.includes("\t");
@@ -1241,7 +1245,9 @@ module.exports = {
             NewExpression(node) {
 
                 // Only indent the arguments if the NewExpression has parens (e.g. `new Foo(bar)` or `new Foo()`, but not `new Foo`
-                if (node.arguments.length > 0 || astUtils.isClosingParenToken(sourceCode.getLastToken(node)) && astUtils.isOpeningParenToken(sourceCode.getLastToken(node, 1))) {
+                if (node.arguments.length > 0 ||
+                        astUtils.isClosingParenToken(sourceCode.getLastToken(node)) &&
+                        astUtils.isOpeningParenToken(sourceCode.getLastToken(node, 1))) {
                     addFunctionCallIndent(node);
                 }
             },

@@ -191,6 +191,12 @@ module.exports = optionator({
             description: "Automatically fix problems"
         },
         {
+            option: "fix-dry-run",
+            type: "Boolean",
+            default: false,
+            description: "Automatically fix problems without saving the changes to the file system"
+        },
+        {
             option: "debug",
             type: "Boolean",
             default: false,

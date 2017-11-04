@@ -215,8 +215,12 @@ module.exports = {
         * @returns {Object} A fix for this node
         */
         function makeFunctionShorthand(fixer, node) {
-            const firstKeyToken = node.computed ? sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken) : sourceCode.getFirstToken(node.key);
-            const lastKeyToken = node.computed ? sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken) : sourceCode.getLastToken(node.key);
+            const firstKeyToken = node.computed
+                ? sourceCode.getFirstToken(node, astUtils.isOpeningBracketToken)
+                : sourceCode.getFirstToken(node.key);
+            const lastKeyToken = node.computed
+                ? sourceCode.getFirstTokenBetween(node.key, node.value, astUtils.isClosingBracketToken)
+                : sourceCode.getLastToken(node.key);
             const keyText = sourceCode.text.slice(firstKeyToken.range[0], lastKeyToken.range[1]);
             let keyPrefix = "";
 
