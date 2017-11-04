@@ -95,7 +95,8 @@ as named exports.
 In both cases, this should be thought of  like a "snapshot" of the exports at
 the time of importing; asynchronously modifying `module.exports` will not
 affect the values of the exports. Builtin libraries are provided with named
-exports as if they were using `@@esModuleInterop`.
+exports as if they were using `@@esModuleInterop`, as well as the
+`module.exports` of the builtin provided as the `default` export.
 
 
 ```js
