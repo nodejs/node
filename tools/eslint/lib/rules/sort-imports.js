@@ -67,9 +67,11 @@ module.exports = {
         function usedMemberSyntax(node) {
             if (node.specifiers.length === 0) {
                 return "none";
-            } else if (node.specifiers[0].type === "ImportNamespaceSpecifier") {
+            }
+            if (node.specifiers[0].type === "ImportNamespaceSpecifier") {
                 return "all";
-            } else if (node.specifiers.length === 1) {
+            }
+            if (node.specifiers.length === 1) {
                 return "single";
             }
             return "multiple";
@@ -149,7 +151,8 @@ module.exports = {
                             message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
                             data: { memberName: importSpecifiers[firstUnsortedIndex].local.name },
                             fix(fixer) {
-                                if (importSpecifiers.some(specifier => sourceCode.getCommentsBefore(specifier).length || sourceCode.getCommentsAfter(specifier).length)) {
+                                if (importSpecifiers.some(specifier =>
+                                    sourceCode.getCommentsBefore(specifier).length || sourceCode.getCommentsAfter(specifier).length)) {
 
                                     // If there are comments in the ImportSpecifier list, don't rearrange the specifiers.
                                     return null;

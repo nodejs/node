@@ -49,7 +49,7 @@ module.exports = {
 
         const options = context.options[0] || {},
             skipBlankLines = options.skipBlankLines || false,
-            ignoreComments = typeof options.ignoreComments === "undefined" || options.ignoreComments;
+            ignoreComments = typeof options.ignoreComments === "boolean" && options.ignoreComments;
 
         /**
          * Report the error message
