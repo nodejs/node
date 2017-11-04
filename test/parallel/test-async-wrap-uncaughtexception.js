@@ -13,7 +13,7 @@ let hooks = null;
 
 process.on('beforeExit', common.mustCall(() => {
   process.removeAllListeners('uncaughtException');
-  hooks.disable();
+  //hooks.disable();
   assert.strictEqual(typeof call_id, 'number');
   assert.deepStrictEqual(call_log, [1, 1, 1, 1]);
 }));
@@ -33,7 +33,8 @@ hooks = async_hooks.createHook({
 }).enable();
 
 
-process.on('uncaughtException', common.mustCall(() => {
+process.on('uncaughtException', common.mustCall((exception) => {
+  process._rawDebug('uncaughtException sees exception:', exception);
   assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[2]++;
 }));
@@ -42,5 +43,5 @@ process.on('uncaughtException', common.mustCall(() => {
 require('crypto').randomBytes(1, common.mustCall(() => {
   assert.strictEqual(call_id, async_hooks.executionAsyncId());
   call_log[1]++;
-  throw new Error();
+  throw new Error('this exception should be seen by uncaughtException');
 }));

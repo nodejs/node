@@ -4523,7 +4523,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       if (more)
         continue;
 
+      fprintf(stderr, "before emitting beforeExit. alive = %d\n", uv_loop_alive(env.event_loop()));
+      uv_print_all_handles(env.event_loop(), stderr);
       EmitBeforeExit(&env);
+      fprintf(stderr, "after emitting beforeExit. alive = %d\n", uv_loop_alive(env.event_loop()));
+      uv_print_all_handles(env.event_loop(), stderr);
 
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
