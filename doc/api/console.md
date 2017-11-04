@@ -216,7 +216,7 @@ undefined
 >
 ```
 
-### console.countReset([label = 'default'])
+### console.countReset([label='default'])
 <!-- YAML
 added: v8.3.0
 -->
@@ -293,7 +293,7 @@ values are concatenated. See [`util.format()`][] for more information.
 added: v8.5.0
 -->
 
-* `label` {any}
+* `...label` {any}
 
 Increases indentation of subsequent lines by two spaces.
 
