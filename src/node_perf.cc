@@ -213,6 +213,7 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
                               void* data) {
   Environment* env = static_cast<Environment*>(data);
   uv_async_t* async = new uv_async_t();  // coverity[leaked_storage]
+  fprintf(stderr, "shooting into the dark here.\n");
   if (uv_async_init(env->event_loop(), async, PerformanceGCCallback))
     return delete async;
   async->data =
