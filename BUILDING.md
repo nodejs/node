@@ -238,7 +238,8 @@ Prerequisites:
 * **Optional** (to build the MSI): the [WiX Toolset v3.11](http://wixtoolset.org/releases/)
   and the [Wix Toolset Visual Studio 2017 Extension](https://marketplace.visualstudio.com/items?itemName=RobMensching.WixToolsetVisualStudio2017Extension).
 
-If the path to your build directory contains a space, the build will likely fail.
+If the path to your build directory contains a space or a non-ASCII character, the
+build will likely fail.
 
 ```console
 > .\vcbuild
