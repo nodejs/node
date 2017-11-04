@@ -368,6 +368,20 @@ class Http2Settings {
   MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
 };
 
+class Http2Priority {
+ public:
+  Http2Priority(Environment* env,
+                Local<Value> parent,
+                Local<Value> weight,
+                Local<Value> exclusive);
+
+  nghttp2_priority_spec* operator*() {
+    return &spec;
+  }
+ private:
+  nghttp2_priority_spec spec;
+};
+
 class Http2Session : public AsyncWrap,
                      public StreamBase,
                      public Nghttp2Session {
