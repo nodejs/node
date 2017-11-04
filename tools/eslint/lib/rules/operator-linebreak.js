@@ -87,7 +87,9 @@ module.exports = {
                 if (hasLinebreakBefore !== hasLinebreakAfter && desiredStyle !== "none") {
 
                     // If there is a comment before and after the operator, don't do a fix.
-                    if (sourceCode.getTokenBefore(operatorToken, { includeComments: true }) !== tokenBefore && sourceCode.getTokenAfter(operatorToken, { includeComments: true }) !== tokenAfter) {
+                    if (sourceCode.getTokenBefore(operatorToken, { includeComments: true }) !== tokenBefore &&
+                        sourceCode.getTokenAfter(operatorToken, { includeComments: true }) !== tokenAfter) {
+
                         return null;
                     }
 

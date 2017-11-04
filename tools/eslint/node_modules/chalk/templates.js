@@ -1,28 +1,28 @@
 'use strict';
-const TEMPLATE_REGEX = /(?:\\(u[a-f0-9]{4}|x[a-f0-9]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi;
+const TEMPLATE_REGEX = /(?:\\(u[a-f\d]{4}|x[a-f\d]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi;
 const STYLE_REGEX = /(?:^|\.)(\w+)(?:\(([^)]*)\))?/g;
 const STRING_REGEX = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/;
-const ESCAPE_REGEX = /\\(u[0-9a-f]{4}|x[0-9a-f]{2}|.)|([^\\])/gi;
+const ESCAPE_REGEX = /\\(u[a-f\d]{4}|x[a-f\d]{2}|.)|([^\\])/gi;
 
-const ESCAPES = {
-	n: '\n',
-	r: '\r',
-	t: '\t',
-	b: '\b',
-	f: '\f',
-	v: '\v',
-	0: '\0',
-	'\\': '\\',
-	e: '\u001b',
-	a: '\u0007'
-};
+const ESCAPES = new Map([
+	['n', '\n'],
+	['r', '\r'],
+	['t', '\t'],
+	['b', '\b'],
+	['f', '\f'],
+	['v', '\v'],
+	['0', '\0'],
+	['\\', '\\'],
+	['e', '\u001B'],
+	['a', '\u0007']
+]);
 
 function unescape(c) {
 	if ((c[0] === 'u' && c.length === 5) || (c[0] === 'x' && c.length === 3)) {
 		return String.fromCharCode(parseInt(c.slice(1), 16));
 	}
 
-	return ESCAPES[c] || c;
+	return ESCAPES.get(c) || c;
 }
 
 function parseArguments(name, args) {

@@ -71,7 +71,8 @@ function isShadowed(scope, node) {
 function isGlobalThisReferenceOrGlobalWindow(scope, node) {
     if (scope.type === "global" && node.type === "ThisExpression") {
         return true;
-    } else if (node.name === "window") {
+    }
+    if (node.name === "window") {
         return !isShadowed(scope, node);
     }
 

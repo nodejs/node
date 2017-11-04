@@ -226,8 +226,10 @@ module.exports = {
         function checkJSDoc(node) {
             const jsdocNode = sourceCode.getJSDocComment(node),
                 functionData = fns.pop(),
-                params = Object.create(null);
+                params = Object.create(null),
+                paramsTags = [];
             let hasReturns = false,
+                returnsTag,
                 hasConstructor = false,
                 isInterface = false,
                 isOverride = false,
@@ -261,43 +263,13 @@ module.exports = {
                         case "param":
                         case "arg":
                         case "argument":
-                            if (!tag.type) {
-                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter type for '{{name}}'.", data: { name: tag.name } });
-                            }
-
-                            if (!tag.description && requireParamDescription) {
-                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter description for '{{name}}'.", data: { name: tag.name } });
-                            }
-
-                            if (params[tag.name]) {
-                                context.report({ node: jsdocNode, message: "Duplicate JSDoc parameter '{{name}}'.", data: { name: tag.name } });
-                            } else if (tag.name.indexOf(".") === -1) {
-                                params[tag.name] = 1;
-                            }
+                            paramsTags.push(tag);
                             break;
 
                         case "return":
                         case "returns":
                             hasReturns = true;
-
-                            if (!requireReturn && !functionData.returnPresent && (tag.type === null || !isValidReturnType(tag)) && !isAbstract) {
-                                context.report({
-                                    node: jsdocNode,
-                                    message: "Unexpected @{{title}} tag; function has no return statement.",
-                                    data: {
-                                        title: tag.title
-                                    }
-                                });
-                            } else {
-                                if (requireReturnType && !tag.type) {
-                                    context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
-                                }
-
-                                if (!isValidReturnType(tag) && !tag.description && requireReturnDescription) {
-                                    context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
-                                }
-                            }
-
+                            returnsTag = tag;
                             break;
 
                         case "constructor":
@@ -332,6 +304,40 @@ module.exports = {
                         validateType(jsdocNode, tag.type);
                     }
                 });
+
+                paramsTags.forEach(param => {
+                    if (!param.type) {
+                        context.report({ node: jsdocNode, message: "Missing JSDoc parameter type for '{{name}}'.", data: { name: param.name } });
+                    }
+                    if (!param.description && requireParamDescription) {
+                        context.report({ node: jsdocNode, message: "Missing JSDoc parameter description for '{{name}}'.", data: { name: param.name } });
+                    }
+                    if (params[param.name]) {
+                        context.report({ node: jsdocNode, message: "Duplicate JSDoc parameter '{{name}}'.", data: { name: param.name } });
+                    } else if (param.name.indexOf(".") === -1) {
+                        params[param.name] = 1;
+                    }
+                });
+
+                if (hasReturns) {
+                    if (!requireReturn && !functionData.returnPresent && (returnsTag.type === null || !isValidReturnType(returnsTag)) && !isAbstract) {
+                        context.report({
+                            node: jsdocNode,
+                            message: "Unexpected @{{title}} tag; function has no return statement.",
+                            data: {
+                                title: returnsTag.title
+                            }
+                        });
+                    } else {
+                        if (requireReturnType && !returnsTag.type) {
+                            context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
+                        }
+
+                        if (!isValidReturnType(returnsTag) && !returnsTag.description && requireReturnDescription) {
+                            context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
+                        }
+                    }
+                }
 
                 // check for functions missing @returns
                 if (!isOverride && !hasReturns && !hasConstructor && !isInterface &&

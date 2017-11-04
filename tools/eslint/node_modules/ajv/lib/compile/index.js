@@ -3,7 +3,7 @@
 var resolve = require('./resolve')
   , util = require('./util')
   , errorClasses = require('./error_classes')
-  , stableStringify = require('json-stable-stringify');
+  , stableStringify = require('fast-json-stable-stringify');
 
 var validateGenerator = require('../dotjs/validate');
 

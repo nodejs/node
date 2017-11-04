@@ -208,7 +208,9 @@ module.exports = {
                     if (item) {
                         const tokenAfterItem = sourceCode.getTokenAfter(item, astUtils.isNotClosingParenToken);
 
-                        previousItemToken = tokenAfterItem ? sourceCode.getTokenBefore(tokenAfterItem) : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                        previousItemToken = tokenAfterItem
+                            ? sourceCode.getTokenBefore(tokenAfterItem)
+                            : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
                     }
                 });
 

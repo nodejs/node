@@ -733,7 +733,9 @@ module.exports = {
                         } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
                             const parentElements = node.parent.type === "ObjectExpression" ? node.parent.properties : node.parent.elements;
 
-                            if (parentElements[0] && parentElements[0].loc.start.line === parent.loc.start.line && parentElements[0].loc.end.line !== parent.loc.start.line) {
+                            if (parentElements[0] &&
+                                    parentElements[0].loc.start.line === parent.loc.start.line &&
+                                    parentElements[0].loc.end.line !== parent.loc.start.line) {
 
                                 /*
                                  * If the first element of the array spans multiple lines, don't increase the expected indentation of the rest.
@@ -797,7 +799,8 @@ module.exports = {
                 }
             }
 
-            checkLastNodeLineIndent(node, nodeIndent + (isNodeInVarOnTop(node, parentVarNode) ? options.VariableDeclarator[parentVarNode.parent.kind] * indentSize : 0));
+            checkLastNodeLineIndent(node, nodeIndent +
+                (isNodeInVarOnTop(node, parentVarNode) ? options.VariableDeclarator[parentVarNode.parent.kind] * indentSize : 0));
         }
 
         /**

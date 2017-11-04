@@ -9,7 +9,7 @@
 
 > Terminal string styling done right
 
-[![Build Status](https://travis-ci.org/chalk/chalk.svg?branch=master)](https://travis-ci.org/chalk/chalk) [![Coverage Status](https://coveralls.io/repos/github/chalk/chalk/badge.svg?branch=master)](https://coveralls.io/github/chalk/chalk?branch=master) [![](https://img.shields.io/badge/unicorn-approved-ff69b4.svg)](https://www.youtube.com/watch?v=9auOCbH5Ns4) [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/sindresorhus/xo)
+[![Build Status](https://travis-ci.org/chalk/chalk.svg?branch=master)](https://travis-ci.org/chalk/chalk) [![Coverage Status](https://coveralls.io/repos/github/chalk/chalk/badge.svg?branch=master)](https://coveralls.io/github/chalk/chalk?branch=master) [![](https://img.shields.io/badge/unicorn-approved-ff69b4.svg)](https://www.youtube.com/watch?v=9auOCbH5Ns4) [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/sindresorhus/xo) [![Mentioned in Awesome Node.js](https://awesome.re/mentioned-badge.svg)](https://github.com/sindresorhus/awesome-nodejs)
 
 ### [See what's new in Chalk 2](https://github.com/chalk/chalk/releases/tag/v2.0.0)
 
@@ -170,6 +170,7 @@ Explicit 256/Truecolor mode can be enabled using the `--color=256` and `--color=
 - `inverse`
 - `hidden`
 - `strikethrough` *(Not widely supported)*
+- `visible` (Text is emitted only if enabled)
 
 ### Colors
 
@@ -286,6 +287,7 @@ If you're on Windows, do yourself a favor and use [`cmder`](http://cmder.net/) i
 - [ansi-styles](https://github.com/chalk/ansi-styles) - ANSI escape codes for styling strings in the terminal
 - [supports-color](https://github.com/chalk/supports-color) - Detect whether a terminal supports color
 - [strip-ansi](https://github.com/chalk/strip-ansi) - Strip ANSI escape codes
+- [strip-ansi-stream](https://github.com/chalk/strip-ansi-stream) - Strip ANSI escape codes from a stream
 - [has-ansi](https://github.com/chalk/has-ansi) - Check if a string has ANSI escape codes
 - [ansi-regex](https://github.com/chalk/ansi-regex) - Regular expression for matching ANSI escape codes
 - [wrap-ansi](https://github.com/chalk/wrap-ansi) - Wordwrap a string with ANSI escape codes
@@ -293,6 +295,7 @@ If you're on Windows, do yourself a favor and use [`cmder`](http://cmder.net/) i
 - [color-convert](https://github.com/qix-/color-convert) - Converts colors between different models
 - [chalk-animation](https://github.com/bokub/chalk-animation) - Animate strings in the terminal
 - [gradient-string](https://github.com/bokub/gradient-string) - Apply color gradients to strings
+- [chalk-pipe](https://github.com/LitoMore/chalk-pipe) - Create chalk style schemes with simpler style strings
 
 
 ## Maintainers
