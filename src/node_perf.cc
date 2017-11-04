@@ -215,6 +215,7 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
   uv_async_t* async = new uv_async_t();  // coverity[leaked_storage]
   if (uv_async_init(env->event_loop(), async, PerformanceGCCallback))
     return delete async;
+  uv_unref(reinterpret_cast<uv_handle_t*>(async));
   async->data =
       new PerformanceEntry::Data(env, "gc", "gc",
                                  performance_last_gc_start_mark_,
