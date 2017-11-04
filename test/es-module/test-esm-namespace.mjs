@@ -10,5 +10,5 @@ assert(fs);
 assert(fs.readFile);
 assert.strictEqual(fs.readFile, readFile);
 
-assert.strictEqual(main, 1);
-assert.strictEqual(named, true);
+assert.strictEqual(main, 'default');
+assert.strictEqual(named, 'named');

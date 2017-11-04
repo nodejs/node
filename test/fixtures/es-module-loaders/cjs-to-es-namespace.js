@@ -1,4 +1,4 @@
-exports.named = true;
-exports.default = 1;
+exports.named = 'named';
+exports.default = 'default';
 
 exports[Symbol.for('esModuleInterop')] = true;
