@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-const StreamWrap = require('_stream_wrap');
+const StreamWrap = require('stream/wrap');
 const Duplex = require('stream').Duplex;
 
 {

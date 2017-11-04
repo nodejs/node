@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const R = require('_stream_readable');
+const R = require('stream/readable');
 const util = require('util');
 
 util.inherits(TestReader, R);

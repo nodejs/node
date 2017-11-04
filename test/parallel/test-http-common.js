@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const httpCommon = require('_http_common');
+const httpCommon = require('http/common');
 const checkIsHttpToken = httpCommon._checkIsHttpToken;
 const checkInvalidHeaderChar = httpCommon._checkInvalidHeaderChar;
 

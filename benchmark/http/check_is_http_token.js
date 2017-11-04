@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const _checkIsHttpToken = require('_http_common')._checkIsHttpToken;
+const _checkIsHttpToken = require('http/common')._checkIsHttpToken;
 
 const bench = common.createBenchmark(main, {
   key: [

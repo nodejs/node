@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-const StreamWrap = require('_stream_wrap');
+const StreamWrap = require('stream/wrap');
 const Duplex = require('stream').Duplex;
 const ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
 

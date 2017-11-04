@@ -22,8 +22,8 @@
 'use strict';
 
 const common = require('../common');
-const Readable = require('_stream_readable');
-const Writable = require('_stream_writable');
+const Readable = require('stream/readable');
+const Writable = require('stream/writable');
 const assert = require('assert');
 
 function toArray(callback) {

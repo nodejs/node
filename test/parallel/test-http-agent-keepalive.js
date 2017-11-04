@@ -23,7 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const Agent = require('_http_agent').Agent;
+const Agent = require('http/agent').Agent;
 
 let name;
 
