@@ -472,6 +472,9 @@ function getSection(lexed) {
   return '';
 }
 
+function getMark(anchor) {
+  return `<span><a class="mark" href="#${anchor}" id="${anchor}">#</a></span>`;
+}
 
 function buildToc(lexed, filename, cb) {
   var toc = [];
@@ -499,12 +502,15 @@ function buildToc(lexed, filename, cb) {
 
     depth = tok.depth;
     const realFilename = path.basename(realFilenames[0], '.md');
-    const id = getId(`${realFilename}_${tok.text.trim()}`);
+    const apiName = tok.text.trim();
+    const id = getId(`${realFilename}_${apiName}`);
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
              `* <span class="stability_${tok.stability}">` +
              `<a href="#${id}">${tok.text}</a></span>`);
-    tok.text += `<span><a class="mark" href="#${id}"` +
-                `id="${id}">#</a></span>`;
+    tok.text += getMark(id);
+    if (realFilename === 'errors' && apiName.startsWith('ERR_')) {
+      tok.text += getMark(apiName);
+    }
   });
 
   toc = marked.parse(toc.join('\n'));
