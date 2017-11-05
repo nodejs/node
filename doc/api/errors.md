@@ -913,6 +913,13 @@ created.
 Used when a message payload is specified for an HTTP response code for which
 a payload is forbidden.
 
+<a id="ERR_HTTP2_PROTOCOL_ERROR"></a>
+### ERR_HTTP2_PROTOCOL_ERROR
+
+Used when a communication error has occurred when attemptinng to use the HTTP/2
+protocol. This typically occurs when attempting to connect an HTTP/2 client to
+a non-HTTP/2 server.
+
 <a id="ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED"></a>
 ### ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED
 
