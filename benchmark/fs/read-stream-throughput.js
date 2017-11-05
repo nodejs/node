@@ -3,7 +3,8 @@
 
 const path = require('path');
 const common = require('../common.js');
-const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const filename = path.resolve(__dirname,
+                              `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
 const assert = require('assert');
 
