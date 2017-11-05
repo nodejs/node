@@ -21,7 +21,7 @@
 
 'use strict';
 require('../common');
-const R = require('_stream_readable');
+const R = require('internal/streams/readable');
 const W = require('_stream_writable');
 const assert = require('assert');
 

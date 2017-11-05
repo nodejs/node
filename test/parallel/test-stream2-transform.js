@@ -22,8 +22,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const PassThrough = require('_stream_passthrough');
-const Transform = require('_stream_transform');
+const PassThrough = require('internal/streams/passthrough');
+const Transform = require('internal/streams/transform');
 
 {
   // Verify writable side consumption

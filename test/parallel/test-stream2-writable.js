@@ -23,7 +23,7 @@
 
 const common = require('../common');
 const W = require('_stream_writable');
-const D = require('_stream_duplex');
+const D = require('internal/streams/duplex');
 const assert = require('assert');
 
 const util = require('util');

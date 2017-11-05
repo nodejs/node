@@ -14,7 +14,7 @@ const server = net.Server(common.mustCall(function(raw) {
     raw.destroy();
     server.close();
   }));
-  require('_tls_legacy').pipe(pair, raw);
+  require('internal/tls/legacy').pipe(pair, raw);
 })).listen(0, function() {
   tls.connect({
     port: this.address().port,

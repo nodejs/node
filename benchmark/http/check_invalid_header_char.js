@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
-const _checkInvalidHeaderChar = require('_http_common')._checkInvalidHeaderChar;
+const { _checkInvalidHeaderChar } = require('internal/http/common');
 
 const bench = common.createBenchmark(main, {
   key: [

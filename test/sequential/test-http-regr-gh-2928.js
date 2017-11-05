@@ -4,7 +4,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const httpCommon = require('_http_common');
+const httpCommon = require('internal/http/common');
 const HTTPParser = process.binding('http_parser').HTTPParser;
 const net = require('net');
 

@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const Readable = require('_stream_readable');
+const Readable = require('internal/streams/readable');
 const Writable = require('_stream_writable');
 const EE = require('events').EventEmitter;
 

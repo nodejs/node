@@ -737,6 +737,29 @@ Type: Runtime
 internal mechanics of the `REPLServer` itself, and is therefore not
 necessary in user space.
 
+<a id="DEP00XX"></a>
+### DEP00XX: `_http_*`, `_stream_*`, `_tls_*`
+
+Type: Runtime
+
+| Old                   | New                    |
+|-----------------------|------------------------|
+| `_http_agent`         | `http.Agent`           |
+| `_http_client`        | `http.ClientRequest`   |
+| `_http_common`        | `http` (partial)       |
+| `_http_incoming`      | `http.IncomingMessage` |
+| `_http_outgoing`      | `http.OutgoingMessage` |
+| `_http_server`        | `http.Server`          |
+| `_stream_duplex`      | `stream.Duplex`        |
+| `_stream_passthrough` | `stream.PassThrough`   |
+| `_stream_readable`    | `stream.Readable`      |
+| `_stream_transform`   | `stream.Transform`     |
+| `_stream_wrap`        | *N/A*                  |
+| `_stream_writable`    | `stream.Writable`      |
+| `_tls_common`         | `tls` (partial)        |
+| `_tls_legacy`         | `tls`                  |
+| `_tls_wrap`           | *N/A*                  |
+
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

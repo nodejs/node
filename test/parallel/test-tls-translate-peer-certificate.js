@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const { strictEqual, deepStrictEqual } = require('assert');
-const { translatePeerCertificate } = require('_tls_common');
+const { translatePeerCertificate } = require('internal/tls/common');
 
 const certString = '__proto__=42\nA=1\nB=2\nC=3';
 const certObject = Object.create(null);
