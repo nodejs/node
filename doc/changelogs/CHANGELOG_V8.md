@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.9.1">8.9.1</a><br/>
 <a href="#8.9.0">8.9.0</a><br/>
 </td>
 <td valign="top">
@@ -43,6 +44,32 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.9.1"></a>
+## 2017-11-07, Version 8.9.1 'Carbon' (LTS), @gibfahn
+
+### Notable Changes
+
+- **openssl**:
+  - upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+- ***Revert*** "**https**:
+  - refactor to use http internals" (Myles Borins) [#16660](https://github.com/nodejs/node/pull/16660)
+
+### Commits
+
+* [[`6a7e5ceaa9`](https://github.com/nodejs/node/commit/6a7e5ceaa9)] - **deps**: V8: cherry-pick 32141e9 from upstream (Ali Ijaz Sheikh) [#16704](https://github.com/nodejs/node/pull/16704)
+* [[`a815e1b6a2`](https://github.com/nodejs/node/commit/a815e1b6a2)] - **deps**: cherry-pick e7f4e9e from upstream libuv (Bartosz Sosnowski) [#16724](https://github.com/nodejs/node/pull/16724)
+* [[`7f86e8190c`](https://github.com/nodejs/node/commit/7f86e8190c)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`1af2244020`](https://github.com/nodejs/node/commit/1af2244020)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`9d98dcc395`](https://github.com/nodejs/node/commit/9d98dcc395)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`99319efc45`](https://github.com/nodejs/node/commit/99319efc45)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`151a8da4b7`](https://github.com/nodejs/node/commit/151a8da4b7)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`d68e53452c`](https://github.com/nodejs/node/commit/d68e53452c)] - **deps**: upgrade openssl sources to 1.0.2m (Shigeki Ohtsu) [#16691](https://github.com/nodejs/node/pull/16691)
+* [[`a3be5bc560`](https://github.com/nodejs/node/commit/a3be5bc560)] - **doc**: add 9.x to version picker and mark 8.x as LTS (Chris Young) [#16672](https://github.com/nodejs/node/pull/16672)
+* [[`08b75c1591`](https://github.com/nodejs/node/commit/08b75c1591)] - ***Revert*** "**https**: refactor to use http internals" (Myles Borins) [#16660](https://github.com/nodejs/node/pull/16660)
+* [[`d334a95834`](https://github.com/nodejs/node/commit/d334a95834)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`bf26b96fd6`](https://github.com/nodejs/node/commit/bf26b96fd6)] - **src**: add 'dynamic' process.release.lts property (Rod Vagg) [#16656](https://github.com/nodejs/node/pull/16656)
+* [[`dfac6cc0bb`](https://github.com/nodejs/node/commit/dfac6cc0bb)] - **test**: update process-release for Node 8 Carbon (Jeremiah Senkpiel) [#16656](https://github.com/nodejs/node/pull/16656)
 
 <a id="8.9.0"></a>
 ## 2017-10-31, Version 8.9.0 'Carbon' (LTS), @gibfahn
