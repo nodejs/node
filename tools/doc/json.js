@@ -257,7 +257,7 @@ function processList(section) {
                         JSON.stringify(list));
       }
       current.textRaw = current.textRaw || '';
-      current.textRaw += `${tok.text} `;
+      current.textRaw = `${current.textRaw}${tok.text} `;
     }
   });
 
