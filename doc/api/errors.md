@@ -754,6 +754,11 @@ more headers.
 Used when an invalid character is found in an HTTP response status message
 (reason phrase).
 
+<a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
+### ERR_HTTP_INVALID_HEADER_VALUE
+
+Used to indicate that an invalid HTTP header value has been specified.
+
 <a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
 ### ERR_HTTP_INVALID_STATUS_CODE
 
@@ -837,7 +842,7 @@ requests and responses.
 <a id="ERR_HTTP2_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP2_INVALID_HEADER_VALUE
 
-Used to indicate that an invalid HTTP/2 header value has been specified.
+Used to indicate that an invalid HTTP2 header value has been specified.
 
 <a id="ERR_HTTP2_INVALID_INFO_STATUS"></a>
 ### ERR_HTTP2_INVALID_INFO_STATUS

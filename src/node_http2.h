@@ -158,6 +158,7 @@ HTTP_KNOWN_HEADER_MAX
   V(CONTINUE, 100)                                                            \
   V(SWITCHING_PROTOCOLS, 101)                                                 \
   V(PROCESSING, 102)                                                          \
+  V(EARLY_HINTS, 103)                                                         \
   V(OK, 200)                                                                  \
   V(CREATED, 201)                                                             \
   V(ACCEPTED, 202)                                                            \
@@ -291,14 +292,6 @@ const char* nghttp2_errname(int rv) {
   }
 }
 
-#define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
-#define DEFAULT_SETTINGS_ENABLE_PUSH 1
-#define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
-#define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
-#define MAX_MAX_FRAME_SIZE 16777215
-#define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
-#define MAX_INITIAL_WINDOW_SIZE 2147483647
-
 // This allows for 4 default-sized frames with their frame headers
 static const size_t kAllocBufferSize = 4 * (16384 + 9);
 
@@ -323,19 +316,25 @@ class Http2Options {
     return options_;
   }
 
+  void SetMaxHeaderPairs(uint32_t max) {
+    max_header_pairs_ = max;
+  }
+
+  uint32_t GetMaxHeaderPairs() const {
+    return max_header_pairs_;
+  }
+
   void SetPaddingStrategy(padding_strategy_type val) {
-#if DEBUG
-    CHECK_LE(val, PADDING_STRATEGY_CALLBACK);
-#endif
     padding_strategy_ = static_cast<padding_strategy_type>(val);
   }
 
-  padding_strategy_type GetPaddingStrategy() {
+  padding_strategy_type GetPaddingStrategy() const {
     return padding_strategy_;
   }
 
  private:
   nghttp2_option* options_;
+  uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
 };
 
@@ -412,7 +411,8 @@ class Http2Session : public AsyncWrap,
 
   void OnHeaders(
       Nghttp2Stream* stream,
-      std::queue<nghttp2_header>* headers,
+      nghttp2_header* headers,
+      size_t count,
       nghttp2_headers_category cat,
       uint8_t flags) override;
   void OnStreamClose(int32_t id, uint32_t code) override;
