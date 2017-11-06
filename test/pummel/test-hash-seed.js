@@ -1,6 +1,6 @@
 'use strict';
 
-// Check that spawn child don't create duplicated entries
+// Check that spawn child doesn't create duplicated entries
 require('common');
 const REPETITIONS = 2;
 const assert = require('assert');
