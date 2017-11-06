@@ -1154,8 +1154,7 @@ added: v0.11.13
 -->
 
 The default curve name to use for ECDH key agreement in a tls server. The
-default value is `'prime256v1'` (NIST P-256). Consult [RFC 4492] and
-[FIPS.186-4] for more details.
+default value is `'auto'`. See [`tls.createSecureContext()`] for further information.
 
 
 ## Deprecated APIs
@@ -1286,13 +1285,11 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[FIPS.186-4]: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [Stream]: stream.html#stream_stream
