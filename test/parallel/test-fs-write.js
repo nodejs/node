@@ -33,40 +33,43 @@ common.refreshTmpDir();
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);
-  console.log('open done');
-  fs.write(fd, '', 0, 'utf8', function(err, written) {
-    assert.strictEqual(0, written);
-  });
-  fs.write(fd, expected, 0, 'utf8', common.mustCall(function(err, written) {
-    console.log('write done');
+
+  const done = common.mustCall(function(err, written) {
     assert.ifError(err);
     assert.strictEqual(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     const found = fs.readFileSync(fn, 'utf8');
-    console.log('expected: "%s"', expected);
-    console.log('found: "%s"', found);
     fs.unlinkSync(fn);
     assert.strictEqual(expected, found);
-  }));
+  });
+
+  const written = common.mustCall(function(err, written) {
+    assert.ifError(err);
+    assert.strictEqual(0, written);
+  });
+
+  fs.write(fd, '', 0, 'utf8', written);
+  fs.write(fd, expected, 0, 'utf8', done);
 }));
 
+const args = constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC;
+fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
+  assert.ifError(err);
 
-fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0o644,
-        common.mustCall((err, fd) => {
-          assert.ifError(err);
-          console.log('open done');
-          fs.write(fd, '', 0, 'utf8', (err, written) => {
-            assert.strictEqual(0, written);
-          });
-          fs.write(fd, expected, 0, 'utf8', common.mustCall((err, written) => {
-            console.log('write done');
-            assert.ifError(err);
-            assert.strictEqual(Buffer.byteLength(expected), written);
-            fs.closeSync(fd);
-            const found = fs.readFileSync(fn2, 'utf8');
-            console.log('expected: "%s"', expected);
-            console.log('found: "%s"', found);
-            fs.unlinkSync(fn2);
-            assert.strictEqual(expected, found);
-          }));
-        }));
+  const done = common.mustCall((err, written) => {
+    assert.ifError(err);
+    assert.strictEqual(Buffer.byteLength(expected), written);
+    fs.closeSync(fd);
+    const found = fs.readFileSync(fn2, 'utf8');
+    fs.unlinkSync(fn2);
+    assert.strictEqual(expected, found);
+  });
+
+  const written = common.mustCall(function(err, written) {
+    assert.ifError(err);
+    assert.strictEqual(0, written);
+  });
+
+  fs.write(fd, '', 0, 'utf8', written);
+  fs.write(fd, expected, 0, 'utf8', done);
+}));
