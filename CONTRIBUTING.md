@@ -334,6 +334,14 @@ use `Refs:`.
    - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
    - `Refs: https://github.com/nodejs/node/pull/3615`
 
+5. If your commit introduces a breaking change (`semver-major`), it should
+contain an explanation about the reason of the breaking change, which
+situation would trigger the breaking change and what is the exact change.
+
+Breaking changes will be listed in the wiki with the aim to make upgrading
+easier.  Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki/Breaking-changes-between-v4-LTS-and-v6-LTS)
+for the level of detail that's suitable.
+
 Sample complete commit message:
 
 ```txt
@@ -625,6 +633,7 @@ Focus first on the most significant aspects of the change:
 1. Does this change make sense for Node.js?
 2. Does this change make Node.js better, even if only incrementally?
 3. Are there clear bugs or larger scale issues that need attending to?
+4. Is the commit message readable and correct? If it contains a breaking change is it clear enough?
 
 When changes are necessary, *request* them, do not *demand* them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
