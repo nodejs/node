@@ -49,7 +49,9 @@ arrayTypes.forEach((currentType) => {
   const theArray = test_typedarray.CreateTypedArray(template, buffer);
 
   assert.ok(theArray instanceof currentType,
-            'Type of new array should match that of the template');
+            'Type of new array should match that of the template. ' +
+            `Expected type: ${currentType.name}, ` +
+            `actual type: ${template.constructor.name}`);
   assert.notStrictEqual(theArray, template);
   assert.strictEqual(theArray.buffer, buffer);
 });
