@@ -76,23 +76,3 @@ function testBuf(encoding, buf) {
   const result = decoder.write(euroPart2);
   assert.notStrictEqual(result, '€');
 }
-
-{
-  // test to check if write after end reopens the decoder
-  const decoder = new SD();
-  assert.strictEqual(decoder._closed, false);
-  decoder.end();
-  assert.strictEqual(decoder._closed, true);
-  decoder.write(Buffer.from([0xE2]));
-  assert.strictEqual(decoder._closed, false);
-}
-
-{
-  // test to check if reset after end reopens the decoder
-  const decoder = new SD();
-  assert.strictEqual(decoder._closed, false);
-  decoder.end();
-  assert.strictEqual(decoder._closed, true);
-  decoder.reset();
-  assert.strictEqual(decoder._closed, false);
-}
