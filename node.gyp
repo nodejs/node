@@ -297,13 +297,24 @@
         '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
       ],
 
+      'variables': {
+        'openssl_system_ca_path%': '',
+      },
+
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
         # Warn when using deprecated V8 APIs.
         'V8_DEPRECATION_WARNINGS=1',
+        'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
       ],
+
+      'direct_dependent_settings': {
+        'defines': [
+          'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
+        ],
+      },
     },
     {
       'target_name': 'mkssldef',
