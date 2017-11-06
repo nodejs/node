@@ -268,7 +268,7 @@ property can be used. If this value is not a positive number, a `TypeError`
 will be thrown.
 
 Take caution when setting the `EventEmitter.defaultMaxListeners` because the
-change effects *all* `EventEmitter` instances, including those created before
+change affects *all* `EventEmitter` instances, including those created before
 the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
 precedence over `EventEmitter.defaultMaxListeners`.
 
