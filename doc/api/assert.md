@@ -12,7 +12,7 @@ test invariants.
 added: v0.5.9
 -->
 * `value` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 An alias of [`assert.ok()`][].
 
@@ -38,7 +38,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests for deep equality between the `actual` and `expected` parameters.
 Primitive values are compared with the [Abstract Equality Comparison][]
@@ -132,7 +132,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Identical to [`assert.deepEqual()`][] with the following exceptions:
 
@@ -216,7 +216,7 @@ changes:
 -->
 * `block` {Function}
 * `error` {RegExp|Function}
-* `message` {any}
+* `message` {string|undefined}
 
 Asserts that the function `block` does not throw an error. See
 [`assert.throws()`][] for more details.
@@ -274,7 +274,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
 using the [Abstract Equality Comparison][] ( `==` ).
@@ -306,7 +306,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any} **Default:** `'Failed'`
+* `message` {string|undefined} **Default:** `'Failed'`
 * `operator` {string} **Default:** '!='
 * `stackStartFunction` {function} **Default:** `assert.fail`
 
@@ -407,7 +407,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
@@ -478,7 +478,7 @@ changes:
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
@@ -504,7 +504,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
 ( `!=` ).
@@ -534,7 +534,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests strict inequality as determined by the [Strict Equality Comparison][]
 ( `!==` ).
@@ -563,7 +563,7 @@ of the `AssertionError`.
 added: v0.1.21
 -->
 * `value` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests if `value` is truthy. It is equivalent to
 `assert.equal(!!value, true, message)`.
@@ -595,7 +595,7 @@ added: v0.1.21
 -->
 * `actual` {any}
 * `expected` {any}
-* `message` {any}
+* `message` {string|undefined}
 
 Tests strict equality as determined by the [Strict Equality Comparison][]
 ( `===` ).
@@ -629,7 +629,7 @@ changes:
 -->
 * `block` {Function}
 * `error` {RegExp|Function}
-* `message` {any}
+* `message` {string|undefined}
 
 Expects the function `block` to throw an error.
 
