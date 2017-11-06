@@ -34,17 +34,21 @@ baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';
 
 assert.strictEqual(global.baseFoo, 'foo',
-                   'x -> global.x in base level not working');
+                   // eslint-disable-next-line no-undef
+                   `${baseFoo} -> global.baseFoo in base level not 
+                   working`);
 
 assert.strictEqual(baseBar, // eslint-disable-line no-undef
                    'bar',
-                   'global.x -> x in base level not working');
+                   // eslint-disable-next-line no-undef
+                   `${global.baseBar} -> baseBar in base level not 
+                   working`);
 
 const mod = require(fixtures.path('global', 'plain'));
 const fooBar = mod.fooBar;
 
-assert.strictEqual(fooBar.foo, 'foo', 'x -> global.x in sub level not working');
+assert.strictEqual(fooBar.foo, 'foo');
 
-assert.strictEqual(fooBar.bar, 'bar', 'global.x -> x in sub level not working');
+assert.strictEqual(fooBar.bar, 'bar');
 
 assert.strictEqual(Object.prototype.toString.call(global), '[object global]');
