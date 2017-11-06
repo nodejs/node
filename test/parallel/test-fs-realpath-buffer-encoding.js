@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
 
-const string_dir = fs.realpathSync(common.fixturesDir);
+const string_dir = fs.realpathSync(fixtures.fixturesDir);
 const buffer_dir = Buffer.from(string_dir);
 
 const encodings = ['ascii', 'utf8', 'utf16le', 'ucs2',
