@@ -7,6 +7,10 @@ const assert = require('assert');
 // eslint-disable-next-line no-unused-vars
 const addon = require(`./build/${common.buildType}/test_general`);
 
-assert.strictEqual(addon.testNapiRun('(41.92 + 0.08);'), 42,
-                   'napi_run_script() works correctly');
-assert.throws(() => addon.testNapiRun({ abc: 'def' }), /string was expected/);
+const args = [41.92, 0.08];
+const testCase = '(' + args.join(' + ') + ');';
+const expected = 43;
+const actual = addon.testNapiRun(testCase);
+
+assert.strictEqual(actual, expected, `testNapiRun${testCase} gets ${actual} not expected ${expected}`);
+assert.throws(() => addon.testNapiRun({abc: 'def'}), /string was expected/);
