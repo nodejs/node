@@ -15,7 +15,7 @@ function read(buff, funx, args, expected) {
 
   assert.doesNotThrow(
     () => assert.strictEqual(buff[funx](...args, true), expected),
-    'noAssert does not change return value for valid ranges'
+    `${funx}() with noAssert does not change return value for valid ranges`
   );
 
 }
@@ -84,23 +84,28 @@ assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
 }
 
 [16, 32].forEach((bits) => {
-  const buf = Buffer.allocUnsafe(bits / 8 - 1);
+  const bufSize = bits / 8 - 1;
+  const buf = Buffer.allocUnsafe(bufSize);
 
   assert.throws(() => buf[`readUInt${bits}BE`](0),
                 RangeError,
-                `readUInt${bits}BE()`);
+                `readUInt${bits}BE() throws RangeError on ${bufSize}-byte ` +
+                `buffer`);
 
   assert.throws(() => buf[`readUInt${bits}LE`](0),
                 RangeError,
-                `readUInt${bits}LE()`);
+                `readUInt${bits}LE() throws RangeError on ${bufSize}-byte ` +
+                `buffer`);
 
   assert.throws(() => buf[`readInt${bits}BE`](0),
                 RangeError,
-                `readInt${bits}BE()`);
+                `readInt${bits}BE() throws RangeError on ${bufSize}-byte ` +
+                `buffer`);
 
   assert.throws(() => buf[`readInt${bits}LE`](0),
                 RangeError,
-                `readInt${bits}LE()`);
+                `readInt${bits}LE() throws RangeError on ${bufSize}-byte ` +
+                `buffer`);
 });
 
 [16, 32].forEach((bits) => {
