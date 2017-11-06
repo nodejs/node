@@ -47,10 +47,11 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
     assert.strictEqual(expected, found);
   });
 
-  fs.write(fd, '', 0, 'utf8', function(err, written) {
+  const written = common.mustCall(function(err, written) {
     assert.strictEqual(0, written);
   });
 
+  fs.write(fd, '', 0, 'utf8', written);
   fs.write(fd, expected, 0, 'utf8', done);
 }));
 
@@ -71,9 +72,10 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
     assert.strictEqual(expected, found);
   });
 
-  fs.write(fd, '', 0, 'utf8', (err, written) => {
+  const written = common.mustCall(function(err, written) {
     assert.strictEqual(0, written);
   });
 
+  fs.write(fd, '', 0, 'utf8', written);
   fs.write(fd, expected, 0, 'utf8', done);
 }));
