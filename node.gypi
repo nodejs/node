@@ -138,6 +138,10 @@
       'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
     }],
 
+    [ 'node_shared_nghttp2=="false"', {
+      'dependencies': [ 'deps/nghttp2/nghttp2.gyp:nghttp2' ],
+    }],
+
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain OSX debugging tools
       # like Instruments require it for some features
