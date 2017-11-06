@@ -22,6 +22,10 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
+
+// This test ensures that the tls parser causes a client error if the client
+// sends invalid data.
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -30,11 +34,10 @@ const assert = require('assert');
 const tls = require('tls');
 
 const net = require('net');
-const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`)
+  key: fixtures.readSync('test_key.pem'),
+  cert: fixtures.readSync('test_cert.pem')
 };
 
 const bonkers = Buffer.alloc(1024 * 1024, 42);
