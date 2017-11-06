@@ -1,10 +1,13 @@
 'use strict';
 
 const common = require('../common');
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
+
+const fixtures = require('../common/fixtures');
+
 const http2 = require('http2');
-const path = require('path');
 
 const {
   constants,
@@ -17,7 +20,7 @@ const {
 // - NGHTTP2_ERR_NOMEM (should emit session error)
 // - every other NGHTTP2 error from binding (should emit stream error)
 
-const fname = path.resolve(common.fixturesDir, 'elipses.txt');
+const fname = fixtures.path('elipses.txt');
 
 const specificTestKeys = [
   'NGHTTP2_ERR_NOMEM'
