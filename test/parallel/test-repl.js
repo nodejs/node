@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 
 common.globalCheck = false;
@@ -20,7 +21,7 @@ let server_tcp, server_unix, client_tcp, client_unix, replServer;
 
 
 // absolute path to test/fixtures/a.js
-const moduleFilename = require('path').join(common.fixturesDir, 'a');
+const moduleFilename = fixtures.path('a');
 
 console.error('repl test');
 
