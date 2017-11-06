@@ -1,4 +1,7 @@
 'use strict';
+
+// Verifies that the REPL history file is created with mode 0600
+
 // Flags: --expose_internals
 
 const common = require('../common');
@@ -40,9 +43,10 @@ const checkResults = common.mustCall(function(err, r) {
 
   r.input.end();
   const stat = fs.statSync(replHistoryPath);
+  const fileMode = stat.mode & 0o777;
   assert.strictEqual(
-    stat.mode & 0o777, 0o600,
-    'REPL history file should be mode 0600');
+    fileMode, 0o600,
+    `REPL history file should be mode 0600 but was 0${fileMode.toString(8)}`);
 });
 
 repl.createInternalRepl(
