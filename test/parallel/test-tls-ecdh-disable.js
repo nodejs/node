@@ -19,8 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Test that the usage of eliptic curves are not permitted if disabled during
+// server initialization.
+
 'use strict';
 const common = require('../common');
+const { readKey } = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
@@ -30,11 +34,10 @@ if (!common.opensslCli)
 const assert = require('assert');
 const tls = require('tls');
 const exec = require('child_process').exec;
-const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  key: readKey('agent2-key.pem'),
+  cert: readKey('agent2-cert.pem'),
   ciphers: 'ECDHE-RSA-AES128-SHA',
   ecdhCurve: false
 };
