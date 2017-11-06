@@ -16,7 +16,7 @@ const args = [
 {
   const ret = spawnSync(process.execPath, args, { maxBuffer: 1 });
 
-  assert.ok(ret.error, 'maxBuffer should error');
+  assert.ok(ret.error, `instead of an error there is ${ret.error}` );
   assert.strictEqual(ret.error.errno, 'ENOBUFS');
   // We can have buffers larger than maxBuffer because underneath we alloc 64k
   // that matches our read sizes.
