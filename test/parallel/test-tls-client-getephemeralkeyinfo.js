@@ -80,7 +80,7 @@ function testDHE2048() {
 }
 
 function testECDHE256() {
-  test(256, 'ECDH', tls.DEFAULT_ECDH_CURVE, testECDHE512);
+  test(256, 'ECDH', 'prime256v1', testECDHE512);
   ntests++;
 }
 
