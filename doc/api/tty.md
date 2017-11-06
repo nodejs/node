@@ -47,6 +47,13 @@ added: v0.7.7
 A `boolean` that is `true` if the TTY is currently configured to operate as a
 raw device. Defaults to `false`.
 
+### readStream.isTTY
+<!-- YAML
+added: v0.5.8
+-->
+
+A `boolean` that is always `true`.
+
 ### readStream.setRawMode(mode)
 <!-- YAML
 added: v0.7.7
@@ -97,6 +104,13 @@ added: v0.7.7
 
 A `number` specifying the number of columns the TTY currently has. This property
 is updated whenever the `'resize'` event is emitted.
+
+### writeStream.isTTY
+<!-- YAML
+added: v0.5.8
+-->
+
+A `boolean` that is always `true`.
 
 ### writeStream.rows
 <!-- YAML
