@@ -77,7 +77,7 @@ myEmitter.emit('event', 'a', 'b');
 
 ## Asynchronous vs. Synchronous
 
-The `EventListener` calls all listeners synchronously in the order in which
+The `EventEmitter` calls all listeners synchronously in the order in which
 they were registered. This is important to ensure the proper sequencing of
 events and to avoid race conditions or logic errors. When appropriate,
 listener functions can switch to an asynchronous mode of operation using
@@ -268,7 +268,7 @@ property can be used. If this value is not a positive number, a `TypeError`
 will be thrown.
 
 Take caution when setting the `EventEmitter.defaultMaxListeners` because the
-change effects *all* `EventEmitter` instances, including those created before
+change affects *all* `EventEmitter` instances, including those created before
 the change is made. However, calling [`emitter.setMaxListeners(n)`][] still has
 precedence over `EventEmitter.defaultMaxListeners`.
 

@@ -10,6 +10,7 @@
 #endif
 
 #include "node_debug_options.h"
+#include "node_platform.h"
 #include "v8.h"
 
 namespace v8_inspector {
@@ -19,7 +20,6 @@ class StringView;
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.
 class Environment;
-class NodePlatform;
 
 namespace inspector {
 
