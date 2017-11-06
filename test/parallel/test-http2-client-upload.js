@@ -8,9 +8,9 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
-const path = require('path');
+const fixtures = require('../common/fixtures');
 
-const loc = path.join(common.fixturesDir, 'person.jpg');
+const loc = fixtures.path('person.jpg');
 let fileData;
 
 assert(fs.existsSync(loc));
