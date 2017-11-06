@@ -9,7 +9,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const fs = require('fs');
 
 const clientConfigs = [
   { secureProtocol: 'TLSv1_method', version: 'TLSv1' },
@@ -18,8 +17,8 @@ const clientConfigs = [
 ];
 
 const serverConfig = {
-  key: fs.readFileSync(fixtures.path('/keys/agent2-key.pem')),
-  cert: fs.readFileSync(fixtures.path('/keys/agent2-cert.pem'))
+  key: fixtures.readSync('/keys/agent2-key.pem'),
+  cert: fixtures.readSync('/keys/agent2-cert.pem')
 };
 
 const server = tls.createServer(serverConfig, common.mustCall(function() {
