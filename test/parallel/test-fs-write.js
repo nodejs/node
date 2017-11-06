@@ -70,3 +70,14 @@ fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0o644,
             assert.strictEqual(expected, found);
           }));
         }));
+
+
+fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
+  assert.ifError(err);
+  console.log('open done');
+  const done = common.mustCall(function(err, written) {
+    assert.strictEqual(Buffer.byteLength(expected), written);
+    fs.closeSync(fd);
+  });
+  fs.write(fd, expected, done);
+}));
