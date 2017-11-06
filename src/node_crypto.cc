@@ -124,6 +124,8 @@ static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
+static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
+
 static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
 static X509_STORE* root_cert_store;
@@ -724,6 +726,9 @@ static X509_STORE* NewRootCertStore() {
   }
 
   X509_STORE* store = X509_STORE_new();
+  if (*system_cert_path != '\0') {
+    X509_STORE_load_locations(store, system_cert_path, nullptr);
+  }
   if (ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
