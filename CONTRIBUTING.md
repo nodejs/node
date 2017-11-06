@@ -334,9 +334,13 @@ use `Refs:`.
    - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
    - `Refs: https://github.com/nodejs/node/pull/3615`
 
-5. If your commit introduce a breaking change (`semver-major`), it should contain
+5. If your commit introduces a breaking change (`semver-major`), it should contain
 an explanation about the reason of the breaking change, which situation would trigger
 the breaking change and what is the exact change.
+
+Breaking changes will be listed in the wiki with the aim to make upgrading easier.
+Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki/Breaking-changes-between-v4-LTS-and-v6-LTS) 
+for the level of detail that's suitable.
 
 Sample complete commit message:
 
