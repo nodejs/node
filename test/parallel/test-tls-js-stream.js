@@ -1,13 +1,15 @@
 'use strict';
 const common = require('../common');
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const fixtures = require('../common/fixtures');
+
 const assert = require('assert');
-const tls = require('tls');
-const stream = require('stream');
-const fs = require('fs');
 const net = require('net');
+const stream = require('stream');
+const tls = require('tls');
 
 const connected = {
   client: 0,
@@ -15,8 +17,8 @@ const connected = {
 };
 
 const server = tls.createServer({
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 }, function(c) {
   console.log('new client');
   connected.server++;
