@@ -34,8 +34,7 @@ const hook1 = async_hooks.createHook({
 // Check that the internal field returns the same PromiseWrap passed to init().
 assert.strictEqual(
   binding.getPromiseField(Promise.resolve(1)),
-  pwrap,
-  'Unexpected PromiseWrap');
+  pwrap);
 
 hook1.disable();
 
