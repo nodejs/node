@@ -15,4 +15,4 @@ m._initPaths();
 
 const c = require('.');
 
-assert.strictEqual(c.value, 42);
+assert.strictEqual(c.value, 42, `require(".") should honor NODE_PATH; expected 42, found ${c.value}`);
