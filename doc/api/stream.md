@@ -316,7 +316,7 @@ reader.pipe(writer);
 added: v0.9.4
 -->
 
-* `src` {[Readable][] Stream} The source stream that
+* `src` {stream.Readable} The source stream that
   [unpiped][`stream.unpipe()`] this writable
 
 The `'unpipe'` event is emitted when the [`stream.unpipe()`][] method is called
