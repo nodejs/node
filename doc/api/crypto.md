@@ -651,7 +651,11 @@ added: v0.11.14
 changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5522
-    description: The default `inputEncoding` changed from `binary` to `utf8`.
+    description: The default `inputEncoding` changed from `binary` to `utf8`
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/16849
+    description: Changed error format to better support invalid public key
+    error
 -->
 - `otherPublicKey` {string | Buffer | TypedArray | DataView}
 - `inputEncoding` {string}
@@ -667,6 +671,12 @@ provided, `otherPublicKey` is expected to be a [`Buffer`][], `TypedArray`, or
 
 If `outputEncoding` is given a string will be returned; otherwise a
 [`Buffer`][] is returned.
+
+`ecdh.computeSecret` will throw an 
+`ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY` error when `otherPublicKey` 
+lies outside of the elliptic curve. Since `otherPublicKey` is 
+usually supplied from a remote user over an insecure network,
+its recommended for developers to handle this exception accordingly.
 
 ### ecdh.generateKeys([encoding[, format]])
 <!-- YAML

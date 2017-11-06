@@ -209,9 +209,13 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   const ecdh3 = crypto.createECDH('secp256k1');
   const key3 = ecdh3.generateKeys();
 
-  assert.throws(() => {
-    ecdh2.computeSecret(key3, 'latin1', 'buffer');
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  common.expectsError(
+    () => ecdh2.computeSecret(key3, 'latin1', 'buffer'),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
+      type: Error,
+      message: 'Public key is not valid for specified curve'
+    });
 
   // ECDH should allow .setPrivateKey()/.setPublicKey()
   const ecdh4 = crypto.createECDH('prime256v1');
@@ -318,9 +322,13 @@ if (availableCurves.has('prime256v1') && availableHashes.has('sha256')) {
   const invalidKey = Buffer.alloc(65);
   invalidKey.fill('\0');
   curve.generateKeys();
-  assert.throws(() => {
-    curve.computeSecret(invalidKey);
-  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+  common.expectsError(
+    () => curve.computeSecret(invalidKey),
+    {
+      code: 'ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY',
+      type: Error,
+      message: 'Public key is not valid for specified curve'
+    });
   // Check that signing operations are not impacted by the above error.
   const ecPrivateKey =
     '-----BEGIN EC PRIVATE KEY-----\n' +

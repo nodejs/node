@@ -659,6 +659,13 @@ Used when the native call from `process.cpuUsage` cannot be processed properly.
 Used when an invalid value for the `format` argument has been passed to the
 `crypto.ECDH()` class `getPublicKey()` method.
 
+<a id="ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY"></a>
+### ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY
+
+An invalid value for the `key` argument has been passed to the
+`crypto.ECDH()` class `computeSecret()` method. It means that the public 
+key lies outside of the elliptic curve.
+
 <a id="ERR_CRYPTO_ENGINE_UNKNOWN"></a>
 ### ERR_CRYPTO_ENGINE_UNKNOWN
 
