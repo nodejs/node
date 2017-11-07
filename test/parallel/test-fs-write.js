@@ -44,6 +44,7 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   });
 
   const written = common.mustCall(function(err, written) {
+    assert.ifError(err);
     assert.strictEqual(0, written);
   });
 
@@ -65,6 +66,7 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
   });
 
   const written = common.mustCall(function(err, written) {
+    assert.ifError(err);
     assert.strictEqual(0, written);
   });
 
