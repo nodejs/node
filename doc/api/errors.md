@@ -76,8 +76,8 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
     // Otherwise handle the data
   });
   ```
-- When an asynchronous method is called on an object that is an `EventEmitter`,
-  errors can be routed to that object's `'error'` event.
+- When an asynchronous method is called on an object that is an
+  [`EventEmitter`][], errors can be routed to that object's `'error'` event.
 
   ```js
   const net = require('net');
@@ -105,7 +105,7 @@ and [event emitter-based][] APIs, which themselves represent a series of
 asynchronous operations over time (as opposed to a single operation that may
 pass or fail).
 
-For *all* `EventEmitter` objects, if an `'error'` event handler is not
+For *all* [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
 unhandled exception and  crash unless either: The [`domain`][domains] module is
 used appropriately or a handler has been registered for the
@@ -1474,7 +1474,7 @@ Used when a string that contains unescaped characters was received.
 ### ERR_UNHANDLED_ERROR
 
 Used when an unhandled "error" occurs (for instance, when an `'error'` event
-is emitted by an `EventEmitter` but an `'error'` handler is not registered).
+is emitted by an [`EventEmitter`][] but an `'error'` handler is not registered).
 
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
@@ -1551,6 +1551,7 @@ Used when creation of a [`zlib`][] object fails due to incorrect configuration.
 [`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`readable._read()`]: stream.html#stream_readable_read_size_1
