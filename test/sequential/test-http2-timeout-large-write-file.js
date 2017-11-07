@@ -43,10 +43,6 @@ server.on('stream', common.mustCall((stream) => {
     'Content-Length': content.length.toString(),
     'Vary': 'Accept-Encoding'
   });
-  stream.setTimeout(serverTimeout);
-  stream.on('timeout', () => {
-    assert.strictEqual(didReceiveData, false, 'Should not timeout');
-  });
   stream.end();
 }));
 server.setTimeout(serverTimeout);
