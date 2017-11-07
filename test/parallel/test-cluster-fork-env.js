@@ -56,12 +56,13 @@ if (cluster.isWorker) {
   });
 
   process.once('exit', function() {
-    assert.ok(checks.using, 'The worker did not receive the correct env.' +
-    `${checks.using}`);
+    assert.ok(
+      checks.using,
+      `The worker did not receive the correct env. ${checks.using}`);
     assert.ok(
       checks.overwrite,
-      'The custom environment did not overwrite the existing environment.' +
-      `${checks.overwrite}`);
+      `The custom environment did not overwrite the existing environment. ${
+        checks.overwrite}`);
   });
 
 }
