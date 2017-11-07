@@ -1,10 +1,10 @@
 'use strict';
 
 // Check that spawn child doesn't create duplicated entries
-require('common');
+require('../common');
 const REPETITIONS = 2;
 const assert = require('assert');
-const fixtures = require('common/fixtures');
+const fixtures = require('../common/fixtures');
 const { spawnSync } = require('child_process');
 const targetScript = fixtures.path('guess-hash-seed.js');
 const seeds = [];
@@ -17,5 +17,4 @@ for (let i = 0; i < REPETITIONS; ++i) {
 }
 
 console.log(`Seeds: ${seeds}`);
-const hasDuplicates = new Set(seeds).size !== seeds.length;
-assert.strictEqual(hasDuplicates, false);
+assert.strictEqual(new Set(seeds).size, seeds.length);
