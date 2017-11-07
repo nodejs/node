@@ -895,6 +895,7 @@ exports.fires = function fires(promise, error, timeoutMs) {
 };
 
 exports.assertRejected = function(promise, message) {
-  promise.then(() => Promise.reject(message || 'Promise was not rejected'),
-               () => {});
+  return promise
+      .then(() => assert.fail(message || 'Promise was not rejected'),
+            () => { /* Expected */ });
 };

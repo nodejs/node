@@ -125,7 +125,7 @@ class IoSessionDelegate : public InspectorSessionDelegate {
                              : io_(io), session_(agent->Connect(this)) { }
   bool WaitForFrontendMessageWhilePaused() override;
   void SendMessageToFrontend(const v8_inspector::StringView& message) override;
-  bool IsConnected() { return !!session_; }
+  bool IsConnected() const { return !!session_; }
   void Dispatch(const StringView& message) {
     CHECK_NE(session_, nullptr);
     session_->Dispatch(message);

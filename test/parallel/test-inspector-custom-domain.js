@@ -35,6 +35,10 @@ class TestDomainHandler {
     return { a };
   }
 
+  _privateMethod() {
+    return true;
+  }
+
   [SessionTerminatedSymbol]() {
     this.done = true;
   }
@@ -46,7 +50,7 @@ async function test() {
   const post = util.promisify(session.post.bind(session));
   try {
     await post('Test.methodA');
-    assert.fails('Exception must have been thrown');
+    assert.fail('Exception must have been thrown');
   } catch (e) {
     assert.strictEqual(-32601, e.code);
   }
@@ -55,7 +59,7 @@ async function test() {
   assert.strictEqual(3, await post('Test.methodA', { a: 1, b: 2 }));
   try {
     await post('Test.methodB');
-    assert.fails();
+    assert.fail();
   } catch (e) {
     assert.strictEqual('Booom!', e);
   }
@@ -88,6 +92,7 @@ async function test() {
   assert.deepStrictEqual({ a: 0 }, await post1('Test.methodD'));
   assert.deepStrictEqual({ a: 1 }, await post1('Test.methodD'));
   assert.deepStrictEqual({ a: 2 }, await post1('Test.methodD'));
+  await common.assertRejected(post1('Test._privateMethod'));
 }
 
 common.crashOnUnhandledRejection();

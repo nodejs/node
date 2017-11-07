@@ -7,16 +7,16 @@ details on such extension.
 ## Terminology
 
 * *Inspector session* - message exchange between protocol client and Node.js
-* *Protocol handler* - object with a liftime of the inspector session that
+* *Protocol handler* - object with a lifetime of the inspector session that
 interacts with the protocol client.
 * *Protocol domain* - 'API unit' of the inspector protocol. Defines message
 formats for specific and related functionality. Node.js exposes protocol
 domains provided by the V8. These include `Runtime`, `Debugger`, `Profiler` and
 `HeapProfiler`.
-* *Message* - a JSON string passed between Node.js backend and a inspector
+* *Message* - a JSON string passed between Node.js backend and an inspector
 protocol client. Message types are: request, response and notification. Protocol
 client only sends out requests. Messages are asynchronous and client should not
-assume response will be sent immidiately after serving the request.
+assume response will be sent immediately after serving the request.
 * *Method field* - a mandatory field in request and notification messages.
 This field value includes *domain* and *method* strings separated by a dot
 (e.g. `Debugger.pause`).

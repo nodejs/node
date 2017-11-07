@@ -58,9 +58,18 @@ class JSDispatcherInterface : private AsyncWrap {
     Context::Scope context_scope(env_->context());
     Local<Value> argument;
     if (message.length() > 0) {
-      MaybeLocal<String> v8string =
-          String::NewFromTwoByte(isolate, message.characters16(),
-                                 NewStringType::kNormal, message.length());
+      MaybeLocal<String> v8string;
+      if (message.is8Bit()) {
+        v8string = String::NewFromOneByte(isolate,
+                                          message.characters8(),
+                                          NewStringType::kNormal,
+                                          message.length());
+      } else {
+        v8string = String::NewFromTwoByte(isolate,
+                                          message.characters16(),
+                                          NewStringType::kNormal,
+                                          message.length());
+      }
       argument = v8string.ToLocalChecked().As<Value>();
     } else {
       argument = Null(isolate);
