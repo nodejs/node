@@ -1,9 +1,10 @@
 'use strict';
 
 const common = require('../../common');
-const assert = require('assert');
 
-// Testing api calls for promises
+// This tests the promise-related n-api calls
+
+const assert = require('assert');
 const test_promise = require(`./build/${common.buildType}/test_promise`);
 
 // A resolution
@@ -40,10 +41,9 @@ const test_promise = require(`./build/${common.buildType}/test_promise`);
     }),
     common.mustNotCall());
   test_promise.concludeCurrentPromise(Promise.resolve('chained answer'), true);
-
-  assert.strictEqual(test_promise.isPromise(promise), true);
 }
 
+assert.strictEqual(test_promise.isPromise(test_promise.createPromise()), true);
 assert.strictEqual(test_promise.isPromise(Promise.reject(-1)), true);
 assert.strictEqual(test_promise.isPromise(2.4), false);
 assert.strictEqual(test_promise.isPromise('I promise!'), false);
