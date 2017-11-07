@@ -21,6 +21,10 @@ server.on('listening', common.mustCall(() => {
   // make sure that destroy is called
   req._destroy = common.mustCall(req._destroy.bind(req));
 
+  // second call doesn't do anything
+  assert.doesNotThrow(() => client.rstStream(req, 8));
+  assert.strictEqual(req.rstCode, 0);
+
   req.on('streamClosed', common.mustCall((code) => {
     assert.strictEqual(req.destroyed, true);
     assert.strictEqual(code, 0);
