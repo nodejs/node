@@ -11,6 +11,7 @@
 
 namespace node {
 
+using v8::AccessorSignature;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -29,27 +30,33 @@ void StreamBase::AddMethods(Environment* env,
   HandleScope scope(env->isolate());
 
   enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+      static_cast<PropertyAttribute>(
+          v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+  Local<AccessorSignature> signature =
+      AccessorSignature::New(env->isolate(), t);
   t->PrototypeTemplate()->SetAccessor(env->fd_string(),
                                       GetFD<Base>,
                                       nullptr,
                                       env->as_external(),
                                       v8::DEFAULT,
-                                      attributes);
+                                      attributes,
+                                      signature);
 
   t->PrototypeTemplate()->SetAccessor(env->external_stream_string(),
                                       GetExternal<Base>,
                                       nullptr,
                                       env->as_external(),
                                       v8::DEFAULT,
-                                      attributes);
+                                      attributes,
+                                      signature);
 
   t->PrototypeTemplate()->SetAccessor(env->bytes_read_string(),
                                       GetBytesRead<Base>,
                                       nullptr,
                                       env->as_external(),
                                       v8::DEFAULT,
-                                      attributes);
+                                      attributes,
+                                      signature);
 
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStart>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStop>);
