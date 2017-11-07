@@ -299,7 +299,7 @@ assert.fail(1, 2, 'whoops', '>');
 // AssertionError [ERR_ASSERTION]: whoops
 ```
 
-*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+*Note*: In the last two cases `actual`, `expected`, and `operator` have no
 influence on the error message.
 
 ```js
