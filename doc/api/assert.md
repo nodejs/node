@@ -337,7 +337,7 @@ assert.fail(1, 2, new TypeError('need array'));
 // TypeError: need array
 ```
 
-*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+*Note*: In the last two cases `actual`, `expected`, and `operator` have no
 influence on the error message.
 
 ```js
