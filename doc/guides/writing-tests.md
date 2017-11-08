@@ -325,6 +325,11 @@ Next add the test to the `sources` in the `cctest` target in node.gyp:
   ...
 ],
 ```
+Note that the only sources that should be included in the cctest target are
+actual test or helper source files. There might be a need to include specific
+object files that are compiled by the `node` target and this can be done by
+adding them to the `libraries` section in the cctest target.
+
 The test can be executed by running the `cctest` target:
 ```console
 $ make cctest
