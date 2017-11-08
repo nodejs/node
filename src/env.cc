@@ -5,8 +5,14 @@
 
 #if defined(_MSC_VER)
 #define getpid GetCurrentProcessId
+#define GETPID_FORMAT "%d"
+#elif defined(__CloudABI__)
+#include <program.h>
+#define getpid program_getpid
+#define GETPID_FORMAT "%s"
 #else
 #include <unistd.h>
+#define GETPID_FORMAT "%d"
 #endif
 
 #include <stdio.h>
@@ -131,7 +137,9 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
+  fprintf(stderr,
+          "(node:" GETPID_FORMAT ") WARNING: Detected use of sync API\n",
+          getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
