@@ -117,3 +117,4 @@ icu_config.gypi
 deps/uv/.github/
 deps/uv/docs/code/
 deps/uv/docs/src/guide/
+results/
