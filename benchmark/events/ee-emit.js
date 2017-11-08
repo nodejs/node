@@ -11,20 +11,42 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const n = conf.n | 0;
   const argc = conf.argc | 0;
-  const listeners = conf.listeners | 0;
+  const listeners = Math.max(conf.listeners | 0, 1);
 
   const ee = new EventEmitter();
-
-  const args = new Array(argc);
-  args.fill(10);
-  args.unshift('dummy');
 
   for (var k = 0; k < listeners; k += 1)
     ee.on('dummy', function() {});
 
-  bench.start();
-  for (var i = 0; i < n; i += 1) {
-    ee.emit.apply(ee, args);
+  var i;
+  switch (argc) {
+    case 2:
+      bench.start();
+      for (i = 0; i < n; i += 1) {
+        ee.emit('dummy', true, 5);
+      }
+      bench.end(n);
+      break;
+    case 4:
+      bench.start();
+      for (i = 0; i < n; i += 1) {
+        ee.emit('dummy', true, 5, 10, false);
+      }
+      bench.end(n);
+      break;
+    case 10:
+      bench.start();
+      for (i = 0; i < n; i += 1) {
+        ee.emit('dummy', true, 5, 10, false, 5, 'string', true, false, 11, 20);
+      }
+      bench.end(n);
+      break;
+    default:
+      bench.start();
+      for (i = 0; i < n; i += 1) {
+        ee.emit('dummy');
+      }
+      bench.end(n);
+      break;
   }
-  bench.end(n);
 }
