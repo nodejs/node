@@ -737,8 +737,8 @@ Type: Runtime
 internal mechanics of the `REPLServer` itself, and is therefore not
 necessary in user space.
 
-<a id="DEP0083"></a>
-### DEP0083: Top-level `this` bound to `module.exports`
+<a id="DEP00XX"></a>
+### DEP00XX: Top-level `this` bound to `module.exports`
 
 Type: Documentation-only
 
