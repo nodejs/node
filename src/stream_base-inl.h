@@ -33,9 +33,9 @@ void StreamBase::AddMethods(Environment* env,
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(
-        v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+          v8::ReadOnly | v8::DontDelete | v8::DontEnum);
   Local<AccessorSignature> signature =
-    AccessorSignature::New(env->isolate(), t);
+      AccessorSignature::New(env->isolate(), t);
   t->PrototypeTemplate()->SetAccessor(env->fd_string(),
                                       GetFD<Base>,
                                       nullptr,
