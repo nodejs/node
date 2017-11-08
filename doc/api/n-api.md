@@ -293,7 +293,7 @@ must be called in order to determine if an exception is pending or not.
 
 When an exception is pending one of two approaches can be employed.
 
-The first appoach is to do any appropriate cleanup and then return so that
+The first approach is to do any appropriate cleanup and then return so that
 execution will return to JavaScript. As part of the transition back to
 JavaScript the exception will be thrown at the point in the JavaScript
 code where the native method was invoked. The behavior of most N-API calls
