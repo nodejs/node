@@ -831,6 +831,15 @@ Type: Runtime
 
 The [`crypto.DEFAULT_ENCODING`][] property is deprecated.
 
+<a id="DEP00XX"></a>
+### DEP00XX: Top-level `this` bound to `module.exports`
+
+Type: Documentation-only
+
+Assigning properties to the top-level `this` as an alternative
+to `module.exports` is deprecated. Developers should use `exports`
+or `module.exports` instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
