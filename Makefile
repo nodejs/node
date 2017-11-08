@@ -984,6 +984,7 @@ lint-md-build:
 		echo "Markdown linter: installing remark-preset-lint-node into tools/"; \
 		cd tools/remark-preset-lint-node && ../../$(NODE) ../../$(NPM) install; fi
 
+ifneq ("","$(wildcard tools/remark-cli/node_modules/)")
 LINT_MD_TARGETS = src lib benchmark tools/doc tools/icu
 LINT_MD_ROOT_DOCS := $(wildcard *.md)
 LINT_MD_FILES := $(shell find $(LINT_MD_TARGETS) -type f \
@@ -1002,7 +1003,12 @@ tools/.miscmdlintstamp: $(LINT_MD_FILES)
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
-lint-md: | lint-md-build tools/.mdlintstamp
+lint-md: | tools/.mdlintstamp
+else
+lint-md:
+	@echo "The markdown linter is not installed."
+	@echo "To install (requires internet access) run: $ make lint-md-build"
+endif
 
 LINT_JS_TARGETS = benchmark doc lib test tools
 LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
