@@ -42,6 +42,9 @@
     # Don't use ICU data file (icudtl.dat) from V8, we use our own.
     'icu_use_data_file_flag%': 0,
 
+    # use exported value from the environment 
+    'gold_section_ordering_file%': '',
+
     'conditions': [
       ['GENERATOR=="ninja"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
@@ -430,6 +433,14 @@
         ],
         'ldflags': [
           '-Wl,--export-dynamic',
+        ],
+      }],
+      ['gold_section_ordering_file!=""', {
+        'cflags': [ '-fuse-ld=gold',
+                    '-ffunction-sections'],
+        'ldflags': [
+          '-fuse-ld=gold',
+          '-Wl,--section-ordering-file=<(gold_section_ordering_file)',
         ],
       }]
     ],

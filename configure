@@ -38,6 +38,9 @@ import string
 # If not run from node/, cd to node/.
 os.chdir(os.path.dirname(__file__) or '.')
 
+# Set by configure_node(). 
+cross_compiling = False
+
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
 # except on OS X.
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
@@ -150,6 +153,12 @@ parser.add_option("--enable-vtune-profiling",
          "JavaScript code executed in nodejs. This feature is only available "
          "for x32, x86, and x64 architectures.")
 
+parser.add_option("--enable-section-ordering",
+   action="store",
+   dest="section_ordering",
+   help="Use GNU Gold linker capability to reorder sections in a binary."
+        "This field will be passed to Gold linker's --section-ordering-file"
+        "Provide a section ordering file to override the default")
 
 parser.add_option("--link-module",
     action="append",
@@ -706,7 +715,6 @@ def check_compiler(o):
   else:
     o['variables']['gas_version'] = get_gas_version(CC)
 
-
 def cc_macros(cc=None):
   """Checks predefined macros using the C compiler command."""
 
@@ -865,6 +873,7 @@ def configure_node(o):
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
 
+  global cross_compiling
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
                      else target_arch != host_arch)
@@ -1098,6 +1107,25 @@ def configure_static(o):
       if options.enable_asan:
         o['libraries'] += ['-static-libasan']
 
+
+def configure_gold(o):
+  try:
+    proc = subprocess.Popen(['ld.gold'] + ['-v'], stdin=subprocess.PIPE, 
+                            stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+  except OSError:
+    return 0
+  match = re.match(r"(GNU gold) .* ([0-9]\.[0-9]+)",
+                   proc.communicate()[0])
+  if match:
+    gold_version = match.group(2)
+    if gold_version > '1.1':
+      if options.section_ordering:
+        o['variables']['gold_section_ordering_file'] = options.section_ordering
+      else:
+        o['variables']['gold_section_ordering_file'] = \
+        os.path.realpath('tools/gold_linker_section_reordering.txt') 
+  else:
+    return 0
 
 def write(filename, data):
   filename = filename
@@ -1425,6 +1453,7 @@ output = {
   'libraries': [],
   'defines': [],
   'cflags': [],
+  'ldflags': [],
 }
 
 # Print a warning when the compiler is too old.
@@ -1450,6 +1479,8 @@ configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
+if not cross_compiling and not os.environ.get('LD'):
+  configure_gold(output)
 configure_inspector(output)
 
 # variables should be a root level element,
