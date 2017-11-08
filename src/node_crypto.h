@@ -95,7 +95,7 @@ class SecureContext : public BaseObject {
   SSL_CTX* ctx_;
   X509* cert_;
   X509* issuer_;
-#ifndef OPENSSL_NO_ENGIN
+#ifndef OPENSSL_NO_ENGINE
   bool client_cert_engine_provided_ = false;
 #endif  // !OPENSSL_NO_ENGINE
 
