@@ -86,6 +86,7 @@ namespace node {
   NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
 
 class Environment;
+class DestroyParam;
 
 class AsyncWrap : public BaseObject {
  public:
@@ -164,6 +165,8 @@ class AsyncWrap : public BaseObject {
                                                 v8::Local<v8::Value>* argv);
 
   virtual size_t self_size() const = 0;
+
+  static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
  private:
   friend class PromiseWrap;

@@ -120,6 +120,7 @@ class ModuleWrap;
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
   V(destroy_string, "destroy")                                                \
+  V(destroyed_string, "destroyed")                                            \
   V(detached_string, "detached")                                              \
   V(disposed_string, "_disposed")                                             \
   V(dns_a_string, "A")                                                        \

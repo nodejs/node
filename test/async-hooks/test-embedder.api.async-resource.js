@@ -18,7 +18,7 @@ common.expectsError(
     type: TypeError,
   });
 assert.throws(() => {
-  new AsyncResource('invalid_trigger_id', null);
+  new AsyncResource('invalid_trigger_id', { triggerAsyncId: null });
 }, common.expectsError({
   code: 'ERR_INVALID_ASYNC_ID',
   type: RangeError,
