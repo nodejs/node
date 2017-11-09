@@ -3333,7 +3333,7 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 }  // namespace
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
-    Handle<String> source_url, Handle<Object> specifier) {
+    Handle<Script> referrer, Handle<Object> specifier) {
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
 
   if (host_import_module_dynamically_callback_ == nullptr) {
@@ -3356,7 +3356,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
       this, promise,
       host_import_module_dynamically_callback_(
-          api_context, v8::Utils::ToLocal(source_url),
+          api_context, v8::Utils::ScriptOrModuleToLocal(referrer),
           v8::Utils::ToLocal(specifier_str)),
       MaybeHandle<JSPromise>());
   return v8::Utils::OpenHandle(*promise);

@@ -1192,7 +1192,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Object> source_map_url, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
-    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
+    Handle<FixedArray> host_defined_options) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
@@ -1287,6 +1288,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     script->set_origin_options(resource_options);
     if (!source_map_url.is_null()) {
       script->set_source_mapping_url(*source_map_url);
+    }
+    if (!host_defined_options.is_null()) {
+      script->set_host_defined_options(*host_defined_options);
     }
 
     // Compile the function and add it to the cache.
