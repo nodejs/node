@@ -278,6 +278,8 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), isolate);
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
+  i::Handle<i::FixedArray> host_defined_options(script->host_defined_options(),
+                                                isolate);
   v8::Isolate* v8_isolate =
       reinterpret_cast<v8::Isolate*>(script->GetIsolate());
   ScriptOriginOptions options(script->origin_options());
@@ -290,7 +292,8 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       Utils::ToLocal(source_map_url),
       v8::Boolean::New(v8_isolate, options.IsOpaque()),
       v8::Boolean::New(v8_isolate, script->type() == i::Script::TYPE_WASM),
-      v8::Boolean::New(v8_isolate, options.IsModule()));
+      v8::Boolean::New(v8_isolate, options.IsModule()),
+      Utils::ToLocal(host_defined_options));
   return origin;
 }
 
@@ -2082,6 +2085,21 @@ Local<Value> Script::Run() {
   RETURN_TO_LOCAL_UNCHECKED(Run(context), Value);
 }
 
+Local<Value> ScriptOrModule::GetResourceName() {
+  i::Handle<i::Script> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  i::Handle<i::Object> val(obj->name(), isolate);
+  return ToApiHandle<Value>(val);
+}
+
+Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
+  i::Handle<i::Script> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  i::Handle<i::FixedArray> val(obj->host_defined_options(), isolate);
+  return ToApiHandle<PrimitiveArray>(val);
+}
 
 Local<UnboundScript> Script::GetUnboundScript() {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2089,6 +2107,46 @@ Local<UnboundScript> Script::GetUnboundScript() {
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared()));
 }
 
+// static
+Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  Utils::ApiCheck(length >= 0, "v8::PrimitiveArray::New",
+                  "length must be equal or greater than zero");
+  i::Handle<i::FixedArray> array = isolate->factory()->NewFixedArray(length);
+  return ToApiHandle<PrimitiveArray>(array);
+}
+
+int PrimitiveArray::Length() const {
+  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::Isolate* isolate = array->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  return array->length();
+}
+
+void PrimitiveArray::Set(int index, Local<Primitive> item) {
+  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::Isolate* isolate = array->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  Utils::ApiCheck(index >= 0 && index < array->length(),
+                  "v8::PrimitiveArray::Set",
+                  "index must be greater than or equal to 0 and less than the "
+                  "array length");
+  i::Handle<i::Object> i_item = Utils::OpenHandle(*item);
+  array->set(index, *i_item);
+}
+
+Local<Primitive> PrimitiveArray::Get(int index) {
+  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::Isolate* isolate = array->GetIsolate();
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  Utils::ApiCheck(index >= 0 && index < array->length(),
+                  "v8::PrimitiveArray::Get",
+                  "index must be greater than or equal to 0 and less than the "
+                  "array length");
+  i::Handle<i::Object> i_item(array->get(index), isolate);
+  return ToApiHandle<Primitive>(i_item);
+}
 
 Module::Status Module::GetStatus() const {
   i::Handle<i::Module> self = Utils::OpenHandle(this);
@@ -2225,10 +2283,15 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
+    i::Handle<i::FixedArray> host_defined_options =
+        isolate->factory()->empty_fixed_array();
     int line_offset = 0;
     int column_offset = 0;
     if (!source->resource_name.IsEmpty()) {
       name_obj = Utils::OpenHandle(*(source->resource_name));
+    }
+    if (!source->host_defined_options.IsEmpty()) {
+      host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
     }
     if (!source->resource_line_offset.IsEmpty()) {
       line_offset = static_cast<int>(source->resource_line_offset->Value());
@@ -2243,7 +2306,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     result = i::Compiler::GetSharedFunctionInfoForScript(
         str, name_obj, line_offset, column_offset, source->resource_options,
         source_map_url, isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE);
+        i::NOT_NATIVES_CODE, host_defined_options);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -2507,6 +2570,10 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   i::Handle<i::Script> script = isolate->factory()->NewScript(str);
   if (!origin.ResourceName().IsEmpty()) {
     script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
+  }
+  if (!origin.HostDefinedOptions().IsEmpty()) {
+    script->set_host_defined_options(
+        *Utils::OpenHandle(*(origin.HostDefinedOptions())));
   }
   if (!origin.ResourceLineOffset().IsEmpty()) {
     script->set_line_offset(
@@ -9828,7 +9895,8 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
         i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
         ScriptCompiler::kNoCompileOptions,
         i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                         : i::INSPECTOR_CODE);
+                                         : i::INSPECTOR_CODE,
+        i::Handle<i::FixedArray>());
     has_pending_exception = result.is_null();
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }

@@ -1145,7 +1145,7 @@ static Handle<SharedFunctionInfo> CompileScript(
   return Compiler::GetSharedFunctionInfoForScript(
       source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
-      NOT_NATIVES_CODE);
+      NOT_NATIVES_CODE, Handle<FixedArray>());
 }
 
 TEST(CodeSerializerOnePlusOne) {
@@ -1994,7 +1994,8 @@ TEST(Regress503552) {
   Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
       source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
       Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
-      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
+      Handle<FixedArray>());
   delete script_data;
 
   heap::SimulateIncrementalMarking(isolate->heap());
