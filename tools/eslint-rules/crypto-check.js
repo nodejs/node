@@ -54,7 +54,7 @@ module.exports = function(context) {
     }
   }
 
-  function reportIfMissingCheck(node) {
+  function reportIfMissingCheck() {
     if (hasSkipCall) {
       return;
     }

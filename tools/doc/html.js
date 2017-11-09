@@ -224,7 +224,7 @@ function altDocs(filename) {
   const host = 'https://nodejs.org';
   const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
 
-  function li(v, i) {
+  function li(v) {
     let html = `<li><a href="${href(v)}">${v.num}`;
 
     if (v.lts)
