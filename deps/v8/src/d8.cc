@@ -793,15 +793,17 @@ struct DynamicImportData {
 }  // namespace
 
 MaybeLocal<Promise> Shell::HostImportModuleDynamically(
-    Local<Context> context, Local<String> referrer, Local<String> specifier) {
+    Local<Context> context, Local<ScriptOrModule> referrer,
+    Local<String> specifier) {
   Isolate* isolate = context->GetIsolate();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
       Promise::Resolver::New(context);
   Local<Promise::Resolver> resolver;
   if (maybe_resolver.ToLocal(&resolver)) {
-    DynamicImportData* data =
-        new DynamicImportData(isolate, referrer, specifier, resolver);
+    DynamicImportData* data = new DynamicImportData(
+        isolate, Local<String>::Cast(referrer->GetResourceName()), specifier,
+        resolver);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
     return resolver->GetPromise();
   }

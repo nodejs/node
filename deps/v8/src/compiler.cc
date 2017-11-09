@@ -1192,6 +1192,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Object> source_map_url, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
+    // Backed out for ABI compatibility with V8 6.2
+    // ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
+    // Handle<FixedArray> host_defined_options) {
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
@@ -1288,6 +1291,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (!source_map_url.is_null()) {
       script->set_source_mapping_url(*source_map_url);
     }
+    // Backed out for ABI compatibility with V8 6.2
+    // if (!host_defined_options.is_null()) {
+    //   script->set_host_defined_options(*host_defined_options);
+    // }
 
     // Compile the function and add it to the cache.
     ParseInfo parse_info(script);
