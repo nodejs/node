@@ -173,7 +173,7 @@ parser.add_option('--openssl-use-def-ca-store',
     help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
 
 parser.add_option('--openssl-system-ca-path',
-    action="store",
+    action='store',
     dest='openssl_system_ca_path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
