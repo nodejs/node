@@ -111,7 +111,10 @@ class RegisteredExtension {
   V(NativeWeakMap, JSWeakMap)                  \
   V(debug::GeneratorObject, JSGeneratorObject) \
   V(debug::Script, Script)                     \
-  V(Promise, JSPromise)
+  V(Promise, JSPromise)                        \
+  V(Primitive, Object)                         \
+  V(PrimitiveArray, FixedArray)                \
+  V(ScriptOrModule, Script)
 
 class Utils {
  public:
@@ -209,6 +212,12 @@ class Utils {
       v8::internal::Handle<v8::internal::JSWeakMap> obj);
   static inline Local<Function> CallableToLocal(
       v8::internal::Handle<v8::internal::JSReceiver> obj);
+  static inline Local<Primitive> ToLocalPrimitive(
+      v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<PrimitiveArray> ToLocal(
+      v8::internal::Handle<v8::internal::FixedArray> obj);
+  static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
+      v8::internal::Handle<v8::internal::Script> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To) \
   static inline v8::internal::Handle<v8::internal::To> \
@@ -325,6 +334,9 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(NativeWeakMapToLocal, JSWeakMap, NativeWeakMap)
 MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
+MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)
+MAKE_TO_LOCAL(ToLocal, FixedArray, PrimitiveArray)
+MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
