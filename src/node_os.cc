@@ -33,7 +33,9 @@
 # include <limits.h>        // PATH_MAX on Solaris.
 # include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
+#ifndef __CloudABI__
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
+#endif
 # include <sys/utsname.h>
 #endif  // __POSIX__
 
@@ -60,26 +62,6 @@ using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
-
-
-static void GetHostname(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  char buf[MAXHOSTNAMELEN + 1];
-
-  if (gethostname(buf, sizeof(buf))) {
-#ifdef __POSIX__
-    int errorno = errno;
-#else  // __MINGW32__
-    int errorno = WSAGetLastError();
-#endif  // __POSIX__
-    CHECK_GE(args.Length(), 1);
-    env->CollectExceptionInfo(args[args.Length() - 1], errorno, "gethostname");
-    return args.GetReturnValue().SetUndefined();
-  }
-  buf[sizeof(buf) - 1] = '\0';
-
-  args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
-}
 
 
 static void GetOSType(const FunctionCallbackInfo<Value>& args) {
@@ -142,6 +124,27 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 #endif  // __POSIX__
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
+}
+
+
+#ifndef __CloudABI__
+static void GetHostname(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  char buf[MAXHOSTNAMELEN + 1];
+
+  if (gethostname(buf, sizeof(buf))) {
+#ifdef __POSIX__
+    int errorno = errno;
+#else  // __MINGW32__
+    int errorno = WSAGetLastError();
+#endif  // __POSIX__
+    CHECK_GE(args.Length(), 1);
+    env->CollectExceptionInfo(args[args.Length() - 1], errorno, "gethostname");
+    return args.GetReturnValue().SetUndefined();
+  }
+  buf[sizeof(buf) - 1] = '\0';
+
+  args.GetReturnValue().Set(OneByteString(env->isolate(), buf));
 }
 
 
@@ -404,23 +407,26 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(entry);
 }
+#endif
 
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "getOSType", GetOSType);
+  env->SetMethod(target, "getOSRelease", GetOSRelease);
+#ifndef __CloudABI__
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
   env->SetMethod(target, "getUptime", GetUptime);
   env->SetMethod(target, "getTotalMem", GetTotalMemory);
   env->SetMethod(target, "getFreeMem", GetFreeMemory);
   env->SetMethod(target, "getCPUs", GetCPUInfo);
-  env->SetMethod(target, "getOSType", GetOSType);
-  env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
   env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
   env->SetMethod(target, "getUserInfo", GetUserInfo);
+#endif
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
               Boolean::New(env->isolate(), IsBigEndian()));
 }
