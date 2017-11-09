@@ -428,6 +428,46 @@ static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+class DestroyParam {
+ public:
+  double asyncId;
+  v8::Persistent<Object> target;
+  v8::Persistent<Object> propBag;
+};
+
+
+void AsyncWrap::WeakCallback(const v8::WeakCallbackInfo<DestroyParam>& info) {
+  HandleScope scope(info.GetIsolate());
+
+  Environment* env = Environment::GetCurrent(info.GetIsolate());
+  DestroyParam* p = info.GetParameter();
+  Local<Object> prop_bag = PersistentToLocal(info.GetIsolate(), p->propBag);
+
+  Local<Value> val = prop_bag->Get(env->destroyed_string());
+  if (val->IsFalse()) {
+    AsyncWrap::EmitDestroy(env, p->asyncId);
+  }
+  p->target.Reset();
+  p->propBag.Reset();
+  delete p;
+}
+
+
+static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsNumber());
+  CHECK(args[2]->IsObject());
+
+  Isolate* isolate = args.GetIsolate();
+  DestroyParam* p = new DestroyParam();
+  p->asyncId = args[1].As<Number>()->Value();
+  p->target.Reset(isolate, args[0].As<Object>());
+  p->propBag.Reset(isolate, args[2].As<Object>());
+  p->target.SetWeak(
+    p, AsyncWrap::WeakCallback, v8::WeakCallbackType::kParameter);
+}
+
+
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   args.GetReturnValue().Set(-1);
@@ -503,6 +543,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "queueDestroyAsyncId", QueueDestroyAsyncId);
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
+  env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
