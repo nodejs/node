@@ -410,7 +410,7 @@ for /d %%F in (test\addons\??_*) do (
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal EnableDelayedExpansion
-for /d %%F in (test\addons\*) do (
+for /d %%F in (test\addons\* benchmark\misc\function_call) do (
   %node_gyp_exe% rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"

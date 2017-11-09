@@ -247,7 +247,7 @@ test-valgrind: all
 test-check-deopts: all
 	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
 
-benchmark/misc/function_call/build/Release/binding.node: all \
+benchmark/misc/function_call/build/Release/binding.node: \
 		benchmark/misc/function_call/binding.cc \
 		benchmark/misc/function_call/binding.gyp
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
@@ -314,7 +314,8 @@ test/addons/.buildstamp: config.gypi \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp update.
-build-addons: | $(NODE_EXE) test/addons/.buildstamp
+build-addons: | $(NODE_EXE) test/addons/.buildstamp \
+  benchmark/misc/function_call/build/Release/binding.node
 
 ADDONS_NAPI_BINDING_GYPS := \
 	$(filter-out test/addons-napi/??_*/binding.gyp, \
@@ -386,7 +387,8 @@ CI_DOC := doctool
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
-test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
+test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp \
+	benchmark/misc/function_call/build/Release/binding.node
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -471,6 +473,7 @@ test-addons: test-build test-addons-napi
 test-addons-clean:
 	$(RM) -r test/addons/??_*/
 	$(RM) -r test/addons/*/build
+	$(RM) -r benchmark/misc/function_call/build
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
 	$(MAKE) test-addons-napi-clean
 
