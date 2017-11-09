@@ -26,12 +26,9 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
         isolate);
   }
 
-  // TODO(gsathya): Check if script name is a string before casting
-  // and return undefined if not.
-  Handle<String> source_url(String::cast(script->name()));
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      isolate->RunHostImportModuleDynamicallyCallback(source_url, specifier));
+      isolate->RunHostImportModuleDynamicallyCallback(script, specifier));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {

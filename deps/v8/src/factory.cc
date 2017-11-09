@@ -1146,7 +1146,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_eval_from_position(0);
   script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   script->set_flags(0);
-
+  // Backed out for ABI compatibility with V8 6.2
+  // script->set_host_defined_options(*empty_fixed_array());
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;
 }

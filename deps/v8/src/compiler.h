@@ -114,6 +114,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
       NativesFlag is_natives_code);
+      // Backed out for ABI compatibility with V8 6.2
+      // NativesFlag is_natives_code, Handle<FixedArray> host_defined_options);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.
