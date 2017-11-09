@@ -1145,6 +1145,8 @@ static Handle<SharedFunctionInfo> CompileScript(
   return Compiler::GetSharedFunctionInfoForScript(
       source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
+      // Backed out for ABI compatibility with V8 6.2
+      // NOT_NATIVES_CODE, Handle<FixedArray>());
       NOT_NATIVES_CODE);
 }
 
@@ -1994,6 +1996,9 @@ TEST(Regress503552) {
   Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
       source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
       Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
+      // Backed out for ABI compatibility with V8 6.2
+      // &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
+      // Handle<FixedArray>());
       &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   delete script_data;
 
