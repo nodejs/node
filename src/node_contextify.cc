@@ -64,8 +64,29 @@ using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+// The vm module executes code in a sandboxed environment with a different
+// global object than the rest of the code. This is achieved by applying
+// every call that changes or queries a property on the global `this` in the
+// sandboxed code, to the sandbox object.
+//
+// The implementation uses V8's interceptors for methods like `set`, `get`,
+// `delete`, `defineProperty`, and for any query of the property attributes.
+// Property handlers with interceptors are set on the object template for
+// the sandboxed code. Handlers for both named properties and for indexed
+// properties are used. Their functionality is almost identical, the indexed
+// interceptors mostly just call the named interceptors.
+//
+// For every `get` of a global property in the sandboxed context, the
+// interceptor callback checks the sandbox object for the property.
+// If the property is defined on the sandbox, that result is returned to
+// the original call instead of finishing the query on the global object.
+//
+// For every `set` of a global property, the interceptor callback defines or
+// changes the property both on the sandbox and the global proxy.
+
 namespace {
 
+// Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
   return Uint32::New(context->GetIsolate(), index)->ToString(context)
       .ToLocalChecked();
