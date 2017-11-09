@@ -197,9 +197,11 @@ Prerequisites:
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
     including the Community edition (remember to select
     "Common Tools for Visual C++ 2015" feature during installation).
-  * [Visual Studio 2017](https://www.visualstudio.com/downloads/), any edition (including the Build Tools SKU).
-    **Required Components:** "MSbuild", "VC++ 2017 v141 toolset" and at least one of the Windows SDKs.
-    *Note*: For "Windows 10 SDK (10.0.15063.0)" only the "Desktop C++ x86 and x64" flavor is required.
+  * The "Desktop development with C++" workload from
+    [Visual Studio 2017](https://www.visualstudio.com/downloads/) or the
+    "Visual C++ build tools" workload from the
+    [Build Tools](https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017),
+    with the default optional components.
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
