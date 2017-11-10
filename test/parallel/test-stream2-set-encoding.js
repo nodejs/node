@@ -23,39 +23,36 @@
 const common = require('../common');
 const assert = require('assert');
 const R = require('_stream_readable');
-const util = require('util');
 
-util.inherits(TestReader, R);
+class TestReader extends R {
+  constructor(n, opts) {
+    super(opts);
+    this.pos = 0;
+    this.len = n || 100;
+  }
 
-function TestReader(n, opts) {
-  R.call(this, opts);
+  _read(n) {
+    setTimeout(() => {
+      if (this.pos >= this.len) {
+        // double push(null) to test eos handling
+        this.push(null);
+        return this.push(null);
+      }
 
-  this.pos = 0;
-  this.len = n || 100;
+      n = Math.min(n, this.len - this.pos);
+      if (n <= 0) {
+        // double push(null) to test eos handling
+        this.push(null);
+        return this.push(null);
+      }
+
+      this.pos += n;
+      const ret = Buffer.alloc(n, 'a');
+
+      return this.push(ret);
+    }, 1);
+  }
 }
-
-TestReader.prototype._read = function(n) {
-  setTimeout(function() {
-
-    if (this.pos >= this.len) {
-      // double push(null) to test eos handling
-      this.push(null);
-      return this.push(null);
-    }
-
-    n = Math.min(n, this.len - this.pos);
-    if (n <= 0) {
-      // double push(null) to test eos handling
-      this.push(null);
-      return this.push(null);
-    }
-
-    this.pos += n;
-    const ret = Buffer.alloc(n, 'a');
-
-    return this.push(ret);
-  }.bind(this), 1);
-};
 
 {
   // Verify utf8 encoding

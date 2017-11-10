@@ -1,26 +1,23 @@
 'use strict';
 const common = require('../common');
 const stream = require('stream');
-const util = require('util');
 
-function Writable() {
-  this.writable = true;
-  stream.Writable.call(this);
-  this.prependListener = undefined;
-}
-util.inherits(Writable, stream.Writable);
-Writable.prototype._write = function(chunk, end, cb) {
-  cb();
-};
+class Writable extends stream.Writable {
+  constructor() {
+    super();
+    this.prependListener = undefined;
+  }
 
-function Readable() {
-  this.readable = true;
-  stream.Readable.call(this);
+  _write(chunk, end, cb) {
+    cb();
+  }
 }
-util.inherits(Readable, stream.Readable);
-Readable.prototype._read = function() {
-  this.push(null);
-};
+
+class Readable extends stream.Readable {
+  _read() {
+    this.push(null);
+  }
+}
 
 const w = new Writable();
 w.on('pipe', common.mustCall());
