@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const os = require('os');
 
@@ -29,10 +29,10 @@ function parent() {
     console.log('ok - got expected message');
   });
 
-  child.on('exit', function(c) {
+  child.on('exit', common.mustCall(function(c) {
     assert(!c);
     console.log('ok - child exited nicely');
-  });
+  }));
 }
 
 function child() {
