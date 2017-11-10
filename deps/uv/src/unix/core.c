@@ -1343,3 +1343,8 @@ int uv_os_gethostname(char* buffer, size_t* size) {
 uv_os_fd_t uv_get_osfhandle(int fd) {
   return fd;
 }
+
+
+uv_pid_t uv_os_getppid(void) {
+  return getppid();
+}

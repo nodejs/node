@@ -120,9 +120,40 @@ static void maybe_resize(uv__os390_epoll* lst, unsigned int len) {
 }
 
 
+static void before_fork(void) {
+  uv_mutex_lock(&global_epoll_lock);
+}
+
+
+static void after_fork(void) {
+  uv_mutex_unlock(&global_epoll_lock);
+}
+
+
+static void child_fork(void) {
+  QUEUE* q;
+  uv_once_t child_once = UV_ONCE_INIT;
+
+  /* reset once */
+  memcpy(&once, &child_once, sizeof(child_once));
+
+  /* reset epoll list */
+  while (!QUEUE_EMPTY(&global_epoll_queue)) {
+    q = QUEUE_HEAD(&global_epoll_queue);
+    QUEUE_REMOVE(q);
+  }
+
+  uv_mutex_unlock(&global_epoll_lock);
+  uv_mutex_destroy(&global_epoll_lock);
+}
+
+
 static void epoll_init(void) {
   QUEUE_INIT(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
+    abort();
+
+  if (pthread_atfork(&before_fork, &after_fork, &child_fork))
     abort();
 }
 

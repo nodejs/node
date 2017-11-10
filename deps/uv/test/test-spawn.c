@@ -1721,9 +1721,9 @@ TEST_IMPL(spawn_quoted_path) {
   RETURN_SKIP("Test for Windows");
 #else
   char* quoted_path_env[2];
-  options.file = "not_existing";
-  args[0] = options.file;
+  args[0] = "not_existing";
   args[1] = NULL;
+  options.file = args[0];
   options.args = args;
   options.exit_cb = exit_cb;
   options.flags = 0;

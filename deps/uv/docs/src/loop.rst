@@ -86,6 +86,9 @@ API
     should) be closed with :c:func:`uv_loop_close` so the resources associated
     with it are freed.
 
+    .. warning::
+        This function is not thread safe.
+
 .. c:function:: int uv_run(uv_loop_t* loop, uv_run_mode mode)
 
     This function runs the event loop. It will act differently depending on the
