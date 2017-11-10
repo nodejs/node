@@ -64,6 +64,13 @@ common.expectsError(() => process.kill(1, 'test'), {
   message: 'Unknown signal: test'
 });
 
+// Test that kill throws an error for invalid signal numbers
+common.expectsError(() => process.kill(1, 987), {
+  code: 'EINVAL',
+  type: Error,
+  message: 'kill EINVAL'
+});
+
 // Test kill argument processing in valid cases.
 //
 // Monkey patch _kill so that we don't actually send any signals, particularly
@@ -94,6 +101,11 @@ kill(0, 'SIGHUP', 0, 1);
 kill(0, undefined, 0, 15);
 kill('0', 'SIGHUP', 0, 1);
 kill('0', undefined, 0, 15);
+
+// Confirm that numeric signal arguments are supported
+
+kill(0, 1, 0, 1);
+kill(0, 15, 0, 15);
 
 // negative numbers are meaningful on unix
 kill(-1, 'SIGHUP', -1, 1);
