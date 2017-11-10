@@ -68,15 +68,16 @@ assert.strictEqual(util.format('o: %j, a: %j'), 'o: %j, a: %j');
 // Errors
 const err = new Error('foo');
 assert.strictEqual(util.format(err), err.stack);
-function CustomError(msg) {
-  Error.call(this);
-  Object.defineProperty(this, 'message',
-                        { value: msg, enumerable: false });
-  Object.defineProperty(this, 'name',
-                        { value: 'CustomError', enumerable: false });
-  Error.captureStackTrace(this, CustomError);
+class CustomError extends Error {
+  constructor(msg) {
+    super();
+    Object.defineProperty(this, 'message',
+                          { value: msg, enumerable: false });
+    Object.defineProperty(this, 'name',
+                          { value: 'CustomError', enumerable: false });
+    Error.captureStackTrace(this, CustomError);
+  }
 }
-util.inherits(CustomError, Error);
 const customError = new CustomError('bar');
 assert.strictEqual(util.format(customError), customError.stack);
 // Doesn't capture stack trace
