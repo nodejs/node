@@ -3,17 +3,14 @@ const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const EventEmitter = require('events').EventEmitter;
-const inherits = require('util').inherits;
 const { Writable, Readable } = require('stream');
 
-function FakeInput() {
-  EventEmitter.call(this);
+class FakeInput extends EventEmitter {
+  resume() {}
+  pause() {}
+  write() {}
+  end() {}
 }
-inherits(FakeInput, EventEmitter);
-FakeInput.prototype.resume = () => {};
-FakeInput.prototype.pause = () => {};
-FakeInput.prototype.write = () => {};
-FakeInput.prototype.end = () => {};
 
 function isWarned(emitter) {
   for (const name in emitter) {
