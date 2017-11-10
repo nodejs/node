@@ -24,12 +24,9 @@
 require('../common');
 const assert = require('assert');
 const events = require('events');
-const util = require('util');
 
 function listener() {}
 function listener2() {}
-class TestStream { constructor() { } }
-util.inherits(TestStream, events.EventEmitter);
 
 {
   const ee = new events.EventEmitter();
@@ -81,6 +78,7 @@ util.inherits(TestStream, events.EventEmitter);
 }
 
 {
+  class TestStream extends events.EventEmitter {}
   const s = new TestStream();
   assert.deepStrictEqual(s.listeners('foo'), []);
 }

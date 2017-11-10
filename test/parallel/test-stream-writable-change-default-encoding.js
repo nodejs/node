@@ -24,19 +24,18 @@ require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
-const util = require('util');
 
-function MyWritable(fn, options) {
-  stream.Writable.call(this, options);
-  this.fn = fn;
+class MyWritable extends stream.Writable {
+  constructor(fn, options) {
+    super(options);
+    this.fn = fn;
+  }
+
+  _write(chunk, encoding, callback) {
+    this.fn(Buffer.isBuffer(chunk), typeof chunk, encoding);
+    callback();
+  }
 }
-
-util.inherits(MyWritable, stream.Writable);
-
-MyWritable.prototype._write = function(chunk, encoding, callback) {
-  this.fn(Buffer.isBuffer(chunk), typeof chunk, encoding);
-  callback();
-};
 
 (function defaultCondingIsUtf8() {
   const m = new MyWritable(function(isBuffer, type, enc) {
