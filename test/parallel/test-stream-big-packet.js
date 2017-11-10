@@ -5,13 +5,6 @@ const stream = require('stream');
 
 let passed = false;
 
-class PassThrough extends stream.Transform {
-  _transform(chunk, encoding, done) {
-    this.push(chunk);
-    done();
-  }
-}
-
 class TestStream extends stream.Transform {
   _transform(chunk, encoding, done) {
     if (!passed) {
@@ -22,8 +15,8 @@ class TestStream extends stream.Transform {
   }
 }
 
-const s1 = new PassThrough();
-const s2 = new PassThrough();
+const s1 = new stream.PassThrough();
+const s2 = new stream.PassThrough();
 const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
