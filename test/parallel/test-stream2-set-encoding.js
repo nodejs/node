@@ -33,7 +33,6 @@ class TestReader extends R {
 
   _read(n) {
     setTimeout(() => {
-
       if (this.pos >= this.len) {
         // double push(null) to test eos handling
         this.push(null);
