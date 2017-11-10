@@ -32,6 +32,7 @@
 #include <stddef.h> /* NULL */
 #include <stdlib.h>
 #include <string.h>
+#include <net/if.h> /* if_indextoname() */
 
 /* EAI_* constants. */
 #include <netdb.h>
@@ -199,4 +200,33 @@ int uv_getaddrinfo(uv_loop_t* loop,
 void uv_freeaddrinfo(struct addrinfo* ai) {
   if (ai)
     freeaddrinfo(ai);
+}
+
+
+int uv_if_indextoname(unsigned int ifindex, char* buffer, size_t* size) {
+  char ifname_buf[UV_IF_NAMESIZE];
+  size_t len;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
+
+  if (if_indextoname(ifindex, ifname_buf) == NULL)
+    return -errno;
+
+  len = strnlen(ifname_buf, sizeof(ifname_buf));
+
+  if (*size <= len) {
+    *size = len + 1;
+    return UV_ENOBUFS;
+  }
+
+  memcpy(buffer, ifname_buf, len);
+  buffer[len] = '\0';
+  *size = len;
+
+  return 0;
+}
+
+int uv_if_indextoiid(unsigned int ifindex, char* buffer, size_t* size) {
+  return uv_if_indextoname(ifindex, buffer, size);
 }

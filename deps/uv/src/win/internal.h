@@ -326,7 +326,6 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
 void uv__util_init(void);
 
 uint64_t uv__hrtime(double scale);
-int uv_parent_pid(void);
 int uv_current_pid(void);
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 int uv__getpwuid_r(uv_passwd_t* pwd);
