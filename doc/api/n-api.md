@@ -1788,7 +1788,7 @@ This API returns the C int32 primitive equivalent
 of the given JavaScript Number. If the number exceeds the range of the
 32 bit integer, then the result is truncated to the equivalent of the
 bottom 32 bits. This can result in a large positive number becoming
-a negative number if the the value is > 2^31 -1.
+a negative number if the value is > 2^31 -1.
 
 #### *napi_get_value_int64*
 <!-- YAML
@@ -3013,7 +3013,7 @@ constructor and methods can be called from JavaScript.
 
  1. The [`napi_define_class`][] API defines a JavaScript class with constructor,
     static properties and methods, and instance properties and methods that
-    correspond to the The C++ class.
+    correspond to the C++ class.
  2. When JavaScript code invokes the constructor, the constructor callback
     uses [`napi_wrap`][] to wrap a new C++ instance in a JavaScript object,
     then returns the wrapper object.
