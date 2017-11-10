@@ -1,31 +1,26 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const util = require('util');
 const stream = require('stream');
 
 let passed = false;
 
-function PassThrough() {
-  stream.Transform.call(this);
-}
-util.inherits(PassThrough, stream.Transform);
-PassThrough.prototype._transform = function(chunk, encoding, done) {
-  this.push(chunk);
-  done();
-};
-
-function TestStream() {
-  stream.Transform.call(this);
-}
-util.inherits(TestStream, stream.Transform);
-TestStream.prototype._transform = function(chunk, encoding, done) {
-  if (!passed) {
-    // Char 'a' only exists in the last write
-    passed = chunk.toString().includes('a');
+class PassThrough extends stream.Transform {
+  _transform(chunk, encoding, done) {
+    this.push(chunk);
+    done();
   }
-  done();
-};
+}
+
+class TestStream extends stream.Transform {
+  _transform(chunk, encoding, done) {
+    if (!passed) {
+      // Char 'a' only exists in the last write
+      passed = chunk.toString().includes('a');
+    }
+    done();
+  }
+}
 
 const s1 = new PassThrough();
 const s2 = new PassThrough();
