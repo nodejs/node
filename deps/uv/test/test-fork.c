@@ -636,6 +636,7 @@ static void assert_run_work(uv_loop_t* const loop) {
 }
 
 
+#ifndef __MVS__
 TEST_IMPL(fork_threadpool_queue_work_simple) {
   /* The threadpool works in a child process. */
 
@@ -672,6 +673,7 @@ TEST_IMPL(fork_threadpool_queue_work_simple) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+#endif /* !__MVS__ */
 
 
 #endif /* !_WIN32 */

@@ -204,6 +204,7 @@ TEST_DECLARE   (pipe_ref4)
 TEST_DECLARE   (pipe_close_stdout_read_stdin)
 #endif
 TEST_DECLARE   (pipe_set_non_blocking)
+TEST_DECLARE   (pipe_set_chmod)
 TEST_DECLARE   (process_ref)
 TEST_DECLARE   (has_ref)
 TEST_DECLARE   (active)
@@ -282,6 +283,9 @@ TEST_DECLARE   (fs_readlink)
 TEST_DECLARE   (fs_realpath)
 TEST_DECLARE   (fs_symlink)
 TEST_DECLARE   (fs_symlink_dir)
+#ifdef _WIN32
+TEST_DECLARE   (fs_non_symlink_reparse_point)
+#endif
 TEST_DECLARE   (fs_utime)
 TEST_DECLARE   (fs_futime)
 TEST_DECLARE   (fs_file_open_append)
@@ -398,7 +402,9 @@ TEST_DECLARE  (fork_signal_to_child_closed)
 TEST_DECLARE  (fork_fs_events_child)
 TEST_DECLARE  (fork_fs_events_child_dir)
 TEST_DECLARE  (fork_fs_events_file_parent_child)
+#ifndef __MVS__
 TEST_DECLARE  (fork_threadpool_queue_work_simple)
+#endif
 #endif
 
 TASK_LIST_START
@@ -438,6 +444,7 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_close_stdout_read_stdin)
 #endif
   TEST_ENTRY  (pipe_set_non_blocking)
+  TEST_ENTRY  (pipe_set_chmod)
   TEST_ENTRY  (tty)
 #ifdef _WIN32
   TEST_ENTRY  (tty_raw)
@@ -790,6 +797,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_realpath)
   TEST_ENTRY  (fs_symlink)
   TEST_ENTRY  (fs_symlink_dir)
+#ifdef _WIN32
+  TEST_ENTRY  (fs_non_symlink_reparse_point)
+#endif
   TEST_ENTRY  (fs_stat_missing_path)
   TEST_ENTRY  (fs_read_file_eof)
   TEST_ENTRY  (fs_file_open_append)
@@ -861,7 +871,9 @@ TASK_LIST_START
   TEST_ENTRY  (fork_fs_events_child)
   TEST_ENTRY  (fork_fs_events_child_dir)
   TEST_ENTRY  (fork_fs_events_file_parent_child)
+#ifndef __MVS__
   TEST_ENTRY  (fork_threadpool_queue_work_simple)
+#endif
 #endif
 
 #if 0

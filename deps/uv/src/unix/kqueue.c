@@ -65,7 +65,6 @@ static int uv__has_forked_with_cfrunloop;
 
 int uv__io_fork(uv_loop_t* loop) {
   int err;
-  uv__close(loop->backend_fd);
   loop->backend_fd = -1;
   err = uv__kqueue_init(loop);
   if (err)
