@@ -26,24 +26,24 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const stream = require('stream');
-const util = require('util');
 const crypto = require('crypto');
 
 // Small stream to buffer converter
-function Stream2buffer(callback) {
-  stream.Writable.call(this);
+class Stream2buffer extends stream.Writable {
+  constructor(callback) {
+    super();
 
-  this._buffers = [];
-  this.once('finish', function() {
-    callback(null, Buffer.concat(this._buffers));
-  });
+    this._buffers = [];
+    this.once('finish', function() {
+      callback(null, Buffer.concat(this._buffers));
+    });
+  }
+
+  _write(data, encodeing, done) {
+    this._buffers.push(data);
+    return done(null);
+  }
 }
-util.inherits(Stream2buffer, stream.Writable);
-
-Stream2buffer.prototype._write = function(data, encodeing, done) {
-  this._buffers.push(data);
-  return done(null);
-};
 
 if (!common.hasFipsCrypto) {
   // Create an md5 hash of "Hallo world"

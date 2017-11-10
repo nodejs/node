@@ -26,29 +26,27 @@ const stream = require('stream');
 
 const chunk = Buffer.from('hallo');
 
-const util = require('util');
-
-function TestWriter() {
-  stream.Writable.call(this);
+class TestWriter extends stream.Writable {
+  _write(buffer, encoding, callback) {
+    callback(null);
+  }
 }
-util.inherits(TestWriter, stream.Writable);
-
-TestWriter.prototype._write = function(buffer, encoding, callback) {
-  callback(null);
-};
 
 const dest = new TestWriter();
 
 // Set this high so that we'd trigger a nextTick warning
 // and/or RangeError if we do maybeReadMore wrong.
-function TestReader() {
-  stream.Readable.call(this, { highWaterMark: 0x10000 });
-}
-util.inherits(TestReader, stream.Readable);
+class TestReader extends stream.Readable {
+  constructor() {
+    super({
+      highWaterMark: 0x10000
+    });
+  }
 
-TestReader.prototype._read = function(size) {
-  this.push(chunk);
-};
+  _read(size) {
+    this.push(chunk);
+  }
+}
 
 const src = new TestReader();
 
