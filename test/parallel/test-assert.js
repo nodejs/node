@@ -634,7 +634,7 @@ try {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
         message: 'The "block" argument must be of type function. Received ' +
-                 'type ' + typeName(block)
+                 `type ${typeName(block)}`
       })(e);
     }
 
