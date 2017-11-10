@@ -7,7 +7,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const Stream = require('stream');
-const util = require('util');
 
 const hasher1 = crypto.createHash('sha256');
 const hasher2 = crypto.createHash('sha256');
@@ -18,12 +17,12 @@ hasher1.end();
 
 const expected = hasher1.read().toString('hex');
 
-function OldStream() {
-  Stream.call(this);
-
-  this.readable = true;
+class OldStream extends Stream {
+  constructor() {
+    super();
+    this.readable = true;
+  }
 }
-util.inherits(OldStream, Stream);
 
 const stream = new OldStream();
 
