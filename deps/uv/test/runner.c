@@ -81,6 +81,7 @@ int run_tests(int benchmark_output) {
   int skipped;
   int current;
   int test_result;
+  int skip;
   task_entry_t* task;
 
   /* Count the number of tests. */
@@ -92,7 +93,9 @@ int run_tests(int benchmark_output) {
     }
   }
 
-  qsort(TASKS, actual, sizeof(TASKS[0]), compare_task);
+  /* Keep platform_output first. */
+  skip = (actual > 0 && 0 == strcmp(TASKS[0].task_name, "platform_output"));
+  qsort(TASKS + skip, actual - skip, sizeof(TASKS[0]), compare_task);
 
   fprintf(stderr, "1..%d\n", total);
   fflush(stderr);
@@ -127,6 +130,7 @@ void log_tap_result(int test_count,
   const char* result;
   const char* directive;
   char reason[1024];
+  int reason_length;
 
   switch (status) {
   case TEST_OK:
@@ -144,6 +148,9 @@ void log_tap_result(int test_count,
 
   if (status == TEST_SKIP && process_output_size(process) > 0) {
     process_read_last_line(process, reason, sizeof reason);
+    reason_length = strlen(reason);
+    if (reason_length > 0 && reason[reason_length - 1] == '\n')
+      reason[reason_length - 1] = '\0';
   } else {
     reason[0] = '\0';
   }

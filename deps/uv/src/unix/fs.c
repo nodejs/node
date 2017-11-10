@@ -132,26 +132,33 @@
   while (0)
 
 
-static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
-#if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
-  return fdatasync(req->file);
-#elif defined(__APPLE__)
+static ssize_t uv__fs_fsync(uv_fs_t* req) {
+#if defined(__APPLE__)
   /* Apple's fdatasync and fsync explicitly do NOT flush the drive write cache
    * to the drive platters. This is in contrast to Linux's fdatasync and fsync
    * which do, according to recent man pages. F_FULLFSYNC is Apple's equivalent
-   * for flushing buffered data to permanent storage.
+   * for flushing buffered data to permanent storage. If F_FULLFSYNC is not
+   * supported by the file system we should fall back to fsync(). This is the
+   * same approach taken by sqlite.
    */
-  return fcntl(req->file, F_FULLFSYNC);
+  int r;
+
+  r = fcntl(req->file, F_FULLFSYNC);
+  if (r != 0 && errno == ENOTTY)
+    r = fsync(req->file);
+  return r;
 #else
   return fsync(req->file);
 #endif
 }
 
 
-static ssize_t uv__fs_fsync(uv_fs_t* req) {
-#if defined(__APPLE__)
-  /* See the comment in uv__fs_fdatasync. */
-  return fcntl(req->file, F_FULLFSYNC);
+static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
+#if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
+  return fdatasync(req->file);
+#elif defined(__APPLE__)
+  /* See the comment in uv__fs_fsync. */
+  return uv__fs_fsync(req);
 #else
   return fsync(req->file);
 #endif

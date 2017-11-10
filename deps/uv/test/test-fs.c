@@ -115,6 +115,17 @@ static char test_buf[] = "test-buffer\n";
 static char test_buf2[] = "second-buffer\n";
 static uv_buf_t iov;
 
+#ifdef _WIN32
+/*
+ * This tag and guid have no special meaning, and don't conflict with
+ * reserved ids.
+*/
+static unsigned REPARSE_TAG = 0x9913;
+static GUID REPARSE_GUID = {
+  0x1bf6205f, 0x46ae, 0x4527,
+  0xb1, 0x0c, 0xc5, 0x09, 0xb7, 0x55, 0x22, 0x80 };
+#endif
+
 static void check_permission(const char* filename, unsigned int mode) {
   int r;
   uv_fs_t req;
@@ -1989,6 +2000,109 @@ TEST_IMPL(fs_symlink_dir) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+
+#ifdef _WIN32
+TEST_IMPL(fs_non_symlink_reparse_point) {
+  uv_fs_t req;
+  int r;
+  HANDLE file_handle;
+  REPARSE_GUID_DATA_BUFFER reparse_buffer;
+  DWORD bytes_returned;
+  uv_dirent_t dent;
+
+  /* set-up */
+  unlink("test_dir/test_file");
+  rmdir("test_dir");
+
+  loop = uv_default_loop();
+
+  uv_fs_mkdir(NULL, &req, "test_dir", 0777, NULL);
+  uv_fs_req_cleanup(&req);
+
+  file_handle = CreateFile("test_dir/test_file",
+                           GENERIC_WRITE | FILE_WRITE_ATTRIBUTES,
+                           0,
+                           NULL,
+                           CREATE_ALWAYS,
+                           FILE_FLAG_OPEN_REPARSE_POINT |
+                             FILE_FLAG_BACKUP_SEMANTICS,
+                           NULL);
+  ASSERT(file_handle != INVALID_HANDLE_VALUE);
+
+  memset(&reparse_buffer, 0, REPARSE_GUID_DATA_BUFFER_HEADER_SIZE);
+  reparse_buffer.ReparseTag = REPARSE_TAG;
+  reparse_buffer.ReparseDataLength = 0;
+  reparse_buffer.ReparseGuid = REPARSE_GUID;
+
+  r = DeviceIoControl(file_handle,
+                      FSCTL_SET_REPARSE_POINT,
+                      &reparse_buffer,
+                      REPARSE_GUID_DATA_BUFFER_HEADER_SIZE,
+                      NULL,
+                      0,
+                      &bytes_returned,
+                      NULL);
+  ASSERT(r != 0);
+
+  CloseHandle(file_handle);
+
+  r = uv_fs_readlink(NULL, &req, "test_dir/test_file", NULL);
+  ASSERT(r == UV_EINVAL && GetLastError() == ERROR_SYMLINK_NOT_SUPPORTED);
+  uv_fs_req_cleanup(&req);
+
+/*
+  Placeholder tests for exercising the behavior fixed in issue #995.
+  To run, update the path with the IP address of a Mac with the hard drive
+  shared via SMB as "Macintosh HD".
+
+  r = uv_fs_stat(NULL, &req, "\\\\<mac_ip>\\Macintosh HD\\.DS_Store", NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_lstat(NULL, &req, "\\\\<mac_ip>\\Macintosh HD\\.DS_Store", NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+*/
+
+/*
+  uv_fs_stat and uv_fs_lstat can only work on non-symlink reparse
+  points when a minifilter driver is registered which intercepts
+  associated filesystem requests. Installing a driver is beyond
+  the scope of this test.
+
+  r = uv_fs_stat(NULL, &req, "test_dir/test_file", NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_lstat(NULL, &req, "test_dir/test_file", NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&req);
+*/
+
+  r = uv_fs_scandir(NULL, &scandir_req, "test_dir", 0, NULL);
+  ASSERT(r == 1);
+  ASSERT(scandir_req.result == 1);
+  ASSERT(scandir_req.ptr);
+  while (UV_EOF != uv_fs_scandir_next(&scandir_req, &dent)) {
+    ASSERT(strcmp(dent.name, "test_file") == 0);
+    /* uv_fs_scandir incorrectly identifies non-symlink reparse points
+       as links because it doesn't open the file and verify the reparse
+       point tag. The PowerShell Get-ChildItem command shares this
+       behavior, so it's reasonable to leave it as is. */
+    ASSERT(dent.type == UV_DIRENT_LINK);
+  }
+  uv_fs_req_cleanup(&scandir_req);
+  ASSERT(!scandir_req.ptr);
+
+  /* clean-up */
+  unlink("test_dir/test_file");
+  rmdir("test_dir");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
 
 
 TEST_IMPL(fs_utime) {
