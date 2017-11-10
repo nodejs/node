@@ -1,0 +1,63 @@
+{
+  "_args": [
+    [
+      "tar@2.2.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "tar@2.2.1",
+  "_id": "tar@2.2.1",
+  "_inBundle": true,
+  "_integrity": "sha1-jk0qJWwOIYXGsYrWlK7JaLg8sdE=",
+  "_location": "/fsevents/tar",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "tar@2.2.1",
+    "name": "tar",
+    "escapedName": "tar",
+    "rawSpec": "2.2.1",
+    "saveSpec": null,
+    "fetchSpec": "2.2.1"
+  },
+  "_requiredBy": [
+    "/fsevents/node-pre-gyp",
+    "/fsevents/tar-pack"
+  ],
+  "_resolved": "https://registry.npmjs.org/tar/-/tar-2.2.1.tgz",
+  "_spec": "2.2.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/node-tar/issues"
+  },
+  "dependencies": {
+    "block-stream": "*",
+    "fstream": "^1.0.2",
+    "inherits": "2"
+  },
+  "description": "tar for node",
+  "devDependencies": {
+    "graceful-fs": "^4.1.2",
+    "mkdirp": "^0.5.0",
+    "rimraf": "1.x",
+    "tap": "0.x"
+  },
+  "homepage": "https://github.com/isaacs/node-tar#readme",
+  "license": "ISC",
+  "main": "tar.js",
+  "name": "tar",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/node-tar.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "2.2.1"
+}

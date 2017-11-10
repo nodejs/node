@@ -1,0 +1,80 @@
+{
+  "_args": [
+    [
+      "http-signature@1.1.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "http-signature@1.1.1",
+  "_id": "http-signature@1.1.1",
+  "_inBundle": true,
+  "_integrity": "sha1-33LiZwZs0Kxn+3at+OE0qPvPkb8=",
+  "_location": "/fsevents/http-signature",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "http-signature@1.1.1",
+    "name": "http-signature",
+    "escapedName": "http-signature",
+    "rawSpec": "1.1.1",
+    "saveSpec": null,
+    "fetchSpec": "1.1.1"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/http-signature/-/http-signature-1.1.1.tgz",
+  "_spec": "1.1.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Joyent, Inc"
+  },
+  "bugs": {
+    "url": "https://github.com/joyent/node-http-signature/issues"
+  },
+  "contributors": [
+    {
+      "name": "Mark Cavage",
+      "email": "mcavage@gmail.com"
+    },
+    {
+      "name": "David I. Lehn",
+      "email": "dil@lehn.org"
+    },
+    {
+      "name": "Patrick Mooney",
+      "email": "patrick.f.mooney@gmail.com"
+    }
+  ],
+  "dependencies": {
+    "assert-plus": "^0.2.0",
+    "jsprim": "^1.2.2",
+    "sshpk": "^1.7.0"
+  },
+  "description": "Reference implementation of Joyent's HTTP Signature scheme.",
+  "devDependencies": {
+    "node-uuid": "^1.4.1",
+    "tap": "0.4.2"
+  },
+  "engines": {
+    "node": ">=0.8",
+    "npm": ">=1.3.7"
+  },
+  "homepage": "https://github.com/joyent/node-http-signature/",
+  "keywords": [
+    "https",
+    "request"
+  ],
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "http-signature",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/joyent/node-http-signature.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.1.1"
+}

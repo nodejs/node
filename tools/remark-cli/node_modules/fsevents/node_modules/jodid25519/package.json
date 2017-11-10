@@ -1,0 +1,78 @@
+{
+  "_args": [
+    [
+      "jodid25519@1.0.2",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "jodid25519@1.0.2",
+  "_id": "jodid25519@1.0.2",
+  "_inBundle": true,
+  "_integrity": "sha1-BtSRIlUJNBlHfUJWM2BuDpB4KWc=",
+  "_location": "/fsevents/jodid25519",
+  "_optional": true,
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "jodid25519@1.0.2",
+    "name": "jodid25519",
+    "escapedName": "jodid25519",
+    "rawSpec": "1.0.2",
+    "saveSpec": null,
+    "fetchSpec": "1.0.2"
+  },
+  "_requiredBy": [
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/jodid25519/-/jodid25519-1.0.2.tgz",
+  "_spec": "1.0.2",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Michele Bini, Ron Garret, Guy K. Kloss"
+  },
+  "bugs": {
+    "url": "https://github.com/meganz/jodid25519/issues"
+  },
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "description": "jodid25519 - Curve 25519-based cryptography",
+  "devDependencies": {
+    "almond": "~0.3.1",
+    "chai": "^3.0.0",
+    "dateformat": "~1.0.7-1.2.3",
+    "ibrik": "~2.0.0",
+    "istanbul": "~0.3.5",
+    "jsdoc": "<=3.3.0",
+    "mocha": "~2.0.1",
+    "sinon": "~1.10.3",
+    "sinon-chai": "^2.8.0"
+  },
+  "directories": {
+    "src": "src",
+    "test": "test",
+    "doc": "doc"
+  },
+  "homepage": "https://github.com/meganz/jodid25519",
+  "keywords": [
+    "Curve25519",
+    "Ed25519",
+    "ECDH",
+    "EdDSA",
+    "ECDSA",
+    "encryption",
+    "signing"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "name": "jodid25519",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meganz/jodid25519.git"
+  },
+  "scripts": {
+    "test": "mocha test/*_test.js"
+  },
+  "version": "1.0.2"
+}

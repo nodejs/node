@@ -1,0 +1,92 @@
+{
+  "_args": [
+    [
+      "punycode@1.4.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "punycode@1.4.1",
+  "_id": "punycode@1.4.1",
+  "_inBundle": true,
+  "_integrity": "sha1-wNWmOycYgArY4esPpSachN1BhF4=",
+  "_location": "/fsevents/punycode",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "punycode@1.4.1",
+    "name": "punycode",
+    "escapedName": "punycode",
+    "rawSpec": "1.4.1",
+    "saveSpec": null,
+    "fetchSpec": "1.4.1"
+  },
+  "_requiredBy": [
+    "/fsevents/tough-cookie"
+  ],
+  "_resolved": "https://registry.npmjs.org/punycode/-/punycode-1.4.1.tgz",
+  "_spec": "1.4.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Mathias Bynens",
+    "url": "https://mathiasbynens.be/"
+  },
+  "bugs": {
+    "url": "https://github.com/bestiejs/punycode.js/issues"
+  },
+  "contributors": [
+    {
+      "name": "Mathias Bynens",
+      "url": "https://mathiasbynens.be/"
+    },
+    {
+      "name": "John-David Dalton",
+      "url": "http://allyoucanleet.com/"
+    }
+  ],
+  "dependencies": {},
+  "description": "A robust Punycode converter that fully complies to RFC 3492 and RFC 5891, and works on nearly all JavaScript platforms.",
+  "devDependencies": {
+    "coveralls": "^2.11.4",
+    "grunt": "^0.4.5",
+    "grunt-contrib-uglify": "^0.11.0",
+    "grunt-shell": "^1.1.2",
+    "istanbul": "^0.4.1",
+    "qunit-extras": "^1.4.4",
+    "qunitjs": "~1.11.0",
+    "requirejs": "^2.1.22"
+  },
+  "files": [
+    "LICENSE-MIT.txt",
+    "punycode.js"
+  ],
+  "homepage": "https://mths.be/punycode",
+  "jspm": {
+    "map": {
+      "./punycode.js": {
+        "node": "@node/punycode"
+      }
+    }
+  },
+  "keywords": [
+    "punycode",
+    "unicode",
+    "idn",
+    "idna",
+    "dns",
+    "url",
+    "domain"
+  ],
+  "license": "MIT",
+  "main": "punycode.js",
+  "name": "punycode",
+  "optionalDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bestiejs/punycode.js.git"
+  },
+  "scripts": {
+    "test": "node tests/tests.js"
+  },
+  "version": "1.4.1"
+}

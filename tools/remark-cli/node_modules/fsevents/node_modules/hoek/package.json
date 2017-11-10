@@ -1,0 +1,60 @@
+{
+  "_args": [
+    [
+      "hoek@2.16.3",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "hoek@2.16.3",
+  "_id": "hoek@2.16.3",
+  "_inBundle": true,
+  "_integrity": "sha1-ILt0A9POo5jpHcRxCo/xuCdKJe0=",
+  "_location": "/fsevents/hoek",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "hoek@2.16.3",
+    "name": "hoek",
+    "escapedName": "hoek",
+    "rawSpec": "2.16.3",
+    "saveSpec": null,
+    "fetchSpec": "2.16.3"
+  },
+  "_requiredBy": [
+    "/fsevents/boom",
+    "/fsevents/hawk",
+    "/fsevents/sntp"
+  ],
+  "_resolved": "https://registry.npmjs.org/hoek/-/hoek-2.16.3.tgz",
+  "_spec": "2.16.3",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bugs": {
+    "url": "https://github.com/hapijs/hoek/issues"
+  },
+  "dependencies": {},
+  "description": "General purpose node utilities",
+  "devDependencies": {
+    "code": "1.x.x",
+    "lab": "5.x.x"
+  },
+  "engines": {
+    "node": ">=0.10.40"
+  },
+  "homepage": "https://github.com/hapijs/hoek#readme",
+  "keywords": [
+    "utilities"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "lib/index.js",
+  "name": "hoek",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hapijs/hoek.git"
+  },
+  "scripts": {
+    "test": "lab -a code -t 100 -L",
+    "test-cov-html": "lab -a code -t 100 -L -r html -o coverage.html"
+  },
+  "version": "2.16.3"
+}
