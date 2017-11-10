@@ -36,12 +36,12 @@ receiver = net.createServer(function(socket) {
     });
 
     passedSocket.on('data', function(data) {
-      passedSocket.send('[echo] ' + data);
+      passedSocket.send(`[echo] ${data}`);
     });
     passedSocket.on('close', function() {
       receiver.close();
     });
-    passedSocket.send('[greeting] ' + greeting);
+    passedSocket.send(`[greeting] ${greeting}`);
   });
 });
 
