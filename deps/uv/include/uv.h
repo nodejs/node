@@ -141,6 +141,7 @@ extern "C" {
   XX(EMLINK, "too many links")                                                \
   XX(EHOSTDOWN, "host is down")                                               \
   XX(EREMOTEIO, "remote I/O error")                                           \
+  XX(ENOTTY, "inappropriate ioctl for device")                                \
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
@@ -709,6 +710,7 @@ UV_EXTERN int uv_pipe_getpeername(const uv_pipe_t* handle,
 UV_EXTERN void uv_pipe_pending_instances(uv_pipe_t* handle, int count);
 UV_EXTERN int uv_pipe_pending_count(uv_pipe_t* handle);
 UV_EXTERN uv_handle_type uv_pipe_pending_type(uv_pipe_t* handle);
+UV_EXTERN int uv_pipe_chmod(uv_pipe_t* handle, int flags);
 
 
 struct uv_poll_s {
@@ -1068,6 +1070,7 @@ UV_EXTERN int uv_os_homedir(char* buffer, size_t* size);
 UV_EXTERN int uv_os_tmpdir(char* buffer, size_t* size);
 UV_EXTERN int uv_os_get_passwd(uv_passwd_t* pwd);
 UV_EXTERN void uv_os_free_passwd(uv_passwd_t* pwd);
+UV_EXTERN uv_pid_t uv_os_getppid(void);
 
 UV_EXTERN int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
 UV_EXTERN void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);
@@ -1404,6 +1407,21 @@ UV_EXTERN int uv_ip6_name(const struct sockaddr_in6* src, char* dst, size_t size
 
 UV_EXTERN int uv_inet_ntop(int af, const void* src, char* dst, size_t size);
 UV_EXTERN int uv_inet_pton(int af, const char* src, void* dst);
+
+#if defined(IF_NAMESIZE)
+# define UV_IF_NAMESIZE (IF_NAMESIZE + 1)
+#elif defined(IFNAMSIZ)
+# define UV_IF_NAMESIZE (IFNAMSIZ + 1)
+#else
+# define UV_IF_NAMESIZE (16 + 1)
+#endif
+
+UV_EXTERN int uv_if_indextoname(unsigned int ifindex,
+                                char* buffer,
+                                size_t* size);
+UV_EXTERN int uv_if_indextoiid(unsigned int ifindex,
+                               char* buffer,
+                               size_t* size);
 
 UV_EXTERN int uv_exepath(char* buffer, size_t* size);
 

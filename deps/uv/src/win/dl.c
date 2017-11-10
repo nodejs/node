@@ -89,9 +89,9 @@ static void uv__format_fallback_error(uv_lib_t* lib, int errorno){
 
 
 static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno) {
-  static const char not_win32_app_msg[] = "%1 is not a valid Win32 application";
   DWORD_PTR arg;
   DWORD res;
+  char* msg;
 
   if (lib->errmsg) {
     LocalFree(lib->errmsg);
@@ -114,16 +114,16 @@ static int uv__dlerror(uv_lib_t* lib, const char* filename, DWORD errorno) {
                          0, (LPSTR) &lib->errmsg, 0, NULL);
   }
 
-  /* Inexpert hack to get the filename into the error message. */
-  if (res && strstr(lib->errmsg, not_win32_app_msg)) {
-    LocalFree(lib->errmsg);
+  if (res && errorno == ERROR_BAD_EXE_FORMAT && strstr(lib->errmsg, "%1")) {
+    msg = lib->errmsg;
     lib->errmsg = NULL;
     arg = (DWORD_PTR) filename;
     res = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
                          FORMAT_MESSAGE_ARGUMENT_ARRAY |
                          FORMAT_MESSAGE_FROM_STRING,
-                         not_win32_app_msg,
+                         msg,
                          0, 0, (LPSTR) &lib->errmsg, 0, (va_list*) &arg);
+    LocalFree(msg);
   }
 
   if (!res)
