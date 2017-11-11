@@ -48,7 +48,6 @@ class Agent {
   bool IsStarted() { return !!client_; }
 
   // IO thread started, and client connected
-  bool IsConnected();
   bool IsWaitingForConnect();
 
   void WaitForDisconnect();
