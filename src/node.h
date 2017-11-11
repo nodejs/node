@@ -40,10 +40,10 @@
 #endif
 
 // This should be defined in make system.
-// See issue https://github.com/joyent/node/issues/1236
+// See issue https://github.com/nodejs/node-v0.x-archive/issues/1236
 #if defined(__MINGW32__) || defined(_MSC_VER)
 #ifndef _WIN32_WINNT
-# define _WIN32_WINNT   0x0501
+# define _WIN32_WINNT   0x0600  // Windows Server 2008
 #endif
 
 #ifndef NOMINMAX
