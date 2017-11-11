@@ -27,7 +27,6 @@ const events = require('events');
 
 function listener() {}
 function listener2() {}
-class TestStream extends events.EventEmitter {}
 
 {
   const ee = new events.EventEmitter();
@@ -79,6 +78,7 @@ class TestStream extends events.EventEmitter {}
 }
 
 {
+  class TestStream extends events.EventEmitter {}
   const s = new TestStream();
   assert.deepStrictEqual(s.listeners('foo'), []);
 }
