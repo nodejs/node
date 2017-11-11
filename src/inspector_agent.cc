@@ -548,10 +548,6 @@ void Agent::Connect(InspectorSessionDelegate* delegate) {
   client_->connectFrontend(delegate);
 }
 
-bool Agent::IsConnected() {
-  return io_ && io_->IsConnected();
-}
-
 void Agent::WaitForDisconnect() {
   CHECK_NE(client_, nullptr);
   client_->contextDestroyed(parent_env_->context());

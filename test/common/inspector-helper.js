@@ -369,28 +369,43 @@ class NodeInstance {
     });
   }
 
-  wsHandshake(devtoolsUrl) {
-    return this.portPromise.then((port) => new Promise((resolve) => {
-      http.get({
-        port,
-        path: url.parse(devtoolsUrl).path,
-        headers: {
-          'Connection': 'Upgrade',
-          'Upgrade': 'websocket',
-          'Sec-WebSocket-Version': 13,
-          'Sec-WebSocket-Key': 'key=='
-        }
-      }).on('upgrade', (message, socket) => {
-        resolve(new InspectorSession(socket, this));
-      }).on('response', common.mustNotCall('Upgrade was not received'));
-    }));
+  async sendUpgradeRequest() {
+    const response = await this.httpGet(null, '/json/list');
+    const devtoolsUrl = response[0]['webSocketDebuggerUrl'];
+    const port = await this.portPromise;
+    return http.get({
+      port,
+      path: url.parse(devtoolsUrl).path,
+      headers: {
+        'Connection': 'Upgrade',
+        'Upgrade': 'websocket',
+        'Sec-WebSocket-Version': 13,
+        'Sec-WebSocket-Key': 'key=='
+      }
+    });
   }
 
   async connectInspectorSession() {
     console.log('[test]', 'Connecting to a child Node process');
-    const response = await this.httpGet(null, '/json/list');
-    const url = response[0]['webSocketDebuggerUrl'];
-    return this.wsHandshake(url);
+    const upgradeRequest = await this.sendUpgradeRequest();
+    return new Promise((resolve, reject) => {
+      upgradeRequest
+        .on('upgrade',
+            (message, socket) => resolve(new InspectorSession(socket, this)))
+        .on('response', common.mustNotCall('Upgrade was not received'));
+    });
+  }
+
+  async expectConnectionDeclined() {
+    console.log('[test]', 'Checking upgrade is not possible');
+    const upgradeRequest = await this.sendUpgradeRequest();
+    return new Promise((resolve, reject) => {
+      upgradeRequest
+          .on('upgrade', common.mustNotCall('Upgrade was received'))
+          .on('response', (response) =>
+            response.on('data', () => {})
+                    .on('end', () => resolve(response.statusCode)));
+    });
   }
 
   expectShutdown() {
@@ -401,6 +416,10 @@ class NodeInstance {
     if (this._unprocessedStderrLines.length)
       return Promise.resolve(this._unprocessedStderrLines.shift());
     return new Promise((resolve) => this._stderrLineCallback = resolve);
+  }
+
+  write(message) {
+    this._process.stdin.write(message);
   }
 
   kill() {

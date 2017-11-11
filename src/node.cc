@@ -2341,7 +2341,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 static void WaitForInspectorDisconnect(Environment* env) {
 #if HAVE_INSPECTOR
-  if (env->inspector_agent()->IsConnected()) {
+  if (env->inspector_agent()->delegate() != nullptr) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
 #if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
