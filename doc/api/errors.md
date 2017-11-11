@@ -653,6 +653,12 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
+### ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED
+
+Used when a client certificate engine is requested that is not supported by the
+version of OpenSSL being used.
+
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 ### ERR_CRYPTO_ECDH_INVALID_FORMAT
 

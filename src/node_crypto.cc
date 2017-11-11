@@ -354,6 +354,41 @@ static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
 
+// Loads OpenSSL engine by engine id and returns it. The loaded engine
+// gets a reference so remember the corresponding call to ENGINE_free.
+// In case of error the appropriate js exception is scheduled
+// and nullptr is returned.
+#ifndef OPENSSL_NO_ENGINE
+static ENGINE* LoadEngineById(const char* engine_id, char (*errmsg)[1024]) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  ENGINE* engine = ENGINE_by_id(engine_id);
+
+  if (engine == nullptr) {
+    // Engine not found, try loading dynamically.
+    engine = ENGINE_by_id("dynamic");
+    if (engine != nullptr) {
+      if (!ENGINE_ctrl_cmd_string(engine, "SO_PATH", engine_id, 0) ||
+          !ENGINE_ctrl_cmd_string(engine, "LOAD", nullptr, 0)) {
+        ENGINE_free(engine);
+        engine = nullptr;
+      }
+    }
+  }
+
+  if (engine == nullptr) {
+    int err = ERR_get_error();
+    if (err != 0) {
+      ERR_error_string_n(err, *errmsg, sizeof(*errmsg));
+    } else {
+      snprintf(*errmsg, sizeof(*errmsg),
+               "Engine \"%s\" was not found", engine_id);
+    }
+  }
+
+  return engine;
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 // This callback is used to avoid the default passphrase callback in OpenSSL
 // which will typically prompt for the passphrase. The prompting is designed
@@ -498,6 +533,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                       SecureContext::SetSessionTimeout);
   env->SetProtoMethod(t, "close", SecureContext::Close);
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
+#ifndef OPENSSL_NO_ENGINE
+  env->SetProtoMethod(t, "setClientCertEngine",
+                      SecureContext::SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
   env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
@@ -1293,6 +1332,46 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError(str);
   }
 }
+
+
+#ifndef OPENSSL_NO_ENGINE
+void SecureContext::SetClientCertEngine(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+
+  SecureContext* sc = Unwrap<SecureContext>(args.This());
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  // SSL_CTX_set_client_cert_engine does not itself support multiple
+  // calls by cleaning up before overwriting the client_cert_engine
+  // internal context variable.
+  // Instead of trying to fix up this problem we in turn also do not
+  // support multiple calls to SetClientCertEngine.
+  if (sc->client_cert_engine_provided_) {
+    return env->ThrowError(
+        "Multiple calls to SetClientCertEngine are not allowed");
+  }
+
+  const node::Utf8Value engine_id(env->isolate(), args[0]);
+  char errmsg[1024];
+  ENGINE* engine = LoadEngineById(*engine_id, &errmsg);
+
+  if (engine == nullptr) {
+    return env->ThrowError(errmsg);
+  }
+
+  int r = SSL_CTX_set_client_cert_engine(sc->ctx_, engine);
+  // Free reference (SSL_CTX_set_client_cert_engine took it via ENGINE_init).
+  ENGINE_free(engine);
+  if (r == 0) {
+    return ThrowCryptoError(env, ERR_get_error());
+  }
+  sc->client_cert_engine_provided_ = true;
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
@@ -6093,20 +6172,10 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 
   ClearErrorOnReturn clear_error_on_return;
 
+  // Load engine.
   const node::Utf8Value engine_id(env->isolate(), args[0]);
-  ENGINE* engine = ENGINE_by_id(*engine_id);
-
-  // Engine not found, try loading dynamically
-  if (engine == nullptr) {
-    engine = ENGINE_by_id("dynamic");
-    if (engine != nullptr) {
-      if (!ENGINE_ctrl_cmd_string(engine, "SO_PATH", *engine_id, 0) ||
-          !ENGINE_ctrl_cmd_string(engine, "LOAD", nullptr, 0)) {
-        ENGINE_free(engine);
-        engine = nullptr;
-      }
-    }
-  }
+  char errmsg[1024];
+  ENGINE* engine = LoadEngineById(*engine_id, &errmsg);
 
   if (engine == nullptr) {
     int err = ERR_get_error();
