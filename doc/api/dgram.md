@@ -455,7 +455,7 @@ On IPv4, if `multicastInterface` is a valid address but does not match any
 interface, or if the address does not match the family then
 a [`System Error`][] such as `EADDRNOTAVAIL` or `EPROTONOSUP` is thrown.
 
-On IPv6, most errors with specifying or omiting scope will result in the socket
+On IPv6, most errors with specifying or omitting scope will result in the socket
 continuing to use (or returning to) the system's default interface selection.
 
 A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`) can be
