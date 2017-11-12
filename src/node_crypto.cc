@@ -1341,7 +1341,8 @@ void SecureContext::SetClientCertEngine(
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
 
-  SecureContext* sc = Unwrap<SecureContext>(args.This());
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
