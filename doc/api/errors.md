@@ -805,8 +805,8 @@ A required header is missing in an HTTP/2 message.
 <a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
 ### ERR_HTTP2_HEADER_SINGLE_VALUE
 
-Multiple values have been provided for an HTTP header field that is required to
-have only a single value.
+Multiple values have been provided for an HTTP/2 header field that is required
+to have only a single value.
 
 <a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
 ### ERR_HTTP2_HEADERS_AFTER_RESPOND
