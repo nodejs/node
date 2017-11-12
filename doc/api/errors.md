@@ -680,7 +680,7 @@ to enable or disable FIPS mode in the `crypto` module.
 <a id="ERR_CRYPTO_FIPS_UNAVAILABLE"></a>
 ### ERR_CRYPTO_FIPS_UNAVAILABLE
 
-There was an attempt to enable or disable FIPS mode but FIPS mode is not
+There was an attempt to enable or disable FIPS mode, but FIPS mode is not
 available.
 
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
@@ -916,7 +916,7 @@ key names that begin with the `:` prefix.
 <a id="ERR_HTTP2_PUSH_DISABLED"></a>
 ### ERR_HTTP2_PUSH_DISABLED
 
-Push streams have been disabled by the client but an attempt to create a push
+Push streams have been disabled by the client, but an attempt to create a push
 stream was made.
 
 <a id="ERR_HTTP2_SEND_FILE"></a>
