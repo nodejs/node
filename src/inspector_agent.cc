@@ -261,10 +261,10 @@ class InspectorTimer {
   }
 
   static void TimerClosedCb(uv_handle_t* uvtimer) {
-    InspectorTimer* timer =
+    std::unique_ptr<InspectorTimer> timer(
         node::ContainerOf(&InspectorTimer::timer_,
-                          reinterpret_cast<uv_timer_t*>(uvtimer));
-    delete timer;
+                          reinterpret_cast<uv_timer_t*>(uvtimer)));
+    // Unique_ptr goes out of scope here and pointer is deleted.
   }
 
   ~InspectorTimer() {}
@@ -272,6 +272,8 @@ class InspectorTimer {
   uv_timer_t timer_;
   V8InspectorClient::TimerCallback callback_;
   void* data_;
+
+  friend std::unique_ptr<InspectorTimer>::deleter_type;
 };
 
 class InspectorTimerHandle {
