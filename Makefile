@@ -159,6 +159,7 @@ coverage-clean:
 # instrumented for any additional runs the user may want to make.
 # For C++ coverage reporting, this needs to be run in conjunction with configure
 #  --coverage.  html coverage reports will be created under coverage/
+# Related CI job: node-test-commit-linux-coverage
 coverage: coverage-test ## Run the tests and generate a coverage report.
 
 .PHONY: coverage-build
@@ -209,6 +210,7 @@ coverage-test: coverage-build
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
 .PHONY: cctest
+# Runs the C++ tests using the built `cctest` executable.
 cctest: all
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
 
@@ -220,12 +222,16 @@ endif
 	@out/$(BUILDTYPE)/cctest --gtest_list_tests
 
 .PHONY: v8
+# Related CI job: node-test-commit-v8-linux
+# Rebuilds deps/v8 as a git tree, pulls its third-party dependencies, and
+# builds it.
 v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: test
-test: all ## Default test target. Runs default tests, linters, and builds docs.
+# This does not run tests of third-party libraries inside deps.
+test: all ## Runs default tests, linters, and builds docs.
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s doc-only
@@ -237,8 +243,7 @@ test: all ## Default test target. Runs default tests, linters, and builds docs.
 		$(CI_DOC)
 
 .PHONY: test-only
-# For a quick test, does not run linter or build doc
-test-only: all
+test-only: all  ## For a quick test, does not run linter or build docs.
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
@@ -246,6 +251,7 @@ test-only: all
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES)
 
+# Used by `make coverage-test`
 test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
@@ -408,6 +414,7 @@ CI_DOC := doctool
 
 .PHONY: test-ci-native
 # Build and test addons without building anything else
+# Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info
 test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
@@ -416,6 +423,7 @@ test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 
 .PHONY: test-ci-js
 # This target should not use a native compiler at all
+# Related CI job: node-test-commit-arm-fanned
 test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -428,6 +436,7 @@ test-ci-js: | clear-stalled
 	fi
 
 .PHONY: test-ci
+# Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	out/Release/cctest --gtest_output=tap:cctest.tap
@@ -440,6 +449,23 @@ test-ci: | clear-stalled build-addons build-addons-napi doc-only
 	if [ "$${PS_OUT}" ]; then \
 		echo $${PS_OUT} | xargs kill; exit 1; \
 	fi
+
+.PHONY: build-ci
+# Prepare the build for running the tests.
+# Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
+build-ci:
+	$(PYTHON) ./configure $(CONFIG_FLAGS)
+	$(MAKE)
+
+.PHONY: run-ci
+# Run by CI tests, exceptions:
+# - node-test-commit-arm-fanned (Raspberry Pis), where the binaries are
+#   cross-compiled, then transferred elsewhere to run different subsets
+#   of tests. See `test-ci-native` and `test-ci-js`.
+# - node-test-commit-linux-coverage: where the build and the tests need
+#   to be instrumented, see `coverage`.
+run-ci: build-ci
+	$(MAKE) test-ci
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -467,17 +493,19 @@ test-tick-processor: all
 	$(PYTHON) tools/test.py tick-processor
 
 .PHONY: test-hash-seed
+# Verifies the hash seed used by V8 for hashing is random.
 test-hash-seed: all
 	$(NODE) test/pummel/test-hash-seed.js
 
 .PHONY: test-doc
-test-doc: doc-only
+test-doc: doc-only ## Builds, lints, and verifies the docs.
 	$(MAKE) lint
 	$(PYTHON) tools/test.py $(CI_DOC)
 
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
+# Related CI job: node-test-npm
 test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
 	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test-node
 
@@ -528,8 +556,12 @@ test-with-async-hooks:
 .PHONY: test-v8-benchmarks
 .PHONY: test-v8-intl
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
+# Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
-#	note: performs full test unless QUICKCHECK is specified
+# Performs a full test unless QUICKCHECK is specified.
+# Note that we cannot run the tests in deps/v8 directly without rebuilding a
+# git tree and using gclient to pull the third-party dependencies, which is
+# done by the `v8` target.
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
         --no-presubmit \
@@ -540,7 +572,7 @@ test-v8: v8  ## Runs the V8 test suite on deps/v8.
 	$(MAKE) test-hash-seed
 
 test-v8-intl: v8
-#	note: performs full test unless QUICKCHECK is specified
+# Performs a full test unless QUICKCHECK is specified.
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
@@ -574,8 +606,7 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 .PHONY: doc-only
-# This uses the locally built node if available, otherwise uses the global node
-doc-only: $(apidoc_dirs) $(apiassets)
+doc-only: $(apidoc_dirs) $(apiassets)  ## Builds the docs with the local or the global Node.js binary.
 # If it's a source tarball, assets are already in doc/api/assets,
 # no need to install anything, we have already copied the docs over
 	if [ ! -d doc/api/assets ]; then \
@@ -638,15 +669,6 @@ docopen: $(apidocs_html)
 .PHONY: docclean
 docclean:
 	$(RM) -r out/doc
-
-.PHONY: build-ci
-build-ci:
-	$(PYTHON) ./configure $(CONFIG_FLAGS)
-	$(MAKE)
-
-.PHONY: run-ci
-run-ci: build-ci
-	$(MAKE) test-ci
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
@@ -870,8 +892,10 @@ $(PKG): release-only
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 .PHONY: pkg
+# Builds the macOS installer for releases.
 pkg: $(PKG)
 
+# Note: this is strictly for release builds on release machines only.
 pkg-upload: pkg
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).pkg
@@ -905,6 +929,7 @@ endif
 .PHONY: tar
 tar: $(TARBALL) ## Create a source tarball.
 
+# Note: this is strictly for release builds on release machines only.
 tar-upload: tar
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME).tar.gz
@@ -916,6 +941,7 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).tar.xz.done"
 endif
 
+# Note: this is strictly for release builds on release machines only.
 doc-upload: doc
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/"
 	chmod -R ug=rw-x+X,o=r+X out/doc/
@@ -978,8 +1004,10 @@ endif
 	$(RM) $(BINARYNAME).tar
 
 .PHONY: binary
+# This requires NODE_VERSION_IS_RELEASE defined as 1 in src/node_version.h.
 binary: $(BINARYTAR) ## Build release binary tarballs.
 
+# Note: this is strictly for release builds on release machines only.
 binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
@@ -1038,7 +1066,7 @@ bench-dgram: all
 bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events bench-dgram bench-util
 
 .PHONY: bench
-bench: bench-net bench-http bench-fs bench-tls ## Run node benchmarks.
+bench: bench-net bench-http bench-fs bench-tls
 
 .PHONY: bench-ci
 bench-ci: bench
@@ -1078,6 +1106,7 @@ tools/.miscmdlintstamp: $(LINT_MD_FILES)
 
 tools/.mdlintstamp: tools/.miscmdlintstamp tools/.docmdlintstamp
 
+# Lints the markdown documents maintained by us in the codebase.
 lint-md: | tools/.mdlintstamp
 else
 lint-md:
@@ -1099,6 +1128,8 @@ lint-js-fix:
 	fi
 
 .PHONY: lint-js
+# Note that on the CI `lint-js-ci` is run instead.
+# Lints the JavaScript code with eslint.
 lint-js:
 	@echo "Running JS linter..."
 	@if [ -x $(NODE) ]; then \
@@ -1111,6 +1142,7 @@ jslint: lint-js
 	@echo "Please use lint-js instead of jslint"
 
 .PHONY: lint-js-ci
+# On the CI the output is emitted in the TAP format.
 lint-js-ci:
 	@echo "Running JS linter..."
 	@if [ -x $(NODE) ]; then \
@@ -1156,6 +1188,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
 .PHONY: lint-cpp
+# Lints the C++ code with cpplint.py and check-imports.py.
 lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
@@ -1181,6 +1214,8 @@ lint: ## Run JS, C++, MD and doc linters.
 	$(MAKE) lint-addon-docs || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
+
+# Related CI job: node-test-linter
 lint-ci: lint-js-ci lint-cpp lint-md lint-addon-docs
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
