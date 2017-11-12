@@ -57,16 +57,12 @@ assert.throws(function() { process.kill(1 / 0); },
 assert.throws(function() { process.kill(-1 / 0); },
               invalidPidArgument);
 
-// Test that kill throws an error for invalid signal
-const unknownSignal = common.expectsError({
+// Test that kill throws an error for unknown signal names
+common.expectsError(() => process.kill(1, 'test'), {
   code: 'ERR_UNKNOWN_SIGNAL',
   type: TypeError,
   message: 'Unknown signal: test'
 });
-
-
-assert.throws(function() { process.kill(1, 'test'); },
-              unknownSignal);
 
 // Test kill argument processing in valid cases.
 //
