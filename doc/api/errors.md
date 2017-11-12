@@ -651,7 +651,7 @@ non-writable `stdout` or `stderr` stream.
 <a id="ERR_CPU_USAGE"></a>
 ### ERR_CPU_USAGE
 
-The native call from `process.cpuUsage` could be processed properly.
+The native call from `process.cpuUsage` could not be processed.
 
 <a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
 ### ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED
