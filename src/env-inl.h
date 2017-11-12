@@ -354,8 +354,9 @@ inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
 #if HAVE_INSPECTOR
-  // Destroy inspector agent before erasing the context.
-  delete inspector_agent_;
+  // Destroy inspector agent before erasing the context. The inspector
+  // destructor depends on the context still being accessible.
+  inspector_agent_.reset(nullptr);
 #endif
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
