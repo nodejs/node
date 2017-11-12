@@ -38,7 +38,7 @@ TestWriter.prototype._write = function(buffer, encoding, callback) {
 
 const dest = new TestWriter();
 
-function TestReader(id) {
+function TestReader() {
   stream.Readable.call(this);
   this.reads = 0;
 }
