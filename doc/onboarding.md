@@ -158,7 +158,7 @@ onboarding session.
   * After one or two approvals, land the PR.
     * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:` metadata!
     * [`core-validate-commit`][] helps a lot with this – install and use it if you can!
-    * If you use Chrome, [`node-review`][] fetches the metadata for you
+    * If you use Chrome or Edge, [`node-review`][] fetches the metadata for you.
 
 ## Final notes
 
