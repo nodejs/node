@@ -22,9 +22,9 @@ class TaskQueue {
   TaskQueue();
   ~TaskQueue() {}
 
-  void Push(T* task);
-  T* Pop();
-  T* BlockingPop();
+  void Push(std::unique_ptr<T> task);
+  std::unique_ptr<T> Pop();
+  std::unique_ptr<T> BlockingPop();
   void NotifyOfCompletion();
   void BlockingDrain();
   void Stop();
@@ -35,11 +35,11 @@ class TaskQueue {
   ConditionVariable tasks_drained_;
   int outstanding_tasks_;
   bool stopped_;
-  std::queue<T*> task_queue_;
+  std::queue<std::unique_ptr<T>> task_queue_;
 };
 
 struct DelayedTask {
-  v8::Task* task;
+  std::unique_ptr<v8::Task> task;
   uv_timer_t timer;
   double timeout;
   PerIsolatePlatformData* platform_data;
@@ -50,8 +50,9 @@ class PerIsolatePlatformData {
   PerIsolatePlatformData(v8::Isolate* isolate, uv_loop_t* loop);
   ~PerIsolatePlatformData();
 
-  void CallOnForegroundThread(v8::Task* task);
-  void CallDelayedOnForegroundThread(v8::Task* task, double delay_in_seconds);
+  void CallOnForegroundThread(std::unique_ptr<v8::Task> task);
+  void CallDelayedOnForegroundThread(std::unique_ptr<v8::Task> task,
+    double delay_in_seconds);
 
   void Shutdown();
 
@@ -64,7 +65,7 @@ class PerIsolatePlatformData {
 
  private:
   static void FlushTasks(uv_async_t* handle);
-  static void RunForegroundTask(v8::Task* task);
+  static void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
 
   int ref_count_ = 1;
