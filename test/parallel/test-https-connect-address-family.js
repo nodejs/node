@@ -1,4 +1,7 @@
 'use strict';
+
+// Test that the family option of https.get is honored.
+
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -9,21 +12,28 @@ if (!common.hasIPv6)
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const https = require('https');
-const dns = require('dns');
 
-function runTest() {
+{
+  // Test that `https` machinery passes host name, and receives IP.
+  const hostAddrIPv6 = '::1';
+  const HOSTNAME = 'dummy';
   https.createServer({
     cert: fixtures.readKey('agent1-cert.pem'),
     key: fixtures.readKey('agent1-key.pem'),
   }, common.mustCall(function(req, res) {
     this.close();
     res.end();
-  })).listen(0, '::1', common.mustCall(function() {
+  })).listen(0, hostAddrIPv6, common.mustCall(function() {
     const options = {
-      host: 'localhost',
+      host: HOSTNAME,
       port: this.address().port,
       family: 6,
       rejectUnauthorized: false,
+      lookup: common.mustCall((addr, opt, cb) => {
+        assert.strictEqual(addr, HOSTNAME);
+        assert.strictEqual(opt.family, 6);
+        cb(null, hostAddrIPv6, opt.family);
+      })
     };
     // Will fail with ECONNREFUSED if the address family is not honored.
     https.get(options, common.mustCall(function() {
@@ -32,17 +42,3 @@ function runTest() {
     }));
   }));
 }
-
-dns.lookup('localhost', { family: 6, all: true }, (err, addresses) => {
-  if (err) {
-    if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN')
-      common.skip('localhost does not resolve to ::1');
-
-    throw err;
-  }
-
-  if (addresses.some((val) => val.address === '::1'))
-    runTest();
-  else
-    common.skip('localhost does not resolve to ::1');
-});
