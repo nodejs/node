@@ -749,6 +749,24 @@ be set to `false` to disable ECDH entirely on the server only. This mode is
 deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
 the client. Use the `ciphers` parameter instead.
 
+<a id="DEP0085"></a>
+### DEP0085: AsyncHooks Sensitive API
+
+Type: Runtime
+
+The AsyncHooks Sensitive API was never documented and had various of minor
+issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+API instead.
+
+
+<a id="DEP0086"></a>
+### DEP0086: Remove runInAsyncIdScope
+
+Type: Runtime
+
+`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
+details.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

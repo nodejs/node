@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 // Make sure http.request() can catch immediate errors in
 // net.createConnection().
@@ -9,7 +10,7 @@ const net = require('net');
 const http = require('http');
 const uv = process.binding('uv');
 const { async_id_symbol } = process.binding('async_wrap');
-const { newUid } = require('async_hooks');
+const { newUid } = require('internal/async_hooks');
 
 const agent = new http.Agent();
 agent.createConnection = common.mustCall((cfg) => {
