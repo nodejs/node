@@ -11,35 +11,22 @@ switch (arg) {
     initHooks({
       oninit: common.mustCall(() => { throw new Error(arg); })
     }).enable();
-    async_hooks.emitInit(
-      async_hooks.newUid(),
-      `${arg}_type`,
-      async_hooks.executionAsyncId()
-    );
+    new async_hooks.AsyncResource(`${arg}_type`);
     return;
 
   case 'test_callback':
     initHooks({
       onbefore: common.mustCall(() => { throw new Error(arg); })
     }).enable();
-    const newAsyncId = async_hooks.newUid();
-    async_hooks.emitInit(
-      newAsyncId,
-      `${arg}_type`,
-      async_hooks.executionAsyncId()
-    );
-    async_hooks.emitBefore(newAsyncId, async_hooks.executionAsyncId());
+    const resource = new async_hooks.AsyncResource(`${arg}_type`);
+    resource.emitBefore();
     return;
 
   case 'test_callback_abort':
     initHooks({
       oninit: common.mustCall(() => { throw new Error(arg); })
     }).enable();
-    async_hooks.emitInit(
-      async_hooks.newUid(),
-      `${arg}_type`,
-      async_hooks.executionAsyncId()
-    );
+    new async_hooks.AsyncResource(`${arg}_type`);
     return;
 }
 
