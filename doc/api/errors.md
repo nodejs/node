@@ -656,8 +656,8 @@ The native call from `process.cpuUsage` could be processed properly.
 <a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
 ### ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED
 
-Used when a client certificate engine is requested that is not supported by the
-version of OpenSSL being used.
+A client certificate engine was requested that is not supported by the version
+of OpenSSL being used.
 
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 ### ERR_CRYPTO_ECDH_INVALID_FORMAT
@@ -886,7 +886,7 @@ An operation has been performed on a stream that has already been destroyed.
 
 Whenever an HTTP/2 `SETTINGS` frame is sent to a connected peer, the peer is
 required to send an acknowledgement that it has received and applied the new
-SETTINGS. By default, a maximum number of un-acknowledged `SETTINGS` frame may
+`SETTINGS`. By default, a maximum number of unacknowledged `SETTINGS` frames may
 be sent at any given time. This error code is used when that limit has been
 reached.
 
@@ -973,16 +973,14 @@ A given index is out of the accepted range (e.g. negative offsets).
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### ERR_INSPECTOR_ALREADY_CONNECTED
 
-When using the `inspector` module, the `ERR_INSPECTOR_ALREADY_CONNECTED` error
-code is used when an attempt is made to connect when the inspector is already
-connected.
+While using the `inspector` module, an attempt was made to connect when the
+inspector is already connected.
 
 <a id="ERR_INSPECTOR_CLOSED"></a>
 ### ERR_INSPECTOR_CLOSED
 
-When using the `inspector` module, the `ERR_INSPECTOR_CLOSED` error code is
-used when an attempt is made to use the inspector after the session has
-already closed.
+While using the `inspector` module, an attempt was made to use the inspector
+after the session has already closed.
 
 <a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
 ### ERR_INSPECTOR_NOT_AVAILABLE
@@ -992,8 +990,8 @@ The `inspector` module is not available for use.
 <a id="ERR_INSPECTOR_NOT_CONNECTED"></a>
 ### ERR_INSPECTOR_NOT_CONNECTED
 
-When using the `inspector` module, the `ERR_INSPECTOR_NOT_CONNECTED` error code
-is used when an attempt is made to use the inspector before it is connected.
+While using the `inspector` module, an attempt was made to use the inspector
+before it was connected.
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
