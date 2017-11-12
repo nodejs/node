@@ -114,9 +114,9 @@ int CloseAsyncAndLoop(uv_async_t* async) {
 
 // Delete main_thread_req_ on async handle close
 void ReleasePairOnAsyncClose(uv_handle_t* async) {
-  AsyncAndAgent* pair = node::ContainerOf(&AsyncAndAgent::first,
-                                          reinterpret_cast<uv_async_t*>(async));
-  delete pair;
+  std::unique_ptr<AsyncAndAgent> pair(node::ContainerOf(&AsyncAndAgent::first,
+      reinterpret_cast<uv_async_t*>(async)));
+  // Unique_ptr goes out of scope here and pointer is deleted.
 }
 
 }  // namespace
