@@ -3514,8 +3514,9 @@ void SetupProcessObject(Environment* env,
                     Integer::New(env->isolate(), uv_os_getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
-  process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
-                       GetParentProcessId);
+  CHECK(process->SetAccessor(env->context(),
+                             FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                             GetParentProcessId).FromJust());
 
   auto scheduled_immediate_count =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_scheduledImmediateCount");
