@@ -272,8 +272,8 @@ node::DebugOptions debug_options;
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size, uv_loop_t* loop) {
-    tracing_agent_ =
-        trace_enabled ? new tracing::Agent() : nullptr;
+    tracing_agent_.reset(
+        trace_enabled ? new tracing::Agent() : nullptr);
     platform_ = new NodePlatform(thread_pool_size, loop,
         trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
     V8::InitializePlatform(platform_);
@@ -285,8 +285,7 @@ static struct {
     platform_->Shutdown();
     delete platform_;
     platform_ = nullptr;
-    delete tracing_agent_;
-    tracing_agent_ = nullptr;
+    tracing_agent_.reset(nullptr);
   }
 
   void DrainVMTasks() {
@@ -315,7 +314,7 @@ static struct {
     tracing_agent_->Stop();
   }
 
-  tracing::Agent* tracing_agent_;
+  std::unique_ptr<tracing::Agent> tracing_agent_;
   NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size, uv_loop_t* loop) {}
