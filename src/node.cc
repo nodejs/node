@@ -3257,8 +3257,9 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
-  process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
-                       GetParentProcessId);
+  CHECK(process->SetAccessor(env->context(),
+                       FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                       GetParentProcessId).FromJust());
 
   auto need_immediate_callback_string =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_needImmediateCallback");
