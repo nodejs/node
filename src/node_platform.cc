@@ -134,26 +134,23 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   task->Run();
 }
 
+void PerIsolatePlatformData::DeleteFromScheduledTasks(DelayedTask* task) {
+  auto it = std::find_if(scheduled_delayed_tasks_.begin(),
+                         scheduled_delayed_tasks_.end(),
+                         [task](const DelayedTaskPointer& delayed) -> bool {
+          return delayed.get() == task;
+      });
+  CHECK_NE(it, scheduled_delayed_tasks_.end());
+  scheduled_delayed_tasks_.erase(it);
+}
+
 void PerIsolatePlatformData::RunForegroundTask(uv_timer_t* handle) {
   DelayedTask* delayed = static_cast<DelayedTask*>(handle->data);
-  auto& tasklist = delayed->platform_data->scheduled_delayed_tasks_;
-  auto it = std::find(tasklist.begin(), tasklist.end(), delayed);
-  CHECK_NE(it, tasklist.end());
-  tasklist.erase(it);
   RunForegroundTask(std::move(delayed->task));
-  uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
-           [](uv_handle_t* handle) {
-    delete static_cast<DelayedTask*>(handle->data);
-  });
+  delayed->platform_data->DeleteFromScheduledTasks(delayed);
 }
 
 void PerIsolatePlatformData::CancelPendingDelayedTasks() {
-  for (auto delayed : scheduled_delayed_tasks_) {
-    uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
-             [](uv_handle_t* handle) {
-      delete static_cast<DelayedTask*>(handle->data);
-    });
-  }
   scheduled_delayed_tasks_.clear();
 }
 
@@ -183,7 +180,14 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
     // the delay is non-zero. This should not be a problem in practice.
     uv_timer_start(&delayed->timer, RunForegroundTask, delay_millis, 0);
     uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
-    scheduled_delayed_tasks_.push_back(delayed.release());
+
+    scheduled_delayed_tasks_.emplace_back(delayed.release(),
+                                          [](DelayedTask* delayed) {
+      uv_close(reinterpret_cast<uv_handle_t*>(&delayed->timer),
+               [](uv_handle_t* handle) {
+        delete static_cast<DelayedTask*>(handle->data);
+      });
+    });
   }
   while (std::unique_ptr<Task> task = foreground_tasks_.Pop()) {
     did_work = true;
