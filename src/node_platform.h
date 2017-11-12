@@ -4,6 +4,7 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 #include "libplatform/libplatform.h"
 #include "node.h"
@@ -64,6 +65,8 @@ class PerIsolatePlatformData {
   void CancelPendingDelayedTasks();
 
  private:
+  void DeleteFromScheduledTasks(DelayedTask* task);
+
   static void FlushTasks(uv_async_t* handle);
   static void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
@@ -74,7 +77,11 @@ class PerIsolatePlatformData {
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
   TaskQueue<DelayedTask> foreground_delayed_tasks_;
-  std::vector<DelayedTask*> scheduled_delayed_tasks_;
+
+  // Use a custom deleter because libuv needs to close the handle first.
+  typedef std::unique_ptr<DelayedTask, std::function<void(DelayedTask*)>>
+      DelayedTaskPointer;
+  std::vector<DelayedTaskPointer> scheduled_delayed_tasks_;
 };
 
 class NodePlatform : public MultiIsolatePlatform {
