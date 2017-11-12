@@ -61,9 +61,6 @@ if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
-@rem args should be vs2017 and vs2015. keeping vc2015 for backward compatibility (undocumented)
-if /i "%1"=="vc2015"        set target_env=vs2015&goto arg-ok
-if /i "%1"=="vs2015"        set target_env=vs2015&goto arg-ok
 if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
@@ -145,7 +142,6 @@ if defined build_release (
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
-if "%target_env%"=="vs2015" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2015"
 if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
@@ -187,20 +183,20 @@ if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 
 @rem Look for Visual Studio 2017
 :vs-set-2017
-if defined target_env if "%target_env%" NEQ "vs2017" goto vs-set-2015
+if defined target_env if "%target_env%" NEQ "vs2017" goto msbuild-not-found
 echo Looking for Visual Studio 2017
 call tools\msvs\vswhere_usability_wrapper.cmd
-if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
+if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2017...
   if not exist "%WIX%\SDK\VS2017" (
     echo Failed to find WiX install for Visual Studio 2017
     echo VS2017 support for WiX is only present starting at version 3.11
-    goto vs-set-2015
+    goto msbuild-not-found
   )
   if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
     echo Failed to find the Wix Toolset Visual Studio 2017 Extension
-    goto vs-set-2015
+    goto msbuild-not-found
   )
 )
 @rem check if VS2017 is already setup, and for the requested arch
@@ -212,38 +208,11 @@ set "VSCMD_START_DIR=%CD%"
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
-if errorlevel 1 goto vs-set-2015
+if errorlevel 1 goto msbuild-not-found
 :found_vs2017
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2017
 set PLATFORM_TOOLSET=v141
-goto msbuild-found
-
-@rem Look for Visual Studio 2015
-:vs-set-2015
-if defined target_env if "%target_env%" NEQ "vs2015" goto msbuild-not-found
-echo Looking for Visual Studio 2015
-if not defined VS140COMNTOOLS goto msbuild-not-found
-if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2015...
-  if not exist "%WIX%\SDK\VS2015" (
-    echo Failed to find WiX install for Visual Studio 2015
-    echo VS2015 support for WiX is only present starting at version 3.10
-    goto wix-not-found
-  )
-)
-
-@rem check if VS2015 is already setup
-if "_%VisualStudioVersion%_" == "_14.0_" if "_%VCVARS_VER%_" == "_140_" goto found_vs2015
-call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
-SET VCVARS_VER=140
-:found_vs2015
-if not defined VCINSTALLDIR goto msbuild-not-found
-@rem Visual C++ Build Tools 2015 does not define VisualStudioVersion
-echo Found MSVS version 14.0
-set GYP_MSVS_VERSION=2015
-set PLATFORM_TOOLSET=v140
 goto msbuild-found
 
 :msbuild-not-found
@@ -555,7 +524,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [no-cctest]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
