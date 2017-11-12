@@ -186,6 +186,18 @@ inline void Http2Settings::RefreshDefaults(Environment* env) {
     (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE);
 }
 
+Http2Priority::Http2Priority(Environment* env,
+                             Local<Value> parent,
+                             Local<Value> weight,
+                             Local<Value> exclusive) {
+  Local<Context> context = env->context();
+  int32_t parent_ = parent->Int32Value(context).ToChecked();
+  int32_t weight_ = weight->Int32Value(context).ToChecked();
+  bool exclusive_ = exclusive->BooleanValue(context).ToChecked();
+  DEBUG_HTTP2("Http2Priority: parent: %d, weight: %d, exclusive: %d\n",
+              parent_, weight_, exclusive_);
+  nghttp2_priority_spec_init(&spec, parent_, weight_, exclusive_ ? 1 : 0);
+}
 
 Http2Session::Http2Session(Environment* env,
                            Local<Object> wrap,
@@ -267,12 +279,8 @@ ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
   buffer[PADDING_BUF_RETURN_VALUE] = frameLen;
   MakeCallback(env()->ongetpadding_string(), 0, nullptr);
   uint32_t retval = buffer[PADDING_BUF_RETURN_VALUE];
-  retval = retval <= maxPayloadLen ? retval : maxPayloadLen;
-  retval = retval >= frameLen ? retval : frameLen;
-#if defined(DEBUG) && DEBUG
-  CHECK_GE(retval, frameLen);
-  CHECK_LE(retval, maxPayloadLen);
-#endif
+  retval = std::min(retval, static_cast<uint32_t>(maxPayloadLen));
+  retval = std::max(retval, static_cast<uint32_t>(frameLen));
   return retval;
 }
 
@@ -454,30 +462,18 @@ void Http2Session::SubmitPriority(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Local<Context> context = env->context();
 
-  nghttp2_priority_spec spec;
   int32_t id = args[0]->Int32Value(context).ToChecked();
-  int32_t parent = args[1]->Int32Value(context).ToChecked();
-  int32_t weight = args[2]->Int32Value(context).ToChecked();
-  bool exclusive = args[3]->BooleanValue(context).ToChecked();
+  Http2Priority priority(env, args[1], args[2], args[3]);
   bool silent = args[4]->BooleanValue(context).ToChecked();
-  DEBUG_HTTP2("Http2Session: submitting priority for stream %d: "
-              "parent: %d, weight: %d, exclusive: %d, silent: %d\n",
-              id, parent, weight, exclusive, silent);
-
-#if defined(DEBUG) && DEBUG
-  CHECK_GT(id, 0);
-  CHECK_GE(parent, 0);
-  CHECK_GE(weight, 0);
-#endif
+  DEBUG_HTTP2("Http2Session: submitting priority for stream %d", id);
 
   Nghttp2Stream* stream;
   if (!(stream = session->FindStream(id))) {
     // invalid stream
     return args.GetReturnValue().Set(NGHTTP2_ERR_INVALID_STREAM_ID);
   }
-  nghttp2_priority_spec_init(&spec, parent, weight, exclusive ? 1 : 0);
 
-  args.GetReturnValue().Set(stream->SubmitPriority(&spec, silent));
+  args.GetReturnValue().Set(stream->SubmitPriority(*priority, silent));
 }
 
 void Http2Session::SubmitSettings(const FunctionCallbackInfo<Value>& args) {
@@ -533,20 +529,14 @@ void Http2Session::SubmitRequest(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> headers = args[0].As<Array>();
   int options = args[1]->IntegerValue(context).ToChecked();
-  int32_t parent = args[2]->Int32Value(context).ToChecked();
-  int32_t weight = args[3]->Int32Value(context).ToChecked();
-  bool exclusive = args[4]->BooleanValue(context).ToChecked();
+  Http2Priority priority(env, args[2], args[3], args[4]);
 
-  DEBUG_HTTP2("Http2Session: submitting request: headers: %d, options: %d, "
-              "parent: %d, weight: %d, exclusive: %d\n", headers->Length(),
-              options, parent, weight, exclusive);
-
-  nghttp2_priority_spec prispec;
-  nghttp2_priority_spec_init(&prispec, parent, weight, exclusive ? 1 : 0);
+  DEBUG_HTTP2("Http2Session: submitting request: headers: %d, options: %d\n",
+              headers->Length(), options);
 
   Headers list(isolate, context, headers);
 
-  int32_t ret = session->Nghttp2Session::SubmitRequest(&prispec,
+  int32_t ret = session->Nghttp2Session::SubmitRequest(*priority,
                                                        *list, list.length(),
                                                        nullptr, options);
   DEBUG_HTTP2("Http2Session: request submitted, response: %d\n", ret);
