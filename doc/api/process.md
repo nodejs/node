@@ -1418,7 +1418,7 @@ console.log(`This platform is ${process.platform}`);
 
 ## process.ppid
 <!-- YAML
-added: REPLACEME
+added: v9.2.0
 -->
 
 * {integer}
