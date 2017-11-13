@@ -426,10 +426,101 @@ added: v0.1.100
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
+## Inspector only methods
+The following methods are exposed by the V8 engine in the general API but are non-op unless used
+in conjunction with the inspector (`--inspect` flag).
+
+### console.debug(data[, ...args])
+<!-- YAML
+added: v8.0.0
+-->
+* `data` {any}
+* `...args` {any}
+
+The `console.debug()` function is an alias for [`console.log()`][].
+
+### console.dirxml(object)
+<!-- YAML
+added: v8.0.0
+-->
+* `object` {string}
+
+The `console.dirxml()` method displays in `stdout` an XML interactive tree representation of the descendants
+of the specified `object` if possible, or the JavaScript representation if not. Calling
+`console.dirxml()` on an HTML or XML element is equivalent to calling `console.log()`.
+
+### console.markTimeline()
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+The `console.markTimeline()` method is the deprecated form of [`console.timeStamp()`][].
+
+### console.profile([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+The `console.profile()` method starts a JavaScript CPU profile with an optional label until
+[`console.profileEnd()`][] is called. The profile is then added to the **Profile** panel of the
+inspector.
+```js
+console.profile('MyLabel');
+// Some code
+console.profileEnd();
+// Adds the profile 'MyLabel' to the Profiles panel of the inspector tab.
+```
+
+### console.profileEnd()
+<!-- YAML
+added: v8.0.0
+-->
+
+Stops the current JavaScript CPU profiling session if one has been started and prints the
+report to the **Profiles** panel of the inspector tab. See [`console.profile()`][] for an
+example.
+
+### console.table(array[, ...args])
+<!-- YAML
+added: v8.0.0
+-->
+* `array` {array|object}
+* `...args` {any}
+
+Prints to `stdout` the array `array` formatted as a table.
+
+### console.timeStamp([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+The `console.timeStamp()` method adds an event with the label `label` to the **Timeline**
+panel of the inspector tab.
+
+### console.timeline([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+The `console.timeline()` method is the deprecated form of [`console.time()`][].
+
+### console.timelineEnd([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+The `console.timelineEnd()` method is the deprecated form of [`console.timeEnd()`][].
+
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
 [`console.time()`]: #console_console_time_label
+[`console.timeStamp()`]: #console_console_timestamp_label
 [`console.timeEnd()`]: #console_console_timeend_label
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
