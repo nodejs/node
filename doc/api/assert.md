@@ -7,6 +7,9 @@
 The `assert` module provides a simple set of assertion tests that can be used to
 test invariants.
 
+For more information about the used equality comparisons see
+[MDN's guide on equality comparisons and sameness][mdn-equality-guide].
+
 ## assert(value[, message])
 <!-- YAML
 added: v0.5.9
@@ -531,13 +534,16 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict inequality as determined by the [Strict Equality Comparison][]
-( `!==` ).
+Tests equality determined by the [`Object.is()`][] comparison.
 
 ```js
 const assert = require('assert');
@@ -546,7 +552,7 @@ assert.notStrictEqual(1, 2);
 // OK
 
 assert.notStrictEqual(1, 1);
-// AssertionError: 1 !== 1
+// AssertionError: 1 notStrictEqual 1
 
 assert.notStrictEqual(1, '1');
 // OK
@@ -592,25 +598,28 @@ assert.ok(false, 'it\'s false');
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict equality as determined by the [Strict Equality Comparison][]
-( `===` ).
+Tests equality determined by the [`Object.is()`][] comparison.
 
 ```js
 const assert = require('assert');
 
 assert.strictEqual(1, 2);
-// AssertionError: 1 === 2
+// AssertionError: 1 strictEqual 2
 
 assert.strictEqual(1, 1);
 // OK
 
 assert.strictEqual(1, '1');
-// AssertionError: 1 === '1'
+// AssertionError: 1 strictEqual '1'
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
@@ -689,32 +698,6 @@ assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
 // Do this instead.
 assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
 ```
-
-## Caveats
-
-For the following cases, consider using ES2015 [`Object.is()`][],
-which uses the [SameValueZero][] comparison.
-
-```js
-const a = 0;
-const b = -a;
-assert.notStrictEqual(a, b);
-// AssertionError: 0 !== -0
-// Strict Equality Comparison doesn't distinguish between -0 and +0...
-assert(!Object.is(a, b));
-// but Object.is() does!
-
-const str1 = 'foo';
-const str2 = 'foo';
-assert.strictEqual(str1 / 1, str2 / 1);
-// AssertionError: NaN === NaN
-// Strict Equality Comparison can't be used to check NaN...
-assert(Object.is(str1 / 1, str2 / 1));
-// but Object.is() can!
-```
-
-For more information, see
-[MDN's guide on equality comparisons and sameness][mdn-equality-guide].
 
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map

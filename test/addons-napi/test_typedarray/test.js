@@ -27,7 +27,7 @@ assert.strictEqual(byteResult[2], 6);
 const doubleResult = test_typedarray.Multiply(doubleArray, -3);
 assert.ok(doubleResult instanceof Float64Array);
 assert.strictEqual(doubleResult.length, 3);
-assert.strictEqual(doubleResult[0], 0);
+assert.strictEqual(doubleResult[0], -0);
 assert.strictEqual(Math.round(10 * doubleResult[1]) / 10, -3.3);
 assert.strictEqual(Math.round(10 * doubleResult[2]) / 10, -6.6);
 
