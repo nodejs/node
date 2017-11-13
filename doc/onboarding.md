@@ -158,7 +158,7 @@ onboarding session.
   * After one or two approvals, land the PR.
     * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:` metadata!
     * [`core-validate-commit`][] helps a lot with this – install and use it if you can!
-    * If you use Chrome or Edge, [`node-review`][] fetches the metadata for you.
+    * [`node-core-utils`][] fetches the metadata for you.
 
 ## Final notes
 
@@ -180,4 +180,4 @@ onboarding session.
 
 [Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
 [`core-validate-commit`]: https://github.com/evanlucas/core-validate-commit
-[`node-review`]: https://github.com/evanlucas/node-review
+[`node-core-utils`]: https://github.com/nodejs/node-core-utils
