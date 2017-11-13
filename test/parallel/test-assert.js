@@ -761,3 +761,22 @@ common.expectsError(
     message: /^'Error: foo' === 'Error: foobar'$/
   }
 );
+
+// Test strict assert
+{
+  const a = require('assert');
+  const assert = require('assert').strict;
+  /* eslint-disable no-restricted-properties */
+  assert.throws(() => assert.equal(1, true), assert.AssertionError);
+  assert.notEqual(0, false);
+  assert.throws(() => assert.deepEqual(1, true), assert.AssertionError);
+  assert.notDeepEqual(0, false);
+  assert.equal(assert.strict, assert.strict.strict);
+  assert.equal(assert.equal, assert.strictEqual);
+  assert.equal(assert.deepEqual, assert.deepStrictEqual);
+  assert.equal(assert.notEqual, assert.notStrictEqual);
+  assert.equal(assert.notDeepEqual, assert.notDeepStrictEqual);
+  assert.equal(Object.keys(assert).length, Object.keys(a).length);
+  /* eslint-enable no-restricted-properties */
+  assert(7);
+}
