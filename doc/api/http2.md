@@ -821,7 +821,7 @@ Shortcut for `http2stream.rstStream()` using error code `0x02` (Internal Error).
 added: v8.4.0
 -->
 
-* Value: {Http2Sesssion}
+* Value: {Http2Session}
 
 A reference to the `Http2Session` instance that owns this `Http2Stream`. The
 value will be `undefined` after the `Http2Stream` instance is destroyed.
