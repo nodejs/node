@@ -97,6 +97,11 @@
 // Forward-declare libuv loop
 struct uv_loop_s;
 
+// Forward-declare TracingController, used by CreatePlatform.
+namespace v8 {
+class TracingController;
+}
+
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
@@ -242,6 +247,11 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
+
+NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
+    int thread_pool_size,
+    v8::TracingController* tracing_controller);
+NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
