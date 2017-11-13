@@ -956,7 +956,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     // Set externally passed ArrayBuffer non neuterable.
     memory->set_is_neuterable(false);
-    memory->set_is_wasm_buffer(true);
 
     DCHECK_IMPLIES(EnableGuardRegions(),
                    module_->is_asm_js() || memory->has_guard_region());
@@ -998,27 +997,29 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize memory.
   //--------------------------------------------------------------------------
+  uint32_t mem_size = 0;
+  Address mem_start = nullptr;
+
+  // Stash old values of mem_start, and mem_size before
+  // SetSpecializationMemInfoFrom, to patch memory references
+  uint32_t old_mem_size = compiled_module_->GetEmbeddedMemSizeOrZero();
+  Address old_mem_start = compiled_module_->GetEmbeddedMemStartOrNull();
   if (!memory_.is_null()) {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-    Address mem_start = static_cast<Address>(memory->backing_store());
-    uint32_t mem_size;
+    mem_start = static_cast<Address>(memory->backing_store());
     CHECK(memory->byte_length()->ToUint32(&mem_size));
     LoadDataSegments(mem_start, mem_size);
 
-    uint32_t old_mem_size = compiled_module_->GetEmbeddedMemSizeOrZero();
-    Address old_mem_start = compiled_module_->GetEmbeddedMemStartOrNull();
-    // We might get instantiated again with the same memory. No patching
-    // needed in this case.
-    if (old_mem_start != mem_start || old_mem_size != mem_size) {
-      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
-                                                   mem_start, mem_size);
-    }
     // Just like with globals, we need to keep both the JSArrayBuffer
     // and save the start pointer.
     instance->set_memory_buffer(*memory);
     WasmCompiledModule::SetSpecializationMemInfoFrom(factory, compiled_module_,
                                                      memory);
   }
+  // We might get instantiated again with the same memory. No patching
+  // needed in this case.
+  code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
+                                               mem_start, mem_size);
 
   //--------------------------------------------------------------------------
   // Set up the runtime support for the new instance.

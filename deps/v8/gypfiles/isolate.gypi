@@ -74,7 +74,6 @@
         '--config-variable', 'gcmole=<(gcmole)',
         '--config-variable', 'has_valgrind=<(has_valgrind)',
         '--config-variable', 'icu_use_data_file_flag=<(icu_use_data_file_flag)',
-        '--config-variable', 'is_gn=0',
         '--config-variable', 'msan=<(msan)',
         '--config-variable', 'tsan=<(tsan)',
         '--config-variable', 'coverage=<(coverage)',

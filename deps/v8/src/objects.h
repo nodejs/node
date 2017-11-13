@@ -6351,10 +6351,8 @@ class JSArrayBuffer: public JSObject {
   inline bool has_guard_region() const;
   inline void set_has_guard_region(bool value);
 
-  // TODO(gdeepti): This flag is introduced to disable asm.js optimizations in
-  // js-typer-lowering.cc, remove when the asm.js case is fixed.
-  inline bool is_wasm_buffer();
-  inline void set_is_wasm_buffer(bool value);
+  inline bool is_growable();
+  inline void set_is_growable(bool value);
 
   DECL_CAST(JSArrayBuffer)
 
@@ -6414,7 +6412,7 @@ class JSArrayBuffer: public JSObject {
   class WasNeutered : public BitField<bool, 3, 1> {};
   class IsShared : public BitField<bool, 4, 1> {};
   class HasGuardRegion : public BitField<bool, 5, 1> {};
-  class IsWasmBuffer : public BitField<bool, 6, 1> {};
+  class IsGrowable : public BitField<bool, 6, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

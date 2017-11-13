@@ -127,7 +127,7 @@ def infer_arch(d8):
   executable.
   """
   with open(os.path.join(os.path.dirname(d8), 'v8_build_config.json')) as f:
-    arch = json.load(f)['v8_current_cpu']
+    arch = json.load(f)['v8_target_cpu']
   return 'ia32' if arch == 'x86' else arch
 
 
