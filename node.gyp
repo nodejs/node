@@ -341,7 +341,6 @@
         [ 'OS=="win"', {
           'sources': [
             'src/backtrace_win32.cc',
-            'src/res/node.rc',
           ],
           'conditions': [
             [ 'node_target_type!="static_library"', {
