@@ -1,4 +1,4 @@
-@echo off
+@if not defined DEBUG_HELPER @ECHO OFF
 
 cd %~dp0
 
@@ -170,7 +170,7 @@ if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
 
 call tools\msvs\find_python.cmd
-if errorlevel 1 echo Could not find python2 & goto :exit
+if errorlevel 1 goto :exit
 
 call :getnodeversion || exit /b 1
 
