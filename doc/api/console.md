@@ -241,6 +241,10 @@ undefined
 ### console.debug(data[, ...args])
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17033
+    description: "`console.debug` is now an alias for `console.log`."
 -->
 * `data` {any}
 * `...args` {any}
@@ -426,15 +430,110 @@ added: v0.1.100
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
+## Inspector only methods
+The following methods are exposed by the V8 engine in the general API but do
+not display anything unless used in conjunction with the [inspector][]
+(`--inspect` flag).
+
+### console.dirxml(object)
+<!-- YAML
+added: v8.0.0
+-->
+* `object` {string}
+
+This method does not display anything unless used in the inspector. The
+`console.dirxml()` method displays in `stdout` an XML interactive tree
+representation of the descendants of the specified `object` if possible, or the
+JavaScript representation if not. Calling `console.dirxml()` on an HTML or XML
+element is equivalent to calling `console.log()`.
+
+### console.markTimeline(label)
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.markTimeline()` method is the deprecated form of [`console.timeStamp()`][].
+
+### console.profile([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+This method does not display anything unless used in the inspector. The
+`console.profile()` method starts a JavaScript CPU profile with an optional
+label until [`console.profileEnd()`][] is called. The profile is then added to
+the **Profile** panel of the inspector.
+```js
+console.profile('MyLabel');
+// Some code
+console.profileEnd();
+// Adds the profile 'MyLabel' to the Profiles panel of the inspector.
+```
+
+### console.profileEnd()
+<!-- YAML
+added: v8.0.0
+-->
+
+This method does not display anything unless used in the inspector. Stops the
+current JavaScript CPU profiling session if one has been started and prints
+the report to the **Profiles** panel of the inspector. See
+[`console.profile()`][] for an example.
+
+### console.table(array[, columns])
+<!-- YAML
+added: v8.0.0
+-->
+* `array` {Array|Object}
+* `columns` {Array}
+
+This method does not display anything unless used in the inspector. Prints to
+`stdout` the array `array` formatted as a table.
+
+### console.timeStamp([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string}
+
+This method does not display anything unless used in the inspector. The
+`console.timeStamp()` method adds an event with the label `label` to the
+**Timeline** panel of the inspector.
+
+### console.timeline([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.timeline()` method is the deprecated form of [`console.time()`][].
+
+### console.timelineEnd([label])
+<!-- YAML
+added: v8.0.0
+-->
+* `label` {string} Defaults to `'default'`.
+
+This method does not display anything unless used in the inspector. The
+`console.timelineEnd()` method is the deprecated form of [`console.timeEnd()`][].
+
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
+[`console.profile()`]: #console_console_profile_label
+[`console.profileEnd()`]: #console_console_profileend
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
+[`console.timeStamp()`]: #console_console_timestamp_label
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[inspector]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
