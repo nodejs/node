@@ -19,7 +19,7 @@ EXIT /B 1
 :: Helper subroutine to handle quotes in %1
 :find-main-branch
 SET main_key="%~1\Python\PythonCore"
-REG QUERY %main_key% /s | findstr "2." | findstr InstallPath > NUL 2> NUL
+REG QUERY %main_key% /s 2> NUL | findstr "2." | findstr InstallPath > NUL 2> NUL
 IF NOT ERRORLEVEL 1 CALL :find-key %main_key%
 EXIT /B
 
