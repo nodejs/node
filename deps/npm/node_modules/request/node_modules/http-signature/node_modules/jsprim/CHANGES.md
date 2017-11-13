@@ -4,6 +4,12 @@
 
 None yet.
 
+## v1.4.1 (2017-08-02)
+
+* #21 Update verror dep
+* #22 Update extsprintf dependency
+* #23 update contribution guidelines
+
 ## v1.4.0 (2017-03-13)
 
 * #7 Add parseInteger() function for safer number parsing

@@ -104,14 +104,16 @@ module.exports = {
 
                 // "var x = require('util');"
                 return DECL_REQUIRE;
-            } else if (allowCall &&
+            }
+            if (allowCall &&
                 initExpression.type === "CallExpression" &&
                 initExpression.callee.type === "CallExpression"
             ) {
 
                 // "var x = require('diagnose')('sub-module');"
                 return getDeclarationType(initExpression.callee);
-            } else if (initExpression.type === "MemberExpression") {
+            }
+            if (initExpression.type === "MemberExpression") {
 
                 // "var x = require('glob').Glob;"
                 return getDeclarationType(initExpression.object);
@@ -131,7 +133,8 @@ module.exports = {
 
                 // "var x = require('glob').Glob;"
                 return inferModuleType(initExpression.object);
-            } else if (initExpression.arguments.length === 0) {
+            }
+            if (initExpression.arguments.length === 0) {
 
                 // "var x = require();"
                 return REQ_COMPUTED;
@@ -149,7 +152,8 @@ module.exports = {
 
                 // "var fs = require('fs');"
                 return REQ_CORE;
-            } else if (/^\.{0,2}\//.test(arg.value)) {
+            }
+            if (/^\.{0,2}\//.test(arg.value)) {
 
                 // "var utils = require('./utils');"
                 return REQ_FILE;

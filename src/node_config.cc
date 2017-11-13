@@ -1,8 +1,6 @@
 #include "node.h"
 #include "node_i18n.h"
-#include "env.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "node_debug_options.h"
 
@@ -43,6 +41,12 @@ static void InitConfig(Local<Object> target,
                        Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
+
+#ifdef NODE_FIPS_MODE
+  READONLY_BOOLEAN_PROPERTY("fipsMode");
+  if (force_fips_crypto)
+    READONLY_BOOLEAN_PROPERTY("fipsForced");
+#endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
 

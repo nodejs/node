@@ -1,8 +1,8 @@
 {
   "_from": "eslint@latest",
-  "_id": "eslint@4.8.0",
+  "_id": "eslint@4.10.0",
   "_inBundle": false,
-  "_integrity": "sha1-Ip7w41Tg5h2DfHqA/fuoJeGZgV4=",
+  "_integrity": "sha512-MMVl8P/dYUFZEvolL8PYt7qc5LNdS2lwheq9BYa5Y07FblhcZqFyaUqlS8TW5QITGex21tV4Lk0a3fK8lsJIkA==",
   "_location": "/eslint",
   "_phantomChildren": {},
   "_requested": {
@@ -19,10 +19,10 @@
     "#USER",
     "/"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.8.0.tgz",
-  "_shasum": "229ef0e354e0e61d837c7a80fdfba825e199815e",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-4.10.0.tgz",
+  "_shasum": "f25d0d7955c81968c2309aa5c9a229e045176bb7",
   "_spec": "eslint@latest",
-  "_where": "/Users/apapirovski/Web/nodejs/tools/eslint-tmp",
+  "_where": "/Users/cjihrig/iojs/node/tools/eslint-tmp",
   "author": {
     "name": "Nicholas C. Zakas",
     "email": "nicholas+npm@nczconsulting.com"
@@ -145,7 +145,6 @@
     "alpharelease": "node Makefile.js prerelease -- alpha",
     "betarelease": "node Makefile.js prerelease -- beta",
     "browserify": "node Makefile.js browserify",
-    "check-commit": "node Makefile.js checkGitCommit",
     "ci-release": "node Makefile.js ciRelease",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
     "docs": "node Makefile.js docs",
@@ -157,5 +156,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "4.8.0"
+  "version": "4.10.0"
 }

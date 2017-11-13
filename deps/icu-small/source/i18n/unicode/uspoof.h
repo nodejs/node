@@ -368,18 +368,17 @@
  */
 
 struct USpoofChecker;
+/**
+ * @stable ICU 4.2
+ */
 typedef struct USpoofChecker USpoofChecker; /**< typedef for C of USpoofChecker */
 
-#ifndef U_HIDE_DRAFT_API
-/**
- * @see uspoof_openCheckResult
- */
 struct USpoofCheckResult;
 /**
  * @see uspoof_openCheckResult
+ * @stable ICU 58
  */
 typedef struct USpoofCheckResult USpoofCheckResult;
-#endif /* U_HIDE_DRAFT_API */
 
 /**
  * Enum for the kinds of checks that USpoofChecker can perform.
@@ -419,7 +418,6 @@ typedef enum USpoofChecks {
      */
     USPOOF_WHOLE_SCRIPT_CONFUSABLE  =   4,
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Enable this flag in {@link uspoof_setChecks} to turn on all types of confusables.  You may set
      * the checks to some subset of SINGLE_SCRIPT_CONFUSABLE, MIXED_SCRIPT_CONFUSABLE, or WHOLE_SCRIPT_CONFUSABLE to
@@ -427,10 +425,9 @@ typedef enum USpoofChecks {
      *
      * @see uspoof_areConfusable
      * @see uspoof_getSkeleton
-     * @draft ICU 58
+     * @stable ICU 58
      */
     USPOOF_CONFUSABLE               =   USPOOF_SINGLE_SCRIPT_CONFUSABLE | USPOOF_MIXED_SCRIPT_CONFUSABLE | USPOOF_WHOLE_SCRIPT_CONFUSABLE,
-#endif /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DEPRECATED_API
     /**
@@ -1058,7 +1055,6 @@ uspoof_checkUnicodeString(const USpoofChecker *sc,
 #endif
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Check the specified string for possible security issues.
  * The text to be checked will typically be an identifier of some sort.
@@ -1085,9 +1081,9 @@ uspoof_checkUnicodeString(const USpoofChecker *sc,
  * @see uspoof_openCheckResult
  * @see uspoof_check2UTF8
  * @see uspoof_check2UnicodeString
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 uspoof_check2(const USpoofChecker *sc,
     const UChar* id, int32_t length,
     USpoofCheckResult* checkResult,
@@ -1122,9 +1118,9 @@ uspoof_check2(const USpoofChecker *sc,
  * @see uspoof_openCheckResult
  * @see uspoof_check2
  * @see uspoof_check2UnicodeString
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 uspoof_check2UTF8(const USpoofChecker *sc,
     const char *id, int32_t length,
     USpoofCheckResult* checkResult,
@@ -1154,9 +1150,9 @@ uspoof_check2UTF8(const USpoofChecker *sc,
  * @see uspoof_openCheckResult
  * @see uspoof_check2
  * @see uspoof_check2UTF8
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 uspoof_check2UnicodeString(const USpoofChecker *sc,
     const icu::UnicodeString &id,
     USpoofCheckResult* checkResult,
@@ -1179,9 +1175,9 @@ uspoof_check2UnicodeString(const USpoofChecker *sc,
  * @see uspoof_check2
  * @see uspoof_check2UTF8
  * @see uspoof_check2UnicodeString
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT USpoofCheckResult* U_EXPORT2
+U_STABLE USpoofCheckResult* U_EXPORT2
 uspoof_openCheckResult(UErrorCode *status);
 
 /**
@@ -1189,9 +1185,9 @@ uspoof_openCheckResult(UErrorCode *status);
  *   its implementation.
  *
  * @param checkResult  The instance of USpoofCheckResult to close
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT void U_EXPORT2
+U_STABLE void U_EXPORT2
 uspoof_closeCheckResult(USpoofCheckResult *checkResult);
 
 #if U_SHOW_CPLUSPLUS_API
@@ -1205,7 +1201,7 @@ U_NAMESPACE_BEGIN
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @draft ICU 58
+ * @stable ICU 58
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUSpoofCheckResultPointer, USpoofCheckResult, uspoof_closeCheckResult);
 
@@ -1225,9 +1221,9 @@ U_NAMESPACE_END
  *                will be zero if the input string passes all of the
  *                enabled checks.
  * @see uspoof_setChecks
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT int32_t U_EXPORT2
+U_STABLE int32_t U_EXPORT2
 uspoof_getCheckResultChecks(const USpoofCheckResult *checkResult, UErrorCode *status);
 
 /**
@@ -1238,9 +1234,9 @@ uspoof_getCheckResultChecks(const USpoofCheckResult *checkResult, UErrorCode *st
  * @param status       The error code, set if an error occurred.
  * @return             The restriction level contained in the USpoofCheckResult
  * @see uspoof_setRestrictionLevel
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT URestrictionLevel U_EXPORT2
+U_STABLE URestrictionLevel U_EXPORT2
 uspoof_getCheckResultRestrictionLevel(const USpoofCheckResult *checkResult, UErrorCode *status);
 
 /**
@@ -1252,11 +1248,10 @@ uspoof_getCheckResultRestrictionLevel(const USpoofCheckResult *checkResult, UErr
  * @param checkResult  The instance of USpoofCheckResult created by {@link uspoof_openCheckResult}
  * @return             The set of numerics contained in the USpoofCheckResult
  * @param status       The error code, set if an error occurred.
- * @draft ICU 58
+ * @stable ICU 58
  */
-U_DRAFT const USet* U_EXPORT2
+U_STABLE const USet* U_EXPORT2
 uspoof_getCheckResultNumerics(const USpoofCheckResult *checkResult, UErrorCode *status);
-#endif /* U_HIDE_DRAFT_API */
 
 
 /**

@@ -95,6 +95,7 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
     EC_POINT *tmp_point = NULL;
     const EC_GROUP *group;
     int ret = 0;
+    int order_bits;
 
     if (eckey == NULL || (group = EC_KEY_get0_group(eckey)) == NULL) {
         ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP, ERR_R_PASSED_NULL_PARAMETER);
@@ -126,6 +127,13 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
         goto err;
     }
 
+    /* Preallocate space */
+    order_bits = BN_num_bits(order);
+    if (!BN_set_bit(k, order_bits)
+        || !BN_set_bit(r, order_bits)
+        || !BN_set_bit(X, order_bits))
+        goto err;
+
     do {
         /* get random k */
         do
@@ -139,13 +147,19 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
         /*
          * We do not want timing information to leak the length of k, so we
          * compute G*k using an equivalent scalar of fixed bit-length.
+         *
+         * We unconditionally perform both of these additions to prevent a
+         * small timing information leakage.  We then choose the sum that is
+         * one bit longer than the order.  This guarantees the code
+         * path used in the constant time implementations elsewhere.
+         *
+         * TODO: revisit the BN_copy aiming for a memory access agnostic
+         * conditional copy.
          */
-
-        if (!BN_add(k, k, order))
+        if (!BN_add(r, k, order)
+            || !BN_add(X, r, order)
+            || !BN_copy(k, BN_num_bits(r) > order_bits ? r : X))
             goto err;
-        if (BN_num_bits(k) <= BN_num_bits(order))
-            if (!BN_add(k, k, order))
-                goto err;
 
         /* compute r the x-coordinate of generator * k */
         if (!EC_POINT_mul(group, tmp_point, k, NULL, NULL, ctx)) {

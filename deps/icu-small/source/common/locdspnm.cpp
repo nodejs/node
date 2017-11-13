@@ -54,7 +54,7 @@ static int32_t ncat(char *buffer, uint32_t buflen, ...) {
   *p = 0;
   va_end(args);
 
-  return p - buffer;
+  return static_cast<int32_t>(p - buffer);
 }
 
 U_NAMESPACE_BEGIN
@@ -636,8 +636,9 @@ LocaleDisplayNamesImpl::localeDisplayName(const Locale& locale,
     char value[ULOC_KEYWORD_AND_VALUES_CAPACITY]; // sigh, no ULOC_VALUE_CAPACITY
     const char* key;
     while ((key = e->next((int32_t *)0, status)) != NULL) {
+      value[0] = 0;
       locale.getKeywordValue(key, value, ULOC_KEYWORD_AND_VALUES_CAPACITY, status);
-      if (U_FAILURE(status)) {
+      if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
         return result;
       }
       keyDisplayName(key, temp, TRUE);

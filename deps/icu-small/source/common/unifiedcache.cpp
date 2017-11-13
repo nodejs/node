@@ -24,8 +24,8 @@ static UConditionVar gInProgressValueAddedCond = U_CONDITION_INITIALIZER;
 static icu::UInitOnce gCacheInitOnce = U_INITONCE_INITIALIZER;
 static const int32_t MAX_EVICT_ITERATIONS = 10;
 
-static int32_t DEFAULT_MAX_UNUSED = 1000;
-static int32_t DEFAULT_PERCENTAGE_OF_IN_USE = 100;
+static const int32_t DEFAULT_MAX_UNUSED = 1000;
+static const int32_t DEFAULT_PERCENTAGE_OF_IN_USE = 100;
 
 
 U_CDECL_BEGIN

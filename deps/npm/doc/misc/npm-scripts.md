@@ -3,7 +3,7 @@ npm-scripts(7) -- How npm handles the "scripts" field
 
 ## DESCRIPTION
 
-npm supports the "scripts" property of the package.json script, for the
+npm supports the "scripts" property of the package.json file, for the
 following scripts:
 
 * prepublish:

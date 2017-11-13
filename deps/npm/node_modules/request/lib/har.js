@@ -71,14 +71,10 @@ Har.prototype.prep = function (data) {
     'multipart/related',
     'multipart/form-data',
     'multipart/alternative'])) {
-
     // reset values
     data.postData.mimeType = 'multipart/form-data'
-  }
-
-  else if (some([
+  } else if (some([
     'application/x-www-form-urlencoded'])) {
-
     if (!data.postData.params) {
       data.postData.text = ''
     } else {
@@ -87,14 +83,11 @@ Har.prototype.prep = function (data) {
       // always overwrite
       data.postData.text = qs.stringify(data.postData.paramsObj)
     }
-  }
-
-  else if (some([
+  } else if (some([
     'text/json',
     'text/x-json',
     'application/json',
     'application/x-json'])) {
-
     data.postData.mimeType = 'application/json'
 
     if (data.postData.text) {
@@ -168,14 +161,12 @@ Har.prototype.options = function (options) {
   }
   if (test('application/x-www-form-urlencoded')) {
     options.form = req.postData.paramsObj
-  }
-  else if (test('application/json')) {
+  } else if (test('application/json')) {
     if (req.postData.jsonObj) {
       options.body = req.postData.jsonObj
       options.json = true
     }
-  }
-  else if (test('multipart/form-data')) {
+  } else if (test('multipart/form-data')) {
     options.formData = {}
 
     req.postData.params.forEach(function (param) {
@@ -202,8 +193,7 @@ Har.prototype.options = function (options) {
 
       options.formData[param.name] = attachment
     })
-  }
-  else {
+  } else {
     if (req.postData.text) {
       options.body = req.postData.text
     }

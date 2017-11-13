@@ -4,7 +4,7 @@ var compileSchema = require('./compile')
   , resolve = require('./compile/resolve')
   , Cache = require('./cache')
   , SchemaObject = require('./compile/schema_obj')
-  , stableStringify = require('json-stable-stringify')
+  , stableStringify = require('fast-json-stable-stringify')
   , formats = require('./compile/formats')
   , rules = require('./compile/rules')
   , $dataMetaSchema = require('./$data')
@@ -81,7 +81,7 @@ function Ajv(opts) {
 
 /**
  * Validate data using schema
- * Schema will be compiled and cached (using serialized JSON as key. [json-stable-stringify](https://github.com/substack/json-stable-stringify) is used to serialize.
+ * Schema will be compiled and cached (using serialized JSON as key. [fast-json-stable-stringify](https://github.com/epoberezkin/fast-json-stable-stringify) is used to serialize.
  * @this   Ajv
  * @param  {String|Object} schemaKeyRef key, ref or schema object
  * @param  {Any} data to be validated

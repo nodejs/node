@@ -43,7 +43,7 @@ assert.throws(() => tls.createServer('this is not valid'),
               common.expectsError({
                 code: 'ERR_INVALID_ARG_TYPE',
                 type: TypeError,
-                message: 'The "options" argument must be of type object'
+                message: 'The "options" argument must be of type Object'
               })
 );
 

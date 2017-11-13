@@ -38,7 +38,9 @@ const noop = () => {};
 
 exports.fixturesDir = fixturesDir;
 
-exports.tmpDirName = 'tmp';
+// Using a `.` prefixed name, which is the convention for "hidden" on POSIX,
+// gets tools to ignore it by default or by simple rules, especially eslint.
+exports.tmpDirName = '.tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
@@ -62,17 +64,6 @@ exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 exports.projectDir = path.resolve(__dirname, '..', '..');
 
 exports.buildType = process.config.target_defaults.default_configuration;
-
-// Always enable async_hooks checks in tests
-{
-  const async_wrap = process.binding('async_wrap');
-  const { kCheck } = async_wrap.constants;
-  async_wrap.async_hook_fields[kCheck] += 1;
-
-  exports.revert_force_async_hooks_checks = function() {
-    async_wrap.async_hook_fields[kCheck] -= 1;
-  };
-}
 
 // If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
@@ -338,7 +329,7 @@ exports.spawnSyncPwd = function(options) {
 };
 
 exports.platformTimeout = function(ms) {
-  if (process.config.target_defaults.default_configuration === 'Debug')
+  if (process.features.debug)
     ms = 2 * ms;
 
   if (global.__coverage__)

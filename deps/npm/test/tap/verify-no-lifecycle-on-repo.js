@@ -23,7 +23,11 @@ var baseJSON = {
 
 var lastOpened
 var npm = requireInject.installGlobally('../../lib/npm.js', {
-  '../../lib/utils/lifecycle.js': function (pkg, stage, wd, unsafe, failOk, cb) {
+  '../../lib/utils/lifecycle.js': function (pkg, stage, wd, moreOpts, cb) {
+    if (typeof moreOpts === 'function') {
+      cb = moreOpts
+    }
+
     cb(new Error("Shouldn't be calling lifecycle scripts"))
   },
   opener: function (url, options, cb) {

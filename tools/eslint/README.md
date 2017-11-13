@@ -27,6 +27,8 @@ ESLint is a tool for identifying and reporting on patterns found in ECMAScript/J
 
 ## Installation and Usage
 
+Prerequisites: [Node.js](https://nodejs.org/en/) (>=4.x), npm version 2+.
+
 There are two ways to install ESLint: globally and locally.
 
 ### Local Installation and Usage
@@ -132,6 +134,8 @@ These folks keep the project moving and are resources for help.
 * Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
 * James Henry ([@JamesHenry](https://github.com/JamesHenry))
 * Reyad Attiyat ([@soda0289](https://github.com/soda0289))
+* 薛定谔的猫 ([@Aladdin-ADD](https://github.com/Aladdin-ADD))
+* Victor Hom ([@VictorHom](https://github.com/VictorHom))
 
 ## Releases
 
@@ -202,10 +206,22 @@ Maybe, depending on how much you need it. [JSCS has reached end of life](https:/
 
 If you are having issues with JSCS, you can try to move to ESLint. We are focusing our time and energy on JSCS compatibility issues.
 
-
 ### Is ESLint just linting or does it also check style?
 
 ESLint does both traditional linting (looking for problematic patterns) and style checking (enforcement of conventions). You can use it for both.
+
+### Why can't ESLint find my plugins?
+
+ESLint can be [globally or locally installed](#installation-and-usage). If you install ESLint globally, your plugins must also be installed globally; if you install ESLint locally, your plugins must also be installed locally.
+
+If you are trying to run globally, make sure your plugins are installed globally (use `npm ls -g`).
+
+If you are trying to run locally:
+
+* Make sure your plugins (and ESLint) are both in your project's `package.json` as devDependencies (or dependencies, if your project uses ESLint at runtime).
+* Make sure you have run `npm install` and all your dependencies are installed.
+
+In all cases, make sure your plugins' peerDependencies have been installed as well. You can use `npm view eslint-plugin-myplugin peerDepencies` to see what peer dependencies `eslint-plugin-myplugin` has.
 
 ### Does ESLint support JSX?
 

@@ -21,7 +21,6 @@
 
 #include "node_internals.h"
 #include "node_watchdog.h"
-#include "base-object.h"
 #include "base-object-inl.h"
 #include "v8-debug.h"
 
@@ -65,8 +64,29 @@ using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+// The vm module executes code in a sandboxed environment with a different
+// global object than the rest of the code. This is achieved by applying
+// every call that changes or queries a property on the global `this` in the
+// sandboxed code, to the sandbox object.
+//
+// The implementation uses V8's interceptors for methods like `set`, `get`,
+// `delete`, `defineProperty`, and for any query of the property attributes.
+// Property handlers with interceptors are set on the object template for
+// the sandboxed code. Handlers for both named properties and for indexed
+// properties are used. Their functionality is almost identical, the indexed
+// interceptors mostly just call the named interceptors.
+//
+// For every `get` of a global property in the sandboxed context, the
+// interceptor callback checks the sandbox object for the property.
+// If the property is defined on the sandbox, that result is returned to
+// the original call instead of finishing the query on the global object.
+//
+// For every `set` of a global property, the interceptor callback defines or
+// changes the property both on the sandbox and the global proxy.
+
 namespace {
 
+// Convert an int to a V8 Name (String or Symbol).
 Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
   return Uint32::New(context->GetIsolate(), index)->ToString(context)
       .ToLocalChecked();
@@ -140,7 +160,6 @@ class ContextifyContext {
     EscapableHandleScope scope(env->isolate());
     Local<FunctionTemplate> function_template =
         FunctionTemplate::New(env->isolate());
-    function_template->SetHiddenPrototype(true);
 
     function_template->SetClassName(sandbox_obj->GetConstructorName());
 
@@ -346,14 +365,21 @@ class ContextifyContext {
       return;
 
     auto attributes = PropertyAttribute::None;
-    bool is_declared = ctx->global_proxy()
+    bool is_declared_on_global_proxy = ctx->global_proxy()
         ->GetRealNamedPropertyAttributes(ctx->context(), property)
         .To(&attributes);
     bool read_only =
         static_cast<int>(attributes) &
         static_cast<int>(PropertyAttribute::ReadOnly);
 
-    if (is_declared && read_only)
+    bool is_declared_on_sandbox = ctx->sandbox()
+        ->GetRealNamedPropertyAttributes(ctx->context(), property)
+        .To(&attributes);
+    read_only = read_only ||
+        (static_cast<int>(attributes) &
+        static_cast<int>(PropertyAttribute::ReadOnly));
+
+    if (read_only)
       return;
 
     // true for x = 5
@@ -371,9 +397,19 @@ class ContextifyContext {
     // this.f = function() {}, is_contextual_store = false.
     bool is_function = value->IsFunction();
 
+    bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
     if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
         !is_function)
       return;
+
+    if (!is_declared_on_global_proxy && is_declared_on_sandbox  &&
+        args.ShouldThrowOnError() && is_contextual_store && !is_function) {
+      // The property exists on the sandbox but not on the global
+      // proxy. Setting it would throw because we are in strict mode.
+      // Don't attempt to set it by signaling that the call was
+      // intercepted. Only change the value on the sandbox.
+      args.GetReturnValue().Set(false);
+    }
 
     ctx->sandbox()->Set(property, value);
   }
@@ -440,7 +476,8 @@ class ContextifyContext {
             desc_for_sandbox->set_configurable(desc.configurable());
           }
           // Set the property on the sandbox.
-          sandbox->DefineProperty(context, property, *desc_for_sandbox);
+          sandbox->DefineProperty(context, property, *desc_for_sandbox)
+              .FromJust();
         };
 
     if (desc.has_get() || desc.has_set()) {

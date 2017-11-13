@@ -56,10 +56,10 @@ try {
 } catch (e) {
   gh1140Exception = e;
   assert.ok(/expected-filename/.test(e.stack),
-            'expected appearance of filename in Error stack');
+            `expected appearance of filename in Error stack: ${e.stack}`);
 }
-assert.ok(gh1140Exception,
-          'expected exception from runInContext signature test');
+// This is outside of catch block to confirm catch block ran.
+assert.strictEqual(gh1140Exception.toString(), 'Error');
 
 // GH-558, non-context argument segfaults / raises assertion
 const nonContextualSandboxErrorMsg =
@@ -90,18 +90,22 @@ Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
 assert.strictEqual(script.runInContext(ctx), false);
 
-// Error on the first line of a module should
-// have the correct line and column number
-assert.throws(() => {
-  vm.runInContext(' throw new Error()', context, {
-    filename: 'expected-filename.js',
-    lineOffset: 32,
-    columnOffset: 123
-  });
-}, (err) => {
-  return /^ \^/m.test(err.stack) &&
-         /expected-filename\.js:33:131/.test(err.stack);
-}, 'Expected appearance of proper offset in Error stack');
+// Error on the first line of a module should have the correct line and column
+// number.
+{
+  let stack = null;
+  assert.throws(() => {
+    vm.runInContext(' throw new Error()', context, {
+      filename: 'expected-filename.js',
+      lineOffset: 32,
+      columnOffset: 123
+    });
+  }, (err) => {
+    stack = err.stack;
+    return /^ \^/m.test(stack) &&
+           /expected-filename\.js:33:131/.test(stack);
+  }, `stack not formatted as expected: ${stack}`);
+}
 
 // https://github.com/nodejs/node/issues/6158
 ctx = new Proxy({}, {});

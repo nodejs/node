@@ -680,7 +680,7 @@ tasn_fre.o: ../../include/openssl/e_os2.h ../../include/openssl/obj_mac.h
 tasn_fre.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
 tasn_fre.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 tasn_fre.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-tasn_fre.o: ../../include/openssl/symhacks.h tasn_fre.c
+tasn_fre.o: ../../include/openssl/symhacks.h asn1_int.h tasn_fre.c
 tasn_new.o: ../../include/openssl/asn1.h ../../include/openssl/asn1t.h
 tasn_new.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
 tasn_new.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
@@ -688,7 +688,7 @@ tasn_new.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
 tasn_new.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
 tasn_new.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 tasn_new.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-tasn_new.o: ../../include/openssl/symhacks.h tasn_new.c
+tasn_new.o: ../../include/openssl/symhacks.h asn1_int.h tasn_new.c
 tasn_prn.o: ../../e_os.h ../../include/openssl/asn1.h
 tasn_prn.o: ../../include/openssl/asn1t.h ../../include/openssl/bio.h
 tasn_prn.o: ../../include/openssl/buffer.h ../../include/openssl/conf.h

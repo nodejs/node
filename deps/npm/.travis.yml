@@ -25,9 +25,6 @@ matrix:
       script:
        - "standard"
        - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
-before_install:
-  # required by test/tap/registry.js
-  - "mkdir -p /var/run/couchdb"
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
 cache:

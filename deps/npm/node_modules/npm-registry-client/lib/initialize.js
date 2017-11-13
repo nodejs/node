@@ -14,7 +14,8 @@ function initialize (uri, method, accept, headers) {
   if (this.config.isFromCI == null) {
     this.config.isFromCI = Boolean(
       process.env['CI'] === 'true' || process.env['TDDIUM'] ||
-      process.env['JENKINS_URL'] || process.env['bamboo.buildKey'])
+      process.env['JENKINS_URL'] || process.env['bamboo.buildKey'] ||
+      process.env['GO_PIPELINE_NAME'])
   }
 
   var opts = {

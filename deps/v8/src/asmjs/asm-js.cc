@@ -357,6 +357,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Requires heap buffer");
       return MaybeHandle<Object>();
     }
+    memory->set_is_growable(false);
     size_t size = NumberToSize(memory->byte_length());
     // TODO(mstarzinger): We currently only limit byte length of the buffer to
     // be a multiple of 8, we should enforce the stricter spec limits here.

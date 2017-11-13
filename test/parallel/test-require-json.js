@@ -28,6 +28,6 @@ try {
   require(fixtures.path('invalid.json'));
 } catch (err) {
   assert.ok(
-    /test[/\\]fixtures[/\\]invalid\.json: Unexpected string/.test(err.message),
-    'require() json error should include path');
+    /test[/\\]fixtures[/\\]invalid\.json: /.test(err.message),
+    `require() json error should include path: ${err.message}`);
 }

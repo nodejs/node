@@ -23,6 +23,7 @@
 #include "unicode/utf8.h"
 #include "ucnv_bld.h"
 #include "ucnv_cnv.h"
+#include "ustr_imp.h"
 
 /* control optimizations according to the platform */
 #define LATIN1_UNROLL_FROM_UNICODE 1
@@ -374,7 +375,7 @@ ucnv_Latin1FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     while(source<sourceLimit) {
         if(targetCapacity>0) {
             b=*source++;
-            if((int8_t)b>=0) {
+            if(U8_IS_SINGLE(b)) {
                 /* convert ASCII */
                 *target++=(uint8_t)b;
                 --targetCapacity;
@@ -409,7 +410,7 @@ ucnv_Latin1FromUTF8(UConverterFromUnicodeArgs *pFromUArgs,
     if(U_SUCCESS(*pErrorCode) && source<(sourceLimit=(uint8_t *)pToUArgs->sourceLimit)) {
         utf8->toUnicodeStatus=utf8->toUBytes[0]=b=*source++;
         utf8->toULength=1;
-        utf8->mode=U8_COUNT_TRAIL_BYTES(b)+1;
+        utf8->mode=U8_COUNT_BYTES(b);
     }
 
     /* write back the updated pointers */

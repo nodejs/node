@@ -60,7 +60,8 @@ module.exports = {
             if (node.type === "MemberExpression") {
                 if (node.object.type === "Identifier") {
                     return true;
-                } else if (node.object.type === "MemberExpression") {
+                }
+                if (node.object.type === "MemberExpression") {
                     return containsOnlyIdentifiers(node.object);
                 }
             }

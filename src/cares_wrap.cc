@@ -21,14 +21,10 @@
 
 #define CARES_STATICLIB
 #include "ares.h"
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "env.h"
 #include "env-inl.h"
 #include "node.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -37,6 +33,10 @@
 #include <string.h>
 #include <vector>
 #include <unordered_set>
+
+#ifdef __POSIX__
+# include <netdb.h>
+#endif  // __POSIX__
 
 #if defined(__ANDROID__) || \
     defined(__MINGW32__) || \
@@ -1231,7 +1231,9 @@ class QueryAnyWrap: public QueryWrap {
       CHECK_EQ(naddrttls, a_count);
       for (int i = 0; i < a_count; i++) {
         Local<Object> obj = Object::New(env()->isolate());
-        obj->Set(context, env()->address_string(), ret->Get(i)).FromJust();
+        obj->Set(context,
+                 env()->address_string(),
+                 ret->Get(context, i).ToLocalChecked()).FromJust();
         obj->Set(context,
                  env()->ttl_string(),
                  Integer::New(env()->isolate(), addrttls[i].ttl)).FromJust();
@@ -1243,7 +1245,9 @@ class QueryAnyWrap: public QueryWrap {
     } else {
       for (int i = 0; i < a_count; i++) {
         Local<Object> obj = Object::New(env()->isolate());
-        obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+        obj->Set(context,
+                 env()->value_string(),
+                 ret->Get(context, i).ToLocalChecked()).FromJust();
         obj->Set(context,
                  env()->type_string(),
                  env()->dns_cname_string()).FromJust();
@@ -1272,7 +1276,9 @@ class QueryAnyWrap: public QueryWrap {
     CHECK_EQ(aaaa_count, naddr6ttls);
     for (uint32_t i = a_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->address_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->address_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->ttl_string(),
                Integer::New(env()->isolate(), addr6ttls[i].ttl)).FromJust();
@@ -1299,7 +1305,9 @@ class QueryAnyWrap: public QueryWrap {
     }
     for (uint32_t i = old_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->value_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->type_string(),
                env()->dns_ns_string()).FromJust();
@@ -1325,7 +1333,9 @@ class QueryAnyWrap: public QueryWrap {
     status = ParseGeneralReply(env(), buf, len, &type, ret);
     for (uint32_t i = old_count; i < ret->Length(); i++) {
       Local<Object> obj = Object::New(env()->isolate());
-      obj->Set(context, env()->value_string(), ret->Get(i)).FromJust();
+      obj->Set(context,
+               env()->value_string(),
+               ret->Get(context, i).ToLocalChecked()).FromJust();
       obj->Set(context,
                env()->type_string(),
                env()->dns_ptr_string()).FromJust();
@@ -1935,6 +1945,27 @@ void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+  char address_buffer[sizeof(struct in6_addr)];
+  char canonical_ip[INET6_ADDRSTRLEN];
+
+  int af;
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0)
+    af = AF_INET;
+  else if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0)
+    af = AF_INET6;
+  else
+    return;
+
+  int err = uv_inet_ntop(af, address_buffer, canonical_ip,
+                         sizeof(canonical_ip));
+  CHECK_EQ(err, 0);
+
+  args.GetReturnValue().Set(String::NewFromUtf8(isolate, canonical_ip));
+}
+
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1945,10 +1976,14 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
 
-  int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
+  int32_t flags = 0;
+  if (args[3]->IsInt32()) {
+    flags = args[3]->Int32Value(env->context()).FromJust();
+  }
+
   int family;
 
-  switch (args[2]->Int32Value()) {
+  switch (args[2]->Int32Value(env->context()).FromJust()) {
   case 0:
     family = AF_UNSPEC;
     break;
@@ -1992,7 +2027,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip(env->isolate(), args[1]);
-  const unsigned port = args[2]->Uint32Value();
+  const unsigned port = args[2]->Uint32Value(env->context()).FromJust();
   struct sockaddr_storage addr;
 
   CHECK(uv_ip4_addr(*ip, port, reinterpret_cast<sockaddr_in*>(&addr)) == 0 ||
@@ -2069,17 +2104,23 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   for (uint32_t i = 0; i < len; i++) {
-    CHECK(arr->Get(i)->IsArray());
+    CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
 
-    Local<Array> elm = Local<Array>::Cast(arr->Get(i));
+    Local<Array> elm =
+        Local<Array>::Cast(arr->Get(env->context(), i).ToLocalChecked());
 
-    CHECK(elm->Get(0)->Int32Value());
-    CHECK(elm->Get(1)->IsString());
-    CHECK(elm->Get(2)->Int32Value());
+    CHECK(elm->Get(env->context(),
+                   0).ToLocalChecked()->Int32Value(env->context()).FromJust());
+    CHECK(elm->Get(env->context(), 1).ToLocalChecked()->IsString());
+    CHECK(elm->Get(env->context(),
+                   2).ToLocalChecked()->Int32Value(env->context()).FromJust());
 
-    int fam = elm->Get(0)->Int32Value();
-    node::Utf8Value ip(env->isolate(), elm->Get(1));
-    int port = elm->Get(2)->Int32Value();
+    int fam = elm->Get(env->context(), 0)
+        .ToLocalChecked()->Int32Value(env->context()).FromJust();
+    node::Utf8Value ip(env->isolate(),
+                       elm->Get(env->context(), 1).ToLocalChecked());
+    int port = elm->Get(env->context(), 2)
+        .ToLocalChecked()->Int32Value(env->context()).FromJust();
 
     ares_addr_port_node* cur = &servers[i];
 
@@ -2129,7 +2170,8 @@ void Cancel(const FunctionCallbackInfo<Value>& args) {
 
 void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const char* errmsg = ares_strerror(args[0]->Int32Value());
+  const char* errmsg = ares_strerror(args[0]->Int32Value(env->context())
+                                     .FromJust());
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }
 
@@ -2144,6 +2186,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "isIP", IsIP);
   env->SetMethod(target, "isIPv4", IsIPv4);
   env->SetMethod(target, "isIPv6", IsIPv6);
+  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
 
   env->SetMethod(target, "strerror", StrError);
 

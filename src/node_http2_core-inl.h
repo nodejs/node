@@ -5,16 +5,10 @@
 
 #include "node_http2_core.h"
 #include "node_internals.h"  // arraysize
-#include "freelist.h"
+#include <algorithm>
 
 namespace node {
 namespace http2 {
-
-#define FREELIST_MAX 10240
-
-// Instances of Nghttp2Stream are created and pooled in order to speed
-// allocation under load.
-extern Freelist<Nghttp2Stream, FREELIST_MAX> stream_free_list;
 
 #ifdef NODE_DEBUG_HTTP2
 inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
@@ -28,6 +22,13 @@ inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
 }
 #endif
 
+inline int32_t GetFrameID(const nghttp2_frame* frame) {
+  // If this is a push promise, we want to grab the id of the promised stream
+  return (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
+      frame->push_promise.promised_stream_id :
+      frame->hd.stream_id;
+}
+
 // nghttp2 calls this at the beginning a new HEADERS or PUSH_PROMISE frame.
 // We use it to ensure that an Nghttp2Stream instance is allocated to store
 // the state.
@@ -35,21 +36,40 @@ inline int Nghttp2Session::OnBeginHeadersCallback(nghttp2_session* session,
                                                   const nghttp2_frame* frame,
                                                   void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
-  // If this is a push promise frame, we want to grab the handle of
-  // the promised stream.
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-      frame->push_promise.promised_stream_id :
-      frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: beginning headers for stream %d\n",
               handle->TypeName(), id);
 
   Nghttp2Stream* stream = handle->FindStream(id);
   if (stream == nullptr) {
-    Nghttp2Stream::Init(id, handle, frame->headers.cat);
+    new Nghttp2Stream(id, handle, frame->headers.cat);
   } else {
     stream->StartHeaders(frame->headers.cat);
   }
   return 0;
+}
+
+inline size_t GetBufferLength(nghttp2_rcbuf* buf) {
+  return nghttp2_rcbuf_get_buf(buf).len;
+}
+
+inline bool Nghttp2Stream::AddHeader(nghttp2_rcbuf* name,
+                                     nghttp2_rcbuf* value,
+                                     uint8_t flags) {
+  size_t length = GetBufferLength(name) + GetBufferLength(value) + 32;
+  if (current_headers_.size() == max_header_pairs_ ||
+      current_headers_length_ + length > max_header_length_) {
+    return false;
+  }
+  nghttp2_header header;
+  header.name = name;
+  header.value = value;
+  header.flags = flags;
+  current_headers_.push_back(header);
+  nghttp2_rcbuf_incref(name);
+  nghttp2_rcbuf_incref(value);
+  current_headers_length_ += length;
+  return true;
 }
 
 // nghttp2 calls this once for every header name-value pair in a HEADERS
@@ -62,21 +82,14 @@ inline int Nghttp2Session::OnHeaderCallback(nghttp2_session* session,
                                             uint8_t flags,
                                             void* user_data) {
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
-  // If this is a push promise frame, we want to grab the handle of
-  // the promised stream.
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-      frame->push_promise.promised_stream_id :
-      frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   Nghttp2Stream* stream = handle->FindStream(id);
-  // The header name and value are stored in a reference counted buffer
-  // provided to us by nghttp2. We need to increment the reference counter
-  // here, then decrement it when we're done using it later.
-  nghttp2_rcbuf_incref(name);
-  nghttp2_rcbuf_incref(value);
-  nghttp2_header header;
-  header.name = name;
-  header.value = value;
-  stream->headers()->emplace(header);
+  if (!stream->AddHeader(name, value, flags)) {
+    // This will only happen if the connected peer sends us more
+    // than the allowed number of header items at any given time
+    stream->SubmitRstStream(NGHTTP2_ENHANCE_YOUR_CALM);
+    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+  }
   return 0;
 }
 
@@ -193,7 +206,8 @@ inline ssize_t Nghttp2Session::OnStreamReadFD(nghttp2_session* session,
   uv_fs_t read_req;
 
   if (length > 0) {
-    numchars = uv_fs_read(handle->loop_,
+    // TODO(addaleax): Never use synchronous I/O on the main thread.
+    numchars = uv_fs_read(handle->event_loop(),
                           &read_req,
                           fd, &data, 1,
                           offset, nullptr);
@@ -417,7 +431,7 @@ inline void Nghttp2Stream::FlushDataChunks() {
 // see if the END_STREAM flag is set, and will flush the queued data chunks
 // to JS if the stream is flowing
 inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
-  int32_t id = frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling data frame for stream %d\n",
               TypeName(), id);
   Nghttp2Stream* stream = this->FindStream(id);
@@ -435,8 +449,7 @@ inline void Nghttp2Session::HandleDataFrame(const nghttp2_frame* frame) {
 // The headers are collected as the frame is being processed and sent out
 // to the JS side only when the frame is fully processed.
 inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
-  int32_t id = (frame->hd.type == NGHTTP2_PUSH_PROMISE) ?
-    frame->push_promise.promised_stream_id : frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling headers frame for stream %d\n",
               TypeName(), id);
   Nghttp2Stream* stream = FindStream(id);
@@ -446,6 +459,7 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 #endif
   OnHeaders(stream,
             stream->headers(),
+            stream->headers_count(),
             stream->headers_category(),
             frame->hd.flags);
 }
@@ -453,7 +467,7 @@ inline void Nghttp2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 // Notifies the JS layer that a PRIORITY frame has been received
 inline void Nghttp2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
   nghttp2_priority priority_frame = frame->priority;
-  int32_t id = frame->hd.stream_id;
+  int32_t id = GetFrameID(frame);
   DEBUG_HTTP2("Nghttp2Session %s: handling priority frame for stream %d\n",
               TypeName(), id);
 
@@ -489,10 +503,10 @@ inline void Nghttp2Session::SendPendingData() {
   if (IsDestroying())
     return;
 
-  uv_buf_t dest;
-  AllocateSend(SEND_BUFFER_RECOMMENDED_SIZE, &dest);
+  WriteWrap* req = nullptr;
+  char* dest = nullptr;
+  size_t destRemaining = 0;
   size_t destLength = 0;             // amount of data stored in dest
-  size_t destRemaining = dest.len;   // amount space remaining in dest
   size_t destOffset = 0;             // current write offset of dest
 
   const uint8_t* src;                // pointer to the serialized data
@@ -500,6 +514,11 @@ inline void Nghttp2Session::SendPendingData() {
 
   // While srcLength is greater than zero
   while ((srcLength = nghttp2_session_mem_send(session_, &src)) > 0) {
+    if (req == nullptr) {
+      req = AllocateSend();
+      destRemaining = req->ExtraSize();
+      dest = req->Extra();
+    }
     DEBUG_HTTP2("Nghttp2Session %s: nghttp2 has %d bytes to send\n",
                 TypeName(), srcLength);
     size_t srcRemaining = srcLength;
@@ -510,19 +529,21 @@ inline void Nghttp2Session::SendPendingData() {
     // the proceed with the rest.
     while (srcRemaining > destRemaining) {
       DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
-                  TypeName(), destRemaining);
-      memcpy(dest.base + destOffset, src + srcOffset, destRemaining);
+                  TypeName(), destLength + destRemaining);
+      memcpy(dest + destOffset, src + srcOffset, destRemaining);
       destLength += destRemaining;
-      Send(&dest, destLength);
+      Send(req, dest, destLength);
       destOffset = 0;
       destLength = 0;
       srcRemaining -= destRemaining;
       srcOffset += destRemaining;
-      destRemaining = dest.len;
+      req = AllocateSend();
+      destRemaining = req->ExtraSize();
+      dest = req->Extra();
     }
 
     if (srcRemaining > 0) {
-      memcpy(dest.base + destOffset, src + srcOffset, srcRemaining);
+      memcpy(dest + destOffset, src + srcOffset, srcRemaining);
       destLength += srcRemaining;
       destOffset += srcRemaining;
       destRemaining -= srcRemaining;
@@ -534,88 +555,56 @@ inline void Nghttp2Session::SendPendingData() {
   if (destLength > 0) {
     DEBUG_HTTP2("Nghttp2Session %s: pushing %d bytes to the socket\n",
                 TypeName(), destLength);
-    Send(&dest, destLength);
+    Send(req, dest, destLength);
   }
 }
 
 // Initialize the Nghttp2Session handle by creating and
 // assigning the Nghttp2Session instance and associated
 // uv_loop_t.
-inline int Nghttp2Session::Init(uv_loop_t* loop,
-                               const nghttp2_session_type type,
-                               nghttp2_option* options,
-                               nghttp2_mem* mem) {
-  loop_ = loop;
+inline int Nghttp2Session::Init(const nghttp2_session_type type,
+                                nghttp2_option* options,
+                                nghttp2_mem* mem,
+                                uint32_t maxHeaderPairs) {
   session_type_ = type;
   DEBUG_HTTP2("Nghttp2Session %s: initializing session\n", TypeName());
   destroying_ = false;
-  int ret = 0;
+
+  max_header_pairs_ = maxHeaderPairs;
 
   nghttp2_session_callbacks* callbacks
       = callback_struct_saved[HasGetPaddingCallback() ? 1 : 0].callbacks;
 
-  nghttp2_option* opts;
-  if (options != nullptr) {
-    opts = options;
-  } else {
-    nghttp2_option_new(&opts);
-  }
+  CHECK_NE(options, nullptr);
 
-  switch (type) {
-    case NGHTTP2_SESSION_SERVER:
-      ret = nghttp2_session_server_new3(&session_,
-                                        callbacks,
-                                        this,
-                                        opts,
-                                        mem);
-      break;
-    case NGHTTP2_SESSION_CLIENT:
-      ret = nghttp2_session_client_new3(&session_,
-                                        callbacks,
-                                        this,
-                                        opts,
-                                        mem);
-      break;
-  }
-  if (opts != options) {
-    nghttp2_option_del(opts);
-  }
+  typedef int (*init_fn)(nghttp2_session** session,
+                         const nghttp2_session_callbacks* callbacks,
+                         void* user_data,
+                         const nghttp2_option* options,
+                         nghttp2_mem* mem);
+  init_fn fn = type == NGHTTP2_SESSION_SERVER ?
+      nghttp2_session_server_new3 :
+      nghttp2_session_client_new3;
 
-  // For every node::Http2Session instance, there is a uv_prep_t handle
-  // whose callback is triggered on every tick of the event loop. When
-  // run, nghttp2 is prompted to send any queued data it may have stored.
-  uv_prepare_init(loop_, &prep_);
-  uv_prepare_start(&prep_, [](uv_prepare_t* t) {
-    Nghttp2Session* session = ContainerOf(&Nghttp2Session::prep_, t);
-    session->SendPendingData();
-  });
-  return ret;
+  return fn(&session_, callbacks, this, options, mem);
 }
 
 inline void Nghttp2Session::MarkDestroying() {
   destroying_ = true;
 }
 
-inline int Nghttp2Session::Free() {
-#if defined(DEBUG) && DEBUG
-  CHECK(session_ != nullptr);
-#endif
+inline Nghttp2Session::~Nghttp2Session() {
+  Close();
+}
+
+inline void Nghttp2Session::Close() {
+  if (IsClosed())
+    return;
   DEBUG_HTTP2("Nghttp2Session %s: freeing session\n", TypeName());
-  // Stop the loop
-  CHECK_EQ(uv_prepare_stop(&prep_), 0);
-  auto PrepClose = [](uv_handle_t* handle) {
-    Nghttp2Session* session =
-        ContainerOf(&Nghttp2Session::prep_,
-                    reinterpret_cast<uv_prepare_t*>(handle));
-    session->OnFreeSession();
-  };
-  uv_close(reinterpret_cast<uv_handle_t*>(&prep_), PrepClose);
   nghttp2_session_terminate_session(session_, NGHTTP2_NO_ERROR);
   nghttp2_session_del(session_);
   session_ = nullptr;
-  loop_ = nullptr;
   DEBUG_HTTP2("Nghttp2Session %s: session freed\n", TypeName());
-  return 1;
 }
 
 // Write data received from the socket to the underlying nghttp2_session.
@@ -647,44 +636,31 @@ inline void Nghttp2Session::RemoveStream(int32_t id) {
 
 // Implementation for Nghttp2Stream functions
 
-inline Nghttp2Stream* Nghttp2Stream::Init(
+Nghttp2Stream::Nghttp2Stream(
     int32_t id,
     Nghttp2Session* session,
     nghttp2_headers_category category,
-    int options) {
-  DEBUG_HTTP2("Nghttp2Stream %d: initializing stream\n", id);
-  Nghttp2Stream* stream = stream_free_list.pop();
-  stream->ResetState(id, session, category, options);
-  session->AddStream(stream);
-  return stream;
-}
+    int options) : id_(id),
+                   session_(session),
+                   current_headers_category_(category) {
+  // Limit the number of header pairs
+  max_header_pairs_ = session->GetMaxHeaderPairs();
+  if (max_header_pairs_ == 0)
+  max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  current_headers_.reserve(max_header_pairs_);
 
+  // Limit the number of header octets
+  max_header_length_ =
+      std::min(
+        nghttp2_session_get_local_settings(
+          session->session(),
+          NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE),
+      MAX_MAX_HEADER_LIST_SIZE);
 
-// Resets the state of the stream instance to defaults
-inline void Nghttp2Stream::ResetState(
-    int32_t id,
-    Nghttp2Session* session,
-    nghttp2_headers_category category,
-    int options) {
-  DEBUG_HTTP2("Nghttp2Stream %d: resetting stream state\n", id);
-  session_ = session;
-  while (!queue_.empty()) {
-    nghttp2_stream_write* head = queue_.front();
-    delete head;
-    queue_.pop();
-  }
-  while (!data_chunks_.empty())
-    data_chunks_.pop();
-  while (!current_headers_.empty())
-    current_headers_.pop();
-  current_headers_category_ = category;
-  flags_ = NGHTTP2_STREAM_FLAG_NONE;
-  id_ = id;
-  code_ = NGHTTP2_NO_ERROR;
-  prev_local_window_size_ = 65535;
-  queue_index_ = 0;
-  queue_offset_ = 0;
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
+  if (options & STREAM_OPTION_EMPTY_PAYLOAD)
+    Shutdown();
+  session->AddStream(this);
 }
 
 
@@ -697,14 +673,16 @@ inline void Nghttp2Stream::Destroy() {
   Nghttp2Session* session = this->session_;
 
   if (session != nullptr) {
-    // Remove this stream from the associated session
     session_->RemoveStream(this->id());
     session_ = nullptr;
   }
 
   // Free any remaining incoming data chunks.
-  while (!data_chunks_.empty())
+  while (!data_chunks_.empty()) {
+    uv_buf_t buf = data_chunks_.front();
+    free(buf.base);
     data_chunks_.pop();
+  }
 
   // Free any remaining outgoing data chunks.
   while (!queue_.empty()) {
@@ -714,12 +692,7 @@ inline void Nghttp2Stream::Destroy() {
     queue_.pop();
   }
 
-  // Free any remaining headers
-  while (!current_headers_.empty())
-    current_headers_.pop();
-
-  // Return this stream instance to the freelist
-  stream_free_list.push(this);
+  delete this;
 }
 
 // Submit informational headers for a stream.
@@ -769,9 +742,9 @@ inline int32_t Nghttp2Stream::SubmitPushPromise(
                                             id_, nva, len,
                                             nullptr);
   if (ret > 0) {
-    auto stream = Nghttp2Stream::Init(ret, session_);
-    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
-      stream->Shutdown();
+    auto stream = new Nghttp2Stream(ret, session_,
+                                    NGHTTP2_HCAT_HEADERS,
+                                    options);
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;
@@ -813,7 +786,6 @@ inline int Nghttp2Stream::SubmitFile(int fd,
   DEBUG_HTTP2("Nghttp2Stream %d: submitting file\n", id_);
   getTrailers_ = options & STREAM_OPTION_GET_TRAILERS;
   nghttp2_data_provider prov;
-  prov.source.ptr = this;
   prov.source.fd = fd;
   prov.read_callback = Nghttp2Session::OnStreamReadFD;
 
@@ -848,11 +820,7 @@ inline int32_t Nghttp2Session::SubmitRequest(
                                        provider, nullptr);
   // Assign the Nghttp2Stream handle
   if (ret > 0) {
-    Nghttp2Stream* stream = Nghttp2Stream::Init(ret, this,
-                                                NGHTTP2_HCAT_HEADERS,
-                                                options);
-    if (options & STREAM_OPTION_EMPTY_PAYLOAD)
-      stream->Shutdown();
+    auto stream = new Nghttp2Stream(ret, this, NGHTTP2_HCAT_HEADERS, options);
     if (assigned != nullptr) *assigned = stream;
   }
   return ret;
@@ -890,6 +858,14 @@ inline void Nghttp2Stream::ReadStart() {
     return;
   DEBUG_HTTP2("Nghttp2Stream %d: start reading\n", id_);
   flags_ |= NGHTTP2_STREAM_FLAG_READ_START;
+  flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
+
+  // Flush any queued data chunks immediately out to the JS layer
+  FlushDataChunks();
+}
+
+inline void Nghttp2Stream::ReadResume() {
+  DEBUG_HTTP2("Nghttp2Stream %d: resume reading\n", id_);
   flags_ &= ~NGHTTP2_STREAM_FLAG_READ_PAUSED;
 
   // Flush any queued data chunks immediately out to the JS layer

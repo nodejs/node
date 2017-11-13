@@ -1885,6 +1885,12 @@ void Heap::Scavenge() {
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
+  if (mark_compact_collector()->sweeper().sweeping_in_progress() &&
+      memory_allocator_->unmapper()->NumberOfDelayedChunks() >
+          static_cast<int>(new_space_->MaximumCapacity() / Page::kPageSize)) {
+    mark_compact_collector()->EnsureSweepingCompleted();
+  }
+
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
   SetGCState(SCAVENGE);

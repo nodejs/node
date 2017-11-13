@@ -331,7 +331,7 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
-int uv_parent_pid(void) {
+uv_pid_t uv_os_getppid(void) {
   int parent_pid = -1;
   HANDLE handle;
   PROCESSENTRY32 pe;

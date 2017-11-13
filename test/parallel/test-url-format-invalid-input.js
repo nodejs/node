@@ -17,7 +17,7 @@ for (const [urlObject, type] of throwsObjsAndReportTypes) {
   const error = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "urlObject" argument must be one of type object or string. ' +
+    message: 'The "urlObject" argument must be one of type Object or string. ' +
              `Received type ${type}`
   });
   assert.throws(function() { url.format(urlObject); }, error);

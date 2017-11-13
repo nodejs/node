@@ -164,6 +164,19 @@ First build two versions of Node.js, one from the master branch (here called
 `./node-master`) and another with the pull request applied (here called
 `./node-pr-5134`).
 
+To run multiple compiled versions in parallel you need to copy the output of the
+build: `cp ./out/Release/node ./node-master`. Check out the following example:
+
+```console
+$ git checkout master
+$ ./configure && make -j4
+$ cp ./out/Release/node ./node-master
+
+$ git checkout pr-5134
+$ ./configure && make -j4
+$ cp ./out/Release/node ./node-pr-5134
+```
+
 The `compare.js` tool will then produce a csv file with the benchmark results.
 
 ```console

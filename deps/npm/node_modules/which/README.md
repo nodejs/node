@@ -21,6 +21,9 @@ which('node', function (er, resolvedPath) {
 // throws if not found
 var resolved = which.sync('node')
 
+// if nothrow option is used, returns null if not found
+resolved = which.sync('node', {nothrow: true})
+
 // Pass options to override the PATH and PATHEXT environment vars.
 which('node', { path: someOtherPath }, function (er, resolved) {
   if (er)

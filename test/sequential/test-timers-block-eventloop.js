@@ -2,21 +2,23 @@
 
 const common = require('../common');
 const fs = require('fs');
+const platformTimeout = common.platformTimeout;
 
 const t1 = setInterval(() => {
-  common.busyLoop(12);
-}, 10);
+  common.busyLoop(platformTimeout(12));
+}, platformTimeout(10));
 
 const t2 = setInterval(() => {
-  common.busyLoop(15);
-}, 10);
+  common.busyLoop(platformTimeout(15));
+}, platformTimeout(10));
 
-const t3 = setTimeout(common.mustNotCall('eventloop blocked!'), 100);
+const t3 =
+  setTimeout(common.mustNotCall('eventloop blocked!'), platformTimeout(200));
 
 setTimeout(function() {
-  fs.stat('./nonexistent.txt', (err, stats) => {
+  fs.stat('/dev/nonexistent', (err, stats) => {
     clearInterval(t1);
     clearInterval(t2);
     clearTimeout(t3);
   });
-}, 50);
+}, platformTimeout(50));

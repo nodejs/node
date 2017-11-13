@@ -33,7 +33,8 @@ assert.strictEqual(test_exception.wasPending(), true,
 // Test that the native side does not capture a non-existing exception
 returnedError = test_exception.returnException(common.mustCall());
 assert.strictEqual(undefined, returnedError,
-                   'Returned error is undefined when no exception is thrown');
+                   'Returned error should be undefined when no exception is' +
+                   ` thrown, but ${returnedError} was passed`);
 
 // Test that no exception appears that was not thrown by us
 try {
@@ -42,7 +43,8 @@ try {
   caughtError = anError;
 }
 assert.strictEqual(undefined, caughtError,
-                   'No exception originated on the native side');
+                   'No exception originated on the native side, but' +
+                   ` ${caughtError} was passed`);
 
 // Test that the exception state remains clear when no exception is thrown
 assert.strictEqual(test_exception.wasPending(), false,

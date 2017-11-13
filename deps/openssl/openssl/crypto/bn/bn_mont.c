@@ -394,6 +394,9 @@ int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *mod, BN_CTX *ctx)
         tmod.dmax = 2;
         tmod.neg = 0;
 
+        if (BN_get_flags(mod, BN_FLG_CONSTTIME) != 0)
+            BN_set_flags(&tmod, BN_FLG_CONSTTIME);
+
         mont->ri = (BN_num_bits(mod) + (BN_BITS2 - 1)) / BN_BITS2 * BN_BITS2;
 
 # if defined(OPENSSL_BN_ASM_MONT) && (BN_BITS2<=32)

@@ -34,9 +34,9 @@ assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader('test');
 }, common.expectsError({
-  code: 'ERR_MISSING_ARGS',
+  code: 'ERR_HTTP_INVALID_HEADER_VALUE',
   type: TypeError,
-  message: 'The "value" argument must be specified'
+  message: 'Invalid value "undefined" for header "test"'
 }));
 
 assert.throws(() => {
@@ -84,7 +84,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or buffer'
+  message: 'The first argument must be one of type string or Buffer'
 }));
 
 assert.throws(() => {
@@ -93,14 +93,17 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: 'The first argument must be one of type string or buffer'
+  message: 'The first argument must be one of type string or Buffer'
 }));
 
-// addTrailers
+// addTrailers()
+// The `Error` comes from the JavaScript engine so confirm that it is a
+// `TypeError` but do not check the message. It will be different in different
+// JavaScript engines.
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.addTrailers();
-}, /^TypeError: Cannot convert undefined or null to object$/);
+}, TypeError);
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();

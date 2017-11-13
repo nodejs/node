@@ -122,7 +122,7 @@ to the `constants` property exposed by the relevant module. For instance,
 Type: End-of-life
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
-in Node.js 6.0 because the method defaulted to using the non-recommendend
+in Node.js 6.0 because the method defaulted to using the non-recommended
 `'SHA1'` digest. Previously, a deprecation warning was printed. Starting in
 Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with an
 undefined `digest` will throw a `TypeError`.
@@ -202,7 +202,7 @@ code.
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
 
-Type: End-of-Life
+Type: Runtime
 
 In certain cases, `require('.')` may resolve outside the package directory.
 This behavior is deprecated and will be removed in a future major Node.js
@@ -736,6 +736,47 @@ Type: Runtime
 `REPLServer.prototype.memory()` is a function only necessary for the
 internal mechanics of the `REPLServer` itself, and is therefore not
 necessary in user space.
+
+<a id="DEP0083"></a>
+### DEP0083: Disabling ECDH by setting ecdhCurve to false
+
+Type: Runtime
+
+The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
+be set to `false` to disable ECDH entirely on the server only. This mode is
+deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
+the client. Use the `ciphers` parameter instead.
+
+<a id="DEP0084"></a>
+### DEP0084: requiring bundled internal dependencies
+
+Type: Runtime
+
+Since Node.js versions 4.4.0 and 5.2.0, several modules only intended for
+internal usage are mistakenly exposed to user code through `require()`. These
+modules are:
+
+- `v8/tools/codemap`
+- `v8/tools/consarray`
+- `v8/tools/csvparser`
+- `v8/tools/logreader`
+- `v8/tools/profile_view`
+- `v8/tools/profile`
+- `v8/tools/SourceMap`
+- `v8/tools/splaytree`
+- `v8/tools/tickprocessor-driver`
+- `v8/tools/tickprocessor`
+- `node-inspect/lib/_inspect` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_client` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_repl` (from 7.6.0)
+
+The `v8/*` modules do not have any exports, and if not imported in a specific
+order would in fact throw errors. As such there are virtually no legitimate use
+cases for importing them through `require()`.
+
+On the other hand, `node-inspect` may be installed locally through a package
+manager, as it is published on the npm registry under the same name. No source
+code modification is necessary if that is done.
 
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

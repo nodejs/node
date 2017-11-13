@@ -158,6 +158,7 @@ HTTP_KNOWN_HEADER_MAX
   V(CONTINUE, 100)                                                            \
   V(SWITCHING_PROTOCOLS, 101)                                                 \
   V(PROCESSING, 102)                                                          \
+  V(EARLY_HINTS, 103)                                                         \
   V(OK, 200)                                                                  \
   V(CREATED, 201)                                                             \
   V(ACCEPTED, 202)                                                            \
@@ -291,13 +292,13 @@ const char* nghttp2_errname(int rv) {
   }
 }
 
-#define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
-#define DEFAULT_SETTINGS_ENABLE_PUSH 1
-#define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
-#define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
-#define MAX_MAX_FRAME_SIZE 16777215
-#define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
-#define MAX_INITIAL_WINDOW_SIZE 2147483647
+// This allows for 4 default-sized frames with their frame headers
+static const size_t kAllocBufferSize = 4 * (16384 + 9);
+
+typedef uint32_t(*get_setting)(nghttp2_session* session,
+                               nghttp2_settings_id id);
+
+class Http2Session;
 
 // The Http2Options class is used to parse the options object passed in to
 // a Http2Session object and convert those into an appropriate nghttp2_option
@@ -315,26 +316,71 @@ class Http2Options {
     return options_;
   }
 
+  void SetMaxHeaderPairs(uint32_t max) {
+    max_header_pairs_ = max;
+  }
+
+  uint32_t GetMaxHeaderPairs() const {
+    return max_header_pairs_;
+  }
+
   void SetPaddingStrategy(padding_strategy_type val) {
-#if DEBUG
-    CHECK_LE(val, PADDING_STRATEGY_CALLBACK);
-#endif
     padding_strategy_ = static_cast<padding_strategy_type>(val);
   }
 
-  padding_strategy_type GetPaddingStrategy() {
+  padding_strategy_type GetPaddingStrategy() const {
     return padding_strategy_;
   }
 
  private:
   nghttp2_option* options_;
+  uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
 };
 
-static const size_t kAllocBufferSize = 64 * 1024;
+// The Http2Settings class is used to parse the settings passed in for
+// an Http2Session, converting those into an array of nghttp2_settings_entry
+// structs.
+class Http2Settings {
+ public:
+  explicit Http2Settings(Environment* env);
 
-typedef uint32_t(*get_setting)(nghttp2_session* session,
-                               nghttp2_settings_id id);
+  size_t length() const { return count_; }
+
+  nghttp2_settings_entry* operator*() {
+    return *entries_;
+  }
+
+  // Returns a Buffer instance with the serialized SETTINGS payload
+  inline Local<Value> Pack();
+
+  // Resets the default values in the settings buffer
+  static inline void RefreshDefaults(Environment* env);
+
+  // Update the local or remote settings for the given session
+  static inline void Update(Environment* env,
+                            Http2Session* session,
+                            get_setting fn);
+
+ private:
+  Environment* env_;
+  size_t count_ = 0;
+  MaybeStackBuffer<nghttp2_settings_entry, IDX_SETTINGS_COUNT> entries_;
+};
+
+class Http2Priority {
+ public:
+  Http2Priority(Environment* env,
+                Local<Value> parent,
+                Local<Value> weight,
+                Local<Value> exclusive);
+
+  nghttp2_priority_spec* operator*() {
+    return &spec;
+  }
+ private:
+  nghttp2_priority_spec spec;
+};
 
 class Http2Session : public AsyncWrap,
                      public StreamBase,
@@ -342,24 +388,8 @@ class Http2Session : public AsyncWrap,
  public:
   Http2Session(Environment* env,
                Local<Object> wrap,
-               nghttp2_session_type type) :
-               AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
-               StreamBase(env) {
-    Wrap(object(), this);
-
-    Http2Options opts(env);
-
-    padding_strategy_ = opts.GetPaddingStrategy();
-
-    Init(env->event_loop(), type, *opts);
-  }
-
-  ~Http2Session() override {
-    CHECK_EQ(false, persistent().IsEmpty());
-    ClearWrap(object());
-    persistent().Reset();
-    CHECK_EQ(true, persistent().IsEmpty());
-  }
+               nghttp2_session_type type);
+  ~Http2Session() override;
 
   static void OnStreamAllocImpl(size_t suggested_size,
                                 uv_buf_t* buf,
@@ -368,9 +398,8 @@ class Http2Session : public AsyncWrap,
                                const uv_buf_t* bufs,
                                uv_handle_type pending,
                                void* ctx);
- protected:
-  void OnFreeSession() override;
 
+ protected:
   ssize_t OnMaxFrameSizePadding(size_t frameLength,
                                 size_t maxPayloadLen);
 
@@ -396,11 +425,11 @@ class Http2Session : public AsyncWrap,
 
   void OnHeaders(
       Nghttp2Stream* stream,
-      std::queue<nghttp2_header>* headers,
+      nghttp2_header* headers,
+      size_t count,
       nghttp2_headers_category cat,
       uint8_t flags) override;
   void OnStreamClose(int32_t id, uint32_t code) override;
-  void Send(uv_buf_t* bufs, size_t total) override;
   void OnDataChunk(Nghttp2Stream* stream, uv_buf_t* chunk) override;
   void OnSettings(bool ack) override;
   void OnPriority(int32_t stream,
@@ -414,7 +443,9 @@ class Http2Session : public AsyncWrap,
   void OnFrameError(int32_t id, uint8_t type, int error_code) override;
   void OnTrailers(Nghttp2Stream* stream,
                   const SubmitTrailers& submit_trailers) override;
-  void AllocateSend(size_t recommended, uv_buf_t* buf) override;
+
+  void Send(WriteWrap* req, char* buf, size_t length) override;
+  WriteWrap* AllocateSend() override;
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
@@ -448,6 +479,9 @@ class Http2Session : public AsyncWrap,
     return 0;
   }
 
+  uv_loop_t* event_loop() const override {
+    return env()->event_loop();
+  }
  public:
   void Consume(Local<External> external);
   void Unconsume();
@@ -474,6 +508,10 @@ class Http2Session : public AsyncWrap,
   static void SubmitGoaway(const FunctionCallbackInfo<Value>& args);
   static void DestroyStream(const FunctionCallbackInfo<Value>& args);
   static void FlushData(const FunctionCallbackInfo<Value>& args);
+  static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
+
+  template <get_setting fn>
+  static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
 
   template <get_setting fn>
   static void GetSettings(const FunctionCallbackInfo<Value>& args);
@@ -486,11 +524,17 @@ class Http2Session : public AsyncWrap,
     return stream_buf_;
   }
 
+  void Close() override;
+
  private:
   StreamBase* stream_;
   StreamResource::Callback<StreamResource::AllocCb> prev_alloc_cb_;
   StreamResource::Callback<StreamResource::ReadCb> prev_read_cb_;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
+
+  // use this to allow timeout tracking during long-lasting writes
+  uint32_t chunks_sent_since_last_write_ = 0;
+  uv_prepare_t* prep_ = nullptr;
 
   char stream_buf_[kAllocBufferSize];
 };

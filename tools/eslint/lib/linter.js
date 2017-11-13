@@ -291,7 +291,7 @@ function createDisableDirectives(type, loc, value) {
  */
 function modifyConfigsFromComments(filename, ast, config, linterContext) {
 
-    let commentConfig = {
+    const commentConfig = {
         exported: {},
         astGlobals: {},
         rules: {},
@@ -318,10 +318,6 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
                     case "globals":
                     case "global":
                         Object.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
-                        break;
-
-                    case "eslint-env":
-                        Object.assign(commentConfig.env, parseListConfig(value));
                         break;
 
                     case "eslint-disable":
@@ -361,14 +357,6 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
         }
     });
 
-    // apply environment configs
-    Object.keys(commentConfig.env).forEach(name => {
-        const env = linterContext.environments.get(name);
-
-        if (env) {
-            commentConfig = ConfigOps.merge(commentConfig, env);
-        }
-    });
     Object.assign(commentConfig.rules, commentRules);
 
     return {

@@ -602,7 +602,7 @@ should be discouraged.
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v8.9.0
     pr-url: https://github.com/nodejs/node/pull/16397
     description: The `paths` option is now supported.
 -->
@@ -620,7 +620,7 @@ but rather than loading the module, just return the resolved filename.
 
 #### require.resolve.paths(request)
 <!-- YAML
-added: REPLACEME
+added: v8.9.0
 -->
 
 * `request` {string} The module path whose lookup paths are being retrieved.

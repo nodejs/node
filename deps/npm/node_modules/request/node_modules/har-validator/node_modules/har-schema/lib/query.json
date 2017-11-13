@@ -1,5 +1,6 @@
 {
-  "id": "query.json#",
+  "$id": "query.json#",
+  "$schema": "http://json-schema.org/draft-06/schema#",
   "type": "object",
   "required": [
     "name",

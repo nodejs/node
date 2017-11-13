@@ -22,11 +22,9 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "string_search.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
 #include "v8.h"

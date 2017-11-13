@@ -54,14 +54,11 @@
 #endif
 
 #include "ares.h"
-#include "async-wrap.h"
 #include "async-wrap-inl.h"
-#include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
 #include "http_parser.h"
 #include "nghttp2/nghttp2ver.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
@@ -111,7 +108,7 @@ typedef int mode_t;
 #include <unistd.h>  // setuid, getuid
 #endif
 
-#if defined(__POSIX__) && !defined(__ANDROID__)
+#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 #include <pwd.h>  // getpwnam()
 #include <grp.h>  // getgrnam()
 #endif
@@ -173,7 +170,7 @@ static bool syntax_check_only = false;
 static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
-static bool force_async_hooks_checks = false;
+static bool no_force_async_hooks_checks = false;
 static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static std::vector<std::string> preload_modules;
@@ -265,10 +262,10 @@ node::DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size, uv_loop_t* loop) {
+  void Initialize(int thread_pool_size) {
     tracing_agent_ =
         trace_enabled ? new tracing::Agent() : nullptr;
-    platform_ = new NodePlatform(thread_pool_size, loop,
+    platform_ = new NodePlatform(thread_pool_size,
         trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
     V8::InitializePlatform(platform_);
     tracing::TraceEventHelper::SetTracingController(
@@ -283,8 +280,12 @@ static struct {
     tracing_agent_ = nullptr;
   }
 
-  void DrainVMTasks() {
-    platform_->DrainBackgroundTasks();
+  void DrainVMTasks(Isolate* isolate) {
+    platform_->DrainBackgroundTasks(isolate);
+  }
+
+  void CancelVMTasks(Isolate* isolate) {
+    platform_->CancelPendingDelayedTasks(isolate);
   }
 
 #if HAVE_INSPECTOR
@@ -309,12 +310,17 @@ static struct {
     tracing_agent_->Stop();
   }
 
+  NodePlatform* Platform() {
+    return platform_;
+  }
+
   tracing::Agent* tracing_agent_;
   NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
-  void Initialize(int thread_pool_size, uv_loop_t* loop) {}
+  void Initialize(int thread_pool_size) {}
   void Dispose() {}
-  void DrainVMTasks() {}
+  void DrainVMTasks(Isolate* isolate) {}
+  void CancelVMTasks(Isolate* isolate) {}
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
@@ -326,6 +332,10 @@ static struct {
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
+
+  NodePlatform* Platform() {
+    return nullptr;
+  }
 #endif  // !NODE_USE_V8_PLATFORM
 
 #if !NODE_USE_V8_PLATFORM || !HAVE_INSPECTOR
@@ -391,333 +401,6 @@ static void CheckImmediate(uv_check_t* handle) {
 static void IdleImmediateDummy(uv_idle_t* handle) {
   // Do nothing. Only for maintaining event loop.
   // TODO(bnoordhuis) Maybe make libuv accept nullptr idle callbacks.
-}
-
-
-static inline const char *errno_string(int errorno) {
-#define ERRNO_CASE(e)  case e: return #e;
-  switch (errorno) {
-#ifdef EACCES
-  ERRNO_CASE(EACCES);
-#endif
-
-#ifdef EADDRINUSE
-  ERRNO_CASE(EADDRINUSE);
-#endif
-
-#ifdef EADDRNOTAVAIL
-  ERRNO_CASE(EADDRNOTAVAIL);
-#endif
-
-#ifdef EAFNOSUPPORT
-  ERRNO_CASE(EAFNOSUPPORT);
-#endif
-
-#ifdef EAGAIN
-  ERRNO_CASE(EAGAIN);
-#endif
-
-#ifdef EWOULDBLOCK
-# if EAGAIN != EWOULDBLOCK
-  ERRNO_CASE(EWOULDBLOCK);
-# endif
-#endif
-
-#ifdef EALREADY
-  ERRNO_CASE(EALREADY);
-#endif
-
-#ifdef EBADF
-  ERRNO_CASE(EBADF);
-#endif
-
-#ifdef EBADMSG
-  ERRNO_CASE(EBADMSG);
-#endif
-
-#ifdef EBUSY
-  ERRNO_CASE(EBUSY);
-#endif
-
-#ifdef ECANCELED
-  ERRNO_CASE(ECANCELED);
-#endif
-
-#ifdef ECHILD
-  ERRNO_CASE(ECHILD);
-#endif
-
-#ifdef ECONNABORTED
-  ERRNO_CASE(ECONNABORTED);
-#endif
-
-#ifdef ECONNREFUSED
-  ERRNO_CASE(ECONNREFUSED);
-#endif
-
-#ifdef ECONNRESET
-  ERRNO_CASE(ECONNRESET);
-#endif
-
-#ifdef EDEADLK
-  ERRNO_CASE(EDEADLK);
-#endif
-
-#ifdef EDESTADDRREQ
-  ERRNO_CASE(EDESTADDRREQ);
-#endif
-
-#ifdef EDOM
-  ERRNO_CASE(EDOM);
-#endif
-
-#ifdef EDQUOT
-  ERRNO_CASE(EDQUOT);
-#endif
-
-#ifdef EEXIST
-  ERRNO_CASE(EEXIST);
-#endif
-
-#ifdef EFAULT
-  ERRNO_CASE(EFAULT);
-#endif
-
-#ifdef EFBIG
-  ERRNO_CASE(EFBIG);
-#endif
-
-#ifdef EHOSTUNREACH
-  ERRNO_CASE(EHOSTUNREACH);
-#endif
-
-#ifdef EIDRM
-  ERRNO_CASE(EIDRM);
-#endif
-
-#ifdef EILSEQ
-  ERRNO_CASE(EILSEQ);
-#endif
-
-#ifdef EINPROGRESS
-  ERRNO_CASE(EINPROGRESS);
-#endif
-
-#ifdef EINTR
-  ERRNO_CASE(EINTR);
-#endif
-
-#ifdef EINVAL
-  ERRNO_CASE(EINVAL);
-#endif
-
-#ifdef EIO
-  ERRNO_CASE(EIO);
-#endif
-
-#ifdef EISCONN
-  ERRNO_CASE(EISCONN);
-#endif
-
-#ifdef EISDIR
-  ERRNO_CASE(EISDIR);
-#endif
-
-#ifdef ELOOP
-  ERRNO_CASE(ELOOP);
-#endif
-
-#ifdef EMFILE
-  ERRNO_CASE(EMFILE);
-#endif
-
-#ifdef EMLINK
-  ERRNO_CASE(EMLINK);
-#endif
-
-#ifdef EMSGSIZE
-  ERRNO_CASE(EMSGSIZE);
-#endif
-
-#ifdef EMULTIHOP
-  ERRNO_CASE(EMULTIHOP);
-#endif
-
-#ifdef ENAMETOOLONG
-  ERRNO_CASE(ENAMETOOLONG);
-#endif
-
-#ifdef ENETDOWN
-  ERRNO_CASE(ENETDOWN);
-#endif
-
-#ifdef ENETRESET
-  ERRNO_CASE(ENETRESET);
-#endif
-
-#ifdef ENETUNREACH
-  ERRNO_CASE(ENETUNREACH);
-#endif
-
-#ifdef ENFILE
-  ERRNO_CASE(ENFILE);
-#endif
-
-#ifdef ENOBUFS
-  ERRNO_CASE(ENOBUFS);
-#endif
-
-#ifdef ENODATA
-  ERRNO_CASE(ENODATA);
-#endif
-
-#ifdef ENODEV
-  ERRNO_CASE(ENODEV);
-#endif
-
-#ifdef ENOENT
-  ERRNO_CASE(ENOENT);
-#endif
-
-#ifdef ENOEXEC
-  ERRNO_CASE(ENOEXEC);
-#endif
-
-#ifdef ENOLINK
-  ERRNO_CASE(ENOLINK);
-#endif
-
-#ifdef ENOLCK
-# if ENOLINK != ENOLCK
-  ERRNO_CASE(ENOLCK);
-# endif
-#endif
-
-#ifdef ENOMEM
-  ERRNO_CASE(ENOMEM);
-#endif
-
-#ifdef ENOMSG
-  ERRNO_CASE(ENOMSG);
-#endif
-
-#ifdef ENOPROTOOPT
-  ERRNO_CASE(ENOPROTOOPT);
-#endif
-
-#ifdef ENOSPC
-  ERRNO_CASE(ENOSPC);
-#endif
-
-#ifdef ENOSR
-  ERRNO_CASE(ENOSR);
-#endif
-
-#ifdef ENOSTR
-  ERRNO_CASE(ENOSTR);
-#endif
-
-#ifdef ENOSYS
-  ERRNO_CASE(ENOSYS);
-#endif
-
-#ifdef ENOTCONN
-  ERRNO_CASE(ENOTCONN);
-#endif
-
-#ifdef ENOTDIR
-  ERRNO_CASE(ENOTDIR);
-#endif
-
-#ifdef ENOTEMPTY
-# if ENOTEMPTY != EEXIST
-  ERRNO_CASE(ENOTEMPTY);
-# endif
-#endif
-
-#ifdef ENOTSOCK
-  ERRNO_CASE(ENOTSOCK);
-#endif
-
-#ifdef ENOTSUP
-  ERRNO_CASE(ENOTSUP);
-#else
-# ifdef EOPNOTSUPP
-  ERRNO_CASE(EOPNOTSUPP);
-# endif
-#endif
-
-#ifdef ENOTTY
-  ERRNO_CASE(ENOTTY);
-#endif
-
-#ifdef ENXIO
-  ERRNO_CASE(ENXIO);
-#endif
-
-
-#ifdef EOVERFLOW
-  ERRNO_CASE(EOVERFLOW);
-#endif
-
-#ifdef EPERM
-  ERRNO_CASE(EPERM);
-#endif
-
-#ifdef EPIPE
-  ERRNO_CASE(EPIPE);
-#endif
-
-#ifdef EPROTO
-  ERRNO_CASE(EPROTO);
-#endif
-
-#ifdef EPROTONOSUPPORT
-  ERRNO_CASE(EPROTONOSUPPORT);
-#endif
-
-#ifdef EPROTOTYPE
-  ERRNO_CASE(EPROTOTYPE);
-#endif
-
-#ifdef ERANGE
-  ERRNO_CASE(ERANGE);
-#endif
-
-#ifdef EROFS
-  ERRNO_CASE(EROFS);
-#endif
-
-#ifdef ESPIPE
-  ERRNO_CASE(ESPIPE);
-#endif
-
-#ifdef ESRCH
-  ERRNO_CASE(ESRCH);
-#endif
-
-#ifdef ESTALE
-  ERRNO_CASE(ESTALE);
-#endif
-
-#ifdef ETIME
-  ERRNO_CASE(ETIME);
-#endif
-
-#ifdef ETIMEDOUT
-  ERRNO_CASE(ETIMEDOUT);
-#endif
-
-#ifdef ETXTBSY
-  ERRNO_CASE(ETXTBSY);
-#endif
-
-#ifdef EXDEV
-  ERRNO_CASE(EXDEV);
-#endif
-
-  default: return "";
-  }
 }
 
 const char *signo_string(int signo) {
@@ -1005,7 +688,7 @@ Local<Value> UVException(Isolate* isolate,
 
 // Look up environment variable unless running as setuid root.
 bool SafeGetenv(const char* key, std::string* text) {
-#ifndef _WIN32
+#if !defined(__CloudABI__) && !defined(_WIN32)
   if (linux_at_secure || getuid() != geteuid() || getgid() != getegid())
     goto fail;
 #endif
@@ -1375,6 +1058,12 @@ CallbackScope::~CallbackScope() {
     private_->MarkAsFailed();
   delete private_;
 }
+
+InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap)
+    : InternalCallbackScope(async_wrap->env(),
+                            async_wrap->object(),
+                            { async_wrap->get_async_id(),
+                              async_wrap->get_trigger_async_id() }) {}
 
 InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
@@ -2119,7 +1808,7 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#if defined(__POSIX__) && !defined(__ANDROID__)
+#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 static const uid_t uid_not_found = static_cast<uid_t>(-1);
 static const gid_t gid_not_found = static_cast<gid_t>(-1);
@@ -2438,7 +2127,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-#endif  // __POSIX__ && !defined(__ANDROID__)
+#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 
 static void WaitForInspectorDisconnect(Environment* env) {
@@ -3230,6 +2919,12 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 }
 
 
+static void GetParentProcessId(Local<Name> property,
+                               const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(Integer::New(info.GetIsolate(), uv_os_getppid()));
+}
+
+
 static Local<Object> GetFeatures(Environment* env) {
   EscapableHandleScope scope(env->isolate());
 
@@ -3493,6 +3188,11 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(release, "name",
                     OneByteString(env->isolate(), NODE_RELEASE));
 
+#if NODE_VERSION_IS_LTS
+  READONLY_PROPERTY(release, "lts",
+                    OneByteString(env->isolate(), NODE_VERSION_LTS_CODENAME));
+#endif
+
 // if this is a release build and no explicit base has been set
 // substitute the standard release download URL
 #ifndef NODE_RELEASE_URLBASE
@@ -3556,6 +3256,9 @@ void SetupProcessObject(Environment* env,
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
+
+  process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
+                       GetParentProcessId);
 
   auto need_immediate_callback_string =
       FIXED_ONE_BYTE_STRING(env->isolate(), "_needImmediateCallback");
@@ -3703,7 +3406,7 @@ void SetupProcessObject(Environment* env,
 
   env->SetMethod(process, "umask", Umask);
 
-#if defined(__POSIX__) && !defined(__ANDROID__)
+#if defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
   env->SetMethod(process, "getuid", GetUid);
   env->SetMethod(process, "geteuid", GetEUid);
   env->SetMethod(process, "setuid", SetUid);
@@ -3717,7 +3420,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "getgroups", GetGroups);
   env->SetMethod(process, "setgroups", SetGroups);
   env->SetMethod(process, "initgroups", InitGroups);
-#endif  // __POSIX__ && !defined(__ANDROID__)
+#endif  // __POSIX__ && !defined(__ANDROID__) && !defined(__CloudABI__)
 
   env->SetMethod(process, "_kill", Kill);
 
@@ -3899,8 +3602,8 @@ static void PrintHelp() {
          "                             stderr\n"
          "  --trace-sync-io            show stack trace when use of sync IO\n"
          "                             is detected after the first tick\n"
-         "  --force-async-hooks-checks\n"
-         "                             enables checks for async_hooks\n"
+         "  --no-force-async-hooks-checks\n"
+         "                             disable checks for async_hooks\n"
          "  --trace-events-enabled     track trace events\n"
          "  --trace-event-categories   comma separated list of trace event\n"
          "                             categories to record\n"
@@ -4026,7 +3729,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--trace-warnings",
     "--redirect-warnings",
     "--trace-sync-io",
-    "--force-async-hooks-checks",
+    "--no-force-async-hooks-checks",
     "--trace-events-enabled",
     "--trace-events-categories",
     "--track-heap-objects",
@@ -4043,6 +3746,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     // V8 options (define with '_', which allows '-' or '_')
     "--abort_on_uncaught_exception",
     "--max_old_space_size",
+    "--stack_trace_limit",
   };
 
   for (unsigned i = 0; i < arraysize(whitelist); i++) {
@@ -4165,8 +3869,8 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
-    } else if (strcmp(arg, "--force-async-hooks-checks") == 0) {
-      force_async_hooks_checks = true;
+    } else if (strcmp(arg, "--no-force-async-hooks-checks") == 0) {
+      no_force_async_hooks_checks = true;
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
       trace_enabled = true;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
@@ -4750,7 +4454,14 @@ int EmitExit(Environment* env) {
 
 
 IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
-  return new IsolateData(isolate, loop);
+  return new IsolateData(isolate, loop, nullptr);
+}
+
+IsolateData* CreateIsolateData(
+    Isolate* isolate,
+    uv_loop_t* loop,
+    MultiIsolatePlatform* platform) {
+  return new IsolateData(isolate, loop, platform);
 }
 
 
@@ -4815,8 +4526,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
 
-  if (force_async_hooks_checks) {
-    env.async_hooks()->force_checks();
+  if (no_force_async_hooks_checks) {
+    env.async_hooks()->no_force_checks();
   }
 
   {
@@ -4835,7 +4546,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     do {
       uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
-      v8_platform.DrainVMTasks();
+      v8_platform.DrainVMTasks(isolate);
 
       more = uv_loop_alive(env.event_loop());
       if (more)
@@ -4856,7 +4567,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   RunAtExit(&env);
   uv_key_delete(&thread_local_env);
 
-  v8_platform.DrainVMTasks();
+  v8_platform.DrainVMTasks(isolate);
+  v8_platform.CancelVMTasks(isolate);
   WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)
   __lsan_do_leak_check();
@@ -4899,7 +4611,11 @@ inline int Start(uv_loop_t* event_loop,
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, event_loop, allocator.zero_fill_field());
+    IsolateData isolate_data(
+        isolate,
+        event_loop,
+        v8_platform.Platform(),
+        allocator.zero_fill_field());
     exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
 
@@ -4946,7 +4662,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif  // HAVE_OPENSSL
 
-  v8_platform.Initialize(v8_thread_pool_size, uv_default_loop());
+  v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
     fprintf(stderr, "Warning: Trace event is an experimental feature "

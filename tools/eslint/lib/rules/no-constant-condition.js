@@ -138,7 +138,7 @@ module.exports = {
         function checkConstantConditionLoopInSet(node) {
             if (loopsInCurrentScope.has(node)) {
                 loopsInCurrentScope.delete(node);
-                context.report({ node, message: "Unexpected constant condition." });
+                context.report({ node: node.test, message: "Unexpected constant condition." });
             }
         }
 
@@ -150,7 +150,7 @@ module.exports = {
          */
         function reportIfConstant(node) {
             if (node.test && isConstant(node.test, true)) {
-                context.report({ node, message: "Unexpected constant condition." });
+                context.report({ node: node.test, message: "Unexpected constant condition." });
             }
         }
 

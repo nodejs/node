@@ -1,0 +1,5 @@
+rules:
+  no-console: 0
+globals:
+  describe: false
+  it: false

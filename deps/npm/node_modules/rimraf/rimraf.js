@@ -5,6 +5,7 @@ var assert = require("assert")
 var path = require("path")
 var fs = require("fs")
 var glob = require("glob")
+var _0666 = parseInt('666', 8)
 
 var defaultGlobOpts = {
   nosort: true,
@@ -165,7 +166,7 @@ function fixWinEPERM (p, options, er, cb) {
   if (er)
     assert(er instanceof Error)
 
-  options.chmod(p, 666, function (er2) {
+  options.chmod(p, _0666, function (er2) {
     if (er2)
       cb(er2.code === "ENOENT" ? null : er)
     else
@@ -187,7 +188,7 @@ function fixWinEPERMSync (p, options, er) {
     assert(er instanceof Error)
 
   try {
-    options.chmodSync(p, 666)
+    options.chmodSync(p, _0666)
   } catch (er2) {
     if (er2.code === "ENOENT")
       return

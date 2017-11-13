@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-pkcs12,
 pkcs12 - PKCS#12 file utility
 
 =head1 SYNOPSIS

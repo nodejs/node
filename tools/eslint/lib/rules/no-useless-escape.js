@@ -63,7 +63,14 @@ function parseRegExp(regExpText) {
                 return Object.assign(state, { inCharClass: false, startingCharClass: false });
             }
         }
-        charList.push({ text: char, index, escaped: state.escapeNextChar, inCharClass: state.inCharClass, startsCharClass: state.startingCharClass, endsCharClass: false });
+        charList.push({
+            text: char,
+            index,
+            escaped: state.escapeNextChar,
+            inCharClass: state.inCharClass,
+            startsCharClass: state.startingCharClass,
+            endsCharClass: false
+        });
         return Object.assign(state, { escapeNextChar: false, startingCharClass: false });
     }, { escapeNextChar: false, inCharClass: false, startingCharClass: false });
 

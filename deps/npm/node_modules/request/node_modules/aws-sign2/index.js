@@ -133,7 +133,7 @@ function stringToSign (options) {
     ]
   return r.join('\n')
 }
-module.exports.queryStringToSign = stringToSign
+module.exports.stringToSign = stringToSign
 
 /**
  * Return a string for sign() with the given `options`, but is meant exclusively

@@ -34,18 +34,22 @@ assert.throws(() => assert.deepStrictEqual(arr, buf),
               re`${arr} deepStrictEqual ${buf}`);
 assert.doesNotThrow(() => assert.deepEqual(arr, buf));
 
-const buf2 = Buffer.from(arr);
-buf2.prop = 1;
+{
+  const buf2 = Buffer.from(arr);
+  buf2.prop = 1;
 
-assert.throws(() => assert.deepStrictEqual(buf2, buf),
-              re`${buf2} deepStrictEqual ${buf}`);
-assert.doesNotThrow(() => assert.deepEqual(buf2, buf));
+  assert.throws(() => assert.deepStrictEqual(buf2, buf),
+                re`${buf2} deepStrictEqual ${buf}`);
+  assert.doesNotThrow(() => assert.deepEqual(buf2, buf));
+}
 
-const arr2 = new Uint8Array([120, 121, 122, 10]);
-arr2.prop = 5;
-assert.throws(() => assert.deepStrictEqual(arr, arr2),
-              re`${arr} deepStrictEqual ${arr2}`);
-assert.doesNotThrow(() => assert.deepEqual(arr, arr2));
+{
+  const arr2 = new Uint8Array([120, 121, 122, 10]);
+  arr2.prop = 5;
+  assert.throws(() => assert.deepStrictEqual(arr, arr2),
+                re`${arr} deepStrictEqual ${arr2}`);
+  assert.doesNotThrow(() => assert.deepEqual(arr, arr2));
+}
 
 const date = new Date('2016');
 
@@ -85,31 +89,33 @@ assert.throws(() => assert.deepStrictEqual(re1, re2),
 
 // For these weird cases, deepEqual should pass (at least for now),
 // but deepStrictEqual should throw.
-const similar = new Set([
-  { 0: '1' },  // Object
-  { 0: 1 },  // Object
-  new String('1'),  // Object
-  ['1'],  // Array
-  [1],  // Array
-  date2,  // Date with this[0] = '1'
-  re2,  // RegExp with this[0] = '1'
-  new Int8Array([1]), // Int8Array
-  new Uint8Array([1]), // Uint8Array
-  new Int16Array([1]), // Int16Array
-  new Uint16Array([1]), // Uint16Array
-  new Int32Array([1]), // Int32Array
-  new Uint32Array([1]), // Uint32Array
-  Buffer.from([1]),
-  // Arguments {'0': '1'} is not here
-  // See https://github.com/nodejs/node-v0.x-archive/pull/7178
-]);
+{
+  const similar = new Set([
+    { 0: '1' },  // Object
+    { 0: 1 },  // Object
+    new String('1'),  // Object
+    ['1'],  // Array
+    [1],  // Array
+    date2,  // Date with this[0] = '1'
+    re2,  // RegExp with this[0] = '1'
+    new Int8Array([1]), // Int8Array
+    new Uint8Array([1]), // Uint8Array
+    new Int16Array([1]), // Int16Array
+    new Uint16Array([1]), // Uint16Array
+    new Int32Array([1]), // Int32Array
+    new Uint32Array([1]), // Uint32Array
+    Buffer.from([1]),
+    // Arguments {'0': '1'} is not here
+    // See https://github.com/nodejs/node-v0.x-archive/pull/7178
+  ]);
 
-for (const a of similar) {
-  for (const b of similar) {
-    if (a !== b) {
-      assert.deepEqual(a, b);
-      assert.throws(() => assert.deepStrictEqual(a, b),
-                    re`${a} deepStrictEqual ${b}`);
+  for (const a of similar) {
+    for (const b of similar) {
+      if (a !== b) {
+        assert.deepEqual(a, b);
+        assert.throws(() => assert.deepStrictEqual(a, b),
+                      re`${a} deepStrictEqual ${b}`);
+      }
     }
   }
 }

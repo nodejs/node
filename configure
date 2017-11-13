@@ -57,7 +57,7 @@ from gyp_node import run_gyp
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
-            'android', 'aix')
+            'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x32','x64', 'x86', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
@@ -171,6 +171,12 @@ parser.add_option('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
     help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
+
+parser.add_option('--openssl-system-ca-path',
+    action='store',
+    dest='openssl_system_ca_path',
+    help='Use the specified path to system CA (PEM format) in addition to '
+         'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
@@ -1013,6 +1019,8 @@ def configure_openssl(o):
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
+  if options.openssl_system_ca_path:
+    o['variables']['openssl_system_ca_path'] = options.openssl_system_ca_path
   o['variables']['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
@@ -1092,8 +1100,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/59.1/icu4c-59_1-src.zip',
-      'md5': '29a41f9bb576b06c7eef0487a84a7674',
+      'url': 'https://ssl.icu-project.org/files/icu4c/60.1/icu4c-60_1-src.zip',
+      'md5': 'e6cb990ac2a3161d31a3def8435f80cb',
     },
   ]
   def icu_download(path):
@@ -1351,7 +1359,9 @@ def configure_inspector(o):
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
 
-def get_bin_override():
+def make_bin_override():
+  if sys.platform == 'win32':
+    raise Exception('make_bin_override should not be called on win32.')
   # If the system python is not the python we are running (which should be
   # python 2), then create a directory with a symlink called `python` to our
   # sys.executable. This directory will be prefixed to the PATH, so that
@@ -1460,7 +1470,8 @@ if options.prefix:
 
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
-bin_override = get_bin_override()
+# On Windows there's no reason to search for a different python binary.
+bin_override = None if sys.platform == 'win32' else make_bin_override()
 if bin_override:
   config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
 

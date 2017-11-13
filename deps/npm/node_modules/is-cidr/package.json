@@ -1,0 +1,94 @@
+{
+  "_from": "is-cidr",
+  "_id": "is-cidr@1.0.0",
+  "_inBundle": false,
+  "_integrity": "sha1-+1qs9lklUxA1naMsrgPkDGocKvw=",
+  "_location": "/is-cidr",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "is-cidr",
+    "name": "is-cidr",
+    "escapedName": "is-cidr",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-cidr/-/is-cidr-1.0.0.tgz",
+  "_shasum": "fb5aacf659255310359da32cae03e40c6a1c2afc",
+  "_spec": "is-cidr",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Felipe Apostol",
+    "email": "flipjs.io@gmail.com",
+    "url": "http://flipjs.io/"
+  },
+  "babel": {
+    "presets": [
+      "es2015"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/flipjs/is-cidr/issues"
+  },
+  "bundleDependencies": false,
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-conventional-changelog"
+    },
+    "ghooks": {
+      "pre-commit": "npm run test && npm run build"
+    }
+  },
+  "dependencies": {
+    "cidr-regex": "1.0.6"
+  },
+  "deprecated": false,
+  "description": "Check if a string is a valid CIDR",
+  "devDependencies": {
+    "ava": "0.13.0",
+    "babel-cli": "6.6.5",
+    "babel-preset-es2015": "6.6.0",
+    "babel-register": "6.7.2",
+    "commitizen": "2.7.3",
+    "cz-conventional-changelog": "1.1.5",
+    "eslint": "2.4.0",
+    "eslint-config-standard": "5.1.0",
+    "eslint-plugin-babel": "3.1.0",
+    "eslint-plugin-promise": "1.1.0",
+    "eslint-plugin-standard": "1.3.2",
+    "ghooks": "1.0.3",
+    "rimraf": "2.5.2",
+    "semantic-release": "4.3.5"
+  },
+  "homepage": "https://github.com/flipjs/is-cidr#readme",
+  "keywords": [
+    "ip",
+    "ip address",
+    "cidr",
+    "netblock",
+    "regex"
+  ],
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "is-cidr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flipjs/is-cidr.git"
+  },
+  "scripts": {
+    "build": "babel --presets es2015 -d lib/ src/",
+    "clean": "rimraf lib && mkdir lib",
+    "commit": "git-cz",
+    "lint": "eslint src/ test/",
+    "prebuild": "npm run lint && npm run clean",
+    "semantic-release": "semantic-release pre && npm publish && semantic-release post",
+    "test": "ava --require babel-register"
+  },
+  "version": "1.0.0"
+}

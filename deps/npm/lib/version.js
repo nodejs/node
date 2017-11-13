@@ -278,14 +278,22 @@ function checkGit (localData, cb) {
   })
 }
 
+module.exports.buildCommitArgs = buildCommitArgs
+function buildCommitArgs (args) {
+  args = args || [ 'commit' ]
+  if (!npm.config.get('commit-hooks')) args.push('-n')
+  return args
+}
+
 function _commit (version, localData, cb) {
   const options = { env: process.env }
   const message = npm.config.get('message').replace(/%s/g, version)
   const sign = npm.config.get('sign-git-tag')
+  const commitArgs = buildCommitArgs([ 'commit', '-m', message ])
   const flagForTag = sign ? '-sm' : '-am'
 
   stagePackageFiles(localData, options).then(() => {
-    return git.exec([ 'commit', '-m', message ], options)
+    return git.exec(commitArgs, options)
   }).then(() => {
     if (!localData.existingTag) {
       return git.exec([

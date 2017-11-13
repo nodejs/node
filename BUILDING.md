@@ -39,15 +39,16 @@ in production.
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
 |--------------|--------------|----------------------------------|----------------------|------------------|
-| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x86, x64, arm, arm64 |                  |
+| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x64, arm, arm64      |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017 |
+| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2017           |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
 | AIX          | Tier 2       | >= 7.1 TL04                      | ppc64be >=power7     |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
 | macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
+| GNU/Linux    | Experimental | kernel >= 2.6.32, glibc >= 2.12  | x86                  | limited CI       |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
 
 note1 - The gcc4.8-libs package needs to be installed, because node
@@ -76,7 +77,7 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Windows
 
-* Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
+* Visual Studio 2017 or the Build Tools thereof
 
 ## Building Node.js on supported platforms
 
@@ -192,14 +193,11 @@ $ [sudo] make install
 Prerequisites:
 
 * [Python 2.6 or 2.7](https://www.python.org/downloads/)
-* One of:
-  * [Visual C++ Build Tools](http://landinghub.visualstudio.com/visual-cpp-build-tools)
-  * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
-    including the Community edition (remember to select
-    "Common Tools for Visual C++ 2015" feature during installation).
-  * [Visual Studio 2017](https://www.visualstudio.com/downloads/), any edition (including the Build Tools SKU).
-    **Required Components:** "MSbuild", "VC++ 2017 v141 toolset" and at least one of the Windows SDKs.
-    *Note*: For "Windows 10 SDK (10.0.15063.0)" only the "Desktop C++ x86 and x64" flavor is required.
+* The "Desktop development with C++" workload from
+  [Visual Studio 2017](https://www.visualstudio.com/downloads/) or the
+  "Visual C++ build tools" workload from the
+  [Build Tools](https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017),
+  with the default optional components.
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.

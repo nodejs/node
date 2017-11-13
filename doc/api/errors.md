@@ -76,8 +76,8 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
     // Otherwise handle the data
   });
   ```
-- When an asynchronous method is called on an object that is an `EventEmitter`,
-  errors can be routed to that object's `'error'` event.
+- When an asynchronous method is called on an object that is an
+  [`EventEmitter`][], errors can be routed to that object's `'error'` event.
 
   ```js
   const net = require('net');
@@ -105,7 +105,7 @@ and [event emitter-based][] APIs, which themselves represent a series of
 asynchronous operations over time (as opposed to a single operation that may
 pass or fail).
 
-For *all* `EventEmitter` objects, if an `'error'` event handler is not
+For *all* [`EventEmitter`][] objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
 unhandled exception and  crash unless either: The [`domain`][domains] module is
 used appropriately or a handler has been registered for the
@@ -458,7 +458,7 @@ checks or `abort()` calls in the C++ layer.
 
 ## System Errors
 
-System errors are generated when exceptions occur within the program's
+System errors are generated when exceptions occur within the Node.js
 runtime environment. Typically, these are operational errors that occur
 when an application violates an operating system constraint such as attempting
 to read a file that does not exist or when the user does not have sufficient
@@ -471,7 +471,24 @@ of error codes and their meanings is available by running `man 2 intro` or
 In Node.js, system errors are represented as augmented `Error` objects with
 added properties.
 
-### Class: System Error
+### Class: SystemError
+
+### error.info
+
+`SystemError` instances may have an additional `info` property whose
+value is an object with additional details about the error conditions.
+
+The following properties are provided:
+
+* `code` {string} The string error code
+* `errno` {number} The system-provided error number
+* `message` {string} A system-provided human readable description of the error
+* `syscall` {string} The name of the system call that triggered the error
+* `path` {Buffer} When reporting a file system error, the `path` will identify
+  the file path.
+* `dest` {Buffer} When reporting a file system error, the `dest` will identify
+  the file path destination (if any).
+
 
 #### error.code
 
@@ -615,6 +632,11 @@ Used when attempting to perform an operation outside the bounds of a `Buffer`.
 Used when an attempt has been made to create a `Buffer` larger than the
 maximum allowed size.
 
+<a id="ERR_CANNOT_WATCH_SIGINT"></a>
+### ERR_CANNOT_WATCH_SIGINT
+
+Used when Node.js is unable to watch for the `SIGINT` signal.
+
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 ### ERR_CHILD_CLOSED_BEFORE_REPLY
 
@@ -631,6 +653,12 @@ Used when `Console` is instantiated without `stdout` stream or when `stdout` or
 
 Used when the native call from `process.cpuUsage` cannot be processed properly.
 
+<a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
+### ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED
+
+Used when a client certificate engine is requested that is not supported by the
+version of OpenSSL being used.
+
 <a id="ERR_CRYPTO_ECDH_INVALID_FORMAT"></a>
 ### ERR_CRYPTO_ECDH_INVALID_FORMAT
 
@@ -643,10 +671,59 @@ Used when an invalid value for the `format` argument has been passed to the
 Used when an invalid crypto engine identifier is passed to
 [`require('crypto').setEngine()`][].
 
+<a id="ERR_CRYPTO_FIPS_FORCED"></a>
+### ERR_CRYPTO_FIPS_FORCED
+
+Used when trying to enable or disable FIPS mode in the crypto module and
+the [`--force-fips`][] command-line argument is used.
+
+<a id="ERR_CRYPTO_FIPS_UNAVAILABLE"></a>
+### ERR_CRYPTO_FIPS_UNAVAILABLE
+
+Used when trying to enable or disable FIPS mode when FIPS is not available.
+
+<a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
+### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
+
+Used when the UTF-16 encoding is used with [`hash.digest()`][]. While the
+`hash.digest()` method does allow an `encoding` argument to be passed in,
+causing the method to return a string rather than a `Buffer`, the UTF-16
+encoding (e.g. `ucs` or `utf16le`) is not supported.
+
+<a id="ERR_CRYPTO_HASH_FINALIZED"></a>
+### ERR_CRYPTO_HASH_FINALIZED
+
+Used when [`hash.digest()`][] is called multiple times. The `hash.digest()`
+method must be called no more than one time per instance of a `Hash` object.
+
+<a id="ERR_CRYPTO_HASH_UPDATE_FAILED"></a>
+### ERR_CRYPTO_HASH_UPDATE_FAILED
+
+Used when [`hash.update()`][] fails for any reason. This should rarely, if
+ever, happen.
+
 <a id="ERR_CRYPTO_INVALID_DIGEST"></a>
 ### ERR_CRYPTO_INVALID_DIGEST
 
 Used when an invalid [crypto digest algorithm][] is specified.
+
+<a id="ERR_CRYPTO_INVALID_STATE"></a>
+### ERR_CRYPTO_INVALID_STATE
+
+Used generically when a crypto method is used on an object that is in an
+invalid state. For instance, calling [`cipher.getAuthTag()`][] before calling
+`cipher.final()`.
+
+<a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
+### ERR_CRYPTO_SIGN_KEY_REQUIRED
+
+Used when a signing `key` is not provided to the [`sign.sign()`][] method.
+
+<a id="ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH"></a>
+### ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH
+
+Used when calling [`crypto.timingSafeEqual()`][] with `Buffer`, `TypedArray`,
+or `DataView` arguments of different lengths.
 
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### ERR_DNS_SET_SERVERS_FAILED
@@ -682,6 +759,11 @@ more headers.
 
 Used when an invalid character is found in an HTTP response status message
 (reason phrase).
+
+<a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
+### ERR_HTTP_INVALID_HEADER_VALUE
+
+Used to indicate that an invalid HTTP header value has been specified.
 
 <a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
 ### ERR_HTTP_INVALID_STATUS_CODE
@@ -766,7 +848,7 @@ requests and responses.
 <a id="ERR_HTTP2_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP2_INVALID_HEADER_VALUE
 
-Used to indicate that an invalid HTTP/2 header value has been specified.
+Used to indicate that an invalid HTTP2 header value has been specified.
 
 <a id="ERR_HTTP2_INVALID_INFO_STATUS"></a>
 ### ERR_HTTP2_INVALID_INFO_STATUS
@@ -1074,6 +1156,11 @@ API] [`URLSearchParams` constructor][`new URLSearchParams(iterable)`] does not
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
+<a id="ERR_INVALID_URI"></a>
+### ERR_INVALID_URI
+
+Used when an invalid URI is passed.
+
 <a id="ERR_INVALID_URL"></a>
 ### ERR_INVALID_URL
 
@@ -1131,6 +1218,28 @@ for strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
+### ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK
+
+> Stability: 1 - Experimental
+
+Used when an [ES6 module][] loader hook specifies `format: 'dynamic` but does
+not provide a `dynamicInstantiate` hook.
+
+<a id="ERR_MISSING_MODULE"></a>
+### ERR_MISSING_MODULE
+
+> Stability: 1 - Experimental
+
+Used when an [ES6 module][] cannot be resolved.
+
+<a id="ERR_MODULE_RESOLUTION_LEGACY"></a>
+### ERR_MODULE_RESOLUTION_LEGACY
+
+> Stability: 1 - Experimental
+
+Used when a failure occurs resolving imports in an [ES6 module][].
+
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 ### ERR_MULTIPLE_CALLBACK
 
@@ -1175,15 +1284,41 @@ For example: `Buffer.write(string, encoding, offset[, length])`
 Used generically to identify that an operation caused an out of memory
 condition.
 
+<a id="ERR_OUT_OF_RANGE"></a>
+### ERR_OUT_OF_RANGE
+
+Used generically when an input argument value values outside an acceptable
+range.
+
 <a id="ERR_PARSE_HISTORY_DATA"></a>
 ### ERR_PARSE_HISTORY_DATA
 
 Used by the `REPL` module when it cannot parse data from the REPL history file.
 
+<a id="ERR_REQUIRE_ESM"></a>
+### ERR_REQUIRE_ESM
+
+> Stability: 1 - Experimental
+
+Used when an attempt is made to `require()` an [ES6 module][].
+
+<a id="ERR_SERVER_ALREADY_LISTEN"></a>
+### ERR_SERVER_ALREADY_LISTEN
+
+Used when the [`server.listen()`][] method is called while a `net.Server` is
+already listening. This applies to all instances of `net.Server`, including
+HTTP, HTTPS, and HTTP/2 Server instances.
+
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 
 Used when an attempt is made to bind a socket that has already been bound.
+
+<a id="ERR_SOCKET_BAD_BUFFER_SIZE"></a>
+### ERR_SOCKET_BAD_BUFFER_SIZE
+
+Used when an invalid (negative) size is passed for either the `recvBufferSize`
+or `sendBufferSize` options in [`dgram.createSocket()`][].
 
 <a id="ERR_SOCKET_BAD_PORT"></a>
 ### ERR_SOCKET_BAD_PORT
@@ -1196,6 +1331,12 @@ value.
 
 Used when an API function expecting a socket type (`udp4` or `udp6`) receives an
 invalid value.
+
+<a id="ERR_SOCKET_BUFFER_SIZE"></a>
+### ERR_SOCKET_BUFFER_SIZE
+
+Used when using [`dgram.createSocket()`][] and the size of the receive or send
+`Buffer` cannot be determined.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 ### ERR_SOCKET_CANNOT_SEND
@@ -1224,6 +1365,36 @@ Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 Used when an attempt is made to close the `process.stdout` stream. By design,
 Node.js does not allow `stdout` or `stderr` Streams to be closed by user code.
 
+<a id="ERR_STREAM_CANNOT_PIPE"></a>
+### ERR_STREAM_CANNOT_PIPE
+
+Used when an attempt is made to call [`stream.pipe()`][] on a
+[`Writable`][] stream.
+
+<a id="ERR_STREAM_NULL_VALUES"></a>
+### ERR_STREAM_NULL_VALUES
+
+Used when an attempt is made to call [`stream.write()`][] with a `null`
+chunk.
+
+<a id="ERR_STREAM_PUSH_AFTER_EOF"></a>
+### ERR_STREAM_PUSH_AFTER_EOF
+
+Used when an attempt is made to call [`stream.push()`][] after a `null`(EOF)
+has been pushed to the stream.
+
+<a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
+### ERR_STREAM_READ_NOT_IMPLEMENTED
+
+Used when an attempt is made to use a readable stream that has not implemented
+[`readable._read()`][].
+
+<a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
+### ERR_STREAM_UNSHIFT_AFTER_END_EVENT
+
+Used when an attempt is made to call [`stream.unshift()`][] after the
+`end` event has been emitted.
+
 <a id="ERR_STREAM_WRAP"></a>
 ### ERR_STREAM_WRAP
 
@@ -1237,6 +1408,19 @@ const instance = new Socket();
 
 instance.setEncoding('utf8');
 ```
+
+<a id="ERR_STREAM_WRITE_AFTER_END"></a>
+### ERR_STREAM_WRITE_AFTER_END
+
+Used when an attempt is made to call [`stream.write()`][] after
+`stream.end()` has been called.
+
+<a id="ERR_SYSTEM_ERROR"></a>
+### ERR_SYSTEM_ERROR
+
+The `ERR_SYSTEM_ERROR` code is used when an unspecified or non-specific system
+error has occurred within the Node.js process. The error object will have an
+`err.info` object property with additional details.
 
 <a id="ERR_TLS_CERT_ALTNAME_INVALID"></a>
 ### ERR_TLS_CERT_ALTNAME_INVALID
@@ -1296,12 +1480,27 @@ Used when a string that contains unescaped characters was received.
 ### ERR_UNHANDLED_ERROR
 
 Used when an unhandled "error" occurs (for instance, when an `'error'` event
-is emitted by an `EventEmitter` but an `'error'` handler is not registered).
+is emitted by an [`EventEmitter`][] but an `'error'` handler is not registered).
 
 <a id="ERR_UNKNOWN_ENCODING"></a>
 ### ERR_UNKNOWN_ENCODING
 
 Used when an invalid or unknown encoding option is passed to an API.
+
+<a id="ERR_UNKNOWN_FILE_EXTENSION"></a>
+### ERR_UNKNOWN_FILE_EXTENSION
+
+> Stability: 1 - Experimental
+
+Used when attempting to load a module with an unknown or unsupported file
+extension.
+
+<a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
+### ERR_UNKNOWN_MODULE_FORMAT
+
+> Stability: 1 - Experimental
+
+Used when attempting to load a module with an unknown or unsupported format.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
@@ -1348,7 +1547,26 @@ Used when a given value is out of the accepted range.
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+<a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
+### ERR_ZLIB_INITIALIZATION_FAILED
+
+Used when creation of a [`zlib`][] object fails due to incorrect configuration.
+
+[`--force-fips`]: cli.html#cli_force_fips
+[`cipher.getAuthTag()`]: crypto.html#crypto_cipher_getauthtag
+[`crypto.timingSafeEqual()`]: crypto.html#crypto_crypto_timingsafeequal_a_b
+[`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
+[`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
+[`readable._read()`]: stream.html#stream_readable_read_size_1
+[`sign.sign()`]: crypto.html#crypto_sign_sign_privatekey_outputformat
+[`stream.pipe()`]: stream.html#stream_readable_pipe_destination_options
+[`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
+[`stream.unshift()`]: stream.html#stream_readable_unshift_chunk
+[`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
+[`Writable`]: stream.html#stream_class_stream_writable
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
@@ -1364,6 +1582,8 @@ closed.
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
+[`server.listen()`]: net.html#net_server_listen
+[ES6 module]: esm.html
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
@@ -1378,3 +1598,4 @@ closed.
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
+[`zlib`]: zlib.html

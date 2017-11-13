@@ -102,7 +102,7 @@ static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeSt
     char asciiBCP47Tag[LOCALE_NAME_MAX_LENGTH] = {};
 
     // Convert from names like "en_CA" and "de_DE@collation=phonebook" to "en-CA" and "de-DE-u-co-phonebk".
-    int32_t length = uloc_toLanguageTag(locale.getName(), asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, &status);
+    (void)uloc_toLanguageTag(locale.getName(), asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, &status);
 
     if (U_SUCCESS(status))
     {
@@ -219,7 +219,7 @@ Format *Win32DateFormat::clone(void) const
 }
 
 // TODO: Is just ignoring pos the right thing?
-UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, FieldPosition &pos) const
+UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, FieldPosition & /* pos */) const
 {
     FILETIME ft;
     SYSTEMTIME st_gmt;
@@ -263,7 +263,7 @@ UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, F
     return appendTo;
 }
 
-void Win32DateFormat::parse(const UnicodeString& text, Calendar& cal, ParsePosition& pos) const
+void Win32DateFormat::parse(const UnicodeString& /* text */, Calendar& /* cal */, ParsePosition& pos) const
 {
     pos.setErrorIndex(pos.getIndex());
 }

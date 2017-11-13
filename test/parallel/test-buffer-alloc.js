@@ -934,8 +934,8 @@ assert.throws(() => Buffer.allocUnsafe(10).copy(),
               /TypeError: argument should be a Buffer/);
 
 const regErrorMsg =
-  new RegExp('The first argument must be one of type string, buffer, ' +
-             'arrayBuffer, array, or array-like object\\.');
+  new RegExp('The first argument must be one of type string, Buffer, ' +
+             'ArrayBuffer, Array, or Array-like Object\\.');
 
 assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);

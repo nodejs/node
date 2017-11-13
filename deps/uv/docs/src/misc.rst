@@ -59,6 +59,12 @@ Data types
     Abstract representation of a file descriptor. On Unix systems this is a
     `typedef` of `int` and on Windows a `HANDLE`.
 
+.. c:type:: uv_pid_t
+
+    Cross platform representation of a `pid_t`.
+
+    .. versionadded:: 1.16.0
+
 .. c:type:: uv_rusage_t
 
     Data type for resource usage results.
@@ -221,6 +227,12 @@ API
         On Windows not all fields are set, the unsupported fields are filled with zeroes.
         See :c:type:`uv_rusage_t` for more details.
 
+.. c:function:: uv_pid_t uv_os_getppid(void)
+
+    Returns the parent process ID.
+
+    .. versionadded:: 1.16.0
+
 .. c:function:: int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count)
 
     Gets information about the CPUs on the system. The `cpu_infos` array will
@@ -270,6 +282,60 @@ API
     Cross-platform IPv6-capable implementation of :man:`inet_ntop(3)`
     and :man:`inet_pton(3)`. On success they return 0. In case of error
     the target `dst` pointer is unmodified.
+
+.. c:macro:: UV_IF_NAMESIZE
+
+    Maximum IPv6 interface identifier name length.  Defined as
+    `IFNAMSIZ` on Unix and `IF_NAMESIZE` on Linux and Windows.
+
+    .. versionadded:: 1.16.0
+
+.. c:function:: int uv_if_indextoname(unsigned int ifindex, char* buffer, size_t* size)
+
+    IPv6-capable implementation of :man:`if_indextoname(3)`. When called,
+    `*size` indicates the length of the `buffer`, which is used to store the
+    result.
+    On success, zero is returned, `buffer` contains the interface name, and
+    `*size` represents the string length of the `buffer`, excluding the NUL
+    terminator byte from `*size`. On error, a negative result is
+    returned. If `buffer` is not large enough to hold the result,
+    `UV_ENOBUFS` is returned, and `*size` represents the necessary size in
+    bytes, including the NUL terminator byte into the `*size`.
+
+    On Unix, the returned interface name can be used directly as an
+    interface identifier in scoped IPv6 addresses, e.g.
+    `fe80::abc:def1:2345%en0`.
+
+    On Windows, the returned interface cannot be used as an interface
+    identifier, as Windows uses numerical interface identifiers, e.g.
+    `fe80::abc:def1:2345%5`.
+
+    To get an interface identifier in a cross-platform compatible way,
+    use `uv_if_indextoiid()`.
+
+    Example:
+
+    ::
+
+        char ifname[UV_IF_NAMESIZE];
+        size_t size = sizeof(ifname);
+        uv_if_indextoname(sin6->sin6_scope_id, ifname, &size);
+
+    .. versionadded:: 1.16.0
+
+.. c:function:: int uv_if_indextoiid(unsigned int ifindex, char* buffer, size_t* size)
+
+    Retrieves a network interface identifier suitable for use in an IPv6 scoped
+    address. On Windows, returns the numeric `ifindex` as a string. On all other
+    platforms, `uv_if_indextoname()` is called. The result is written to
+    `buffer`, with `*size` indicating the length of `buffer`. If `buffer` is not
+    large enough to hold the result, then `UV_ENOBUFS` is returned, and `*size`
+    represents the size, including the NUL byte, required to hold the
+    result.
+
+    See `uv_if_indextoname` for further details.
+
+    .. versionadded:: 1.16.0
 
 .. c:function:: int uv_exepath(char* buffer, size_t* size)
 

@@ -12,7 +12,7 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
-  message: /^The "hostname" argument must be one of type string or falsey/
+  message: /^The "hostname" argument must be one of type string or falsy/
 }));
 
 assert.throws(() => {

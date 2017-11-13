@@ -3,12 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "util.h"
+#include "stream_base.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "nghttp2/nghttp2.h"
 
 #include <queue>
+#include <vector>
 #include <stdio.h>
 #include <unordered_map>
 
@@ -36,13 +37,25 @@ void inline debug_vfprintf(const char* format, ...) {
   } while (0)
 #endif
 
+#define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
+#define DEFAULT_SETTINGS_ENABLE_PUSH 1
+#define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
+#define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
+#define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
+#define MAX_MAX_FRAME_SIZE 16777215
+#define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
+#define MAX_INITIAL_WINDOW_SIZE 2147483647
+
+#define MAX_MAX_HEADER_LIST_SIZE 16777215u
+#define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
+
+
 class Nghttp2Session;
 class Nghttp2Stream;
 
 struct nghttp2_stream_write_t;
 
 #define MAX_BUFFER_COUNT 16
-#define SEND_BUFFER_RECOMMENDED_SIZE 4096
 
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
@@ -87,6 +100,7 @@ struct nghttp2_stream_write {
 struct nghttp2_header {
   nghttp2_rcbuf* name = nullptr;
   nghttp2_rcbuf* value = nullptr;
+  uint8_t flags = 0;
 };
 
 // Handle Types
@@ -94,16 +108,20 @@ class Nghttp2Session {
  public:
   // Initializes the session instance
   inline int Init(
-      uv_loop_t*,
       const nghttp2_session_type type = NGHTTP2_SESSION_SERVER,
       nghttp2_option* options = nullptr,
-      nghttp2_mem* mem = nullptr);
+      nghttp2_mem* mem = nullptr,
+      uint32_t maxHeaderPairs = DEFAULT_MAX_HEADER_LIST_PAIRS);
 
   // Frees this session instance
-  inline int Free();
+  inline ~Nghttp2Session();
   inline void MarkDestroying();
   bool IsDestroying() {
     return destroying_;
+  }
+
+  uint32_t GetMaxHeaderPairs() const {
+    return max_header_pairs_;
   }
 
   inline const char* TypeName() {
@@ -143,6 +161,8 @@ class Nghttp2Session {
   // Returns the nghttp2 library session
   inline nghttp2_session* session() const { return session_; }
 
+  inline bool IsClosed() const { return session_ == nullptr; }
+
   nghttp2_session_type type() const {
     return session_type_;
   }
@@ -154,10 +174,10 @@ class Nghttp2Session {
   // Removes a stream instance from this session
   inline void RemoveStream(int32_t id);
 
-  virtual void Send(uv_buf_t* buf, size_t length) {}
   virtual void OnHeaders(
       Nghttp2Stream* stream,
-      std::queue<nghttp2_header>* headers,
+      nghttp2_header* headers,
+      size_t count,
       nghttp2_headers_category cat,
       uint8_t flags) {}
   virtual void OnStreamClose(int32_t id, uint32_t code) {}
@@ -177,8 +197,10 @@ class Nghttp2Session {
                             int error_code) {}
   virtual ssize_t GetPadding(size_t frameLength,
                              size_t maxFrameLength) { return 0; }
-  virtual void OnFreeSession() {}
-  virtual void AllocateSend(size_t suggested_size, uv_buf_t* buf) = 0;
+
+  inline void SendPendingData();
+  virtual void Send(WriteWrap* req, char* buf, size_t length) = 0;
+  virtual WriteWrap* AllocateSend() = 0;
 
   virtual bool HasGetPaddingCallback() { return false; }
 
@@ -201,8 +223,11 @@ class Nghttp2Session {
   virtual void OnTrailers(Nghttp2Stream* stream,
                           const SubmitTrailers& submit_trailers) {}
 
+  virtual uv_loop_t* event_loop() const = 0;
+
+  virtual void Close();
+
  private:
-  inline void SendPendingData();
   inline void HandleHeadersFrame(const nghttp2_frame* frame);
   inline void HandlePriorityFrame(const nghttp2_frame* frame);
   inline void HandleDataFrame(const nghttp2_frame* frame);
@@ -283,9 +308,8 @@ class Nghttp2Session {
   static Callbacks callback_struct_saved[2];
 
   nghttp2_session* session_;
-  uv_loop_t* loop_;
-  uv_prepare_t prep_;
   nghttp2_session_type session_type_;
+  uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   std::unordered_map<int32_t, Nghttp2Stream*> streams_;
   bool destroying_ = false;
 
@@ -296,37 +320,21 @@ class Nghttp2Session {
 
 class Nghttp2Stream {
  public:
-  static inline Nghttp2Stream* Init(
-      int32_t id,
-      Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      int options = 0);
+  // Resets the state of the stream instance to defaults
+  Nghttp2Stream(
+    int32_t id,
+    Nghttp2Session* session,
+    nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
+    int options = 0);
 
-  inline ~Nghttp2Stream() {
-#if defined(DEBUG) && DEBUG
-    CHECK_EQ(session_, nullptr);
-#endif
-    DEBUG_HTTP2("Nghttp2Stream %d: freed\n", id_);
-  }
+  inline ~Nghttp2Stream() {}
 
   inline void FlushDataChunks();
-
-  // Resets the state of the stream instance to defaults
-  inline void ResetState(
-      int32_t id,
-      Nghttp2Session* session,
-      nghttp2_headers_category category = NGHTTP2_HCAT_HEADERS,
-      int options = 0);
 
   // Destroy this stream instance and free all held memory.
   // Note that this will free queued outbound and inbound
   // data chunks and inbound headers, so it's important not
   // to call this until those are fully consumed.
-  //
-  // Also note: this does not actually destroy the instance.
-  // instead, it frees the held memory, removes the stream
-  // from the parent session, and returns the instance to
-  // the FreeList so that it can be reused.
   inline void Destroy();
 
   // Returns true if this stream has been destroyed
@@ -385,6 +393,9 @@ class Nghttp2Stream {
   // the session to be emitted at the JS side
   inline void ReadStart();
 
+  // Resume Reading
+  inline void ReadResume();
+
   // Stop/Pause Reading.
   inline void ReadStop();
 
@@ -429,34 +440,44 @@ class Nghttp2Stream {
     return id_;
   }
 
-  inline std::queue<nghttp2_header>* headers() {
-    return &current_headers_;
+  inline bool AddHeader(nghttp2_rcbuf* name,
+                        nghttp2_rcbuf* value,
+                        uint8_t flags);
+
+  inline nghttp2_header* headers() {
+    return current_headers_.data();
   }
 
   inline nghttp2_headers_category headers_category() const {
     return current_headers_category_;
   }
 
+  inline size_t headers_count() const {
+    return current_headers_.size();
+  }
+
   void StartHeaders(nghttp2_headers_category category) {
     DEBUG_HTTP2("Nghttp2Stream %d: starting headers, category: %d\n",
                 id_, category);
-    // We shouldn't be in the middle of a headers block already.
-    // Something bad happened if this fails
-#if defined(DEBUG) && DEBUG
-    CHECK(current_headers_.empty());
-#endif
+    current_headers_length_ = 0;
+    current_headers_.clear();
     current_headers_category_ = category;
   }
 
  private:
-  // The Parent HTTP/2 Session
-  Nghttp2Session* session_ = nullptr;
-
   // The Stream Identifier
-  int32_t id_ = 0;
+  int32_t id_;
+
+  // The Parent HTTP/2 Session
+  Nghttp2Session* session_;
 
   // Internal state flags
-  int flags_ = 0;
+  int flags_ = NGHTTP2_STREAM_FLAG_NONE;
+  uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
+  uint32_t max_header_length_ = DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
+
+  // The RST_STREAM code used to close this stream
+  int32_t code_ = NGHTTP2_NO_ERROR;
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
@@ -466,22 +487,18 @@ class Nghttp2Stream {
   int64_t fd_offset_ = 0;
   int64_t fd_length_ = -1;
 
+  // True if this stream will have outbound trailers
+  bool getTrailers_ = false;
+
   // The Current Headers block... As headers are received for this stream,
   // they are temporarily stored here until the OnFrameReceived is called
   // signalling the end of the HEADERS frame
   nghttp2_headers_category current_headers_category_ = NGHTTP2_HCAT_HEADERS;
-  std::queue<nghttp2_header> current_headers_;
+  uint32_t current_headers_length_ = 0;  // total number of octets
+  std::vector<nghttp2_header> current_headers_;
 
   // Inbound Data... This is the data received via DATA frames for this stream.
   std::queue<uv_buf_t> data_chunks_;
-
-  // The RST_STREAM code used to close this stream
-  int32_t code_ = NGHTTP2_NO_ERROR;
-
-  int32_t prev_local_window_size_ = 65535;
-
-  // True if this stream will have outbound trailers
-  bool getTrailers_ = false;
 
   friend class Nghttp2Session;
 };

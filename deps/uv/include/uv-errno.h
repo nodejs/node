@@ -422,4 +422,10 @@
 # define UV__EREMOTEIO (-4030)
 #endif
 
+#if defined(ENOTTY) && !defined(_WIN32)
+# define UV__ENOTTY (-ENOTTY)
+#else
+# define UV__ENOTTY (-4029)
+#endif
+
 #endif /* UV_ERRNO_H_ */

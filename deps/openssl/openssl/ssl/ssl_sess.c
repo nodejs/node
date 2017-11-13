@@ -261,7 +261,6 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
 #ifndef OPENSSL_NO_SRP
     dest->srp_username = NULL;
 #endif
-    memset(&dest->ex_data, 0, sizeof(dest->ex_data));
 
     /* We deliberately don't copy the prev and next pointers */
     dest->prev = NULL;
@@ -274,6 +273,9 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
 
     if (src->peer != NULL)
         CRYPTO_add(&src->peer->references, 1, CRYPTO_LOCK_X509);
+
+    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, dest, &dest->ex_data))
+        goto err;
 
 #ifndef OPENSSL_NO_PSK
     if (src->psk_identity_hint) {
@@ -325,7 +327,7 @@ SSL_SESSION *ssl_session_dup(SSL_SESSION *src, int ticket)
     }
 # endif
 
-    if (ticket != 0) {
+    if (ticket != 0 && src->tlsext_tick != NULL) {
         dest->tlsext_tick = BUF_memdup(src->tlsext_tick, src->tlsext_ticklen);
         if(dest->tlsext_tick == NULL)
             goto err;

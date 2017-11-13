@@ -127,8 +127,19 @@ $L$nocacheinfo::
 	or	edx,040000000h
 	and	ah,15
 	cmp	ah,15
-	jne	$L$notintel
+	jne	$L$notP4
 	or	edx,000100000h
+$L$notP4::
+	cmp	ah,6
+	jne	$L$notintel
+	and	eax,00fff0ff0h
+	cmp	eax,000050670h
+	je	$L$knights
+	cmp	eax,000080650h
+	jne	$L$notintel
+$L$knights::
+	and	ecx,0fbffffffh
+
 $L$notintel::
 	bt	edx,28
 	jnc	$L$generic
@@ -153,6 +164,10 @@ $L$generic::
 	mov	eax,7
 	xor	ecx,ecx
 	cpuid
+	bt	r9d,26
+	jc	$L$notknights
+	and	ebx,0fff7ffffh
+$L$notknights::
 	mov	DWORD PTR[8+rdi],ebx
 $L$no_extended_info::
 

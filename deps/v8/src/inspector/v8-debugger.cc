@@ -726,6 +726,8 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (m_maxAsyncCallStackDepth == maxAsyncCallStackDepth) return;
   // TODO(dgozman): ideally, this should be per context group.
   m_maxAsyncCallStackDepth = maxAsyncCallStackDepth;
+  m_inspector->client()->maxAsyncCallStackDepthChanged(
+      m_maxAsyncCallStackDepth);
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 

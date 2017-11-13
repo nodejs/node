@@ -19,6 +19,8 @@ asyncScript += '});setInterval(function(){},10);'
 var zombieScript = 'console.error(process.pid);process.on(\'SIGINT\',function (){'
 zombieScript += '});setInterval(function(){console.error(process.pid)},10);'
 
+var SIGSEGV = require('constants').SIGSEGV
+
 var json = {
   name: 'lifecycle-signal',
   version: '1.2.5',
@@ -42,24 +44,25 @@ test('setup', function (t) {
   t.end()
 })
 
-test('lifecycle signal abort', function (t) {
-  // windows does not use lifecycle signals, abort
-  if (process.platform === 'win32' || process.env.TRAVIS) return t.end()
-
+test('lifecycle signal abort', {
+  skip: process.platform === 'win32' && 'windows does not use lifecycle signals'
+}, function (t) {
   var child = spawn(node, [npm, 'install'], {
     cwd: pkg
   })
   child.on('close', function (code, signal) {
-    t.equal(code, null)
-    t.equal(signal, 'SIGSEGV')
+    // The error may be forwarded by the shell as an exit code rather than
+    // the signal itself.
+    t.ok((code === 128 + SIGSEGV) || signal === 'SIGSEGV')
     t.end()
   })
 })
 
-test('lifecycle propagate signal term to child', function (t) {
-  // windows does not use lifecycle signals, abort
-  if (process.platform === 'win32' || process.env.TRAVIS) return t.end()
-
+test('lifecycle propagate signal term to child', {
+  /* This feature is broken. npm runs its lifecycle processes in a shell, and at
+   * least `bash` doesn’t forward SIGTERM to its children. */
+  skip: process.platform !== 'darwin' && 'broken'
+}, function (t) {
   var innerChildPid
   var child = spawn(npm, ['run', 'forever'], {
     cwd: pkg
@@ -81,10 +84,9 @@ test('lifecycle propagate signal term to child', function (t) {
   })
 })
 
-test('lifecycle wait for async child process exit', function (t) {
-  // windows does not use lifecycle signals, abort
-  if (process.platform === 'win32' || process.env.TRAVIS) return t.end()
-
+test('lifecycle wait for async child process exit', {
+  skip: process.platform !== 'darwin' && 'broken'
+}, function (t) {
   var innerChildPid
   var interupted
   var child = spawn(npm, ['run', 'async'], {
@@ -104,10 +106,9 @@ test('lifecycle wait for async child process exit', function (t) {
   })
 })
 
-test('lifecycle force kill using multiple SIGINT signals', function (t) {
-  // windows does not use lifecycle signals, abort
-  if (process.platform === 'win32' || process.env.TRAVIS) return t.end()
-
+test('lifecycle force kill using multiple SIGINT signals', {
+  skip: process.platform !== 'darwin' && 'broken'
+}, function (t) {
   var innerChildPid
   var interupted
   var child = spawn(npm, ['run', 'zombie'], {

@@ -20,7 +20,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -108,10 +108,10 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15169
     description: Enumerable symbol properties are now compared.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
   - version: v8.5.0
@@ -134,7 +134,7 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Similar to `assert.deepEqual()` with the following exceptions:
+Identical to [`assert.deepEqual()`][] with the following exceptions:
 
 1. Primitive values besides `NaN` are compared using the [Strict Equality
    Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
@@ -337,7 +337,7 @@ assert.fail(1, 2, new TypeError('need array'));
 // TypeError: need array
 ```
 
-*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+*Note*: In the last two cases `actual`, `expected`, and `operator` have no
 influence on the error message.
 
 ```js
@@ -389,7 +389,7 @@ assert.ifError(new Error());
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -454,13 +454,13 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15398
     description: -0 and +0 are not considered equal anymore.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0

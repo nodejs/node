@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_allOf(it, $keyword) {
+module.exports = function generate_allOf(it, $keyword, $ruleType) {
   var out = ' ';
   var $schema = it.schema[$keyword];
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);

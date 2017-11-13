@@ -3166,11 +3166,19 @@ DB	067h
 
 ALIGN	32
 $L$sqrx8x_break::
-	sub	r8,QWORD PTR[((16+8))+rsp]
+	xor	rbp,rbp
+	sub	rbx,QWORD PTR[((16+8))+rsp]
+	adcx	r8,rbp
 	mov	rcx,QWORD PTR[((24+8))+rsp]
+	adcx	r9,rbp
 	mov	rdx,QWORD PTR[rsi]
-	xor	ebp,ebp
+	adc	r10,0
 	mov	QWORD PTR[rdi],r8
+	adc	r11,0
+	adc	r12,0
+	adc	r13,0
+	adc	r14,0
+	adc	r15,0
 	cmp	rdi,rcx
 	je	$L$sqrx8x_outer_loop
 

@@ -26,11 +26,8 @@ const cluster = require('cluster');
 
 assert(cluster.isMaster);
 
-assert.deepStrictEqual(
-  cluster.settings,
-  {},
-  'cluster.settings should not be initialized until needed'
-);
+// cluster.settings should not be initialized until needed
+assert.deepStrictEqual(cluster.settings, {});
 
 cluster.setupMaster();
 assert.deepStrictEqual(cluster.settings, {

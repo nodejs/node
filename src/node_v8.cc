@@ -20,9 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "env.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -114,13 +112,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() < 1)
-    return env->ThrowTypeError("v8 flag is required");
-  if (!args[0]->IsString())
-    return env->ThrowTypeError("v8 flag must be a string");
-
+  CHECK(args[0]->IsString());
   String::Utf8Value flags(args[0]);
   V8::SetFlagsFromString(*flags, flags.length());
 }

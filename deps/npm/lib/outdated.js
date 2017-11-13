@@ -32,7 +32,6 @@ var table = require('text-table')
 var semver = require('semver')
 var npa = require('npm-package-arg')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var cache = require('./cache.js')
 var npm = require('./npm.js')
 var long = npm.config.get('long')
 var mapToRegistry = require('./utils/map-to-registry.js')
@@ -42,6 +41,7 @@ var computeVersionSpec = require('./install/deps.js').computeVersionSpec
 var moduleName = require('./utils/module-name.js')
 var output = require('./utils/output.js')
 var ansiTrim = require('./utils/ansi-trim')
+var fetchPackageMetadata = require('./fetch-package-metadata.js')
 
 function uniq (list) {
   // we maintain the array because we need an array, not iterator, return
@@ -387,8 +387,12 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
       }
     }
 
-    // We didn't find the version in the doc.  See if cache can find it.
-    cache.add(dep, req, null, false, onCacheAdd)
+    // We didn't find the version in the doc.  See if we can find it in metadata.
+    var spec = dep
+    if (req) {
+      spec = dep + '@' + req
+    }
+    fetchPackageMetadata(spec, '', onCacheAdd)
 
     function onCacheAdd (er, d) {
       // if this fails, then it means we can't update this thing.

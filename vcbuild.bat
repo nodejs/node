@@ -501,8 +501,10 @@ goto exit
 echo %1 | findstr /c:"src\node_root_certs.h"
 if %errorlevel% equ 0 goto exit
 
-@rem skip subfolders under /src
-echo %1 | findstr /r /c:"src\\.*\\.*"
+echo %1 | findstr /r /c:"src\\tracing\\trace_event.h"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /r /c:"src\\tracing\\trace_event_common.h"
 if %errorlevel% equ 0 goto exit
 
 echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h"
@@ -541,7 +543,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-uv/test-internet/test-pummel/test-simple/test-message/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [no-NODE-OPTIONS] [link-module path-to-module]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

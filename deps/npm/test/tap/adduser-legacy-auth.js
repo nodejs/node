@@ -56,14 +56,14 @@ test('npm login', function (t) {
       [
         'login',
         '--registry', common.registry,
-        '--loglevel', 'silent',
+        '--loglevel', 'error',
         '--userconfig', outfile
       ],
       opts,
       function (err, code, stdout, stderr) {
-        t.ifError(err, 'npm ran without issue')
-        t.notOk(code, 'exited OK')
-        t.notOk(stderr, 'no error output')
+        if (err) throw err
+        t.is(code, 0, 'exited OK')
+        t.is(stderr, '', 'no error output')
         var config = fs.readFileSync(outfile, 'utf8')
         t.like(config, /:always-auth=false/, 'always-auth is scoped and false (by default)')
         s.close()
@@ -80,7 +80,7 @@ test('npm login', function (t) {
         remaining--
 
         var label = chunk.toString('utf8').split(':')[0]
-        runner.stdin.write(responses[label])
+        if (responses[label]) runner.stdin.write(responses[label])
 
         if (remaining === 0) runner.stdin.end()
       } else {

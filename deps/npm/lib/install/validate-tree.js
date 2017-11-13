@@ -40,7 +40,7 @@ function thenValidateAllPeerDeps (idealTree, next) {
   validate('OF', arguments)
   validateAllPeerDeps(idealTree, function (tree, pkgname, version) {
     var warn = new Error(packageId(tree) + ' requires a peer of ' + pkgname + '@' +
-      version + ' but none was installed.')
+      version + ' but none is installed. You must install peer dependencies yourself.')
     warn.code = 'EPEERINVALID'
     idealTree.warnings.push(warn)
   })

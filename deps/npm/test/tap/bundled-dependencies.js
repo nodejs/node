@@ -6,7 +6,6 @@ var rimraf = require('rimraf')
 var mkdirp = require('mkdirp')
 var fs = require('graceful-fs')
 var tar = require('tar')
-var zlib = require('zlib')
 var basepath = path.resolve(__dirname, path.basename(__filename, '.js'))
 var fixturepath = path.resolve(basepath, 'npm-test-bundled-deps')
 var targetpath = path.resolve(basepath, 'target')
@@ -103,10 +102,8 @@ function withFixture (t, fixture, tester) {
 
 function extractTarball (cb) {
   // Unpack to disk so case-insensitive filesystems are consistent
-  fs.createReadStream(path.join(basepath, 'npm-test-files-1.2.5.tgz'))
-    .pipe(zlib.Unzip())
-    .on('error', cb)
-    .pipe(tar.Extract(targetpath))
-    .on('error', cb)
-    .on('end', function () { cb() })
+  tar.extract({
+    file: path.join(basepath, 'npm-test-files-1.2.5.tgz'),
+    cwd: targetpath
+  }).then(cb, cb)
 }

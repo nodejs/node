@@ -101,11 +101,8 @@ inline Local<Private> IndexToPrivateSymbol(Environment* env, uint32_t index) {
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject())
-    return env->ThrowTypeError("obj must be an object");
-
-  if (!args[1]->IsUint32())
-    return env->ThrowTypeError("index must be an uint32");
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint32());
 
   Local<Object> obj = args[0].As<Object>();
   auto index = args[1]->Uint32Value(env->context()).FromJust();
@@ -118,11 +115,8 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (!args[0]->IsObject())
-    return env->ThrowTypeError("obj must be an object");
-
-  if (!args[1]->IsUint32())
-    return env->ThrowTypeError("index must be an uint32");
+  CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint32());
 
   Local<Object> obj = args[0].As<Object>();
   auto index = args[1]->Uint32Value(env->context()).FromJust();
@@ -135,10 +129,7 @@ static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
 
 void StartSigintWatchdog(const FunctionCallbackInfo<Value>& args) {
   int ret = SigintWatchdogHelper::GetInstance()->Start();
-  if (ret != 0) {
-    Environment* env = Environment::GetCurrent(args);
-    env->ThrowErrnoException(ret, "StartSigintWatchdog");
-  }
+  args.GetReturnValue().Set(ret == 0);
 }
 
 

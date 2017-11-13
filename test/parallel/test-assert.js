@@ -689,7 +689,7 @@ try {
       common.expectsError({
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "block" argument must be of type function. Received ' +
+        message: 'The "block" argument must be of type Function. Received ' +
                  'type ' + typeName(block)
       })(e);
     }
@@ -732,7 +732,7 @@ assert.throws(() => {
 {
   // bad args to AssertionError constructor should throw TypeError
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  const re = /^The "options" argument must be of type object$/;
+  const re = /^The "options" argument must be of type Object$/;
   args.forEach((input) => {
     assert.throws(
       () => new assert.AssertionError(input),

@@ -20,13 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
-#include "env.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "handle_wrap.h"
-#include "req-wrap.h"
 #include "req-wrap-inl.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <stdlib.h>
@@ -113,12 +110,12 @@ void UDPWrap::Initialize(Local<Object> target,
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     UDPWrap::GetFD,
-                                     nullptr,
-                                     env->as_external(),
-                                     v8::DEFAULT,
-                                     attributes);
+  t->PrototypeTemplate()->SetAccessor(env->fd_string(),
+                                      UDPWrap::GetFD,
+                                      nullptr,
+                                      env->as_external(),
+                                      v8::DEFAULT,
+                                      attributes);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "send", Send);
@@ -169,8 +166,7 @@ void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
 void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
   int fd = UV_EBADF;
 #if !defined(_WIN32)
-  HandleScope scope(args.GetIsolate());
-  UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
+  UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
   if (wrap != nullptr)
     uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
 #endif
@@ -238,8 +234,10 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
                                        "uv_send_buffer_size";
 
-  if (!args[0]->IsInt32())
-    return env->ThrowUVException(UV_EINVAL, uv_func_name);
+  if (!args[0]->IsInt32()) {
+    env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name);
+    return args.GetReturnValue().SetUndefined();
+  }
 
   uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
   int size = static_cast<int>(args[0].As<Uint32>()->Value());
@@ -250,8 +248,10 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
   else
     err = uv_send_buffer_size(handle, &size);
 
-  if (err != 0)
-    return env->ThrowUVException(err, uv_func_name);
+  if (err != 0) {
+    env->CollectUVExceptionInfo(args[2], err, uv_func_name);
+    return args.GetReturnValue().SetUndefined();
+  }
 
   args.GetReturnValue().Set(size);
 }

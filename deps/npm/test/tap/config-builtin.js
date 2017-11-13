@@ -16,7 +16,6 @@ var cli = { foo: 'bar', heading: 'foo', 'git-tag-version': false }
 
 var projectData = {
   'save-prefix': '~',
-  'proprietary-attribs': false,
   'legacy-bundling': true
 }
 

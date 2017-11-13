@@ -1,0 +1,60 @@
+{
+  "_from": "qw",
+  "_id": "qw@1.0.1",
+  "_inBundle": false,
+  "_integrity": "sha1-77/cdA+a0FQwRCassYNBLMi5ltQ=",
+  "_location": "/qw",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "qw",
+    "name": "qw",
+    "escapedName": "qw",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/qw/-/qw-1.0.1.tgz",
+  "_shasum": "efbfdc740f9ad054304426acb183412cc8b996d4",
+  "_spec": "qw",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/node-qw/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "Quoted word literals!",
+  "devDependencies": {
+    "tap": "^8.0.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "qw.js"
+  ],
+  "homepage": "https://github.com/iarna/node-qw#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "qw.js",
+  "name": "qw",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/node-qw.git"
+  },
+  "scripts": {
+    "test": "tap test"
+  },
+  "version": "1.0.1"
+}

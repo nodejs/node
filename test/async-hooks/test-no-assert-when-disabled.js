@@ -1,17 +1,9 @@
 'use strict';
-// Flags: --expose-internals
+// Flags: --no-force-async-hooks-checks --expose-internals
 const common = require('../common');
 
 const async_hooks = require('async_hooks');
 const internal = require('internal/process/next_tick');
-
-// In tests async_hooks dynamic checks are enabled by default. To verify
-// that no checks are enabled ordinarily disable the checks in this test.
-common.revert_force_async_hooks_checks();
-
-// When async_hooks is diabled (or never enabled), the checks
-// should be disabled as well. This is important while async_hooks is
-// experimental and there are still critial bugs to fix.
 
 // Using undefined as the triggerAsyncId.
 // Ref: https://github.com/nodejs/node/issues/14386

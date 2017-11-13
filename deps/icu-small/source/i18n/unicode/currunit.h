@@ -37,6 +37,12 @@ U_NAMESPACE_BEGIN
 class U_I18N_API CurrencyUnit: public MeasureUnit {
  public:
     /**
+     * Default constructor.  Initializes currency code to "XXX" (no currency).
+     * @draft ICU 60
+     */
+    CurrencyUnit();
+
+    /**
      * Construct an object with the given ISO currency code.
      * @param isoCode the 3-letter ISO 4217 currency code; must not be
      * NULL and must have length 3
@@ -51,6 +57,18 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      * @stable ICU 3.0
      */
     CurrencyUnit(const CurrencyUnit& other);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Copy constructor from MeasureUnit. This constructor allows you to
+     * restore a CurrencyUnit that was sliced to MeasureUnit.
+     *
+     * @param measureUnit The MeasureUnit to copy from.
+     * @param ec Set to a failing value if the MeasureUnit is not a currency.
+     * @draft ICU 60
+     */
+    CurrencyUnit(const MeasureUnit& measureUnit, UErrorCode &ec);
+#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Assignment operator

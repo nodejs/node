@@ -18,6 +18,8 @@ var link = require('./utils/link.js')
 var linkIfExists = link.ifExists
 var cmdShim = require('cmd-shim')
 var cmdShimIfExists = cmdShim.ifExists
+var isHashbangFile = require('./utils/is-hashbang-file.js')
+var dos2Unix = require('./utils/convert-line-endings.js').dos2Unix
 var asyncMap = require('slide').asyncMap
 var ini = require('ini')
 var writeFile = require('write-file-atomic')
@@ -187,13 +189,18 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           if (er && er.code === 'ENOENT' && npm.config.get('ignore-scripts')) {
             return cb()
           }
-          if (er || !gtop) return cb(er)
-          var dest = path.resolve(binRoot, b)
-          var out = npm.config.get('parseable')
-                  ? dest + '::' + src + ':BINFILE'
-                  : dest + ' -> ' + src
-          if (!npm.config.get('json') && !npm.config.get('parseable')) output(out)
-          cb()
+          if (er) return cb(er)
+          isHashbangFile(src).then((isHashbang) => {
+            if (isHashbang) return dos2Unix(src)
+          }).then(() => {
+            if (!gtop) return cb()
+            var dest = path.resolve(binRoot, b)
+            var out = npm.config.get('parseable')
+                    ? dest + '::' + src + ':BINFILE'
+                    : dest + ' -> ' + src
+            if (!npm.config.get('json') && !npm.config.get('parseable')) output(out)
+            cb()
+          }).catch(cb)
         })
       }
     )

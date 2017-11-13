@@ -218,6 +218,14 @@ CHECK(target->Set(env->context(),
                   {value}.ToStringChecked(env->isolate())).FromJust());
 """
 
+DEPRECATED_DEPS = """\
+'use strict';
+process.emitWarning(
+  'Requiring Node.js-bundled \\'{module}\\' module is deprecated. Please ' +
+  'install the necessary module locally.', 'DeprecationWarning', 'DEP0084');
+module.exports = require('internal/deps/{module}');
+"""
+
 
 def Render(var, data):
   # Treat non-ASCII as UTF-8 and convert it to UTF-16.
@@ -256,10 +264,19 @@ def JS2C(source, target):
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
 
+    deprecated_deps = None
+
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
     # so don't assume there is always a slash in the file path.
     if '/' in name or '\\' in name:
-      name = '/'.join(re.split('/|\\\\', name)[1:])
+      split = re.split('/|\\\\', name)
+      if split[0] == 'deps':
+        if split[1] == 'node-inspect' or split[1] == 'v8':
+          deprecated_deps = split[1:]
+        split = ['internal'] + split
+      else:
+        split = split[1:]
+      name = '/'.join(split)
 
     name = name.split('.', 1)[0]
     var = name.replace('-', '_').replace('/', '_')
@@ -269,6 +286,17 @@ def JS2C(source, target):
     definitions.append(Render(key, name))
     definitions.append(Render(value, lines))
     initializers.append(INITIALIZER.format(key=key, value=value))
+
+    if deprecated_deps is not None:
+      name = '/'.join(deprecated_deps)
+      name = name.split('.', 1)[0]
+      var = name.replace('-', '_').replace('/', '_')
+      key = '%s_key' % var
+      value = '%s_value' % var
+
+      definitions.append(Render(key, name))
+      definitions.append(Render(value, DEPRECATED_DEPS.format(module=name)))
+      initializers.append(INITIALIZER.format(key=key, value=value))
 
   # Emit result
   output = open(str(target[0]), "w")
