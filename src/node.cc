@@ -124,6 +124,10 @@ typedef int mode_t;
 extern char **environ;
 #endif
 
+#ifdef __CloudABI__
+#include <program.h>
+#endif
+
 namespace node {
 
 using v8::Array;
@@ -3254,7 +3258,12 @@ void SetupProcessObject(Environment* env,
       process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
 
+#ifdef __CloudABI__
+  READONLY_PROPERTY(process, "pid",
+                    String::NewFromUtf8(env->isolate(), program_getpid()));
+#else
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
+#endif
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
