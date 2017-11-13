@@ -558,25 +558,31 @@ assert.doesNotThrow(() => {
   assert.strictEqual(util.inspect(x).includes('inspect'), true);
 }
 
-// util.inspect should not display the escaped value of a key.
+// util.inspect should display the escaped value of a key.
 {
   const w = {
     '\\': 1,
     '\\\\': 2,
     '\\\\\\': 3,
     '\\\\\\\\': 4,
+    '\n': 5,
+    '\r': 6
   };
 
   const y = ['a', 'b', 'c'];
-  y['\\\\\\'] = 'd';
+  y['\\\\'] = 'd';
+  y['\n'] = 'e';
+  y['\r'] = 'f';
 
   assert.strictEqual(
     util.inspect(w),
-    '{ \'\\\': 1, \'\\\\\': 2, \'\\\\\\\': 3, \'\\\\\\\\\': 4 }'
+    '{ \'\\\\\': 1, \'\\\\\\\\\': 2, \'\\\\\\\\\\\\\': 3, ' +
+    '\'\\\\\\\\\\\\\\\\\': 4, \'\\n\': 5, \'\\r\': 6 }'
   );
   assert.strictEqual(
     util.inspect(y),
-    '[ \'a\', \'b\', \'c\', \'\\\\\\\': \'d\' ]'
+    '[ \'a\', \'b\', \'c\', \'\\\\\\\\\': \'d\', ' +
+    '\'\\n\': \'e\', \'\\r\': \'f\' ]'
   );
 }
 
