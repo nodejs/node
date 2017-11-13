@@ -1090,7 +1090,6 @@ endif
 .PHONY: $(TARBALL)-headers \
   all \
   bench \
-  bench \
   bench-all \
   bench-array \
   bench-buffer \
