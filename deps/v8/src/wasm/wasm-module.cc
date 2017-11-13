@@ -266,7 +266,7 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(
                        allocation_length, backing_store, static_cast<int>(size),
                        shared);
   buffer->set_is_neuterable(false);
-  buffer->set_is_wasm_buffer(true);
+  buffer->set_is_growable(true);
   buffer->set_has_guard_region(enable_guard_regions);
   return buffer;
 }
