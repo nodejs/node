@@ -684,6 +684,15 @@ Type: Runtime
 cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
 details.
 
+<a id="DEP0089"></a>
+### DEP0089: require('assert')
+
+Type: Documentation-only
+
+Importing assert directly is not recommended as the exposed functions will use
+loose equality checks. Use `require('assert').strict` instead. The API is the
+same as the legacy assert but it will always use strict equality checks.
+
 <a id="DEP0098"></a>
 ### DEP0098: AsyncHooks Embedder AsyncResource.emit{Before,After} APIs
 
