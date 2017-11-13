@@ -495,8 +495,7 @@ commit logs, ensure that they are properly formatted, and add
 
 <a name="metadata"></a>
 * Modify the original commit message to include additional metadata regarding
-  the change process. (If you use Chrome or Edge, [`node-review`][] fetches
-  the metadata for you.)
+  the change process. ([`node-core-utils`][] fetches the metadata for you.)
 
   * Required: A `PR-URL:` line that references the *full* GitHub URL of the
     original pull request being merged so it's easy to trace a commit back to
@@ -675,4 +674,4 @@ LTS working group and the Release team.
 [Stability Index]: doc/api/documentation.md#stability-index
 [Enhancement Proposal]: https://github.com/nodejs/node-eps
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
-[`node-review`]: https://github.com/evanlucas/node-review
+[`node-core-utils`]: https://github.com/nodejs/node-core-utils
