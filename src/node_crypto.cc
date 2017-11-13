@@ -5565,9 +5565,9 @@ void PBKDF2Request::After() {
 
 void PBKDF2Request::After(uv_work_t* work_req, int status) {
   CHECK_EQ(status, 0);
-  PBKDF2Request* req = ContainerOf(&PBKDF2Request::work_req_, work_req);
+  std::unique_ptr<PBKDF2Request> req(
+      ContainerOf(&PBKDF2Request::work_req_, work_req));
   req->After();
-  delete req;
 }
 
 
@@ -5582,7 +5582,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   double raw_keylen = -1;
   int keylen = -1;
   int iter = -1;
-  PBKDF2Request* req = nullptr;
   Local<Object> obj;
 
   passlen = Buffer::Length(args[0]);
@@ -5618,15 +5617,9 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
   obj = env->pbkdf2_constructor_template()->
       NewInstance(env->context()).ToLocalChecked();
-  req = new PBKDF2Request(env,
-                          obj,
-                          digest,
-                          passlen,
-                          pass,
-                          saltlen,
-                          salt,
-                          iter,
-                          keylen);
+  std::unique_ptr<PBKDF2Request> req(
+      new PBKDF2Request(env, obj, digest, passlen, pass, saltlen, salt, iter,
+                        keylen));
 
   if (args[5]->IsFunction()) {
     obj->Set(env->ondone_string(), args[5]);
@@ -5639,7 +5632,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     }
 
     uv_queue_work(env->event_loop(),
-                  req->work_req(),
+                  req.release()->work_req(),
                   PBKDF2Request::Work,
                   PBKDF2Request::After);
   } else {
@@ -5647,7 +5640,6 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     req->Work();
     Local<Value> argv[2];
     req->After(&argv);
-    delete req;
 
     if (argv[0]->IsObject())
       env->isolate()->ThrowException(argv[0]);
@@ -5785,25 +5777,23 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> (*argv)[2]) {
 
 void RandomBytesAfter(uv_work_t* work_req, int status) {
   CHECK_EQ(status, 0);
-  RandomBytesRequest* req =
-      ContainerOf(&RandomBytesRequest::work_req_, work_req);
+  std::unique_ptr<RandomBytesRequest> req(
+      ContainerOf(&RandomBytesRequest::work_req_, work_req));
   Environment* env = req->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
-  RandomBytesCheck(req, &argv);
+  RandomBytesCheck(req.get(), &argv);
   req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
-  delete req;
 }
 
 
 void RandomBytesProcessSync(Environment* env,
-                            RandomBytesRequest* req,
+                            std::unique_ptr<RandomBytesRequest> req,
                             Local<Value> (*argv)[2]) {
   env->PrintSyncTrace();
   RandomBytesWork(req->work_req());
-  RandomBytesCheck(req, argv);
-  delete req;
+  RandomBytesCheck(req.get(), argv);
 
   if (!(*argv)[0]->IsNull())
     env->isolate()->ThrowException((*argv)[0]);
@@ -5819,12 +5809,12 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   Local<Object> obj = env->randombytes_constructor_template()->
       NewInstance(env->context()).ToLocalChecked();
   char* data = node::Malloc(size);
-  RandomBytesRequest* req =
+  std::unique_ptr<RandomBytesRequest> req(
       new RandomBytesRequest(env,
                              obj,
                              size,
                              data,
-                             RandomBytesRequest::FREE_DATA);
+                             RandomBytesRequest::FREE_DATA));
 
   if (args[1]->IsFunction()) {
     obj->Set(env->ondone_string(), args[1]);
@@ -5837,13 +5827,13 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
     }
 
     uv_queue_work(env->event_loop(),
-                  req->work_req(),
+                  req.release()->work_req(),
                   RandomBytesWork,
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, &argv);
+    RandomBytesProcessSync(env, std::move(req), &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
@@ -5866,12 +5856,12 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
   char* data = Buffer::Data(args[0]);
   data += offset;
 
-  RandomBytesRequest* req =
+  std::unique_ptr<RandomBytesRequest> req(
       new RandomBytesRequest(env,
                              obj,
                              size,
                              data,
-                             RandomBytesRequest::DONT_FREE_DATA);
+                             RandomBytesRequest::DONT_FREE_DATA));
   if (args[3]->IsFunction()) {
     obj->Set(env->context(), env->ondone_string(), args[3]).FromJust();
 
@@ -5883,13 +5873,13 @@ void RandomBytesBuffer(const FunctionCallbackInfo<Value>& args) {
     }
 
     uv_queue_work(env->event_loop(),
-                  req->work_req(),
+                  req.release()->work_req(),
                   RandomBytesWork,
                   RandomBytesAfter);
     args.GetReturnValue().Set(obj);
   } else {
     Local<Value> argv[2];
-    RandomBytesProcessSync(env, req, &argv);
+    RandomBytesProcessSync(env, std::move(req), &argv);
     if (argv[0]->IsNull())
       args.GetReturnValue().Set(argv[1]);
   }
