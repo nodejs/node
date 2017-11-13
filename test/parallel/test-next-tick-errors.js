@@ -42,12 +42,21 @@ process.nextTick(function() {
 });
 
 function testNextTickWith(val) {
-  assert.throws(
+  common.expectsError(
     function() {
       process.nextTick(val);
     },
-    TypeError
+    {
+      code: 'need the real code',
+      name: 'need the real name'
+    }
   );
+  // assert.throws(
+  //   function() {
+  //     process.nextTick(val);
+  //   },
+  //   TypeError
+  // );
 }
 
 testNextTickWith(false);
