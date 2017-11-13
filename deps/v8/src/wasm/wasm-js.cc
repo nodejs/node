@@ -751,6 +751,10 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     max_size64 = i::FLAG_wasm_max_mem_pages;
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer());
+  if (!old_buffer->is_growable()) {
+    thrower.RangeError("This memory cannot be grown");
+    return;
+  }
   uint32_t old_size =
       old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
   int64_t new_size64 = old_size + delta_size;

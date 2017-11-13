@@ -249,7 +249,6 @@ namespace internal {
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(AvailableLocalesOf, 1, 1)                \
   F(GetDefaultICULocale, 0, 1)               \
-  F(GetLanguageTagVariants, 1, 1)            \
   F(IsInitializedIntlObject, 1, 1)           \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \

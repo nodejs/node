@@ -418,7 +418,7 @@ DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
-DEFINE_BOOL(turbo_inline_array_builtins, true,
+DEFINE_BOOL(turbo_inline_array_builtins, false,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")

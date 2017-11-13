@@ -3215,6 +3215,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     BoundsCheckMem(memtype, index, offset, position);
   }
 
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype.representation())) {
     if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
@@ -3267,6 +3271,10 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
     BoundsCheckMem(memtype, index, offset, position);
   }
 
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndiannessStore(val, memtype, type);
 #endif
@@ -3301,6 +3309,10 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
 Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // TODO(turbofan): fold bounds checks for constant asm.js loads.
   // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   const Operator* op = jsgraph()->machine()->CheckedLoad(type);
   Node* load =
       graph()->NewNode(op, MemBuffer(0), index, MemSize(), *effect_, *control_);
@@ -3312,6 +3324,10 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
                                            Node* val) {
   // TODO(turbofan): fold bounds checks for constant asm.js stores.
   // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   const Operator* op =
       jsgraph()->machine()->CheckedStore(type.representation());
   Node* store = graph()->NewNode(op, MemBuffer(0), index, MemSize(), val,

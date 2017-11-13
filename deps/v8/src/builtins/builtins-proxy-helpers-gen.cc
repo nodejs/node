@@ -95,7 +95,7 @@ void ProxyAssembler::CheckGetTrapResult(Node* context, Node* target,
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, proxy, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
-                    check_passed, if_bailout);
+                    check_passed, if_bailout, kReturnAccessorPair);
 
   BIND(&if_found_value);
   {
