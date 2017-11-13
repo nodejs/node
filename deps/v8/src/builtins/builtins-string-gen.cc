@@ -1051,9 +1051,9 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
 }
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
-    Node* const context, Node* const object, Handle<Symbol> symbol,
-    const NodeFunction0& regexp_call, const NodeFunction1& generic_call,
-    CodeStubArguments* args) {
+    Node* const context, Node* const object, Node* const maybe_string,
+    Handle<Symbol> symbol, const NodeFunction0& regexp_call,
+    const NodeFunction1& generic_call, CodeStubArguments* args) {
   Label out(this);
 
   // Smis definitely don't have an attached symbol.
@@ -1083,14 +1083,21 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   }
 
   // Take the fast path for RegExps.
+  // There's two conditions: {object} needs to be a fast regexp, and
+  // {maybe_string} must be a string (we can't call ToString on the fast path
+  // since it may mutate {object}).
   {
     Label stub_call(this), slow_lookup(this);
+
+    GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
+    GotoIfNot(IsString(maybe_string), &slow_lookup);
 
     RegExpBuiltinsAssembler regexp_asm(state());
     regexp_asm.BranchIfFastRegExp(context, object, object_map, &stub_call,
                                   &slow_lookup);
 
     BIND(&stub_call);
+    // TODO(jgruber): Add a no-JS scope once it exists.
     Node* const result = regexp_call();
     if (args == nullptr) {
       Return(result);
@@ -1196,12 +1203,10 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // Redirect to replacer method if {search[@@replace]} is not undefined.
 
   MaybeCallFunctionAtSymbol(
-      context, search, isolate()->factory()->replace_symbol(),
+      context, search, receiver, isolate()->factory()->replace_symbol(),
       [=]() {
-        Node* const subject_string = ToString_Inline(context, receiver);
-
-        return CallBuiltin(Builtins::kRegExpReplace, context, search,
-                           subject_string, replace);
+        return CallBuiltin(Builtins::kRegExpReplace, context, search, receiver,
+                           replace);
       },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
@@ -1439,12 +1444,10 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // Redirect to splitter method if {separator[@@split]} is not undefined.
 
   MaybeCallFunctionAtSymbol(
-      context, separator, isolate()->factory()->split_symbol(),
+      context, separator, receiver, isolate()->factory()->split_symbol(),
       [=]() {
-        Node* const subject_string = ToString_Inline(context, receiver);
-
-        return CallBuiltin(Builtins::kRegExpSplit, context, separator,
-                           subject_string, limit);
+        return CallBuiltin(Builtins::kRegExpSplit, context, separator, receiver,
+                           limit);
       },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
