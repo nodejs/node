@@ -27,7 +27,7 @@
 #include "node_buffer.h"
 #include "node_counters.h"
 #include "pipe_wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "tcp_wrap.h"
 #include "udp_wrap.h"
 #include "util-inl.h"
