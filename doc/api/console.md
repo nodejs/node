@@ -428,7 +428,7 @@ The `console.warn()` function is an alias for [`console.error()`][].
 
 ## Inspector only methods
 The following methods are exposed by the V8 engine in the general API but do
-not display anything unless used in conjunction with the inspector tab
+not display anything unless used in conjunction with the [inspector][] tab
 (`--inspect` flag).
 
 ### console.debug(data[, ...args])
@@ -539,5 +539,6 @@ This method does not display anything unless used in the inspector. The
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[inspector]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
 [web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
