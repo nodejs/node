@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tls_wrap.h"
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "node_buffer.h"  // Buffer
 #include "node_crypto.h"  // SecureContext
 #include "node_crypto_bio.h"  // NodeBIO

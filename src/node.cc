@@ -54,7 +54,7 @@
 #endif
 
 #include "ares.h"
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"

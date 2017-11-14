@@ -27,7 +27,7 @@
 #include "node.h"
 #include "node_crypto.h"  // SSLWrap
 
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "env.h"
 #include "stream_wrap.h"
 #include "util.h"

@@ -28,7 +28,7 @@
 #include "node_mutex.h"
 #include "tls_wrap.h"  // TLSWrap
 
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
