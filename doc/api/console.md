@@ -237,6 +237,15 @@ undefined
 >
 ```
 
+### console.debug(data[, ...args])
+<!-- YAML
+added: v8.0.0
+-->
+* `data` {any}
+* `...args` {any}
+
+The `console.debug()` function is an alias for [`console.log()`][].
+
 ### console.dir(obj[, options])
 <!-- YAML
 added: v0.1.101
