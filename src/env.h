@@ -30,7 +30,7 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
-#include "req-wrap.h"
+#include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"

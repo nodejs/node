@@ -59,7 +59,7 @@
 #include "handle_wrap.h"
 #include "http_parser.h"
 #include "nghttp2/nghttp2ver.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "string_bytes.h"
 #include "tracing/agent.h"
 #include "util.h"

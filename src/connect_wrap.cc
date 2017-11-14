@@ -1,7 +1,7 @@
 #include "connect_wrap.h"
 
 #include "env-inl.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "util-inl.h"
 
 namespace node {
