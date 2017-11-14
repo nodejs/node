@@ -66,6 +66,14 @@ note1 - The gcc4.8-libs package needs to be installed, because node
   In "Git bash" if you call the node shell alias (`node` without the `.exe`
   extension), `winpty` is used automatically.
 
+The Windows Subsystem for Linux (WSL) is not directly supported, but the
+GNU/Linux build process and binaries should work. The community will only
+address issues that reproduce on native GNU/Linux systems. Issues that only
+reproduce on WSL should be reported in the
+[WSL issue tracker](https://github.com/Microsoft/WSL/issues). Running the
+Windows binary (`node.exe`) in WSL is not recommended, and will not work
+without adjustment (such as stdio redirection).
+
 ### Supported toolchains
 
 Depending on host platform, the selection of toolchains may vary.
