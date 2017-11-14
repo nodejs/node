@@ -492,7 +492,7 @@ the report to the **Profiles** panel of the inspector tab. See
 <!-- YAML
 added: v8.0.0
 -->
-* `array` {array|object}
+* `array` {Array|Object}
 * `...args` {any}
 
 This method does not display anything unless used in the inspector. Prints to
@@ -529,9 +529,11 @@ This method does not display anything unless used in the inspector. The
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
+[`console.profile()`]: #console_console_profile_label
+[`console.profileEnd()`]: #console_console_profileend
 [`console.time()`]: #console_console_time_label
-[`console.timeStamp()`]: #console_console_timestamp_label
 [`console.timeEnd()`]: #console_console_timeend_label
+[`console.timeStamp()`]: #console_console_timestamp_label
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format_args
