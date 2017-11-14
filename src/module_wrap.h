@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include "node_url.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 
 namespace node {
 namespace loader {

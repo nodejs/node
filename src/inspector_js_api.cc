@@ -1,4 +1,4 @@
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "node_internals.h"
