@@ -89,6 +89,9 @@ Depending on host platform, the selection of toolchains may vary.
 
 ## Building Node.js on supported platforms
 
+*Note:* All prerequisites can be easily installed by following
+[this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md).
+
 ### Unix / macOS
 
 Prerequisites:
