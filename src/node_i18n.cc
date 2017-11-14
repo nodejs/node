@@ -48,7 +48,7 @@
 #include "node_buffer.h"
 #include "env-inl.h"
 #include "util-inl.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "v8.h"
 
 #include <unicode/utypes.h>
