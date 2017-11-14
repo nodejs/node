@@ -202,6 +202,9 @@ Prerequisites:
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
 
+*Note:* All prerequisites can be easily installed by following
+[this Boxstarter guide](https://github.com/nodejs/node/blob/master/tools/boxstarter/README.md).
+
 If the path to your build directory contains a space, the build will likely fail.
 
 ```console
