@@ -774,7 +774,7 @@ end
 *Note*: In general, the `readable.pipe()` and `'data'` event mechanisms are
 easier to understand than the `'readable'` event.
 However, handling `'readable'` might result in increased throughput.
-
+While new data is pushed but not directly from executing `readable.read()`, `'readable'` event will not be triggered.
 ##### readable.isPaused()
 <!-- YAML
 added: v0.11.14
