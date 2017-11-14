@@ -428,7 +428,7 @@ The `console.warn()` function is an alias for [`console.error()`][].
 
 ## Inspector only methods
 The following methods are exposed by the V8 engine in the general API but do
-not display anything unless used in conjunction with the [inspector][] tab
+not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
 ### console.debug(data[, ...args])
@@ -475,7 +475,7 @@ the **Profile** panel of the inspector.
 console.profile('MyLabel');
 // Some code
 console.profileEnd();
-// Adds the profile 'MyLabel' to the Profiles panel of the inspector tab.
+// Adds the profile 'MyLabel' to the Profiles panel of the inspector.
 ```
 
 ### console.profileEnd()
@@ -485,7 +485,7 @@ added: v8.0.0
 
 This method does not display anything unless used in the inspector. Stops the
 current JavaScript CPU profiling session if one has been started and prints
-the report to the **Profiles** panel of the inspector tab. See
+the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
 
 ### console.table(array[, ...args])
@@ -506,7 +506,7 @@ added: v8.0.0
 
 This method does not display anything unless used in the inspector. The
 `console.timeStamp()` method adds an event with the label `label` to the
-**Timeline** panel of the inspector tab.
+**Timeline** panel of the inspector.
 
 ### console.timeline([label])
 <!-- YAML
