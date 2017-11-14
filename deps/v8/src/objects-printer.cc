@@ -970,7 +970,7 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   if (was_neutered()) os << "\n - neutered";
   if (is_shared()) os << "\n - shared";
   if (has_guard_region()) os << "\n - has_guard_region";
-  if (is_wasm_buffer()) os << "\n - wasm_buffer";
+  if (is_growable()) os << "\n - growable";
   JSObjectPrintBody(os, this, !was_neutered());
 }
 

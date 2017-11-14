@@ -29,7 +29,7 @@ module.exports = function(context) {
     }
   }
 
-  function reportIfMissing(context, node) {
+  function reportIfMissing(context) {
     if (!hasInspectorCheck) {
       missingCheckNodes.forEach((node) => {
         context.report(node, msg);

@@ -82,9 +82,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   //  }
   //
   // Contains fast paths for Smi and RegExp objects.
+  // Important: {regexp_call} may not contain any code that can call into JS.
   typedef std::function<Node*()> NodeFunction0;
   typedef std::function<Node*(Node* fn)> NodeFunction1;
   void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
+                                 Node* const maybe_string,
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call,

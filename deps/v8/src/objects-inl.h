@@ -5156,12 +5156,12 @@ void JSArrayBuffer::set_has_guard_region(bool value) {
   set_bit_field(HasGuardRegion::update(bit_field(), value));
 }
 
-bool JSArrayBuffer::is_wasm_buffer() {
-  return IsWasmBuffer::decode(bit_field());
+bool JSArrayBuffer::is_growable() {
+  return IsGrowable::decode(bit_field());
 }
 
-void JSArrayBuffer::set_is_wasm_buffer(bool value) {
-  set_bit_field(IsWasmBuffer::update(bit_field(), value));
+void JSArrayBuffer::set_is_growable(bool value) {
+  set_bit_field(IsGrowable::update(bit_field(), value));
 }
 
 Object* JSArrayBufferView::byte_offset() const {

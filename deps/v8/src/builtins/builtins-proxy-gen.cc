@@ -339,7 +339,7 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(Node* context, Node* target,
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
-                    check_passed, if_bailout);
+                    check_passed, if_bailout, kReturnAccessorPair);
 
   // 9.b. If targetDesc is not undefined, then (see 9.b.i. below).
   BIND(&if_found_value);
