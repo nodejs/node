@@ -69,6 +69,13 @@ console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
 
+// test console.debug() goes to stdout
+console.debug('foo');
+console.debug('foo', 'bar');
+console.debug('%s %s', 'foo', 'bar', 'hop');
+console.debug({ slashes: '\\\\' });
+console.debug(custom_inspect);
+
 // test console.info() goes to stdout
 console.info('foo');
 console.info('foo', 'bar');
@@ -152,6 +159,10 @@ for (const expected of expectedStrings) {
 for (const expected of expectedStrings) {
   assert.strictEqual(strings.shift(), `${expected}\n`);
   assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
 }
 
 assert.strictEqual(strings.shift(),
