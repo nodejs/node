@@ -177,7 +177,7 @@
       ],
 
       'sources': [
-        'src/async-wrap.cc',
+        'src/async_wrap.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
         'src/connect_wrap.cc',
@@ -231,8 +231,8 @@
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
         'src/aliased_buffer.h',
-        'src/async-wrap.h',
-        'src/async-wrap-inl.h',
+        'src/async_wrap.h',
+        'src/async_wrap-inl.h',
         'src/base-object.h',
         'src/base-object-inl.h',
         'src/connection_wrap.h',
@@ -816,7 +816,7 @@
       'conditions': [
         ['node_target_type!="static_library"', {
           'libraries': [
-            '<(OBJ_PATH)<(OBJ_SEPARATOR)async-wrap.<(OBJ_SUFFIX)',
+            '<(OBJ_PATH)<(OBJ_SEPARATOR)async_wrap.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)env.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_buffer.<(OBJ_SUFFIX)',

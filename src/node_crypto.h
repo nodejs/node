@@ -31,7 +31,7 @@
 #include "node_buffer.h"
 
 #include "env.h"
-#include "async-wrap-inl.h"
+#include "async_wrap-inl.h"
 #include "base-object-inl.h"
 
 #include "v8.h"

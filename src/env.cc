@@ -1,5 +1,5 @@
 #include "node_internals.h"
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "v8-profiler.h"
 
 #include <stdio.h>

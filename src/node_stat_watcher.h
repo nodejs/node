@@ -25,7 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "env.h"
 #include "uv.h"
 #include "v8.h"

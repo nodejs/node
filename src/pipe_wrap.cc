@@ -21,7 +21,7 @@
 
 #include "pipe_wrap.h"
 
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
