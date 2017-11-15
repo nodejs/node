@@ -359,6 +359,14 @@ was disabled at compile time.
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
 
+### skipIfNoIpv6Localhost(cb)
+
+* `cb` [&lt;Function>]
+  * `ipv6Host` [&lt;String>] A local IPv6 host that can be resolved to `::1`.
+
+Run the `cb` only if there is a local IPv6 host that can be resolved to `::1`,
+otherwise call `common.skip()`.
+
 ### spawnPwd(options)
 * `options` [&lt;Object>]
 * return [&lt;Object>]
