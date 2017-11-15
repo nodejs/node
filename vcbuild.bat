@@ -51,6 +51,7 @@ set "common_test_suites=%js_test_suites% doctool addons addons-napi&set build_ad
 set http2_debug=
 set nghttp2_debug=
 set link_module=
+set openssl_system_ca_path=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -115,6 +116,8 @@ if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
+if /i "%1"=="openssl-system-ca-path" ^
+set "openssl_system_ca_path= --openssl-system-ca-path=%2%"&goto arg-ok-2
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -156,6 +159,8 @@ if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune
 if defined dll set configure_flags=%configure_flags% --shared
 if defined enable_static set configure_flags=%configure_flags% --enable-static
 if defined no_NODE_OPTIONS set configure_flags=%configure_flags% --without-node-options
+if defined openssl_system_ca_path ^
+set configure_flags=%configure_flags% %openssl_system_ca_path%
 
 REM if defined debug_http2 set configure_flags=%configure_flags% --debug-http2
 REM if defined debug_nghttp2 set configure_flags=%configure_flags% --debug-nghttp2
@@ -543,16 +548,19 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean]
+echo vcbuild.bat [debug/release] [msi] [test/test-ci/test-all/test-addons/test-addons-napi/test-internet/test-pummel/test-simple/test-message/test-gc/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [noperfctr] [licensetf] [sign] [ia32/x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-js-ci] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [openssl-system-ca-path path-to-system-certs] [clean]
 echo Examples:
-echo   vcbuild.bat                          : builds release build
-echo   vcbuild.bat debug                    : builds debug build
-echo   vcbuild.bat release msi              : builds release build and MSI installer package
-echo   vcbuild.bat test                     : builds debug build and runs tests
-echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
-echo   vcbuild.bat enable-vtune             : builds nodejs with Intel VTune profiling support to profile JavaScript
-echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
-echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
+echo   vcbuild.bat                             : builds release build
+echo   vcbuild.bat debug                       : builds debug build
+echo   vcbuild.bat release msi                 : builds release build and MSI installer package
+echo   vcbuild.bat test                        : builds debug build and runs tests
+echo   vcbuild.bat build-release               : builds the release distribution as used by nodejs.org
+echo   vcbuild.bat enable-vtune                : builds nodejs with Intel VTune profiling support to profile JavaScript
+echo   vcbuild.bat link-module my_module.js    : bundles my_module as built-in module
+echo   vcbuild.bat lint                        : runs the C++ and JavaScript linter
+echo   vcbuild.bat openssl-system-ca-path path : builds using the specified path ^
+to system CA (PEM format) in addition to the OpenSSL supplied CA store or ^
+compiled-in Mozilla CA copy
 goto exit
 
 :run-python
