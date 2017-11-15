@@ -872,7 +872,19 @@
         [ 'node_use_dtrace=="true"', {
           'libraries': [
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
-          ]
+          ],
+          'conditions': [
+            ['OS!="mac" and OS!="linux"', {
+              'libraries': [
+                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
+              ]
+            }],
+            ['OS!="mac"', {
+              'libraries': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o',
+              ]
+            }],
+          ],
         }],
         [ 'OS=="win"', {
           'libraries': [
@@ -882,16 +894,6 @@
           'libraries': [
             '<(OBJ_PATH)<(OBJ_SEPARATOR)backtrace_posix.<(OBJ_SUFFIX)',
            ],
-        }],
-        [ 'node_use_dtrace=="true" and OS!="mac" and OS!="linux"', {
-          'copies': [{
-            'destination': '<(OBJ_DIR)/cctest/src',
-            'files': [
-              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
-              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_provider.<(OBJ_SUFFIX)',
-              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
-            ]},
-          ],
         }],
         [ 'node_shared_zlib=="false"', {
           'dependencies': [
