@@ -1,13 +1,19 @@
-// Call fs.readFile over and over again really fast.
-// Then see how many times it got called.
-// Yes, this is a silly benchmark.  Most benchmarks are silly.
+// Submit a mix of short and long jobs to the threadpool.
+// Report total job throughput.
+// If we partition the long job, overall job throughput goes up significantly.
+// However, this comes at the cost of the long job throughput.
+//
+// Short jobs: small zip jobs.
+// Long jobs: fs.readFile on a large file.
+
 'use strict';
 
 const path = require('path');
 const common = require('../common.js');
-const filename = path.resolve(process.env.NODE_TMPDIR || __dirname,
+const filename = path.resolve(__dirname,
                               `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
+const zlib = require('zlib');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
@@ -16,21 +22,25 @@ const bench = common.createBenchmark(main, {
   concurrent: [1, 10]
 });
 
-function main({ len, dur, concurrent }) {
+function main(conf) {
+  const len = +conf.len;
   try { fs.unlinkSync(filename); } catch (e) {}
   var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 
+  var zipData = Buffer.alloc(1024, 'a');
+
   var reads = 0;
+  var zips = 0;
   var benchEnded = false;
   bench.start();
   setTimeout(function() {
+    const totalOps = reads + zips;
     benchEnded = true;
-    bench.end(reads);
+    bench.end(totalOps);
     try { fs.unlinkSync(filename); } catch (e) {}
-    process.exit(0);
-  }, dur * 1000);
+  }, +conf.dur * 1000);
 
   function read() {
     fs.readFile(filename, afterRead);
@@ -54,5 +64,23 @@ function main({ len, dur, concurrent }) {
       read();
   }
 
-  while (concurrent--) read();
+  function zip() {
+    zlib.deflate(zipData, afterZip);
+  }
+
+  function afterZip(er, data) {
+    if (er)
+      throw er;
+
+    zips++;
+    if (!benchEnded)
+      zip();
+  }
+
+  // Start reads
+  var cur = +conf.concurrent;
+  while (cur--) read();
+
+  // Start a competing zip
+  zip();
 }
