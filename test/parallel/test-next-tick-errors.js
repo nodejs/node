@@ -48,15 +48,10 @@ function testNextTickWith(val) {
     },
     {
       code: 'ERR_INVALID_CALLBACK',
-      name: 'TypeError [ERR_INVALID_CALLBACK]'
+      name: 'TypeError [ERR_INVALID_CALLBACK]',
+      type: TypeError
     }
   );
-  // assert.throws(
-  //   function() {
-  //     process.nextTick(val);
-  //   },
-  //   TypeError
-  // );
 }
 
 testNextTickWith(false);
