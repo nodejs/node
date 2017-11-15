@@ -683,6 +683,16 @@ assert.doesNotThrow(() => {
     true
   );
 
+  // "customInspectMethod" option can disable calling inspect() on objects
+  assert.strictEqual(
+    util.inspect(subject, { customInspectMethod: false }).includes('123'),
+    false
+  );
+  assert.strictEqual(
+    util.inspect(subject, { customInspectMethod: false }).includes('inspect'),
+    true
+  );
+
   // custom inspect() functions should be able to return other Objects
   subject.inspect = () => ({ foo: 'bar' });
 
@@ -706,6 +716,12 @@ assert.doesNotThrow(() => {
   assert.strictEqual(
     util.inspect(subject, { customInspect: false }).includes('123'),
     false
+  );
+
+  // "customInspectMethod: false" should not override the Symbol
+  assert.strictEqual(
+    util.inspect(subject, { customInspectMethod: false }).includes('123'),
+    true
   );
 
   // a custom [util.inspect.custom]() should be able to return other Objects
