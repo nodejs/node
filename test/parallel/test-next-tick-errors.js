@@ -47,8 +47,8 @@ function testNextTickWith(val) {
       process.nextTick(val);
     },
     {
-      code: 'need the real code',
-      name: 'need the real name'
+      code: 'ERR_INVALID_CALLBACK',
+      name: 'TypeError [ERR_INVALID_CALLBACK]'
     }
   );
   // assert.throws(
