@@ -16,15 +16,7 @@ server.on(
       message: `The "${param}" argument must be of type ${type}`
     });
     common.expectsError(
-      () => stream.session.priority(undefined, {}),
-      invalidArgTypeError('stream', 'Http2Stream')
-    );
-    common.expectsError(
-      () => stream.session.rstStream(undefined),
-      invalidArgTypeError('stream', 'Http2Stream')
-    );
-    common.expectsError(
-      () => stream.session.rstStream(stream, 'string'),
+      () => stream.rstStream('string'),
       invalidArgTypeError('code', 'number')
     );
     stream.session.destroy();
