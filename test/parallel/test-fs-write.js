@@ -55,21 +55,29 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
 const args = constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC;
 fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
   assert.ifError(err);
-
-  const done = common.mustCall((err, written) => {
+  console.log('open done');
+  fs.write(fd, '', 0, 'utf8', (err, written) => {
+    assert.strictEqual(0, written);
+  });
+  fs.write(fd, expected, 0, 'utf8', common.mustCall((err, written) => {
+    console.log('write done');
     assert.ifError(err);
     assert.strictEqual(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     const found = fs.readFileSync(fn2, 'utf8');
+    console.log('expected: "%s"', expected);
+    console.log('found: "%s"', found);
     fs.unlinkSync(fn2);
     assert.strictEqual(expected, found);
-  });
+  }));
+}));
 
-  const written = common.mustCall(function(err, written) {
+fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
+  assert.ifError(err);
+  const done = common.mustCall(function(err, written) {
     assert.ifError(err);
-    assert.strictEqual(0, written);
+    assert.strictEqual(Buffer.byteLength(expected), written);
+    fs.closeSync(fd);
   });
-
-  fs.write(fd, '', 0, 'utf8', written);
-  fs.write(fd, expected, 0, 'utf8', done);
+  fs.write(fd, expected, done);
 }));
