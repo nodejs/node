@@ -1,5 +1,22 @@
 # C++ Style Guide
 
+## Table of Contents
+
+* [Left-leaning (C++ style) asterisks for pointer declarations](#left-leaning-c-style-asterisks-for-pointer-declarations)
+* [2 spaces of indentation for blocks or bodies of conditionals](#2-spaces-of-indentation-for-blocks-or-bodies-of-conditionals)
+* [4 spaces of indentation for statement continuations](#4-spaces-of-indentation-for-statement-continuations)
+* [Align function arguments vertically](#align-function-arguments-vertically)
+* [Initialization lists](#initialization-lists)
+* [CamelCase for methods, functions and classes](#camelcase-for-methods-functions-and-classes)
+* [snake\_case for local variables and parameters](#snake_case-for-local-variables-and-parameters)
+* [snake\_case\_ for private class fields](#snake_case_-for-private-class-fields)
+* [Space after `template`](#space-after-template)
+* [Type casting](#type-casting)
+* [Memory allocation](#memory-allocation)
+* [`nullptr` instead of `NULL` or `0`](#nullptr-instead-of-null-or-0)
+* [Do not include `*.h` if `*-inl.h` has already been included](#do-not-include-h-if--inlh-has-already-been-included)
+* [Avoid throwing JavaScript errors in nested C++ methods](#avoid-throwing-javascript-errors-in-nested-c-methods)
+
 Unfortunately, the C++ linter (based on
 [Google’s `cpplint`](https://github.com/google/styleguide)), which can be run
 explicitly via `make lint-cpp`, does not currently catch a lot of rules that are
