@@ -387,25 +387,6 @@ static void PrintErrorString(const char* format, ...) {
 }
 
 
-static void CheckImmediate(uv_check_t* handle) {
-  Environment* env = Environment::from_immediate_check_handle(handle);
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  MakeCallback(env->isolate(),
-               env->process_object(),
-               env->immediate_callback_string(),
-               0,
-               nullptr,
-               {0, 0}).ToLocalChecked();
-}
-
-
-static void IdleImmediateDummy(uv_idle_t* handle) {
-  // Do nothing. Only for maintaining event loop.
-  // TODO(bnoordhuis) Maybe make libuv accept nullptr idle callbacks.
-}
-
-
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
   switch (errorno) {
@@ -3284,39 +3265,40 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
 
-void NeedImmediateCallbackGetter(Local<Name> property,
-                                 const PropertyCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
-  const uv_check_t* immediate_check_handle = env->immediate_check_handle();
-  bool active = uv_is_active(
-      reinterpret_cast<const uv_handle_t*>(immediate_check_handle));
-  info.GetReturnValue().Set(active);
+bool MaybeStopImmediate(Environment* env) {
+  if (env->scheduled_immediate_count()[0] == 0) {
+    uv_check_stop(env->immediate_check_handle());
+    uv_idle_stop(env->immediate_idle_handle());
+    return true;
+  }
+  return false;
+}
+
+void CheckImmediate(uv_check_t* handle) {
+  Environment* env = Environment::from_immediate_check_handle(handle);
+  HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  if (MaybeStopImmediate(env))
+    return;
+
+  MakeCallback(env->isolate(),
+               env->process_object(),
+               env->immediate_callback_string(),
+               0,
+               nullptr,
+               {0, 0}).ToLocalChecked();
+
+  MaybeStopImmediate(env);
 }
 
 
-void NeedImmediateCallbackSetter(
-    Local<Name> property,
-    Local<Value> value,
-    const PropertyCallbackInfo<void>& info) {
-  Environment* env = Environment::GetCurrent(info);
-
-  uv_check_t* immediate_check_handle = env->immediate_check_handle();
-  bool active = uv_is_active(
-      reinterpret_cast<const uv_handle_t*>(immediate_check_handle));
-
-  if (active == value->BooleanValue())
-    return;
-
-  uv_idle_t* immediate_idle_handle = env->immediate_idle_handle();
-
-  if (active) {
-    uv_check_stop(immediate_check_handle);
-    uv_idle_stop(immediate_idle_handle);
-  } else {
-    uv_check_start(immediate_check_handle, CheckImmediate);
-    // Idle handle is needed only to stop the event loop from blocking in poll.
-    uv_idle_start(immediate_idle_handle, IdleImmediateDummy);
-  }
+void ActivateImmediateCheck(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_check_start(env->immediate_check_handle(), CheckImmediate);
+  // Idle handle is needed only to stop the event loop from blocking in poll.
+  uv_idle_start(env->immediate_idle_handle(),
+                [](uv_idle_t*){ /* do nothing, just keep the loop running */ });
 }
 
 
@@ -3542,12 +3524,11 @@ void SetupProcessObject(Environment* env,
   process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),
                        GetParentProcessId);
 
-  auto need_immediate_callback_string =
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_needImmediateCallback");
-  CHECK(process->SetAccessor(env->context(), need_immediate_callback_string,
-                             NeedImmediateCallbackGetter,
-                             NeedImmediateCallbackSetter,
-                             env->as_external()).FromJust());
+  auto scheduled_immediate_count =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_scheduledImmediateCount");
+  CHECK(process->Set(env->context(),
+                     scheduled_immediate_count,
+                     env->scheduled_immediate_count().GetJSArray()).FromJust());
 
   // -e, --eval
   if (eval_string) {
@@ -3673,6 +3654,9 @@ void SetupProcessObject(Environment* env,
                              env->as_external()).FromJust());
 
   // define various internal methods
+  env->SetMethod(process,
+                 "_activateImmediateCheck",
+                 ActivateImmediateCheck);
   env->SetMethod(process,
                  "_startProfilerIdleNotifier",
                  StartProfilerIdleNotifier);
