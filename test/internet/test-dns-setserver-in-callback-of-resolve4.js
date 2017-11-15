@@ -9,7 +9,14 @@ const { addresses } = require('../common/internet');
 const dns = require('dns');
 
 dns.resolve4(
-  addresses.INET4_HOST,
+  addresses.INET_HOST,
   common.mustCall(function(/* err, nameServers */) {
-    dns.setServers([ addresses.DNS4_SERVER ]);
+    dns.setServers([ '8.8.8.8' ]);
+  }));
+
+// Test https://github.com/nodejs/node/issues/14734
+dns.resolve4(
+  addresses.INET_HOST,
+  common.mustCall(function() {
+    // DO NOTHING
   }));

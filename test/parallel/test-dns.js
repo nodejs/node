@@ -244,3 +244,25 @@ assert.throws(() => {
   code: 'ERR_INVALID_CALLBACK',
   type: TypeError
 }));
+
+{
+  // Fix https://github.com/nodejs/node/issues/14734
+  const resolver = new dns.Resolver();
+  resolver.resolve('localhost', function(err/*, ret*/) {
+    // nothing
+  });
+
+  assert.throws(() => {
+    resolver.setServers(goog);
+  }, common.expectsError({
+    code: 'ERR_DNS_SET_SERVERS_FAILED',
+    message: /^c-ares failed to set servers: "There are pending queries\." \[.+\]$/g
+  }));
+
+  dns.resolve('localhost', function(err/*, ret*/) {
+    // nothing
+  });
+
+  // should not throw
+  dns.setServers(goog);
+}
