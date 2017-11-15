@@ -87,6 +87,13 @@ function next(er, input) {
       );
       break;
 
+    case 'man':
+      require('./man.js')(input, inputFile, function(er, manSrc) {
+        console.log(manSrc);
+        if (er) throw er;
+      });
+      break;
+
     default:
       throw new Error(`Invalid format: ${format}`);
   }
