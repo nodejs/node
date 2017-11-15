@@ -116,8 +116,9 @@ if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-http2"   set debug_http2=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
-if /i "%1"=="openssl-system-ca-path" ^
-set "openssl_system_ca_path= --openssl-system-ca-path=%2%"&goto arg-ok-2
+if /i "%1"=="openssl-system-ca-path" (
+  set "openssl_system_ca_path= --openssl-system-ca-path=%2%"&goto arg-ok-2
+)
 
 echo Error: invalid command line option `%1`.
 exit /b 1
