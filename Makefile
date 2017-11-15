@@ -314,7 +314,7 @@ test/addons/.buildstamp: config.gypi \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp update.
-build-addons: $(NODE_EXE) test/addons/.buildstamp
+build-addons: | $(NODE_EXE) test/addons/.buildstamp
 
 ADDONS_NAPI_BINDING_GYPS := \
 	$(filter-out test/addons-napi/??_*/binding.gyp, \
@@ -353,7 +353,7 @@ test/addons-napi/.buildstamp: config.gypi \
 # .buildstamp is out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-addons-napi: $(NODE_EXE) test/addons-napi/.buildstamp
+build-addons-napi: | $(NODE_EXE) test/addons-napi/.buildstamp
 
 clear-stalled:
 	# Clean up any leftover processes but don't error if found.
