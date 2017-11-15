@@ -1342,6 +1342,7 @@ void SecureContext::SetClientCertEngine(
   CHECK(args[0]->IsString());
 
   SecureContext* sc = Unwrap<SecureContext>(args.This());
+  CHECK_NE(sc, nullptr);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
