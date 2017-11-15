@@ -160,8 +160,9 @@ if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune
 if defined dll set configure_flags=%configure_flags% --shared
 if defined enable_static set configure_flags=%configure_flags% --enable-static
 if defined no_NODE_OPTIONS set configure_flags=%configure_flags% --without-node-options
-if defined openssl_system_ca_path ^
-set configure_flags=%configure_flags% %openssl_system_ca_path%
+if defined openssl_system_ca_path (
+  set configure_flags=%configure_flags% %openssl_system_ca_path%
+)
 
 REM if defined debug_http2 set configure_flags=%configure_flags% --debug-http2
 REM if defined debug_nghttp2 set configure_flags=%configure_flags% --debug-nghttp2
