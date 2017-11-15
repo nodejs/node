@@ -342,6 +342,44 @@ acknowledgement for a sent SETTINGS frame. Will be `true` after calling the
 `http2session.settings()` method. Will be `false` once all sent SETTINGS
 frames have been acknowledged.
 
+#### http2session.ping([payload, ]callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `payload` {Buffer|TypedArray|DataView} Optional ping payload.
+* `callback` {Function}
+* Returns: {boolean}
+
+Sends a `PING` frame to the connected HTTP/2 peer. A `callback` function must
+be provided. The method will return `true` if the `PING` was sent, `false`
+otherwise.
+
+The maximum number of outstanding (unacknowledged) pings is determined by the
+`maxOutstandingPings` configuration option. The default maximum is 10.
+
+If provided, the `payload` must be a `Buffer`, `TypedArray`, or `DataView`
+containing 8 bytes of data that will be transmitted with the `PING` and
+returned with the ping acknowledgement.
+
+The callback will be invoked with three arguments: an error argument that will
+be `null` if the `PING` was successfully acknowledged, a `duration` argument
+that reports the number of milliseconds elapsed since the ping was sent and the
+acknowledgement was received, and a `Buffer` containing the 8-byte `PING`
+payload.
+
+```js
+session.ping(Buffer.from('abcdefgh'), (err, duration, payload) => {
+  if (!err) {
+    console.log(`Ping acknowledged in ${duration} milliseconds`);
+    console.log(`With payload '${payload.toString()}`);
+  }
+});
+```
+
+If the `payload` argument is not specified, the default payload will be the
+64-bit timestamp (little endian) marking the start of the `PING` duration.
+
 #### http2session.remoteSettings
 <!-- YAML
 added: v8.4.0
@@ -408,19 +446,6 @@ the trailing header fields to send to the peer.
 "pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
-
-#### http2session.rstStream(stream, code)
-<!-- YAML
-added: v8.4.0
--->
-
-* stream {Http2Stream}
-* code {number} Unsigned 32-bit integer identifying the error code. **Default:**
-  `http2.constant.NGHTTP2_NO_ERROR` (`0x00`)
-* Returns: {undefined}
-
-Sends an `RST_STREAM` frame to the connected HTTP/2 peer, causing the given
-`Http2Stream` to be closed on both sides using [error code][] `code`.
 
 #### http2session.setTimeout(msecs, callback)
 <!-- YAML
@@ -513,28 +538,6 @@ added: v8.4.0
 
 An object describing the current status of this `Http2Session`.
 
-#### http2session.priority(stream, options)
-<!-- YAML
-added: v8.4.0
--->
-
-* `stream` {Http2Stream}
-* `options` {Object}
-  * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
-    the given stream is made the sole direct dependency of the parent, with
-    all other existing dependents made a dependent of the given stream. **Default:**
-    `false`
-  * `parent` {number} Specifies the numeric identifier of a stream the given
-    stream is dependent on.
-  * `weight` {number} Specifies the relative dependency of a stream in relation
-    to other streams with the same `parent`. The value is a number between `1`
-    and `256` (inclusive).
-  * `silent` {boolean} When `true`, changes the priority locally without
-    sending a `PRIORITY` frame to the connected peer.
-* Returns: {undefined}
-
-Updates the priority for the given `Http2Stream` instance.
-
 #### http2session.settings(settings)
 <!-- YAML
 added: v8.4.0
@@ -622,8 +625,7 @@ is not yet ready for use.
 All [`Http2Stream`][] instances are destroyed either when:
 
 * An `RST_STREAM` frame for the stream is received by the connected peer.
-* The `http2stream.rstStream()` or `http2session.rstStream()` methods are
-  called.
+* The `http2stream.rstStream()` methods is called.
 * The `http2stream.destroy()` or `http2session.destroy()` methods are called.
 
 When an `Http2Stream` instance is destroyed, an attempt will be made to send an
@@ -1471,6 +1473,10 @@ not be emitted.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17105
+    description: Added the `maxOutstandingPings` option with a default limit of
+                 10.
   - version: v9.1.0
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
@@ -1482,6 +1488,8 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `4`.
+  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+    unacknowledged pings. The default is `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1533,6 +1541,10 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17105
+    description: Added the `maxOutstandingPings` option with a default limit of
+                 10.
   - version: v9.1.0
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
@@ -1547,6 +1559,8 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `4`.
+  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+    unacknowledged pings. The default is `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
@@ -1605,6 +1619,10 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17105
+    description: Added the `maxOutstandingPings` option with a default limit of
+                 10.
   - version: v9.1.0
     pr-url: https://github.com/nodejs/node/pull/16676
     description: Added the `maxHeaderListPairs` option with a default limit of
@@ -1617,6 +1635,8 @@ changes:
     for deflating header fields. **Default:** `4Kib`
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     **Default:** `128`. The minimum value is `1`.
+  * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
+    unacknowledged pings. The default is `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
     streams the client will accept at any given time. Once the current number of
     currently reserved push streams exceeds reaches this limit, new push streams
