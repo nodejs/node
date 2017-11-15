@@ -124,6 +124,10 @@ can be fast-tracked and may be landed after a shorter delay:
   into this category.
 * Changes that revert commit(s) and/or fix regressions.
 
+When a pull request is deemed suitable to be fast-tracked, label it with
+`fast-track`. The pull request can be landed once more than 3 collaborators
+approve both the pull request and the fast-tracking request.
+
 ### Testing and CI
 
 All bugfixes require a test case which demonstrates the defect. The
