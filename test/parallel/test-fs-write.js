@@ -26,6 +26,7 @@ const path = require('path');
 const fs = require('fs');
 const fn = path.join(common.tmpDir, 'write.txt');
 const fn2 = path.join(common.tmpDir, 'write2.txt');
+const fn3 = path.join(common.tmpDir, 'write3.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
@@ -72,4 +73,16 @@ fs.open(fn2, args, 0o644, common.mustCall((err, fd) => {
 
   fs.write(fd, '', 0, 'utf8', written);
   fs.write(fd, expected, 0, 'utf8', done);
+}));
+
+fs.open(fn3, 'w', 0o644, common.mustCall(function(err, fd) {
+  assert.ifError(err);
+
+  const done = common.mustCall(function(err, written) {
+    assert.ifError(err);
+    assert.strictEqual(Buffer.byteLength(expected), written);
+    fs.closeSync(fd);
+  });
+
+  fs.write(fd, expected, done);
 }));
