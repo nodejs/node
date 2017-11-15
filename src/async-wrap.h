@@ -42,7 +42,8 @@ namespace node {
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \
   V(HTTP2SESSION)                                                             \
-  V(HTTP2SESSIONSHUTDOWNWRAP)                                                 \
+  V(HTTP2STREAM)                                                              \
+  V(HTTP2PING)                                                                \
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
   V(PIPECONNECTWRAP)                                                          \

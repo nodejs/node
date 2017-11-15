@@ -30,7 +30,7 @@ const tests = Object.getOwnPropertyNames(constants)
 let currentError;
 
 // mock submitGoaway because we only care about testing error handling
-Http2Session.prototype.submitGoaway = () => currentError.ngError;
+Http2Session.prototype.goaway = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {

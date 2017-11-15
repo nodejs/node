@@ -242,8 +242,6 @@
         'src/js_stream.h',
         'src/module_wrap.h',
         'src/node.h',
-        'src/node_http2_core.h',
-        'src/node_http2_core-inl.h',
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_debug_options.h',

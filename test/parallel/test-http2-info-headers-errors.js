@@ -7,29 +7,15 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const {
   constants,
-  Http2Session,
+  Http2Stream,
   nghttp2ErrorString
 } = process.binding('http2');
 
 // tests error handling within additionalHeaders
-// - NGHTTP2_ERR_NOMEM (should emit session error)
 // - every other NGHTTP2 error from binding (should emit stream error)
 
-const specificTestKeys = [
-  'NGHTTP2_ERR_NOMEM'
-];
-
-const specificTests = [
-  {
-    ngError: constants.NGHTTP2_ERR_NOMEM,
-    error: {
-      code: 'ERR_OUTOFMEMORY',
-      type: Error,
-      message: 'Out of memory'
-    },
-    type: 'session'
-  }
-];
+const specificTestKeys = [];
+const specificTests = [];
 
 const genericTests = Object.getOwnPropertyNames(constants)
   .filter((key) => (
@@ -51,7 +37,7 @@ const tests = specificTests.concat(genericTests);
 let currentError;
 
 // mock sendHeaders because we only care about testing error handling
-Http2Session.prototype.sendHeaders = () => currentError.ngError;
+Http2Stream.prototype.info = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
