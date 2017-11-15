@@ -8,6 +8,7 @@ const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
 const path = require('path');
+const Countdown = require('../common/countdown');
 
 // piping should work as expected with createWriteStream
 
@@ -31,19 +32,16 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const client = http2.connect(`http://localhost:${port}`);
 
-  let remaining = 2;
-  function maybeClose() {
-    if (--remaining === 0) {
-      server.close();
-      client.destroy();
-    }
-  }
+  const countdown = new Countdown(2, common.mustCall(() => {
+    server.close();
+    client.destroy();
+  }));
 
   const req = client.request({ ':method': 'POST' });
   req.on('response', common.mustCall());
   req.resume();
-  req.on('end', common.mustCall(maybeClose));
+  req.on('end', common.mustCall(() => countdown.dec()));
   const str = fs.createReadStream(loc);
-  str.on('end', common.mustCall(maybeClose));
+  str.on('end', common.mustCall(() => countdown.dec()));
   str.pipe(req);
 }));

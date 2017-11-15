@@ -104,7 +104,8 @@ assert.doesNotThrow(() => http2.getPackedSettings({ enablePush: false }));
     }, common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "buf" argument must be one of type Buffer or Uint8Array'
+      message:
+        'The "buf" argument must be one of type Buffer, TypedArray, or DataView'
     }));
   });
 
