@@ -67,7 +67,6 @@
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
-#include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
 
@@ -2931,7 +2930,6 @@ static void DebugPortSetter(Local<Name> property,
 
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
-static void DebugPause(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
@@ -3363,7 +3361,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_kill", Kill);
 
   env->SetMethod(process, "_debugProcess", DebugProcess);
-  env->SetMethod(process, "_debugPause", DebugPause);
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
   env->SetMethod(process, "hrtime", Hrtime);
@@ -4089,11 +4086,6 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
     CloseHandle(mapping);
 }
 #endif  // _WIN32
-
-
-static void DebugPause(const FunctionCallbackInfo<Value>& args) {
-  v8::Debug::DebugBreak(args.GetIsolate());
-}
 
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
