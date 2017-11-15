@@ -599,7 +599,7 @@ found [here][online].
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 ### ERR_ARG_NOT_ITERABLE
 
-An iterable argument (i.e. a value that works with `for...of` loops) is
+An iterable argument (i.e. a value that works with `for...of` loops) was
 required, but not provided to a Node.js API.
 
 <a id="ERR_ASSERTION"></a>
@@ -618,8 +618,8 @@ An attempt was made to register something that is not a function as an
 <a id="ERR_ASYNC_TYPE"></a>
 ### ERR_ASYNC_TYPE
 
-The type of an asynchronous resource is invalid. Note that users are also able
-to define their own types when using the public embedder API.
+The type of an asynchronous resource was invalid. Note that users are also able
+to define their own types if using the public embedder API.
 
 <a id="ERR_BUFFER_OUT_OF_BOUNDS"></a>
 ### ERR_BUFFER_OUT_OF_BOUNDS
@@ -680,13 +680,13 @@ to enable or disable FIPS mode in the `crypto` module.
 <a id="ERR_CRYPTO_FIPS_UNAVAILABLE"></a>
 ### ERR_CRYPTO_FIPS_UNAVAILABLE
 
-There was an attempt to enable or disable FIPS mode, but FIPS mode is not
+An attempt was made to enable or disable FIPS mode, but FIPS mode was not
 available.
 
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
 ### ERR_CRYPTO_HASH_DIGEST_NO_UTF16
 
-The UTF-16 encoding was used with [`hash.digest()`][]. While the 
+The UTF-16 encoding was used with [`hash.digest()`][]. While the
 `hash.digest()` method does allow an `encoding` argument to be passed in,
 causing the method to return a string rather than a `Buffer`, the UTF-16
 encoding (e.g. `ucs` or `utf16le`) is not supported.
@@ -710,8 +710,8 @@ An invalid [crypto digest algorithm][] was specified.
 <a id="ERR_CRYPTO_INVALID_STATE"></a>
 ### ERR_CRYPTO_INVALID_STATE
 
-A crypto method was used on an object that is in an invalid state. For instance,
-calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
+A crypto method was used on an object that was in an invalid state. For
+instance, calling [`cipher.getAuthTag()`][] before calling `cipher.final()`.
 
 <a id="ERR_CRYPTO_SIGN_KEY_REQUIRED"></a>
 ### ERR_CRYPTO_SIGN_KEY_REQUIRED
@@ -732,7 +732,7 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 <a id="ERR_ENCODING_INVALID_ENCODED_DATA"></a>
 ### ERR_ENCODING_INVALID_ENCODED_DATA
 
-Data provided to `util.TextDecoder()` API is invalid according to the encoding
+Data provided to `util.TextDecoder()` API was invalid according to the encoding
 provided.
 
 <a id="ERR_ENCODING_NOT_SUPPORTED"></a>
@@ -750,7 +750,7 @@ falsy value.
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 ### ERR_HTTP_HEADERS_SENT
 
-Headers have already been sent and another attempt was made to add more headers.
+An attempt was made to add more headers after the headers had already been sent.
 
 <a id="ERR_HTTP_INVALID_CHAR"></a>
 ### ERR_HTTP_INVALID_CHAR
@@ -761,12 +761,12 @@ phrase).
 <a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP_INVALID_HEADER_VALUE
 
-An invalid HTTP header value has been specified.
+An invalid HTTP header value was specified.
 
 <a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
 ### ERR_HTTP_INVALID_STATUS_CODE
 
-Status code is outside the regular status code range (100-999).
+Status code was outside the regular status code range (100-999).
 
 <a id="ERR_HTTP_TRAILER_INVALID"></a>
 ### ERR_HTTP_TRAILER_INVALID
@@ -800,23 +800,23 @@ A failure occurred sending an individual frame on the HTTP/2 session.
 <a id="ERR_HTTP2_HEADER_REQUIRED"></a>
 ### ERR_HTTP2_HEADER_REQUIRED
 
-A required header is missing in an HTTP/2 message.
+A required header was missing in an HTTP/2 message.
 
 <a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
 ### ERR_HTTP2_HEADER_SINGLE_VALUE
 
-Multiple values have been provided for an HTTP/2 header field that is required
-to have only a single value.
+Multiple values were provided for an HTTP/2 header field that was required to
+have only a single value.
 
 <a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
 ### ERR_HTTP2_HEADERS_AFTER_RESPOND
 
-Additional headers may not be specified after an HTTP/2 response initiated.
+An additional headers was specified after an HTTP/2 response was initiated.
 
 <a id="ERR_HTTP2_HEADERS_OBJECT"></a>
 ### ERR_HTTP2_HEADERS_OBJECT
 
-An HTTP/2 Headers Object is expected.
+An HTTP/2 Headers Object was expected.
 
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 ### ERR_HTTP2_HEADERS_SENT
@@ -844,7 +844,7 @@ requests and responses.
 <a id="ERR_HTTP2_INVALID_HEADER_VALUE"></a>
 ### ERR_HTTP2_INVALID_HEADER_VALUE
 
-An invalid HTTP2 header value has been specified.
+An invalid HTTP/2 header value was specified.
 
 <a id="ERR_HTTP2_INVALID_INFO_STATUS"></a>
 ### ERR_HTTP2_INVALID_INFO_STATUS
@@ -868,7 +868,7 @@ and `:method`) may be used.
 <a id="ERR_HTTP2_INVALID_SESSION"></a>
 ### ERR_HTTP2_INVALID_SESSION
 
-An action was performed on an `Http2Session` object that has already been
+An action was performed on an `Http2Session` object that had already been
 destroyed.
 
 <a id="ERR_HTTP2_INVALID_SETTING_VALUE"></a>
@@ -879,7 +879,7 @@ An invalid value has been specified for an HTTP/2 setting.
 <a id="ERR_HTTP2_INVALID_STREAM"></a>
 ### ERR_HTTP2_INVALID_STREAM
 
-An operation has been performed on a stream that has already been destroyed.
+An operation was performed on a stream that had already been destroyed.
 
 <a id="ERR_HTTP2_MAX_PENDING_SETTINGS_ACK"></a>
 ### ERR_HTTP2_MAX_PENDING_SETTINGS_ACK
@@ -893,13 +893,14 @@ reached.
 <a id="ERR_HTTP2_NO_SOCKET_MANIPULATION"></a>
 ### ERR_HTTP2_NO_SOCKET_MANIPULATION
 
-A socket attached to an `Http2Session` may not be directly manipulated
-(e.g read, write, pause, resume, etc.).
+An attempt was made to directly manipulate (read, write, pause, resume, etc.) a
+socket attached to an `Http2Session`.
 
 <a id="ERR_HTTP2_OUT_OF_STREAMS"></a>
 ### ERR_HTTP2_OUT_OF_STREAMS
 
-The maximum number of streams on a single HTTP/2 session have been created.
+The number of streams created on a single HTTP/2 session reached the maximum
+limit.
 
 <a id="ERR_HTTP2_PAYLOAD_FORBIDDEN"></a>
 ### ERR_HTTP2_PAYLOAD_FORBIDDEN
@@ -916,20 +917,20 @@ key names that begin with the `:` prefix.
 <a id="ERR_HTTP2_PUSH_DISABLED"></a>
 ### ERR_HTTP2_PUSH_DISABLED
 
-Push streams have been disabled by the client, but an attempt to create a push
-stream was made.
+An attempt was made to create a push stream, which had been disabled by the
+client.
 
 <a id="ERR_HTTP2_SEND_FILE"></a>
 ### ERR_HTTP2_SEND_FILE
 
-The `Http2Stream.prototype.responseWithFile()` API may only be used to send a
-regular file.
+An attempt was made to use the `Http2Stream.prototype.responseWithFile()` API to
+send something other than a regular file.
 
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
 An attempt was made to connect a `Http2Session` object to a `net.Socket` or
-`tls.TLSSocket` that has already been bound to another `Http2Session` object.
+`tls.TLSSocket` that had already been bound to another `Http2Session` object.
 
 <a id="ERR_HTTP2_STATUS_101"></a>
 ### ERR_HTTP2_STATUS_101
@@ -945,12 +946,12 @@ between `100` and `599` (inclusive).
 <a id="ERR_HTTP2_STREAM_CLOSED"></a>
 ### ERR_HTTP2_STREAM_CLOSED
 
-An action has been performed on an HTTP/2 Stream that has already been closed.
+An action was performed on an HTTP/2 Stream that had already been closed.
 
 <a id="ERR_HTTP2_STREAM_ERROR"></a>
 ### ERR_HTTP2_STREAM_ERROR
 
-A non-zero error code has been specified in an `RST_STREAM` frame.
+A non-zero error code was been specified in an `RST_STREAM` frame.
 
 <a id="ERR_HTTP2_STREAM_SELF_DEPENDENCY"></a>
 ### ERR_HTTP2_STREAM_SELF_DEPENDENCY
@@ -968,19 +969,19 @@ made to mark a stream and dependent of itself.
 <a id="ERR_INDEX_OUT_OF_RANGE"></a>
 ### ERR_INDEX_OUT_OF_RANGE
 
-A given index is out of the accepted range (e.g. negative offsets).
+A given index was out of the accepted range (e.g. negative offsets).
 
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### ERR_INSPECTOR_ALREADY_CONNECTED
 
 While using the `inspector` module, an attempt was made to connect when the
-inspector is already connected.
+inspector was already connected.
 
 <a id="ERR_INSPECTOR_CLOSED"></a>
 ### ERR_INSPECTOR_CLOSED
 
 While using the `inspector` module, an attempt was made to use the inspector
-after the session has already closed.
+after the session had already closed.
 
 <a id="ERR_INSPECTOR_NOT_AVAILABLE"></a>
 ### ERR_INSPECTOR_NOT_AVAILABLE
@@ -996,40 +997,39 @@ before it was connected.
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
-An argument of the wrong type has been passed to a Node.js API.
+An argument of the wrong type was passed to a Node.js API.
 
 <a id="ERR_INVALID_ARG_VALUE"></a>
 ### ERR_INVALID_ARG_VALUE
 
-An invalid or unsupported value has been passed for a given argument.
+An invalid or unsupported value was passed for a given argument.
 
 <a id="ERR_INVALID_ARRAY_LENGTH"></a>
 ### ERR_INVALID_ARRAY_LENGTH
 
-An Array is not of the expected length or in a valid range.
+An Array was not of the expected length or in a valid range.
 
 <a id="ERR_INVALID_ASYNC_ID"></a>
 ### ERR_INVALID_ASYNC_ID
 
 An invalid `asyncId` or `triggerAsyncId` was passed using `AsyncHooks`. An id
-less than -1 should
-never happen.
+less than -1 should never happen.
 
 <a id="ERR_INVALID_BUFFER_SIZE"></a>
 ### ERR_INVALID_BUFFER_SIZE
 
-A swap was performed on a `Buffer` but its size is not compatible with the
+A swap was performed on a `Buffer` but its size was not compatible with the
 operation.
 
 <a id="ERR_INVALID_CALLBACK"></a>
 ### ERR_INVALID_CALLBACK
 
-A callback function is required and has not been provided to a Node.js API.
+A callback function was required but was not been provided to a Node.js API.
 
 <a id="ERR_INVALID_CHAR"></a>
 ### ERR_INVALID_CHAR
 
-Invalid characters are detected in headers.
+Invalid characters were detected in headers.
 
 <a id="ERR_INVALID_CURSOR_POS"></a>
 ### ERR_INVALID_CURSOR_POS
@@ -1045,12 +1045,12 @@ specified column.
 <a id="ERR_INVALID_FD"></a>
 ### ERR_INVALID_FD
 
-A file descriptor ('fd') is not valid (e.g. it has a negative value).
+A file descriptor ('fd') was not valid (e.g. it was a negative value).
 
 <a id="ERR_INVALID_FD_TYPE"></a>
 ### ERR_INVALID_FD_TYPE
 
-A file descriptor ('fd') type is not valid.
+A file descriptor ('fd') type was not valid.
 
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
@@ -1077,7 +1077,7 @@ more information.
 <a id="ERR_INVALID_HTTP_TOKEN"></a>
 ### ERR_INVALID_HTTP_TOKEN
 
-`options.method` received an invalid HTTP token.
+An invalid HTTP token was supplied.
 
 <a id="ERR_INVALID_IP_ADDRESS"></a>
 ### ERR_INVALID_IP_ADDRESS
@@ -1087,7 +1087,7 @@ An IP address is not valid.
 <a id="ERR_INVALID_OPT_VALUE"></a>
 ### ERR_INVALID_OPT_VALUE
 
-An invalid or unexpected value has been passed in an options object.
+An invalid or unexpected value was passed in an options object.
 
 <a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
 ### ERR_INVALID_OPT_VALUE_ENCODING
@@ -1103,13 +1103,13 @@ invalid.
 <a id="ERR_INVALID_PROTOCOL"></a>
 ### ERR_INVALID_PROTOCOL
 
-An invalid `options.protocol` is passed.
+An invalid `options.protocol` was passed.
 
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
 
-Both `breakEvalOnSigint` and `eval` options are set in the REPL config, which is
-not supported.
+Both `breakEvalOnSigint` and `eval` options were set in the REPL config, which
+is not supported.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
@@ -1138,7 +1138,7 @@ urlSearchParams.has.call(buf, 'foo');
 ### ERR_INVALID_TUPLE
 
 An element in the `iterable` provided to the [WHATWG][WHATWG URL API]
-[`URLSearchParams` constructor][`new URLSearchParams(iterable)`] does not
+[`URLSearchParams` constructor][`new URLSearchParams(iterable)`] did not
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
@@ -1166,14 +1166,13 @@ in other Node.js APIs as well in the future.
 <a id="ERR_IPC_CHANNEL_CLOSED"></a>
 ### ERR_IPC_CHANNEL_CLOSED
 
-An attempt was made to use an IPC communication channel that has already been
-closed.
+An attempt was made to use an IPC communication channel that was already closed.
 
 <a id="ERR_IPC_DISCONNECTED"></a>
 ### ERR_IPC_DISCONNECTED
 
-An attempt is made to disconnect an already disconnected IPC communication
-channel between two Node.js processes. See the documentation for the
+An attempt was made to disconnect an IPC communication channel that was already
+disconnected. See the documentation for the
 [`child_process`](child_process.html) module for more information.
 
 <a id="ERR_IPC_ONE_PIPE"></a>
@@ -1186,7 +1185,7 @@ communication channel. See the documentation for the
 <a id="ERR_IPC_SYNC_FORK"></a>
 ### ERR_IPC_SYNC_FORK
 
-An attempt was made to open an IPC communication channel with a synchronous
+An attempt was made to open an IPC communication channel with a synchronously
 forked Node.js process. See the documentation for the
 [`child_process`](child_process.html) module for more information.
 
@@ -1248,7 +1247,7 @@ While using `N-API`, `Constructor.prototype` was not an object.
 <a id="ERR_NO_CRYPTO"></a>
 ### ERR_NO_CRYPTO
 
-An attempt was made to use crypto features while Node.js is not compiled with
+An attempt was made to use crypto features while Node.js was not compiled with
 OpenSSL crypto support.
 
 <a id="ERR_NO_ICU"></a>
@@ -1267,7 +1266,7 @@ For example: `Buffer.write(string, encoding, offset[, length])`
 <a id="ERR_OUTOFMEMORY"></a>
 ### ERR_OUTOFMEMORY
 
-An operation caused an out of memory condition.
+An operation caused an out-of-memory condition.
 
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE
@@ -1301,7 +1300,7 @@ An attempt was made to bind a socket that has already been bound.
 <a id="ERR_SOCKET_BAD_BUFFER_SIZE"></a>
 ### ERR_SOCKET_BAD_BUFFER_SIZE
 
-An invalid (negative) size is passed for either the `recvBufferSize` or
+An invalid (negative) size was passed for either the `recvBufferSize` or
 `sendBufferSize` options in [`dgram.createSocket()`][].
 
 <a id="ERR_SOCKET_BAD_PORT"></a>
@@ -1312,7 +1311,7 @@ An API function expecting a port > 0 and < 65536 received an invalid value.
 <a id="ERR_SOCKET_BAD_TYPE"></a>
 ### ERR_SOCKET_BAD_TYPE
 
-An API function expecting a socket type (`udp4` or `udp6`) receivee an invalid
+An API function expecting a socket type (`udp4` or `udp6`) received an invalid
 value.
 
 <a id="ERR_SOCKET_BUFFER_SIZE"></a>
@@ -1340,13 +1339,13 @@ A call was made and the UDP subsystem was not running.
 ### ERR_STDERR_CLOSE
 
 An attempt was made to close the `process.stderr` stream. By design, Node.js
-does not allow `stdout` or `stderr` Streams to be closed by user code.
+does not allow `stdout` or `stderr` streams to be closed by user code.
 
 <a id="ERR_STDOUT_CLOSE"></a>
 ### ERR_STDOUT_CLOSE
 
 An attempt was made to close the `process.stdout` stream. By design, Node.js
-does not allow `stdout` or `stderr` Streams to be closed by user code.
+does not allow `stdout` or `stderr` streams to be closed by user code.
 
 <a id="ERR_STREAM_CANNOT_PIPE"></a>
 ### ERR_STREAM_CANNOT_PIPE
@@ -1367,20 +1366,20 @@ pushed to the stream.
 <a id="ERR_STREAM_READ_NOT_IMPLEMENTED"></a>
 ### ERR_STREAM_READ_NOT_IMPLEMENTED
 
-An attempt was made to use a readable stream that has not implemented
+An attempt was made to use a readable stream that did not implement
 [`readable._read()`][].
 
 <a id="ERR_STREAM_UNSHIFT_AFTER_END_EVENT"></a>
 ### ERR_STREAM_UNSHIFT_AFTER_END_EVENT
 
-An attempt was made to call [`stream.unshift()`][] after the `end` event has
-been emitted.
+An attempt was made to call [`stream.unshift()`][] after the `end` event was
+emitted.
 
 <a id="ERR_STREAM_WRAP"></a>
 ### ERR_STREAM_WRAP
 
-Prevents an abort if a string decoder was set on the Socket or if in
-`objectMode`.
+Prevents an abort if a string decoder was set on the Socket or if the decoder
+is in `objectMode`.
 
 Example
 ```js
@@ -1453,7 +1452,7 @@ A Transform stream finished with data still in the write buffer.
 <a id="ERR_UNESCAPED_CHARACTERS"></a>
 ### ERR_UNESCAPED_CHARACTERS
 
-A string that contains unescaped characters was received.
+A string that contained unescaped characters was received.
 
 <a id="ERR_UNHANDLED_ERROR"></a>
 ### ERR_UNHANDLED_ERROR
@@ -1471,14 +1470,15 @@ An invalid or unknown encoding option was passed to an API.
 
 > Stability: 1 - Experimental
 
-Attempting to load a module with an unknown or unsupported file extension.
+An attempt was made to load a module with an unknown or unsupported file
+extension.
 
 <a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
 ### ERR_UNKNOWN_MODULE_FORMAT
 
 > Stability: 1 - Experimental
 
-Attempting to load a module with an unknown or unsupported format.
+An attempt was made to load a module with an unknown or unsupported format.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
@@ -1490,17 +1490,15 @@ signal (such as [`subprocess.kill()`][]).
 ### ERR_UNKNOWN_STDIN_TYPE
 
 An attempt was made to launch a Node.js process with an unknown `stdin` file
-type. Errors of this kind cannot typically be caused by errors in user code,
-although it is possible. Occurrences of this error are more likely an indication
-of a bug within Node.js itself.
+type. This error is usually an indication of a bug within Node.js itself,
+although it is possible for user code to trigger it.
 
 <a id="ERR_UNKNOWN_STREAM_TYPE"></a>
 ### ERR_UNKNOWN_STREAM_TYPE
 
 An attempt was made to launch a Node.js process with an unknown `stdout` or
-`stderr` file type. Errors of this kind cannot typically be caused by errors in
-user code, although it is possible. Occurrences of this error are most likely an
-indication of a bug within Node.js itself.
+`stderr` file type. This error is usually an indication of a bug within Node.js
+itself, although it is possible for user code to trigger it.
 
 <a id="ERR_V8BREAKITERATOR"></a>
 ### ERR_V8BREAKITERATOR
