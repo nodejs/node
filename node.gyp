@@ -876,10 +876,11 @@
           'conditions': [
             ['OS!="mac" and OS!="linux"', {
               'libraries': [
+                '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_provider.<(OBJ_SUFFIX)',
                 '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
               ]
             }],
-            ['OS!="mac"', {
+            ['OS=="linux"', {
               'libraries': [
                 '<(SHARED_INTERMEDIATE_DIR)/node_dtrace_provider.o',
               ]
