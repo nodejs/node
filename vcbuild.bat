@@ -561,8 +561,7 @@ echo   vcbuild.bat enable-vtune                : builds nodejs with Intel VTune 
 echo   vcbuild.bat link-module my_module.js    : bundles my_module as built-in module
 echo   vcbuild.bat lint                        : runs the C++ and JavaScript linter
 echo   vcbuild.bat openssl-system-ca-path path : builds using the specified path ^
-to system CA (PEM format) in addition to the OpenSSL supplied CA store or ^
-compiled-in Mozilla CA copy
+to system CA (PEM format) in addition to the compiled-in Mozilla CA copy
 goto exit
 
 :run-python
