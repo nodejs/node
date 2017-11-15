@@ -304,6 +304,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       abort_on_uncaught_exception_(false),
       emit_napi_warning_(true),
       makecallback_cntr_(0),
+      scheduled_immediate_count_(isolate_, 1),
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
@@ -531,6 +532,11 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
+}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::scheduled_immediate_count() {
+  return scheduled_immediate_count_;
 }
 
 inline performance::performance_state* Environment::performance_state() {
