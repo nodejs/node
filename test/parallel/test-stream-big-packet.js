@@ -26,13 +26,6 @@ const stream = require('stream');
 
 let passed = false;
 
-class PassThrough extends stream.Transform {
-  _transform(chunk, encoding, done) {
-    this.push(chunk);
-    done();
-  }
-}
-
 class TestStream extends stream.Transform {
   _transform(chunk, encoding, done) {
     if (!passed) {
@@ -43,15 +36,15 @@ class TestStream extends stream.Transform {
   }
 }
 
-const s1 = new PassThrough();
-const s2 = new PassThrough();
+const s1 = new stream.PassThrough();
+const s2 = new stream.PassThrough();
 const s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
 s2.pipe(s3, { end: false });
 
 // We must write a buffer larger than highWaterMark
-const big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
+const big = Buffer.alloc(s1.writableHighWaterMark + 1, 'x');
 
 // Since big is larger than highWaterMark, it will be buffered internally.
 assert(!s1.write(big));

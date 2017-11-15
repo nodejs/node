@@ -29,7 +29,8 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V9.md#9.1.0">9.1.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V9.md#9.2.0">9.2.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V9.md#9.1.0">9.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V9.md#9.0.0">9.0.0</a><br/>
     </td>
     <td valign="top">

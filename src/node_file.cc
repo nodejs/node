@@ -25,6 +25,7 @@
 
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
+#include "string_search.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -466,8 +467,9 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 }
 
 // Used to speed up module loading.  Returns the contents of the file as
-// a string or undefined when the file cannot be opened.  The speedup
-// comes from not creating Error objects on failure.
+// a string or undefined when the file cannot be opened.  Returns an empty
+// string when the file does not contain the substring '"main"' because that
+// is the property we care about.
 static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_loop_t* loop = env->event_loop();
@@ -516,7 +518,7 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
   }
 
   const size_t size = offset - start;
-  if (size == 0) {
+  if (size == 0 || size == SearchString(&chars[start], size, "\"main\"")) {
     args.GetReturnValue().SetEmptyString();
   } else {
     Local<String> chars_string =
@@ -1473,4 +1475,4 @@ void InitFs(Local<Object> target,
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs, node::InitFs)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::InitFs)

@@ -483,4 +483,4 @@ void InitializeSerdesBindings(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(serdes, node::InitializeSerdesBindings)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(serdes, node::InitializeSerdesBindings)

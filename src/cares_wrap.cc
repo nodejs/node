@@ -160,7 +160,7 @@ class ChannelWrap : public AsyncWrap {
   }
   inline node_ares_task_list* task_list() { return &task_list_; }
 
-  size_t self_size() const override { return sizeof(this); }
+  size_t self_size() const override { return sizeof(*this); }
 
   static void AresTimeout(uv_timer_t* handle);
 
@@ -2265,4 +2265,4 @@ void Initialize(Local<Object> target,
 }  // namespace cares_wrap
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(cares_wrap, node::cares_wrap::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(cares_wrap, node::cares_wrap::Initialize)
