@@ -3,8 +3,10 @@
 **Contents**
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
+  - [Managing Issues and Pull Requests](#managing-issues-and-pull-requests)
+  - [Welcoming First-Time Contributiors](#welcoming-first-time-contributiors)
+  - [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
-  - [First Time Contributions](#first-time-contributions)
   - [Code Reviews and Consensus Seeking](#code-reviews-and-consensus-seeking)
   - [Waiting for Approvals](#waiting-for-approvals)
   - [Testing and CI](#testing-and-ci)
@@ -40,12 +42,31 @@ understand the project governance model as outlined in
 
 ## Issues and Pull Requests
 
+### Managing Issues and Pull Requests
+
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the [TSC][].
+opinions of other Collaborators and guidance of the [TSC][]. They
+may also notify other qualified parties for more input on an issue
+or a pull request.
+[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
-Collaborators may **close** any issue or pull request they believe is
+### Welcoming First-Time Contributiors
+
+Courtesy should always be shown to individuals submitting issues and pull
+requests to the Node.js project. Be welcoming to first-time contributors,
+identified by the GitHub ![badge](./doc/first_timer_badge.png) badge.
+
+For first-time contributors, check if the commit author is the same as the
+pull request author, and ask if they have configured their git
+username and email to their liking as per [this guide][git-username].
+This is to make sure they would be promoted to "contributor" once
+their pull request gets landed.
+
+### Closing Issues and Pull Requests
+
+Collaborators may close any issue or pull request they believe is
 not relevant for the future of the Node.js project. Where this is
 unclear, the issue should be left open for several days to allow for
 additional discussion. Where this does not yield input from Node.js
@@ -53,26 +74,12 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
-[See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
-
 ## Accepting Modifications
 
 All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
 Collaborators and TSC members. A pull request must be reviewed, and usually
 must also be tested with CI, before being landed into the codebase.
-
-### First Time Contributions
-
-Courtesy should **always** be shown to individuals submitting issues and pull
-requests to the Node.js project. Be welcoming to first time contributors,
-identified by the GitHub ![badge](./doc/first_timer_badge.png) badge.
-
-For first time contributors, check if the commit author is the same as the
-pull request author, and ask if they have configured their git
-username and email to their liking as per [this guide][git-username].
-This is to make sure they would be promoted to "contributor" once
-their pull request gets landed.
 
 ### Code Reviews and Consensus Seeking
 
@@ -210,7 +217,7 @@ result, a decision will need to be made whether or not that falls within the
 supported scope of that API; and if it does, it should be documented.
 
 See [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-on how to handle that type of changes.
+on how to handle those types of changes.
 
 ### Breaking Changes
 
@@ -225,17 +232,10 @@ changing error messages in any way, altering expected timing of an event (e.g.
 moving from sync to async responses or vice versa), and changing the
 non-internal side effects of using a particular API.
 
-Purely additive changes (e.g. adding new events to EventEmitter
+Purely additive changes (e.g. adding new events to `EventEmitter`
 implementations, adding new arguments to a method in a way that allows
 existing code to continue working without modification, or adding new
-properties to an options argument) are handled as semver-minor changes.
-
-Note that errors thrown, along with behaviors and APIs implemented by
-dependencies of Node.js (e.g. those originating from V8) are generally not
-under the control of Node.js and therefore *are not directly subject to this
-policy*. However, care should still be taken when landing updates to
-dependencies when it is known or expected that breaking changes to error
-handling may have been made. Additional CI testing may be required.
+properties to an options argument) are semver-minor changes.
 
 #### Breaking Changes and Deprecations
 
@@ -254,6 +254,13 @@ Exception to this rule is given in the following cases:
 
 Such changes *must* be handled as semver-major changes but MAY be landed
 without a [Deprecation cycle](#deprecation-cycle).
+
+Note that errors thrown, along with behaviors and APIs implemented by
+dependencies of Node.js (e.g. those originating from V8) are generally not
+under the control of Node.js and therefore *are not directly subject to this
+policy*. However, care should still be taken when landing updates to
+dependencies when it is known or expected that breaking changes to error
+handling may have been made. Additional CI testing may be required.
 
 From time-to-time, in particularly exceptional cases, the TSC may be asked to
 consider and approve additional exceptions to this rule.
