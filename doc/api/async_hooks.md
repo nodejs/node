@@ -76,7 +76,7 @@ function promiseResolve(asyncId) { }
 #### `async_hooks.createHook(callbacks)`
 
 <!-- YAML
-added: v9.0.0
+added: v8.1.0
 -->
 
 * `callbacks` {Object} The [Hook Callbacks][] to register
