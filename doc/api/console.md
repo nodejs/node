@@ -431,15 +431,6 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.debug(data[, ...args])
-<!-- YAML
-added: v8.0.0
--->
-* `data` {any}
-* `...args` {any}
-
-The `console.debug()` function is an alias for [`console.log()`][].
-
 ### console.dirxml(object)
 <!-- YAML
 added: v8.0.0
