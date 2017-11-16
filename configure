@@ -144,7 +144,7 @@ parser.add_option("--partly-static",
 parser.add_option("--enable-vtune-profiling",
     action="store_true",
     dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel VTune profiler to profile"
+    help="Enable profiling support for Intel VTune profiler to profile "
          "JavaScript code executed in nodejs. This feature is only available "
          "for x32, x86 and x64 architectures.")
 
@@ -152,9 +152,9 @@ parser.add_option("--enable-vtune-profiling",
 parser.add_option("--link-module",
     action="append",
     dest="linked_module",
-    help="Path to a JS file to be bundled in the binary as a builtin."
-         "This module will be referenced by path without extension."
-         "e.g. /root/x/y.js will be referenced via require('root/x/y')."
+    help="Path to a JS file to be bundled in the binary as a builtin. "
+         "This module will be referenced by path without extension; "
+         "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
 parser.add_option("--openssl-no-asm",
