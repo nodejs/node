@@ -1211,8 +1211,7 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
 
-  http2_state* state = new http2_state(isolate);
-  env->set_http2_state(state);
+  std::unique_ptr<http2_state> state(new http2_state(isolate));
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
@@ -1233,6 +1232,8 @@ void Initialize(Local<Object> target,
   SET_STATE_TYPEDARRAY(
     "optionsBuffer", state->options_buffer.GetJSArray());
 #undef SET_STATE_TYPEDARRAY
+
+  env->set_http2_state(std::move(state));
 
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_FRAME_LENGTH);
   NODE_DEFINE_CONSTANT(target, PADDING_BUF_MAX_PAYLOAD_LENGTH);
