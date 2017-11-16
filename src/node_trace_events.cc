@@ -133,4 +133,4 @@ void InitializeTraceEvents(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(trace_events, node::InitializeTraceEvents)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(trace_events, node::InitializeTraceEvents)

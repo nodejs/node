@@ -38,6 +38,12 @@
 
 #include <string>
 
+enum {
+  NM_F_BUILTIN  = 1 << 0,
+  NM_F_LINKED   = 1 << 1,
+  NM_F_INTERNAL = 1 << 2,
+};
+
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
@@ -98,6 +104,7 @@ struct sockaddr;
     V(stream_wrap)                                                            \
     V(tcp_wrap)                                                               \
     V(timer_wrap)                                                             \
+    V(trace_events)                                                           \
     V(tty_wrap)                                                               \
     V(udp_wrap)                                                               \
     V(url)                                                                    \
