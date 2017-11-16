@@ -36,15 +36,15 @@ class MyStream extends Readable {
       case 0:
         return this.push(null);
       case 1:
-        return setTimeout(function() {
+        return setTimeout(() => {
           this.push('last chunk');
-        }.bind(this), 100);
+        }, 100);
       case 2:
         return this.push('second to last chunk');
       case 3:
-        return process.nextTick(function() {
+        return process.nextTick(() => {
           this.push('first chunk');
-        }.bind(this));
+        });
       default:
         throw new Error('?');
     }

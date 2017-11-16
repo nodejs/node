@@ -211,14 +211,14 @@ const Transform = require('_stream_transform');
     if (!chunk)
       chunk = '';
     const s = chunk.toString();
-    setTimeout(function() {
+    setTimeout(() => {
       this.state += s.charAt(0);
       if (this.state.length === 3) {
         pt.push(Buffer.from(this.state));
         this.state = '';
       }
       cb();
-    }.bind(this), 10);
+    }, 10);
   };
 
   pt._flush = function(cb) {
