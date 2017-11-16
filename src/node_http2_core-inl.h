@@ -10,7 +10,6 @@
 namespace node {
 namespace http2 {
 
-#ifdef NODE_DEBUG_HTTP2
 inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
                                          const char* message,
                                          size_t len,
@@ -18,9 +17,9 @@ inline int Nghttp2Session::OnNghttpError(nghttp2_session* session,
   Nghttp2Session* handle = static_cast<Nghttp2Session*>(user_data);
   DEBUG_HTTP2("Nghttp2Session %s: Error '%.*s'\n",
               handle->TypeName(), len, message);
+  handle->OnProtocolError(message, len);
   return 0;
 }
-#endif
 
 inline int32_t GetFrameID(const nghttp2_frame* frame) {
   // If this is a push promise, we want to grab the id of the promised stream
@@ -895,11 +894,8 @@ Nghttp2Session::Callbacks::Callbacks(bool kHasGetPaddingCallback) {
     callbacks, OnFrameNotSent);
   nghttp2_session_callbacks_set_on_invalid_header_callback2(
     callbacks, OnInvalidHeader);
-
-#ifdef NODE_DEBUG_HTTP2
   nghttp2_session_callbacks_set_error_callback(
     callbacks, OnNghttpError);
-#endif
 
   if (kHasGetPaddingCallback) {
     nghttp2_session_callbacks_set_select_padding_callback(

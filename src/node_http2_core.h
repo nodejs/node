@@ -180,6 +180,7 @@ class Nghttp2Session {
       size_t count,
       nghttp2_headers_category cat,
       uint8_t flags) {}
+  virtual void OnProtocolError(const char* message, size_t len) {}
   virtual void OnStreamClose(int32_t id, uint32_t code) {}
   virtual void OnDataChunk(Nghttp2Stream* stream,
                            uv_buf_t* chunk) {}
@@ -239,13 +240,10 @@ class Nghttp2Session {
                                  uint32_t* flags);
 
   /* callbacks for nghttp2 */
-#ifdef NODE_DEBUG_HTTP2
   static inline int OnNghttpError(nghttp2_session* session,
                                   const char* message,
                                   size_t len,
                                   void* user_data);
-#endif
-
   static inline int OnBeginHeadersCallback(nghttp2_session* session,
                                            const nghttp2_frame* frame,
                                            void* user_data);

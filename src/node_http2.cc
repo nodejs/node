@@ -882,6 +882,19 @@ void Http2Session::Send(WriteWrap* req, char* buf, size_t length) {
   }
 }
 
+void Http2Session::OnProtocolError(const char* message, size_t len) {
+  Local<Context> context = env()->context();
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<Value> argv[1] = {
+    OneByteString(isolate, message, len)
+  };
+
+  MakeCallback(env()->error_string(), arraysize(argv), argv);
+}
+
 void Http2Session::OnTrailers(Nghttp2Stream* stream,
                               const SubmitTrailers& submit_trailers) {
   DEBUG_HTTP2("Http2Session: prompting for trailers on stream %d\n",

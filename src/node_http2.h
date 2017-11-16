@@ -443,6 +443,7 @@ class Http2Session : public AsyncWrap,
   void OnFrameError(int32_t id, uint8_t type, int error_code) override;
   void OnTrailers(Nghttp2Stream* stream,
                   const SubmitTrailers& submit_trailers) override;
+  void OnProtocolError(const char* message, size_t len) override;
 
   void Send(WriteWrap* req, char* buf, size_t length) override;
   WriteWrap* AllocateSend() override;
