@@ -124,15 +124,13 @@ week and 72 hours over weekends to account for international time
 differences and work schedules. However, certain types of pull requests
 can be fast-tracked and may be landed after a shorter delay:
 
-* Trivial changes, for example, those fixing minor bugs or improving
-  performance without affecting API or causing other wide-reaching impact.
 * Focused changes that affect only documentation and/or the test suite.
   `code-and-learn` and `good-first-issue` pull requests typically fall
   into this category.
 * Changes that revert commit(s) and/or fix regressions.
 
 When a pull request is deemed suitable to be fast-tracked, label it with
-`fast-track`. The pull request can be landed once more than 3 collaborators
+`fast-track`. The pull request can be landed once more than 2 collaborators
 approve both the pull request and the fast-tracking request.
 
 ### Testing and CI
