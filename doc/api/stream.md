@@ -617,7 +617,7 @@ Calling `readable.pause()`, `readable.unpipe()`, or receiving "back pressure"
 will cause the `readable.readableFlowing` to be set as `false`,
 temporarily halting the flowing of events but *not* halting the generation of
 data. While in this state, attaching a listener for the `'data'` event
-would not cause `readable.flowing` to switch to `true`.
+would not cause `readable.readableFlowing` to switch to `true`.
 
 ```js
 const { PassThrough, Writable } = require('stream');
@@ -633,7 +633,7 @@ pass.write('ok'); // will not emit 'data'
 pass.resume(); // must be called to make 'data' being emitted
 ```
 
-While `readable.readabelFlowing` is `false`, data may be accumulating
+While `readable.readableFlowing` is `false`, data may be accumulating
 within the streams internal buffer.
 
 #### Choose One
