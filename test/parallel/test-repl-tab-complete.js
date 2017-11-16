@@ -373,8 +373,8 @@ const editor = repl.start({
 editorStream.run(['.clear']);
 editorStream.run(['.editor']);
 
-editor.completer('co', common.mustCall((error, data) => {
-  assert.deepStrictEqual(data, [['con'], 'co']);
+editor.completer('Uin', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['Uint'], 'Uin']);
 }));
 
 editorStream.run(['.clear']);
