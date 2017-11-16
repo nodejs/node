@@ -465,8 +465,6 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
-REM when building a static library there's no binary to run tests
-if defined enable_static goto test-v8
 call :run-python tools\test.py %test_args%
 
 :test-v8
@@ -520,7 +518,6 @@ set "localcppfilelist=%localcppfilelist% %1"
 goto exit
 
 :lint-js
-if defined enable_static goto exit
 if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto exit
 if not exist tools\eslint goto no-lint
