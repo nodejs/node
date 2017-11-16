@@ -203,7 +203,7 @@ Prerequisites:
   and tools which can be included in the global `PATH`.
 
 *Note:* All prerequisites can be easily installed by following
-[this Boxstarter guide](https://github.com/nodejs/node/blob/master/tools/boxstarter/README.md).
+[this bootstrapping guide](https://github.com/nodejs/node/blob/master/tools/bootstrap/README.md#Windows).
 
 If the path to your build directory contains a space, the build will likely fail.
 
