@@ -470,7 +470,7 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 // a string or undefined when the file cannot be opened.  Returns an empty
 // string when the file does not contain the substring '"main"' because that
 // is the property we care about.
-static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
+static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_loop_t* loop = env->event_loop();
 
@@ -1430,7 +1430,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
   env->SetMethod(target, "readdir", ReadDir);
-  env->SetMethod(target, "internalModuleReadFile", InternalModuleReadFile);
+  env->SetMethod(target, "internalModuleReadJSON", InternalModuleReadJSON);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
