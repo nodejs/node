@@ -20,6 +20,7 @@ void _register_spawn_sync() {}
 void _register_stream_wrap() {}
 void _register_tcp_wrap() {}
 void _register_timer_wrap() {}
+void _register_trace_events() {}
 void _register_tty_wrap() {}
 void _register_udp_wrap() {}
 void _register_util() {}
