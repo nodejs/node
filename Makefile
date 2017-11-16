@@ -210,11 +210,11 @@ test: all
 	$(MAKE) cctest
 else
 test: all
-	$(MAKE) build-addons
-	$(MAKE) build-addons-napi
-	$(MAKE) doc-only
-	$(MAKE) lint
-	$(MAKE) cctest
+	$(MAKE) -s build-addons
+	$(MAKE) -s build-addons-napi
+	$(MAKE) -s doc-only
+	$(MAKE) -s lint
+	$(MAKE) -s cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_ASYNC_HOOKS) \
 		$(CI_JS_SUITES) \
