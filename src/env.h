@@ -619,7 +619,7 @@ class Environment {
   inline void set_http_parser_buffer(char* buffer);
 
   inline http2::http2_state* http2_state() const;
-  inline void set_http2_state(http2::http2_state * state);
+  inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
@@ -737,7 +737,7 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
-  http2::http2_state* http2_state_ = nullptr;
+  std::unique_ptr<http2::http2_state> http2_state_;
 
   double* fs_stats_field_array_;
 
