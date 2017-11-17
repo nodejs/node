@@ -77,7 +77,7 @@ void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[1]);
   req->callback.Reset(isolate, callback);
 
-  uv_queue_work(uv_default_loop(),
+  uv_queue_work(node::GetCurrentEventLoop(isolate),
                 &req->req,
                 DoAsync,
                 (uv_after_work_cb)AfterAsync<use_makecallback>);

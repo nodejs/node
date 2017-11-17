@@ -52,7 +52,10 @@ static void TestResolveAsync(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     uv_work_t* req = new uv_work_t;
 
-    uv_queue_work(uv_default_loop(), req, [](uv_work_t*) {}, Callback);
+    uv_queue_work(node::GetCurrentEventLoop(isolate),
+                  req,
+                  [](uv_work_t*) {},
+                  Callback);
   }
 
   v8::Local<v8::Promise::Resolver> local =

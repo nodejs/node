@@ -227,6 +227,10 @@ NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
 NODE_EXTERN void RunAtExit(Environment* env);
 
+// This may return nullptr if the current v8::Context is not associated
+// with a Node instance.
+NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
+
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(v8::Isolate::GetCurrent(),          \
     1000 * static_cast<double>(t))
