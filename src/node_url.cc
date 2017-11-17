@@ -1,6 +1,6 @@
 #include "node_url.h"
 #include "node_internals.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "node_i18n.h"
 
 #include <string>

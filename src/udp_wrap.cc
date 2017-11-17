@@ -23,7 +23,7 @@
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "handle_wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "util-inl.h"
 
 #include <stdlib.h>
