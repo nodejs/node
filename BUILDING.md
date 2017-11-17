@@ -127,7 +127,7 @@ for more information.
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
 and not a newer version.
 
-To run the tests:
+To run the tests (NB: you must build the docs first - see below):
 
 ```console
 $ make test
