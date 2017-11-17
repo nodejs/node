@@ -3684,6 +3684,23 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 - `[in] script`: A JavaScript string containing the script to execute.
 - `[out] result`: The value resulting from having executed the script.
 
+## libuv event loop
+
+N-API provides a function for getting the current event loop associated with
+a specific `napi_env`.
+
+### napi_get_uv_event_loop
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
+                                               uv_loop_t** loop);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[out] loop`: The current libuv loop instance.
+
 [Promises]: #n_api_promises
 [Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
 [Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations

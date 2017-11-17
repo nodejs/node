@@ -31,6 +31,8 @@ class CallbackScope {
   Environment::AsyncCallbackScope callback_scope;
 };
 
+uv_loop_t *GetCurrentEventLoop(v8::Isolate *isolate);
+
 NODE_EXTERN async_context EmitAsyncInit(v8::Isolate* isolate,
                                         v8::Local<v8::Object> resource,
                                         v8::Local<v8::String> name,
