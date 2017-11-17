@@ -339,6 +339,7 @@ similar to this:
 Stats {
   dev: 2114,
   ino: 48064969,
+  inoString: '48064969',
   mode: 33188,
   nlink: 1,
   uid: 85,
@@ -363,6 +364,11 @@ specific. `atime`, `mtime`, `ctime`, and `birthtime` are [`Date`][MDN-Date]
 object alternate representations of the various times. The `Date` and number
 values are not connected. Assigning a new number value, or mutating the `Date`
 value, will not be reflected in the corresponding alternate representation.
+
+*Note*: Since `ino` is an unsigned 64-bit integer, it may lost accuracy in
+JavaScript. This situation may cause some strange bugs in filesystem. So if you
+want to get an accurate [inode][] value, please use `inoString` which is a
+certain string.
 
 
 ### Stat Time Values

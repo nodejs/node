@@ -289,6 +289,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       fs_stats_field_array_(nullptr),
+      fs_ino_array_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -341,6 +342,7 @@ inline Environment::~Environment() {
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
   delete http2_state_;
+  if (nullptr != fs_ino_array_) delete[] fs_ino_array_;
   free(performance_state_);
 }
 
@@ -510,6 +512,10 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
+}
+
+inline char* Environment::fs_ino_array() const {
+  return fs_ino_array_;
 }
 
 inline performance::performance_state* Environment::performance_state() {

@@ -191,6 +191,7 @@ void After(uv_fs_t *req) {
     // All have at least two args now.
     argc = 2;
 
+    uv_stat_t* stat = nullptr;
     switch (req->fs_type) {
       // These all have no data to pass.
       case UV_FS_ACCESS:
@@ -217,8 +218,9 @@ void After(uv_fs_t *req) {
       case UV_FS_LSTAT:
       case UV_FS_FSTAT:
         argc = 1;
-        FillStatsArray(env->fs_stats_field_array(),
-                       static_cast<const uv_stat_t*>(req->ptr));
+        stat = static_cast<uv_stat_t*>(req->ptr);
+        FillStatsArray(env->fs_stats_field_array(), stat);
+        SetStatsIno(env->fs_ino_array(), stat);
         break;
 
       case UV_FS_UTIME:
@@ -466,6 +468,16 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 #undef X
 }
 
+#ifdef _WIN32
+const char INO_STRING_FORMATTER[] = "%I64u";
+#else
+const char INO_STRING_FORMATTER[] = "%llu";
+#endif
+
+void SetStatsIno(char* ino, const uv_stat_t* s) {
+  snprintf(ino, FS_INO_STRING_OFFSET - 1, INO_STRING_FORMATTER, s->st_ino);
+}
+
 // Used to speed up module loading.  Returns the contents of the file as
 // a string or undefined when the file cannot be opened.  Returns an empty
 // string when the file does not contain the substring '"main"' because that
@@ -563,8 +575,9 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(stat, args[1], UTF8, *path)
   } else {
     SYNC_CALL(stat, *path, *path)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+    const uv_stat_t* stat = static_cast<const uv_stat_t*>(SYNC_REQ.ptr);
+    FillStatsArray(env->fs_stats_field_array(), stat);
+    SetStatsIno(env->fs_ino_array(), stat);
   }
 }
 
@@ -581,8 +594,9 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(lstat, args[1], UTF8, *path)
   } else {
     SYNC_CALL(lstat, *path, *path)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+    const uv_stat_t* stat = static_cast<const uv_stat_t*>(SYNC_REQ.ptr);
+    FillStatsArray(env->fs_stats_field_array(), stat);
+    SetStatsIno(env->fs_ino_array(), stat);
   }
 }
 
@@ -600,8 +614,9 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
     ASYNC_CALL(fstat, args[1], UTF8, fd)
   } else {
     SYNC_CALL(fstat, nullptr, fd)
-    FillStatsArray(env->fs_stats_field_array(),
-                   static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+    const uv_stat_t* stat = static_cast<const uv_stat_t*>(SYNC_REQ.ptr);
+    FillStatsArray(env->fs_stats_field_array(), stat);
+    SetStatsIno(env->fs_ino_array(), stat);
   }
 }
 
@@ -1413,6 +1428,15 @@ void GetStatValues(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(fields_array);
 }
 
+void GetStatInoString(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  size_t idx = args[0]->Uint32Value();
+  Environment* env = Environment::GetCurrent(args);
+  char* ino = env->fs_ino_array();
+  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
+                            ino + (idx * FS_INO_STRING_OFFSET)));
+}
+
 void InitFs(Local<Object> target,
             Local<Value> unused,
             Local<Context> context,
@@ -1459,6 +1483,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
   env->SetMethod(target, "getStatValues", GetStatValues);
+  env->SetMethod(target, "getStatInoString", GetStatInoString);
 
   StatWatcher::Initialize(env, target);
 

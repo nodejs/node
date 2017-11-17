@@ -83,6 +83,10 @@ void Environment::Start(int argc,
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
+  char* temp = new char[2 * FS_INO_STRING_OFFSET];
+  memset(temp, 0, sizeof(char) * 2 * FS_INO_STRING_OFFSET);
+  fs_ino_array_ = temp;
+
   uv_check_init(event_loop(), immediate_check_handle());
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 

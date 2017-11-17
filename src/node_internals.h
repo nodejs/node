@@ -270,6 +270,8 @@ void ProcessEmitWarning(Environment* env, const char* fmt, ...);
 
 void FillStatsArray(double* fields, const uv_stat_t* s);
 
+void SetStatsIno(char* ino, const uv_stat_t* s);
+
 void SetupProcessObject(Environment* env,
                         int argc,
                         const char* const* argv,

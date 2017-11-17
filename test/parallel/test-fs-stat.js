@@ -96,7 +96,8 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     'dev', 'mode', 'nlink', 'uid',
     'gid', 'rdev', 'ino', 'size',
     'atime', 'mtime', 'ctime', 'birthtime',
-    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
+    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs',
+    'inoString'
   ];
   if (!common.isWindows) {
     keys.push('blocks', 'blksize');
@@ -129,4 +130,9 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   dateFields.forEach((k) => {
     assert.strictEqual(typeof parsed[k], 'string', `${k} should be a string`);
   });
+
+  assert.strictEqual(typeof parsed.inoString,
+                     'string',
+                     'inoString should be a string');
+  assert.strictEqual(/^\d+$/g.test(parsed.inoString), true);
 }));
