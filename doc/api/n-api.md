@@ -3036,13 +3036,13 @@ bool is_instance = false;
 status = napi_instanceof(env, es_this, MyClass_constructor, &is_instance);
 assert(napi_ok == status);
 if (is_instance) {
-    // napi_unwrap() ...
+  // napi_unwrap() ...
 } else {
-    // otherwise...
+  // otherwise...
 }
 ```
 
-Of course the reference must be freed once it is no longer needed.
+The reference must be freed once it is no longer needed.
 
 ### *napi_define_class*
 <!-- YAML
