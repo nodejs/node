@@ -587,7 +587,6 @@ Information on the current Node.js Working Groups can be found in the
 ### Contributing to Node.js
 
 * [Contributing to the project][]
-* IRC (node core development): [#node-dev on chat.freenode.net][]
 
 [npm]: https://www.npmjs.com
 [Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
@@ -596,4 +595,3 @@ Information on the current Node.js Working Groups can be found in the
 [Node.js Website]: https://nodejs.org/en/
 [Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
 [#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
-[#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4
