@@ -205,23 +205,18 @@ v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
-ifeq ($(NODE_TARGET_TYPE),static_library)
 test: all
-	$(MAKE) cctest
-else
-test: all
-	$(MAKE) build-addons
-	$(MAKE) build-addons-napi
-	$(MAKE) doc-only
-	$(MAKE) lint
-	$(MAKE) cctest
+	$(MAKE) -s build-addons
+	$(MAKE) -s build-addons-napi
+	$(MAKE) -s doc-only
+	$(MAKE) -s lint
+	$(MAKE) -s cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		$(CI_ASYNC_HOOKS) \
 		$(CI_JS_SUITES) \
 		$(CI_NATIVE_SUITES) \
 		$(CI_DOC) \
 		known_issues
-endif
 
 # For a quick test, does not run linter or build doc
 test-only: all

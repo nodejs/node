@@ -118,9 +118,11 @@
       'lib/internal/process/write-coverage.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
+      'lib/internal/repl/await.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/unicode.js',
       'lib/internal/tls.js',
+      'lib/internal/trace_events_async_hooks.js',
       'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/util/comparisons.js',
@@ -148,6 +150,8 @@
       'deps/node-inspect/lib/_inspect.js',
       'deps/node-inspect/lib/internal/inspect_client.js',
       'deps/node-inspect/lib/internal/inspect_repl.js',
+      'deps/acorn/dist/acorn.js',
+      'deps/acorn/dist/walk.js',
     ],
     'conditions': [
       [ 'node_shared=="true"', {
@@ -213,6 +217,7 @@
         'src/node_platform.cc',
         'src/node_perf.cc',
         'src/node_serdes.cc',
+        'src/node_trace_events.cc',
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
@@ -341,7 +346,13 @@
         [ 'OS=="win"', {
           'sources': [
             'src/backtrace_win32.cc',
-            'src/res/node.rc',
+          ],
+          'conditions': [
+            [ 'node_target_type!="static_library"', {
+              'sources': [
+                'src/res/node.rc',
+              ],
+            }],
           ],
           'defines!': [
             'NODE_PLATFORM="win"',
@@ -508,7 +519,7 @@
       'target_name': 'node_etw',
       'type': 'none',
       'conditions': [
-        [ 'node_use_etw=="true"', {
+        [ 'node_use_etw=="true" and node_target_type!="static_library"', {
           'actions': [
             {
               'action_name': 'node_etw',
@@ -529,7 +540,7 @@
       'target_name': 'node_perfctr',
       'type': 'none',
       'conditions': [
-        [ 'node_use_perfctr=="true"', {
+        [ 'node_use_perfctr=="true" and node_target_type!="static_library"', {
           'actions': [
             {
               'action_name': 'node_perfctr_man',
@@ -591,13 +602,15 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'conditions': [
-            [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
+            [ 'node_use_dtrace=="false" and node_use_etw=="false" or '
+              'node_target_type=="static_library"', {
               'inputs': [ 'src/notrace_macros.py' ]
             }],
-            ['node_use_lttng=="false"', {
+            ['node_use_lttng=="false" or node_target_type=="static_library"', {
               'inputs': [ 'src/nolttng_macros.py' ]
             }],
-            [ 'node_use_perfctr=="false"', {
+            [ 'node_use_perfctr=="false" or '
+              'node_target_type=="static_library"', {
               'inputs': [ 'src/noperfctr_macros.py' ]
             }]
           ],
@@ -952,6 +965,47 @@
   ], # end targets
 
   'conditions': [
+    [ 'node_target_type=="static_library"', {
+      'targets': [
+        {
+          'target_name': 'static_node',
+          'type': 'executable',
+          'product_name': '<(node_core_target_name)',
+          'dependencies': [
+            '<(node_core_target_name)',
+          ],
+          'sources+': [
+            'src/node_main.cc',
+          ],
+          'include_dirs': [
+            'deps/v8/include',
+          ],
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)'
+                  '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+            ],
+          },
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'AdditionalOptions': [
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/'
+                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+              ],
+            },
+          },
+          'conditions': [
+            ['OS in "linux freebsd openbsd solaris android"', {
+              'ldflags': [
+                '-Wl,--whole-archive,<(OBJ_DIR)/<(STATIC_LIB_PREFIX)'
+                    '<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+                '-Wl,--no-whole-archive',
+              ],
+            }],
+          ],
+         },
+      ],
+    }],
     ['OS=="aix"', {
       'targets': [
         {

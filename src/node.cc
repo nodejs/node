@@ -273,21 +273,27 @@ node::DebugOptions debug_options;
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
-    tracing_agent_ =
-        trace_enabled ? new tracing::Agent() : nullptr;
-    platform_ = new NodePlatform(thread_pool_size,
-        trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
-    V8::InitializePlatform(platform_);
-    tracing::TraceEventHelper::SetTracingController(
-        trace_enabled ? tracing_agent_->GetTracingController() : nullptr);
+    if (trace_enabled) {
+      tracing_agent_.reset(new tracing::Agent());
+      platform_ = new NodePlatform(thread_pool_size,
+        tracing_agent_->GetTracingController());
+      V8::InitializePlatform(platform_);
+      tracing::TraceEventHelper::SetTracingController(
+        tracing_agent_->GetTracingController());
+    } else {
+      tracing_agent_.reset(nullptr);
+      platform_ = new NodePlatform(thread_pool_size, nullptr);
+      V8::InitializePlatform(platform_);
+      tracing::TraceEventHelper::SetTracingController(
+        new v8::TracingController());
+    }
   }
 
   void Dispose() {
     platform_->Shutdown();
     delete platform_;
     platform_ = nullptr;
-    delete tracing_agent_;
-    tracing_agent_ = nullptr;
+    tracing_agent_.reset(nullptr);
   }
 
   void DrainVMTasks(Isolate* isolate) {
@@ -324,7 +330,7 @@ static struct {
     return platform_;
   }
 
-  tracing::Agent* tracing_agent_;
+  std::unique_ptr<tracing::Agent> tracing_agent_;
   NodePlatform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
