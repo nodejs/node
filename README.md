@@ -35,6 +35,7 @@ policies, and releases are managed under an
     * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
     * [Collaborators](#collaborators)
     * [Release Team](#release-team)
+* [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
 
@@ -578,7 +579,7 @@ Previous releases may also have been signed with one of the following GPG keys:
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
-### Contributing to Node.js
+## Contributing to Node.js
 
 * [Contributing to the project][]
 * [Working Groups][]
