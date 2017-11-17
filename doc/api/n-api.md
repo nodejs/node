@@ -3022,6 +3022,29 @@ constructor and methods can be called from JavaScript.
     callback, [`napi_unwrap`][] obtains the C++ instance that is the target of
     the call.
 
+For wrapped objects it may be difficult to distinguish between a function
+called on a class prototype and a function called on an instance of a class.
+A common pattern used to address this problem is to save a persistent
+reference to the class constructor for later `instanceof` checks.
+
+As an example:
+
+```C
+napi_value MyClass_constructor = nullptr;
+status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
+assert(napi_ok == status);
+bool is_instance = false;
+status = napi_instanceof(env, es_this, MyClass_constructor, &is_instance);
+assert(napi_ok == status);
+if (is_instance) {
+  // napi_unwrap() ...
+} else {
+  // otherwise...
+}
+```
+
+The reference must be freed once it is no longer needed.
+
 ### *napi_define_class*
 <!-- YAML
 added: v8.0.0
