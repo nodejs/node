@@ -76,7 +76,7 @@ function promiseResolve(asyncId) { }
 #### `async_hooks.createHook(callbacks)`
 
 <!-- YAML
-added: v9.0.0
+added: v8.1.0
 -->
 
 * `callbacks` {Object} The [Hook Callbacks][] to register
@@ -543,12 +543,14 @@ will occur and the process will abort.
 The following is an overview of the `AsyncResource` API.
 
 ```js
-const { AsyncResource } = require('async_hooks');
+const { AsyncResource, executionAsyncId } = require('async_hooks');
 
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerAsyncId is omitted then
 // async_hook.executionAsyncId() is used.
-const asyncResource = new AsyncResource(type, triggerAsyncId);
+const asyncResource = new AsyncResource(
+  type, { triggerAsyncId: executionAsyncId(), requireManualDestroy: false }
+);
 
 // Call AsyncHooks before callbacks.
 asyncResource.emitBefore();
@@ -566,11 +568,17 @@ asyncResource.asyncId();
 asyncResource.triggerAsyncId();
 ```
 
-#### `AsyncResource(type[, triggerAsyncId])`
+#### `AsyncResource(type[, options])`
 
 * `type` {string} The type of async event.
-* `triggerAsyncId` {number} The ID of the execution context that created this
-  async event.
+* `options` {Object}
+  * `triggerAsyncId` {number} The ID of the execution context that created this
+  async event.  **Default:** `executionAsyncId()`
+  * `requireManualDestroy` {boolean} Disables automatic `emitDestroy` when the
+  object is garbage collected. This usually does not need to be set (even if
+  `emitDestroy` is called manually), unless the resource's asyncId is retrieved
+  and the sensitive API's `emitDestroy` is called with it.
+  **Default:** `false`
 
 Example usage:
 

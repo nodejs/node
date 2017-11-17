@@ -316,7 +316,7 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v9.0.0
+  - version: v8.1.0
     pr-url: https://github.com/nodejs/node/pull/13173
     description: Added times as numbers.
 -->
@@ -2028,8 +2028,21 @@ changes:
   * `err` {Error}
   * `resolvedPath` {string|Buffer}
 
-Asynchronous realpath(3). The `callback` gets two arguments `(err,
-resolvedPath)`. May use `process.cwd` to resolve relative paths.
+Asynchronously computes the canonical pathname by resolving `.`, `..` and
+symbolic links.
+
+Note that "canonical" does not mean "unique": hard links and bind mounts can
+expose a file system entity through many pathnames.
+
+This function behaves like realpath(3), with some exceptions:
+
+1. No case conversion is performed on case-insensitive file systems.
+
+2. The maximum number of symbolic links is platform-independent and generally
+   (much) higher than what the native realpath(3) implementation supports.
+
+The `callback` gets two arguments `(err, resolvedPath)`. May use `process.cwd`
+to resolve relative paths.
 
 Only paths that can be converted to UTF8 strings are supported.
 
@@ -2040,6 +2053,33 @@ the path returned will be passed as a `Buffer` object.
 
 *Note*: If `path` resolves to a socket or a pipe, the function will return a
 system dependent name for that object.
+
+## fs.realpath.native(path[, options], callback)
+<!-- YAML
+added: v9.2.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* `callback` {Function}
+  * `err` {Error}
+  * `resolvedPath` {string|Buffer}
+
+Asynchronous realpath(3).
+
+The `callback` gets two arguments `(err, resolvedPath)`.
+
+Only paths that can be converted to UTF8 strings are supported.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
+
+*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
+system must be mounted on `/proc` in order for this function to work.  Glibc
+does not have this restriction.
 
 ## fs.realpathSync(path[, options])
 <!-- YAML
@@ -2065,9 +2105,18 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
 
-Synchronous realpath(3). Returns the resolved path.
+Synchronously computes the canonical pathname by resolving `.`, `..` and
+symbolic links.
 
-Only paths that can be converted to UTF8 strings are supported.
+Note that "canonical" does not mean "unique": hard links and bind mounts can
+expose a file system entity through many pathnames.
+
+This function behaves like realpath(3), with some exceptions:
+
+1. No case conversion is performed on case-insensitive file systems.
+
+2. The maximum number of symbolic links is platform-independent and generally
+   (much) higher than what the native realpath(3) implementation supports.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
@@ -2076,6 +2125,28 @@ will be passed as a `Buffer` object.
 
 *Note*: If `path` resolves to a socket or a pipe, the function will return a
 system dependent name for that object.
+
+## fs.realpathSync.native(path[, options])
+<!-- YAML
+added: v9.2.0
+-->
+
+* `path` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+
+Synchronous realpath(3).
+
+Only paths that can be converted to UTF8 strings are supported.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
+
+*Note*: On Linux, when Node.js is linked against musl libc, the procfs file
+system must be mounted on `/proc` in order for this function to work.  Glibc
+does not have this restriction.
 
 ## fs.rename(oldPath, newPath, callback)
 <!-- YAML
