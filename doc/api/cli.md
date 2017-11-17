@@ -11,7 +11,7 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [v8 options] [script.js | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
 
 `node debug [script.js | -e "script" | <host>:<port>] …`
 
@@ -293,7 +293,7 @@ Track heap object allocations for heap snapshots.
 added: v5.2.0
 -->
 
-Process v8 profiler output generated using the v8 option `--prof`.
+Process V8 profiler output generated using the V8 option `--prof`.
 
 
 ### `--v8-options`
@@ -301,7 +301,7 @@ Process v8 profiler output generated using the v8 option `--prof`.
 added: v0.1.3
 -->
 
-Print v8 command line options.
+Print V8 command line options.
 
 *Note*: V8 options allow words to be separated by both dashes (`-`) or
 underscores (`_`).
