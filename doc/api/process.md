@@ -1161,6 +1161,22 @@ setTimeout(() => {
 }, 1000);
 ```
 
+## process.imagesha()
+<!-- YAML
+added: v10.0.0
+-->
+
+The `process.imagesha()` method reads the process image and computes a simple
+sha checksum in a platform independent manner. Useful for uniquely identifying
+the image from other distros. As it depends on `crypto` module, the return value
+is undefined when ran with node distributions without `crypto` capability.
+
+Example:
+```txt
+$ node -p 'process.imagesha()'
+b69cbe0cf01f354730ded9cc74fe05cf1f8eaa6d
+$
+```
 
 ## process.initgroups(user, extra_group)
 <!-- YAML
