@@ -631,5 +631,5 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback
 [`System Error`]: errors.html#errors_class_systemerror
 [byte length]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
-[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Link-local_addresses_and_zone_indices
+[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
