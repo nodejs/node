@@ -30,11 +30,11 @@ policies, and releases are managed under an
     * [API Documentation](#api-documentation)
   * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
-  * [Security](#security)
-  * [Current Project Team Members](#current-project-team-members)
-    * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
-    * [Collaborators](#collaborators)
-    * [Release Team](#release-team)
+* [Security](#security)
+* [Current Project Team Members](#current-project-team-members)
+  * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
+  * [Collaborators](#collaborators)
+  * [Release Team](#release-team)
 * [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
@@ -90,7 +90,7 @@ The Node.js project maintains multiple types of releases:
 
 More information can be found in the [LTS README](https://github.com/nodejs/LTS/).
 
-## Download
+### Download
 
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org>.
