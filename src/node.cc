@@ -4419,6 +4419,11 @@ void RunAtExit(Environment* env) {
 }
 
 
+uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
+  return Environment::GetCurrent(isolate)->event_loop();
+}
+
+
 static uv_key_t thread_local_env;
 
 
