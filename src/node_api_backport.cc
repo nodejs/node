@@ -71,6 +71,14 @@ CallbackScope::~CallbackScope() {
   env->tick_callback_function()->Call(env->process_object(), 0, nullptr);
 }
 
+uv_loop_t *GetCurrentEventLoop(v8::Isolate *isolate) {
+  HandleScope handle_scope(isolate);
+  auto context = isolate->GetCurrentContext();
+  if (context.IsEmpty())
+    return nullptr;
+  return Environment::GetCurrent(context)->event_loop();
+}
+
 AsyncResource::AsyncResource(v8::Isolate* _isolate,
                              v8::Local<v8::Object> _object,
                              char* name) : isolate(_isolate) {
