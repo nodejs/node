@@ -66,12 +66,14 @@ function onsigusr2() {
 }
 
 function onsigusr2Again() {
-  checkInvocations(
-    signal1, { init: 1, before: 2, after: 2, destroy: 1 },
-    'signal1: when second SIGUSR2 handler is called');
-  checkInvocations(
-    signal2, { init: 1, before: 1 },
-    'signal2: when second SIGUSR2 handler is called');
+  setImmediate(() => {
+    checkInvocations(
+      signal1, { init: 1, before: 2, after: 2, destroy: 1 },
+      'signal1: when second SIGUSR2 handler is called');
+    checkInvocations(
+      signal2, { init: 1, before: 1 },
+      'signal2: when second SIGUSR2 handler is called');
+  });
 }
 
 process.on('exit', onexit);
