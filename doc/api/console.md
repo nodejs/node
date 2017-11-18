@@ -240,7 +240,7 @@ undefined
 
 ### console.debug(data[, ...args])
 <!-- YAML
-added: v8.0.0
+added: v9.2.x
 -->
 * `data` {any}
 * `...args` {any}
