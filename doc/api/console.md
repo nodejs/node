@@ -240,7 +240,8 @@ undefined
 
 ### console.debug(data[, ...args])
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
+changes: REPLACEME
 -->
 * `data` {any}
 * `...args` {any}
@@ -443,7 +444,7 @@ representation of the descendants of the specified `object` if possible, or the
 JavaScript representation if not. Calling `console.dirxml()` on an HTML or XML
 element is equivalent to calling `console.log()`.
 
-### console.markTimeline()
+### console.markTimeline(label)
 <!-- YAML
 added: v8.0.0
 -->
