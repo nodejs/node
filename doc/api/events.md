@@ -142,20 +142,8 @@ myEmitter.emit('error', new Error('whoops!'));
 // Throws and crashes Node.js
 ```
 
-To guard against crashing the Node.js process, a listener can be registered
-on the [`process` object's `uncaughtException` event][] or the [`domain`][] module
-can be used. (Note, however, that the `domain` module has been deprecated.)
-
-```js
-const myEmitter = new MyEmitter();
-
-process.on('uncaughtException', (err) => {
-  console.error('whoops! there was an error');
-});
-
-myEmitter.emit('error', new Error('whoops!'));
-// Prints: whoops! there was an error
-```
+To guard against crashing the Node.js process the [`domain`][] module can be
+used. (Note, however, that the `domain` module has been deprecated.)
 
 As a best practice, listeners should always be added for the `'error'` events.
 
@@ -594,5 +582,4 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
 [`process.on('warning')`]: process.html#process_event_warning
-[`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
 [stream]: stream.html
