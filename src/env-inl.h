@@ -388,15 +388,6 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
 }
 
-inline Environment* Environment::from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle) {
-  return ContainerOf(&Environment::destroy_async_ids_timer_handle_, handle);
-}
-
-inline uv_timer_t* Environment::destroy_async_ids_timer_handle() {
-  return &destroy_async_ids_timer_handle_;
-}
-
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
                                                void *arg) {
