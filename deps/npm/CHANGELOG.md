@@ -1,3 +1,20 @@
+### v2.15.12 (2017-03-24):
+
+This version brings the latest `node-gyp` to a soon to be released Node.js
+4.x.  The `node-gyp` update is paticularly important to Windows folks due to
+its addition of Visual Studio 2017 support.
+
+* [`cdd60e733`](https://github.com/npm/npm/commit/cdd60e733905a9994e1d6d832996bfdd12abeaee)
+  `node-gyp@3.6.0`:
+  Improvements to how Python is located. New `--devdir` flag.
+  Support for VS2017.
+  Chakracore support on ARM.
+  Remove path-array dependency, reducing size significantly.
+  ([@bnoordhuis](https://github.com/bnoordhuis))
+  ([@mhart](https://github.com/mhart))
+  ([@refack](https://github.com/refack))
+  ([@kunalspathak](https://github.com/kunalspathak))
+
 ### v2.15.11 (2016-09-08):
 
 On we go with our monthly release cadence! This week is pretty much all

@@ -46,18 +46,7 @@ function gyp () {
 function Gyp () {
   var self = this
 
-  // set the dir where node-gyp dev files get installed
-  // TODO: make this *more* configurable?
-  //       see: https://github.com/nodejs/node-gyp/issues/21
-  var homeDir = process.env.HOME || process.env.USERPROFILE
-  if (!homeDir) {
-    throw new Error(
-      "node-gyp requires that the user's home directory is specified " +
-      "in either of the environmental variables HOME or USERPROFILE"
-    );
-  }
-  this.devDir = path.resolve(homeDir, '.node-gyp')
-
+  this.devDir = ''
   this.commands = {}
 
   commands.forEach(function (command) {
@@ -92,6 +81,7 @@ proto.configDefs = {
   , ensure: Boolean   // 'install'
   , solution: String  // 'build' (windows only)
   , proxy: String     // 'install'
+  , devdir: String   // everywhere
   , nodedir: String   // 'configure'
   , loglevel: String  // everywhere
   , python: String    // 'configure'
