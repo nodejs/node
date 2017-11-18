@@ -36,8 +36,6 @@ common.refreshTmpDir();
 {
   const pathname = `${common.tmpDir}/test1`;
 
-  unlink(pathname);
-
   fs.mkdir(pathname, common.mustCall(function(err) {
     assert.strictEqual(err, null);
     assert.strictEqual(common.fileExists(pathname), true);
@@ -50,8 +48,6 @@ common.refreshTmpDir();
 
 {
   const pathname = `${common.tmpDir}/test2`;
-
-  unlink(pathname);
 
   fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
     assert.strictEqual(err, null);
