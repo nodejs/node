@@ -37,6 +37,11 @@
 /* EAI_* constants. */
 #include <netdb.h>
 
+/* if fully static, overwrite getaddrinfo and freeaddrinfo */
+#ifdef BUILD_FULLY_STATIC
+#include "getaddrinfo.h"
+#endif
+
 
 int uv__getaddrinfo_translate_error(int sys_err) {
   switch (sys_err) {
