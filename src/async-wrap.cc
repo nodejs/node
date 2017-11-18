@@ -138,11 +138,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 // end RetainedAsyncInfo
 
 
-static void DestroyAsyncIdsCallback(uv_timer_t* handle) {
-  Environment* env = Environment::from_destroy_async_ids_timer_handle(handle);
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
   TryCatch try_catch(env->isolate());
@@ -173,8 +169,7 @@ static void PushBackDestroyAsyncId(Environment* env, double id) {
     return;
 
   if (env->destroy_async_id_list()->empty())
-    uv_timer_start(env->destroy_async_ids_timer_handle(),
-                   DestroyAsyncIdsCallback, 0, 0);
+    env->SetImmediate(DestroyAsyncIdsCallback, nullptr);
 
   env->destroy_async_id_list()->push_back(id);
 }

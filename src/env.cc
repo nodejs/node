@@ -42,8 +42,6 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  uv_timer_init(event_loop(), destroy_async_ids_timer_handle());
-
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
 
@@ -66,10 +64,6 @@ void Environment::Start(int argc,
       nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&destroy_async_ids_timer_handle_),
       close_and_finish,
       nullptr);
 
