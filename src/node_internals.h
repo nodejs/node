@@ -152,7 +152,7 @@ NO_RETURN void FatalError(const char* location, const char* message);
 
 void ProcessEmitWarning(Environment* env, const char* fmt, ...);
 
-v8::Local<v8::Value> BuildStatsObject(Environment* env, const uv_stat_t* s);
+void FillStatsArray(double* fields, const uv_stat_t* s);
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
