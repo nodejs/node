@@ -1064,6 +1064,7 @@ def configure_static(o):
 
     if options.fully_static:
       o['libraries'] += ['-static']
+      o['defines'] += ['BUILD_FULLY_STATIC']
     elif options.partly_static:
       o['libraries'] += ['-static-libgcc', '-static-libstdc++']
       if options.enable_asan:
