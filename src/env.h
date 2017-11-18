@@ -693,6 +693,11 @@ class Environment {
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
 
+  typedef void (*native_immediate_callback)(Environment* env, void* data);
+  inline void SetImmediate(native_immediate_callback cb, void* data);
+  // This needs to be available for the JS-land setImmediate().
+  void ActivateImmediateCheck();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -752,6 +757,14 @@ class Environment {
     size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+
+  struct NativeImmediateCallback {
+    native_immediate_callback cb_;
+    void* data_;
+  };
+  std::vector<NativeImmediateCallback> native_immediate_callbacks_;
+  void RunAndClearNativeImmediates();
+  static void CheckImmediate(uv_check_t* handle);
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

@@ -3265,40 +3265,9 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
 
-bool MaybeStopImmediate(Environment* env) {
-  if (env->scheduled_immediate_count()[0] == 0) {
-    uv_check_stop(env->immediate_check_handle());
-    uv_idle_stop(env->immediate_idle_handle());
-    return true;
-  }
-  return false;
-}
-
-void CheckImmediate(uv_check_t* handle) {
-  Environment* env = Environment::from_immediate_check_handle(handle);
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  if (MaybeStopImmediate(env))
-    return;
-
-  MakeCallback(env->isolate(),
-               env->process_object(),
-               env->immediate_callback_string(),
-               0,
-               nullptr,
-               {0, 0}).ToLocalChecked();
-
-  MaybeStopImmediate(env);
-}
-
-
 void ActivateImmediateCheck(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uv_check_start(env->immediate_check_handle(), CheckImmediate);
-  // Idle handle is needed only to stop the event loop from blocking in poll.
-  uv_idle_start(env->immediate_idle_handle(),
-                [](uv_idle_t*){ /* do nothing, just keep the loop running */ });
+  env->ActivateImmediateCheck();
 }
 
 
