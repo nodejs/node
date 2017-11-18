@@ -8,6 +8,7 @@ runBenchmark('buffers',
              [
                'aligned=true',
                'args=1',
+               'buffer=fast',
                'encoding=utf8',
                'len=2',
                'method=',
