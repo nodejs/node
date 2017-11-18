@@ -240,7 +240,7 @@ undefined
 
 ### console.debug(data[, ...args])
 <!-- YAML
-added: v9.2.x
+added: REPLACEME
 -->
 * `data` {any}
 * `...args` {any}
