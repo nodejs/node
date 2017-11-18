@@ -37,3 +37,4 @@ assert.strictEqual('path', require.resolve('path'));
 
 // Test configurable resolve() paths.
 require(fixtures.path('require-resolve.js'));
+require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
