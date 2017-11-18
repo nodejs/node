@@ -5,12 +5,12 @@
 #include <assert.h>
 #include "../common.h"
 
-template<typename T>
+template <typename T>
 void* SetImmediate(napi_env env, T&& cb) {
   T* ptr = new T(std::move(cb));
   uv_loop_t* loop = nullptr;
   uv_check_t* check = new uv_check_t;
-  check->data = static_cast<void*>(ptr);
+  check->data = ptr;
   NAPI_ASSERT(env,
               napi_get_uv_event_loop(env, &loop) == napi_ok,
               "can get event loop");
@@ -18,7 +18,6 @@ void* SetImmediate(napi_env env, T&& cb) {
   uv_check_start(check, [](uv_check_t* check) {
     std::unique_ptr<T> ptr {static_cast<T*>(check->data)};
     T cb = std::move(*ptr);
-    uv_check_stop(check);
     uv_close(reinterpret_cast<uv_handle_t*>(check), [](uv_handle_t* handle) {
       delete reinterpret_cast<uv_check_t*>(handle);
     });

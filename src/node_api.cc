@@ -28,8 +28,10 @@ static
 napi_status napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
-  explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
-      last_error() {}
+  explicit napi_env__(v8::Isolate* _isolate, uv_loop_t* _loop)
+      : isolate(_isolate),
+        last_error(),
+        loop(_loop) {}
   ~napi_env__() {
     last_exception.Reset();
     wrap_template.Reset();
@@ -43,6 +45,7 @@ struct napi_env__ {
   v8::Persistent<v8::ObjectTemplate> accessor_data_template;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
+  uv_loop_t* loop = nullptr;
 };
 
 #define ENV_OBJECT_TEMPLATE(env, prefix, destination, field_count) \
@@ -771,7 +774,7 @@ napi_env GetEnv(v8::Local<v8::Context> context) {
   if (value->IsExternal()) {
     result = static_cast<napi_env>(value.As<v8::External>()->Value());
   } else {
-    result = new napi_env__(isolate);
+    result = new napi_env__(isolate, node::GetCurrentEventLoop(isolate));
     auto external = v8::External::New(isolate, result);
 
     // We must also stop hard if the result of assigning the env to the global
@@ -3404,7 +3407,7 @@ napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
 napi_status napi_get_uv_event_loop(napi_env env, uv_loop_t** loop) {
   CHECK_ENV(env);
   CHECK_ARG(env, loop);
-  *loop = node::GetCurrentEventLoop(env->isolate);
+  *loop = env->loop;
   return napi_clear_last_error(env);
 }
 
