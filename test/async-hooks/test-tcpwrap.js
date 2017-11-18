@@ -128,8 +128,10 @@ function onconnection(c) {
 function onserverClosed() {
   checkInvocations(tcp1, { init: 1, before: 1, after: 1, destroy: 1 },
                    'tcp1 when server is closed');
-  checkInvocations(tcp2, { init: 1, before: 2, after: 2, destroy: 1 },
-                   'tcp2 when server is closed');
+  setImmediate(() => {
+    checkInvocations(tcp2, { init: 1, before: 2, after: 2, destroy: 1 },
+                     'tcp2 after server is closed');
+  });
   checkInvocations(tcp3, { init: 1, before: 1, after: 1 },
                    'tcp3 synchronously when server is closed');
   tick(2, () => {
