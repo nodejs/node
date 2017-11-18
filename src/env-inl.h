@@ -329,7 +329,7 @@ inline Environment::~Environment() {
 #if HAVE_INSPECTOR
   // Destroy inspector agent before erasing the context. The inspector
   // destructor depends on the context still being accessible.
-  inspector_agent_.reset(nullptr);
+  inspector_agent_.reset();
 #endif
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
