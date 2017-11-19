@@ -199,7 +199,7 @@ class Platform {
    * Returns a TaskRunner which can be used to post a task on the foreground.
    * This function should only be called from a foreground thread.
    */
-  virtual std::unique_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+  virtual std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       Isolate* isolate) {
     // TODO(ahaas): Make this function abstract after it got implemented on all
     // platforms.
@@ -210,7 +210,7 @@ class Platform {
    * Returns a TaskRunner which can be used to post a task on a background.
    * This function should only be called from a foreground thread.
    */
-  virtual std::unique_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+  virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
       Isolate* isolate) {
     // TODO(ahaas): Make this function abstract after it got implemented on all
     // platforms.
