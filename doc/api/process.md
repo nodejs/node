@@ -1404,9 +1404,9 @@ tarball.
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
   release types, including _Current_ releases.  Currently the valid values are:
-  - `'Argon'` for the v4.x LTS line beginning with v4.2.0.
-  - `'Boron'` for the v6.x LTS line beginning with v6.9.0.
-  - `'Carbon'` for the v8.x LTS line beginning with v8.9.1.
+  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 For example:
 
