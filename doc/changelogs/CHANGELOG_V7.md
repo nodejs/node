@@ -1,5 +1,7 @@
 # Node.js 7 ChangeLog
 
+<!--lint disable prohibited-strings-->
+
 <table>
 <tr>
 <th title="Previously called 'Stable'">Current</th>

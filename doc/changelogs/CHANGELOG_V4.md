@@ -1,5 +1,7 @@
 # Node.js 4 ChangeLog
 
+<!--lint disable prohibited-strings-->
+
 <table>
 <tr>
 <th>LTS 'Argon'</th>

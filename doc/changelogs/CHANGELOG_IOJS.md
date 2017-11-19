@@ -1,5 +1,7 @@
 # io.js ChangeLog
 
+<!--lint disable prohibited-strings-->
+
 <table>
 <tr>
 <th>v3</th>
