@@ -638,7 +638,7 @@ Type: End-of-Life
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
 
-Type: Runtime
+Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
 with inappropriate names has been deprecated.
