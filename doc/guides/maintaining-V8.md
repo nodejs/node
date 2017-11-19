@@ -59,11 +59,11 @@ includes the following branches<sup>1</sup>:
    </td>
   </tr>
   <tr>
-   <td>Node.js v4.x
+   <td>Node.js 4.x
    </td>
    <td>2015-10-01
    </td>
-   <td>2018-04-01
+   <td>April 2018
    </td>
    <td>4.5
    </td>
@@ -73,11 +73,11 @@ includes the following branches<sup>1</sup>:
    </td>
   </tr>
   <tr>
-   <td>Node.js v6.x
+   <td>Node.js 6.x
    </td>
    <td>2016-04-01
    </td>
-   <td>2019-04-01
+   <td>April 2019
    </td>
    <td>5.1
    </td>
@@ -87,17 +87,31 @@ includes the following branches<sup>1</sup>:
    </td>
   </tr>
   <tr>
-   <td>Node.js v7.x
+   <td>Node.js 8.x
    </td>
-   <td>2016-10-01
+   <td>2017-05-30
    </td>
-   <td>2017-04-01
+   <td>December 2019
    </td>
-   <td>5.5
+   <td>6.1 (soon to be 6.2)
    </td>
-   <td>2016-12-06
+   <td>2017-10-17 (6.2)
    </td>
-   <td>2017-01-24
+   <td>~2017-12-05 (6.2)
+   </td>
+  </tr>
+    <tr>
+   <td>Node.js 9.x
+   </td>
+   <td>2017-10-31
+   </td>
+   <td>April 2018
+   </td>
+   <td>6.2
+   </td>
+   <td>2017-10-17
+   </td>
+   <td>~2017-12-05
    </td>
   </tr>
   <tr>
@@ -107,11 +121,11 @@ includes the following branches<sup>1</sup>:
    </td>
    <td>N/A
    </td>
-   <td>5.6
+   <td>6.2
    </td>
-   <td>2017-01-31
+   <td>2017-10-17
    </td>
-   <td>2017-03-07
+   <td>~2017-12-05
    </td>
   </tr>
 </table>
