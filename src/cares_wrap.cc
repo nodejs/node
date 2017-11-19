@@ -596,12 +596,6 @@ class QueryWrap : public AsyncWrap {
   QueryWrap(ChannelWrap* channel, Local<Object> req_wrap_obj)
       : AsyncWrap(channel->env(), req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP),
         channel_(channel) {
-    if (env()->in_domain()) {
-      req_wrap_obj->Set(env()->domain_string(),
-                        env()->domain_array()->Get(env()->context(), 0)
-                            .ToLocalChecked());
-    }
-
     Wrap(req_wrap_obj, this);
 
     // Make sure the channel object stays alive during the query lifetime.
