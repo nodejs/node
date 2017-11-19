@@ -1,5 +1,7 @@
 # Node.js ChangeLog Archive
 
+<!--lint disable prohibited-strings-->
+
 <table>
 <tr>
 <th>v0.11</th>
