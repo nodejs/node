@@ -194,8 +194,8 @@ us a report nonetheless.
 
 - [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
   function can be used to cause segfaults_. Causing program termination using
-  either the public Javascript APIs or the private bindings layer APIs requires
-  the ability to execute arbitrary Javascript code, which is already the highest
+  either the public JavaScript APIs or the private bindings layer APIs requires
+  the ability to execute arbitrary JavaScript code, which is already the highest
   level of privilege possible.
 
 - [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
