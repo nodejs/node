@@ -4,6 +4,7 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 #include "libplatform/libplatform.h"
 #include "node.h"
