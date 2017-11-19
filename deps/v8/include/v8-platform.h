@@ -37,6 +37,51 @@ class IdleTask {
 };
 
 /**
+ * A TaskRunner allows scheduling of tasks. The TaskRunner may still be used to
+ * post tasks after the isolate gets destructed, but these tasks may not get
+ * executed anymore. All tasks posted to a given TaskRunner will be invoked in
+ * sequence. Tasks can be posted from any thread.
+ */
+class TaskRunner {
+ public:
+  /**
+   * Schedules a task to be invoked by this TaskRunner. The TaskRunner
+   * implementation takes ownership of |task|.
+   */
+  virtual void PostTask(std::unique_ptr<Task> task) = 0;
+
+  /**
+   * Schedules a task to be invoked by this TaskRunner. The task is scheduled
+   * after the given number of seconds |delay_in_seconds|. The TaskRunner
+   * implementation takes ownership of |task|.
+   */
+  virtual void PostDelayedTask(std::unique_ptr<Task> task,
+                               double delay_in_seconds) = 0;
+
+  /**
+   * Schedules an idle task to be invoked by this TaskRunner. The task is
+   * scheduled when the embedder is idle. Requires that
+   * TaskRunner::SupportsIdleTasks(isolate) is true. Idle tasks may be reordered
+   * relative to other task types and may be starved for an arbitrarily long
+   * time if no idle time is available. The TaskRunner implementation takes
+   * ownership of |task|.
+   */
+  virtual void PostIdleTask(std::unique_ptr<IdleTask> task) = 0;
+
+  /**
+   * Returns true if idle tasks are enabled for this TaskRunner.
+   */
+  virtual bool IdleTasksEnabled() = 0;
+
+  TaskRunner() = default;
+  virtual ~TaskRunner() = default;
+
+ private:
+  TaskRunner(const TaskRunner&) = delete;
+  TaskRunner& operator=(const TaskRunner&) = delete;
+};
+
+/**
  * The interface represents complex arguments to trace events.
  */
 class ConvertableToTraceFormat {
@@ -149,6 +194,28 @@ class Platform {
    * |CallOnBackgroundThread|.
    */
   virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
+
+  /**
+   * Returns a TaskRunner which can be used to post a task on the foreground.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::unique_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      Isolate* isolate) {
+    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // platforms.
+    return {};
+  }
+
+  /**
+   * Returns a TaskRunner which can be used to post a task on a background.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::unique_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+      Isolate* isolate) {
+    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // platforms.
+    return {};
+  }
 
   /**
    * Schedules a task to be invoked on a background thread. |expected_runtime|
