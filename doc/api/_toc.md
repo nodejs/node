@@ -54,5 +54,6 @@
 
 <div class="line"></div>
 
+* <a href="#" data-js-handler="offline-docs">Make available offline</a>
 * [GitHub Repo & Issue Tracker](https://github.com/nodejs/node)
 * [Mailing List](http://groups.google.com/group/nodejs)
