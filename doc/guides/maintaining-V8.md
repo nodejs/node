@@ -167,16 +167,16 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
 
 * For each abandoned V8 branch corresponding to an LTS branch that is affected by the bug:
     * Open a cherry-pick PR on nodejs/node targeting the appropriate *vY.x-staging* branch (e.g. *v6.x-staging* to fix an issue in V8-5.1).
-    * On Node.js < 9.0.0: Increase the patch level version in v8-version.h. This will not cause any problems with versioning because V8 will not publish other patches for this branch, so Node.js can effectively bump the patch version.
+    * On Node.js < 9.0.0: Increase the patch level version in `v8-version.h`. This will not cause any problems with versioning because V8 will not publish other patches for this branch, so Node.js can effectively bump the patch version.
     * On Node.js >= 9.0.0: Increase the `v8_embedder_string` number in `common.gypi`.
     * In some cases the patch may require extra effort to merge in case V8 has changed substantially. For important issues we may be able to lean on the V8 team to get help with reimplementing the patch.
     * Run the Node.js [V8-CI](https://ci.nodejs.org/job/node-test-commit-v8-linux/) in addition to the [Node.js CI](https://ci.nodejs.org/job/node-test-pull-request/).
 
-An example for workflow how to cherry-pick consider the following bug:
-https://crbug.com/v8/5199. From the bug we can see that it was merged by V8 into
-5.2 and 5.3, and not into V8 5.1 (since it was already abandoned). Since Node.js
-`v6.x` uses V8 5.1, the fix needed to cherry-picked. To cherry-pick, here's an
-example workflow:
+An example for workflow how to cherry-pick consider the bug
+[RegExp show inconsistent result with other browsers](https://crbug.com/v8/5199).
+From the bug we can see that it was merged by V8 into 5.2 and 5.3, and not into
+V8 5.1 (since it was already abandoned). Since Node.js `v6.x` uses V8 5.1, the
+fix needed to be cherry-picked. To cherry-pick, here's an example workflow:
 
 * Download and apply the commit linked-to in the issue (in this case a51f429). `curl -L https://github.com/v8/v8/commit/a51f429.patch | git am -3 --directory=deps/v8`. If the branches have diverged significantly, this may not apply cleanly. It may help to try to cherry-pick the merge to the oldest branch that was done upstream in V8. In this example, this would be the patch from the merge to 5.2. The hope is that this would be closer to the V8 5.1, and has a better chance of applying cleanly. If you're stuck, feel free to ping @ofrobots for help.
 * Modify the commit message to match the format we use for V8 backports and replace yourself as the author. `git commit --amend --reset-author`. You may want to add extra description if necessary to indicate the impact of the fix on Node.js. In this case the original issue was descriptive enough. Example:
@@ -275,7 +275,7 @@ To audit for floating patches:
 git log --oneline deps/v8
 ```
 
-To replace the copy of V8 in Node.js, use the '[update-v8](https://gist.github.com/targos/8da405e96e98fdff01a395bed365b816)' script<sup>2</sup>. For example, if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1 branch:
+To replace the copy of V8 in Node.js, use the `[update-v8](https://gist.github.com/targos/8da405e96e98fdff01a395bed365b816)` script<sup>2</sup>. For example, if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1 branch:
 
 ```shell
 cd $NODE_DIR
@@ -292,20 +292,23 @@ This should be followed up with manual refloating of all relevant patches.
 
 The fact that Node.js keeps a vendored, potentially edited copy of V8 in deps/
 makes the above processes a bit complicated. An alternative proposal would be to
-create a fork of V8 at nodejs/v8 that would be used to maintain the V8 branches.
-This has several benefits:
+create a fork of V8 at `nodejs/v8` that would be used to maintain the V8
+branches. This has several benefits:
 
-* The process to update the version of V8 in Node.js could be automated to track the tips of various V8 branches in nodejs/v8.
-* It would simplify cherry-picking and porting of fixes between branches as the version bumps in v8-version.h would happen as part of this update instead of on every change.
+* The process to update the version of V8 in Node.js could be automated to track
+  the tips of various V8 branches in `nodejs/v8`.
+* It would simplify cherry-picking and porting of fixes between branches as the version bumps in `v8-version.h` would happen as part of this update instead of on every change.
 * It would simplify the V8-CI and make it more automatable.
-* The history of the V8 branch in nodejs/v8 becomes purer and it would make it easier to pull in the V8 team for help with reviewing.
+* The history of the V8 branch in `nodejs/v8` becomes purer and it would make it
+  easier to pull in the V8 team for help with reviewing.
 * It would make it simpler to setup an automated build that tracks Node.js master + V8 lkgr integration build.
 
 This would require some tooling to:
 
 * A script that would update the V8 in a specific Node.js branch with V8 from upstream (dependent on branch abandoned vs. active).
-* We need a script to bump V8 version numbers when a new version of V8 is promoted from nodejs/v8 to nodejs/node.
-* Enabled the V8-CI build in Jenkins to build from the nodejs/v8 fork.
+* We need a script to bump V8 version numbers when a new version of V8 is
+  promoted from `nodejs/v8` to `nodejs/node`.
+* Enabled the V8-CI build in Jenkins to build from the `nodejs/v8` fork.
 
 ## Proposal: Dealing with the need to float patches to a stable/beta
 
@@ -330,4 +333,4 @@ up working, we will investigate making this change upstream.
 
 <sup>1</sup>Node.js 0.12 and older are intentionally omitted from this document as their support is ending soon.
 
-<sup>2</sup>It seems that @targos is working on port of this script here https://github.com/targos/update-v8.
+<sup>2</sup>@targos is working on [a port of this script](https://github.com/targos/update-v8).
