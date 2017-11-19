@@ -244,7 +244,7 @@ added: v8.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/17033
-    description: `console.debug` is now an alias for `console.log`.
+    description: "`console.debug` is now an alias for `console.log`."
 -->
 * `data` {any}
 * `...args` {any}
