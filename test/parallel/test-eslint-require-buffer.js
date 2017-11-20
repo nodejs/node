@@ -12,15 +12,30 @@ const ruleTester = new RuleTester({
 const message = "Use const Buffer = require('buffer').Buffer; " +
                 'at the beginning of this file';
 
+const useStrict = '\'use strict\';\n\n';
+const bufferModule = 'const { Buffer } = require(\'buffer\');\n';
+const mockComment = '// Some Comment\n//\n// Another Comment\n\n';
 ruleTester.run('require-buffer', rule, {
   valid: [
     'foo',
-    'const Buffer = require("Buffer"); Buffer;'
+    'const Buffer = require("Buffer"); Buffer;',
+    'const { Buffer } = require(\'buffer\'); Buffer;',
   ],
   invalid: [
     {
       code: 'Buffer;',
-      errors: [{ message }]
-    }
+      errors: [{ message }],
+      output: 'const { Buffer } = require(\'buffer\');\nBuffer;',
+    },
+    {
+      code: useStrict + 'Buffer;',
+      errors: [{ message }],
+      output: useStrict + bufferModule + 'Buffer;',
+    },
+    {
+      code:  mockComment + 'Buffer;',
+      errors: [{ message }],
+      output:  mockComment + bufferModule + 'Buffer;',
+    },
   ]
 });

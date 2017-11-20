@@ -12,7 +12,7 @@ module.exports = function(context) {
       message: msg,
       fix: (fixer) => {
         const sourceCode = context.getSourceCode();
-        console.log('getAllComments()::', sourceCode.ast.range[0]);
+
         const useStrict = /'use strict';\n\n?/g;
         const hasUseStrict = !!useStrict.exec(sourceCode.text);
         const firstLOC = sourceCode.ast.range[0];
