@@ -531,49 +531,68 @@ endif
 # generated .html files
 DOCS_ANALYTICS ?=
 
+apidoc_dirs = out/doc out/doc/api out/doc/api/assets
 apidoc_sources = $(wildcard doc/api/*.md)
-apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
-apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
-
-apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
+apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
+apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-targets: $(apidocs_html) $(apidocs_json)
-doc-only: | install-yaml doc-targets
+# This uses the locally built node if available, otherwise uses the global node
+doc-only: $(apidoc_dirs) $(apiassets)
+# If it's a source tarball, assets are already in doc/api/assets,
+# no need to install anything, we have already copied the docs over
+	if [ ! -d doc/api/assets ]; then \
+		$(MAKE) tools/doc/node_modules/js-yaml/package.json; \
+	fi;
+	@$(MAKE) -s $(apidocs_html) $(apidocs_json)
+
 doc: $(NODE_EXE) doc-only
 
-$(apidoc_dirs):
-	@mkdir -p $@
+out/doc:
+	mkdir -p $@
 
+# If it's a source tarball, doc/api already contains the generated docs.
+# Just copy everything under doc/api over.
+out/doc/api: doc/api
+	mkdir -p $@
+	cp -r doc/api out/doc
+
+# If it's a source tarball, assets are already in doc/api/assets
+out/doc/api/assets:
+	mkdir -p $@
+	if [ -d doc/api/assets ]; then cp -r doc/api/assets out/doc/api; fi;
+
+# If it's not a source tarball, we need to copy assets from doc/api_assets
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 	@cp $< $@
 
-out/doc/%: doc/%
-	@cp -r $< $@
+# Use -e to double check in case it's a broken link
+# Use $(PWD) so we can cd to anywhere before calling this
+available-node = \
+  if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
+		$(PWD)/$(NODE) $(1); \
+	elif [ -x `which node` ] && [ -e `which node` ]; then \
+		`which node` $(1); \
+	else \
+		echo "No available node, cannot run \"node $(1)\""; \
+		exit 1; \
+	fi;
 
-# check if ./node is actually set, else use user pre-installed binary
+run-npm-install = $(PWD)/$(NPM) install
+
+tools/doc/node_modules/js-yaml/package.json:
+	cd tools/doc && $(call available-node,$(run-npm-install))
+
 gen-json = tools/doc/generate.js --format=json $< > $@
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
 			--template=doc/template.html --analytics=$(DOCS_ANALYTICS) $< > $@
 
-install-yaml:
-	[ -e tools/doc/node_modules/js-yaml/package.json ] || \
-		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
-		if [ -x $(NODE) ]; then \
-			cd tools/doc && ../../$(NODE) ../../$(NPM) install; \
-		else \
-			cd tools/doc && node ../../$(NPM) install; \
-		fi;
-
-gen-doc = [ -x $(NODE) ] && $(NODE) $(1) || node $(1)
-
 out/doc/api/%.json: doc/api/%.md
-	@$(call gen-doc, $(gen-json))
+	$(call available-node, $(gen-json))
 
-# check if ./node is actually set, else use user pre-installed binary
 out/doc/api/%.html: doc/api/%.md
-	@$(call gen-doc, $(gen-html))
+	$(call available-node, $(gen-html))
 
 docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
@@ -1152,7 +1171,6 @@ lint-clean:
   install \
   install-bin \
   install-includes \
-  install-yaml \
   lint \
   lint-clean \
   lint-ci \
