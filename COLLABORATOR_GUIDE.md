@@ -142,6 +142,7 @@ test should *fail* before the change, and *pass* after the change.
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
+The pull request should have a CI status indicator if possible.
 
 #### Useful CI Jobs
 
