@@ -1224,7 +1224,6 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->set_using_domains(true);
 
   HandleScope scope(env->isolate());
-  Local<Object> process_object = env->process_object();
 
   CHECK(args[0]->IsArray());
   env->set_domains_stack_array(args[0].As<Array>());
