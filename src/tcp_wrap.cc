@@ -130,15 +130,19 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
+
   Environment* env = Environment::GetCurrent(args);
-  new TCPWrap(env, args.This());
+  Local<Context> context = env->context();
+
+  new TCPWrap(env, args.This(),
+              args[0]->IsTrue() ? PROVIDER_TCPSERVERWRAP : PROVIDER_TCPWRAP);
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Local<Object> object)
+TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
     : ConnectionWrap(env,
                      object,
-                     AsyncWrap::PROVIDER_TCPWRAP) {
+                     provider) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.

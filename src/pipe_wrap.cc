@@ -116,16 +116,20 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  new PipeWrap(env, args.This(), args[0]->IsTrue());
+
+  new PipeWrap(env, args.This(),
+               args[0]->IsTrue() ? PROVIDER_PIPESERVERWRAP : PROVIDER_PIPEWRAP,
+               args[1]->IsTrue());
 }
 
 
 PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
+                   ProviderType provider,
                    bool ipc)
     : ConnectionWrap(env,
                      object,
-                     AsyncWrap::PROVIDER_PIPEWRAP) {
+                     provider) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.

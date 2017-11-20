@@ -138,6 +138,11 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(new Gzip()._handle, 'Zlib');
 }
 
+{
+  const binding = process.binding('pipe_wrap');
+  const handle = new binding.Pipe(true);
+  testInitialized(handle, 'Pipe');
+}
 
 {
   const binding = process.binding('pipe_wrap');
