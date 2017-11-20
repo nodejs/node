@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const TCP = process.binding('tcp_wrap').TCP;
+const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
 const ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
 
 function makeConnection() {
-  const client = new TCP();
+  const client = new TCP(TCPConstants.SOCKET);
 
   const req = new TCPConnectWrap();
   const err = client.connect(req, '127.0.0.1', this.address().port);
