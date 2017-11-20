@@ -3689,7 +3689,7 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 N-API provides a function for getting the current event loop associated with
 a specific `napi_env`.
 
-### napi_uv_get_event_loop
+### napi_get_uv_event_loop
 <!-- YAML
 added: REPLACEME
 -->
