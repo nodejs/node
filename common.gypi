@@ -204,8 +204,6 @@
         'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
       },
-      'VCLibrarianTool': {
-      },
       'VCLinkerTool': {
         'conditions': [
           ['target_arch=="ia32"', {
