@@ -32,7 +32,14 @@ namespace node {
 
 class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
  public:
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
+  enum SocketType {
+    SOCKET,
+    SERVER
+  };
+
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
@@ -46,7 +53,8 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
   friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
 
-  TCPWrap(Environment* env, v8::Local<v8::Object> object);
+  TCPWrap(Environment* env, v8::Local<v8::Object> object,
+          ProviderType provider);
   ~TCPWrap();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

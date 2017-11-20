@@ -138,19 +138,27 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   testInitialized(new Gzip()._handle, 'Zlib');
 }
 
-
 {
   const binding = process.binding('pipe_wrap');
-  const handle = new binding.Pipe();
+  const handle = new binding.Pipe(binding.constants.IPC);
   testInitialized(handle, 'Pipe');
-  const req = new binding.PipeConnectWrap();
-  testUninitialized(req, 'PipeConnectWrap');
-  req.address = common.PIPE;
-  req.oncomplete = common.mustCall(() => handle.close());
-  handle.connect(req, req.address, req.oncomplete);
-  testInitialized(req, 'PipeConnectWrap');
 }
 
+{
+  const server = net.createServer(common.mustCall((socket) => {
+    server.close();
+  })).listen(common.PIPE, common.mustCall(() => {
+    const binding = process.binding('pipe_wrap');
+    const handle = new binding.Pipe(binding.constants.SOCKET);
+    testInitialized(handle, 'Pipe');
+    const req = new binding.PipeConnectWrap();
+    testUninitialized(req, 'PipeConnectWrap');
+    req.address = common.PIPE;
+    req.oncomplete = common.mustCall(() => handle.close());
+    handle.connect(req, req.address, req.oncomplete);
+    testInitialized(req, 'PipeConnectWrap');
+  }));
+}
 
 {
   const Process = process.binding('process_wrap').Process;
@@ -179,7 +187,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
     });
     socket.resume();
   })).listen(0, common.localhostIPv4, common.mustCall(() => {
-    const handle = new tcp_wrap.TCP();
+    const handle = new tcp_wrap.TCP(tcp_wrap.constants.SOCKET);
     const req = new tcp_wrap.TCPConnectWrap();
     const sreq = new stream_wrap.ShutdownWrap();
     const wreq = new stream_wrap.WriteWrap();
@@ -221,8 +229,8 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
 
 
 if (common.hasCrypto) { // eslint-disable-line crypto-check
-  const TCP = process.binding('tcp_wrap').TCP;
-  const tcp = new TCP();
+  const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+  const tcp = new TCP(TCPConstants.SOCKET);
 
   const ca = fixtures.readSync('test_ca.pem', 'ascii');
   const cert = fixtures.readSync('test_cert.pem', 'ascii');

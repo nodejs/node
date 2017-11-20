@@ -188,7 +188,7 @@ static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
   Local<Object> wrap_obj;
   UVType* handle;
 
-  wrap_obj = WrapType::Instantiate(env, parent);
+  wrap_obj = WrapType::Instantiate(env, parent, WrapType::SOCKET);
   if (wrap_obj.IsEmpty())
     return Local<Object>();
 
