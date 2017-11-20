@@ -493,7 +493,9 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 }
 
 
-Local<Object> UDPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
+Local<Object> UDPWrap::Instantiate(Environment* env,
+                                   AsyncWrap* parent,
+                                   UDPWrap::SocketType type) {
   EscapableHandleScope scope(env->isolate());
   AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   // If this assert fires then Initialize hasn't been called yet.

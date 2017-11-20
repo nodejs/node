@@ -42,6 +42,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
@@ -51,14 +52,17 @@ using v8::Value;
 using AsyncHooks = Environment::AsyncHooks;
 
 
-Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
+Local<Object> TCPWrap::Instantiate(Environment* env,
+                                   AsyncWrap* parent,
+                                   TCPWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
+  Local<Value> type_value = Int32::New(env->isolate(), type);
   Local<Object> instance =
-      constructor->NewInstance(env->context()).ToLocalChecked();
+      constructor->NewInstance(env->context(), 1, &type_value).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -122,6 +126,14 @@ void TCPWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);
   target->Set(wrapString, cwt->GetFunction());
+
+  // Define constants
+  Local<Object> constants = Object::New(env->isolate());
+  NODE_DEFINE_CONSTANT(constants, SOCKET);
+  NODE_DEFINE_CONSTANT(constants, SERVER);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+              constants).FromJust();
 }
 
 
@@ -130,15 +142,30 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsInt32());
   Environment* env = Environment::GetCurrent(args);
-  new TCPWrap(env, args.This());
+
+  int type_value = args[0].As<Int32>()->Value();
+  TCPWrap::SocketType type = static_cast<TCPWrap::SocketType>(type_value);
+
+  ProviderType provider;
+  switch (type) {
+    case SOCKET:
+      provider = PROVIDER_TCPWRAP;
+      break;
+    case SERVER:
+      provider = PROVIDER_TCPSERVERWRAP;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  new TCPWrap(env, args.This(), provider);
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Local<Object> object)
-    : ConnectionWrap(env,
-                     object,
-                     AsyncWrap::PROVIDER_TCPWRAP) {
+TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
+    : ConnectionWrap(env, object, provider) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.

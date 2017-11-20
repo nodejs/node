@@ -6,7 +6,7 @@ if (common.isWindows)
 const assert = require('assert');
 const net = require('net');
 const path = require('path');
-const Pipe = process.binding('pipe_wrap').Pipe;
+const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
 common.refreshTmpDir();
 
@@ -71,7 +71,7 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
   })
   .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
     const getSocketOpt = (index) => {
-      const handle = new Pipe();
+      const handle = new Pipe(PipeConstants.SOCKET);
       const err = handle.bind(`${prefix}-client-${socketCounter++}`);
       assert(err >= 0, String(err));
       assert.notStrictEqual(handle.fd, -1);

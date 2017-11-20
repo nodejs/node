@@ -66,8 +66,8 @@ const dgram = require('dgram');
 
 // pipe
 {
-  const Pipe = process.binding('pipe_wrap').Pipe;
-  const handle = new Pipe();
+  const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
+  const handle = new Pipe(PipeConstants.SOCKET);
   strictEqual(Object.getPrototypeOf(handle).hasOwnProperty('hasRef'),
               true, 'pipe_wrap: hasRef() missing');
   strictEqual(handle.hasRef(),
