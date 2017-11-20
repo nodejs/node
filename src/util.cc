@@ -113,6 +113,18 @@ void LowMemoryNotification() {
   }
 }
 
+std::string GetHumanReadableProcessName() {
+  char name[1024];
+  GetHumanReadableProcessName(&name);
+  return name;
+}
+
+void GetHumanReadableProcessName(char (*name)[1024]) {
+  char title[1024] = "Node.js";
+  uv_get_process_title(title, sizeof(title));
+  snprintf(*name, sizeof(*name), "%s[%u]", title, GetProcessId());
+}
+
 uint32_t GetProcessId() {
 #ifdef _WIN32
   return GetCurrentProcessId();
