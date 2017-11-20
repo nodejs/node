@@ -899,7 +899,7 @@ const char* error_messages[] = {nullptr,
                                 "An exception is pending",
                                 "The async work item was cancelled",
                                 "napi_escape_handle already called on scope",
-                                "invalid handle scope usage"};
+                                "Invalid handle scope usage"};
 
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
