@@ -24,6 +24,14 @@
 #include "node_internals.h"
 #include <stdio.h>
 
+#ifdef __POSIX__
+#include <unistd.h>  // getpid()
+#endif
+
+#ifdef _MSC_VER
+#include <windows.h>  // GetCurrentProcessId()
+#endif
+
 namespace node {
 
 using v8::Isolate;
@@ -103,6 +111,14 @@ void LowMemoryNotification() {
       isolate->LowMemoryNotification();
     }
   }
+}
+
+uint32_t GetProcessId() {
+#ifdef _WIN32
+  return GetCurrentProcessId();
+#else
+  return getpid();
+#endif
 }
 
 }  // namespace node
