@@ -302,7 +302,8 @@ class NodeInspectorClient : public V8InspectorClient {
       : env_(env), platform_(platform), terminated_(false),
         running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
-    contextCreated(env->context(), "Node.js Main Context");
+    // TODO(bnoordhuis) Make name configurable from src/node.cc.
+    contextCreated(env->context(), GetHumanReadableProcessName());
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
