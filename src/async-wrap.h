@@ -46,6 +46,7 @@ namespace node {
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
   V(PIPECONNECTWRAP)                                                          \
+  V(PIPESERVERWRAP)                                                           \
   V(PIPEWRAP)                                                                 \
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
@@ -54,6 +55,7 @@ namespace node {
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
   V(TCPCONNECTWRAP)                                                           \
+  V(TCPSERVERWRAP)                                                            \
   V(TCPWRAP)                                                                  \
   V(TIMERWRAP)                                                                \
   V(TTYWRAP)                                                                  \

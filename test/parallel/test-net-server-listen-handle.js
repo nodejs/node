@@ -5,8 +5,8 @@ const assert = require('assert');
 const net = require('net');
 const fs = require('fs');
 const uv = process.binding('uv');
-const TCP = process.binding('tcp_wrap').TCP;
-const Pipe = process.binding('pipe_wrap').Pipe;
+const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
+const { Pipe, constants: PipeConstants } = process.binding('pipe_wrap');
 
 common.refreshTmpDir();
 
@@ -36,12 +36,12 @@ function randomPipePath() {
 function randomHandle(type) {
   let handle, errno, handleName;
   if (type === 'tcp') {
-    handle = new TCP();
+    handle = new TCP(TCPConstants.SOCKET);
     errno = handle.bind('0.0.0.0', 0);
     handleName = 'arbitrary tcp port';
   } else {
     const path = randomPipePath();
-    handle = new Pipe();
+    handle = new Pipe(PipeConstants.SOCKET);
     errno = handle.bind(path);
     handleName = `pipe ${path}`;
   }
