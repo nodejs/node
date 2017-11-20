@@ -26,12 +26,10 @@ static void BackgroundRunner(void* data) {
 
 BackgroundTaskRunner::BackgroundTaskRunner(int thread_pool_size) {
   for (int i = 0; i < thread_pool_size; i++) {
-    uv_thread_t* t = new uv_thread_t();
-    if (uv_thread_create(t, BackgroundRunner, &background_tasks_) != 0) {
-      delete t;
+    std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
+    if (uv_thread_create(t.get(), BackgroundRunner, &background_tasks_) != 0)
       break;
-    }
-    threads_.push_back(std::unique_ptr<uv_thread_t>(t));
+    threads_.push_back(std::move(t));
   }
 }
 
