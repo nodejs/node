@@ -3,13 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-function unlink(pathname) {
-  try {
-    fs.rmdirSync(pathname);
-  } catch (e) {
-  }
-}
-
 common.refreshTmpDir();
 
 {
@@ -19,10 +12,6 @@ common.refreshTmpDir();
     assert.strictEqual(err, null);
     assert.strictEqual(common.fileExists(pathname), true);
   }));
-
-  process.on('exit', function() {
-    unlink(pathname);
-  });
 }
 
 {
@@ -32,21 +21,14 @@ common.refreshTmpDir();
     assert.strictEqual(err, null);
     assert.strictEqual(common.fileExists(pathname), true);
   }));
-
-  process.on('exit', function() {
-    unlink(pathname);
-  });
 }
 
 {
   const pathname = `${common.tmpDir}/test3`;
 
-  unlink(pathname);
   fs.mkdirSync(pathname);
 
   const exists = common.fileExists(pathname);
-  unlink(pathname);
-
   assert.strictEqual(exists, true);
 }
 
