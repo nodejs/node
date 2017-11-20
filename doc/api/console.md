@@ -483,12 +483,12 @@ current JavaScript CPU profiling session if one has been started and prints
 the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
 
-### console.table(array[, ...args])
+### console.table(array[, columns])
 <!-- YAML
 added: v8.0.0
 -->
 * `array` {Array|Object}
-* `...args` {any}
+* `columns` {Array}
 
 This method does not display anything unless used in the inspector. Prints to
 `stdout` the array `array` formatted as a table.
