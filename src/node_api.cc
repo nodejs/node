@@ -930,7 +930,7 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_handle_scope_mismatch,
+      node::arraysize(error_messages) == napi_handle_scope_mismatch + 1,
       "Count of error messages must match count of error values");
   CHECK_LE(env->last_error.error_code, napi_handle_scope_mismatch);
 
