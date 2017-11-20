@@ -99,7 +99,6 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#define getpid GetCurrentProcessId
 #define umask _umask
 typedef int mode_t;
 #else
@@ -1659,13 +1658,8 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
   if (uv_exepath(exepath, &exepath_size))
     snprintf(exepath, sizeof(exepath), "node");
 
-  char pid[12] = {0};
-#ifndef _WIN32
-  snprintf(pid, sizeof(pid), "[%u]", getpid());
-#endif
-
-  fprintf(stderr, "%s%s: %s:%s:%s%s Assertion `%s' failed.\n",
-          exepath, pid, filename, linenum,
+  fprintf(stderr, "%s[%u]: %s:%s:%s%s Assertion `%s' failed.\n",
+          exepath, GetProcessId(), filename, linenum,
           function, *function ? ":" : "", message);
   fflush(stderr);
 
@@ -3197,7 +3191,8 @@ void SetupProcessObject(Environment* env,
       process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
 
-  READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
+  READONLY_PROPERTY(process, "pid",
+                    Integer::New(env->isolate(), GetProcessId()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   CHECK(process->SetAccessor(env->context(),
