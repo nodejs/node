@@ -25,9 +25,16 @@ assert.doesNotThrow(() => {
   }));
 });
 
-assert.throws(() => {
-  fs.accessSync(true);
-}, /path must be a string or Buffer/);
+common.expectsError(
+  () => {
+    fs.accessSync(true);
+  },
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "path" argument must be one of type string, Buffer, or URL'
+  }
+);
 
 const dir = Buffer.from(fixtures.fixturesDir);
 fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {
