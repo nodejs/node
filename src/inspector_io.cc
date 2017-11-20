@@ -26,17 +26,6 @@ using v8_inspector::StringView;
 template<typename Transport>
 using TransportAndIo = std::pair<Transport*, InspectorIo*>;
 
-std::string GetProcessTitle() {
-  char title[2048];
-  int err = uv_get_process_title(title, sizeof(title));
-  if (err == 0) {
-    return title;
-  } else {
-    // Title is too long, or could not be retrieved.
-    return "Node.js";
-  }
-}
-
 std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
   std::string script_path;
 
@@ -484,7 +473,7 @@ std::vector<std::string> InspectorIoDelegate::GetTargetIds() {
 }
 
 std::string InspectorIoDelegate::GetTargetTitle(const std::string& id) {
-  return script_name_.empty() ? GetProcessTitle() : script_name_;
+  return script_name_.empty() ? GetHumanReadableProcessName() : script_name_;
 }
 
 std::string InspectorIoDelegate::GetTargetUrl(const std::string& id) {

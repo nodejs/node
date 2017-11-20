@@ -1653,14 +1653,11 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
   auto message = (*args)[2];
   auto function = (*args)[3];
 
-  char exepath[256];
-  size_t exepath_size = sizeof(exepath);
-  if (uv_exepath(exepath, &exepath_size))
-    snprintf(exepath, sizeof(exepath), "node");
+  char name[1024];
+  GetHumanReadableProcessName(&name);
 
-  fprintf(stderr, "%s[%u]: %s:%s:%s%s Assertion `%s' failed.\n",
-          exepath, GetProcessId(), filename, linenum,
-          function, *function ? ":" : "", message);
+  fprintf(stderr, "%s: %s:%s:%s%s Assertion `%s' failed.\n",
+          name, filename, linenum, function, *function ? ":" : "", message);
   fflush(stderr);
 
   Abort();
