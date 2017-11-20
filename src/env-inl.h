@@ -268,6 +268,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       emit_napi_warning_(true),
       makecallback_cntr_(0),
       scheduled_immediate_count_(isolate_, 1),
+      should_abort_on_uncaught_toggle_(isolate_, 1),
 #if HAVE_INSPECTOR
       inspector_agent_(new inspector::Agent(this)),
 #endif
@@ -305,6 +306,9 @@ inline Environment::Environment(IsolateData* isolate_data,
   performance_state_->milestones[
     performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
         performance::performance_v8_start;
+
+  // By default, always abort when --abort-on-uncaught-exception was passed.
+  should_abort_on_uncaught_toggle_[0] = 1;
 }
 
 inline Environment::~Environment() {
@@ -397,6 +401,11 @@ inline bool Environment::abort_on_uncaught_exception() const {
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   abort_on_uncaught_exception_ = value;
+}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::should_abort_on_uncaught_toggle() {
+  return should_abort_on_uncaught_toggle_;
 }
 
 inline std::vector<double>* Environment::destroy_async_id_list() {

@@ -1637,6 +1637,29 @@ if (process.getuid && process.setuid) {
 or Android).
 
 
+## process.shouldAbortOnUncaughtException
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} **Default:** `true`
+
+The `process.shouldAbortOnUncaughtException` switch controls the behavior
+when the `--abort-on-uncaught-exception` flag was passed on the command line
+or set through [`v8.setFlagsFromString()`][]:
+
+If the flag was passed to Node.js and `process.shouldAbortOnUncaughtException`
+is `true`, the process will abort when enountering an uncaught exception
+(regardless of any [`process.on('uncaughtException')`][] listeners).
+
+If the flag was passed to Node and `process.shouldAbortOnUncaughtException`
+is `false`, the process will not abort.
+
+If the `--abort-on-uncaught-exception` flag is not set, this value is ignored.
+
+*Note*: If the deprecated [`domain`][] built-in module is in use,
+this flag will be set by that module whenever domain state changes.
+
 ## process.stderr
 
 * {Stream}
@@ -1921,6 +1944,7 @@ cases:
 [`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1930,11 +1954,13 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Child Process]: child_process.html
 [Cluster]: cluster.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams

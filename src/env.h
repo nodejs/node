@@ -134,7 +134,6 @@ class ModuleWrap;
   V(dns_txt_string, "TXT")                                                    \
   V(domain_string, "domain")                                                  \
   V(emit_string, "emit")                                                      \
-  V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(enumerable_string, "enumerable")                                          \
   V(idle_string, "idle")                                                      \
@@ -309,7 +308,6 @@ class ModuleWrap;
   V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
-  V(domains_stack_array, v8::Array)                                           \
   V(http2ping_constructor_template, v8::ObjectTemplate)                       \
   V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(inspector_console_api_object, v8::Object)                                 \
@@ -568,8 +566,15 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  // This stores whether the --abort-on-uncaught-exception flag was passed
+  // to Node.
   inline bool abort_on_uncaught_exception() const;
   inline void set_abort_on_uncaught_exception(bool value);
+  // This is a pseudo-boolean that keeps track of whether an uncaught exception
+  // should abort the process or not if --abort-on-uncaught-exception was
+  // passed to Node. If the flag was not passed, it is ignored.
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+  should_abort_on_uncaught_toggle();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -713,6 +718,7 @@ class Environment {
   std::vector<double> destroy_async_id_list_;
 
   AliasedBuffer<uint32_t, v8::Uint32Array> scheduled_immediate_count_;
+  AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
 
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;
