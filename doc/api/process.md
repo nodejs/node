@@ -1136,6 +1136,16 @@ if (process.getuid) {
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
 or Android).
 
+## process.hasUncaughtExceptionCaptureCallback()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Indicates whether a callback has been set using
+[`process.setUncaughtExceptionCaptureCallback()`][].
+
 ## process.hrtime([time])
 <!-- YAML
 added: v0.7.6
@@ -1637,6 +1647,29 @@ if (process.getuid && process.setuid) {
 or Android).
 
 
+## process.setUncaughtExceptionCaptureCallback(fn)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|null}
+
+The `process.setUncaughtExceptionCapture` function sets a function that will
+be invoked when an uncaught exception occurs, which will receive the exception
+value itself as its first argument.
+
+If such a function is set, the [`process.on('uncaughtException')`][] event will
+not be emitted. If `--abort-on-uncaught-exception` was passed from the
+command line or set through [`v8.setFlagsFromString()`][], the process will
+not abort.
+
+To unset the capture function, `process.setUncaughtExceptionCapture(null)`
+may be used. Calling this method with a non-`null` argument while another
+capture function is set will throw an error.
+
+*Note*: Using this function is mutually exclusive with using the
+deprecated [`domain`][] built-in module.
+
 ## process.stderr
 
 * {Stream}
@@ -1921,6 +1954,7 @@ cases:
 [`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1930,11 +1964,14 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
 [Child Process]: child_process.html
 [Cluster]: cluster.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams

@@ -1107,65 +1107,12 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
 
 namespace {
 
-bool DomainHasErrorHandler(const Environment* env,
-                           const Local<Object>& domain) {
-  HandleScope scope(env->isolate());
-
-  Local<Value> domain_event_listeners_v = domain->Get(env->events_string());
-  if (!domain_event_listeners_v->IsObject())
-    return false;
-
-  Local<Object> domain_event_listeners_o =
-      domain_event_listeners_v.As<Object>();
-
-  Local<Value> domain_error_listeners_v =
-      domain_event_listeners_o->Get(env->error_string());
-
-  if (domain_error_listeners_v->IsFunction() ||
-      (domain_error_listeners_v->IsArray() &&
-      domain_error_listeners_v.As<Array>()->Length() > 0))
-    return true;
-
-  return false;
-}
-
-bool DomainsStackHasErrorHandler(const Environment* env) {
-  HandleScope scope(env->isolate());
-
-  if (!env->using_domains())
-    return false;
-
-  Local<Array> domains_stack_array = env->domains_stack_array().As<Array>();
-  if (domains_stack_array->Length() == 0)
-    return false;
-
-  uint32_t domains_stack_length = domains_stack_array->Length();
-  for (uint32_t i = domains_stack_length; i > 0; --i) {
-    Local<Value> domain_v = domains_stack_array->Get(i - 1);
-    if (!domain_v->IsObject())
-      return false;
-
-    Local<Object> domain = domain_v.As<Object>();
-    if (DomainHasErrorHandler(env, domain))
-      return true;
-  }
-
-  return false;
-}
-
-
 bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   HandleScope scope(isolate);
-
   Environment* env = Environment::GetCurrent(isolate);
-  Local<Object> process_object = env->process_object();
-  Local<String> emitting_top_level_domain_error_key =
-    env->emitting_top_level_domain_error_string();
-  bool isEmittingTopLevelDomainError =
-      process_object->Get(emitting_top_level_domain_error_key)->BooleanValue();
-
-  return isEmittingTopLevelDomainError || !DomainsStackHasErrorHandler(env);
+  return env->should_abort_on_uncaught_toggle()[0];
 }
+
 
 Local<Value> GetDomainProperty(Environment* env, Local<Object> object) {
   Local<Value> domain_v =
@@ -1215,9 +1162,6 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->set_using_domains(true);
 
   HandleScope scope(env->isolate());
-
-  CHECK(args[0]->IsArray());
-  env->set_domains_stack_array(args[0].As<Array>());
 
   // Do a little housekeeping.
   env->process_object()->Delete(
@@ -3520,6 +3464,13 @@ void SetupProcessObject(Environment* env,
   CHECK(process->Set(env->context(),
                      scheduled_immediate_count,
                      env->scheduled_immediate_count().GetJSArray()).FromJust());
+
+  auto should_abort_on_uncaught_toggle =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_shouldAbortOnUncaughtToggle");
+  CHECK(process->Set(env->context(),
+                     should_abort_on_uncaught_toggle,
+                     env->should_abort_on_uncaught_toggle().GetJSArray())
+                         .FromJust());
 
   // -e, --eval
   if (eval_string) {
