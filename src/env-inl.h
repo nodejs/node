@@ -506,8 +506,15 @@ Environment::scheduled_immediate_count() {
   return scheduled_immediate_count_;
 }
 
-void Environment::SetImmediate(native_immediate_callback cb, void* data) {
-  native_immediate_callbacks_.push_back({ cb, data });
+void Environment::SetImmediate(native_immediate_callback cb,
+                               void* data,
+                               v8::Local<v8::Object> obj) {
+  native_immediate_callbacks_.push_back({
+    cb,
+    data,
+    std::unique_ptr<v8::Persistent<v8::Object>>(
+        obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj))
+  });
   if (scheduled_immediate_count_[0] == 0)
     ActivateImmediateCheck();
   scheduled_immediate_count_[0] = scheduled_immediate_count_[0] + 1;
