@@ -818,6 +818,8 @@ class Http2Session : public AsyncWrap {
   // Returns pointer to the stream, or nullptr if stream does not exist
   inline Http2Stream* FindStream(int32_t id);
 
+  inline bool CanAddStream();
+
   // Adds a stream instance to this session
   inline void AddStream(Http2Stream* stream);
 
