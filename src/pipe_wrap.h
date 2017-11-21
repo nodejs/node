@@ -30,6 +30,12 @@
 
 namespace node {
 
+enum pipewrap_type {
+  PIPEWRAP_SOCKET,
+  PIPEWRAP_SERVER,
+  PIPEWRAP_IPC
+};
+
 class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);

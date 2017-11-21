@@ -122,6 +122,14 @@ void TCPWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap");
   cwt->SetClassName(wrapString);
   target->Set(wrapString, cwt->GetFunction());
+
+  // Define constants
+  Local<Object> constants = Object::New(env->isolate());
+  NODE_DEFINE_CONSTANT(constants, TCPWRAP_SOCKET);
+  NODE_DEFINE_CONSTANT(constants, TCPWRAP_SERVER);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+              constants).FromJust();
 }
 
 
@@ -130,19 +138,29 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
-
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
 
-  new TCPWrap(env, args.This(),
-              args[0]->IsTrue() ? PROVIDER_TCPSERVERWRAP : PROVIDER_TCPWRAP);
+  int type_value = args[0]->IntegerValue(env->context()).ToChecked();
+  tcpwrap_type type = static_cast<tcpwrap_type>(type_value);
+
+  ProviderType provider;
+  switch (type) {
+    case TCPWRAP_SOCKET:
+      provider = PROVIDER_TCPWRAP;
+      break;
+    case TCPWRAP_SERVER:
+      provider = PROVIDER_TCPSERVERWRAP;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  new TCPWrap(env, args.This(), provider);
 }
 
 
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
-    : ConnectionWrap(env,
-                     object,
-                     provider) {
+    : ConnectionWrap(env, object, provider) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.

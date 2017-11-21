@@ -107,6 +107,15 @@ void PipeWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "PipeConnectWrap");
   cwt->SetClassName(wrapString);
   target->Set(wrapString, cwt->GetFunction());
+
+  // Define constants
+  Local<Object> constants = Object::New(env->isolate());
+  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_SOCKET);
+  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_SERVER);
+  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_IPC);
+  target->Set(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
+              constants).FromJust();
 }
 
 
@@ -117,9 +126,29 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
 
-  new PipeWrap(env, args.This(),
-               args[0]->IsTrue() ? PROVIDER_PIPESERVERWRAP : PROVIDER_PIPEWRAP,
-               args[1]->IsTrue());
+  int type_value = args[0]->IntegerValue(env->context()).ToChecked();
+  pipewrap_type type = static_cast<pipewrap_type>(type_value);
+
+  bool ipc;
+  ProviderType provider;
+  switch (type) {
+    case PIPEWRAP_SOCKET:
+      provider = PROVIDER_PIPEWRAP;
+      ipc = false;
+      break;
+    case PIPEWRAP_SERVER:
+      provider = PROVIDER_PIPESERVERWRAP;
+      ipc = false;
+      break;
+    case PIPEWRAP_IPC:
+      provider = PROVIDER_PIPEWRAP;
+      ipc = true;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  new PipeWrap(env, args.This(), provider, ipc);
 }
 
 
@@ -127,9 +156,7 @@ PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
                    ProviderType provider,
                    bool ipc)
-    : ConnectionWrap(env,
-                     object,
-                     provider) {
+    : ConnectionWrap(env, object, provider) {
   int r = uv_pipe_init(env->event_loop(), &handle_, ipc);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_pipe_init() returns void.
