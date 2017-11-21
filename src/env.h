@@ -661,7 +661,11 @@ class Environment {
   bool EmitNapiWarning();
 
   typedef void (*native_immediate_callback)(Environment* env, void* data);
-  inline void SetImmediate(native_immediate_callback cb, void* data);
+  // cb will be called as cb(env, data) on the next event loop iteration.
+  // obj will be kept alive between now and after the callback has run.
+  inline void SetImmediate(native_immediate_callback cb,
+                           void* data,
+                           v8::Local<v8::Object> obj = v8::Local<v8::Object>());
   // This needs to be available for the JS-land setImmediate().
   void ActivateImmediateCheck();
 
@@ -741,6 +745,7 @@ class Environment {
   struct NativeImmediateCallback {
     native_immediate_callback cb_;
     void* data_;
+    std::unique_ptr<v8::Persistent<v8::Object>> keep_alive_;
   };
   std::vector<NativeImmediateCallback> native_immediate_callbacks_;
   void RunAndClearNativeImmediates();
