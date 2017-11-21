@@ -32,7 +32,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   setTimeout(() => res.end(req.url), 50);
 }, 2));
 
-const countdown = new Countdown(2, common.mustCall(() => server.close()));
+const countdown = new Countdown(2, () => server.close());
 
 server.on('connect', common.mustCall((req, socket) => {
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
