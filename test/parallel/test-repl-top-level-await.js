@@ -147,27 +147,26 @@ async function ordinaryTests() {
   }
 }
 
-async function ctrlCTest() {
+async function backgroundedTest() {
   putIn.run([
     `const timeout = (msecs) => new Promise((resolve) => {
        setTimeout(resolve, msecs).unref();
      });`
   ]);
 
-  console.log('Testing Ctrl+C');
+  console.log('Testing backgrounding');
   assert.deepStrictEqual(await runAndWait([
     'await timeout(100000)',
-    { ctrl: true, name: 'c' }
   ]), [
     'await timeout(100000)\r',
-    'Thrown: Error: Script execution interrupted.',
-    PROMPT
+    'AWAIT01 (pending)',
+    PROMPT,
   ]);
 }
 
 async function main() {
   await ordinaryTests();
-  await ctrlCTest();
+  await backgroundedTest();
 }
 
 main();

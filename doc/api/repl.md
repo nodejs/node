@@ -160,7 +160,10 @@ allowing you to continue working with the repl.
 AWAIT01 (pending)
 > 5 + 5
 10
-> AWAIT01 => true
+> AWAIT01 (resolved) => true
+> await new Promise((_, reject) => setTimeout(() => reject(false), 5000))
+AWAIT02 (pending)
+> AWAIT02 (rejected) => false
 >
 ```
 
