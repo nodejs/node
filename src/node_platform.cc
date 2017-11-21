@@ -38,13 +38,12 @@ void BackgroundTaskRunner::PostTask(std::unique_ptr<Task> task) {
 }
 
 void BackgroundTaskRunner::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
-  CHECK(false && "idle tasks not enabled");
+  UNREACHABLE();
 }
 
 void BackgroundTaskRunner::PostDelayedTask(std::unique_ptr<v8::Task> task,
                                            double delay_in_seconds) {
-  // It's unclear whether this is required at all for background tasks.
-  PostTask(std::move(task));
+  UNREACHABLE();
 }
 
 void BackgroundTaskRunner::BlockingDrain() {
@@ -77,7 +76,7 @@ void PerIsolatePlatformData::FlushTasks(uv_async_t* handle) {
 }
 
 void PerIsolatePlatformData::PostIdleTask(std::unique_ptr<v8::IdleTask> task) {
-  CHECK(false && "idle tasks not enabled");
+  UNREACHABLE();
 }
 
 void PerIsolatePlatformData::PostTask(std::unique_ptr<Task> task) {
