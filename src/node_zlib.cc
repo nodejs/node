@@ -322,7 +322,7 @@ class ZCtx : public AsyncWrap {
         }
         break;
       default:
-        CHECK(0 && "wtf?");
+        UNREACHABLE();
     }
 
     // pass any errors back to the main thread to deal with.
@@ -550,7 +550,7 @@ class ZCtx : public AsyncWrap {
             ->AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
         break;
       default:
-        CHECK(0 && "wtf?");
+        UNREACHABLE();
     }
 
     ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
