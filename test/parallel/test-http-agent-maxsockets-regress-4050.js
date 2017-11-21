@@ -17,7 +17,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
 }, 6));
 
-const countdown = new Countdown(6, common.mustCall(() => server.close()));
+const countdown = new Countdown(6, () => server.close());
 
 function get(path, callback) {
   return http.get({
