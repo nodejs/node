@@ -489,7 +489,8 @@ void Environment::SetImmediate(native_immediate_callback cb,
   native_immediate_callbacks_.push_back({
     cb,
     data,
-    obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj)
+    std::unique_ptr<v8::Persistent<v8::Object>>(
+        obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj))
   });
   if (scheduled_immediate_count_[0] == 0)
     ActivateImmediateCheck();
