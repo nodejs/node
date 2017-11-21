@@ -2753,8 +2753,11 @@ static void EnvGetter(Local<Name> property,
     return info.GetReturnValue().SetUndefined();
   }
   node::Utf8Value key(isolate, property);
-  char buffer[32767];
-  int ret = uv_os_getenv(*key, buffer, arraysize(buffer));
+  // On POSIX there is not explicitly defined size limit, but on Windows
+  // environment variables have a maximum size limit of 2**15 - 1.
+  char buffer[32768];
+  size_t buf_size = arraysize(buffer);
+  int ret = uv_os_getenv(*key, buffer, &buf_size);
   if (!ret) {
     return info.GetReturnValue().Set(String::NewFromUtf8(isolate, buffer));
   }
@@ -2786,24 +2789,22 @@ static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   int32_t rc = -1;  // Not found unless proven otherwise.
   if (property->IsString()) {
-#ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
-    if (getenv(*key))
+    // We are only interested in exsistance, so we can keep the buffer small.
+    char buffer[256];
+    size_t = sizeof(buffer);
+    int ret = uv_os_getenv(*key, buffer, &buf_size);
+    if (ret != UV_ENOENT) {
       rc = 0;
-#else  // _WIN32
-    node::TwoByteValue key(info.GetIsolate(), property);
-    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-    GetEnvironmentVariableW(key_ptr, nullptr, 0);
-    if (GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
-      rc = 0;
-      if (key_ptr[0] == L'=') {
+#ifdef _WIN32
+      if (*key[0] == L'=') {
         // Environment variables that start with '=' are hidden and read-only.
         rc = static_cast<int32_t>(v8::ReadOnly) |
              static_cast<int32_t>(v8::DontDelete) |
              static_cast<int32_t>(v8::DontEnum);
       }
-    }
 #endif
+    }
   }
   if (rc != -1)
     info.GetReturnValue().Set(rc);
