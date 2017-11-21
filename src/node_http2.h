@@ -417,7 +417,9 @@ const char* nghttp2_errname(int rv) {
 
 enum session_state_flags {
   SESSION_STATE_NONE = 0x0,
-  SESSION_STATE_DESTROYING = 0x1
+  SESSION_STATE_DESTROYING = 0x1,
+  SESSION_STATE_HAS_SCOPE = 0x2,
+  SESSION_STATE_WRITE_SCHEDULED = 0x4
 };
 
 // This allows for 4 default-sized frames with their frame headers
@@ -428,6 +430,19 @@ typedef uint32_t(*get_setting)(nghttp2_session* session,
 
 class Http2Session;
 class Http2Stream;
+
+// This scope should be present when any call into nghttp2 that may schedule
+// data to be written to the underlying transport is made, and schedules
+// such a write automatically once the scope is exited.
+class Http2Scope {
+ public:
+  explicit Http2Scope(Http2Stream* stream);
+  explicit Http2Scope(Http2Session* session);
+  ~Http2Scope();
+
+ private:
+  Http2Session* session_ = nullptr;
+};
 
 // The Http2Options class is used to parse the options object passed in to
 // a Http2Session object and convert those into an appropriate nghttp2_option
@@ -815,6 +830,9 @@ class Http2Session : public AsyncWrap {
   inline void MarkDestroying() { flags_ |= SESSION_STATE_DESTROYING; }
   inline bool IsDestroying() { return flags_ & SESSION_STATE_DESTROYING; }
 
+  // Schedule a write if nghttp2 indicates it wants to write to the socket.
+  void MaybeScheduleWrite();
+
   // Returns pointer to the stream, or nullptr if stream does not exist
   inline Http2Stream* FindStream(int32_t id);
 
@@ -1004,6 +1022,8 @@ class Http2Session : public AsyncWrap {
 
   size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
   std::queue<Http2Ping*> outstanding_pings_;
+
+  friend class Http2Scope;
 };
 
 class Http2Session::Http2Ping : public AsyncWrap {
