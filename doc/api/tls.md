@@ -792,8 +792,9 @@ changes:
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
-    to be used when checking the server's hostname against the certificate.
-    This should throw an error if verification fails. The method should return
+    to be used (instead of the builtin `tls.checkServerIdentity()` function)
+    when checking the server's hostname against the certificate.
+    This should return an {Error} if verification fails. The method should return
     `undefined` if the `servername` and `cert` are verified.
   * `session` {Buffer} A `Buffer` instance, containing TLS session.
   * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
