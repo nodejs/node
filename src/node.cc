@@ -2756,7 +2756,7 @@ static void EnvGetter(Local<Name> property,
   // On POSIX there is not explicitly defined size limit, but on Windows
   // environment variables have a maximum size limit of 2**15 - 1.
   char buffer[32768];
-  size_t buf_size = arraysize(buffer);
+  size_t buf_size = sizeof(buffer);
   int ret = uv_os_getenv(*key, buffer, &buf_size);
   if (!ret) {
     return info.GetReturnValue().Set(String::NewFromUtf8(isolate, buffer));
@@ -2790,9 +2790,9 @@ static void EnvQuery(Local<Name> property,
   int32_t rc = -1;  // Not found unless proven otherwise.
   if (property->IsString()) {
     node::Utf8Value key(info.GetIsolate(), property);
-    // We are only interested in exsistance, so we can keep the buffer small.
+    // We are only interested in existence, so we can keep the buffer small.
     char buffer[256];
-    size_t = sizeof(buffer);
+    size_t buf_size = sizeof(buffer);
     int ret = uv_os_getenv(*key, buffer, &buf_size);
     if (ret != UV_ENOENT) {
       rc = 0;
