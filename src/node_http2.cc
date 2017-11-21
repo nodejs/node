@@ -323,7 +323,7 @@ Http2Session::Http2Session(Environment* env,
   max_header_pairs_ =
       type == NGHTTP2_SESSION_SERVER
           ? std::max(maxHeaderPairs, 4)     // minimum # of request headers
-          : std::max(maxHeaderPairs, 1);    // minumum # of response headers
+          : std::max(maxHeaderPairs, 1);    // minimum # of response headers
 
   max_outstanding_pings_ = opts.GetMaxOutstandingPings();
 
@@ -336,11 +336,7 @@ Http2Session::Http2Session(Environment* env,
   nghttp2_session_callbacks* callbacks
       = callback_struct_saved[hasGetPaddingCallback ? 1 : 0].callbacks;
 
-  typedef int (*init_fn)(nghttp2_session** session,
-                         const nghttp2_session_callbacks* callbacks,
-                         void* user_data,
-                         const nghttp2_option* options);
-  init_fn fn = type == NGHTTP2_SESSION_SERVER ?
+  auto fn = type == NGHTTP2_SESSION_SERVER ?
       nghttp2_session_server_new2 :
       nghttp2_session_client_new2;
 
@@ -444,9 +440,8 @@ inline ssize_t Http2Session::OnCallbackPadding(size_t frameLen,
                                                size_t maxPayloadLen) {
   DEBUG_HTTP2SESSION(this, "using callback to determine padding");
   Isolate* isolate = env()->isolate();
-  Local<Context> context = env()->context();
-
   HandleScope handle_scope(isolate);
+  Local<Context> context = env()->context();
   Context::Scope context_scope(context);
 
 #if defined(DEBUG) && DEBUG
@@ -533,9 +528,6 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
 
   Http2Stream* stream = session->FindStream(id);
   if (stream == nullptr) {
-    // Creates the stream and adds it automatically to the Http2Session
-    // TODO(jasnell): This current makes the Http2Stream instance "weak"
-    //                which may be problematic. Verify.
     new Http2Stream(session, id, frame->headers.cat);
   } else {
     stream->StartHeaders(frame->headers.cat);
@@ -608,9 +600,9 @@ inline int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   if (error_code != NGHTTP2_ERR_SESSION_CLOSING &&
       error_code != NGHTTP2_ERR_STREAM_CLOSED &&
       error_code != NGHTTP2_ERR_STREAM_CLOSING) {
-    Local<Context> context = env->context();
     Isolate* isolate = env->isolate();
     HandleScope scope(isolate);
+    Local<Context> context = env->context();
     Context::Scope context_scope(context);
 
     Local<Value> argv[3] = {
@@ -630,26 +622,23 @@ inline int Http2Session::OnStreamClose(nghttp2_session* handle,
                                        void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Environment* env = session->env();
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
   DEBUG_HTTP2SESSION2(session, "stream %d closed with code: %d", id, code);
   Http2Stream* stream = session->FindStream(id);
   // Intentionally ignore the callback if the stream does not exist
   if (stream != nullptr) {
     stream->Close(code);
-
-    Isolate* isolate = env->isolate();
-    Local<Context> context = env->context();
-
     // It is possible for the stream close to occur before the stream is
     // ever passed on to the javascript side. If that happens, ignore this.
-    if (stream->object()->Has(context,
-                              env->onstreamclose_string()).FromJust()) {
-      HandleScope scope(isolate);
-      Context::Scope context_scope(context);
-
-      Local<Value> argv[1] = {
-        Integer::NewFromUnsigned(isolate, code)
-      };
-      stream->MakeCallback(env->onstreamclose_string(), arraysize(argv), argv);
+    Local<Value> fn =
+        stream->object()->Get(context, env->onstreamclose_string())
+            .ToLocalChecked();
+    if (fn->IsFunction()) {
+      Local<Value> argv[1] = { Integer::NewFromUnsigned(isolate, code) };
+      stream->MakeCallback(fn.As<Function>(), arraysize(argv), argv);
     }
   }
   return 0;
@@ -713,9 +702,9 @@ inline int Http2Session::OnNghttpError(nghttp2_session* handle,
     DEBUG_HTTP2SESSION2(session, "Error '%.*s'", len, message);
   if (strncmp(message, BAD_PEER_MESSAGE, len) == 0) {
     Environment* env = session->env();
-    Local<Context> context = env->context();
     Isolate* isolate = env->isolate();
     HandleScope scope(isolate);
+    Local<Context> context = env->context();
     Context::Scope context_scope(context);
 
     Local<Value> argv[1] = {
@@ -755,6 +744,11 @@ inline void Http2Stream::SubmitTrailers::Submit(nghttp2_nv* trailers,
 
 
 inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+
   int32_t id = GetFrameID(frame);
   DEBUG_HTTP2SESSION2(this, "handle headers frame for stream %d", id);
   Http2Stream* stream = FindStream(id);
@@ -762,10 +756,6 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   nghttp2_header* headers = stream->headers();
   size_t count = stream->headers_count();
 
-  Local<Context> context = env()->context();
-  Isolate* isolate = env()->isolate();
-  Context::Scope context_scope(context);
-  HandleScope scope(isolate);
   Local<String> name_str;
   Local<String> value_str;
 
@@ -815,16 +805,16 @@ inline void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 
 
 inline void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
+  Isolate* isolate = env()->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env()->context();
+  Context::Scope context_scope(context);
+
   nghttp2_priority priority_frame = frame->priority;
   int32_t id = GetFrameID(frame);
   DEBUG_HTTP2SESSION2(this, "handle priority frame for stream %d", id);
   // Priority frame stream ID should never be <= 0. nghttp2 handles this for us
   nghttp2_priority_spec spec = priority_frame.pri_spec;
-
-  Local<Context> context = env()->context();
-  Isolate* isolate = env()->isolate();
-  HandleScope scope(isolate);
-  Context::Scope context_scope(context);
 
   Local<Value> argv[4] = {
     Integer::New(isolate, id),
@@ -851,13 +841,13 @@ inline void Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
 
 
 inline void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
-  nghttp2_goaway goaway_frame = frame->goaway;
-  DEBUG_HTTP2SESSION(this, "handling goaway frame");
-
-  Local<Context> context = env()->context();
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Local<Context> context = env()->context();
   Context::Scope context_scope(context);
+
+  nghttp2_goaway goaway_frame = frame->goaway;
+  DEBUG_HTTP2SESSION(this, "handling goaway frame");
 
   Local<Value> argv[3] = {
     Integer::NewFromUnsigned(isolate, goaway_frame.error_code),
@@ -886,9 +876,9 @@ inline void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 
 
 inline void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
-  Local<Context> context = env()->context();
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Local<Context> context = env()->context();
   Context::Scope context_scope(context);
 
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
@@ -1136,9 +1126,9 @@ nghttp2_stream* Http2Stream::operator*() {
 
 void Http2Stream::OnTrailers(const SubmitTrailers& submit_trailers) {
   DEBUG_HTTP2STREAM(this, "prompting for trailers");
-  Local<Context> context = env()->context();
   Isolate* isolate = env()->isolate();
   HandleScope scope(isolate);
+  Local<Context> context = env()->context();
   Context::Scope context_scope(context);
 
   Local<Value> ret =
@@ -1595,7 +1585,10 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint32_t val = args[0]->Uint32Value(env->context()).ToChecked();
   args.GetReturnValue().Set(
-      OneByteString(env->isolate(), nghttp2_strerror(val)));
+      String::NewFromOneByte(
+          env->isolate(),
+          reinterpret_cast<const uint8_t*>(nghttp2_strerror(val)),
+          v8::NewStringType::kInternalized).ToLocalChecked());
 }
 
 
@@ -1799,12 +1792,11 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
 
 
 void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
-  Http2Session* session;
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-
   HandleScope scope(isolate);
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
   uint32_t length = session->chunks_sent_since_last_write_;
 

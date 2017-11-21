@@ -730,7 +730,7 @@ class Http2Stream::Provider {
  public:
   Provider(Http2Stream* stream, int options);
   explicit Provider(int options);
-  ~Provider();
+  virtual ~Provider();
 
   nghttp2_data_provider* operator*() {
     return !empty_ ? &provider_ : nullptr;

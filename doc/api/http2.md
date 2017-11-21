@@ -361,7 +361,7 @@ The maximum number of outstanding (unacknowledged) pings is determined by the
 `maxOutstandingPings` configuration option. The default maximum is 10.
 
 If provided, the `payload` must be a `Buffer`, `TypedArray`, or `DataView`
-containing 8-bytes of data that will be transmitted with the `PING` and
+containing 8 bytes of data that will be transmitted with the `PING` and
 returned with the ping acknowledgement.
 
 The callback will be invoked with three arguments: an error argument that will

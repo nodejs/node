@@ -916,7 +916,7 @@ An HTTP/2 ping was cancelled.
 <a id="ERR_HTTP2_PING_LENGTH"></a>
 ### ERR_HTTP2_PING_LENGTH
 
-HTTP/2 ping payloads must be exactly 8-bytes in length.
+HTTP/2 ping payloads must be exactly 8 bytes in length.
 
 <a id="ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED"></a>
 ### ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED
