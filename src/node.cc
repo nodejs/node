@@ -2797,7 +2797,7 @@ static void EnvQuery(Local<Name> property,
     if (ret != UV_ENOENT) {
       rc = 0;
 #ifdef _WIN32
-      if (*key[0] == L'=') {
+      if (key[0] == L'=') {
         // Environment variables that start with '=' are hidden and read-only.
         rc = static_cast<int32_t>(v8::ReadOnly) |
              static_cast<int32_t>(v8::DontDelete) |
