@@ -13,7 +13,6 @@ const totalCPUs = require('os').cpus().length;
 const CLIEngine = require('./eslint').CLIEngine;
 const glob = require('./eslint/node_modules/glob');
 
-const cwd = process.cwd();
 const cliOptions = {
   rulePaths: rulesDirs,
   extensions: extensions,
@@ -82,9 +81,7 @@ if (cluster.isMaster) {
   if (i !== -1) {
     if (!process.argv[i + 1])
       throw new Error('Missing output filename');
-    var outPath = process.argv[i + 1];
-    if (!path.isAbsolute(outPath))
-      outPath = path.join(cwd, outPath);
+    const outPath = path.resolve(process.argv[i + 1]);
     fd = fs.openSync(outPath, 'w');
     outFn = function(str) {
       fs.writeSync(fd, str, 'utf8');
@@ -176,8 +173,6 @@ if (cluster.isMaster) {
       while (paths.length) {
         var dir = paths.shift();
         curPath = dir;
-        if (dir.indexOf('/') > 0)
-          dir = path.join(cwd, dir);
         const patterns = cli.resolveFileGlobPatterns([dir]);
         dir = path.resolve(patterns[0]);
         files = glob.sync(dir, globOptions);
