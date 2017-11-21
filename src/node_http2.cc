@@ -655,6 +655,16 @@ inline Http2Stream* Http2Session::FindStream(int32_t id) {
   return s != streams_.end() ? s->second : nullptr;
 }
 
+inline bool Http2Session::CanAddStream() {
+  uint32_t maxConcurrentStreams =
+      nghttp2_session_get_local_settings(
+          session_, NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
+  size_t maxSize =
+      std::min(streams_.max_size(), static_cast<size_t>(maxConcurrentStreams));
+  // We can add a new stream so long as we are less than the current
+  // maximum on concurrent streams
+  return streams_.size() < maxSize;
+}
 
 inline void Http2Session::AddStream(Http2Stream* stream) {
   CHECK_GE(++statistics_.stream_count, 0);
@@ -765,7 +775,14 @@ inline int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
 
   Http2Stream* stream = session->FindStream(id);
   if (stream == nullptr) {
-    new Http2Stream(session, id, frame->headers.cat);
+    if (session->CanAddStream()) {
+      new Http2Stream(session, id, frame->headers.cat);
+    } else {
+      // Too many concurrent streams being opened
+      nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
+                                NGHTTP2_ENHANCE_YOUR_CALM);
+      return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+    }
   } else {
     // If the stream has already been destroyed, ignore.
     if (stream->IsDestroyed())
