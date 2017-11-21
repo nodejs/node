@@ -145,7 +145,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 #### Top-Level Await
 
 The default evaluator will run top-level await expressions. It will also move
-promises which take longer than a second to evaluate into the background,
+promises which take longer than a tick to evaluate into the background,
 allowing you to continue working with the repl.
 
 <!-- eslint-skip -->
