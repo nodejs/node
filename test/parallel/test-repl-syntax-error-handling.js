@@ -8,7 +8,7 @@ switch (process.argv[2]) {
   case undefined:
     return parent();
   default:
-    throw new Error('wtf');
+    throw new Error('invalid');
 }
 
 function parent() {
