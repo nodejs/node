@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -132,9 +132,9 @@ if (cluster.isWorker) {
       worker.kill();
     });
 
-    worker.on('exit', function() {
+    worker.on('exit', common.mustCall(function() {
       process.exit(0);
-    });
+    }));
   });
 
   process.once('exit', function() {
