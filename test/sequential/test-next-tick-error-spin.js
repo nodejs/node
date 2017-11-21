@@ -42,7 +42,7 @@ if (process.argv[2] !== 'child') {
   process.maxTickDepth = 10;
 
   // in the error handler, we trigger several MakeCallback events
-  d.on('error', function(e) {
+  d.on('error', function() {
     console.log('a');
     console.log('b');
     console.log('c');
