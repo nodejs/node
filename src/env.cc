@@ -278,6 +278,10 @@ void Environment::RunAndClearNativeImmediates() {
     native_immediate_callbacks_.swap(list);
     for (const auto& cb : list) {
       cb.cb_(this, cb.data_);
+      if (cb.keep_alive_ != nullptr) {
+        cb.keep_alive_->Reset();
+        delete cb.keep_alive_;
+      }
     }
 
 #ifdef DEBUG
