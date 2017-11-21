@@ -215,12 +215,12 @@ if (cluster.isMaster) {
 
     // Calculate and format the data for displaying
     const elapsed = process.hrtime(startTime)[0];
-    const mins = padString(Math.floor(elapsed / 60), 2, '0');
-    const secs = padString(elapsed % 60, 2, '0');
-    const passed = padString(successes, 6, ' ');
-    const failed = padString(failures, 6, ' ');
+    const mins = `${Math.floor(elapsed / 60)}`.padStart(2, '0');
+    const secs = `${elapsed % 60}`.padStart(2, '0');
+    const passed = `${successes}`.padStart(6);
+    const failed = `${failures}`.padStart(6);
     var pct = Math.ceil(((totalPaths - paths.length) / totalPaths) * 100);
-    pct = padString(pct, 3, ' ');
+    pct = `${pct}`.padStart(3);
 
     var line = `[${mins}:${secs}|%${pct}|+${passed}|-${failed}]: ${curPath}`;
 
@@ -232,13 +232,6 @@ if (cluster.isMaster) {
     lastLineLen = line.length;
 
     outFn(line);
-  }
-
-  function padString(str, len, chr) {
-    str = `${str}`;
-    if (str.length >= len)
-      return str;
-    return chr.repeat(len - str.length) + str;
   }
 } else {
   // Worker
