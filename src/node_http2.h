@@ -554,7 +554,7 @@ class Http2Stream : public AsyncWrap,
   int ReadStop() override;
 
   // Required for StreamBase
-  int DoShutdown(ShutdownWrap* req_wrap);
+  int DoShutdown(ShutdownWrap* req_wrap) override;
 
   // Initiate a response on this stream.
   inline int SubmitResponse(nghttp2_nv* nva,
