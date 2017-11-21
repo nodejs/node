@@ -97,9 +97,7 @@ FakeInput.prototype.end = () => {};
       crlfDelay
     });
     let callCount = 0;
-    rli.on('line', function(line) {
-      callCount++;
-    });
+    rli.on('line', () => callCount++);
     fi.emit('data', '\r');
     setTimeout(common.mustCall(() => {
       fi.emit('data', '\n');
