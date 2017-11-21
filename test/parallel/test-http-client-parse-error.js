@@ -25,7 +25,7 @@ const http = require('http');
 const net = require('net');
 const Countdown = require('../common/countdown');
 
-const countdown = new Countdown(2, common.mustCall(() => server.close()));
+const countdown = new Countdown(2, () => server.close());
 
 const payloads = [
   'HTTP/1.1 302 Object Moved\r\nContent-Length: 0\r\n\r\nhi world',
