@@ -15,7 +15,7 @@ server.on(
 
     // Test that stream.state getter returns an empty object
     // when the stream session has been destroyed
-    assert.deepStrictEqual(Object.create(null), stream.state);
+    assert.deepStrictEqual({}, stream.state);
 
     // Test that ERR_HTTP2_INVALID_STREAM is thrown while calling
     // stream operations after the stream session has been destroyed
@@ -31,7 +31,6 @@ server.on(
       invalidStreamError
     );
     common.expectsError(() => stream.respond(), invalidStreamError);
-    common.expectsError(() => stream.rstStream(), invalidStreamError);
     common.expectsError(() => stream.write('data'), invalidStreamError);
 
     // Test that ERR_HTTP2_INVALID_SESSION is thrown while calling
@@ -41,17 +40,14 @@ server.on(
       code: 'ERR_HTTP2_INVALID_SESSION',
       message: 'The session has been destroyed'
     };
-    common.expectsError(() => stream.session.priority(), invalidSessionError);
     common.expectsError(() => stream.session.settings(), invalidSessionError);
     common.expectsError(() => stream.session.shutdown(), invalidSessionError);
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
     setImmediate((session) => {
-      common.expectsError(() => session.priority(), invalidSessionError);
       common.expectsError(() => session.settings(), invalidSessionError);
       common.expectsError(() => session.shutdown(), invalidSessionError);
-      common.expectsError(() => session.rstStream(), invalidSessionError);
     }, stream.session);
   })
 );

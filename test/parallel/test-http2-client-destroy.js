@@ -95,7 +95,6 @@ const { kSocket } = require('internal/http2/util');
 
       common.expectsError(() => client.request(), sessionError);
       common.expectsError(() => client.settings({}), sessionError);
-      common.expectsError(() => client.priority(req, {}), sessionError);
       common.expectsError(() => client.shutdown(), sessionError);
 
       // Wait for setImmediate call from destroy() to complete
@@ -103,9 +102,7 @@ const { kSocket } = require('internal/http2/util');
       setImmediate(() => {
         common.expectsError(() => client.request(), sessionError);
         common.expectsError(() => client.settings({}), sessionError);
-        common.expectsError(() => client.priority(req, {}), sessionError);
         common.expectsError(() => client.shutdown(), sessionError);
-        common.expectsError(() => client.rstStream(req), sessionError);
       });
 
       req.on(
