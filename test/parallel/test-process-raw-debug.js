@@ -30,7 +30,7 @@ switch (process.argv[2]) {
   case undefined:
     return parent();
   default:
-    throw new Error(`wtf? ${process.argv[2]}`);
+    throw new Error(`invalid: ${process.argv[2]}`);
 }
 
 function parent() {
