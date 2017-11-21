@@ -173,7 +173,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   const tcp_wrap = process.binding('tcp_wrap');
   const server = net.createServer(common.mustCall((socket) => {
     server.close();
-    socket.on('data', (x) => {
+    socket.on('data', () => {
       socket.end();
       socket.destroy();
     });
