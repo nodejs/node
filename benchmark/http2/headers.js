@@ -13,7 +13,9 @@ function main(conf) {
   const n = +conf.n;
   const nheaders = +conf.nheaders;
   const http2 = require('http2');
-  const server = http2.createServer();
+  const server = http2.createServer({
+    maxHeaderListPairs: 20000
+  });
 
   const headersObject = {
     ':path': '/',
@@ -34,7 +36,9 @@ function main(conf) {
     stream.end('Hi!');
   });
   server.listen(PORT, () => {
-    const client = http2.connect(`http://localhost:${PORT}/`);
+    const client = http2.connect(`http://localhost:${PORT}/`, {
+      maxHeaderListPairs: 20000
+    });
 
     function doRequest(remaining) {
       const req = client.request(headersObject);
