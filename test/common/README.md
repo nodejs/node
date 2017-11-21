@@ -385,7 +385,7 @@ Synchronous version of `spawnPwd`.
 The `Countdown` module provides a simple countdown mechanism for tests that
 require a particular action to be taken after a given number of completed
 tasks (for instance, shutting down an HTTP server after a specific number of
-requests).
+requests). The Countdown will fail the test if the remainder did not reach 0.
 
 <!-- eslint-disable strict, required-modules -->
 ```js
