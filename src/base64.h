@@ -6,6 +6,7 @@
 #include "util.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 namespace node {
 //// Base 64 ////
