@@ -406,7 +406,11 @@ void Http2Session::Close() {
 
   while (!outstanding_pings_.empty()) {
     Http2Session::Http2Ping* ping = PopPing();
-    ping->Done(false);
+    // Since this method may be called from GC, calling into JS directly
+    // is not allowed.
+    env()->SetImmediate([](Environment* env, void* data) {
+      static_cast<Http2Session::Http2Ping*>(data)->Done(false);
+    }, static_cast<void*>(ping));
   }
 
   Stop();
