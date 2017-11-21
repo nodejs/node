@@ -144,9 +144,11 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 
 #### Top-Level Await
 
-The default evaluator will run top-level await expressions. It will also move
-promises which take longer than a tick to evaluate into the background,
-allowing you to continue working with the repl.
+The default evaluator will run top-level await expressions.
+
+You can also enable await backgrounding using the `.backgrounding` command,
+which will allow top-level awaited promises to enter the background if they
+will take more than a tick to complete.
 
 <!-- eslint-skip -->
 ```js
@@ -156,6 +158,8 @@ allowing you to continue working with the repl.
 
 <!-- eslint-skip -->
 ```js
+> .backgrounding
+Top-level await backgrounding has been enabled
 > await new Promise(resolve => setTimeout(() => resolve(true), 5000))
 AWAIT01 (pending)
 > 5 + 5
