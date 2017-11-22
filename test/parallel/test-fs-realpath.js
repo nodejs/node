@@ -111,7 +111,7 @@ function test_simple_relative_symlink(callback) {
   const entry = `${tmpDir}/symlink`;
   const expected = `${tmpDir}/cycles/root.js`;
   [
-    [entry, `../${common.tmpDirName}/cycles/root.js`]
+    [entry, `../${path.basename(tmpDir)}/cycles/root.js`]
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
