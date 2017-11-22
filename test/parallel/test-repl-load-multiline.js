@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.crashOnUnhandledRejection();
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const repl = require('repl');
