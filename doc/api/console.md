@@ -426,6 +426,26 @@ added: v0.1.100
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
+### console.inspector
+<!-- YAML
+added: REPLACEME
+-->
+
+V8 contexts provide a `console` global object, but by default it is only useful
+for sending console messages to attached inspectors. This is provided as the
+`inspector` property of the global `console` object (but not of other instances
+of `Console`).
+
+For example, to send a log message, `'hello'` to an attached inspector console:
+
+```js
+console.inspector.log('hello');
+// 'hello' appears in inspector console, but not in node's stdout
+```
+
+When an inspector is connected, logging methods on the global `console` object
+will also send messages to the inspector console.
+
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args

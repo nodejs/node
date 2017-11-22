@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const vm = require('vm');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -200,3 +201,16 @@ common.hijackStderr(common.mustCall(function(data) {
     assert.strictEqual(data.includes('no such label'), true);
   });
 }));
+
+const pristineConsole = vm.runInNewContext('this.console');
+for (const name in console.inspector) {
+
+  // No inspector-only functions are available on the global console
+  if (name in console) {
+    assert.notStrictEqual(console[name], console.inspector[name]);
+  }
+
+  // console.inspector should be the same as a pristine console object from a v8
+  // context.
+  assert(name in pristineConsole);
+}
