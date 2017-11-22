@@ -38,9 +38,9 @@ const {
 
 const client = net.connect({
   host: addresses.INVALID_HOST,
-  port: common.PORT,
+  port: 80, // port number doesn't matter because host name is invalid
   lookup: common.mustCall(errorLookupMock())
-});
+}, common.mustNotCall());
 
 client.once('error', common.mustCall((err) => {
   assert(err);
