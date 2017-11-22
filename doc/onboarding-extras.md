@@ -8,6 +8,7 @@
 | `bootstrap_node.js`                   | @fishrock123                                                          |
 | `doc/*`, `*.md`                       | @nodejs/documentation                                                 |
 | `lib/assert`                          | @nodejs/testing                                                       |
+| `lib/async_hooks`                     | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | `lib/buffer`                          | @nodejs/buffer                                                        |
 | `lib/child_process`                   | @bnoordhuis, @cjihrig                                                 |
 | `lib/cluster`                         | @bnoordhuis, @cjihrig, @mcollina                                      |
@@ -29,8 +30,8 @@
 | `src/node_crypto.*`                   | @nodejs/crypto                                                        |
 | `test/*`                              | @nodejs/testing                                                       |
 | `tools/eslint`, `.eslintrc`           | @not-an-aardvark, @silverwind, @trott                                 |
-| async\_hooks                          | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | build                                 | @nodejs/build                                                         |
+| ES Modules                            | @bmeck, @Fishrock123, @guybedford, @MylesBorins, @targos              |
 | GYP                                   | @nodejs/gyp                                                           |
 | performance                           | @nodejs/performance                                                   |
 | platform specific                     | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows}     |
