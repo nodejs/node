@@ -376,11 +376,6 @@ Synchronous version of `spawnPwd`.
 
 The realpath of the 'tmp' directory.
 
-### tmpDirName
-* return [&lt;String>]
-
-Name of the temp directory used by tests.
-
 ## Countdown Module
 
 The `Countdown` module provides a simple countdown mechanism for tests that
