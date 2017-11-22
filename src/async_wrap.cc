@@ -330,12 +330,13 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       if (parent_wrap == nullptr) {
         parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
       }
-      // get id from parentWrap
-      double trigger_async_id = parent_wrap->get_async_id();
-      env->set_default_trigger_async_id(trigger_async_id);
-    }
 
-    wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
+      AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(
+        env, parent_wrap->get_async_id());
+      wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
+    } else {
+      wrap = PromiseWrap::New(env, promise, nullptr, silent);
+    }
   }
 
   CHECK_NE(wrap, nullptr);
