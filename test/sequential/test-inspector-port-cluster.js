@@ -2,6 +2,7 @@
 
 const common = require('../common');
 
+common.crashOnUnhandledRejection();
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
