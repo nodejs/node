@@ -221,9 +221,9 @@ In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
 Node.js has two IRC channels:
-[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+[#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
 ### Setting up your local environment
