@@ -49,7 +49,6 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
   };
 
   if (status == 0) {
-    env->set_default_trigger_async_id(wrap_data->get_async_id());
     // Instantiate the client javascript object and handle.
     Local<Object> client_obj = WrapType::Instantiate(env,
                                                      wrap_data,
