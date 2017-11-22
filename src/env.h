@@ -92,6 +92,7 @@ class ModuleWrap;
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
   V(processed_private_symbol, "node:processed")                               \
+  V(promise_abort_info_symbol, "node:promiseAbortInfo")                       \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(domain_private_symbol, "node:domain")                                     \
 
@@ -320,6 +321,7 @@ class ModuleWrap;
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
   V(promise_reject_function, v8::Function)                                    \
+  V(promise_reject_reason_map, v8::NativeWeakMap)                             \
   V(promise_wrap_template, v8::ObjectTemplate)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \

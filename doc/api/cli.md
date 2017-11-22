@@ -183,6 +183,21 @@ added: v0.10
 Aborting instead of exiting causes a core file to be generated for post-mortem
 analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
+### `--abort-on-unhandled-rejection`
+<!-- YAML
+added: REPLACEME
+-->
+
+Aborting instead of exiting causes a core file to be generated for post-mortem
+analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
+
+This option only affects `Promise` rejections. It is only available on POSIX
+systems. It is implemented by keeping `fork()`ed copies of the process alive
+until it is known whether the `Promise` is handled within the same event loop
+iteration or is left unhandled.
+This makes unhandled rejections a significantly more complex operation,
+which may have performance implications.
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0
@@ -444,6 +459,7 @@ if they had been specified on the command line before the actual command line
 not allowed in the environment is used, such as `-p` or a script file.
 
 Node options that are allowed are:
+- `--abort-on-unhandled-rejection`
 - `--enable-fips`
 - `--force-fips`
 - `--icu-data-dir`

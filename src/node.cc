@@ -113,6 +113,8 @@ typedef int mode_t;
 
 #if defined(__POSIX__)
 #include <dlfcn.h>
+#include <sys/wait.h>
+#include <errno.h>
 #endif
 
 #ifdef __APPLE__
@@ -153,6 +155,7 @@ using v8::MaybeLocal;
 using v8::Message;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
+using v8::NativeWeakMap;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -165,6 +168,7 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
+using v8::Uint8Array;
 using v8::Undefined;
 using v8::V8;
 using v8::Value;
@@ -194,6 +198,7 @@ static node_module* modlist_addon;
 static bool trace_enabled = false;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 static bool abort_on_uncaught_exception = false;
+static bool abort_on_unhandled_rejection = false;
 
 // Bit flag used to track security reverts (see node_revert.h)
 unsigned int reverted = 0;
@@ -940,6 +945,141 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
+// Data struct that is attached to promises as raw memory.
+struct promise_abort_info {
+#ifdef __POSIX__
+  int fd;
+  pid_t pid;
+  int refcount;
+#endif
+};
+
+void OpenCoreDump(Environment* env, Local<Promise> promise) {
+  if (!abort_on_unhandled_rejection) return;
+#ifdef __POSIX__
+  struct rlimit lim;
+  CHECK_EQ(getrlimit(RLIMIT_CORE, &lim), 0);
+  if (lim.rlim_cur == 0) {
+    // Don't bother creating processes if we cannot create core dumps anyways.
+    return;
+  }
+  // Look up whether there is already a core dump holder process for this
+  // rejection reason, to better capture failure propagation along Promise
+  // chains.
+  Local<NativeWeakMap> reason_map = env->promise_reject_reason_map();
+  if (reason_map.IsEmpty()) {
+    reason_map = NativeWeakMap::New(env->isolate());
+    env->set_promise_reject_reason_map(reason_map);
+  }
+  CHECK_EQ(promise->State(), Promise::kRejected);
+  Local<Value> other = reason_map->Get(promise->Result());
+  if (other->IsPromise()) {
+    Local<Value> uint8array =
+        other.As<Promise>()->GetPrivate(env->context(),
+                                        env->promise_abort_info_symbol())
+                                            .ToLocalChecked();
+    CHECK(uint8array->IsUint8Array());
+    promise_abort_info* info =
+        reinterpret_cast<promise_abort_info*>(Buffer::Data(uint8array));
+    info->refcount++;
+    promise->SetPrivate(env->context(),
+                        env->promise_abort_info_symbol(),
+                        uint8array).FromJust();
+    return;
+  }
+  reason_map->Set(promise->Result(), promise);
+  int pipes[2] = { -1, -1 };
+  pid_t pid;
+
+  if (pipe(pipes) == -1) return;
+  pid = fork();
+  if (pid == -1) {
+    close(pipes[0]);
+    close(pipes[1]);
+    return;
+  }
+  if (pid == 0) {
+    char do_abort;
+    int rc;
+    do {
+      rc = read(pipes[0], &do_abort, sizeof(do_abort));
+    } while (rc == -1 && errno == EINTR);
+    if (rc > 0 && !do_abort)
+      _exit(0);
+    else
+      abort();
+  }
+  close(pipes[0]);
+
+  Local<ArrayBuffer> ab =
+      ArrayBuffer::New(env->isolate(), sizeof(promise_abort_info));
+  Local<Value> uint8array =
+      Uint8Array::New(ab, 0, sizeof(promise_abort_info));
+  promise_abort_info* info =
+      reinterpret_cast<promise_abort_info*>(Buffer::Data(uint8array));
+  promise->SetPrivate(env->context(),
+                      env->promise_abort_info_symbol(),
+                      uint8array).FromJust();
+  info->fd = pipes[1];
+  info->pid = pid;
+  info->refcount = 1;
+#endif  // __POSIX__
+}
+
+void CloseCoreDump(Environment* env, Local<Promise> promise, char do_abort) {
+  if (!abort_on_unhandled_rejection) return;
+#ifdef __POSIX__
+  CHECK_EQ(promise->State(), Promise::kRejected);
+  Local<Value> uint8array =
+      promise->GetPrivate(env->context(),
+                          env->promise_abort_info_symbol()).ToLocalChecked();
+  if (!uint8array->IsUint8Array()) {
+    if (do_abort) {
+      // This may happen when e.g. fork()ing itself failed due to resource
+      // constraints.
+      ABORT();
+    }
+    return;
+  }
+  promise_abort_info* info =
+      reinterpret_cast<promise_abort_info*>(Buffer::Data(uint8array));
+  if (!do_abort) {
+    info->refcount--;
+    if (info->refcount > 0) return;
+  }
+  env->promise_reject_reason_map()->Delete(promise->Result());
+  int rc;
+  do {
+    rc = write(info->fd, &do_abort, sizeof(do_abort));
+  } while (rc == -1 && errno == EINTR);
+  CHECK_GT(rc, 0);
+  close(info->fd);
+  int status = 0;
+  do {
+    rc = waitpid(info->pid, &status, 0);
+  } while (rc == -1 && errno == EINTR);
+  CHECK_NE(rc, -1);
+  if (do_abort || !WIFEXITED(status)) {
+    if (!WIFEXITED(status)) {
+      // Disable a core dump for this process assuming the fork()ed process
+      // already wrote one.
+      struct rlimit limit_zero;
+      limit_zero.rlim_cur = 0;
+      limit_zero.rlim_max = 0;
+      setrlimit(RLIMIT_CORE, &limit_zero);
+    }
+    abort();
+  }
+#endif  // __POSIX__
+}
+
+void CloseCoreDump(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsPromise());
+  CHECK(args[1]->IsBoolean());
+  CloseCoreDump(env, args[0].As<Promise>(), args[1].As<v8::Boolean>()->Value());
+}
+
 void PromiseRejectCallback(PromiseRejectMessage message) {
   Local<Promise> promise = message.GetPromise();
   Isolate* isolate = promise->GetIsolate();
@@ -948,6 +1088,10 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Environment* env = Environment::GetCurrent(isolate);
   Local<Function> callback = env->promise_reject_function();
+
+  if (message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
+    OpenCoreDump(env, promise);
+  }
 
   if (value.IsEmpty())
     value = Undefined(isolate);
@@ -3344,6 +3488,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_linkedBinding", LinkedBinding);
   env->SetMethod(process, "_internalBinding", InternalBinding);
 
+  env->SetMethod(process, "_closeCoreDump", CloseCoreDump);
   env->SetMethod(process, "_setupProcessObject", SetupProcessObject);
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
@@ -3499,6 +3644,10 @@ static void PrintHelp() {
          "  --abort-on-uncaught-exception\n"
          "                             aborting instead of exiting causes a\n"
          "                             core file to be generated for analysis\n"
+         "  --abort-on-unhandled-rejection\n"
+         "                             aborting instead of emitting a warning\n"
+         "                             causes a core file to be generated for\n"
+         "                             analysis\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=file\n"
          "                             write warnings to file instead of\n"
@@ -3645,6 +3794,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--force-fips",
     "--openssl-config",
     "--icu-data-dir",
+    "--abort_on_unhandled_rejection",
 
     // V8 options (define with '_', which allows '-' or '_')
     "--abort_on_uncaught_exception",
@@ -3853,6 +4003,11 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
+#ifdef __POSIX__
+    } else if (strcmp(arg, "--abort-on-unhandled-rejection") == 0 ||
+               strcmp(arg, "--abort_on_unhandled_rejection") == 0) {
+      abort_on_unhandled_rejection = true;
+#endif
     } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
                strcmp(arg, "--abort_on_uncaught_exception") == 0) {
       abort_on_uncaught_exception = true;
