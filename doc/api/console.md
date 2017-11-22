@@ -277,6 +277,21 @@ Defaults to `2`. To make it recurse indefinitely, pass `null`.
 Defaults to `false`. Colors are customizable; see
 [customizing `util.inspect()` colors][].
 
+### console.dirxml(...data)
+<!-- YAML
+added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17128
+    description: "`console.dirxml` now calls `console.dir` for each argument."
+-->
+* `...data` {any}
+
+This method calls `console.dir()` with default options for each argument it
+receives. See [`console.dir()`][] for more details about said defaults.
+Please note that this method doesn't produce any xml formatting and uses the
+default `console.dir()` formatting resolution instead.
+
 ### console.error([data][, ...args])
 <!-- YAML
 added: v0.1.100
@@ -435,18 +450,6 @@ The following methods are exposed by the V8 engine in the general API but do
 not display anything unless used in conjunction with the [inspector][]
 (`--inspect` flag).
 
-### console.dirxml(object)
-<!-- YAML
-added: v8.0.0
--->
-* `object` {string}
-
-This method does not display anything unless used in the inspector. The
-`console.dirxml()` method displays in `stdout` an XML interactive tree
-representation of the descendants of the specified `object` if possible, or the
-JavaScript representation if not. Calling `console.dirxml()` on an HTML or XML
-element is equivalent to calling `console.log()`.
-
 ### console.markTimeline(label)
 <!-- YAML
 added: v8.0.0
@@ -521,6 +524,7 @@ added: v8.0.0
 This method does not display anything unless used in the inspector. The
 `console.timelineEnd()` method is the deprecated form of [`console.timeEnd()`][].
 
+[`console.dir()`]: #console_console_dir_obj_options
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args

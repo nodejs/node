@@ -103,6 +103,14 @@ console.dir(custom_inspect, { showHidden: false });
 console.dir({ foo: { bar: { baz: true } } }, { depth: 0 });
 console.dir({ foo: { bar: { baz: true } } }, { depth: 1 });
 
+// test console.dirxml()
+console.dirxml(custom_inspect, custom_inspect);
+console.dirxml(
+  { foo: { bar: { baz: true } } },
+  { foo: { bar: { quux: false } } },
+  { foo: { bar: { quux: true } } }
+);
+
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
@@ -171,6 +179,14 @@ assert.strictEqual(strings.shift(),
                    "{ foo: 'bar', inspect: [Function: inspect] }\n");
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+assert.strictEqual(strings.shift(),
+                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
+assert.strictEqual(strings.shift().includes('foo: { bar: { baz:'), true);
+assert.strictEqual(strings.shift().includes('quux'), true);
+assert.strictEqual(strings.shift().includes('quux: true'), true);
+
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
