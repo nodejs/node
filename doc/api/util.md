@@ -31,7 +31,7 @@ For example:
 const util = require('util');
 
 async function fn() {
-  return await Promise.resolve('hello world');
+  return 'hello world';
 }
 const callbackFunction = util.callbackify(fn);
 
