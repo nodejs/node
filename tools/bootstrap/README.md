@@ -22,6 +22,20 @@ get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
 
+## Linux
+
+For building Node.js on Linux, following packets are required (note, that this
+can vary from distribution to distribution):
+  * `git-core`
+  * `python`
+  * `gcc-c++` or `g++`
+  * `make`
+
+To bootstrap Node.js on Linux, run in terminal:
+  * OpenSUSE: `sudo zypper install git-core python gcc-c++ make`
+  * Fedora: `sudo dnf install git-core python gcc-c++ make`
+  * Ubuntu, Debian: `sudo apt-get install git-core python g++ make`
+
 [Boxstarter]: http://boxstarter.org/
 [Boxstarter WebLauncher]: http://boxstarter.org/WebLauncher
 [Chocolatey]: https://chocolatey.org/
