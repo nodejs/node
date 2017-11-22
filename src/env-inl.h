@@ -197,22 +197,26 @@ inline void Environment::AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kTriggerAsyncId] = 0;
 }
 
-inline Environment::AsyncHooks::InitScope::InitScope(
-    Environment* env, double init_trigger_async_id)
-        : env_(env),
-          async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
-  if (env_->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
-    CHECK_GE(init_trigger_async_id, -1);
+inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
+  ::DefaultTriggerAsyncIdScope(Environment* env,
+                               double default_trigger_async_id)
+    : async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
+  if (env->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(default_trigger_async_id, 0);
   }
-  env->async_hooks()->push_async_ids(
-    async_id_fields_ref_[AsyncHooks::kExecutionAsyncId],
-    init_trigger_async_id);
+
+  old_default_trigger_async_id_ =
+    async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId];
+  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+    default_trigger_async_id;
 }
 
-inline Environment::AsyncHooks::InitScope::~InitScope() {
-  env_->async_hooks()->pop_async_id(
-    async_id_fields_ref_[AsyncHooks::kExecutionAsyncId]);
+inline Environment::AsyncHooks::DefaultTriggerAsyncIdScope
+  ::~DefaultTriggerAsyncIdScope() {
+  async_id_fields_ref_[AsyncHooks::kDefaultTriggerAsyncId] =
+    old_default_trigger_async_id_;
 }
+
 
 inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
     : env_(env) {
@@ -473,15 +477,10 @@ inline double Environment::trigger_async_id() {
 inline double Environment::get_default_trigger_async_id() {
   double default_trigger_async_id =
     async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
-  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = -1;
   // If defaultTriggerAsyncId isn't set, use the executionAsyncId
   if (default_trigger_async_id < 0)
     default_trigger_async_id = execution_async_id();
   return default_trigger_async_id;
-}
-
-inline void Environment::set_default_trigger_async_id(const double id) {
-  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = id;
 }
 
 inline double* Environment::heap_statistics_buffer() const {
