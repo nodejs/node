@@ -534,13 +534,16 @@ parameter is an instance of an `Error` then it will be thrown instead of the
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict inequality as determined by the [Strict Equality Comparison][]
-( `!==` ).
+Tests equality determined by the [`Object.is()`][] comparison.
 
 ```js
 const assert = require('assert');
@@ -549,7 +552,7 @@ assert.notStrictEqual(1, 2);
 // OK
 
 assert.notStrictEqual(1, 1);
-// AssertionError: 1 !== 1
+// AssertionError: 1 notStrictEqual 1
 
 assert.notStrictEqual(1, '1');
 // OK
@@ -595,25 +598,28 @@ assert.ok(false, 'it\'s false');
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict equality as determined by the [Strict Equality Comparison][]
-( `===` ).
+Tests equality determined by the [`Object.is()`][] comparison.
 
 ```js
 const assert = require('assert');
 
 assert.strictEqual(1, 2);
-// AssertionError: 1 === 2
+// AssertionError: 1 strictEqual 2
 
 assert.strictEqual(1, 1);
 // OK
 
 assert.strictEqual(1, '1');
-// AssertionError: 1 === '1'
+// AssertionError: 1 strictEqual '1'
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
