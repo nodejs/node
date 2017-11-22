@@ -4524,10 +4524,6 @@ inline int Start(uv_loop_t* event_loop,
   isolate->SetAutorunMicrotasks(false);
   isolate->SetFatalErrorHandler(OnFatalError);
 
-  if (track_heap_objects) {
-    isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
-  }
-
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
     CHECK_EQ(node_isolate, nullptr);
@@ -4544,6 +4540,9 @@ inline int Start(uv_loop_t* event_loop,
         event_loop,
         v8_platform.Platform(),
         allocator.zero_fill_field());
+    if (track_heap_objects) {
+      isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
+    }
     exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
 
