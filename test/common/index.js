@@ -579,9 +579,23 @@ exports.canCreateSymLink = function() {
   return true;
 };
 
+exports.getCallSite = function getCallSite(top) {
+  const originalStackFormatter = Error.prepareStackTrace;
+  Error.prepareStackTrace = (err, stack) =>
+    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
+  const err = new Error();
+  Error.captureStackTrace(err, top);
+  // with the V8 Error API, the stack is not formatted until it is accessed
+  err.stack;
+  Error.prepareStackTrace = originalStackFormatter;
+  return err.stack;
+};
+
 exports.mustNotCall = function(msg) {
+  const callSite = exports.getCallSite(exports.mustNotCall);
   return function mustNotCall() {
-    assert.fail(msg || 'function should not have been called');
+    assert.fail(
+      `${msg || 'function should not have been called'} at ${callSite}`);
   };
 };
 
