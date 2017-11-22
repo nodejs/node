@@ -59,9 +59,9 @@ In case of doubt, open an issue in the
 Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
 does not align with the project team. (Node.js has two IRC channels:
-[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+[#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically).
 
 For instructions on updating the version of V8 included in the *deps/*
