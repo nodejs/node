@@ -2,6 +2,7 @@
 const common = require('../common');
 
 common.skipIfInspectorDisabled();
+common.crashOnUnhandledRejection();
 
 const assert = require('assert');
 const { NodeInstance } = require('../common/inspector-helper.js');
