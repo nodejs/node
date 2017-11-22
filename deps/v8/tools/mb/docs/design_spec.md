@@ -411,9 +411,9 @@ config file change, however.
 ### Non-goals
 
 * MB is not intended to replace direct invocation of GN or GYP for
-  complicated build scenarios (aka ChromeOS), where multiple flags need
+  complicated build scenarios (a.k.a. Chrome OS), where multiple flags need
   to be set to user-defined paths for specific toolchains (e.g., where
-  ChromeOS needs to specify specific board types and compilers).
+  Chrome OS needs to specify specific board types and compilers).
 
 * MB is not intended at this time to be something developers use frequently,
   or to add a lot of features to. We hope to be able to get rid of it once
