@@ -566,9 +566,24 @@ exports.canCreateSymLink = function() {
   return true;
 };
 
+function getCallSite(level = 2) {
+  const originalStackFormatter = Error.prepareStackTrace;
+  Error.prepareStackTrace = (err, stack) =>
+    `${stack[level].getFileName()}:${stack[level].getLineNumber()}`;
+  const err = new Error();
+  Error.captureStackTrace(err, level);
+  // the way V8 Error API works, the stack is not
+  // formatted until it is accessed
+  err.stack;
+  Error.prepareStackTrace = originalStackFormatter;
+  err.stack;
+}
+
 exports.mustNotCall = function(msg) {
+  const callSite = getCallSite();
   return function mustNotCall() {
-    assert.fail(msg || 'function should not have been called');
+    assert.fail(
+      `${msg || 'function should not have been called'} at ${callSite}`);
   };
 };
 
