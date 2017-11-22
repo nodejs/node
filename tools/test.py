@@ -625,6 +625,28 @@ def KillTimedOutProcess(context, pid):
     signal_to_send = signal.SIGABRT
   KillProcessWithID(pid, signal_to_send)
 
+def ProcessTimeout(context, process):
+  if process.poll() is None:
+    try:
+      KillTimedOutProcess(context, process.pid)
+    except OSError as e:
+      if e.errno != errno.ESRCH:
+        raise
+
+def TimeoutProcess(context, process, pipe_write):
+  if pipe_write:
+    w = os.fdopen(pipe_write, 'w')
+    w.write('timeout')
+    w.close()
+    t = threading.Timer(5, ProcessTimeout, [ context, process ])
+    t.start()
+    exit_code = process.wait()
+    if t:
+      t.cancel()
+  else:
+    KillTimedOutProcess(context, process.pid)
+    exit_code = process.wait()
+  return exit_code
 
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
@@ -641,11 +663,15 @@ def RunProcess(context, timeout, args, **rest):
 
   faketty = rest.pop('faketty', False)
   pty_out = rest.pop('pty_out')
+  pipe_read = rest.pop('pipe_read')
+  pipe_write = rest.pop('pipe_write')
 
   process = subprocess.Popen(
     args = popen_args,
     **rest
   )
+  if pipe_read:
+    os.close(pipe_read)
   if faketty:
     os.close(rest['stdout'])
   if utils.IsWindows() and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
@@ -664,8 +690,7 @@ def RunProcess(context, timeout, args, **rest):
     while True:
       if time.time() >= end_time:
         # Kill the process and wait for it to exit.
-        KillTimedOutProcess(context, process.pid)
-        exit_code = process.wait()
+        exit_code = TimeoutProcess(context, process, pipe_write)
         timed_out = True
         break
 
@@ -684,9 +709,7 @@ def RunProcess(context, timeout, args, **rest):
 
   while exit_code is None:
     if (not end_time is None) and (time.time() >= end_time):
-      # Kill the process and wait for it to exit.
-      KillTimedOutProcess(context, process.pid)
-      exit_code = process.wait()
+      exit_code = TimeoutProcess(context, process, pipe_write)
       timed_out = True
     else:
       exit_code = process.poll()
@@ -694,6 +717,9 @@ def RunProcess(context, timeout, args, **rest):
       sleep_time = sleep_time * SLEEP_TIME_FACTOR
       if sleep_time > MAX_SLEEP_TIME:
         sleep_time = MAX_SLEEP_TIME
+
+  if pipe_write and not timed_out:
+    os.close(pipe_write)
   return (process, exit_code, timed_out, output)
 
 
@@ -746,6 +772,14 @@ def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_fil
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
     preexec_fn = disableCoreFiles
 
+  if sys.platform != 'win32' and not 'async-hooks' in args[-1]:
+    from fcntl import fcntl, F_SETFD, FD_CLOEXEC
+    (pipe_read, pipe_write) = os.pipe()
+    fcntl(pipe_write, F_SETFD, FD_CLOEXEC)
+    env_copy["TEST_RUNNER_READ_PIPE"] = "%d" % pipe_read
+  else:
+    pipe_read = pipe_write = None
+
   (process, exit_code, timed_out, output) = RunProcess(
     context,
     timeout,
@@ -756,7 +790,9 @@ def Execute(args, context, timeout=None, env={}, faketty=False, disable_core_fil
     env = env_copy,
     faketty = faketty,
     pty_out = pty_out,
-    preexec_fn = preexec_fn
+    preexec_fn = preexec_fn,
+    pipe_read = pipe_read,
+    pipe_write = pipe_write
   )
   if faketty:
     os.close(out_master)
