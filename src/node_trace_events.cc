@@ -82,8 +82,7 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
   Utf8Value arg2NameValue(env->isolate(), args[6]);
 
   if (args.Length() >= 6 &&
-      !args[4]->IsUndefined() &&
-      !args[5]->IsUndefined()) {
+      (!args[4]->IsUndefined() || !args[5]->IsUndefined())) {
     num_args = 1;
     arg_types[0] = TRACE_VALUE_TYPE_INT;
 
@@ -95,8 +94,7 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() >= 8 &&
-      !args[6]->IsUndefined() &&
-      !args[7]->IsUndefined()) {
+      (!args[6]->IsUndefined() || !args[7]->IsUndefined())) {
     num_args = 2;
     arg_types[1] = TRACE_VALUE_TYPE_INT;
 
