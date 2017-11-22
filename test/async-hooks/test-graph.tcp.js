@@ -15,7 +15,7 @@ const server = net
   .createServer(common.mustCall(onconnection))
   .on('listening', common.mustCall(onlistening));
 
-server.listen(common.PORT);
+server.listen(0);
 
 net.connect({ port: server.address().port, host: '::1' },
             common.mustCall(onconnected));

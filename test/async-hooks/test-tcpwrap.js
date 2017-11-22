@@ -24,7 +24,7 @@ const server = net
 
 // Calling server.listen creates a TCPWRAP synchronously
 {
-  server.listen(common.PORT);
+  server.listen(0);
   const tcpsservers = hooks.activitiesOfTypes('TCPSERVERWRAP');
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
   assert.strictEqual(tcpsservers.length, 1);
