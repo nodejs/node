@@ -440,17 +440,18 @@ inline double Environment::trigger_async_id() {
   return async_hooks()->async_id_fields()[AsyncHooks::kTriggerAsyncId];
 }
 
-inline double Environment::get_init_trigger_async_id() {
-  AliasedBuffer<double, v8::Float64Array>& async_id_fields =
-    async_hooks()->async_id_fields();
-  double tid = async_id_fields[AsyncHooks::kInitTriggerAsyncId];
-  async_id_fields[AsyncHooks::kInitTriggerAsyncId] = 0;
-  if (tid <= 0) tid = execution_async_id();
-  return tid;
+inline double Environment::get_default_trigger_async_id() {
+  double default_trigger_async_id =
+    async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
+  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = 0;
+  // If defaultTriggerAsyncId isn't set, use the executionAsyncId
+  if (default_trigger_async_id <= 0)
+    default_trigger_async_id = execution_async_id();
+  return default_trigger_async_id;
 }
 
-inline void Environment::set_init_trigger_async_id(const double id) {
-  async_hooks()->async_id_fields()[AsyncHooks::kInitTriggerAsyncId] = id;
+inline void Environment::set_default_trigger_async_id(const double id) {
+  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = id;
 }
 
 inline double* Environment::heap_statistics_buffer() const {
