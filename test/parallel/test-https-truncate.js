@@ -46,6 +46,6 @@ const test = common.mustCall(function(res) {
   res.on('data', function(chunk) {
     bytes += chunk.length;
     this.pause();
-    setTimeout(() => { this.resume() }, 1);
+    setTimeout(() => { this.resume(); }, 1);
   });
 });
