@@ -783,7 +783,7 @@ code modification is necessary if that is done.
 <a id="DEP0085"></a>
 ### DEP0085: AsyncHooks Sensitive API
 
-Type: Runtime
+Type: End-of-Life
 
 The AsyncHooks Sensitive API was never documented and had various of minor
 issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
@@ -793,7 +793,7 @@ API instead.
 <a id="DEP0086"></a>
 ### DEP0086: Remove runInAsyncIdScope
 
-Type: Runtime
+Type: End-of-Life
 
 `runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
 cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
