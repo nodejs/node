@@ -1,6 +1,10 @@
 'use strict';
 
 const common = require('../common');
+common.crashOnUnhandledRejection();
+
+// This test ensures that the promise handling resolution correctly
+
 const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
