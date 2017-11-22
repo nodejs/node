@@ -1,7 +1,8 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+common.crashOnUnhandledRejection();
 
 const server = http.Server(function(req, res) {
   res.writeHead(200);
