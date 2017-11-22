@@ -87,6 +87,12 @@ inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
       async_id_fields_(isolate, kUidFieldsCount) {
   v8::HandleScope handle_scope(isolate_);
 
+  // kDefaultTriggerAsyncId should be -1, this indicates that there is no
+  // specified default value and it should fallback to the executionAsyncId.
+  // 0 is not used as the magic value, because that indicates a missing context
+  // which is different from a default context.
+  async_id_fields_[AsyncHooks::kDefaultTriggerAsyncId] = -1;
+
   // kAsyncIdCounter should start at 1 because that'll be the id the execution
   // context during bootstrap (code that runs before entering uv_run()).
   async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
@@ -467,9 +473,9 @@ inline double Environment::trigger_async_id() {
 inline double Environment::get_default_trigger_async_id() {
   double default_trigger_async_id =
     async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId];
-  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = 0;
+  async_hooks()->async_id_fields()[AsyncHooks::kDefaultTriggerAsyncId] = -1;
   // If defaultTriggerAsyncId isn't set, use the executionAsyncId
-  if (default_trigger_async_id <= 0)
+  if (default_trigger_async_id < 0)
     default_trigger_async_id = execution_async_id();
   return default_trigger_async_id;
 }
