@@ -212,12 +212,11 @@ struct ProcessArguments {
 };
 
 NODE_EXTERN void Init(ProcessArguments* process_arguments);
-NODE_DEPRECATED(
-    "Use Init(ProcessArguments*)",
-    NODE_EXTERN void Init(int* argc,
-                          const char** argv,
-                          int* exec_argc,
-                          const char*** exec_argv));
+// DEP0087: Wrapper around Init(ProcessArguments*).
+NODE_EXTERN void Init(int* argc,
+                      const char** argv,
+                      int* exec_argc,
+                      const char*** exec_argv);
 
 class IsolateData;
 class Environment;
@@ -250,14 +249,13 @@ NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
     const ProcessArguments& process_arguments);
-NODE_DEPRECATED(
-    "Use CreateEnvironment(ProcessArguments*, ...)",
-    NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
-                                               v8::Local<v8::Context> context,
-                                               int argc,
-                                               const char* const* argv,
-                                               int exec_argc,
-                                               const char* const* exec_argv));
+// DEP0087: Wrapper around CreateEnvironment(..., const ProcessArguments&);
+NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
+                                           v8::Local<v8::Context> context,
+                                           int argc,
+                                           const char* const* argv,
+                                           int exec_argc,
+                                           const char* const* exec_argv);
 
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);

@@ -864,3 +864,15 @@ details.
 [from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
+
+<a id="DEP0087"></a>
+### DEP0087: node::Init() and node::Start() that take argc/argv.
+
+Type: Runtime
+
+The versions of `node::Init()` and `node::Start()` that take argc/argv
+string command line arguments are deprecated. Use the versions that make
+use of the `ProcessArguments` structure instead.
+
+The `ProcessArguments` structure may be extended to pass in operating
+system specific process arguments and attributes.
