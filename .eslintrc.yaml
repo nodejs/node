@@ -66,6 +66,7 @@ rules:
       message: __defineGetter__ is deprecated.
     - property: __defineSetter__
       message: __defineSetter__ is deprecated.
+  no-return-await: error
   no-self-assign: error
   no-throw-literal: error
   no-unused-labels: error
