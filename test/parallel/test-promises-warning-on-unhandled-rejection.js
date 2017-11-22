@@ -18,7 +18,11 @@ process.on('warning', common.mustCall((warning) => {
     case 1:
       // Warning about rejection not being handled (will be next tick)
       assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
-      assert(/Unhandled promise rejection/.test(warning.message), 'Expected warning message to contain "Unhandled promise rejection" but did not. Had "' + warning.message + '" instead.');
+      assert(
+        /Unhandled promise rejection/.test(warning.message),
+        'Expected warning message to contain "Unhandled promise rejection" ' +
+        'but did not. Had "' + warning.message + '" instead.'
+      );
       break;
     case 2:
       // One time deprecation warning, first unhandled rejection
@@ -31,7 +35,11 @@ process.on('warning', common.mustCall((warning) => {
     case 4:
       // Unhandled rejection warning (won't be handled next tick)
       assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
-      assert(/Unhandled promise rejection/.test(warning.message), 'Expected warning message to contain "Unhandled promise rejection" but did not. Had "' + warning.message + '" instead.');
+      assert(
+        /Unhandled promise rejection/.test(warning.message),
+        'Expected warning message to contain "Unhandled promise rejection" ' +
+        'but did not. Had "' + warning.message + '" instead.'
+      );
       break;
     case 5:
       // Rejection handled asynchronously.
