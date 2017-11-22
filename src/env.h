@@ -407,21 +407,22 @@ class Environment {
     inline size_t stack_size();
     inline void clear_async_id_stack();  // Used in fatal exceptions.
 
-    // Used to propagate the trigger_async_id to the constructor of any newly
-    // created resources using RAII. Instead of needing to pass the
-    // trigger_async_id along with other constructor arguments.
-    class InitScope {
+    // Used to set the kDefaultTriggerAsyncId in a scope. This is instead of
+    // passing the trigger_async_id along with other constructor arguments.
+    class DefaultTriggerAsyncIdScope {
      public:
-      InitScope() = delete;
-      explicit InitScope(Environment* env, double init_trigger_async_id);
-      ~InitScope();
+      DefaultTriggerAsyncIdScope() = delete;
+      explicit DefaultTriggerAsyncIdScope(Environment* env,
+                                          double init_trigger_async_id);
+      ~DefaultTriggerAsyncIdScope();
 
      private:
-      Environment* env_;
       AliasedBuffer<double, v8::Float64Array> async_id_fields_ref_;
+      double old_default_trigger_async_id_;
 
-      DISALLOW_COPY_AND_ASSIGN(InitScope);
+      DISALLOW_COPY_AND_ASSIGN(DefaultTriggerAsyncIdScope);
     };
+
 
    private:
     friend class Environment;  // So we can call the constructor.
@@ -566,7 +567,6 @@ class Environment {
   inline double execution_async_id();
   inline double trigger_async_id();
   inline double get_default_trigger_async_id();
-  inline void set_default_trigger_async_id(const double id);
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
