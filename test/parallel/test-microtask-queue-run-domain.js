@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // Requiring the domain module here changes the function that is used by node to
@@ -8,6 +8,8 @@ const assert = require('assert');
 // the domain module is not used, this require call is needed and must not be
 // removed.
 require('domain');
+
+common.crashOnUnhandledRejection();
 
 function enqueueMicrotask(fn) {
   Promise.resolve().then(fn);
