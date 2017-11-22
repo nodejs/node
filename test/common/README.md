@@ -43,12 +43,14 @@ A stream to push an array into a REPL
 
 Blocks for `time` amount of time.
 
-### canCreateSymLink
-API to indicate whether the current running process can create
-symlinks. On Windows, this returns false if the process running
-doesn't have privileges to create symlinks (specifically
-[SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
-On non-Windows platforms, this currently returns true.
+### canCreateSymLink()
+* return [&lt;Boolean>]
+
+Checks whether the current running process can create symlinks. On Windows, this
+returns `false` if the process running doesn't have privileges to create
+symlinks
+([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
+On non-Windows platforms, this always returns `true`.
 
 ### crashOnUnhandledRejection()
 
@@ -63,9 +65,9 @@ failures.
 Platform normalizes the `dd` command
 
 ### enoughTestMem
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Check if there is more than 1gb of total memory.
+Indicates if there is more than 1gb of total memory.
 
 ### expectsError([fn, ]settings[, exact])
 * `fn` [&lt;Function>] a function that should throw.
@@ -126,7 +128,7 @@ that happens within the `timeoutMs` timespan, or rejects with `error` as
 a reason otherwise.
 
 ### fixturesDir
-* return [&lt;String>]
+* [&lt;String>]
 
 Path to the 'fixtures' directory.
 
@@ -137,39 +139,39 @@ Path to the 'fixtures' directory.
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
 ### globalCheck
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Turn this off if the test should not check for global leaks.
+Set to `false` if the test should not check for global leaks.
 
 ### hasCrypto
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks for 'openssl'.
+Indicates whether OpenSSL is available.
 
 ### hasFipsCrypto
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks `hasCrypto` and `crypto` with fips.
+Indicates `hasCrypto` and `crypto` with fips.
 
 ### hasIntl
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks if [internationalization] is supported.
+Indicates if [internationalization] is supported.
 
 ### hasSmallICU
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks `hasIntl` and `small-icu` is supported.
+Indicates `hasIntl` and `small-icu` are supported.
 
 ### hasIPv6
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks whether `IPv6` is supported on this platform.
+Indicates whether `IPv6` is supported on this platform.
 
 ### hasMultiLocalhost
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks if there are multiple localhosts available.
+Indicates if there are multiple localhosts available.
 
 ### hijackStderr(listener)
 * `listener` [&lt;Function>]: a listener with a single parameter
@@ -190,12 +192,12 @@ be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
 the number of calls.
 
 ### inFreeBSDJail
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Checks whether free BSD Jail is true or false.
 
 ### isAIX
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Advanced Interactive eXecutive (AIX).
 
@@ -206,54 +208,54 @@ Platform check for Advanced Interactive eXecutive (AIX).
 Attempts to 'kill' `pid`
 
 ### isFreeBSD
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Free BSD.
 
 ### isLinux
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Linux.
 
 ### isLinuxPPCBE
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Linux on PowerPC.
 
 ### isOSX
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for macOS.
 
 ### isSunOS
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for SunOS.
 
 ### isWindows
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Windows.
 
 ### isWOW64
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
 Platform check for Windows 32-bit on Windows 64-bit.
 
-### leakedGlobals
+### leakedGlobals()
 * return [&lt;Array>]
 
-Checks whether any globals are not on the `knownGlobals` list.
+Indicates whether any globals are not on the `knownGlobals` list.
 
 ### localhostIPv4
-* return [&lt;String>]
+* [&lt;String>]
 
-Gets IP of localhost
+IP of `localhost`.
 
 ### localIPv6Hosts
-* return [&lt;Array>]
+* [&lt;Array>]
 
-Array of IPV6 hosts.
+Array of IPV6 representations for `localhost`.
 
 ### mustCall([fn][, exact])
 * `fn` [&lt;Function>] default = () => {}
@@ -294,9 +296,9 @@ the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
 
 ### opensslCli
-* return [&lt;Boolean>]
+* [&lt;Boolean>]
 
-Checks whether 'opensslCli' is supported.
+Indicates whether 'opensslCli' is supported.
 
 ### platformTimeout(ms)
 * `ms` [&lt;Number>]
@@ -305,14 +307,14 @@ Checks whether 'opensslCli' is supported.
 Platform normalizes timeout.
 
 ### PIPE
-* return [&lt;String>]
+* [&lt;String>]
 
-Path to the test sock.
+Path to the test socket.
 
 ### PORT
-* return [&lt;Number>] default = `12346`
+* [&lt;Number>]
 
-Port tests are running on.
+A port number for tests to use if one is needed.
 
 ### printSkipMessage(msg)
 * `msg` [&lt;String>]
@@ -335,12 +337,12 @@ Restore the original `process.stdout.write`. Used to restore `stdout` to its
 original state after calling [`common.hijackStdOut()`][].
 
 ### rootDir
-* return [&lt;String>]
+* [&lt;String>]
 
 Path to the 'root' directory. either `/` or `c:\\` (windows)
 
 ### projectDir
-* return [&lt;String>]
+* [&lt;String>]
 
 Path to the project directory.
 
@@ -372,7 +374,7 @@ Platform normalizes the `pwd` command.
 Synchronous version of `spawnPwd`.
 
 ### tmpDir
-* return [&lt;String>]
+* [&lt;String>]
 
 The realpath of the 'tmp' directory.
 
@@ -421,7 +423,6 @@ The `DNS` module provides utilities related to the `dns` built-in module.
 * `code` [&lt;String>] Defaults to `dns.mockedErrorCode`.
 * `syscall` [&lt;String>] Defaults to `dns.mockedSysCall`.
 * return [&lt;Function>]
-
 
 A mock for the `lookup` option of `net.connect()` that would result in an error
 with the `code` and the `syscall` specified. Returns a function that has the
