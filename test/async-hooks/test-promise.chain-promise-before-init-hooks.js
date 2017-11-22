@@ -4,6 +4,11 @@ const common = require('../common');
 const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
+<<<<<<< HEAD
+common.crashOnUnhandledRejection();
+=======
+common.crashOnUnhandleRejection();
+>>>>>>> 222a89f4d4... first push common.crashUnhandleRejection()
 
 const p = new Promise(common.mustCall(function executor(resolve, reject) {
   resolve(5);
