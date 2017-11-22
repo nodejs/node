@@ -576,7 +576,7 @@ function getCallSite(level = 2) {
   // formatted until it is accessed
   err.stack;
   Error.prepareStackTrace = originalStackFormatter;
-  err.stack;
+  return err.stack;
 }
 
 exports.mustNotCall = function(msg) {
