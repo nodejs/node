@@ -1895,6 +1895,7 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   HandleScope scope(isolate_);
   PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
+  AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
                                   live_edit_enabled(),
                                   event != v8::AfterCompile);
