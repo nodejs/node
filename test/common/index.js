@@ -480,9 +480,51 @@ exports.fileExists = function(pathname) {
   }
 };
 
+exports.canCreateSymLink = function() {
+  // On Windows, creating symlinks requires admin privileges.
+  // We'll only try to run symlink test if we have enough privileges.
+  // On other platforms, creating symlinks shouldn't need admin privileges
+  if (exports.isWindows) {
+    // whoami.exe needs to be the one from System32
+    // If unix tools are in the path, they can shadow the one we want,
+    // so use the full path while executing whoami
+    const whoamiPath = path.join(process.env['SystemRoot'],
+                                 'System32', 'whoami.exe');
+
+    let err = false;
+    let output = '';
+
+    try {
+      output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
+    } catch (e) {
+      err = true;
+    } finally {
+      if (err || !output.includes('SeCreateSymbolicLinkPrivilege')) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
+exports.getCallSite = function getCallSite(top) {
+  const originalStackFormatter = Error.prepareStackTrace;
+  Error.prepareStackTrace = (err, stack) =>
+    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
+  const err = new Error();
+  Error.captureStackTrace(err, top);
+  // with the V8 Error API, the stack is not formatted until it is accessed
+  err.stack;
+  Error.prepareStackTrace = originalStackFormatter;
+  return err.stack;
+};
+
 exports.mustNotCall = function(msg) {
+  const callSite = exports.getCallSite(exports.mustNotCall);
   return function mustNotCall() {
-    assert.fail(msg || 'function should not have been called');
+    assert.fail(
+      `${msg || 'function should not have been called'} at ${callSite}`);
   };
 };
 
