@@ -347,7 +347,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   node::Utf8Value address(env->isolate(), args[4]);
   const bool have_callback = args[5]->IsTrue();
 
-  env->set_init_trigger_async_id(wrap->get_async_id());
+  env->set_default_trigger_async_id(wrap->get_async_id());
   SendWrap* req_wrap = new SendWrap(env, req_wrap_obj, have_callback);
   size_t msg_size = 0;
 

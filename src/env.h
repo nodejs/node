@@ -401,7 +401,7 @@ class Environment {
       kExecutionAsyncId,
       kTriggerAsyncId,
       kAsyncIdCounter,
-      kInitTriggerAsyncId,
+      kDefaultTriggerAsyncId,
       kUidFieldsCount,
     };
 
@@ -593,8 +593,8 @@ class Environment {
   inline double new_async_id();
   inline double execution_async_id();
   inline double trigger_async_id();
-  inline double get_init_trigger_async_id();
-  inline void set_init_trigger_async_id(const double id);
+  inline double get_default_trigger_async_id();
+  inline void set_default_trigger_async_id(const double id);
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_async_id_list();
