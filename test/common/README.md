@@ -135,6 +135,12 @@ Path to the 'fixtures' directory.
 
 Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
+### getCallSite(func)
+* `func` [&lt;Function>]
+* return [&lt;String>]
+
+Returns the file name and line number for the provided Function.
+
 ### globalCheck
 * return [&lt;Boolean>]
 
