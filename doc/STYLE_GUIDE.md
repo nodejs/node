@@ -69,6 +69,9 @@
 * Function returns should use the following format:
   * <code>* Returns: {type|type2} Optional description.</code>
   * E.g. <code>* Returns: {AsyncHook} A reference to `asyncHook`.</code>
+* Use official styling for capitalization in products and projects.
+  * OK: JavaScript, Google's V8
+  * NOT OK: Javascript, Google's v8
 
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types

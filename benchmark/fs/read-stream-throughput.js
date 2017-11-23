@@ -35,7 +35,7 @@ function main(conf) {
       throw new Error(`invalid encodingType: ${encodingType}`);
   }
 
-  makeFile(runTest);
+  makeFile();
 }
 
 function runTest() {

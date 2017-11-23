@@ -67,7 +67,6 @@
 #if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
-#include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
 
@@ -99,7 +98,6 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#define getpid GetCurrentProcessId
 #define umask _umask
 typedef int mode_t;
 #else
@@ -889,7 +887,6 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   env->set_using_domains(true);
 
   HandleScope scope(env->isolate());
-  Local<Object> process_object = env->process_object();
 
   CHECK(args[0]->IsArray());
   env->set_domains_stack_array(args[0].As<Array>());
@@ -1654,19 +1651,11 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
   auto message = (*args)[2];
   auto function = (*args)[3];
 
-  char exepath[256];
-  size_t exepath_size = sizeof(exepath);
-  if (uv_exepath(exepath, &exepath_size))
-    snprintf(exepath, sizeof(exepath), "node");
+  char name[1024];
+  GetHumanReadableProcessName(&name);
 
-  char pid[12] = {0};
-#ifndef _WIN32
-  snprintf(pid, sizeof(pid), "[%u]", getpid());
-#endif
-
-  fprintf(stderr, "%s%s: %s:%s:%s%s Assertion `%s' failed.\n",
-          exepath, pid, filename, linenum,
-          function, *function ? ":" : "", message);
+  fprintf(stderr, "%s: %s:%s:%s%s Assertion `%s' failed.\n",
+          name, filename, linenum, function, *function ? ":" : "", message);
   fflush(stderr);
 
   Abort();
@@ -2940,45 +2929,13 @@ static void DebugPortSetter(Local<Name> property,
 
 
 static void DebugProcess(const FunctionCallbackInfo<Value>& args);
-static void DebugPause(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 namespace {
 
-bool MaybeStopImmediate(Environment* env) {
-  if (env->scheduled_immediate_count()[0] == 0) {
-    uv_check_stop(env->immediate_check_handle());
-    uv_idle_stop(env->immediate_idle_handle());
-    return true;
-  }
-  return false;
-}
-
-void CheckImmediate(uv_check_t* handle) {
-  Environment* env = Environment::from_immediate_check_handle(handle);
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  if (MaybeStopImmediate(env))
-    return;
-
-  MakeCallback(env->isolate(),
-               env->process_object(),
-               env->immediate_callback_string(),
-               0,
-               nullptr,
-               {0, 0}).ToLocalChecked();
-
-  MaybeStopImmediate(env);
-}
-
-
 void ActivateImmediateCheck(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uv_check_start(env->immediate_check_handle(), CheckImmediate);
-  // Idle handle is needed only to stop the event loop from blocking in poll.
-  uv_idle_start(env->immediate_idle_handle(),
-                [](uv_idle_t*){ /* do nothing, just keep the loop running */ });
+  env->ActivateImmediateCheck();
 }
 
 
@@ -3197,7 +3154,8 @@ void SetupProcessObject(Environment* env,
       process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
 
-  READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
+  READONLY_PROPERTY(process, "pid",
+                    Integer::New(env->isolate(), GetProcessId()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   CHECK(process->SetAccessor(env->context(),
@@ -3371,7 +3329,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_kill", Kill);
 
   env->SetMethod(process, "_debugProcess", DebugProcess);
-  env->SetMethod(process, "_debugPause", DebugPause);
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
   env->SetMethod(process, "hrtime", Hrtime);
@@ -4099,11 +4056,6 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 #endif  // _WIN32
 
 
-static void DebugPause(const FunctionCallbackInfo<Value>& args) {
-  v8::Debug::DebugBreak(args.GetIsolate());
-}
-
-
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 #if HAVE_INSPECTOR
   Environment* env = Environment::GetCurrent(args);
@@ -4348,6 +4300,15 @@ void RunAtExit(Environment* env) {
 }
 
 
+uv_loop_t* GetCurrentEventLoop(v8::Isolate* isolate) {
+  HandleScope handle_scope(isolate);
+  auto context = isolate->GetCurrentContext();
+  if (context.IsEmpty())
+    return nullptr;
+  return Environment::GetCurrent(context)->event_loop();
+}
+
+
 static uv_key_t thread_local_env;
 
 
@@ -4436,6 +4397,18 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 
 void FreeEnvironment(Environment* env) {
   delete env;
+}
+
+
+MultiIsolatePlatform* CreatePlatform(
+    int thread_pool_size,
+    v8::TracingController* tracing_controller) {
+  return new NodePlatform(thread_pool_size, tracing_controller);
+}
+
+
+void FreePlatform(MultiIsolatePlatform* platform) {
+  delete platform;
 }
 
 

@@ -125,9 +125,7 @@ function toID(filename) {
  * opts: lexed, filename, template, nodeVersion.
  */
 function render(opts, cb) {
-  var lexed = opts.lexed;
-  var filename = opts.filename;
-  var template = opts.template;
+  var { lexed, filename, template } = opts;
   const nodeVersion = opts.nodeVersion || process.version;
 
   // get the section

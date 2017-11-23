@@ -16,6 +16,7 @@
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
@@ -76,6 +77,7 @@
       'lib/v8.js',
       'lib/vm.js',
       'lib/zlib.js',
+      'lib/internal/async_hooks.js',
       'lib/internal/buffer.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster/child.js',
@@ -176,7 +178,6 @@
 
       'dependencies': [
         'node_js2c#host',
-        'deps/nghttp2/nghttp2.gyp:nghttp2'
       ],
 
       'includes': [
@@ -186,8 +187,7 @@
       'include_dirs': [
         'src',
         'tools/msvs/genfiles',
-        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
-        'deps/nghttp2/lib/includes'
+        '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
 
       'sources': [
@@ -257,8 +257,6 @@
         'src/js_stream.h',
         'src/module_wrap.h',
         'src/node.h',
-        'src/node_http2_core.h',
-        'src/node_http2_core-inl.h',
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_debug_options.h',
@@ -927,6 +925,14 @@
         [ 'node_shared_libuv=="false"', {
           'dependencies': [
             'deps/uv/uv.gyp:libuv'
+          ]
+        }],
+        [ 'node_shared_nghttp2=="false"', {
+          'dependencies': [
+            'deps/nghttp2/nghttp2.gyp:nghttp2'
+          ],
+          'include_dirs': [
+            'deps/nghttp2/lib/includes'
           ]
         }],
         [ 'node_use_v8_platform=="true"', {

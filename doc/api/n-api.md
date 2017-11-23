@@ -204,7 +204,7 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 ```
 
 ## Error Handling
-N-API uses both return values and Javascript exceptions for error handling.
+N-API uses both return values and JavaScript exceptions for error handling.
 The following sections explain the approach for each case.
 
 ### Return values
@@ -2863,7 +2863,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
-*from* Javascript.
+*from* JavaScript.
 
 *Note*: The newly created function is not automatically visible from
 script after this call. Instead, a property must be explicitly set on any
@@ -3685,6 +3685,23 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] script`: A JavaScript string containing the script to execute.
 - `[out] result`: The value resulting from having executed the script.
+
+## libuv event loop
+
+N-API provides a function for getting the current event loop associated with
+a specific `napi_env`.
+
+### napi_get_uv_event_loop
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
+                                               uv_loop_t** loop);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[out] loop`: The current libuv loop instance.
 
 [Promises]: #n_api_promises
 [Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations

@@ -30,11 +30,12 @@ policies, and releases are managed under an
     * [API Documentation](#api-documentation)
   * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
-  * [Security](#security)
-  * [Current Project Team Members](#current-project-team-members)
-    * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
-    * [Collaborators](#collaborators)
-    * [Release Team](#release-team)
+* [Security](#security)
+* [Current Project Team Members](#current-project-team-members)
+  * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
+  * [Collaborators](#collaborators)
+  * [Release Team](#release-team)
+* [Contributing to Node.js](#contributing-to-nodejs)
 
 ## Support
 
@@ -89,7 +90,7 @@ The Node.js project maintains multiple types of releases:
 
 More information can be found in the [LTS README](https://github.com/nodejs/LTS/).
 
-## Download
+### Download
 
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org>.
@@ -196,8 +197,8 @@ us a report nonetheless.
 
 - [#14519](https://github.com/nodejs/node/issues/14519): _Internal domain
   function can be used to cause segfaults_. Causing program termination using
-  either the public Javascript APIs or the private bindings layer APIs requires
-  the ability to execute arbitrary Javascript code, which is already the highest
+  either the public JavaScript APIs or the private bindings layer APIs requires
+  the ability to execute arbitrary JavaScript code, which is already the highest
   level of privilege possible.
 
 - [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
@@ -365,6 +366,8 @@ For more information about the governance of the Node.js project, see
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
+* [guybedford](https://github.com/guybedford) -
+**Guy Bedford** &lt;guybedford@gmail.com&gt; (he/him)
 * [hashseed](https://github.com/hashseed) -
 **Yang Guo** &lt;yangguo@chromium.org&gt; (he/him)
 * [iarna](https://github.com/iarna) -
@@ -578,15 +581,10 @@ Previous releases may also have been signed with one of the following GPG keys:
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
-### Working Groups
-
-Information on the current Node.js Working Groups can be found in the
-[TSC repository](https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md).
-
-### Contributing to Node.js
+## Contributing to Node.js
 
 * [Contributing to the project][]
-* IRC (node core development): [#node-dev on chat.freenode.net][]
+* [Working Groups][]
 
 [npm]: https://www.npmjs.com
 [Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
@@ -594,5 +592,5 @@ Information on the current Node.js Working Groups can be found in the
 [Node.js Help]: https://github.com/nodejs/help
 [Node.js Website]: https://nodejs.org/en/
 [Questions tagged 'node.js' on StackOverflow]: https://stackoverflow.com/questions/tagged/node.js
+[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [#node.js channel on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
-[#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4

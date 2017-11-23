@@ -889,8 +889,7 @@ class Context(object):
 
   def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
                timeout, processor, suppress_dialogs,
-               store_unexpected_output, repeat, abort_on_timeout,
-               v8_enable_inspector):
+               store_unexpected_output, repeat, abort_on_timeout):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -902,7 +901,7 @@ class Context(object):
     self.store_unexpected_output = store_unexpected_output
     self.repeat = repeat
     self.abort_on_timeout = abort_on_timeout
-    self.v8_enable_inspector = v8_enable_inspector
+    self.v8_enable_inspector = True
 
   def GetVm(self, arch, mode):
     if arch == 'none':
@@ -929,20 +928,6 @@ class Context(object):
 def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
   progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode)
   return progress.Run(tasks)
-
-def GetV8InspectorEnabledFlag():
-  # The following block reads config.gypi to extract the v8_enable_inspector
-  # value. This is done to check if the inspector is disabled in which case
-  # the '--inspect' flag cannot be passed to the node process as it will
-  # cause node to exit and report the test as failed. The use case
-  # is currently when Node is configured --without-ssl and the tests should
-  # still be runnable but skip any tests that require ssl (which includes the
-  # inspector related tests).
-  with open('config.gypi', 'r') as f:
-    s = f.read()
-    config_gypi = ast.literal_eval(s)
-    return config_gypi['variables']['v8_enable_inspector']
-
 
 # -------------------------------------------
 # --- T e s t   C o n f i g u r a t i o n ---
@@ -1626,8 +1611,7 @@ def Main():
                     options.suppress_dialogs,
                     options.store_unexpected_output,
                     options.repeat,
-                    options.abort_on_timeout,
-                    GetV8InspectorEnabledFlag())
+                    options.abort_on_timeout)
 
   # Get status for tests
   sections = [ ]
@@ -1669,6 +1653,12 @@ def Main():
               globally_unused_rules.intersection(unused_rules))
         all_cases += cases
         all_unused.append(unused_rules)
+
+  # We want to skip the inspector tests if node was built without the inspector.
+  has_inspector = Execute([vm,
+      "-p", "process.config.variables.v8_enable_inspector"], context)
+  if has_inspector.stdout.rstrip() == "0":
+      context.v8_enable_inspector = False
 
   if options.cat:
     visited = set()

@@ -350,6 +350,9 @@ Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
 `SIGINT`, `SIGHUP`, etc.
 
+The signal handler will receive the signal's name (`'SIGINT'`,
+ `'SIGTERM'`, etc.) as the first argument.
+
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
@@ -362,6 +365,14 @@ process.stdin.resume();
 process.on('SIGINT', () => {
   console.log('Received SIGINT.  Press Control-D to exit.');
 });
+
+// Using a single function to handle multiple signals
+function handle(signal) {
+  console.log(`Received ${signal}`);
+}
+
+process.on('SIGINT', handle);
+process.on('SIGTERM', handle);
 ```
 
 *Note*: An easy way to send the `SIGINT` signal is with `<Ctrl>-C` in most
@@ -1459,9 +1470,9 @@ tarball.
 * `lts` {string} a string label identifying the [LTS][] label for this release.
   This property only exists for LTS releases and is `undefined` for all other
   release types, including _Current_ releases.  Currently the valid values are:
-  - `'Argon'` for the v4.x LTS line beginning with v4.2.0.
-  - `'Boron'` for the v6.x LTS line beginning with v6.9.0.
-  - `'Carbon'` for the v8.x LTS line beginning with v8.9.1.
+  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 For example:
 

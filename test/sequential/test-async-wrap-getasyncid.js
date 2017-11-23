@@ -23,7 +23,8 @@ const fixtures = require('../common/fixtures');
 
     // TODO(jasnell): Test for these
     delete providers.HTTP2SESSION;
-    delete providers.HTTP2SESSIONSHUTDOWNWRAP;
+    delete providers.HTTP2STREAM;
+    delete providers.HTTP2PING;
 
     const obj_keys = Object.keys(providers);
     if (obj_keys.length > 0)
@@ -172,7 +173,7 @@ if (common.hasCrypto) { // eslint-disable-line crypto-check
   const tcp_wrap = process.binding('tcp_wrap');
   const server = net.createServer(common.mustCall((socket) => {
     server.close();
-    socket.on('data', (x) => {
+    socket.on('data', () => {
       socket.end();
       socket.destroy();
     });

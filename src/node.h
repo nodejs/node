@@ -97,6 +97,11 @@
 // Forward-declare libuv loop
 struct uv_loop_s;
 
+// Forward-declare TracingController, used by CreatePlatform.
+namespace v8 {
+class TracingController;
+}
+
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h
 namespace node {
@@ -244,9 +249,18 @@ NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
+NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
+    int thread_pool_size,
+    v8::TracingController* tracing_controller);
+NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform);
+
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);
 NODE_EXTERN void RunAtExit(Environment* env);
+
+// This may return nullptr if the current v8::Context is not associated
+// with a Node instance.
+NODE_EXTERN struct uv_loop_s* GetCurrentEventLoop(v8::Isolate* isolate);
 
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(v8::Isolate::GetCurrent(),          \

@@ -20,8 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+
+common.crashOnUnhandledRejection();
 
 function enqueueMicrotask(fn) {
   Promise.resolve().then(fn);

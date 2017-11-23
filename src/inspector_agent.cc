@@ -13,8 +13,8 @@
 #include <vector>
 
 #ifdef __POSIX__
-#include <limits.h>
-#include <unistd.h>  // setuid, getuid
+#include <limits.h>  // PTHREAD_STACK_MIN
+#include <pthread.h>
 #endif  // __POSIX__
 
 namespace node {
@@ -108,7 +108,8 @@ static int StartDebugSignalHandler() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   CHECK_EQ(0, pthread_attr_destroy(&attr));
   if (err != 0) {
-    fprintf(stderr, "node[%d]: pthread_create: %s\n", getpid(), strerror(err));
+    fprintf(stderr, "node[%u]: pthread_create: %s\n",
+            GetProcessId(), strerror(err));
     fflush(stderr);
     // Leave SIGUSR1 blocked.  We don't install a signal handler,
     // receiving the signal would terminate the process.
@@ -301,7 +302,8 @@ class NodeInspectorClient : public V8InspectorClient {
       : env_(env), platform_(platform), terminated_(false),
         running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
-    contextCreated(env->context(), "Node.js Main Context");
+    // TODO(bnoordhuis) Make name configurable from src/node.cc.
+    contextCreated(env->context(), GetHumanReadableProcessName());
   }
 
   void runMessageLoopOnPause(int context_group_id) override {

@@ -640,7 +640,7 @@ Type: End-of-Life
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
 
-Type: Runtime
+Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
 with inappropriate names has been deprecated.
@@ -780,6 +780,24 @@ On the other hand, `node-inspect` may be installed locally through a package
 manager, as it is published on the npm registry under the same name. No source
 code modification is necessary if that is done.
 
+<a id="DEP0085"></a>
+### DEP0085: AsyncHooks Sensitive API
+
+Type: End-of-Life
+
+The AsyncHooks Sensitive API was never documented and had various of minor
+issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+API instead.
+
+
+<a id="DEP0086"></a>
+### DEP0086: Remove runInAsyncIdScope
+
+Type: End-of-Life
+
+`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
+details.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

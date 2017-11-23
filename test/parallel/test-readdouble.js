@@ -112,7 +112,7 @@ function test(clazz) {
 
   buffer[7] = 0x80;
   assert.strictEqual(6.3e-322, buffer.readDoubleBE(0));
-  assert.strictEqual(0, buffer.readDoubleLE(0));
+  assert.strictEqual(-0, buffer.readDoubleLE(0));
   assert.strictEqual(true, 1 / buffer.readDoubleLE(0) < 0);
 
   buffer[6] = 0xf0;
