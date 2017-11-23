@@ -4288,6 +4288,12 @@ void Init(int* argc,
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
+  // Needed for access to V8 intrinsics.  Disabled again during bootstrapping,
+  // see lib/internal/bootstrap_node.js.
+  const char allow_natives_syntax[] = "--allow_natives_syntax";
+  V8::SetFlagsFromString(allow_natives_syntax,
+                         sizeof(allow_natives_syntax) - 1);
+
   // We should set node_is_initialized here instead of in node::Start,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
