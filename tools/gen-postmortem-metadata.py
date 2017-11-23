@@ -3,7 +3,7 @@
 #
 # gen-postmortem-metadata.py output_file.cc
 #
-# Creates debugging symbols to help naviage Node's internals using post-mortem
+# Creates debugging symbols to help navigate Node's internals using post-mortem
 # debugging tools.
 #
 
