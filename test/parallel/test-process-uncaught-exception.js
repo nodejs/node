@@ -1,8 +1,13 @@
+// Flags: --abort-on-uncaught-exception
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 
-// This value is ignored when the --abort-on-uncaught-exception flag is missing.
-assert.strictEqual(process.shouldAbortOnUncaughtException, true);
-process.once('uncaughtException', common.mustCall());
+assert.strictEqual(process.hasUncaughtExceptionCaptureCallback(), false);
+
+// This should make the process not crash even though the flag was passed.
+process.setUncaughtExceptionCaptureCallback(common.mustCall((err) => {
+  assert.strictEqual(err.message, 'foo');
+}));
+process.on('uncaughtException', common.mustNotCall());
 throw new Error('foo');

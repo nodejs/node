@@ -1136,6 +1136,16 @@ if (process.getuid) {
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
 or Android).
 
+## process.hasUncaughtExceptionCaptureCallback()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Indicates whether a callback has been set using
+[`process.setUncaughtExceptionCaptureCallback()`][].
+
 ## process.hrtime([time])
 <!-- YAML
 added: v0.7.6
@@ -1637,28 +1647,28 @@ if (process.getuid && process.setuid) {
 or Android).
 
 
-## process.shouldAbortOnUncaughtException
+## process.setUncaughtExceptionCaptureCallback(fn)
 <!-- YAML
 added: REPLACEME
 -->
 
-* {boolean} **Default:** `true`
+* `fn` {Function|null}
 
-The `process.shouldAbortOnUncaughtException` switch controls the behavior
-when the `--abort-on-uncaught-exception` flag was passed on the command line
-or set through [`v8.setFlagsFromString()`][]:
+The `process.setUncaughtExceptionCapture` function sets a function that will
+be invoked when an uncaught exception occurs, which will receive the exception
+value itself as its first argument.
 
-If the flag was passed to Node.js and `process.shouldAbortOnUncaughtException`
-is `true`, the process will abort when enountering an uncaught exception
-(regardless of any [`process.on('uncaughtException')`][] listeners).
+If such a function is set, the [`process.on('uncaughtException')`][] event will
+not be emitted. If `--abort-on-uncaught-exception` was passed from the
+command line or set through [`v8.setFlagsFromString()`][], the process will
+not abort.
 
-If the flag was passed to Node and `process.shouldAbortOnUncaughtException`
-is `false`, the process will not abort.
+To unset the capture function, `process.setUncaughtExceptionCapture(null)`
+may be used. Calling this method with a non-`null` argument while another
+capture function is set will throw an error.
 
-If the `--abort-on-uncaught-exception` flag is not set, this value is ignored.
-
-*Note*: If the deprecated [`domain`][] built-in module is in use,
-this flag will be set by that module whenever domain state changes.
+*Note*: Using this function is mutually exclusive with using the
+deprecated [`domain`][] built-in module.
 
 ## process.stderr
 
@@ -1956,6 +1966,7 @@ cases:
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options

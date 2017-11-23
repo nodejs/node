@@ -729,6 +729,23 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 
 `c-ares` failed to set the DNS server.
 
+<a id="ERR_DOMAIN_CALLBACK_NOT_AVAILABLE"></a>
+### ERR_DOMAIN_CALLBACK_NOT_AVAILABLE
+
+The `domain` module was not usable since it couldn’t establish the required
+error handling hooks, because
+[`process.setUncaughtExceptionCaptureCallback()`][] had been called at an
+earlier point in time.
+
+<a id="ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE"></a>
+### ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE
+
+[`process.setUncaughtExceptionCaptureCallback()`][] could not be called
+because the `domain` module has been loaded at an earlier point in time.
+
+The stack trace is extended to include the point in time at which the
+`domain` module had been loaded.
+
 <a id="ERR_ENCODING_INVALID_ENCODED_DATA"></a>
 ### ERR_ENCODING_INVALID_ENCODED_DATA
 
@@ -1565,6 +1582,7 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`require('crypto').setEngine()`]: crypto.html#crypto_crypto_setengine_engine_flags
 [`server.listen()`]: net.html#net_server_listen
 [ES6 module]: esm.html
