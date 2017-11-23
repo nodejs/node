@@ -381,7 +381,7 @@ The `Countdown` module provides a simple countdown mechanism for tests that
 require a particular action to be taken after a given number of completed
 tasks (for instance, shutting down an HTTP server after a specific number of
 requests). Note that _the Countdown will fail the test if the remainder
-not reach 0_.
+did not reach 0_.
 
 <!-- eslint-disable strict, required-modules -->
 ```js
