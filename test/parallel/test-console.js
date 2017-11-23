@@ -179,13 +179,10 @@ assert.strictEqual(strings.shift(),
                    "{ foo: 'bar', inspect: [Function: inspect] }\n");
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
-assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
-assert.strictEqual(strings.shift(),
-                   "{ foo: 'bar', inspect: [Function: inspect] }\n");
-assert.strictEqual(strings.shift().includes('foo: { bar: { baz:'), true);
-assert.strictEqual(strings.shift().includes('quux'), true);
-assert.strictEqual(strings.shift().includes('quux: true'), true);
+assert.strictEqual(strings.shift(), 'inspect inspect\n');
+assert.ok(strings[0].includes('foo: { bar: { baz:'));
+assert.ok(strings[0].includes('quux'));
+assert.ok(strings.shift().includes('quux: true'));
 
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));

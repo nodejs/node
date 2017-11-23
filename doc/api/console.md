@@ -282,15 +282,13 @@ Defaults to `false`. Colors are customizable; see
 added: v8.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/17128
-    description: "`console.dirxml` now calls `console.dir` for each argument."
+    pr-url: https://github.com/nodejs/node/pull/17152
+    description: "`console.dirxml` now calls `console.log` for its arguments."
 -->
 * `...data` {any}
 
-This method calls `console.dir()` with default options for each argument it
-receives. See [`console.dir()`][] for more details about said defaults.
-Please note that this method doesn't produce any xml formatting and uses the
-default `console.dir()` formatting resolution instead.
+This method calls `console.log()` passing it the arguments received.
+Please note that this method does not produce any XML formatting.
 
 ### console.error([data][, ...args])
 <!-- YAML
@@ -524,7 +522,6 @@ added: v8.0.0
 This method does not display anything unless used in the inspector. The
 `console.timelineEnd()` method is the deprecated form of [`console.timeEnd()`][].
 
-[`console.dir()`]: #console_console_dir_obj_options
 [`console.error()`]: #console_console_error_data_args
 [`console.group()`]: #console_console_group_label
 [`console.log()`]: #console_console_log_data_args
