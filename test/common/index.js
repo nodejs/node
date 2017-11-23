@@ -566,12 +566,12 @@ exports.canCreateSymLink = function() {
   return true;
 };
 
-exports.getCallSite = function getCallSite(level = 2) {
+exports.getCallSite = function getCallSite(top) {
   const originalStackFormatter = Error.prepareStackTrace;
   Error.prepareStackTrace = (err, stack) =>
-    `${stack[level].getFileName()}:${stack[level].getLineNumber()}`;
+    `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
   const err = new Error();
-  Error.captureStackTrace(err);
+  Error.captureStackTrace(err, top);
   // the way V8 Error API works, the stack is not
   // formatted until it is accessed
   err.stack;
@@ -580,7 +580,7 @@ exports.getCallSite = function getCallSite(level = 2) {
 };
 
 exports.mustNotCall = function(msg) {
-  const callSite = exports.getCallSite();
+  const callSite = exports.getCallSite(exports.mustNotCall);
   return function mustNotCall() {
     assert.fail(
       `${msg || 'function should not have been called'} at ${callSite}`);
