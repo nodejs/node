@@ -1217,7 +1217,7 @@ napi_status napi_delete_property(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, k);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);
@@ -1395,7 +1395,7 @@ napi_status napi_delete_element(napi_env env,
   v8::Maybe<bool> delete_maybe = obj->Delete(context, index);
   CHECK_MAYBE_NOTHING(env, delete_maybe, napi_generic_failure);
 
-  if (result != NULL)
+  if (result != nullptr)
     *result = delete_maybe.FromMaybe(false);
 
   return GET_RETURN_STATUS(env);
