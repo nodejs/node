@@ -2396,7 +2396,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`verify.verify()`]: #crypto_verify_verify_object_signature_signatureformat
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [Crypto Constants]: #crypto_crypto_constants_1
-[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
+[HTML5's `keygen` element]: https://www.w3.org/TR/html5/forms.html#the-keygen-element
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
