@@ -16,7 +16,7 @@ const base = require('./tick-processor-base.js');
 base.runTest({
   pattern: /^{/,
   code: `function f() {
-           require('vm').runInDebugContext('Debug');
+           require('vm').createContext({});
            setImmediate(function() { f(); });
          };
          f();`,
