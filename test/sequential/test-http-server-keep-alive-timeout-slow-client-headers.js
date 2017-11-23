@@ -26,6 +26,8 @@ server.listen(0, common.mustCall(() => {
     server.close();
   }));
 
+  server.on('clientError', (e) => console.error(e));
+
   function request(callback) {
     socket.setEncoding('utf8');
     socket.on('data', onData);
@@ -49,6 +51,7 @@ server.listen(0, common.mustCall(() => {
     }
 
     function onHeaders() {
+      console.log(require('util').inspect(response));
       assert.ok(response.includes('HTTP/1.1 200 OK\r\n'));
       assert.ok(response.includes('Connection: keep-alive\r\n'));
       callback();
