@@ -26,7 +26,7 @@ const Countdown = require('../common/countdown');
 
 const N = 8;
 
-const countdown = new Countdown(N, common.mustCall(() => server.close()));
+const countdown = new Countdown(N, () => server.close());
 
 const server = http.Server(common.mustCall((req, res) => {
   res.writeHead(200);
@@ -37,9 +37,9 @@ const server = http.Server(common.mustCall((req, res) => {
 server.listen(0, common.mustCall(() => {
 
   const requests = [];
-  const reqCountdown = new Countdown(N, common.mustCall(() => {
+  const reqCountdown = new Countdown(N, () => {
     requests.forEach((req) => req.abort());
-  }));
+  });
 
   const options = { port: server.address().port };
 

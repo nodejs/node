@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(() => {
 
     assert.strictEqual(client.state.nextStreamID, nextID);
 
-    const countdown = new Countdown(2, common.mustCall(() => {
+    const countdown = new Countdown(2, () => {
       server.close();
       client.close();
     }));

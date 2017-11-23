@@ -20,11 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const Countdown = require('../common/countdown');
 const http = require('http');
 const NUMBER_OF_EXCEPTIONS = 4;
-const countdown = new Countdown(NUMBER_OF_EXCEPTIONS, () => process.exit(0));
+const countdown = new Countdown(NUMBER_OF_EXCEPTIONS, () => {
+  process.exit(0);
+});
 
 const server = http.createServer(function(req, res) {
   intentionally_not_defined(); // eslint-disable-line no-undef
@@ -33,15 +35,18 @@ const server = http.createServer(function(req, res) {
   res.end();
 });
 
+function onUncaughtException(err) {
+  console.log(`Caught an exception: ${err}`);
+  if (err.name === 'AssertionError') throw err;
+  countdown.dec();
+}
+
+process.on('uncaughtException',
+           common.mustCall(onUncaughtException, NUMBER_OF_EXCEPTIONS)
+);
 
 server.listen(0, function() {
   for (let i = 0; i < NUMBER_OF_EXCEPTIONS; i += 1) {
     http.get({ port: this.address().port, path: `/busy/${i}` });
   }
-});
-
-process.on('uncaughtException', function(err) {
-  console.log(`Caught an exception: ${err}`);
-  if (err.name === 'AssertionError') throw err;
-  countdown.dec();
 });
