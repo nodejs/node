@@ -386,7 +386,8 @@ Name of the temp directory used by tests.
 The `Countdown` module provides a simple countdown mechanism for tests that
 require a particular action to be taken after a given number of completed
 tasks (for instance, shutting down an HTTP server after a specific number of
-requests).
+requests). Note that the _The Countdown will fail the test if its callback
+is not executed_.
 
 <!-- eslint-disable strict, required-modules -->
 ```js
