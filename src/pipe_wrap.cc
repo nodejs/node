@@ -40,6 +40,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -124,9 +125,10 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   // Therefore we assert that we are not trying to call this as a
   // normal function.
   CHECK(args.IsConstructCall());
+  CHECK(args[0]->IsInt32());
   Environment* env = Environment::GetCurrent(args);
 
-  int type_value = args[0]->IntegerValue(env->context()).ToChecked();
+  int type_value = args[0].As<Int32>()->Value();
   pipewrap_type type = static_cast<pipewrap_type>(type_value);
 
   bool ipc;
