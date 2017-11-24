@@ -70,20 +70,19 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
     id = args[3]->IntegerValue(context).ToChecked();
   }
 
-  // TODO(AndreasMadsen): Two extra arguments are not supported.
   // TODO(AndreasMadsen): String values are not supported.
   int32_t num_args = 0;
-  const char* arg_names[1];
-  uint8_t arg_types[1];
-  uint64_t arg_values[1];
+  const char* arg_names[2];
+  uint8_t arg_types[2];
+  uint64_t arg_values[2];
 
   // Create Utf8Value in the function scope to prevent deallocation.
   // The c-string will be copied by TRACE_EVENT_API_ADD_TRACE_EVENT at the end.
   Utf8Value arg1NameValue(env->isolate(), args[4]);
+  Utf8Value arg2NameValue(env->isolate(), args[6]);
 
-  if (args.Length() < 6 || (args[4]->IsUndefined() && args[5]->IsUndefined())) {
-    num_args = 0;
-  } else {
+  if (args.Length() >= 6 &&
+      (!args[4]->IsUndefined() || !args[5]->IsUndefined())) {
     num_args = 1;
     arg_types[0] = TRACE_VALUE_TYPE_INT;
 
@@ -92,6 +91,18 @@ static void Emit(const FunctionCallbackInfo<Value>& args) {
 
     CHECK(args[5]->IsNumber());
     arg_values[0] = args[5]->IntegerValue(context).ToChecked();
+  }
+
+  if (args.Length() >= 8 &&
+      (!args[6]->IsUndefined() || !args[7]->IsUndefined())) {
+    num_args = 2;
+    arg_types[1] = TRACE_VALUE_TYPE_INT;
+
+    CHECK(args[6]->IsString());
+    arg_names[1] = arg2NameValue.out();
+
+    CHECK(args[7]->IsNumber());
+    arg_values[1] = args[7]->IntegerValue(context).ToChecked();
   }
 
   // The TRACE_EVENT_FLAG_COPY flag indicates that the name and argument
