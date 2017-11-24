@@ -103,9 +103,17 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                         False(isolate),                       // is opaque (?)
                         False(isolate),                       // is WASM
                         True(isolate));                       // is ES6 module
+    TryCatch try_catch(isolate);
     ScriptCompiler::Source source(source_text, origin);
-    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module))
+    if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
+      CHECK(try_catch.HasCaught());
+      CHECK(!try_catch.Message().IsEmpty());
+      CHECK(!try_catch.Exception().IsEmpty());
+      AppendExceptionLine(env, try_catch.Exception(), try_catch.Message(),
+                          ErrorHandlingMode::MODULE_ERROR);
+      try_catch.ReThrow();
       return;
+    }
   }
 
   Local<Object> that = args.This();
