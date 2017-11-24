@@ -1036,6 +1036,13 @@ LINT_JS_CMD = tools/eslint/bin/eslint.js --cache \
 	--rulesdir=tools/eslint-rules --ext=.js,.mjs,.md \
 	$(LINT_JS_TARGETS)
 
+lint-js-fix:
+	@if [ -x $(NODE) ]; then \
+		$(NODE) $(LINT_JS_CMD) --fix; \
+	else \
+		node $(LINT_JS_CMD) --fix; \
+	fi
+
 lint-js:
 	@echo "Running JS linter..."
 	@if [ -x $(NODE) ]; then \
@@ -1182,6 +1189,7 @@ lint-clean:
   lint-cpp \
   lint-js \
   lint-js-ci \
+  lint-js-fix \
   list-gtests \
   lint-md \
   lint-md-build \
