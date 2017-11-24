@@ -43,7 +43,6 @@ proc.once('exit', common.mustCall(() => {
       return true;
     }));
 
-
     // JavaScript async_hooks trace events should be generated.
     assert(traces.some((trace) => {
       if (trace.pid !== proc.pid)
@@ -53,6 +52,15 @@ proc.once('exit', common.mustCall(() => {
       if (trace.name !== 'Timeout')
         return false;
       return true;
+    }));
+
+    // Check args in init events
+    const initEvents = traces.filter((trace) => {
+      return (trace.ph === 'b' && !trace.name.includes('_CALLBACK'));
+    });
+    assert(initEvents.every((trace) => {
+      return (trace.args.executionAsyncId > 0 &&
+              trace.args.triggerAsyncId > 0);
     }));
   }));
 }));
