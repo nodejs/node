@@ -1572,6 +1572,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             PushOperand(Smi::FromInt(NONE));
             PushOperand(Smi::FromInt(property->NeedsSetFunctionName()));
             CallRuntimeWithOperands(Runtime::kDefineDataPropertyInLiteral);
+            PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
+                                   NO_REGISTERS);
           } else {
             DropOperands(3);
           }
