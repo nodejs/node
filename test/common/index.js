@@ -572,8 +572,7 @@ exports.getCallSite = function getCallSite(top) {
     `${stack[0].getFileName()}:${stack[0].getLineNumber()}`;
   const err = new Error();
   Error.captureStackTrace(err, top);
-  // the way V8 Error API works, the stack is not
-  // formatted until it is accessed
+  // with the V8 Error API, the stack is not formatted until it is accessed
   err.stack;
   Error.prepareStackTrace = originalStackFormatter;
   return err.stack;
