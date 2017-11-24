@@ -29,8 +29,8 @@ const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 
 const empty = fixtures.path('empty.js');
 
-const invalidOptValueError =
-  common.expectsError({ code: 'ERR_INVALID_OPT_VALUE', type: TypeError }, 13);
+const invalidArgValueError =
+  common.expectsError({ code: 'ERR_INVALID_ARG_VALUE', type: TypeError }, 13);
 
 const invalidArgTypeError =
   common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }, 11);
@@ -162,17 +162,17 @@ assert.doesNotThrow(function() { execFile(cmd, c, n); });
 // string is invalid in arg position (this may seem strange, but is
 // consistent across node API, cf. `net.createServer('not options', 'not
 // callback')`
-assert.throws(function() { execFile(cmd, s, o, c); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, a, s, c); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, a, o, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, a, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, o, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, u, u, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, n, n, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, a, u, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, a, n, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, u, o, s); }, invalidOptValueError);
-assert.throws(function() { execFile(cmd, n, o, s); }, invalidOptValueError);
+assert.throws(function() { execFile(cmd, s, o, c); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, s, c); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, u, u, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, n, n, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, u, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, a, n, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, u, o, s); }, invalidArgValueError);
+assert.throws(function() { execFile(cmd, n, o, s); }, invalidArgValueError);
 assert.doesNotThrow(function() { execFile(cmd, c, s); });
 
 
@@ -194,5 +194,5 @@ assert.doesNotThrow(function() { fork(empty, n, n); });
 assert.doesNotThrow(function() { fork(empty, n, o); });
 assert.doesNotThrow(function() { fork(empty, a, n); });
 
-assert.throws(function() { fork(empty, s); }, invalidOptValueError);
-assert.throws(function() { fork(empty, a, s); }, invalidOptValueError);
+assert.throws(function() { fork(empty, s); }, invalidArgValueError);
+assert.throws(function() { fork(empty, a, s); }, invalidArgValueError);
