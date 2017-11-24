@@ -1620,7 +1620,8 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
             jsgraph()->Constant(property->NeedsSetFunctionName());
         const Operator* op =
             javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
-        NewNode(op, receiver, key, value, attr, set_function_name);
+        Node* call = NewNode(op, receiver, key, value, attr, set_function_name);
+        PrepareFrameState(call, BailoutId::None());
         break;
       }
       case ObjectLiteral::Property::GETTER: {
@@ -1870,7 +1871,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             jsgraph()->Constant(property->NeedsSetFunctionName());
         const Operator* op =
             javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
-        NewNode(op, receiver, key, value, attr, set_function_name);
+        Node* call = NewNode(op, receiver, key, value, attr, set_function_name);
+        PrepareFrameState(call, expr->GetIdForPropertySet(property_index));
         break;
       }
       case ObjectLiteral::Property::PROTOTYPE:
