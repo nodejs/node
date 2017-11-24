@@ -52,14 +52,17 @@ using v8::Value;
 using AsyncHooks = Environment::AsyncHooks;
 
 
-Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
+Local<Object> TCPWrap::Instantiate(Environment* env,
+                                   AsyncWrap* parent,
+                                   TCPWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
+  Local<Value> type_value = Int32::New(env->isolate(), type);
   Local<Object> instance =
-      constructor->NewInstance(env->context()).ToLocalChecked();
+      constructor->NewInstance(env->context(), 1, &type_value).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -126,8 +129,8 @@ void TCPWrap::Initialize(Local<Object> target,
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
-  NODE_DEFINE_CONSTANT(constants, TCPWRAP_SOCKET);
-  NODE_DEFINE_CONSTANT(constants, TCPWRAP_SERVER);
+  NODE_DEFINE_CONSTANT(constants, SOCKET);
+  NODE_DEFINE_CONSTANT(constants, SERVER);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
               constants).FromJust();
@@ -143,14 +146,14 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   int type_value = args[0].As<Int32>()->Value();
-  tcpwrap_type type = static_cast<tcpwrap_type>(type_value);
+  TCPWrap::SocketType type = static_cast<TCPWrap::SocketType>(type_value);
 
   ProviderType provider;
   switch (type) {
-    case TCPWRAP_SOCKET:
+    case SOCKET:
       provider = PROVIDER_TCPWRAP;
       break;
-    case TCPWRAP_SERVER:
+    case SERVER:
       provider = PROVIDER_TCPSERVERWRAP;
       break;
     default:

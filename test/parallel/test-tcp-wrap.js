@@ -23,10 +23,10 @@
 require('../common');
 const assert = require('assert');
 
-const TCP = process.binding('tcp_wrap').TCP;
+const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const uv = process.binding('uv');
 
-const handle = new TCP();
+const handle = new TCP(TCPConstants.SOCKET);
 
 // Should be able to bind to the port
 let err = handle.bind('0.0.0.0', 0);

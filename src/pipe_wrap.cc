@@ -49,14 +49,17 @@ using v8::Value;
 using AsyncHooks = Environment::AsyncHooks;
 
 
-Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
+Local<Object> PipeWrap::Instantiate(Environment* env,
+                                    AsyncWrap* parent,
+                                    PipeWrap::SocketType type) {
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::InitScope init_scope(env, parent->get_async_id());
   CHECK_EQ(false, env->pipe_constructor_template().IsEmpty());
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
+  Local<Value> type_value = Int32::New(env->isolate(), type);
   Local<Object> instance =
-      constructor->NewInstance(env->context()).ToLocalChecked();
+      constructor->NewInstance(env->context(), 1, &type_value).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -111,9 +114,9 @@ void PipeWrap::Initialize(Local<Object> target,
 
   // Define constants
   Local<Object> constants = Object::New(env->isolate());
-  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_SOCKET);
-  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_SERVER);
-  NODE_DEFINE_CONSTANT(constants, PIPEWRAP_IPC);
+  NODE_DEFINE_CONSTANT(constants, SOCKET);
+  NODE_DEFINE_CONSTANT(constants, SERVER);
+  NODE_DEFINE_CONSTANT(constants, IPC);
   target->Set(context,
               FIXED_ONE_BYTE_STRING(env->isolate(), "constants"),
               constants).FromJust();
@@ -129,20 +132,20 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   int type_value = args[0].As<Int32>()->Value();
-  pipewrap_type type = static_cast<pipewrap_type>(type_value);
+  PipeWrap::SocketType type = static_cast<PipeWrap::SocketType>(type_value);
 
   bool ipc;
   ProviderType provider;
   switch (type) {
-    case PIPEWRAP_SOCKET:
+    case SOCKET:
       provider = PROVIDER_PIPEWRAP;
       ipc = false;
       break;
-    case PIPEWRAP_SERVER:
+    case SERVER:
       provider = PROVIDER_PIPESERVERWRAP;
       ipc = false;
       break;
-    case PIPEWRAP_IPC:
+    case IPC:
       provider = PROVIDER_PIPEWRAP;
       ipc = true;
       break;

@@ -30,14 +30,16 @@
 
 namespace node {
 
-enum tcpwrap_type {
-  TCPWRAP_SOCKET,
-  TCPWRAP_SERVER
-};
-
 class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
  public:
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
+  enum SocketType {
+    SOCKET,
+    SERVER
+  };
+
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
