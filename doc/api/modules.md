@@ -633,5 +633,29 @@ object.  Since `require()` returns the `module.exports`, and the `module` is
 typically *only* available within a specific module's code, it must be
 explicitly exported in order to be used.
 
+## The `Module` Object
+
+<!-- YAML
+added: v0.3.7
+-->
+
+* {Object}
+
+Provides general utility methods when interacting with instances of
+`Module` -- the `module` variable often seen in file modules. Accessed
+via `require('module')`.
+
+### module.builtinModules
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string[]}
+
+A list of  the names of all modules provided by Node.js. Can be used to verify
+if a module is maintained by a third-party module or not.
+
+[`__dirname`]: #modules_dirname
+[`__filename`]: #modules_filename
 [`Error`]: errors.html#errors_class_error
 [module resolution]: #modules_all_together
