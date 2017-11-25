@@ -35,7 +35,7 @@ server.on('listening', common.mustCall(() => {
 
   req.on('headers', common.mustNotCall());
 
-  req.on('streamClosed', common.mustCall((code) => {
+  req.on('close', common.mustCall((code) => {
     assert.strictEqual(h2.constants.NGHTTP2_NO_ERROR, code);
     server.close();
     client.destroy();

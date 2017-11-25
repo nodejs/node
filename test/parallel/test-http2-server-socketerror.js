@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
   req.resume();
   req.on('end', common.mustCall());
-  req.on('streamClosed', common.mustCall(() => {
+  req.on('close', common.mustCall(() => {
     client.destroy();
     server.close();
   }));
