@@ -2183,8 +2183,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
           ->Call(env->context(), undef, 9, argv);
 
   if (ret.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(isolate, try_catch);
+    FatalException(isolate, try_catch, false);
   }
 
   return ret.ToLocalChecked();

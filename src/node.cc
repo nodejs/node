@@ -779,28 +779,6 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
 
 namespace {
 
-bool DomainHasErrorHandler(const Environment* env,
-                           const Local<Object>& domain) {
-  HandleScope scope(env->isolate());
-
-  Local<Value> domain_event_listeners_v = domain->Get(env->events_string());
-  if (!domain_event_listeners_v->IsObject())
-    return false;
-
-  Local<Object> domain_event_listeners_o =
-      domain_event_listeners_v.As<Object>();
-
-  Local<Value> domain_error_listeners_v =
-      domain_event_listeners_o->Get(env->error_string());
-
-  if (domain_error_listeners_v->IsFunction() ||
-      (domain_error_listeners_v->IsArray() &&
-      domain_error_listeners_v.As<Array>()->Length() > 0))
-    return true;
-
-  return false;
-}
-
 bool DomainsStackHasErrorHandler(const Environment* env) {
   HandleScope scope(env->isolate());
 
@@ -818,7 +796,12 @@ bool DomainsStackHasErrorHandler(const Environment* env) {
       return false;
 
     Local<Object> domain = domain_v.As<Object>();
-    if (DomainHasErrorHandler(env, domain))
+
+    Local<Value> has_error_handler = domain->Get(
+        env->context(), OneByteString(env->isolate(),
+                                      "_hasErrorListener")).ToLocalChecked();
+
+    if (has_error_handler->IsTrue())
       return true;
   }
 
@@ -2401,7 +2384,8 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 
 void FatalException(Isolate* isolate,
                     Local<Value> error,
-                    Local<Message> message) {
+                    Local<Message> message,
+                    bool should_catch) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -2424,9 +2408,14 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = {
+        error,
+        Boolean::New(env->isolate(), should_catch)
+    };
+
     // this will return true if the JS layer handled it, false otherwise
-    Local<Value> caught =
-        fatal_exception_function->Call(process_object, 1, &error);
+    Local<Value> caught = fatal_exception_function->Call(
+        env->context(), process_object, 2, argv).FromMaybe(Local<Value>());
 
     if (fatal_try_catch.HasCaught()) {
       // the fatal exception function threw, so we must exit
@@ -2449,10 +2438,27 @@ void FatalException(Isolate* isolate,
 }
 
 
-void FatalException(Isolate* isolate, const TryCatch& try_catch) {
+void FatalException(Isolate* isolate,
+                    const TryCatch& try_catch,
+                    bool should_catch) {
   HandleScope scope(isolate);
   if (!try_catch.IsVerbose()) {
-    FatalException(isolate, try_catch.Exception(), try_catch.Message());
+    FatalException(isolate,
+                   try_catch.Exception(),
+                   try_catch.Message(),
+                   should_catch);
+  }
+}
+
+
+void FatalException(Isolate* isolate,
+                    const TryCatch& try_catch) {
+  HandleScope scope(isolate);
+  if (!try_catch.IsVerbose()) {
+    FatalException(isolate,
+                   try_catch.Exception(),
+                   try_catch.Message(),
+                   true);
   }
 }
 
@@ -2460,27 +2466,9 @@ void FatalException(Isolate* isolate, const TryCatch& try_catch) {
 static void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
   // (thus `error` is always set).
-  FatalException(Isolate::GetCurrent(), error, message);
+  FatalException(Isolate::GetCurrent(), error, message, true);
 }
 
-
-void ClearFatalExceptionHandlers(Environment* env) {
-  Local<Object> process = env->process_object();
-  Local<Value> events =
-      process->Get(env->context(), env->events_string()).ToLocalChecked();
-
-  if (events->IsObject()) {
-    events.As<Object>()->Set(
-        env->context(),
-        OneByteString(env->isolate(), "uncaughtException"),
-        Undefined(env->isolate())).FromJust();
-  }
-
-  process->Set(
-      env->context(),
-      env->domain_string(),
-      Undefined(env->isolate())).FromJust();
-}
 
 // Call process.emitWarning(str), fmt is a snprintf() format string
 void ProcessEmitWarning(Environment* env, const char* fmt, ...) {
@@ -3348,12 +3336,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
-
-  // pre-set _events object for faster emit checks
-  Local<Object> events_obj = Object::New(env->isolate());
-  CHECK(events_obj->SetPrototype(env->context(),
-                                 Null(env->isolate())).FromJust());
-  process->Set(env->events_string(), events_obj);
 }
 
 
