@@ -82,3 +82,22 @@ function listener2() {}
   const s = new TestStream();
   assert.deepStrictEqual(s.listeners('foo'), []);
 }
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  const wrappedListener = ee.rawListeners('foo');
+  assert.strictEqual(wrappedListener.length, 1);
+  assert.strictEqual(wrappedListener[0], listener);
+  assert.notStrictEqual(wrappedListener, ee.rawListeners('foo'));
+  ee.once('foo', listener);
+  const wrappedListeners = ee.rawListeners('foo');
+  assert.strictEqual(wrappedListeners.length, 2);
+  assert.strictEqual(wrappedListeners[0], listener);
+  assert.notStrictEqual(wrappedListeners[1], listener);
+  assert.strictEqual(wrappedListeners[1].listener, listener);
+  assert.notStrictEqual(wrappedListeners, ee.rawListeners('foo'));
+  ee.emit('foo');
+  assert.strictEqual(wrappedListeners.length, 2);
+  assert.strictEqual(wrappedListeners[1].listener, listener);
+}

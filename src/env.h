@@ -145,7 +145,6 @@ class ModuleWrap;
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
-  V(events_string, "_events")                                                 \
   V(exiting_string, "_exiting")                                               \
   V(exit_code_string, "exitCode")                                             \
   V(exit_string, "exit")                                                      \

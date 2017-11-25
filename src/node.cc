@@ -3684,12 +3684,6 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
-
-  // pre-set _events object for faster emit checks
-  Local<Object> events_obj = Object::New(env->isolate());
-  CHECK(events_obj->SetPrototype(env->context(),
-                                 Null(env->isolate())).FromJust());
-  process->Set(env->events_string(), events_obj);
 }
 
 
