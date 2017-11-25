@@ -14,8 +14,7 @@ const common = require('../../common.js');
 try {
   var binding = require('./build/Release/binding');
 } catch (er) {
-  console.error('misc/function_call.js Binding failed to load');
-  process.exit(0);
+  throw new Error('misc/function_call.js Binding failed to load');
 }
 const cxx = binding.hello;
 
