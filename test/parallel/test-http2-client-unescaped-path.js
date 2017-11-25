@@ -30,7 +30,7 @@ server.listen(0, common.mustCall(() => {
       type: Error,
       message: 'Stream closed with error code 1'
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(maybeClose));
   }
 
   for (let i = 0; i <= count; i += 1)

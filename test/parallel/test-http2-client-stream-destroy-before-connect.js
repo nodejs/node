@@ -41,7 +41,7 @@ server.on('listening', common.mustCall(() => {
     })(err);
   }));
 
-  req.on('streamClosed', common.mustCall((code) => {
+  req.on('close', common.mustCall((code) => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
     assert.strictEqual(code, NGHTTP2_INTERNAL_ERROR);
     server.close();

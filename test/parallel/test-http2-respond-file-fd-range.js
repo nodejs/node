@@ -71,7 +71,7 @@ server.listen(0, () => {
     req.on('end', common.mustCall(() => {
       assert.strictEqual(check, data.toString('utf8', 8, 11));
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(maybeClose));
     req.end();
   }
 
@@ -88,7 +88,7 @@ server.listen(0, () => {
     req.on('end', common.mustCall(() => {
       assert.strictEqual(check, data.toString('utf8', 8, 28));
     }));
-    req.on('streamClosed', common.mustCall(maybeClose));
+    req.on('close', common.mustCall(maybeClose));
     req.end();
   }
 

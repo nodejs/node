@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(() => {
       ':method': 'POST',
       rstmethod: test[0]
     });
-    req.on('streamClosed', common.mustCall((code) => {
+    req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, test[1]);
       countdown.dec();
     }));

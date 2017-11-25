@@ -27,7 +27,7 @@ server.on('listening', common.mustCall(() => {
   // second call doesn't do anything
   assert.doesNotThrow(() => req.rstStream(8));
 
-  req.on('streamClosed', common.mustCall((code) => {
+  req.on('close', common.mustCall((code) => {
     assert.strictEqual(req.destroyed, true);
     assert.strictEqual(code, 0);
     server.close();
