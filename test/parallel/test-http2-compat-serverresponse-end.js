@@ -183,10 +183,10 @@ const {
 
 
 {
-  // Should be able to call .end with cb from stream 'streamClosed'
+  // Should be able to call .end with cb from stream 'close'
   const server = createServer(mustCall((request, response) => {
     response.writeHead(HTTP_STATUS_OK, { foo: 'bar' });
-    response.stream.on('streamClosed', mustCall(() => {
+    response.stream.on('close', mustCall(() => {
       response.end(mustCall());
     }));
   }));

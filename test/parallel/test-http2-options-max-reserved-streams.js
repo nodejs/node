@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream) => {
     pushedStream.respond({ ':status': 200 });
     pushedStream.on('aborted', common.mustCall());
     pushedStream.on('error', common.mustNotCall());
-    pushedStream.on('streamClosed',
+    pushedStream.on('close',
                     common.mustCall((code) => assert.strictEqual(code, 8)));
   }));
 
@@ -67,12 +67,12 @@ server.on('listening', common.mustCall(() => {
   client.on('stream', common.mustCall((stream) => {
     stream.resume();
     stream.on('end', common.mustCall());
-    stream.on('streamClosed', common.mustCall(maybeClose));
+    stream.on('close', common.mustCall(maybeClose));
   }));
 
   req.on('response', common.mustCall());
 
   req.resume();
   req.on('end', common.mustCall());
-  req.on('streamClosed', common.mustCall(maybeClose));
+  req.on('close', common.mustCall(maybeClose));
 }));

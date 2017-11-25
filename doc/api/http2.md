@@ -631,7 +631,7 @@ All [`Http2Stream`][] instances are destroyed either when:
 When an `Http2Stream` instance is destroyed, an attempt will be made to send an
 `RST_STREAM` frame will be sent to the connected peer.
 
-Once the `Http2Stream` instance is destroyed, the `'streamClosed'` event will
+When the `Http2Stream` instance is destroyed, the `'close'` event will
 be emitted. Because `Http2Stream` is an instance of `stream.Duplex`, the
 `'end'` event will also be emitted if the stream data is currently flowing.
 The `'error'` event may also be emitted if `http2stream.destroy()` was called
@@ -653,6 +653,18 @@ abnormally aborted in mid-communication.
 *Note*: The `'aborted'` event will only be emitted if the `Http2Stream`
 writable side has not been ended.
 
+#### Event: 'close'
+<!-- YAML
+added: v8.4.0
+-->
+
+The `'close'` event is emitted when the `Http2Stream` is destroyed. Once
+this event is emitted, the `Http2Stream` instance is no longer usable.
+
+The listener callback is passed a single argument specifying the HTTP/2 error
+code specified when closing the stream. If the code is any value other than
+`NGHTTP2_NO_ERROR` (`0`), an `'error'` event will also be emitted.
+
 #### Event: 'error'
 <!-- YAML
 added: v8.4.0
@@ -671,18 +683,6 @@ send a frame. When invoked, the handler function will receive an integer
 argument identifying the frame type, and an integer argument identifying the
 error code. The `Http2Stream` instance will be destroyed immediately after the
 `'frameError'` event is emitted.
-
-#### Event: 'streamClosed'
-<!-- YAML
-added: v8.4.0
--->
-
-The `'streamClosed'` event is emitted when the `Http2Stream` is destroyed. Once
-this event is emitted, the `Http2Stream` instance is no longer usable.
-
-The listener callback is passed a single argument specifying the HTTP/2 error
-code specified when closing the stream. If the code is any value other than
-`NGHTTP2_NO_ERROR` (`0`), an `'error'` event will also be emitted.
 
 #### Event: 'timeout'
 <!-- YAML

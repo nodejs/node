@@ -12,7 +12,7 @@ let req;
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   stream.on('error', common.mustCall(() => {
-    stream.on('streamClosed', common.mustCall((code) => {
+    stream.on('close', common.mustCall((code) => {
       assert.strictEqual(code, 2);
       client.destroy();
       server.close();

@@ -64,8 +64,8 @@ server.on('request', common.mustCall(function(request, response) {
   assert.strictEqual(request.socket.connecting, false);
 
   // socket events are bound and emitted on Http2Stream
-  request.socket.on('streamClosed', common.mustCall());
-  request.socket.once('streamClosed', common.mustCall());
+  request.socket.on('close', common.mustCall());
+  request.socket.once('close', common.mustCall());
   request.socket.on('testEvent', common.mustCall());
   request.socket.emit('testEvent');
 }));
