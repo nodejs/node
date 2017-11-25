@@ -19,4 +19,5 @@ process.emit('normal', 'normalData');
 process.emit(sym, 'symbolData');
 process.emit('SIGPIPE', 'signalData');
 
-assert.strictEqual(Number.isNaN(process._eventsCount), false);
+assert.strictEqual(process._eventsCount,
+                   Reflect.ownKeys(process._events).length);
