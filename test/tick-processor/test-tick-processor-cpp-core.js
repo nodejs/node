@@ -14,9 +14,9 @@ if (common.isWindows ||
 const base = require('./tick-processor-base.js');
 
 base.runTest({
-  pattern: /RunInDebugContext/,
+  pattern: /MakeContext/,
   code: `function f() {
-           require('vm').runInDebugContext('Debug');
+           require('vm').createContext({});
            setImmediate(function() { f(); });
          };
          f();`

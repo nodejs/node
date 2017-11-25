@@ -66,7 +66,7 @@ and set your expectations accordingly.
 The Node.js project maintains multiple types of releases:
 
 * **Current**: Released from active development branches of this repository,
-  versioned by [SemVer](http://semver.org/) and signed by a member of the
+  versioned by [SemVer](https://semver.org) and signed by a member of the
   [Release Team](#release-team).
   Code for Current releases is organized in this repository by major version
   number. For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
@@ -412,6 +412,8 @@ For more information about the governance of the Node.js project, see
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
 **Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
+* [maclover7](https://github.com/maclover7) -
+**Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
 * [matthewloring](https://github.com/matthewloring) -
 **Matthew Loring** &lt;mattloring@google.com&gt;
 * [mcollina](https://github.com/mcollina) -

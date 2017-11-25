@@ -1013,7 +1013,7 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 
 If the 'ca' option is not given, then Node.js will use the default
 publicly trusted list of CAs as given in
-<http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
+<https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
 ## tls.createServer([options][, secureConnectionListener])

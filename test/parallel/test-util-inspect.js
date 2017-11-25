@@ -19,12 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
+const { previewMapIterator } = require('internal/v8');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -442,11 +444,9 @@ assert.strictEqual(util.inspect(-0), '-0');
 
 // test for Array constructor in different context
 {
-  const Debug = vm.runInDebugContext('Debug');
   const map = new Map();
   map.set(1, 2);
-  const mirror = Debug.MakeMirror(map.entries(), true);
-  const vals = mirror.preview();
+  const vals = previewMapIterator(map.entries(), 100);
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);

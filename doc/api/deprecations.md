@@ -600,10 +600,9 @@ a V8-inspector based CLI debugger available through `node inspect`.
 <a id="DEP0069"></a>
 ### DEP0069: vm.runInDebugContext(string)
 
-Type: Runtime
+Type: End-of-Life
 
-The DebugContext will be removed in V8 soon and will not be available in Node
-10+.
+DebugContext has been removed in V8 and is not available in Node 10+.
 
 *Note*: DebugContext was an experimental API.
 

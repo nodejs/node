@@ -22,7 +22,6 @@
 #include "node_internals.h"
 #include "node_watchdog.h"
 #include "base_object-inl.h"
-#include "v8-debug.h"
 
 namespace node {
 
@@ -30,7 +29,6 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
-using v8::Debug;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
@@ -218,39 +216,8 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
-    env->SetMethod(target, "runInDebugContext", RunInDebugContext);
     env->SetMethod(target, "makeContext", MakeContext);
     env->SetMethod(target, "isContext", IsContext);
-  }
-
-
-  static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
-    Local<String> script_source(args[0]->ToString(args.GetIsolate()));
-    if (script_source.IsEmpty())
-      return;  // Exception pending.
-    Local<Context> debug_context = Debug::GetDebugContext(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args);
-    if (debug_context.IsEmpty()) {
-      // Force-load the debug context.
-      auto dummy_event_listener = [] (const Debug::EventDetails&) {};
-      Debug::SetDebugEventListener(args.GetIsolate(), dummy_event_listener);
-      debug_context = Debug::GetDebugContext(args.GetIsolate());
-      CHECK(!debug_context.IsEmpty());
-      // Ensure that the debug context has an Environment assigned in case
-      // a fatal error is raised.  The fatal exception handler in node.cc
-      // is not equipped to deal with contexts that don't have one and
-      // can't easily be taught that due to a deficiency in the V8 API:
-      // there is no way for the embedder to tell if the data index is
-      // in use.
-      const int index = Environment::kContextEmbedderDataIndex;
-      debug_context->SetAlignedPointerInEmbedderData(index, env);
-    }
-
-    Context::Scope context_scope(debug_context);
-    MaybeLocal<Script> script = Script::Compile(debug_context, script_source);
-    if (script.IsEmpty())
-      return;  // Exception pending.
-    args.GetReturnValue().Set(script.ToLocalChecked()->Run());
   }
 
 
