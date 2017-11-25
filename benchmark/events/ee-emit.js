@@ -3,20 +3,27 @@ const common = require('../common.js');
 const EventEmitter = require('events').EventEmitter;
 
 const bench = common.createBenchmark(main, {
-  n: [2e6],
+  n: [2e7],
   argc: [0, 2, 4, 10],
   listeners: [1, 5, 10],
 });
 
 function main(conf) {
-  const n = conf.n | 0;
+  var n = conf.n | 0;
   const argc = conf.argc | 0;
   const listeners = Math.max(conf.listeners | 0, 1);
 
   const ee = new EventEmitter();
 
-  for (var k = 0; k < listeners; k += 1)
+  if (listeners === 1)
+    n *= 5;
+  else if (listeners === 5)
+    n *= 2;
+
+  for (var k = 0; k < listeners; k += 1) {
     ee.on('dummy', function() {});
+    ee.on(`dummy${k}`, function() {});
+  }
 
   var i;
   switch (argc) {
