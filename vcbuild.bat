@@ -127,7 +127,7 @@ goto next-arg
 
 :environment-validate
 REM Make sure we can find python
-call :run-python --version > NUL
+call :run-python --version > NUL 2>&1
 if errorlevel 1 (
   echo Could not find python2. More information can be found at
   echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows-1
@@ -176,12 +176,14 @@ if "%i18n_arg%"=="without-intl" set configure_flags=%configure_flags% --without-
 
 if defined config_flags set configure_flags=%configure_flags% %config_flags%
 
+if not "%target%"=="Clean" goto no-clean
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
 if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
 
-if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+for /d %%I IN ("%~dp0%config%\node-v*") do rmdir /Q /S "%%I"
+:no-clean
 
 if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
 
