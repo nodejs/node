@@ -66,7 +66,8 @@ static Handle<JSFunction> Compile(const char* source) {
   Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
       source_code, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
       Handle<Object>(), Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE);
+      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
+      Handle<FixedArray>());
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, isolate->native_context());
 }
