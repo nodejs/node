@@ -2,22 +2,26 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  thousands: [500],
+  millions: [10],
 });
 
 function main(conf) {
-  const iterations = +conf.thousands * 1e3;
-  var count = 0;
+  const iterations = +conf.millions * 1e6;
+
+  // Function tracking on the hidden class in V8 can cause misleading
+  // results in this benchmark if only a single function is used —
+  // alternate between two functions for a fairer benchmark
+
+  function cb() {}
+  function cb2() {}
+
+  process.on('exit', function() {
+    bench.end(iterations / 1e6);
+  });
 
   for (var i = 0; i < iterations; i++) {
-    setTimeout(cb, 1);
+    setTimeout(i % 2 ? cb : cb2, 1);
   }
 
   bench.start();
-
-  function cb() {
-    count++;
-    if (count === iterations)
-      bench.end(iterations / 1e3);
-  }
 }
