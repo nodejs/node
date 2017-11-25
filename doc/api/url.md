@@ -971,7 +971,7 @@ changes:
 The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
 
-If `urlObject` is not an object or a string, `url.parse()` will throw a
+If `urlObject` is not an object or a string, `url.format()` will throw a
 [`TypeError`][].
 
 The formatting process operates as follows:
