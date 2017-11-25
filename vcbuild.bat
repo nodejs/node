@@ -53,7 +53,7 @@ set nghttp2_debug=
 set link_module=
 
 :next-arg
-if "%1"=="" goto args-done
+if "%1"=="" goto environment-validate
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
@@ -125,19 +125,19 @@ shift
 shift
 goto next-arg
 
-:args-done
-
-REM Shortcut for just linting (does not need python)
-if "%*"=="lint" (
-  goto lint-cpp
-)
-
+:environment-validate
 REM Make sure we can find python
 call :run-python --version > NUL
 if errorlevel 1 (
   echo Could not find python2. More information can be found at
   echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows-1
   exit /b 1
+)
+
+
+REM Shortcut for just linting (does not need python)
+if "%*"=="lint" (
+  goto lint-cpp
 )
 
 if defined build_release (
