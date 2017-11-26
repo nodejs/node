@@ -1,0 +1,60 @@
+{
+  "_args": [
+    [
+      "performance-now@0.2.0",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "performance-now@0.2.0",
+  "_id": "performance-now@0.2.0",
+  "_inBundle": true,
+  "_integrity": "sha1-M+8wxcd9TqIcWlOGnZG1bY8lVeU=",
+  "_location": "/fsevents/performance-now",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "performance-now@0.2.0",
+    "name": "performance-now",
+    "escapedName": "performance-now",
+    "rawSpec": "0.2.0",
+    "saveSpec": null,
+    "fetchSpec": "0.2.0"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/performance-now/-/performance-now-0.2.0.tgz",
+  "_spec": "0.2.0",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Meryn Stol",
+    "email": "merynstol@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/meryn/performance-now/issues"
+  },
+  "dependencies": {},
+  "description": "Implements performance.now (based on process.hrtime).",
+  "devDependencies": {
+    "coffee-script": "~1.7.1",
+    "mocha": "~1.21.0"
+  },
+  "homepage": "https://github.com/meryn/performance-now",
+  "keywords": [],
+  "license": "MIT",
+  "main": "lib/performance-now.js",
+  "name": "performance-now",
+  "optionalDependencies": {},
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/meryn/performance-now.git"
+  },
+  "scripts": {
+    "prepublish": "npm test",
+    "pretest": "make build",
+    "test": "make test"
+  },
+  "version": "0.2.0"
+}

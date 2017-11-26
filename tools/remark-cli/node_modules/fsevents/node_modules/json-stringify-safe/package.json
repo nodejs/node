@@ -1,0 +1,69 @@
+{
+  "_args": [
+    [
+      "json-stringify-safe@5.0.1",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "json-stringify-safe@5.0.1",
+  "_id": "json-stringify-safe@5.0.1",
+  "_inBundle": true,
+  "_integrity": "sha1-Epai1Y/UXxmg9s4B1lcB4sc1tus=",
+  "_location": "/fsevents/json-stringify-safe",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "json-stringify-safe@5.0.1",
+    "name": "json-stringify-safe",
+    "escapedName": "json-stringify-safe",
+    "rawSpec": "5.0.1",
+    "saveSpec": null,
+    "fetchSpec": "5.0.1"
+  },
+  "_requiredBy": [
+    "/fsevents/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/json-stringify-safe/-/json-stringify-safe-5.0.1.tgz",
+  "_spec": "5.0.1",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/json-stringify-safe/issues"
+  },
+  "contributors": [
+    {
+      "name": "Andri Möll",
+      "email": "andri@dot.ee",
+      "url": "http://themoll.com"
+    }
+  ],
+  "description": "Like JSON.stringify, but doesn't blow up on circular refs.",
+  "devDependencies": {
+    "mocha": ">= 2.1.0 < 3",
+    "must": ">= 0.12 < 0.13",
+    "sinon": ">= 1.12.2 < 2"
+  },
+  "homepage": "https://github.com/isaacs/json-stringify-safe",
+  "keywords": [
+    "json",
+    "stringify",
+    "circular",
+    "safe"
+  ],
+  "license": "ISC",
+  "main": "stringify.js",
+  "name": "json-stringify-safe",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/json-stringify-safe.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "5.0.1"
+}

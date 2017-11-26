@@ -1,0 +1,52 @@
+{
+  "_args": [
+    [
+      "jsprim@1.4.0",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "jsprim@1.4.0",
+  "_id": "jsprim@1.4.0",
+  "_inBundle": true,
+  "_integrity": "sha1-o7h+QCmNjDgFUtjMdiigu5WiKRg=",
+  "_location": "/fsevents/jsprim",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "jsprim@1.4.0",
+    "name": "jsprim",
+    "escapedName": "jsprim",
+    "rawSpec": "1.4.0",
+    "saveSpec": null,
+    "fetchSpec": "1.4.0"
+  },
+  "_requiredBy": [
+    "/fsevents/http-signature"
+  ],
+  "_resolved": "https://registry.npmjs.org/jsprim/-/jsprim-1.4.0.tgz",
+  "_spec": "1.4.0",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bugs": {
+    "url": "https://github.com/joyent/node-jsprim/issues"
+  },
+  "dependencies": {
+    "assert-plus": "1.0.0",
+    "extsprintf": "1.0.2",
+    "json-schema": "0.2.3",
+    "verror": "1.3.6"
+  },
+  "description": "utilities for primitive JavaScript types",
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "homepage": "https://github.com/joyent/node-jsprim#readme",
+  "license": "MIT",
+  "main": "./lib/jsprim.js",
+  "name": "jsprim",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/joyent/node-jsprim.git"
+  },
+  "version": "1.4.0"
+}

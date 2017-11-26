@@ -1,0 +1,53 @@
+{
+  "_args": [
+    [
+      "getpass@0.1.7",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "getpass@0.1.7",
+  "_id": "getpass@0.1.7",
+  "_inBundle": true,
+  "_integrity": "sha1-Xv+OPmhNVprkyysSgmBOi6YhSfo=",
+  "_location": "/fsevents/getpass",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "getpass@0.1.7",
+    "name": "getpass",
+    "escapedName": "getpass",
+    "rawSpec": "0.1.7",
+    "saveSpec": null,
+    "fetchSpec": "0.1.7"
+  },
+  "_requiredBy": [
+    "/fsevents/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/getpass/-/getpass-0.1.7.tgz",
+  "_spec": "0.1.7",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Alex Wilson",
+    "email": "alex.wilson@joyent.com"
+  },
+  "bugs": {
+    "url": "https://github.com/arekinath/node-getpass/issues"
+  },
+  "dependencies": {
+    "assert-plus": "^1.0.0"
+  },
+  "description": "getpass for node.js",
+  "homepage": "https://github.com/arekinath/node-getpass#readme",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "name": "getpass",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arekinath/node-getpass.git"
+  },
+  "scripts": {
+    "test": "tape test/*.test.js"
+  },
+  "version": "0.1.7"
+}

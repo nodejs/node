@@ -1,0 +1,46 @@
+{
+  "_args": [
+    [
+      "extsprintf@1.0.2",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "extsprintf@1.0.2",
+  "_id": "extsprintf@1.0.2",
+  "_inBundle": true,
+  "_integrity": "sha1-4QgOBljjALBilJkMxw4VAiNf1VA=",
+  "_location": "/fsevents/extsprintf",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "extsprintf@1.0.2",
+    "name": "extsprintf",
+    "escapedName": "extsprintf",
+    "rawSpec": "1.0.2",
+    "saveSpec": null,
+    "fetchSpec": "1.0.2"
+  },
+  "_requiredBy": [
+    "/fsevents/jsprim",
+    "/fsevents/verror"
+  ],
+  "_resolved": "https://registry.npmjs.org/extsprintf/-/extsprintf-1.0.2.tgz",
+  "_spec": "1.0.2",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-extsprintf/issues"
+  },
+  "description": "extended POSIX-style sprintf",
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "homepage": "https://github.com/davepacheco/node-extsprintf#readme",
+  "main": "./lib/extsprintf.js",
+  "name": "extsprintf",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-extsprintf.git"
+  },
+  "version": "1.0.2"
+}

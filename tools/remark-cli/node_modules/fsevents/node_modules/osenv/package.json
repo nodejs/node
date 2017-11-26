@@ -1,0 +1,70 @@
+{
+  "_args": [
+    [
+      "osenv@0.1.4",
+      "/Users/eshanker/Code/fsevents"
+    ]
+  ],
+  "_from": "osenv@0.1.4",
+  "_id": "osenv@0.1.4",
+  "_inBundle": true,
+  "_integrity": "sha1-Qv5tWVPfBsgGS+bxdsPQWqqjRkQ=",
+  "_location": "/fsevents/osenv",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "osenv@0.1.4",
+    "name": "osenv",
+    "escapedName": "osenv",
+    "rawSpec": "0.1.4",
+    "saveSpec": null,
+    "fetchSpec": "0.1.4"
+  },
+  "_requiredBy": [
+    "/fsevents/nopt"
+  ],
+  "_resolved": "https://registry.npmjs.org/osenv/-/osenv-0.1.4.tgz",
+  "_spec": "0.1.4",
+  "_where": "/Users/eshanker/Code/fsevents",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/osenv/issues"
+  },
+  "dependencies": {
+    "os-homedir": "^1.0.0",
+    "os-tmpdir": "^1.0.0"
+  },
+  "description": "Look up environment settings specific to different operating systems",
+  "devDependencies": {
+    "tap": "^8.0.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "homepage": "https://github.com/npm/osenv#readme",
+  "keywords": [
+    "environment",
+    "variable",
+    "home",
+    "tmpdir",
+    "path",
+    "prompt",
+    "ps1"
+  ],
+  "license": "ISC",
+  "main": "osenv.js",
+  "name": "osenv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/osenv.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "0.1.4"
+}

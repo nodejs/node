@@ -1,0 +1,35 @@
+{
+  "id": "log.json#",
+  "type": "object",
+  "required": [
+    "version",
+    "creator",
+    "entries"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "creator": {
+      "$ref": "creator.json#"
+    },
+    "browser": {
+      "$ref": "browser.json#"
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "page.json#"
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "entry.json#"
+      }
+    },
+    "comment": {
+      "type": "string"
+    }
+  }
+}
