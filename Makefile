@@ -63,10 +63,16 @@ V ?= 1
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
-all: out/Makefile $(NODE_EXE)
+all: out/Makefile $(NODE_EXE) ## Default target, builds node in out/Release/node.
 else
 all: out/Makefile $(NODE_EXE) $(NODE_G_EXE)
 endif
+
+# To add a target to the help, add a double comment (##) on the target line.
+help: ## Print help for targets with comments.
+	@printf "For more targets and info see the comments in the Makefile.\n\n"
+	@grep -E '^[a-zA-Z0-9._-]+:.*?## .*$$' Makefile | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # The .PHONY is needed to ensure that we recursively use the out/Makefile
 # to check for changes.
@@ -94,13 +100,13 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
 config.gypi: configure
 	$(error Missing or stale $@, please run ./$<)
 
-install: all
+install: all ## Installs node into $PREFIX (default=/usr/local).
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
-uninstall:
+uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
-clean:
+clean: ## Remove build artifacts.
 	$(RM) -r out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
 		out/$(BUILDTYPE)/node.exp
 	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
@@ -145,7 +151,7 @@ coverage-clean:
 # For C++ coverage reporting, this needs to be run in conjunction with configure
 #  --coverage.  html coverage reports will be created under coverage/
 
-coverage: coverage-test
+coverage: coverage-test ## Run the tests and generate a coverage report.
 
 coverage-build: all
 	mkdir -p node_modules
@@ -205,7 +211,7 @@ v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
-test: all
+test: all ## Default test target. Runs default tests, linters, and builds docs.
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-addons-napi
 	$(MAKE) -s doc-only
@@ -373,7 +379,7 @@ test-build: | all build-addons build-addons-napi
 
 test-build-addons-napi: all build-addons-napi
 
-test-all: test-build test/gc/build/Release/binding.node
+test-all: test-build test/gc/build/Release/binding.node ## Run everything in test/.
 	$(PYTHON) tools/test.py --mode=debug,release
 
 test-all-valgrind: test-build
@@ -452,7 +458,7 @@ test-doc: doc-only
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
-test-npm: $(NODE_EXE)
+test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
 	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test-node
 
 test-npm-publish: $(NODE_EXE)
@@ -494,7 +500,7 @@ test-with-async-hooks:
 
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
-test-v8: v8
+test-v8: v8  ## Runs the V8 test suite on deps/v8.
 #	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
@@ -860,7 +866,7 @@ ifeq ($(XZ), 0)
 endif
 	$(RM) $(TARNAME).tar
 
-tar: $(TARBALL)
+tar: $(TARBALL) ## Create a source tarball.
 
 tar-upload: tar
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
@@ -896,7 +902,7 @@ ifeq ($(XZ), 0)
 endif
 	$(RM) $(TARNAME)-headers.tar
 
-tar-headers: $(TARBALL)-headers
+tar-headers: $(TARBALL)-headers ## Build the node header tarball.
 
 tar-headers-upload: tar-headers
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
@@ -933,7 +939,7 @@ ifeq ($(XZ), 0)
 endif
 	$(RM) $(BINARYNAME).tar
 
-binary: $(BINARYTAR)
+binary: $(BINARYTAR) ## Build release binary tarballs.
 
 binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
@@ -984,7 +990,7 @@ bench-dgram: all
 
 bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events bench-dgram bench-util
 
-bench: bench-net bench-http bench-fs bench-tls
+bench: bench-net bench-http bench-fs bench-tls ## Run node benchmarks.
 
 bench-ci: bench
 
@@ -1110,7 +1116,7 @@ cpplint: lint-cpp
 	@echo "Please use lint-cpp instead of cpplint"
 
 ifneq ("","$(wildcard tools/eslint/)")
-lint:
+lint: ## Run JS, C++, MD and doc linters.
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
@@ -1176,6 +1182,7 @@ lint-clean:
   docclean \
   docopen \
   dynamiclib \
+  help \
   install \
   install-bin \
   install-includes \
