@@ -344,7 +344,7 @@ added: v3.2.0
 
 Returns the number of listeners listening to the event named `eventName`.
 
-### emitter.listeners(eventName)
+### emitter.listeners(eventName[, unwrap])
 <!-- YAML
 added: v0.1.26
 changes:
@@ -352,8 +352,15 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/6881
     description: For listeners attached using `.once()` this returns the
                  original listeners instead of wrapper functions now.
+  - version: REPLACEME
+    pr-url: REPLACEME
+    description: Second optional argument `unwrap` allows the wrapped
+                 listeners to be returned (such as ones created with
+                 `.once()`)
 -->
-- `eventName` {any}
+* `eventName` {any} The name of the event.
+* `unwrap` {boolean} When set to true, will return the original listeners
+  instead of the wrapper functions created by `.once()`. **Default:** `true`
 
 Returns a copy of the array of listeners for the event named `eventName`.
 

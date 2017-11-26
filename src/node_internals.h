@@ -330,11 +330,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
 };
 
-// Clear any domain and/or uncaughtException handlers to force the error's
-// propagation and shutdown the process. Use this to force the process to exit
-// by clearing all callbacks that could handle the error.
-void ClearFatalExceptionHandlers(Environment* env);
-
 namespace Buffer {
 v8::MaybeLocal<v8::Object> Copy(Environment* env, const char* data, size_t len);
 v8::MaybeLocal<v8::Object> New(Environment* env, size_t size);
