@@ -774,8 +774,10 @@ class CodePathState {
         // Sets the normal path as the next.
         this.forkContext.replaceHead(normalSegments);
 
-        // If both paths of the `try` block and the `catch` block are
-        // unreachable, the next path becomes unreachable as well.
+        /*
+         * If both paths of the `try` block and the `catch` block are
+         * unreachable, the next path becomes unreachable as well.
+         */
         if (!context.lastOfTryIsReachable && !context.lastOfCatchIsReachable) {
             this.forkContext.makeUnreachable();
         }

@@ -111,7 +111,8 @@ module.exports = {
                 const consoleVar = astUtils.getVariableByName(scope, "console");
                 const shadowed = consoleVar && consoleVar.defs.length > 0;
 
-                /* 'scope.through' includes all references to undefined
+                /*
+                 * 'scope.through' includes all references to undefined
                  * variables. If the variable 'console' is not defined, it uses
                  * 'scope.through'.
                  */

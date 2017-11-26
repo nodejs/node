@@ -20,7 +20,7 @@ module.exports = function rules() {
 
   var ALL = [ 'type' ];
   var KEYWORDS = [
-    'additionalItems', '$schema', 'id', 'title',
+    'additionalItems', '$schema', '$id', 'id', 'title',
     'description', 'default', 'definitions'
   ];
   var TYPES = [ 'number', 'integer', 'string', 'array', 'object', 'boolean', 'null' ];

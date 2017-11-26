@@ -54,11 +54,11 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
-        * Fixes a place where a newline unexpectedly appears
-        * @param {Token} firstToken The token before the unexpected newline
-        * @param {Token} secondToken The token after the unexpected newline
-        * @returns {Function} A fixer function to remove the newlines between the tokens
-        */
+         * Fixes a place where a newline unexpectedly appears
+         * @param {Token} firstToken The token before the unexpected newline
+         * @param {Token} secondToken The token after the unexpected newline
+         * @returns {Function} A fixer function to remove the newlines between the tokens
+         */
         function removeNewlineBetween(firstToken, secondToken) {
             const textRange = [firstToken.range[1], secondToken.range[0]];
             const textBetween = sourceCode.text.slice(textRange[0], textRange[1]);
@@ -71,11 +71,11 @@ module.exports = {
         }
 
         /**
-        * Validates a pair of curly brackets based on the user's config
-        * @param {Token} openingCurly The opening curly bracket
-        * @param {Token} closingCurly The closing curly bracket
-        * @returns {void}
-        */
+         * Validates a pair of curly brackets based on the user's config
+         * @param {Token} openingCurly The opening curly bracket
+         * @param {Token} closingCurly The closing curly bracket
+         * @returns {void}
+         */
         function validateCurlyPair(openingCurly, closingCurly) {
             const tokenBeforeOpeningCurly = sourceCode.getTokenBefore(openingCurly);
             const tokenAfterOpeningCurly = sourceCode.getTokenAfter(openingCurly);
@@ -116,10 +116,10 @@ module.exports = {
         }
 
         /**
-        * Validates the location of a token that appears before a keyword (e.g. a newline before `else`)
-        * @param {Token} curlyToken The closing curly token. This is assumed to precede a keyword token (such as `else` or `finally`).
-        * @returns {void}
-        */
+         * Validates the location of a token that appears before a keyword (e.g. a newline before `else`)
+         * @param {Token} curlyToken The closing curly token. This is assumed to precede a keyword token (such as `else` or `finally`).
+         * @returns {void}
+         */
         function validateCurlyBeforeKeyword(curlyToken) {
             const keywordToken = sourceCode.getTokenAfter(curlyToken);
 

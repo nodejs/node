@@ -33,10 +33,10 @@ const lodash = require("lodash");
 //------------------------------------------------------------------------------
 
 /**
-* Gets the possible types of a selector
-* @param {Object} parsedSelector An object (from esquery) describing the matching behavior of the selector
-* @returns {string[]|null} The node types that could possibly trigger this selector, or `null` if all node types could trigger it
-*/
+ * Gets the possible types of a selector
+ * @param {Object} parsedSelector An object (from esquery) describing the matching behavior of the selector
+ * @returns {string[]|null} The node types that could possibly trigger this selector, or `null` if all node types could trigger it
+ */
 function getPossibleTypes(parsedSelector) {
     switch (parsedSelector.type) {
         case "identifier":
@@ -203,12 +203,12 @@ const parseSelector = lodash.memoize(rawSelector => {
 class NodeEventGenerator {
 
     /**
-    * @param {SafeEmitter} emitter
-    * An SafeEmitter which is the destination of events. This emitter must already
-    * have registered listeners for all of the events that it needs to listen for.
-    * (See lib/util/safe-emitter.js for more details on `SafeEmitter`.)
-    * @returns {NodeEventGenerator} new instance
-    */
+     * @param {SafeEmitter} emitter
+     * An SafeEmitter which is the destination of events. This emitter must already
+     * have registered listeners for all of the events that it needs to listen for.
+     * (See lib/util/safe-emitter.js for more details on `SafeEmitter`.)
+     * @returns {NodeEventGenerator} new instance
+     */
     constructor(emitter) {
         this.emitter = emitter;
         this.currentAncestry = [];

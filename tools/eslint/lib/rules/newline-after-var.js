@@ -132,10 +132,10 @@ module.exports = {
         }
 
         /**
-        * Gets the last line of a group of consecutive comments
-        * @param {number} commentStartLine The starting line of the group
-        * @returns {number} The number of the last comment line of the group
-        */
+         * Gets the last line of a group of consecutive comments
+         * @param {number} commentStartLine The starting line of the group
+         * @returns {number} The number of the last comment line of the group
+         */
         function getLastCommentLineOfBlock(commentStartLine) {
             const currentCommentEnd = commentEndLine[commentStartLine];
 
@@ -190,8 +190,10 @@ module.exports = {
                 return;
             }
 
-            // Some coding styles use multiple `var` statements, so do nothing if
-            // the next token is a `var` statement.
+            /*
+             * Some coding styles use multiple `var` statements, so do nothing if
+             * the next token is a `var` statement.
+             */
             if (nextToken.type === "Keyword" && isVar(nextToken.value)) {
                 return;
             }

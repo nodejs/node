@@ -36,10 +36,10 @@ function isUnreachable(segment) {
 }
 
 /**
-* Checks whether a given node is a `constructor` method in an ES6 class
-* @param {ASTNode} node A node to check
-* @returns {boolean} `true` if the node is a `constructor` method
-*/
+ * Checks whether a given node is a `constructor` method in an ES6 class
+ * @param {ASTNode} node A node to check
+ * @returns {boolean} `true` if the node is a `constructor` method
+ */
 function isClassConstructor(node) {
     return node.type === "FunctionExpression" &&
         node.parent &&

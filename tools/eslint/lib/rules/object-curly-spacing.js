@@ -65,11 +65,11 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
-        * Reports that there shouldn't be a space after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a space after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoBeginningSpace(node, token) {
             context.report({
                 node,
@@ -87,11 +87,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a space before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a space before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoEndingSpace(node, token) {
             context.report({
                 node,
@@ -109,11 +109,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a space after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a space after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
                 node,
@@ -129,11 +129,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a space before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a space before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredEndingSpace(node, token) {
             context.report({
                 node,

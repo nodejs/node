@@ -189,12 +189,12 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-        * Reports an error and autofixes the node
-        * @param {ASTNode} node - An ast node to report the error on.
-        * @param {string} recommendation - The recommended code for the issue
-        * @param {bool} shouldFix - Whether this report should fix the node
-        * @returns {void}
-        */
+         * Reports an error and autofixes the node
+         * @param {ASTNode} node - An ast node to report the error on.
+         * @param {string} recommendation - The recommended code for the issue
+         * @param {bool} shouldFix - Whether this report should fix the node
+         * @returns {void}
+         */
         function report(node, recommendation, shouldFix) {
             shouldFix = typeof shouldFix === "undefined" ? true : shouldFix;
 

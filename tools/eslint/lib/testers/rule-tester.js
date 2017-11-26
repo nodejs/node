@@ -204,9 +204,11 @@ class RuleTester {
     }
 
 
-    // If people use `mocha test.js --watch` command, `describe` and `it` function
-    // instances are different for each execution. So `describe` and `it` should get fresh instance
-    // always.
+    /*
+     * If people use `mocha test.js --watch` command, `describe` and `it` function
+     * instances are different for each execution. So `describe` and `it` should get fresh instance
+     * always.
+     */
     static get describe() {
         return (
             this[DESCRIBE] ||
@@ -269,6 +271,23 @@ class RuleTester {
             ].concat(scenarioErrors).join("\n"));
         }
 
+
+        linter.defineRule(ruleName, Object.assign({}, rule, {
+
+            // Create a wrapper rule that freezes the `context` properties.
+            create(context) {
+                freezeDeeply(context.options);
+                freezeDeeply(context.settings);
+                freezeDeeply(context.parserOptions);
+
+                return (typeof rule === "function" ? rule : rule.create)(context);
+            }
+        }));
+
+        linter.defineRules(this.rules);
+
+        const ruleMap = linter.getRules();
+
         /**
          * Run the rule for the given item
          * @param {string|Object} item Item to run the rule against
@@ -284,12 +303,16 @@ class RuleTester {
             } else {
                 code = item.code;
 
-                // Assumes everything on the item is a config except for the
-                // parameters used by this tester
+                /*
+                 * Assumes everything on the item is a config except for the
+                 * parameters used by this tester
+                 */
                 const itemConfig = lodash.omit(item, RuleTesterParameters);
 
-                // Create the config object from the tester config and this item
-                // specific configurations.
+                /*
+                 * Create the config object from the tester config and this item
+                 * specific configurations.
+                 */
                 config = lodash.merge(
                     config,
                     itemConfig
@@ -307,19 +330,21 @@ class RuleTester {
                 config.rules[ruleName] = 1;
             }
 
-            linter.defineRule(ruleName, Object.assign({}, rule, {
+            const schema = validator.getRuleOptionsSchema(rule);
 
-                // Create a wrapper rule that freezes the `context` properties.
-                create(context) {
-                    freezeDeeply(context.options);
-                    freezeDeeply(context.settings);
-                    freezeDeeply(context.parserOptions);
-
-                    return (typeof rule === "function" ? rule : rule.create)(context);
+            /*
+             * Setup AST getters.
+             * The goal is to check whether or not AST was modified when
+             * running the rule under test.
+             */
+            linter.defineRule("rule-tester/validate-ast", () => ({
+                Program(node) {
+                    beforeAST = cloneDeeplyExcludesParent(node);
+                },
+                "Program:exit"(node) {
+                    afterAST = node;
                 }
             }));
-
-            const schema = validator.getRuleOptionsSchema(ruleName, linter.rules);
 
             if (schema) {
                 ajv.validateSchema(schema);
@@ -335,21 +360,7 @@ class RuleTester {
                 }
             }
 
-            validator.validate(config, "rule-tester", linter.rules, new Environments());
-
-            /*
-             * Setup AST getters.
-             * The goal is to check whether or not AST was modified when
-             * running the rule under test.
-             */
-            linter.defineRule("rule-tester/validate-ast", () => ({
-                Program(node) {
-                    beforeAST = cloneDeeplyExcludesParent(node);
-                },
-                "Program:exit"(node) {
-                    afterAST = node;
-                }
-            }));
+            validator.validate(config, "rule-tester", ruleMap.get.bind(ruleMap), new Environments());
 
             return {
                 messages: linter.verify(code, config, filename, true),
@@ -526,7 +537,6 @@ class RuleTester {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
                     RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
-                        linter.defineRules(this.rules);
                         testValidTemplate(valid);
                     });
                 });
@@ -535,7 +545,6 @@ class RuleTester {
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
                     RuleTester.it(invalid.code, () => {
-                        linter.defineRules(this.rules);
                         testInvalidTemplate(invalid);
                     });
                 });

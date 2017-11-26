@@ -93,7 +93,7 @@ Espree is licensed under a permissive BSD 2-clause license.
 
 * The `tokenize()` method does not use `ecmaFeatures`. Any string will be tokenized completely based on ECMAScript 6 semantics.
 * Trailing whitespace no longer is counted as part of a node.
-* `let` and `const` declarations are no longer parsed by default. You must opt-in using `ecmaFeatures.blockBindings`.
+* `let` and `const` declarations are no longer parsed by default. You must opt-in by using an `ecmaVersion` newer than `5` or setting `sourceType` to `module`.
 * The `esparse` and `esvalidate` binary scripts have been removed.
 * There is no `tolerant` option. We will investigate adding this back in the future.
 

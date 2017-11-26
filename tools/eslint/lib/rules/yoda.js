@@ -126,9 +126,11 @@ function same(a, b) {
                 );
             }
 
-            // x[0] = x[0]
-            // x[y] = x[y]
-            // x.y = x.y
+            /*
+             * x[0] = x[0]
+             * x[y] = x[y]
+             * x.y = x.y
+             */
             return (
                 a.computed === b.computed &&
                 same(a.object, b.object) &&
@@ -259,10 +261,10 @@ module.exports = {
         };
 
         /**
-        * Returns a string representation of a BinaryExpression node with its sides/operator flipped around.
-        * @param {ASTNode} node The BinaryExpression node
-        * @returns {string} A string representation of the node with the sides and operator flipped
-        */
+         * Returns a string representation of a BinaryExpression node with its sides/operator flipped around.
+         * @param {ASTNode} node The BinaryExpression node
+         * @returns {string} A string representation of the node with the sides and operator flipped
+         */
         function getFlippedString(node) {
             const operatorToken = sourceCode.getFirstTokenBetween(node.left, node.right, token => token.value === node.operator);
             const textBeforeOperator = sourceCode.getText().slice(sourceCode.getTokenBefore(operatorToken).range[1], operatorToken.range[0]);

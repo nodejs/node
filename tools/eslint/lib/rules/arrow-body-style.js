@@ -132,8 +132,10 @@ module.exports = {
                                 sourceCode.commentsExistBetween(openingBrace, firstValueToken) ||
                                 sourceCode.commentsExistBetween(lastValueToken, closingBrace);
 
-                            // Remove tokens around the return value.
-                            // If comments don't exist, remove extra spaces as well.
+                            /*
+                             * Remove tokens around the return value.
+                             * If comments don't exist, remove extra spaces as well.
+                             */
                             if (commentsExist) {
                                 fixes.push(
                                     fixer.remove(openingBrace),
@@ -147,8 +149,10 @@ module.exports = {
                                 );
                             }
 
-                            // If the first token of the reutrn value is `{`,
-                            // enclose the return value by parentheses to avoid syntax error.
+                            /*
+                             * If the first token of the reutrn value is `{`,
+                             * enclose the return value by parentheses to avoid syntax error.
+                             */
                             if (astUtils.isOpeningBraceToken(firstValueToken)) {
                                 fixes.push(
                                     fixer.insertTextBefore(firstValueToken, "("),
@@ -156,8 +160,10 @@ module.exports = {
                                 );
                             }
 
-                            // If the last token of the return statement is semicolon, remove it.
-                            // Non-block arrow body is an expression, not a statement.
+                            /*
+                             * If the last token of the return statement is semicolon, remove it.
+                             * Non-block arrow body is an expression, not a statement.
+                             */
                             if (astUtils.isSemicolonToken(lastValueToken)) {
                                 fixes.push(fixer.remove(lastValueToken));
                             }

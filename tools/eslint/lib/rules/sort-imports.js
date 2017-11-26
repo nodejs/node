@@ -113,9 +113,11 @@ module.exports = {
                         currentLocalMemberName = currentLocalMemberName && currentLocalMemberName.toLowerCase();
                     }
 
-                    // When the current declaration uses a different member syntax,
-                    // then check if the ordering is correct.
-                    // Otherwise, make a default string compare (like rule sort-vars to be consistent) of the first used local member name.
+                    /*
+                     * When the current declaration uses a different member syntax,
+                     * then check if the ordering is correct.
+                     * Otherwise, make a default string compare (like rule sort-vars to be consistent) of the first used local member name.
+                     */
                     if (currentMemberSyntaxGroupIndex !== previousMemberSyntaxGroupIndex) {
                         if (currentMemberSyntaxGroupIndex < previousMemberSyntaxGroupIndex) {
                             context.report({

@@ -201,14 +201,18 @@ function configureRules(answers, config) {
     // Now that we know which rules to disable, strip out configs with errors
     registry = registry.stripFailingConfigs();
 
-    // If there is only one config that results in no errors for a rule, we should use it.
-    // createConfig will only add rules that have one configuration in the registry.
+    /*
+     * If there is only one config that results in no errors for a rule, we should use it.
+     * createConfig will only add rules that have one configuration in the registry.
+     */
     const singleConfigs = registry.createConfig().rules;
 
-    // The "sweet spot" for number of options in a config seems to be two (severity plus one option).
-    // Very often, a third option (usually an object) is available to address
-    // edge cases, exceptions, or unique situations. We will prefer to use a config with
-    // specificity of two.
+    /*
+     * The "sweet spot" for number of options in a config seems to be two (severity plus one option).
+     * Very often, a third option (usually an object) is available to address
+     * edge cases, exceptions, or unique situations. We will prefer to use a config with
+     * specificity of two.
+     */
     const specTwoConfigs = registry.filterBySpecificity(2).createConfig().rules;
 
     // Maybe a specific combination using all three options works

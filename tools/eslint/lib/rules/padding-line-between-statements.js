@@ -85,8 +85,10 @@ function isBlockLikeStatement(sourceCode, node) {
         return true;
     }
 
-    // IIFE is a block-like statement specially from
-    // JSCS#disallowPaddingNewLinesAfterBlocks.
+    /*
+     * IIFE is a block-like statement specially from
+     * JSCS#disallowPaddingNewLinesAfterBlocks.
+     */
     if (isIIFEStatement(node)) {
         return true;
     }

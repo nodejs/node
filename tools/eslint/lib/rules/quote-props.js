@@ -104,19 +104,19 @@ module.exports = {
         }
 
         /**
-        * Returns a string representation of a property node with quotes removed
-        * @param {ASTNode} key Key AST Node, which may or may not be quoted
-        * @returns {string} A replacement string for this property
-        */
+         * Returns a string representation of a property node with quotes removed
+         * @param {ASTNode} key Key AST Node, which may or may not be quoted
+         * @returns {string} A replacement string for this property
+         */
         function getUnquotedKey(key) {
             return key.type === "Identifier" ? key.name : key.value;
         }
 
         /**
-        * Returns a string representation of a property node with quotes added
-        * @param {ASTNode} key Key AST Node, which may or may not be quoted
-        * @returns {string} A replacement string for this property
-        */
+         * Returns a string representation of a property node with quotes added
+         * @param {ASTNode} key Key AST Node, which may or may not be quoted
+         * @returns {string} A replacement string for this property
+         */
         function getQuotedKey(key) {
             if (key.type === "Literal" && typeof key.value === "string") {
 

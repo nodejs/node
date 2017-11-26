@@ -24,11 +24,15 @@ const fs = require("fs"),
     fileEntryCache = require("file-entry-cache"),
     globUtil = require("./util/glob-util"),
     validator = require("./config/config-validator"),
-    stringify = require("json-stable-stringify"),
+    stringify = require("json-stable-stringify-without-jsonify"),
     hash = require("./util/hash"),
+    ModuleResolver = require("./util/module-resolver"),
+    naming = require("./util/naming"),
     pkg = require("../package.json");
 
 const debug = require("debug")("eslint:cli-engine");
+
+const resolver = new ModuleResolver();
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -405,9 +409,13 @@ class CLIEngine {
             });
         }
 
-        Object.keys(this.options.rules || {}).forEach(name => {
-            validator.validateRuleOptions(name, this.options.rules[name], "CLI", this.linter.rules);
-        });
+        if (this.options.rules && Object.keys(this.options.rules).length) {
+            const loadedRules = this.linter.getRules();
+
+            Object.keys(this.options.rules).forEach(name => {
+                validator.validateRuleOptions(loadedRules.get(name), name, this.options.rules[name], "CLI");
+            });
+        }
 
         this.config = new Config(this.options, this.linter);
     }
@@ -542,10 +550,10 @@ class CLIEngine {
                 if (result.messages.length) {
 
                     /*
-                    * if a file contains errors or warnings we don't want to
-                    * store the file in the cache so we can guarantee that
-                    * next execution will also operate on this file
-                    */
+                     * if a file contains errors or warnings we don't want to
+                     * store the file in the cache so we can guarantee that
+                     * next execution will also operate on this file
+                     */
                     fileCache.removeEntry(result.filePath);
                 } else {
 
@@ -670,15 +678,22 @@ class CLIEngine {
             // replace \ with / for Windows compatibility
             format = format.replace(/\\/g, "/");
 
+            const cwd = this.options ? this.options.cwd : process.cwd();
+            const namespace = naming.getNamespaceFromTerm(format);
+
             let formatterPath;
 
             // if there's a slash, then it's a file
-            if (format.indexOf("/") > -1) {
-                const cwd = this.options ? this.options.cwd : process.cwd();
-
+            if (!namespace && format.indexOf("/") > -1) {
                 formatterPath = path.resolve(cwd, format);
             } else {
-                formatterPath = `./formatters/${format}`;
+                try {
+                    const npmFormat = naming.normalizePackageName(format, "eslint-formatter");
+
+                    formatterPath = resolver.resolve(npmFormat, `${cwd}/node_modules`);
+                } catch (e) {
+                    formatterPath = `./formatters/${format}`;
+                }
             }
 
             try {
