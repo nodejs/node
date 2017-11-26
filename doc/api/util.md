@@ -419,7 +419,7 @@ but may return a value of any type that will be formatted accordingly by
 const util = require('util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
-obj[util.inspect.custom] = function(depth) {
+obj[util.inspect.custom] = (depth) => {
   return { bar: 'baz' };
 };
 
@@ -514,7 +514,7 @@ function doSomething(foo, callback) {
   // ...
 }
 
-doSomething[util.promisify.custom] = function(foo) {
+doSomething[util.promisify.custom] = (foo) => {
   return getPromiseSomehow();
 };
 
@@ -529,8 +529,8 @@ standard format of taking an error-first callback as the last argument.
 For example, with a function that takes in `(foo, onSuccessCallback, onErrorCallback)`:
 
 ```js
-doSomething[util.promisify.custom] = function(foo) {
-  return new Promise(function(resolve, reject) {
+doSomething[util.promisify.custom] = (foo) => {
+  return new Promise((resolve, reject) => {
     doSomething(foo, resolve, reject);
   });
 };
