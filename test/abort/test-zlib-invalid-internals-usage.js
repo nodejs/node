@@ -13,8 +13,8 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(child.stdout.toString(), '');
   assert.ok(child.stderr.includes(
     'WARNING: You are likely using a version of node-tar or npm that ' +
-    'is incompatible with this version of Node.js.' + os.EOL +
+    `is incompatible with this version of Node.js.${os.EOL}` +
     'Please use either the version of npm that is bundled with Node.js, or ' +
     'a version of npm (> 5.5.1 or < 5.4.0) or node-tar (> 4.0.1) that is ' +
-    'compatible with Node.js 9 and above.' + os.EOL));
+    `compatible with Node.js 9 and above.${os.EOL}`));
 }
