@@ -5,9 +5,11 @@
 
 "use strict";
 
-//
-// Set of bitwise operators.
-//
+/*
+ *
+ * Set of bitwise operators.
+ *
+ */
 const BITWISE_OPERATORS = [
     "^", "|", "&", "<<", ">>", ">>>",
     "^=", "|=", "&=", "<<=", ">>=", ">>>=",

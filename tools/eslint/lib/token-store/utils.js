@@ -62,8 +62,10 @@ exports.getFirstIndex = function getFirstIndex(tokens, indexMap, startLoc) {
         const index = indexMap[startLoc - 1];
         const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
 
-        // For the map of "comment's location -> token's index", it points the next token of a comment.
-        // In that case, +1 is unnecessary.
+        /*
+         * For the map of "comment's location -> token's index", it points the next token of a comment.
+         * In that case, +1 is unnecessary.
+         */
         if (token && token.range[0] >= startLoc) {
             return index;
         }
@@ -89,8 +91,10 @@ exports.getLastIndex = function getLastIndex(tokens, indexMap, endLoc) {
         const index = indexMap[endLoc - 1];
         const token = (index >= 0 && index < tokens.length) ? tokens[index] : null;
 
-        // For the map of "comment's location -> token's index", it points the next token of a comment.
-        // In that case, -1 is necessary.
+        /*
+         * For the map of "comment's location -> token's index", it points the next token of a comment.
+         * In that case, -1 is necessary.
+         */
         if (token && token.range[1] > endLoc) {
             return index - 1;
         }

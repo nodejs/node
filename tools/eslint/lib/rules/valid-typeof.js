@@ -37,10 +37,10 @@ module.exports = {
         const requireStringLiterals = context.options[0] && context.options[0].requireStringLiterals;
 
         /**
-        * Determines whether a node is a typeof expression.
-        * @param {ASTNode} node The node
-        * @returns {boolean} `true` if the node is a typeof expression
-        */
+         * Determines whether a node is a typeof expression.
+         * @param {ASTNode} node The node
+         * @returns {boolean} `true` if the node is a typeof expression
+         */
         function isTypeofExpression(node) {
             return node.type === "UnaryExpression" && node.operator === "typeof";
         }

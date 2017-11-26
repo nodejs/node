@@ -10,7 +10,7 @@
 //------------------------------------------------------------------------------
 
 /**
- * An object describing an AST selector
+ * An event emitter
  * @typedef {Object} SafeEmitter
  * @property {function(eventName: string, listenerFunc: Function): void} on Adds a listener for a given event name
  * @property {function(eventName: string, arg1?: any, arg2?: any, arg3?: any)} emit Emits an event with a given name.

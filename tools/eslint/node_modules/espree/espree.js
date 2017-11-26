@@ -115,8 +115,7 @@ function resetExtra() {
 
 
 var tt = acorn.tokTypes,
-    getLineInfo = acorn.getLineInfo,
-    lineBreak = acorn.lineBreak;
+    getLineInfo = acorn.getLineInfo;
 
 // custom type for JSX attribute values
 tt.jsxAttrValueToken = {};
@@ -355,102 +354,55 @@ acorn.plugins.espree = function(instance) {
         var node = this.startNode();
         this.next();
         node.argument = this.parseIdent();
+
+        if (this.type === tt.comma) {
+            this.raise(this.start, "Unexpected trailing comma after rest property");
+        }
+
         return this.finishNode(node, "ExperimentalRestProperty");
     };
 
-    /**
-     * Method to parse an object with object rest or object spread.
-     * @param {boolean} isPattern True if the object is a destructuring pattern.
-     * @param {Object} refShorthandDefaultPos ?
-     * @returns {ASTNode} The node representing object rest or object spread.
-     * @this acorn.Parser
-     */
-    instance.parseObj = function(isPattern, refShorthandDefaultPos) {
-        var node = this.startNode(),
-            first = true,
-            hasRestProperty = false,
-            propHash = {};
-        node.properties = [];
-        this.next();
-        while (!this.eat(tt.braceR)) {
-
-            if (!first) {
-                this.expect(tt.comma);
-
-                if (this.afterTrailingComma(tt.braceR)) {
-                    if (hasRestProperty) {
-                        this.raise(node.properties[node.properties.length - 1].end, "Unexpected trailing comma after rest property");
-                    }
-                    break;
-                }
-
-            } else {
-                first = false;
-            }
-
-            var prop = this.startNode(),
-                isGenerator,
-                isAsync,
-                startPos,
-                startLoc;
-
+    instance.extend("parseProperty", function(parseProperty) {
+        /**
+         * Override `parseProperty` method to parse rest/spread properties.
+         * @param {boolean} isPattern True if the object is a destructuring pattern.
+         * @param {Object} refDestructuringErrors ?
+         * @returns {ASTNode} The node representing a rest/spread property.
+         * @this acorn.Parser
+         */
+        return function(isPattern, refDestructuringErrors) {
             if (extra.ecmaFeatures.experimentalObjectRestSpread && this.type === tt.ellipsis) {
+                var prop;
+
                 if (isPattern) {
                     prop = this.parseObjectRest();
-                    hasRestProperty = true;
                 } else {
                     prop = this.parseSpread();
                     prop.type = "ExperimentalSpreadProperty";
                 }
 
-                node.properties.push(prop);
-                continue;
+                return prop;
             }
 
-            if (this.options.ecmaVersion >= 6) {
-                prop.method = false;
-                prop.shorthand = false;
+            return parseProperty.call(this, isPattern, refDestructuringErrors);
+        };
+    });
 
-                if (isPattern || refShorthandDefaultPos) {
-                    startPos = this.start;
-                    startLoc = this.startLoc;
-                }
-
-                if (!isPattern) {
-                    isGenerator = this.eat(tt.star);
-                }
+    instance.extend("checkPropClash", function(checkPropClash) {
+        /**
+         * Override `checkPropClash` method to avoid clash on rest/spread properties.
+         * @param {ASTNode} prop A property node to check.
+         * @param {Object} propHash Names map.
+         * @returns {void}
+         * @this acorn.Parser
+         */
+        return function(prop, propHash) {
+            if (prop.type === "ExperimentalRestProperty" || prop.type === "ExperimentalSpreadProperty") {
+                return;
             }
-
-            // grab the property name or "async"
-            this.parsePropertyName(prop, refShorthandDefaultPos);
-            if (this.options.ecmaVersion >= 8 &&
-                !isPattern &&
-                !isGenerator &&
-                !prop.computed &&
-                prop.key.type === "Identifier" &&
-                prop.key.name === "async" &&
-                (
-                    this.type === tt.name ||
-                    this.type === tt.num ||
-                    this.type === tt.string ||
-                    this.type === tt.bracketL ||
-                    this.type.keyword
-                ) &&
-                !lineBreak.test(this.input.slice(this.lastTokEnd, this.start))
-            ) {
-                this.parsePropertyName(prop, refShorthandDefaultPos);
-                isAsync = true;
-            } else {
-                isAsync = false;
-            }
-
-            this.parsePropertyValue(prop, isPattern, isGenerator, isAsync, startPos, startLoc, refShorthandDefaultPos);
-            this.checkPropClash(prop, propHash);
-            node.properties.push(this.finishNode(prop, "Property"));
-        }
-
-        return this.finishNode(node, isPattern ? "ObjectPattern" : "ObjectExpression");
-    };
+            checkPropClash.call(this, prop, propHash);
+        };
+    });
 
     /**
      * Overwrites the default raise method to throw Esprima-style errors.

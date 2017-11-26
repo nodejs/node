@@ -18,8 +18,10 @@ module.exports = {
         schema: [
             {
 
-                // old support {array: Boolean, object: Boolean}
-                // new support {VariableDeclarator: {}, AssignmentExpression: {}}
+                /*
+                 * old support {array: Boolean, object: Boolean}
+                 * new support {VariableDeclarator: {}, AssignmentExpression: {}}
+                 */
                 oneOf: [
                     {
                         type: "object",
@@ -143,7 +145,7 @@ module.exports = {
          * @returns {void}
          */
         function performCheck(leftNode, rightNode, reportNode) {
-            if (rightNode.type !== "MemberExpression") {
+            if (rightNode.type !== "MemberExpression" || rightNode.object.type === "Super") {
                 return;
             }
 

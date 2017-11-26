@@ -115,12 +115,12 @@ function getCallbackInfo(node) {
 }
 
 /**
-* Checks whether a simple list of parameters contains any duplicates. This does not handle complex
-parameter lists (e.g. with destructuring), since complex parameter lists are a SyntaxError with duplicate
-parameter names anyway. Instead, it always returns `false` for complex parameter lists.
-* @param {ASTNode[]} paramsList The list of parameters for a function
-* @returns {boolean} `true` if the list of parameters contains any duplicates
-*/
+ * Checks whether a simple list of parameters contains any duplicates. This does not handle complex
+ * parameter lists (e.g. with destructuring), since complex parameter lists are a SyntaxError with duplicate
+ * parameter names anyway. Instead, it always returns `false` for complex parameter lists.
+ * @param {ASTNode[]} paramsList The list of parameters for a function
+ * @returns {boolean} `true` if the list of parameters contains any duplicates
+ */
 function hasDuplicateParams(paramsList) {
     return paramsList.every(param => param.type === "Identifier") && paramsList.length !== new Set(paramsList.map(param => param.name)).size;
 }
@@ -265,10 +265,12 @@ module.exports = {
                         fix(fixer) {
                             if ((!callbackInfo.isLexicalThis && scopeInfo.this) || hasDuplicateParams(node.params)) {
 
-                                // If the callback function does not have .bind(this) and contains a reference to `this`, there
-                                // is no way to determine what `this` should be, so don't perform any fixes.
-                                // If the callback function has duplicates in its list of parameters (possible in sloppy mode),
-                                // don't replace it with an arrow function, because this is a SyntaxError with arrow functions.
+                                /*
+                                 * If the callback function does not have .bind(this) and contains a reference to `this`, there
+                                 * is no way to determine what `this` should be, so don't perform any fixes.
+                                 * If the callback function has duplicates in its list of parameters (possible in sloppy mode),
+                                 * don't replace it with an arrow function, because this is a SyntaxError with arrow functions.
+                                 */
                                 return null;
                             }
 

@@ -131,8 +131,15 @@ module.exports = {
          */
         function check(node) {
             const options = normalizedOptions[node.type];
-            const openBrace = sourceCode.getFirstToken(node);
-            const closeBrace = sourceCode.getLastToken(node);
+            const openBrace = sourceCode.getFirstToken(node, token => token.value === "{");
+            let closeBrace;
+
+            if (node.typeAnnotation) {
+                closeBrace = sourceCode.getTokenBefore(node.typeAnnotation);
+            } else {
+                closeBrace = sourceCode.getLastToken(node);
+            }
+
             let first = sourceCode.getTokenAfter(openBrace, { includeComments: true });
             let last = sourceCode.getTokenBefore(closeBrace, { includeComments: true });
             const needsLinebreaks = (

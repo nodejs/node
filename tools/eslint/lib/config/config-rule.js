@@ -187,19 +187,19 @@ class RuleConfigSet {
     constructor(configs) {
 
         /**
-        * Stored valid rule configurations for this instance
-        * @type {array}
-        */
+         * Stored valid rule configurations for this instance
+         * @type {array}
+         */
         this.ruleConfigs = configs || [];
     }
 
     /**
-    * Add a severity level to the front of all configs in the instance.
-    * This should only be called after all configs have been added to the instance.
-    *
-    * @param {number} [severity=2] The level of severity for the rule (0, 1, 2)
-    * @returns {void}
-    */
+     * Add a severity level to the front of all configs in the instance.
+     * This should only be called after all configs have been added to the instance.
+     *
+     * @param {number} [severity=2] The level of severity for the rule (0, 1, 2)
+     * @returns {void}
+     */
     addErrorSeverity(severity) {
         severity = severity || 2;
 
@@ -213,19 +213,19 @@ class RuleConfigSet {
     }
 
     /**
-    * Add rule configs from an array of strings (schema enums)
-    * @param  {string[]} enums Array of valid rule options (e.g. ["always", "never"])
-    * @returns {void}
-    */
+     * Add rule configs from an array of strings (schema enums)
+     * @param  {string[]} enums Array of valid rule options (e.g. ["always", "never"])
+     * @returns {void}
+     */
     addEnums(enums) {
         this.ruleConfigs = this.ruleConfigs.concat(combineArrays(this.ruleConfigs, enums));
     }
 
     /**
-    * Add rule configurations from a schema object
-    * @param  {Object} obj Schema item with type === "object"
-    * @returns {boolean} true if at least one schema for the object could be generated, false otherwise
-    */
+     * Add rule configurations from a schema object
+     * @param  {Object} obj Schema item with type === "object"
+     * @returns {boolean} true if at least one schema for the object could be generated, false otherwise
+     */
     addObject(obj) {
         const objectConfigSet = {
             objectConfigs: [],
@@ -267,10 +267,10 @@ class RuleConfigSet {
 }
 
 /**
-* Generate valid rule configurations based on a schema object
-* @param   {Object} schema  A rule's schema object
-* @returns {array[]}        Valid rule configurations
-*/
+ * Generate valid rule configurations based on a schema object
+ * @param   {Object} schema  A rule's schema object
+ * @returns {array[]}        Valid rule configurations
+ */
 function generateConfigsFromSchema(schema) {
     const configSet = new RuleConfigSet();
 
@@ -296,9 +296,9 @@ function generateConfigsFromSchema(schema) {
 }
 
 /**
-* Generate possible rule configurations for all of the core rules
-* @returns {rulesConfig} Hash of rule names and arrays of possible configurations
-*/
+ * Generate possible rule configurations for all of the core rules
+ * @returns {rulesConfig} Hash of rule names and arrays of possible configurations
+ */
 function createCoreRuleConfigs() {
     const ruleList = loadRules();
 
