@@ -1254,12 +1254,8 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
 static void FChmod(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and mode are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
 
   int fd = args[0]->Int32Value();
   int mode = static_cast<int>(args[1]->Int32Value());
