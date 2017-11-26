@@ -4,7 +4,7 @@
 
 > Stability: 2 - Stable
 
-Prior to the introduction of [`TypedArray`] in ECMAScript 2015 (ES6), the
+Prior to the introduction of [`TypedArray`] in [`ECMAScript 2015`] (ES6), the
 JavaScript language had no mechanism for reading or manipulating streams
 of binary data. The `Buffer` class was introduced as part of the Node.js
 API to make it possible to interact with octet streams in the context of things
@@ -192,7 +192,7 @@ encoding may incorrectly decode the characters.
 ## Buffers and TypedArray
 
 `Buffer` instances are also [`Uint8Array`] instances. However, there are subtle
-incompatibilities with the TypedArray specification in ECMAScript 2015.
+incompatibilities with the TypedArray specification in [`ECMAScript 2015`].
 For example, while [`ArrayBuffer#slice()`] creates a copy of the slice, the
 implementation of [`Buffer#slice()`][`buf.slice()`] creates a view over the
 existing `Buffer` without copying, making [`Buffer#slice()`][`buf.slice()`] far
@@ -272,7 +272,7 @@ function:
 
 ## Buffers and ES6 iteration
 
-`Buffer` instances can be iterated over using the ECMAScript 2015 (ES6) `for..of`
+`Buffer` instances can be iterated over using the [`ECMAScript 2015`] (ES6) `for..of`
 syntax.
 
 Example:
@@ -2553,3 +2553,4 @@ console.log(buf);
 [`Uint32Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [WHATWG spec]: https://encoding.spec.whatwg.org/
+[`ECMAScript 2015`]: https://www.ecma-international.org/ecma-262/6.0/index.html
