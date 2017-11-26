@@ -127,7 +127,7 @@ can be fast-tracked and may be landed after a shorter delay:
 * Focused changes that affect only documentation and/or the test suite.
   `code-and-learn` and `good-first-issue` pull requests typically fall
   into this category.
-* Changes that revert commit(s) and/or fix regressions.
+* Changes that fix regressions.
 
 When a pull request is deemed suitable to be fast-tracked, label it with
 `fast-track`. The pull request can be landed once 2 or more collaborators
