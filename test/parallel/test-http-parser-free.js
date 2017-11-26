@@ -25,7 +25,6 @@ const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 const N = 100;
-const responses = 0;
 
 const server = http.createServer(function(req, res) {
   res.end('Hello');
@@ -53,5 +52,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.strictEqual(responses, N);
+  assert.strictEqual(0, countdown.remaining);
 });
