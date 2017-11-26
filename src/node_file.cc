@@ -792,10 +792,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
 static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 1)
-    return TYPE_ERROR("fd is required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+  CHECK(args[0]->IsInt32());
 
   int fd = args[0]->Int32Value();
 

@@ -48,3 +48,41 @@ fs.open(fileFixture, 'a', 0o777, common.mustCall(function(err, fd) {
     }));
   }));
 }));
+
+['', false, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => fs.fdatasync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type number'
+    }
+  );
+  common.expectsError(
+    () => fs.fdatasyncSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type number'
+    }
+  );
+});
+
+[-1, 0xFFFFFFFF + 1].forEach((i) => {
+  common.expectsError(
+    () => fs.fdatasync(i),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      type: RangeError,
+      message: 'The "fd" argument is out of range'
+    }
+  );
+  common.expectsError(
+    () => fs.fdatasyncSync(i),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      type: RangeError,
+      message: 'The "fd" argument is out of range'
+    }
+  );
+});
