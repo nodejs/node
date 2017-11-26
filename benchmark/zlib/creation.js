@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
 
 function main(conf) {
   const n = +conf.n;
-  const fn = zlib['create' + conf.type];
+  const fn = zlib[`create${conf.type}`];
   if (typeof fn !== 'function')
     throw new Error('Invalid zlib type');
   var i = 0;
