@@ -763,24 +763,11 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
 static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and length are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsNumber());
 
   int fd = args[0]->Int32Value();
-
-  // FIXME(bnoordhuis) It's questionable to reject non-ints here but still
-  // allow implicit coercion from null or undefined to zero.  Probably best
-  // handled in lib/fs.js.
-  Local<Value> len_v(args[1]);
-  if (!len_v->IsUndefined() &&
-      !len_v->IsNull() &&
-      !IsInt64(len_v->NumberValue())) {
-    return env->ThrowTypeError("Not an integer");
-  }
-
-  const int64_t len = len_v->IntegerValue();
+  const int64_t len = args[1]->IntegerValue();
 
   if (args[2]->IsObject()) {
     ASYNC_CALL(ftruncate, args[2], UTF8, fd, len)
