@@ -7,11 +7,12 @@
     "node": ">=6"
   },
   "dependencies": {
+    "js-yaml": "3.10.0",
     "marked": "^0.3.5"
   },
-  "devDependencies": {
-    "js-yaml": "^3.5.2"
-  },
-  "optionalDependencies": {},
+  "bundledDependencies": [
+    "js-yaml",
+    "marked"
+  ],
   "bin": "./generate.js"
 }
