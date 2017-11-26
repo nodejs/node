@@ -25,17 +25,17 @@ const request = {
 */
 /* eslint-disable */
 function startURLSettersTests() {
-//   var setup = async_test("Loading data…")
+//   var setup = async_test("Loading data…");
 //   setup.step(function() {
-//     var request = new XMLHttpRequest()
-//     request.open("GET", "setters_tests.json")
-//     request.send()
-//     request.responseType = "json"
+//     var request = new XMLHttpRequest();
+//     request.open("GET", "setters_tests.json");
+//     request.send();
+//     request.responseType = "json";
 //     request.onload = setup.step_func(function() {
-         runURLSettersTests(request.response)
-//       setup.done()
-//     })
-//   })
+         runURLSettersTests(request.response);
+//       setup.done();
+//     });
+//   });
 }
 
 function runURLSettersTests(all_test_cases) {
@@ -55,7 +55,7 @@ function runURLSettersTests(all_test_cases) {
         var url = new URL(test_case.href);
         url[attribute_to_be_set] = test_case.new_value;
         for (var attribute in test_case.expected) {
-          assert_equals(url[attribute], test_case.expected[attribute])
+          assert_equals(url[attribute], test_case.expected[attribute]);
         }
       }, `URL: ${name}`);
       // test(function() {
@@ -63,22 +63,22 @@ function runURLSettersTests(all_test_cases) {
       //   url.href = test_case.href;
       //   url[attribute_to_be_set] = test_case.new_value;
       //   for (var attribute in test_case.expected) {
-      //     assert_equals(url[attribute], test_case.expected[attribute])
+      //     assert_equals(url[attribute], test_case.expected[attribute]);
       //   }
-      // }, "<a>: " + name)
+      // }, "<a>: " + name);
       // test(function() {
       //   var url = document.createElement("area");
       //   url.href = test_case.href;
       //   url[attribute_to_be_set] = test_case.new_value;
       //   for (var attribute in test_case.expected) {
-      //     assert_equals(url[attribute], test_case.expected[attribute])
+      //     assert_equals(url[attribute], test_case.expected[attribute]);
       //   }
-      // }, "<area>: " + name)
+      // }, "<area>: " + name);
     }
   }
 }
 
-startURLSettersTests()
+startURLSettersTests();
 /* eslint-enable */
 
 // Tests below are not from WPT.
