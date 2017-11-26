@@ -130,3 +130,41 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     assert.strictEqual(typeof parsed[k], 'string', `${k} should be a string`);
   });
 }));
+
+['', false, null, undefined, {}, []].forEach((i) => {
+  common.expectsError(
+    () => fs.fstat(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type number'
+    }
+  );
+  common.expectsError(
+    () => fs.fstatSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "fd" argument must be of type number'
+    }
+  );
+});
+
+[-1, 0xFFFFFFFF + 1].forEach((i) => {
+  common.expectsError(
+    () => fs.fstat(i),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      type: RangeError,
+      message: 'The "fd" argument is out of range'
+    }
+  );
+  common.expectsError(
+    () => fs.fstatSync(i),
+    {
+      code: 'ERR_OUT_OF_RANGE',
+      type: RangeError,
+      message: 'The "fd" argument is out of range'
+    }
+  );
+});
