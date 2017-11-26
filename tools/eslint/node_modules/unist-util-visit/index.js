@@ -3,12 +3,14 @@
 /* Expose. */
 module.exports = visit;
 
+var is = require('unist-util-is');
+
 /* Visit. */
-function visit(tree, type, visitor, reverse) {
-  if (typeof type === 'function') {
+function visit(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
     reverse = visitor;
-    visitor = type;
-    type = null;
+    visitor = test;
+    test = null;
   }
 
   one(tree);
@@ -19,7 +21,7 @@ function visit(tree, type, visitor, reverse) {
 
     index = index || (parent ? 0 : null);
 
-    if (!type || node.type === type) {
+    if (!test || node.type === test || is(test, node, index, parent || null)) {
       result = visitor(node, index, parent || null);
     }
 

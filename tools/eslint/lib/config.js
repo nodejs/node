@@ -120,10 +120,10 @@ class Config {
     }
 
     /**
-    * Loads the config options from a config specified on the command line.
-    * @param {string} [config] A shareable named config or path to a config file.
-    * @returns {void}
-    */
+     * Loads the config options from a config specified on the command line.
+     * @param {string} [config] A shareable named config or path to a config file.
+     * @returns {void}
+     */
     loadSpecificConfig(config) {
         if (config) {
             debug(`Using command line config ${config}`);
@@ -216,8 +216,10 @@ class Config {
                 return localConfigHierarchy;
             }
 
-            // Don't consider the personal config file in the home directory,
-            // except if the home directory is the same as the current working directory
+            /*
+             * Don't consider the personal config file in the home directory,
+             * except if the home directory is the same as the current working directory
+             */
             if (localConfigDirectory === PERSONAL_CONFIG_DIR && localConfigFile !== projectConfigPath) {
                 continue;
             }
@@ -343,8 +345,10 @@ class Config {
             this.plugins.loadAll(this.cliConfig.plugins);
         }
 
-        // Step 3: Override parser only if it is passed explicitly through the command line
-        // or if it's not defined yet (because the final object will at least have the parser key)
+        /*
+         * Step 3: Override parser only if it is passed explicitly through the command line
+         * or if it's not defined yet (because the final object will at least have the parser key)
+         */
         if (this.parser || !config.parser) {
             config = ConfigOps.merge(config, { parser: this.parser });
         }

@@ -111,8 +111,10 @@ function parseJsonConfig(string, location) {
         // ignore to parse the string by a fallback.
     }
 
-    // Optionator cannot parse commaless notations.
-    // But we are supporting that. So this is a fallback for that.
+    /*
+     * Optionator cannot parse commaless notations.
+     * But we are supporting that. So this is a fallback for that.
+     */
     items = {};
     string = string.replace(/([a-zA-Z0-9\-/]+):/g, "\"$1\":").replace(/(]|[0-9])\s+(?=")/, "$1,");
     try {
@@ -276,7 +278,7 @@ function createDisableDirectives(type, loc, value) {
  * @param {string} filename The file being checked.
  * @param {ASTNode} ast The top node of the AST.
  * @param {Object} config The existing configuration data.
- * @param {Linter} linterContext Linter context object
+ * @param {function(string): {create: Function}} ruleMapper A map from rule IDs to defined rules
  * @returns {{
  *      config: Object,
  *      problems: Problem[],
@@ -289,7 +291,7 @@ function createDisableDirectives(type, loc, value) {
  * }} Modified config object, along with any problems encountered
  * while parsing config comments
  */
-function modifyConfigsFromComments(filename, ast, config, linterContext) {
+function modifyConfigsFromComments(filename, ast, config, ruleMapper) {
 
     const commentConfig = {
         exported: {},
@@ -335,7 +337,7 @@ function modifyConfigsFromComments(filename, ast, config, linterContext) {
                             Object.keys(parseResult.config).forEach(name => {
                                 const ruleValue = parseResult.config[name];
 
-                                validator.validateRuleOptions(name, ruleValue, `${filename} line ${comment.loc.start.line}`, linterContext.rules);
+                                validator.validateRuleOptions(ruleMapper(name), name, ruleValue, `${filename} line ${comment.loc.start.line}`);
                                 commentRules[name] = ruleValue;
                             });
                         } else {
@@ -379,8 +381,10 @@ function normalizeEcmaVersion(ecmaVersion, isModule) {
         ecmaVersion = 6;
     }
 
-    // Calculate ECMAScript edition number from official year version starting with
-    // ES2015, which corresponds with ES6 (or a difference of 2009).
+    /*
+     * Calculate ECMAScript edition number from official year version starting with
+     * ES2015, which corresponds with ES6 (or a difference of 2009).
+     */
     if (ecmaVersion >= 2015) {
         ecmaVersion -= 2009;
     }
@@ -503,13 +507,13 @@ function getRuleOptions(ruleConfig) {
  * as possible
  * @param {string} text The text to parse.
  * @param {Object} providedParserOptions Options to pass to the parser
- * @param {string} parserName The name of the parser
+ * @param {Object} parser The parser module
  * @param {string} filePath The path to the file being parsed.
  * @returns {{success: false, error: Problem}|{success: true,ast: ASTNode, services: Object}}
  * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
  * @private
  */
-function parse(text, providedParserOptions, parserName, filePath) {
+function parse(text, providedParserOptions, parser, filePath) {
 
     const parserOptions = Object.assign({}, providedParserOptions, {
         loc: true,
@@ -519,25 +523,6 @@ function parse(text, providedParserOptions, parserName, filePath) {
         comment: true,
         filePath
     });
-
-    let parser;
-
-    try {
-        parser = require(parserName);
-    } catch (ex) {
-        return {
-            success: false,
-            error: {
-                ruleId: null,
-                fatal: true,
-                severity: 2,
-                source: null,
-                message: ex.message,
-                line: 0,
-                column: 0
-            }
-        };
-    }
 
     /*
      * Check for parsing errors first. If there's a parsing error, nothing
@@ -702,6 +687,7 @@ module.exports = class Linter {
         this.version = pkg.version;
 
         this.rules = new Rules();
+        this._parsers = new Map();
         this.environments = new Environments();
     }
 
@@ -781,10 +767,25 @@ module.exports = class Linter {
                 return [];
             }
 
+            let parser;
+
+            try {
+                parser = this._parsers.get(config.parser) || require(config.parser);
+            } catch (ex) {
+                return [{
+                    ruleId: null,
+                    fatal: true,
+                    severity: 2,
+                    source: null,
+                    message: ex.message,
+                    line: 0,
+                    column: 0
+                }];
+            }
             const parseResult = parse(
                 stripUnicodeBOM(text).replace(astUtils.SHEBANG_MATCHER, (match, captured) => `//${captured}`),
                 config.parserOptions,
-                config.parser,
+                parser,
                 filename
             );
 
@@ -802,7 +803,7 @@ module.exports = class Linter {
 
         // parse global comments and modify config
         if (allowInlineConfig !== false) {
-            const modifyConfigResult = modifyConfigsFromComments(filename, sourceCode.ast, config, this);
+            const modifyConfigResult = modifyConfigsFromComments(filename, sourceCode.ast, config, ruleId => this.rules.get(ruleId));
 
             config = modifyConfigResult.config;
             modifyConfigResult.problems.forEach(problem => problems.push(problem));
@@ -1033,6 +1034,16 @@ module.exports = class Linter {
     }
 
     /**
+     * Define a new parser module
+     * @param {any} parserId Name of the parser
+     * @param {any} parserModule The parser object
+     * @returns {void}
+     */
+    defineParser(parserId, parserModule) {
+        this._parsers.set(parserId, parserModule);
+    }
+
+    /**
      * Performs multiple autofix passes over the text until as many fixes as possible
      * have been applied.
      * @param {string} text The source text to apply fixes to.
@@ -1076,8 +1087,10 @@ module.exports = class Linter {
             debug(`Generating fixed text for ${debugTextDescription} (pass ${passNumber})`);
             fixedResult = SourceCodeFixer.applyFixes(text, messages, shouldFix);
 
-            // stop if there are any syntax errors.
-            // 'fixedResult.output' is a empty string.
+            /*
+             * stop if there are any syntax errors.
+             * 'fixedResult.output' is a empty string.
+             */
             if (messages.length === 1 && messages[0].fatal) {
                 break;
             }

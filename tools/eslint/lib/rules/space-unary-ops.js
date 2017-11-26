@@ -56,50 +56,50 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
-        * Check if the node is the first "!" in a "!!" convert to Boolean expression
-        * @param {ASTnode} node AST node
-        * @returns {boolean} Whether or not the node is first "!" in "!!"
-        */
+         * Check if the node is the first "!" in a "!!" convert to Boolean expression
+         * @param {ASTnode} node AST node
+         * @returns {boolean} Whether or not the node is first "!" in "!!"
+         */
         function isFirstBangInBangBangExpression(node) {
             return node && node.type === "UnaryExpression" && node.argument.operator === "!" &&
                 node.argument && node.argument.type === "UnaryExpression" && node.argument.operator === "!";
         }
 
         /**
-        * Check if the node's child argument is an "ObjectExpression"
-        * @param {ASTnode} node AST node
-        * @returns {boolean} Whether or not the argument's type is "ObjectExpression"
-        */
+         * Check if the node's child argument is an "ObjectExpression"
+         * @param {ASTnode} node AST node
+         * @returns {boolean} Whether or not the argument's type is "ObjectExpression"
+         */
         function isArgumentObjectExpression(node) {
             return node.argument && node.argument.type && node.argument.type === "ObjectExpression";
         }
 
         /**
-        * Checks if an override exists for a given operator.
-        * @param {string} operator Operator
-        * @returns {boolean} Whether or not an override has been provided for the operator
-        */
+         * Checks if an override exists for a given operator.
+         * @param {string} operator Operator
+         * @returns {boolean} Whether or not an override has been provided for the operator
+         */
         function overrideExistsForOperator(operator) {
             return options.overrides && options.overrides.hasOwnProperty(operator);
         }
 
         /**
-        * Gets the value that the override was set to for this operator
-        * @param {string} operator Operator
-        * @returns {boolean} Whether or not an override enforces a space with this operator
-        */
+         * Gets the value that the override was set to for this operator
+         * @param {string} operator Operator
+         * @returns {boolean} Whether or not an override enforces a space with this operator
+         */
         function overrideEnforcesSpaces(operator) {
             return options.overrides[operator];
         }
 
         /**
-        * Verify Unary Word Operator has spaces after the word operator
-        * @param {ASTnode} node AST node
-        * @param {Object} firstToken first token from the AST node
-        * @param {Object} secondToken second token from the AST node
-        * @param {string} word The word to be used for reporting
-        * @returns {void}
-        */
+         * Verify Unary Word Operator has spaces after the word operator
+         * @param {ASTnode} node AST node
+         * @param {Object} firstToken first token from the AST node
+         * @param {Object} secondToken second token from the AST node
+         * @param {string} word The word to be used for reporting
+         * @returns {void}
+         */
         function verifyWordHasSpaces(node, firstToken, secondToken, word) {
             if (secondToken.range[0] === firstToken.range[1]) {
                 context.report({
@@ -116,13 +116,13 @@ module.exports = {
         }
 
         /**
-        * Verify Unary Word Operator doesn't have spaces after the word operator
-        * @param {ASTnode} node AST node
-        * @param {Object} firstToken first token from the AST node
-        * @param {Object} secondToken second token from the AST node
-        * @param {string} word The word to be used for reporting
-        * @returns {void}
-        */
+         * Verify Unary Word Operator doesn't have spaces after the word operator
+         * @param {ASTnode} node AST node
+         * @param {Object} firstToken first token from the AST node
+         * @param {Object} secondToken second token from the AST node
+         * @param {string} word The word to be used for reporting
+         * @returns {void}
+         */
         function verifyWordDoesntHaveSpaces(node, firstToken, secondToken, word) {
             if (isArgumentObjectExpression(node)) {
                 if (secondToken.range[0] > firstToken.range[1]) {
@@ -141,13 +141,13 @@ module.exports = {
         }
 
         /**
-        * Check Unary Word Operators for spaces after the word operator
-        * @param {ASTnode} node AST node
-        * @param {Object} firstToken first token from the AST node
-        * @param {Object} secondToken second token from the AST node
-        * @param {string} word The word to be used for reporting
-        * @returns {void}
-        */
+         * Check Unary Word Operators for spaces after the word operator
+         * @param {ASTnode} node AST node
+         * @param {Object} firstToken first token from the AST node
+         * @param {Object} secondToken second token from the AST node
+         * @param {string} word The word to be used for reporting
+         * @returns {void}
+         */
         function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken, word) {
             word = word || firstToken.value;
 
@@ -165,10 +165,10 @@ module.exports = {
         }
 
         /**
-        * Verifies YieldExpressions satisfy spacing requirements
-        * @param {ASTnode} node AST node
-        * @returns {void}
-        */
+         * Verifies YieldExpressions satisfy spacing requirements
+         * @param {ASTnode} node AST node
+         * @returns {void}
+         */
         function checkForSpacesAfterYield(node) {
             const tokens = sourceCode.getFirstTokens(node, 3),
                 word = "yield";
@@ -181,10 +181,10 @@ module.exports = {
         }
 
         /**
-        * Verifies AwaitExpressions satisfy spacing requirements
-        * @param {ASTNode} node AwaitExpression AST node
-        * @returns {void}
-        */
+         * Verifies AwaitExpressions satisfy spacing requirements
+         * @param {ASTNode} node AwaitExpression AST node
+         * @returns {void}
+         */
         function checkForSpacesAfterAwait(node) {
             const tokens = sourceCode.getFirstTokens(node, 3);
 
@@ -192,12 +192,12 @@ module.exports = {
         }
 
         /**
-        * Verifies UnaryExpression, UpdateExpression and NewExpression have spaces before or after the operator
-        * @param {ASTnode} node AST node
-        * @param {Object} firstToken First token in the expression
-        * @param {Object} secondToken Second token in the expression
-        * @returns {void}
-        */
+         * Verifies UnaryExpression, UpdateExpression and NewExpression have spaces before or after the operator
+         * @param {ASTnode} node AST node
+         * @param {Object} firstToken First token in the expression
+         * @param {Object} secondToken Second token in the expression
+         * @returns {void}
+         */
         function verifyNonWordsHaveSpaces(node, firstToken, secondToken) {
             if (node.prefix) {
                 if (isFirstBangInBangBangExpression(node)) {
@@ -232,12 +232,12 @@ module.exports = {
         }
 
         /**
-        * Verifies UnaryExpression, UpdateExpression and NewExpression don't have spaces before or after the operator
-        * @param {ASTnode} node AST node
-        * @param {Object} firstToken First token in the expression
-        * @param {Object} secondToken Second token in the expression
-        * @returns {void}
-        */
+         * Verifies UnaryExpression, UpdateExpression and NewExpression don't have spaces before or after the operator
+         * @param {ASTnode} node AST node
+         * @param {Object} firstToken First token in the expression
+         * @param {Object} secondToken Second token in the expression
+         * @returns {void}
+         */
         function verifyNonWordsDontHaveSpaces(node, firstToken, secondToken) {
             if (node.prefix) {
                 if (secondToken.range[0] > firstToken.range[1]) {
@@ -272,10 +272,10 @@ module.exports = {
         }
 
         /**
-        * Verifies UnaryExpression, UpdateExpression and NewExpression satisfy spacing requirements
-        * @param {ASTnode} node AST node
-        * @returns {void}
-        */
+         * Verifies UnaryExpression, UpdateExpression and NewExpression satisfy spacing requirements
+         * @param {ASTnode} node AST node
+         * @returns {void}
+         */
         function checkForSpaces(node) {
             const tokens = node.type === "UpdateExpression" && !node.prefix
                 ? sourceCode.getLastTokens(node, 2)

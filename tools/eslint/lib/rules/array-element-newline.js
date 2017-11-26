@@ -87,10 +87,10 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a line break after the first token
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a line break after the first token
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoLineBreak(token) {
             const tokenBefore = sourceCode.getTokenBefore(token, { includeComments: true });
 
@@ -136,10 +136,10 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a line break after the first token
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a line break after the first token
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredLineBreak(token) {
             const tokenBefore = sourceCode.getTokenBefore(token, { includeComments: true });
 

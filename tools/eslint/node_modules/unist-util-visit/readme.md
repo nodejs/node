@@ -39,16 +39,16 @@ Yields:
 
 ## API
 
-### `visit(node[, type], visitor[, reverse])`
+### `visit(node[, test], visitor[, reverse])`
 
-Visit nodes.  Optionally by node type.  Optionally in reverse.
+Visit nodes.  Optionally filtering nodes.  Optionally in reverse.
 
 ###### Parameters
 
 *   `node` ([`Node`][node])
     — Node to search
-*   `type` (`string`, optional)
-    — Node type
+*   `test` ([`Test`][is], optional)
+    — Node type or other [`is`][is]-compatible test
 *   `visitor` ([Function][visitor])
     — Visitor invoked when a node is found
 *   `reverse` (`boolean`, default: `false`)
@@ -59,7 +59,7 @@ Visit nodes.  Optionally by node type.  Optionally in reverse.
 
 #### `stop? = visitor(node, index, parent)`
 
-Invoked when a node (when `type` is given, matching `type`) is found.
+Invoked when a node (matching `test`, if given) is found.
 
 ###### Parameters
 
@@ -113,5 +113,7 @@ Invoked when a node (when `type` is given, matching `type`) is found.
 [rehype]: https://github.com/wooorm/rehype
 
 [node]: https://github.com/syntax-tree/unist#node
+
+[is]: https://github.com/syntax-tree/unist-util-is#istest-node-index-parent-context
 
 [visitor]: #stop--visitornode-index-parent

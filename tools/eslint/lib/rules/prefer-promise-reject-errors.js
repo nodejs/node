@@ -38,10 +38,10 @@ module.exports = {
         //----------------------------------------------------------------------
 
         /**
-        * Checks the argument of a reject() or Promise.reject() CallExpression, and reports it if it can't be an Error
-        * @param {ASTNode} callExpression A CallExpression node which is used to reject a Promise
-        * @returns {void}
-        */
+         * Checks the argument of a reject() or Promise.reject() CallExpression, and reports it if it can't be an Error
+         * @param {ASTNode} callExpression A CallExpression node which is used to reject a Promise
+         * @returns {void}
+         */
         function checkRejectCall(callExpression) {
             if (!callExpression.arguments.length && ALLOW_EMPTY_REJECT) {
                 return;
@@ -59,10 +59,10 @@ module.exports = {
         }
 
         /**
-        * Determines whether a function call is a Promise.reject() call
-        * @param {ASTNode} node A CallExpression node
-        * @returns {boolean} `true` if the call is a Promise.reject() call
-        */
+         * Determines whether a function call is a Promise.reject() call
+         * @param {ASTNode} node A CallExpression node
+         * @returns {boolean} `true` if the call is a Promise.reject() call
+         */
         function isPromiseRejectCall(node) {
             return node.callee.type === "MemberExpression" &&
                 node.callee.object.type === "Identifier" && node.callee.object.name === "Promise" &&
@@ -96,14 +96,14 @@ module.exports = {
                     context.getDeclaredVariables(node.arguments[0])
 
                         /*
-                        * Find the first variable that matches the second parameter's name.
-                        * If the first parameter has the same name as the second parameter, then the variable will actually
-                        * be "declared" when the first parameter is evaluated, but then it will be immediately overwritten
-                        * by the second parameter. It's not possible for an expression with the variable to be evaluated before
-                        * the variable is overwritten, because functions with duplicate parameters cannot have destructuring or
-                        * default assignments in their parameter lists. Therefore, it's not necessary to explicitly account for
-                        * this case.
-                        */
+                         * Find the first variable that matches the second parameter's name.
+                         * If the first parameter has the same name as the second parameter, then the variable will actually
+                         * be "declared" when the first parameter is evaluated, but then it will be immediately overwritten
+                         * by the second parameter. It's not possible for an expression with the variable to be evaluated before
+                         * the variable is overwritten, because functions with duplicate parameters cannot have destructuring or
+                         * default assignments in their parameter lists. Therefore, it's not necessary to explicitly account for
+                         * this case.
+                         */
                         .find(variable => variable.name === node.arguments[0].params[1].name)
 
                         // Get the references to that variable.

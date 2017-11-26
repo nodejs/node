@@ -145,8 +145,10 @@ module.exports = {
                 nextNode = node;
             }
 
-            // Report the current range since this statement is reachable or is
-            // not consecutive to the current range.
+            /*
+             * Report the current range since this statement is reachable or is
+             * not consecutive to the current range.
+             */
             if (!range.isEmpty) {
                 context.report({
                     message: "Unreachable code.",

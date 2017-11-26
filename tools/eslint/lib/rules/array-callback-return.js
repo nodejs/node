@@ -85,12 +85,14 @@ function isCallbackOfArrayMethod(node) {
                 node = parent;
                 break;
 
-            // If the upper function is IIFE, checks the destination of the return value.
-            // e.g.
-            //   foo.every((function() {
-            //     // setup...
-            //     return function callback() { ... };
-            //   })());
+            /*
+             * If the upper function is IIFE, checks the destination of the return value.
+             * e.g.
+             *   foo.every((function() {
+             *     // setup...
+             *     return function callback() { ... };
+             *   })());
+             */
             case "ReturnStatement": {
                 const func = astUtils.getUpperFunction(parent);
 
@@ -101,9 +103,11 @@ function isCallbackOfArrayMethod(node) {
                 break;
             }
 
-            // e.g.
-            //   Array.from([], function() {});
-            //   list.every(function() {});
+            /*
+             * e.g.
+             *   Array.from([], function() {});
+             *   list.every(function() {});
+             */
             case "CallExpression":
                 if (astUtils.isArrayFromMethod(parent.callee)) {
                     return (
