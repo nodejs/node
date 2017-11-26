@@ -97,6 +97,13 @@ const Transform = require('_stream_transform');
 }
 
 {
+  // Verify transform constructor behavior
+  const pt = Transform();
+
+  assert(pt instanceof Transform);
+}
+
+{
   // Perform a simple transform
   const pt = new Transform();
   pt._transform = function(c, e, cb) {
