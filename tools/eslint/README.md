@@ -116,6 +116,7 @@ These folks keep the project moving and are resources for help.
 * Alberto Rodríguez ([@alberto](https://github.com/alberto))
 * Kai Cataldo ([@kaicataldo](https://github.com/kaicataldo))
 * Teddy Katz ([@not-an-aardvark](https://github.com/not-an-aardvark))
+* Kevin Partington ([@platinumazure](https://github.com/platinumazure))
 
 ### Development Team
 
@@ -130,7 +131,6 @@ These folks keep the project moving and are resources for help.
 * Henry Zhu ([@hzoo](https://github.com/hzoo))
 * Marat Dulin ([@mdevils](https://github.com/mdevils))
 * Alexej Yaroshevich ([@zxqfox](https://github.com/zxqfox))
-* Kevin Partington ([@platinumazure](https://github.com/platinumazure))
 * Vitor Balocco ([@vitorbal](https://github.com/vitorbal))
 * James Henry ([@JamesHenry](https://github.com/JamesHenry))
 * Reyad Attiyat ([@soda0289](https://github.com/soda0289))
@@ -225,7 +225,7 @@ In all cases, make sure your plugins' peerDependencies have been installed as we
 
 ### Does ESLint support JSX?
 
-Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](https://eslint.org/docs/user-guide/configuring).). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
+Yes, ESLint natively supports parsing JSX syntax (this must be enabled in [configuration](https://eslint.org/docs/user-guide/configuring)). Please note that supporting JSX syntax *is not* the same as supporting React. React applies specific semantics to JSX syntax that ESLint doesn't recognize. We recommend using [eslint-plugin-react](https://www.npmjs.com/package/eslint-plugin-react) if you are using React and want React semantics.
 
 ### What about ECMAScript 6 support?
 

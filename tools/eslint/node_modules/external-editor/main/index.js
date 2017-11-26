@@ -7,7 +7,7 @@
  */
 
 (function() {
-  var CreateFileError, ExternalEditor, FS, IConvLite, JSCharDet, LaunchEditorError, ReadFileError, RemoveFileError, Spawn, SpawnSync, Temp,
+  var ChatDet, CreateFileError, ExternalEditor, FS, IConvLite, LaunchEditorError, ReadFileError, RemoveFileError, Spawn, SpawnSync, Temp,
     bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   FS = require('fs');
@@ -18,9 +18,9 @@
 
   Spawn = require('child_process').spawn;
 
-  JSCharDet = require('jschardet');
-
   IConvLite = require('iconv-lite');
+
+  ChatDet = require('chardet');
 
   CreateFileError = require('./errors/CreateFileError');
 
@@ -29,8 +29,6 @@
   RemoveFileError = require('./errors/RemoveFileError');
 
   LaunchEditorError = require('./errors/LaunchEditorError');
-
-  JSCharDet.Constants.MINIMUM_THRESHOLD = 0;
 
   ExternalEditor = (function() {
     ExternalEditor.edit = function(text) {
@@ -165,8 +163,8 @@
         if (!buffer.length) {
           return this.text = '';
         }
-        encoding = JSCharDet.detect(buffer);
-        return this.text = IConvLite.decode(buffer, encoding.encoding);
+        encoding = ChatDet.detect(buffer);
+        return this.text = IConvLite.decode(buffer, encoding);
       } catch (error) {
         e = error;
         throw new ReadFileError(e);

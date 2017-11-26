@@ -55,11 +55,11 @@ module.exports = {
         }
 
         /**
-        * Check if the property is valid dot notation
-        * @param {ASTNode} node The dot notation node
-        * @param {string} value Value which is to be checked
-        * @returns {void}
-        */
+         * Check if the property is valid dot notation
+         * @param {ASTNode} node The dot notation node
+         * @param {string} value Value which is to be checked
+         * @returns {void}
+         */
         function checkComputedProperty(node, value) {
             if (
                 validIdentifier.test(value) &&

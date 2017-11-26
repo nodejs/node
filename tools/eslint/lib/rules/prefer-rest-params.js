@@ -22,8 +22,10 @@ function getVariableOfArguments(scope) {
 
         if (variable.name === "arguments") {
 
-            // If there was a parameter which is named "arguments", the implicit "arguments" is not defined.
-            // So does fast return with null.
+            /*
+             * If there was a parameter which is named "arguments", the implicit "arguments" is not defined.
+             * So does fast return with null.
+             */
             return (variable.identifiers.length === 0) ? variable : null;
         }
     }

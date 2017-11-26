@@ -114,8 +114,10 @@ function eachSelfAssignment(left, right, props, report) {
         right.properties.length >= 1
     ) {
 
-        // Gets the index of the last spread property.
-        // It's possible to overwrite properties followed by it.
+        /*
+         * Gets the index of the last spread property.
+         * It's possible to overwrite properties followed by it.
+         */
         let startJ = 0;
 
         for (let i = right.properties.length - 1; i >= 0; --i) {

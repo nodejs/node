@@ -112,8 +112,10 @@ function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
         }
     }
 
-    // If the assignment is from a different scope, ignore it.
-    // If the assignment cannot change to a declaration, ignore it.
+    /*
+     * If the assignment is from a different scope, ignore it.
+     * If the assignment cannot change to a declaration, ignore it.
+     */
     const shouldBeConst = (
         writer !== null &&
         writer.from === variable.scope &&
@@ -179,8 +181,10 @@ function groupByDestructuring(variables, ignoreReadBeforeAssign) {
             const reference = references[j];
             const id = reference.identifier;
 
-            // Avoid counting a reference twice or more for default values of
-            // destructuring.
+            /*
+             * Avoid counting a reference twice or more for default values of
+             * destructuring.
+             */
             if (id === prevId) {
                 continue;
             }
@@ -274,17 +278,21 @@ module.exports = {
                 const varDeclParent = findUp(nodes[0], "VariableDeclaration", parentNode => parentNode.type.endsWith("Statement"));
                 const shouldFix = varDeclParent &&
 
-                    // If there are multiple variable declarations, like {let a = 1, b = 2}, then
-                    // do not attempt to fix if one of the declarations should be `const`. It's
-                    // too hard to know how the developer would want to automatically resolve the issue.
+                    /*
+                     * If there are multiple variable declarations, like {let a = 1, b = 2}, then
+                     * do not attempt to fix if one of the declarations should be `const`. It's
+                     * too hard to know how the developer would want to automatically resolve the issue.
+                     */
                     varDeclParent.declarations.length === 1 &&
 
                     // Don't do a fix unless the variable is initialized (or it's in a for-in or for-of loop)
                     (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" || varDeclParent.declarations[0].init) &&
 
-                    // If options.destucturing is "all", then this warning will not occur unless
-                    // every assignment in the destructuring should be const. In that case, it's safe
-                    // to apply the fix.
+                    /*
+                     * If options.destucturing is "all", then this warning will not occur unless
+                     * every assignment in the destructuring should be const. In that case, it's safe
+                     * to apply the fix.
+                     */
                     nodesToReport.length === nodes.length;
 
                 nodesToReport.forEach(node => {

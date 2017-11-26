@@ -28,30 +28,6 @@ function isVariadicApplyCalling(node) {
     );
 }
 
-/**
- * Checks whether or not the tokens of two given nodes are same.
- * @param {ASTNode} left - A node 1 to compare.
- * @param {ASTNode} right - A node 2 to compare.
- * @param {SourceCode} sourceCode - The ESLint source code object.
- * @returns {boolean} the source code for the given node.
- */
-function equalTokens(left, right, sourceCode) {
-    const tokensL = sourceCode.getTokens(left);
-    const tokensR = sourceCode.getTokens(right);
-
-    if (tokensL.length !== tokensR.length) {
-        return false;
-    }
-    for (let i = 0; i < tokensL.length; ++i) {
-        if (tokensL[i].type !== tokensR[i].type ||
-            tokensL[i].value !== tokensR[i].value
-        ) {
-            return false;
-        }
-    }
-
-    return true;
-}
 
 /**
  * Checks whether or not `thisArg` is not changed by `.apply()`.
@@ -64,7 +40,7 @@ function isValidThisArg(expectedThis, thisArg, context) {
     if (!expectedThis) {
         return astUtils.isNullOrUndefined(thisArg);
     }
-    return equalTokens(expectedThis, thisArg, context);
+    return astUtils.equalTokens(expectedThis, thisArg, context);
 }
 
 //------------------------------------------------------------------------------

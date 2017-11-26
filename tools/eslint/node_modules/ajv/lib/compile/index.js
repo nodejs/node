@@ -104,6 +104,7 @@ function compile(schema, root, localRefs, baseId) {
       useCustomRule: useCustomRule,
       opts: opts,
       formats: formats,
+      logger: self.logger,
       self: self
     });
 
@@ -146,7 +147,7 @@ function compile(schema, root, localRefs, baseId) {
 
       refVal[0] = validate;
     } catch(e) {
-      console.error('Error compiling schema, function code:', sourceCode);
+      self.logger.error('Error compiling schema, function code:', sourceCode);
       throw e;
     }
 
@@ -260,7 +261,7 @@ function compile(schema, root, localRefs, baseId) {
       var valid = validateSchema(schema);
       if (!valid) {
         var message = 'keyword schema is invalid: ' + self.errorsText(validateSchema.errors);
-        if (self._opts.validateSchema == 'log') console.error(message);
+        if (self._opts.validateSchema == 'log') self.logger.error(message);
         else throw new Error(message);
       }
     }

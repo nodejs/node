@@ -329,9 +329,11 @@ module.exports = {
                 return true;
             }
 
-            // Check that the first comment is adjacent to the end of the group, the
-            // last comment is adjacent to the candidate property, and that successive
-            // comments are adjacent to each other.
+            /*
+             * Check that the first comment is adjacent to the end of the group, the
+             * last comment is adjacent to the candidate property, and that successive
+             * comments are adjacent to each other.
+             */
             const leadingComments = sourceCode.getCommentsBefore(candidate);
 
             if (

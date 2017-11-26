@@ -63,9 +63,11 @@ module.exports = function(results) {
                     }
                 };
 
-                // If we have multiple messages place them under a messages key
-                // The first error will be logged as message key
-                // This is to adhere to TAP 13 loosely defined specification of having a message key
+                /*
+                 * If we have multiple messages place them under a messages key
+                 * The first error will be logged as message key
+                 * This is to adhere to TAP 13 loosely defined specification of having a message key
+                 */
                 if ("message" in diagnostics) {
                     if (typeof diagnostics.messages === "undefined") {
                         diagnostics.messages = [];

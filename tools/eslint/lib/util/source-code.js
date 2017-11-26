@@ -227,7 +227,8 @@ class SourceCode extends TokenStore {
             }
         } else {
 
-            /* Return comments as trailing comments of nodes that only contain
+            /*
+             * Return comments as trailing comments of nodes that only contain
              * comments (to mimic the comment attachment behavior present in Espree).
              */
             if ((node.type === "BlockStatement" || node.type === "ClassBody") && node.body.length === 0 ||
