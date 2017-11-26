@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const MAX_REQUESTS = 13;
 let reqNum = 0;
@@ -64,13 +65,17 @@ const server = http.Server(common.mustCall(function(req, res) {
 }, MAX_REQUESTS));
 server.listen();
 
+const countdown = new Countdown(MAX_REQUESTS, () => server.close());
+
 server.on('listening', function makeRequest() {
   http.get({
     port: this.address().port
   }, (res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {
-      if (++reqNum < MAX_REQUESTS)
+      countdown.dec();
+      reqNum = MAX_REQUESTS - countdown.remaining;
+      if (countdown.remaining > 0)
         makeRequest.call(this);
     });
     res.resume();
