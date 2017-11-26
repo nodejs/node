@@ -5,7 +5,7 @@
 
 const common = require('../common');
 
-const search = require('internal/loader/search');
+const { search } = require('internal/loader/DefaultResolve');
 const errors = require('internal/errors');
 
 common.expectsError(

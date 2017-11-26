@@ -3,5 +3,5 @@ file:///*/test/message/esm_display_syntax_error.mjs:3
 await async () => 0;
 ^^^^^
 SyntaxError: Unexpected reserved word
-    at loaders.set (internal/loader/ModuleRequest.js:*:*)
+    at translators.set (internal/loader/Translators.js:*:*)
     at <anonymous>
