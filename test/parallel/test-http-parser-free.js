@@ -50,7 +50,3 @@ server.listen(0, function() {
     })(i);
   }
 });
-
-process.on('exit', function() {
-  assert.strictEqual(0, countdown.remaining);
-});
