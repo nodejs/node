@@ -189,8 +189,8 @@ function test(clazz) {
   // Darwin ia32 does the other kind of NaN.
   // Compiler bug.  No one really cares.
   assert(0x7F === buffer[15] || 0xFF === buffer[15]);
-  assert.ok(isNaN(buffer.readDoubleBE(0)));
-  assert.ok(isNaN(buffer.readDoubleLE(8)));
+  assert.ok(Number.isNaN(buffer.readDoubleBE(0)));
+  assert.ok(Number.isNaN(buffer.readDoubleLE(8)));
 }
 
 
