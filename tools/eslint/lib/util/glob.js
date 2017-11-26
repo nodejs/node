@@ -47,7 +47,7 @@ GlobSync.prototype._readdir = function(abs, inGlobStar) {
      * `options.nodir` makes `options.mark` as `true`.
      * Mark `abs` first
      * to make sure `"node_modules"` will be ignored immediately with ignore pattern `"node_modules/"`.
-
+     *
      * There is a built-in cache about marked `File.Stat` in `glob`, so that we could not worry about the extra invocation of `this._mark()`
      */
     const marked = this._mark(abs);

@@ -141,8 +141,10 @@ class CodePathSegment {
     static newUnreachable(id, allPrevSegments) {
         const segment = new CodePathSegment(id, CodePathSegment.flattenUnusedSegments(allPrevSegments), false);
 
-        // In `if (a) return a; foo();` case, the unreachable segment preceded by
-        // the return statement is not used but must not be remove.
+        /*
+         * In `if (a) return a; foo();` case, the unreachable segment preceded by
+         * the return statement is not used but must not be remove.
+         */
         CodePathSegment.markUsed(segment);
 
         return segment;

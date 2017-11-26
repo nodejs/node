@@ -53,6 +53,7 @@ module.exports = {
         "id-blacklist": "off",
         "id-length": "off",
         "id-match": "off",
+        "implicit-arrow-linebreak": "off",
         indent: "off",
         "indent-legacy": "off",
         "init-declarations": "off",

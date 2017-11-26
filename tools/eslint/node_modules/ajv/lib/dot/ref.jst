@@ -27,11 +27,11 @@
   {{? $refVal === undefined }}
     {{ var $message = it.MissingRefError.message(it.baseId, $schema); }}
     {{? it.opts.missingRefs == 'fail' }}
-      {{ console.error($message); }}
+      {{ it.logger.error($message); }}
       {{# def.error:'$ref' }}
       {{? $breakOnError }} if (false) { {{?}}
     {{?? it.opts.missingRefs == 'ignore' }}
-      {{ console.warn($message); }}
+      {{ it.logger.warn($message); }}
       {{? $breakOnError }} if (true) { {{?}}
     {{??}}
       {{ throw new it.MissingRefError(it.baseId, $schema, $message); }}

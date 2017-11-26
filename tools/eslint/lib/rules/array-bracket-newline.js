@@ -96,11 +96,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a linebreak after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a linebreak after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoBeginningLinebreak(node, token) {
             context.report({
                 node,
@@ -119,11 +119,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there shouldn't be a linebreak before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there shouldn't be a linebreak before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportNoEndingLinebreak(node, token) {
             context.report({
                 node,
@@ -142,11 +142,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a linebreak after the first token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a linebreak after the first token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredBeginningLinebreak(node, token) {
             context.report({
                 node,
@@ -159,11 +159,11 @@ module.exports = {
         }
 
         /**
-        * Reports that there should be a linebreak before the last token
-        * @param {ASTNode} node - The node to report in the event of an error.
-        * @param {Token} token - The token to use for the report.
-        * @returns {void}
-        */
+         * Reports that there should be a linebreak before the last token
+         * @param {ASTNode} node - The node to report in the event of an error.
+         * @param {Token} token - The token to use for the report.
+         * @returns {void}
+         */
         function reportRequiredEndingLinebreak(node, token) {
             context.report({
                 node,

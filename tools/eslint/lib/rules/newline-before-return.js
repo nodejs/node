@@ -166,13 +166,15 @@ module.exports = {
                 return true;
             }
 
-            // if the last leading comment ends in the same line as the previous token and
-            // does not share a line with the `return` node, we can consider it safe to fix.
-            // Example:
-            // function a() {
-            //     var b; //comment
-            //     return;
-            // }
+            /*
+             * if the last leading comment ends in the same line as the previous token and
+             * does not share a line with the `return` node, we can consider it safe to fix.
+             * Example:
+             * function a() {
+             *     var b; //comment
+             *     return;
+             * }
+             */
             if (lastLeadingComment.loc.end.line === tokenBefore.loc.end.line &&
                 lastLeadingComment.loc.end.line !== node.loc.start.line) {
                 return true;

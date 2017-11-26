@@ -40,10 +40,12 @@ module.exports = {
             WithStatement: "object",
             ArrowFunctionExpression: "body"
 
-            // Omitting CallExpression - commas are parsed as argument separators
-            // Omitting NewExpression - commas are parsed as argument separators
-            // Omitting ForInStatement - parts aren't individually parenthesised
-            // Omitting ForStatement - parts aren't individually parenthesised
+            /*
+             * Omitting CallExpression - commas are parsed as argument separators
+             * Omitting NewExpression - commas are parsed as argument separators
+             * Omitting ForInStatement - parts aren't individually parenthesised
+             * Omitting ForStatement - parts aren't individually parenthesised
+             */
         };
 
         /**

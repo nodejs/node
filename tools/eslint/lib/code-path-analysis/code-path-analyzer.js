@@ -598,8 +598,10 @@ class CodePathAnalyzer {
             preprocess(this, node);
         }
 
-        // Updates the code path.
-        // And emits onCodePathStart/onCodePathSegmentStart events.
+        /*
+         * Updates the code path.
+         * And emits onCodePathStart/onCodePathSegmentStart events.
+         */
         processCodePathToEnter(this, node);
 
         // Emits node events.
@@ -618,8 +620,10 @@ class CodePathAnalyzer {
     leaveNode(node) {
         this.currentNode = node;
 
-        // Updates the code path.
-        // And emits onCodePathStart/onCodePathSegmentStart events.
+        /*
+         * Updates the code path.
+         * And emits onCodePathStart/onCodePathSegmentStart events.
+         */
         processCodePathToExit(this, node);
 
         // Emits node events.

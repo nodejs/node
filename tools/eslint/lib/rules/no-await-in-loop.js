@@ -13,8 +13,10 @@ const loopTypes = new Set([
     "DoWhileStatement"
 ]);
 
-// Node types at which we should stop looking for loops. For example, it is fine to declare an async
-// function within a loop, and use await inside of that.
+/*
+ * Node types at which we should stop looking for loops. For example, it is fine to declare an async
+ * function within a loop, and use await inside of that.
+ */
 const boundaryTypes = new Set([
     "FunctionDeclaration",
     "FunctionExpression",
@@ -38,9 +40,11 @@ module.exports = {
                 // Reverse so that we can traverse from the deepest node upwards.
                 ancestors.reverse();
 
-                // Create a set of all the ancestors plus this node so that we can check
-                // if this use of await appears in the body of the loop as opposed to
-                // the right-hand side of a for...of, for example.
+                /*
+                 * Create a set of all the ancestors plus this node so that we can check
+                 * if this use of await appears in the body of the loop as opposed to
+                 * the right-hand side of a for...of, for example.
+                 */
                 const ancestorSet = new Set(ancestors).add(node);
 
                 for (let i = 0; i < ancestors.length; i++) {
@@ -48,14 +52,18 @@ module.exports = {
 
                     if (boundaryTypes.has(ancestor.type)) {
 
-                        // Short-circuit out if we encounter a boundary type. Loops above
-                        // this do not matter.
+                        /*
+                         * Short-circuit out if we encounter a boundary type. Loops above
+                         * this do not matter.
+                         */
                         return;
                     }
                     if (loopTypes.has(ancestor.type)) {
 
-                        // Only report if we are actually in the body or another part that gets executed on
-                        // every iteration.
+                        /*
+                         * Only report if we are actually in the body or another part that gets executed on
+                         * every iteration.
+                         */
                         if (
                             ancestorSet.has(ancestor.body) ||
                             ancestorSet.has(ancestor.test) ||
