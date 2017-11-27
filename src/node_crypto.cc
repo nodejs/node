@@ -1820,7 +1820,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
   }
-  (void) BIO_reset(bio);
+  USE(BIO_reset(bio));
 
   X509_NAME* issuer_name = X509_get_issuer_name(cert);
   if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
@@ -1829,7 +1829,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
   }
-  (void) BIO_reset(bio);
+  USE(BIO_reset(bio));
 
   int nids[] = { NID_subject_alt_name, NID_info_access };
   Local<String> keys[] = { env->subjectaltname_string(),
@@ -1856,7 +1856,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
 
-    (void) BIO_reset(bio);
+    USE(BIO_reset(bio));
   }
 
   EVP_PKEY* pkey = X509_get_pubkey(cert);
@@ -1873,7 +1873,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(env->modulus_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
-    (void) BIO_reset(bio);
+    USE(BIO_reset(bio));
 
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
     uint32_t lo = static_cast<uint32_t>(exponent_word);
@@ -1887,7 +1887,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     info->Set(env->exponent_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
                                   String::kNormalString, mem->length));
-    (void) BIO_reset(bio);
+    USE(BIO_reset(bio));
   }
 
   if (pkey != nullptr) {
@@ -1904,7 +1904,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   info->Set(env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
                                 String::kNormalString, mem->length));
-  (void) BIO_reset(bio);
+  USE(BIO_reset(bio));
 
   ASN1_TIME_print(bio, X509_get_notAfter(cert));
   BIO_get_mem_ptr(bio, &mem);
@@ -2882,7 +2882,7 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
     return rv;
 
   int retry = BIO_should_retry(bio);
-  (void) retry;  // unused if !defined(SSL_PRINT_DEBUG)
+  USE(retry);  // unused if !defined(SSL_PRINT_DEBUG)
 
   if (BIO_should_write(bio)) {
     DEBUG_PRINT("[%p] BIO: %s want write. should retry %d\n",
@@ -5358,7 +5358,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   EC_KEY_set_public_key(ecdh->key_, nullptr);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  (void) &mark_pop_error_on_return;  // Silence compiler warning.
+  USE(&mark_pop_error_on_return);
 
   const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_);
   CHECK_NE(priv_key, nullptr);
@@ -5421,7 +5421,7 @@ bool ECDH::IsKeyValidForCurve(const BIGNUM* private_key) {
 
 bool ECDH::IsKeyPairValid() {
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  (void) &mark_pop_error_on_return;  // Silence compiler warning.
+  USE(&mark_pop_error_on_return);
   return 1 == EC_KEY_check_key(key_);
 }
 
