@@ -29,7 +29,7 @@ const Countdown = require('../common/countdown');
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.
-
+const nrequests_completed = 0
 const nrequests_expected = 1;
 
 const server = http.createServer(function(req, res) {
@@ -51,6 +51,3 @@ server.on('listening', function() {
   });
 });
 countdown.dec()
-process.on('exit', function() {
-  assert.strictEqual(nrequests_expected, nrequests_completed);
-});
