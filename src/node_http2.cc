@@ -619,13 +619,16 @@ inline int Http2Session::OnStreamClose(nghttp2_session* handle,
   if (stream != nullptr) {
     stream->Close(code);
     // It is possible for the stream close to occur before the stream is
-    // ever passed on to the javascript side. If that happens, ignore this.
+    // ever passed on to the javascript side. If that happens, skip straight
+    // to destroying the stream
     Local<Value> fn =
         stream->object()->Get(context, env->onstreamclose_string())
             .ToLocalChecked();
     if (fn->IsFunction()) {
       Local<Value> argv[1] = { Integer::NewFromUnsigned(isolate, code) };
       stream->MakeCallback(fn.As<Function>(), arraysize(argv), argv);
+    } else {
+      stream->Destroy();
     }
   }
   return 0;
