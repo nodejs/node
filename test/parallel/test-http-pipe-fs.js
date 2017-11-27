@@ -44,24 +44,22 @@ const server = http.createServer(common.mustCall(function(req, res) {
   http.globalAgent.maxSockets = 1;
 
   for (let i = 0; i < NUMBER_OF_STREAMS; ++i) {
-    (function(i) {
-      const req = http.request({
-        port: server.address().port,
-        method: 'POST',
-        headers: {
-          'Content-Length': 5
-        }
-      }, function(res) {
-        res.on('end', function() {
-          console.error(`res${i} end`);
-          countdown.dec();
-        });
-        res.resume();
+    const req = http.request({
+      port: server.address().port,
+      method: 'POST',
+      headers: {
+        'Content-Length': 5
+      }
+    }, function(res) {
+      res.on('end', function() {
+        console.error(`res${i + 1} end`);
+        countdown.dec();
       });
-      req.on('socket', function(s) {
-        console.error(`req${i} start`);
-      });
-      req.end('12345');
-    }(i + 1));
+      res.resume();
+    });
+    req.on('socket', function(s) {
+      console.error(`req${i + 1} start`);
+    });
+    req.end('12345');
   }
 });
