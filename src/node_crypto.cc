@@ -5358,7 +5358,7 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   EC_KEY_set_public_key(ecdh->key_, nullptr);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  USE(&mark_pop_error_on_return);  // Silence compiler warning.
+  USE(&mark_pop_error_on_return);
 
   const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_);
   CHECK_NE(priv_key, nullptr);
@@ -5421,7 +5421,7 @@ bool ECDH::IsKeyValidForCurve(const BIGNUM* private_key) {
 
 bool ECDH::IsKeyPairValid() {
   MarkPopErrorOnReturn mark_pop_error_on_return;
-  USE(&mark_pop_error_on_return);  // Silence compiler warning.
+  USE(&mark_pop_error_on_return);
   return 1 == EC_KEY_check_key(key_);
 }
 
