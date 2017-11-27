@@ -26,7 +26,7 @@ const a = assert;
 
 function makeBlock(f) {
   const args = Array.prototype.slice.call(arguments, 1);
-  return function() {
+  return () => {
     return f.apply(this, args);
   };
 }
@@ -183,7 +183,7 @@ assert.doesNotThrow(makeBlock(a.deepEqual, a1, a2));
 
 // having an identical prototype property
 const nbRoot = {
-  toString: function() { return `${this.first} ${this.last}`; }
+  toString: () => { return `${this.first} ${this.last}`; }
 };
 
 function nameBuilder(first, last) {
@@ -458,10 +458,10 @@ assert.throws(makeBlock(thrower, TypeError));
                      'a.doesNotThrow is not catching type matching errors');
 }
 
-assert.throws(function() { assert.ifError(new Error('test error')); },
+assert.throws(() => { assert.ifError(new Error('test error')); },
               /^Error: test error$/);
-assert.doesNotThrow(function() { assert.ifError(null); });
-assert.doesNotThrow(function() { assert.ifError(); });
+assert.doesNotThrow(() => { assert.ifError(null); });
+assert.doesNotThrow(() => { assert.ifError(); });
 
 assert.throws(() => {
   assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
@@ -501,7 +501,7 @@ assert.throws(() => {
   let threw = false;
   try {
     assert.throws(
-      function() {
+      () => {
         throw ({}); // eslint-disable-line no-throw-literal
       },
       Array
@@ -516,7 +516,7 @@ assert.throws(() => {
 a.throws(makeBlock(thrower, TypeError), /\[object Object\]/);
 
 // use a fn to validate error object
-a.throws(makeBlock(thrower, TypeError), function(err) {
+a.throws(makeBlock(thrower, TypeError), (err) => {
   if ((err instanceof TypeError) && /\[object Object\]/.test(err)) {
     return true;
   }
@@ -607,7 +607,7 @@ testAssertionMessage([1, 2, 3], '[ 1, 2, 3 ]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage(function f() {}, '[Function: f]');
-testAssertionMessage(function() {}, '[Function]');
+testAssertionMessage(() => {}, '[Function]');
 testAssertionMessage({}, '{}');
 testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({ a: undefined, b: null }, '{ a: undefined, b: null }');
@@ -619,7 +619,7 @@ testAssertionMessage({ a: NaN, b: Infinity, c: -Infinity },
   let threw = false;
   try {
     // eslint-disable-next-line no-restricted-syntax
-    assert.throws(function() {
+    assert.throws(() => {
       assert.ifError(null);
     });
   } catch (e) {
