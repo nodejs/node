@@ -672,7 +672,7 @@ supported encodings or an alias.
 * Returns: {string}
 
 Decodes the `input` and returns a string. If `options.stream` is `true`, any
-incomplete byte sequences occuring at the end of the `input` are buffered
+incomplete byte sequences occurring at the end of the `input` are buffered
 internally and emitted after the next call to `textDecoder.decode()`.
 
 If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
