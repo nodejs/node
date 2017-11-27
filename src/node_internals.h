@@ -277,7 +277,7 @@ void AppendExceptionLine(Environment* env,
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
-// Like a `TryCatch` but it crashes the process if it did catch an exception.
+// Like a `TryCatch` but exits the process if an exception was caught.
 class FatalTryCatch : public v8::TryCatch {
  public:
   explicit FatalTryCatch(Environment* env)

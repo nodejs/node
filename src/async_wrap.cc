@@ -169,7 +169,8 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_promise_resolve_function();
   FatalTryCatch try_catch(env);
-  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
+  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
+      .FromMaybe(Local<Value>());
 }
 
 
@@ -197,7 +198,8 @@ void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_before_function();
   FatalTryCatch try_catch(env);
-  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
+  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
+      .FromMaybe(Local<Value>());
 }
 
 
@@ -227,7 +229,8 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_after_function();
   FatalTryCatch try_catch(env);
-  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
+  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
+      .FromMaybe(Local<Value>());
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -728,7 +731,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
   };
 
   FatalTryCatch try_catch(env);
-  (void)init_fn->Call(env->context(), object, arraysize(argv), argv);
+  init_fn->Call(env->context(), object, arraysize(argv), argv)
+      .FromMaybe(Local<Value>());
 }
 
 
