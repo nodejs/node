@@ -4,8 +4,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const { mainScriptPath,
-        NodeInstance } = require('../common/inspector-helper.js');
+const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function testBreakpointOnStart(session) {
   const commands = [
@@ -24,7 +23,7 @@ async function testBreakpointOnStart(session) {
   ];
 
   session.send(commands);
-  await session.waitForBreakOnLine(0, mainScriptPath);
+  await session.waitForBreakOnLine(0, session.scriptPath());
 }
 
 async function runTests() {
