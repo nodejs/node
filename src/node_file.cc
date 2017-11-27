@@ -1367,8 +1367,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 2);
 
   BufferValue tmpl(env->isolate(), args[0]);
-  if (*tmpl == nullptr)
-    return TYPE_ERROR("template must be a string or Buffer");
+  CHECK_NE(*tmpl, nullptr);
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
