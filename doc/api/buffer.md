@@ -2737,5 +2737,5 @@ This value may depend on the JS engine that is being used.
 [RFC1345]: https://tools.ietf.org/html/rfc1345
 [RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
-[`ECMAScript 2015`]: http://www.ecma-international.org/ecma-262/6.0/index.html
+[`ECMAScript 2015`]: https://www.ecma-international.org/ecma-262/6.0/index.html
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
