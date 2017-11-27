@@ -38,7 +38,7 @@ fs.readFile(loc, common.mustCall((err, data) => {
     function maybeClose() {
       if (--remaining === 0) {
         server.close();
-        client.destroy();
+        client.shutdown();
       }
     }
 
@@ -47,7 +47,7 @@ fs.readFile(loc, common.mustCall((err, data) => {
     req.resume();
     req.on('end', common.mustCall(maybeClose));
     const str = fs.createReadStream(loc);
-    str.on('end', common.mustCall(maybeClose));
+    req.on('finish', common.mustCall(maybeClose));
     str.pipe(req);
   }));
 }));
