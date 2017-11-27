@@ -2229,7 +2229,7 @@ object mode has an interesting side effect. Because it *is* a call to
 However, because the argument is an empty string, no data is added to the
 readable buffer so there is nothing for a user to consume.
 
-### `highWaterMark` discrepency after calling `readable.setEncoding()`
+### `highWaterMark` discrepancy after calling `readable.setEncoding()`
 
 The use of `readable.setEncoding()` will change the behavior of how the
 `highWaterMark` operates in non-object mode.
@@ -2280,7 +2280,7 @@ contain multi-byte characters.
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [zlib]: zlib.html
-[hwm-gotcha]: #stream_highwatermark_discrepency_after_calling_readable_setencoding
+[hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
