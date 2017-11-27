@@ -466,7 +466,7 @@ class Parser : public AsyncWrap {
       enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
 
       Local<Value> e = Exception::Error(env->parse_error_string());
-      Local<Object> obj = e->ToObject(env->isolate());
+      Local<Object> obj = e->ToObject(env->context()).ToLocalChecked();
       obj->Set(env->bytes_parsed_string(), Integer::New(env->isolate(), 0));
       obj->Set(env->code_string(),
                OneByteString(env->isolate(), http_errno_name(err)));

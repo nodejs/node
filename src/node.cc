@@ -589,7 +589,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   }
   e = Exception::Error(cons);
 
-  Local<Object> obj = e->ToObject(env->isolate());
+  Local<Object> obj = e->ToObject(env->context()).ToLocalChecked();
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
@@ -751,7 +751,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     e = Exception::Error(message);
   }
 
-  Local<Object> obj = e->ToObject(env->isolate());
+  Local<Object> obj = e->ToObject(env->context()).ToLocalChecked();
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
   if (path != nullptr) {
@@ -1482,7 +1482,7 @@ static void ReportException(Environment* env,
   if (er->IsUndefined() || er->IsNull()) {
     trace_value = Undefined(env->isolate());
   } else {
-    Local<Object> err_obj = er->ToObject(env->isolate());
+    Local<Object> err_obj = er->ToObject(env->context()).ToLocalChecked();
 
     trace_value = err_obj->Get(env->stack_string());
     arrow =
@@ -2301,7 +2301,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("flag argument must be an integer.");
   }
 
-  Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
+  Local<Object> module =
+      args[0]->ToObject(env->context()).ToLocalChecked();  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
   DLib dlib;
   dlib.filename_ = *filename;
@@ -2319,7 +2320,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
     dlib.Close();
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
-    errmsg = String::Concat(errmsg, args[1]->ToString(env->isolate()));
+    errmsg = String::Concat(errmsg,
+                            args[1]->ToString(env->context()).ToLocalChecked());
 #endif  // _WIN32
     env->isolate()->ThrowException(Exception::Error(errmsg));
     return;
@@ -2364,7 +2366,8 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   modlist_addon = mp;
 
   Local<String> exports_string = env->exports_string();
-  Local<Object> exports = module->Get(exports_string)->ToObject(env->isolate());
+  Local<Object> exports =
+      module->Get(exports_string)->ToObject(env->context()).ToLocalChecked();
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
@@ -4337,7 +4340,7 @@ void EmitBeforeExit(Environment* env) {
   Local<String> exit_code = FIXED_ONE_BYTE_STRING(env->isolate(), "exitCode");
   Local<Value> args[] = {
     FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
-    process_object->Get(exit_code)->ToInteger(env->isolate())
+    process_object->Get(exit_code)->ToInteger(env->context()).ToLocalChecked()
   };
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
