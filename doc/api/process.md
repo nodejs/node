@@ -1965,8 +1965,8 @@ cases:
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
-[`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
+[`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
