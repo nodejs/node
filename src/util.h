@@ -428,6 +428,7 @@ class BufferValue : public MaybeStackBuffer<char> {
   if (name##_length > 0)                                                      \
     CHECK_NE(name##_data, nullptr);
 
+template <typename T> inline void USE(T&&) {}
 
 }  // namespace node
 
