@@ -608,7 +608,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  str_obj = args[1]->ToString(env->isolate());
+  str_obj = args[1]->ToString(env->context()).ToLocalChecked();
   enc = ParseEncoding(env->isolate(), args[4], UTF8);
   str_length =
       enc == UTF8 ? str_obj->Utf8Length() :
@@ -681,7 +681,7 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsString())
     return env->ThrowTypeError("Argument must be a string");
 
-  Local<String> str = args[0]->ToString(env->isolate());
+  Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
 
   size_t offset;
   size_t max_length;
