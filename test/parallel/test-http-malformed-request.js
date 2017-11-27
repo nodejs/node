@@ -25,11 +25,11 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 const url = require('url');
+const Countdown = require('../common/countdown');
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.
 
-let nrequests_completed = 0;
 const nrequests_expected = 1;
 
 const server = http.createServer(function(req, res) {
@@ -39,7 +39,7 @@ const server = http.createServer(function(req, res) {
   res.write('Hello World');
   res.end();
 
-  if (++nrequests_completed === nrequests_expected) server.close();
+  const countdown = new Countdown(nrequests_expected, () => server.close());
 });
 server.listen(0);
 
@@ -50,7 +50,7 @@ server.on('listening', function() {
     c.end();
   });
 });
-
+countdown.dec()
 process.on('exit', function() {
   assert.strictEqual(nrequests_expected, nrequests_completed);
 });
