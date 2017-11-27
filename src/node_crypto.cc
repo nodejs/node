@@ -1775,7 +1775,7 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
     return false;
 
   GENERAL_NAMES* names = static_cast<GENERAL_NAMES*>(X509V3_EXT_d2i(ext));
-  if (names == NULL)
+  if (names == nullptr)
     return false;
 
   for (int i = 0; i < sk_GENERAL_NAME_num(names); i++) {
@@ -1791,8 +1791,8 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
       BIO_write(out, name->data, name->length);
     } else {
       STACK_OF(CONF_VALUE)* nval = i2v_GENERAL_NAME(
-          const_cast<X509V3_EXT_METHOD*>(method), gen, NULL);
-      if (nval == NULL)
+          const_cast<X509V3_EXT_METHOD*>(method), gen, nullptr);
+      if (nval == nullptr)
         return false;
       X509V3_EXT_val_prn(out, nval, 0, 0);
       sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
@@ -6094,7 +6094,7 @@ void InitCryptoOnce() {
     if (0 != err) {
       fprintf(stderr,
               "openssl config failed: %s\n",
-              ERR_error_string(err, NULL));
+              ERR_error_string(err, nullptr));
       CHECK_NE(err, 0);
     }
   }
@@ -6117,7 +6117,9 @@ void InitCryptoOnce() {
     }
   }
   if (0 != err) {
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
+    fprintf(stderr,
+            "openssl fips failed: %s\n",
+            ERR_error_string(err, nullptr));
     UNREACHABLE();
   }
 #endif  // NODE_FIPS_MODE
