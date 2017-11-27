@@ -732,7 +732,7 @@ A signing `key` was not provided to the [`sign.sign()`][] method.
 <a id="ERR_DOMAIN_CALLBACK_NOT_AVAILABLE"></a>
 ### ERR_DOMAIN_CALLBACK_NOT_AVAILABLE
 
-The `domain` module was not usable since it couldn’t establish the required
+The `domain` module was not usable since it could not establish the required
 error handling hooks, because
 [`process.setUncaughtExceptionCaptureCallback()`][] had been called at an
 earlier point in time.
