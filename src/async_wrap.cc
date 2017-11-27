@@ -169,8 +169,7 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_promise_resolve_function();
   FatalTryCatch try_catch(env);
-  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
-      .ToLocalChecked();
+  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
 }
 
 
@@ -198,8 +197,7 @@ void AsyncWrap::EmitBefore(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_before_function();
   FatalTryCatch try_catch(env);
-  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
-      .ToLocalChecked();
+  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
 }
 
 
@@ -229,8 +227,7 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_after_function();
   FatalTryCatch try_catch(env);
-  fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value)
-      .ToLocalChecked();
+  (void)fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value);
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -731,7 +728,7 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
   };
 
   FatalTryCatch try_catch(env);
-  init_fn->Call(env->context(), object, arraysize(argv), argv).ToLocalChecked();
+  (void)init_fn->Call(env->context(), object, arraysize(argv), argv);
 }
 
 
