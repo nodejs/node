@@ -692,8 +692,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  if is_clang:
-    o['variables']['llvm_version'] = get_llvm_version(CC)
+  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
