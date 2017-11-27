@@ -2172,7 +2172,7 @@ const Local<Value> URL::ToObject(Environment* env) const {
   };
   SetArgs(env, argv, &context_);
 
-  TryCatch try_catch(isolate);
+  FatalTryCatch try_catch(env);
 
   // The SetURLConstructor method must have been called already to
   // set the constructor function used below. SetURLConstructor is
@@ -2181,11 +2181,6 @@ const Local<Value> URL::ToObject(Environment* env) const {
   MaybeLocal<Value> ret =
       env->url_constructor_function()
           ->Call(env->context(), undef, 9, argv);
-
-  if (ret.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(isolate, try_catch);
-  }
 
   return ret.ToLocalChecked();
 }
