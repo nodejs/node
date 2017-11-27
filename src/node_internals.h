@@ -306,6 +306,7 @@ class InternalCallbackScope {
 };
 
 #define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)          \
+  /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_INTERNAL)  \
 
 }  // namespace node

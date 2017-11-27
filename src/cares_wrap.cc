@@ -802,7 +802,7 @@ int ParseGeneralReply(Environment* env,
       status = ares_parse_ns_reply(buf, len, &host);
       break;
     case ns_t_ptr:
-      status = ares_parse_ptr_reply(buf, len, NULL, 0, AF_INET, &host);
+      status = ares_parse_ptr_reply(buf, len, nullptr, 0, AF_INET, &host);
       break;
     default:
       CHECK(0 && "Bad NS type");
@@ -834,7 +834,7 @@ int ParseGeneralReply(Environment* env,
     HostentToNames(env, host, ret);
   } else if (*type == ns_t_ptr) {
     uint32_t offset = ret->Length();
-    for (uint32_t i = 0; host->h_aliases[i] != NULL; i++) {
+    for (uint32_t i = 0; host->h_aliases[i] != nullptr; i++) {
       ret->Set(context,
                i + offset,
                OneByteString(env->isolate(), host->h_aliases[i])).FromJust();

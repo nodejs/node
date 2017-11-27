@@ -368,7 +368,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
                                                   &error);
   MaybeLocal<Value> shell;
 
-  if (pwd.shell == NULL)
+  if (pwd.shell == nullptr)
     shell = Null(env->isolate());
   else
     shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);

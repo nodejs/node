@@ -752,7 +752,7 @@ static inline int64_t ParseNumber(const char* start, const char* end) {
     }
     p++;
   }
-  return strtoll(start, NULL, R);
+  return strtoll(start, nullptr, R);
 }
 
 static url_host_type ParseIPv4Host(url_host* host,
