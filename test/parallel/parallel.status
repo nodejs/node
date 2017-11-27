@@ -7,6 +7,7 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
+test-http2-client-upload: PASS,FLAKY
 
 [$system==linux]
 
