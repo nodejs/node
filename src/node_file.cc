@@ -1178,12 +1178,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 static void Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() < 2)
-    return TYPE_ERROR("fd and buffer are required");
-  if (!args[0]->IsInt32())
-    return TYPE_ERROR("fd must be a file descriptor");
-  if (!Buffer::HasInstance(args[1]))
-    return TYPE_ERROR("Second argument needs to be a buffer");
+  CHECK(args[0]->IsInt32());
+  CHECK(Buffer::HasInstance(args[1]));
 
   int fd = args[0]->Int32Value();
 
@@ -1199,13 +1195,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   size_t buffer_length = Buffer::Length(buffer_obj);
 
   size_t off = args[2]->Int32Value();
-  if (off >= buffer_length) {
-    return env->ThrowError("Offset is out of bounds");
-  }
+  CHECK_LT(off, buffer_length);
 
   len = args[3]->Int32Value();
-  if (!Buffer::IsWithinBounds(off, len, buffer_length))
-    return env->ThrowRangeError("Length extends beyond buffer");
+  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
 
   pos = GET_OFFSET(args[4]);
 
