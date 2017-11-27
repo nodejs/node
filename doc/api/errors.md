@@ -1476,6 +1476,15 @@ A Transform stream finished while it was still transforming.
 
 A Transform stream finished with data still in the write buffer.
 
+<a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
+### ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET
+
+[`process.setUncaughtExceptionCaptureCallback()`][] was called twice,
+without first resetting the callback to `null`.
+
+This error is designed to prevent accidentally overwriting a callback registered
+from another module.
+
 <a id="ERR_UNESCAPED_CHARACTERS"></a>
 ### ERR_UNESCAPED_CHARACTERS
 
