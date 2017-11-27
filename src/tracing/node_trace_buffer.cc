@@ -32,7 +32,7 @@ TraceObject* InternalTraceBuffer::GetEventByHandle(uint64_t handle) {
   Mutex::ScopedLock scoped_lock(mutex_);
   if (handle == 0) {
     // A handle value of zero never has a trace event associated with it.
-    return NULL;
+    return nullptr;
   }
   size_t chunk_index, event_index;
   uint32_t buffer_id, chunk_seq;
@@ -41,12 +41,12 @@ TraceObject* InternalTraceBuffer::GetEventByHandle(uint64_t handle) {
     // Either the chunk belongs to the other buffer, or is outside the current
     // range of chunks loaded in memory (the latter being true suggests that
     // the chunk has already been flushed and is no longer in memory.)
-    return NULL;
+    return nullptr;
   }
   auto& chunk = chunks_[chunk_index];
   if (chunk->seq() != chunk_seq) {
     // Chunk is no longer in memory.
-    return NULL;
+    return nullptr;
   }
   return chunk->GetEventAt(event_index);
 }

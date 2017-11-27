@@ -1214,7 +1214,7 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   char* data = node::UncheckedMalloc(length);
   str->WriteUtf8(data,
                  -1,   // We are certain that `data` is sufficiently large
-                 NULL,
+                 nullptr,
                  String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
   auto array_buf = ArrayBuffer::New(env->isolate(), data, length,
                                     ArrayBufferCreationMode::kInternalized);
