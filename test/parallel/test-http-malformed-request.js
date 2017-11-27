@@ -50,4 +50,4 @@ server.on('listening', function() {
     c.end();
   });
 });
-countdown.dec()
+countdown.dec();
