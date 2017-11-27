@@ -607,7 +607,7 @@ testAssertionMessage([1, 2, 3], '[ 1, 2, 3 ]');
 testAssertionMessage(/a/, '/a/');
 testAssertionMessage(/abc/gim, '/abc/gim');
 testAssertionMessage(function f() {}, '[Function: f]');
-testAssertionMessage(() => {}, '[Function]');
+testAssertionMessage(function() {}, '[Function]');
 testAssertionMessage({}, '{}');
 testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({ a: undefined, b: null }, '{ a: undefined, b: null }');
