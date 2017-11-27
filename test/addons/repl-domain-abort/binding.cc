@@ -35,7 +35,7 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                      isolate->GetCurrentContext()->Global(),
                      args[0].As<Function>(),
                      0,
-                     NULL);
+                     nullptr);
 }
 
 void init(Local<Object> exports) {
