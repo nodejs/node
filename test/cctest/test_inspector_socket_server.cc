@@ -313,7 +313,7 @@ class ServerHolder {
  public:
   template <typename Delegate>
   ServerHolder(Delegate* delegate, uv_loop_t* loop, int port)
-               : ServerHolder(delegate, loop, HOST, port, NULL) { }
+               : ServerHolder(delegate, loop, HOST, port, nullptr) { }
 
   template <typename Delegate>
   ServerHolder(Delegate* delegate, uv_loop_t* loop, const std::string host,
@@ -617,7 +617,7 @@ TEST_F(InspectorSocketServerTest, BindsToIpV6) {
     return;
   }
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, &loop, "::", 0, NULL);
+  ServerHolder server(&delegate, &loop, "::", 0, nullptr);
   ASSERT_TRUE(server->Start());
 
   SocketWrapper socket1(&loop);

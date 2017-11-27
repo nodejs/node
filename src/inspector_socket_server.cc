@@ -94,7 +94,7 @@ void PrintDebuggerReadyMessage(const std::string& host,
                                int port,
                                const std::vector<std::string>& ids,
                                FILE* out) {
-  if (out == NULL) {
+  if (out == nullptr) {
     return;
   }
   for (const std::string& id : ids) {
@@ -398,7 +398,7 @@ bool InspectorSocketServer::Start() {
   int err = uv_getaddrinfo(loop_, &req, nullptr, host_.c_str(),
                            port_string.c_str(), &hints);
   if (err < 0) {
-    if (out_ != NULL) {
+    if (out_ != nullptr) {
       fprintf(out_, "Unable to resolve \"%s\": %s\n", host_.c_str(),
               uv_strerror(err));
     }
@@ -416,7 +416,7 @@ bool InspectorSocketServer::Start() {
   // We only show error if we failed to start server on all addresses. We only
   // show one error, for the last address.
   if (server_sockets_.empty()) {
-    if (out_ != NULL) {
+    if (out_ != nullptr) {
       fprintf(out_, "Starting inspector on %s:%d failed: %s\n",
               host_.c_str(), port_, uv_strerror(err));
       fflush(out_);

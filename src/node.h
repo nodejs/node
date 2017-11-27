@@ -102,14 +102,14 @@ namespace node {
 
 NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
                                                 int errorno,
-                                                const char* syscall = NULL,
-                                                const char* message = NULL,
-                                                const char* path = NULL);
+                                                const char* syscall = nullptr,
+                                                const char* message = nullptr,
+                                                const char* path = nullptr);
 NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              int errorno,
-                                             const char* syscall = NULL,
-                                             const char* message = NULL,
-                                             const char* path = NULL);
+                                             const char* syscall = nullptr,
+                                             const char* message = nullptr,
+                                             const char* path = nullptr);
 NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              int errorno,
                                              const char* syscall,
@@ -120,9 +120,9 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
 NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(
       int errorno,
-      const char* syscall = NULL,
-      const char* message = NULL,
-      const char* path = NULL) {
+      const char* syscall = nullptr,
+      const char* message = nullptr,
+      const char* path = nullptr) {
   return ErrnoException(v8::Isolate::GetCurrent(),
                         errorno,
                         syscall,
@@ -131,9 +131,9 @@ NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
 })
 
 inline v8::Local<v8::Value> UVException(int errorno,
-                                        const char* syscall = NULL,
-                                        const char* message = NULL,
-                                        const char* path = NULL) {
+                                        const char* syscall = nullptr,
+                                        const char* message = nullptr,
+                                        const char* path = nullptr) {
   return UVException(v8::Isolate::GetCurrent(),
                      errorno,
                      syscall,
@@ -391,14 +391,14 @@ NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
     v8::Isolate* isolate,
     int errorno,
-    const char *syscall = NULL,
+    const char *syscall = nullptr,
     const char *msg = "",
-    const char *path = NULL);
+    const char *path = nullptr);
 
 NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> WinapiErrnoException(int errorno,
-    const char *syscall = NULL,  const char *msg = "",
-    const char *path = NULL) {
+    const char *syscall = nullptr,  const char *msg = "",
+    const char *path = nullptr) {
   return WinapiErrnoException(v8::Isolate::GetCurrent(),
                               errorno,
                               syscall,
@@ -510,6 +510,7 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
 
 #define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
+  /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_BUILTIN)   \
 
 /*
