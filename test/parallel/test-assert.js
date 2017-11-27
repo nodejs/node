@@ -27,7 +27,7 @@ const a = assert;
 function makeBlock(f) {
   const args = Array.prototype.slice.call(arguments, 1);
   return () => {
-    return f.apply(this, args);
+    return f.apply(null, args);
   };
 }
 
