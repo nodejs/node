@@ -8,6 +8,7 @@ const assert = require('assert');
 
 const http = require('http');
 const net = require('net');
+const Countdown = require('../common/countdown');
 
 // Create a TCP server
 const srv = net.createServer(function(c) {
@@ -39,7 +40,8 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       ['Origin', 'http://www.websocket.org']
     ]
   ];
-  let left = headers.length;
+  const countdown = new Countdown(headers.length, () => srv.close());
+
   headers.forEach(function(h) {
     const req = http.get({
       port: port,
@@ -66,8 +68,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       assert.deepStrictEqual(expectedHeaders, res.headers);
 
       socket.end();
-      if (--left === 0)
-        srv.close();
+      countdown.dec();
     }));
     req.on('close', common.mustCall(function() {
       assert.strictEqual(sawUpgrade, true);
