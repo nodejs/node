@@ -12,7 +12,7 @@ const { test, assert_equals, assert_true, assert_array_equals } =
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 /* eslint-disable */
-test(() => {
+test(function() {
     var params = new URLSearchParams('a=b&c=d');
     assert_array_equals(params.getAll('a'), ['b']);
     assert_array_equals(params.getAll('c'), ['d']);
@@ -25,7 +25,7 @@ test(() => {
     assert_array_equals(params.getAll('a'), ['', 'e']);
 }, 'getAll() basics');
 
-test(() => {
+test(function() {
     var params = new URLSearchParams('a=1&a=2&a=3&a');
     assert_true(params.has('a'), 'Search params object has name "a"');
     var matches = params.getAll('a');
