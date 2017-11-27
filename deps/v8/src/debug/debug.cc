@@ -338,12 +338,11 @@ bool Debug::Load() {
 void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
+  if (FLAG_block_coverage) RemoveAllCoverageInfos();
   RemoveDebugDelegate();
 
   // Return debugger is not loaded.
   if (!is_loaded()) return;
-
-  if (FLAG_block_coverage) RemoveAllCoverageInfos();
 
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
@@ -643,8 +642,11 @@ void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
 }
 
 void Debug::ClearBreakPoints(Handle<DebugInfo> debug_info) {
+  // If we attempt to clear breakpoints but none exist, simply return. This can
+  // happen e.g. CoverageInfos exit but no breakpoints are set.
+  if (!debug_info->HasDebugBytecodeArray()) return;
+
   DisallowHeapAllocation no_gc;
-  DCHECK(debug_info->HasDebugBytecodeArray());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     it.ClearDebugBreak();
   }
