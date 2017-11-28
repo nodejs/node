@@ -83,18 +83,40 @@ All CommonJS, JSON, and C++ modules can be used with `import`.
 Modules loaded this way will only be loaded once, even if their query
 or fragment string differs between `import` statements.
 
-When loaded via `import` these modules will provide a single `default` export
-representing the value of `module.exports` at the time they finished evaluating.
+JSON and C++ addon modules will provide a single `default` export representing
+the value of `module.exports` at the time they finish evaluating.
+
+CommonJS modules, when imported, will be handled in one of two ways. By default
+they will provide a single `default` export representing the value of
+`module.exports` at the time they finish evaluating.
+CJS modules may also provide a boolean `@@esModuleInterop` or `__esModule`
+export indicating that the enumerable keys of `module.exports` should be used
+as named exports.
+In both cases, this should be thought of  like a "snapshot" of the exports at
+the time of importing; asynchronously modifying `module.exports` will not
+affect the values of the exports. Builtin libraries are provided with named
+exports as if they were using `@@esModuleInterop`, as well as the
+`module.exports` of the builtin provided as the `default` export.
+
 
 ```js
-import fs from 'fs';
-fs.readFile('./foo.txt', (err, body) => {
+import { readFile } from 'fs';
+readFile('./foo.txt', (err, body) => {
   if (err) {
     console.error(err);
   } else {
     console.log(body);
   }
 });
+```
+
+```js
+// main.mjs
+import { part } from './other.js';
+
+// other.js
+exports.part = () => {};
+exports[Symbol.for('esModuleInterop')] = true;
 ```
 
 ## Loader hooks
