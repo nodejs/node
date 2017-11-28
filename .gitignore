@@ -15,6 +15,9 @@
 !.nycrc
 !.remarkrc
 
+# whitelist all files in npm directory
+!deps/npm
+
 core
 vgcore.*
 v8*.log
