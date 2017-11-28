@@ -44,7 +44,7 @@ Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
 ```js
 const square = require('./square.js');
-const mySquare = square(2);
+const mySquare = new square(2);
 console.log(`The area of my square is ${mySquare.area()}`);
 ```
 
