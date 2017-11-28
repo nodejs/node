@@ -2972,10 +2972,7 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
 }  // anonymous namespace
 
 void SetupProcessObject(Environment* env,
-                        int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv) {
+                        const ProcessArguments& process_arguments) {
   HandleScope scope(env->isolate());
 
   Local<Object> process = env->process_object();
@@ -3125,16 +3122,19 @@ void SetupProcessObject(Environment* env,
 #endif
 
   // process.argv
-  Local<Array> arguments = Array::New(env->isolate(), argc);
-  for (int i = 0; i < argc; ++i) {
-    arguments->Set(i, String::NewFromUtf8(env->isolate(), argv[i]));
+  Local<Array> arguments = Array::New(env->isolate(), process_arguments.argc);
+  for (int i = 0; i < process_arguments.argc; ++i) {
+    arguments->Set(i, String::NewFromUtf8(env->isolate(),
+                                          process_arguments.argv[i]));
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "argv"), arguments);
 
   // process.execArgv
-  Local<Array> exec_arguments = Array::New(env->isolate(), exec_argc);
-  for (int i = 0; i < exec_argc; ++i) {
-    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(), exec_argv[i]));
+  Local<Array> exec_arguments = Array::New(env->isolate(),
+                                           process_arguments.exec_argv.size());
+  for (size_t i = 0; i < process_arguments.exec_argv.size(); ++i) {
+    exec_arguments->Set(i, String::NewFromUtf8(env->isolate(),
+                                               process_arguments.exec_argv[i]));
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execArgv"),
                exec_arguments);
@@ -3278,7 +3278,8 @@ void SetupProcessObject(Environment* env,
                                           String::kNormalString,
                                           exec_path_len);
   } else {
-    exec_path_value = String::NewFromUtf8(env->isolate(), argv[0]);
+    exec_path_value = String::NewFromUtf8(env->isolate(),
+                                          process_arguments.argv[0]);
   }
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "execPath"),
                exec_path_value);
@@ -3674,16 +3675,10 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
 //  * argv contains the arguments with node and V8 options filtered out.
 //  * exec_argv contains both node and V8 options and nothing else.
 //  * v8_argv contains argv[0] plus any V8 options
-static void ParseArgs(int* argc,
-                      const char** argv,
-                      int* exec_argc,
-                      const char*** exec_argv,
-                      int* v8_argc,
-                      const char*** v8_argv,
+static void ParseArgs(ProcessArguments* process_arguments,
+                      std::vector<char*>* v8_argv,
                       bool is_env) {
-  const unsigned int nargs = static_cast<unsigned int>(*argc);
-  const char** new_exec_argv = new const char*[nargs];
-  const char** new_v8_argv = new const char*[nargs];
+  const unsigned int nargs = process_arguments->argc;
   const char** new_argv = new const char*[nargs];
 #if HAVE_OPENSSL
   bool use_bundled_ca = false;
@@ -3691,27 +3686,24 @@ static void ParseArgs(int* argc,
 #endif  // HAVE_OPENSSL
 
   for (unsigned int i = 0; i < nargs; ++i) {
-    new_exec_argv[i] = nullptr;
-    new_v8_argv[i] = nullptr;
     new_argv[i] = nullptr;
   }
 
   // exec_argv starts with the first option, the other two start with argv[0].
-  unsigned int new_exec_argc = 0;
-  unsigned int new_v8_argc = 1;
+  v8_argv->push_back(process_arguments->argv[0]);
   unsigned int new_argc = 1;
-  new_v8_argv[0] = argv[0];
-  new_argv[0] = argv[0];
+  new_argv[0] = process_arguments->argv[0];
 
   unsigned int index = 1;
   bool short_circuit = false;
-  while (index < nargs && argv[index][0] == '-' && !short_circuit) {
-    const char* const arg = argv[index];
+  while (index < nargs && process_arguments->argv[index][0] == '-' &&
+         !short_circuit) {
+    char* arg = process_arguments->argv[index];
     unsigned int args_consumed = 1;
 
-    CheckIfAllowedInEnv(argv[0], is_env, arg);
+    CheckIfAllowedInEnv(process_arguments->argv[0], is_env, arg);
 
-    if (debug_options.ParseOption(argv[0], arg)) {
+    if (debug_options.ParseOption(process_arguments->argv[0], arg)) {
       // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
@@ -3730,16 +3722,17 @@ static void ParseArgs(int* argc,
       // --eval, -e and -pe always require an argument.
       if (is_eval == true) {
         args_consumed += 1;
-        eval_string = argv[index + 1];
+        eval_string = process_arguments->argv[index + 1];
         if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          fprintf(stderr, "%s: %s requires an argument\n",
+                  process_arguments->argv[0], arg);
           exit(9);
         }
       } else if ((index + 1 < nargs) &&
-                 argv[index + 1] != nullptr &&
-                 argv[index + 1][0] != '-') {
+                 process_arguments->argv[index + 1] != nullptr &&
+                 process_arguments->argv[index + 1][0] != '-') {
         args_consumed += 1;
-        eval_string = argv[index + 1];
+        eval_string = process_arguments->argv[index + 1];
         if (strncmp(eval_string, "\\-", 2) == 0) {
           // Starts with "\\-": escaped expression, drop the backslash.
           eval_string += 1;
@@ -3747,9 +3740,10 @@ static void ParseArgs(int* argc,
       }
     } else if (strcmp(arg, "--require") == 0 ||
                strcmp(arg, "-r") == 0) {
-      const char* module = argv[index + 1];
+      const char* module = process_arguments->argv[index + 1];
       if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        fprintf(stderr, "%s: %s requires an argument\n",
+                process_arguments->argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3777,9 +3771,10 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--trace-events-enabled") == 0) {
       trace_enabled = true;
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
-      const char* categories = argv[index + 1];
+      const char* categories = process_arguments->argv[index + 1];
       if (categories == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        fprintf(stderr, "%s: %s requires an argument\n",
+                process_arguments->argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3796,14 +3791,15 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--experimental-modules") == 0) {
       config_experimental_modules = true;
     }  else if (strcmp(arg, "--loader") == 0) {
-      const char* module = argv[index + 1];
+      const char* module = process_arguments->argv[index + 1];
       if (!config_experimental_modules) {
         fprintf(stderr, "%s: %s requires --experimental-modules be enabled\n",
-            argv[0], arg);
+                process_arguments->argv[0], arg);
         exit(9);
       }
       if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        fprintf(stderr, "%s: %s requires an argument\n",
+                process_arguments->argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3816,8 +3812,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--pending-deprecation") == 0) {
       config_pending_deprecation = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
-      new_v8_argv[new_v8_argc] = "--help";
-      new_v8_argc += 1;
+      v8_argv->push_back(const_cast<char*>("--help"));
     } else if (strncmp(arg, "--v8-pool-size=", 15) == 0) {
       v8_thread_pool_size = atoi(arg + 15);
 #if HAVE_OPENSSL
@@ -3857,19 +3852,17 @@ static void ParseArgs(int* argc,
                strcmp(arg, "--abort_on_uncaught_exception") == 0) {
       abort_on_uncaught_exception = true;
       // Also a V8 option.  Pass through as-is.
-      new_v8_argv[new_v8_argc] = arg;
-      new_v8_argc += 1;
+      v8_argv->push_back(arg);
     } else {
       // V8 option.  Pass through as-is.
-      new_v8_argv[new_v8_argc] = arg;
-      new_v8_argc += 1;
+      v8_argv->push_back(arg);
     }
 
-    memcpy(new_exec_argv + new_exec_argc,
-           argv + index,
-           args_consumed * sizeof(*argv));
+    process_arguments->exec_argv.insert(
+        process_arguments->exec_argv.end(),
+        process_arguments->argv + index,
+        process_arguments->argv + index + args_consumed);
 
-    new_exec_argc += args_consumed;
     index += args_consumed;
   }
 
@@ -3878,14 +3871,15 @@ static void ParseArgs(int* argc,
     fprintf(stderr,
             "%s: either --use-openssl-ca or --use-bundled-ca can be used, "
             "not both\n",
-            argv[0]);
+            process_arguments->argv[0]);
     exit(9);
   }
 #endif
 
   if (eval_string != nullptr && syntax_check_only) {
     fprintf(stderr,
-            "%s: either --check or --eval can be used, not both\n", argv[0]);
+            "%s: either --check or --eval can be used, not both\n",
+            process_arguments->argv[0]);
     exit(9);
   }
 
@@ -3894,22 +3888,18 @@ static void ParseArgs(int* argc,
 
   if (is_env && args_left) {
     fprintf(stderr, "%s: %s is not supported in NODE_OPTIONS\n",
-            argv[0], argv[index]);
+            process_arguments->argv[0], process_arguments->argv[index]);
     exit(9);
   }
 
-  memcpy(new_argv + new_argc, argv + index, args_left * sizeof(*argv));
+  memcpy(new_argv + new_argc, process_arguments->argv + index,
+         args_left * sizeof(*process_arguments->argv));
   new_argc += args_left;
 
-  *exec_argc = new_exec_argc;
-  *exec_argv = new_exec_argv;
-  *v8_argc = new_v8_argc;
-  *v8_argv = new_v8_argv;
-
   // Copy new_argv over argv and update argc.
-  memcpy(argv, new_argv, new_argc * sizeof(*argv));
+  memcpy(process_arguments->argv, new_argv, new_argc * sizeof(*new_argv));
   delete[] new_argv;
-  *argc = static_cast<int>(new_argc);
+  process_arguments->argc = new_argc;
 }
 
 
@@ -4148,21 +4138,16 @@ inline void PlatformInit() {
 }
 
 
-void ProcessArgv(int* argc,
-                 const char** argv,
-                 int* exec_argc,
-                 const char*** exec_argv,
-                 bool is_env = false) {
+void ProcessArgv(ProcessArguments* process_arguments, bool is_env = false) {
   // Parse a few arguments which are specific to Node.
-  int v8_argc;
-  const char** v8_argv;
-  ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv, is_env);
+  std::vector<char*> v8_argv;
+  ParseArgs(process_arguments, &v8_argv, is_env);
 
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
   // manually?  That would give us a little more control over its runtime
   // behavior but it could also interfere with the user's intentions in ways
   // we fail to anticipate.  Dillema.
-  for (int i = 1; i < v8_argc; ++i) {
+  for (size_t i = 1; i < v8_argv.size(); ++i) {
     if (strncmp(v8_argv[i], "--prof", sizeof("--prof") - 1) == 0) {
       v8_is_profiling = true;
       break;
@@ -4178,17 +4163,15 @@ void ProcessArgv(int* argc,
   }
 #endif
 
-  // The const_cast doesn't violate conceptual const-ness.  V8 doesn't modify
-  // the argv array or the elements it points to.
+  int v8_argc = v8_argv.size();
   if (v8_argc > 1)
-    V8::SetFlagsFromCommandLine(&v8_argc, const_cast<char**>(v8_argv), true);
+    V8::SetFlagsFromCommandLine(&v8_argc, v8_argv.data(), true);
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (int i = 1; i < v8_argc; i++) {
-    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
+    fprintf(stderr, "%s: bad option: %s\n",
+            process_arguments->argv[0], v8_argv[i]);
   }
-  delete[] v8_argv;
-  v8_argv = nullptr;
 
   if (v8_argc > 1) {
     exit(9);
@@ -4196,10 +4179,7 @@ void ProcessArgv(int* argc,
 }
 
 
-void Init(int* argc,
-          const char** argv,
-          int* exec_argc,
-          const char*** exec_argv) {
+void Init(ProcessArguments* process_arguments) {
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
@@ -4243,29 +4223,27 @@ void Init(int* argc,
     // Smallest tokens are 2-chars (a not space and a space), plus 2 extra
     // pointers, for the prepended executable name, and appended NULL pointer.
     size_t max_len = 2 + (node_options.length() + 1) / 2;
-    const char** argv_from_env = new const char*[max_len];
-    int argc_from_env = 0;
+    ProcessArguments from_env;
+    from_env.argc = 0;
+    from_env.argv = new char*[max_len];
     // [0] is expected to be the program name, fill it in from the real argv.
-    argv_from_env[argc_from_env++] = argv[0];
+    from_env.argv[from_env.argc++] = process_arguments->argv[0];
 
     char* cstr = strdup(node_options.c_str());
     char* initptr = cstr;
     char* token;
     while ((token = strtok(initptr, " "))) {  // NOLINT(runtime/threadsafe_fn)
       initptr = nullptr;
-      argv_from_env[argc_from_env++] = token;
+      from_env.argv[from_env.argc++] = token;
     }
-    argv_from_env[argc_from_env] = nullptr;
-    int exec_argc_;
-    const char** exec_argv_ = nullptr;
-    ProcessArgv(&argc_from_env, argv_from_env, &exec_argc_, &exec_argv_, true);
-    delete[] exec_argv_;
-    delete[] argv_from_env;
+    from_env.argv[from_env.argc] = nullptr;
+    ProcessArgv(&from_env, true);
+    delete[] from_env.argv;
     free(cstr);
   }
 #endif
 
-  ProcessArgv(argc, argv, exec_argc, exec_argv);
+  ProcessArgv(process_arguments);
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // If the parameter isn't given, use the env variable.
@@ -4277,7 +4255,7 @@ void Init(int* argc,
     fprintf(stderr,
             "%s: could not initialize ICU "
             "(check NODE_ICU_DATA or --icu-data-dir parameters)\n",
-            argv[0]);
+            process_arguments->argv[0]);
     exit(9);
   }
 #endif
@@ -4298,6 +4276,23 @@ void Init(int* argc,
   // otherwise embedders using node::Init to initialize everything will not be
   // able to set it and native modules will not load for them.
   node_is_initialized = true;
+}
+
+
+void Init(int* argc,
+          const char** argv,
+          int* exec_argc,
+          const char*** exec_argv) {
+  ProcessArguments process_arguments;
+  process_arguments.argc = *argc;
+  process_arguments.argv = const_cast<char**>(argv);
+  Init(&process_arguments);
+  *argc = process_arguments.argc;
+  *exec_argc = process_arguments.exec_argv.size();
+  *exec_argv = new const char*[process_arguments.exec_argv.size()];
+  std::copy(process_arguments.exec_argv.begin(),
+            process_arguments.exec_argv.end(),
+            *exec_argv);
 }
 
 
@@ -4388,16 +4383,28 @@ void FreeIsolateData(IsolateData* isolate_data) {
 
 Environment* CreateEnvironment(IsolateData* isolate_data,
                                Local<Context> context,
-                               int argc,
-                               const char* const* argv,
-                               int exec_argc,
-                               const char* const* exec_argv) {
+                               const ProcessArguments& process_arguments) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
   auto env = new Environment(isolate_data, context);
-  env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+  env->Start(process_arguments, v8_is_profiling);
   return env;
+}
+
+
+Environment* CreateEnvironment(IsolateData* isolate_data,
+                               Local<Context> context,
+                               int argc,
+                               const char* const* argv,
+                               int exec_argc,
+                               const char* const* exec_argv) {
+  ProcessArguments process_arguments;
+  process_arguments.argc = argc;
+  process_arguments.argv = const_cast<char**>(argv);
+  process_arguments.exec_argv.insert(process_arguments.exec_argv.end(),
+                                     exec_argv, exec_argv + exec_argc);
+  return CreateEnvironment(isolate_data, context, process_arguments);
 }
 
 
@@ -4436,17 +4443,17 @@ Local<Context> NewContext(Isolate* isolate,
 
 
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
+                 const ProcessArguments& process_arguments) {
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
   CHECK_EQ(0, uv_key_create(&thread_local_env));
   uv_key_set(&thread_local_env, &env);
-  env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
+  env.Start(process_arguments, v8_is_profiling);
 
-  const char* path = argc > 1 ? argv[1] : nullptr;
+  const char* path =
+      process_arguments.argc > 1 ? process_arguments.argv[1] : nullptr;
   StartInspector(&env, path, debug_options);
 
   if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(&env))
@@ -4506,8 +4513,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 }
 
 inline int Start(uv_loop_t* event_loop,
-                 int argc, const char* const* argv,
-                 int exec_argc, const char* const* exec_argv) {
+                 const ProcessArguments& process_arguments) {
   Isolate::CreateParams params;
   ArrayBufferAllocator allocator;
   params.array_buffer_allocator = &allocator;
@@ -4544,7 +4550,7 @@ inline int Start(uv_loop_t* event_loop,
         event_loop,
         v8_platform.Platform(),
         allocator.zero_fill_field());
-    exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
+    exit_code = Start(isolate, &isolate_data, process_arguments);
   }
 
   {
@@ -4568,11 +4574,11 @@ int Start(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
-  // This needs to run *before* V8::Initialize().  The const_cast is not
-  // optional, in case you're wondering.
-  int exec_argc;
-  const char** exec_argv;
-  Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
+  // This needs to run *before* V8::Initialize().
+  ProcessArguments process_arguments;
+  process_arguments.argc = argc;
+  process_arguments.argv = argv;
+  Init(&process_arguments);
 
 #if HAVE_OPENSSL
   {
@@ -4600,8 +4606,7 @@ int Start(int argc, char** argv) {
   V8::Initialize();
   node::performance::performance_v8_start = PERFORMANCE_NOW();
   v8_initialized = true;
-  const int exit_code =
-      Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
+  const int exit_code = Start(uv_default_loop(), process_arguments);
   if (trace_enabled) {
     v8_platform.StopTracingAgent();
   }
@@ -4615,9 +4620,6 @@ int Start(int argc, char** argv) {
   // Since uv_run cannot be called, uv_async handles held by the platform
   // will never be fully cleaned up.
   v8_platform.Dispose();
-
-  delete[] exec_argv;
-  exec_argv = nullptr;
 
   return exit_code;
 }

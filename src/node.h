@@ -178,6 +178,8 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
 #include <assert.h>
 #include <stdint.h>
 
+#include <vector>
+
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
@@ -207,6 +209,15 @@ NODE_EXTERN extern bool force_fips_crypto;
 #endif
 
 NODE_EXTERN int Start(int argc, char *argv[]);
+
+struct ProcessArguments {
+  int argc;
+  char** argv;
+  std::vector<const char*> exec_argv;
+};
+
+NODE_EXTERN void Init(ProcessArguments* process_arguments);
+// DEP0087: Wrapper around Init(ProcessArguments*).
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -239,6 +250,11 @@ NODE_EXTERN IsolateData* CreateIsolateData(
     MultiIsolatePlatform* platform);
 NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
 
+NODE_EXTERN Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    v8::Local<v8::Context> context,
+    const ProcessArguments& process_arguments);
+// DEP0087: Wrapper around CreateEnvironment(..., const ProcessArguments&);
 NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,

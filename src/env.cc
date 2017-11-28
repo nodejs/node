@@ -69,10 +69,7 @@ IsolateData::~IsolateData() {
     platform_->UnregisterIsolate(this);
 }
 
-void Environment::Start(int argc,
-                        const char* const* argv,
-                        int exec_argc,
-                        const char* const* exec_argv,
+void Environment::Start(const ProcessArguments& process_arguments,
                         bool start_profiler_idle_notifier) {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
@@ -132,7 +129,7 @@ void Environment::Start(int argc,
       process_template->GetFunction()->NewInstance(context()).ToLocalChecked();
   set_process_object(process_object);
 
-  SetupProcessObject(this, argc, argv, exec_argc, exec_argv);
+  SetupProcessObject(this, process_arguments);
   LoadAsyncWrapperInfo(this);
 }
 
