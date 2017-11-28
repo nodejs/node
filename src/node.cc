@@ -589,7 +589,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   }
   e = Exception::Error(cons);
 
-  Local<Object> obj = e->ToObject(env->context()).ToLocalChecked();
+  Local<Object> obj = e.As<Object>();
   obj->Set(env->errno_string(), Integer::New(env->isolate(), errorno));
   obj->Set(env->code_string(), estring);
 
@@ -751,7 +751,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     e = Exception::Error(message);
   }
 
-  Local<Object> obj = e->ToObject(env->context()).ToLocalChecked();
+  Local<Object> obj = e.As<Object>();
   obj->Set(env->errno_string(), Integer::New(isolate, errorno));
 
   if (path != nullptr) {
