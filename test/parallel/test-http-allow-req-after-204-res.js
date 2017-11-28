@@ -23,12 +23,12 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 // first 204 or 304 works, subsequent anything fails
 const codes = [204, 200];
 
-// Methods don't really matter, but we put in something realistic.
-const methods = ['DELETE', 'DELETE'];
+const countdown = new Countdown(codes.length, () => server.close());
 
 const server = http.createServer(common.mustCall((req, res) => {
   const code = codes.shift();
@@ -39,17 +39,13 @@ const server = http.createServer(common.mustCall((req, res) => {
 }, codes.length));
 
 function nextRequest() {
-  const method = methods.shift();
 
-  const request = http.request({
+  const request = http.get({
     port: server.address().port,
-    method: method,
     path: '/'
   }, common.mustCall((response) => {
     response.on('end', common.mustCall(() => {
-      if (methods.length === 0) {
-        server.close();
-      } else {
+      if (countdown.dec()) {
         // throws error:
         nextRequest();
         // works just fine:
