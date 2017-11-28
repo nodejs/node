@@ -470,13 +470,13 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
     {                                                                 \
       NODE_MODULE_VERSION,                                            \
       flags,                                                          \
-      NULL,                                                           \
+      NULL,  /* NOLINT (readability/null_usage) */                    \
       __FILE__,                                                       \
       (node::addon_register_func) (regfunc),                          \
-      NULL,                                                           \
+      NULL,  /* NOLINT (readability/null_usage) */                    \
       NODE_STRINGIFY(modname),                                        \
       priv,                                                           \
-      NULL                                                            \
+      NULL   /* NOLINT (readability/null_usage) */                    \
     };                                                                \
     NODE_C_CTOR(_register_ ## modname) {                              \
       node_module_register(&_module);                                 \
@@ -489,13 +489,13 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
     {                                                                 \
       NODE_MODULE_VERSION,                                            \
       flags,                                                          \
-      NULL,                                                           \
+      NULL,  /* NOLINT (readability/null_usage) */                    \
       __FILE__,                                                       \
-      NULL,                                                           \
+      NULL,  /* NOLINT (readability/null_usage) */                    \
       (node::addon_context_register_func) (regfunc),                  \
       NODE_STRINGIFY(modname),                                        \
       priv,                                                           \
-      NULL                                                            \
+      NULL  /* NOLINT (readability/null_usage) */                     \
     };                                                                \
     NODE_C_CTOR(_register_ ## modname) {                              \
       node_module_register(&_module);                                 \
@@ -503,9 +503,10 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
   }
 
 #define NODE_MODULE(modname, regfunc)                                 \
-  NODE_MODULE_X(modname, regfunc, NULL, 0)
+  NODE_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
 #define NODE_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
+  /* NOLINTNEXTLINE (readability/null_usage) */                       \
   NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, 0)
 
 #define NODE_MODULE_CONTEXT_AWARE_BUILTIN(modname, regfunc)           \
