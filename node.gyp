@@ -86,9 +86,11 @@
       'lib/internal/process/stdio.js',
       'lib/internal/process/warning.js',
       'lib/internal/process.js',
+      'lib/internal/querystring.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
+      'lib/internal/url.js',
       'lib/internal/util.js',
       'lib/internal/v8_prof_polyfill.js',
       'lib/internal/v8_prof_processor.js',
@@ -162,6 +164,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_revert.cc',
+        'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',
@@ -588,6 +591,7 @@
         '<(OBJ_PATH)/node.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_buffer.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_i18n.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)/node_url.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/debug-agent.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/util.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/string_bytes.<(OBJ_SUFFIX)',
@@ -611,6 +615,7 @@
       'sources': [
         'test/cctest/test_base64.cc',
         'test/cctest/test_util.cc',
+        'test/cctest/test_url.cc'
       ],
 
       'sources!': [
