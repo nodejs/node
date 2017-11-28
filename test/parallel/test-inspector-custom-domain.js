@@ -92,6 +92,7 @@ async function test() {
   assert.deepStrictEqual({ a: 0 }, await post1('Test.methodD'));
   assert.deepStrictEqual({ a: 1 }, await post1('Test.methodD'));
   assert.deepStrictEqual({ a: 2 }, await post1('Test.methodD'));
+  await common.assertRejected(post1('Test.methodD.methodE'));
   await common.assertRejected(post1('Test._privateMethod'));
 }
 
