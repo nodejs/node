@@ -33,7 +33,7 @@ $ cd node
 $ git remote add upstream https://github.com/nodejs/node.git
 ```
 
-#### Which branch?
+#### Which branch to use?
 
 For developing new features and bug fixes, the `master` branch should be pulled
 and built upon.
@@ -111,7 +111,7 @@ use `Refs:`.
    - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
    - `Refs: https://github.com/nodejs/node/pull/3615`
 
-Sample complete commit message:
+The sample complete commit message:
 
 ```txt
 subsystem: explain the commit in one line
