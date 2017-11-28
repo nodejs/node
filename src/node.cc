@@ -2367,7 +2367,7 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> exports_string = env->exports_string();
   Local<Object> exports =
-      module->Get(exports_string)->ToObject(env->context()).ToLocalChecked();
+      module->Get(env->context(), exports_string).ToLocalChecked().As<Object>();
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
