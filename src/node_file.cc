@@ -1219,7 +1219,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 
   char * buf = nullptr;
 
-  Local<Object> buffer_obj = args[1]->ToObject(env->context()).ToLocalChecked();
+  Local<Object> buffer_obj = args[1].As<Object>();
   char *buffer_data = Buffer::Data(buffer_obj);
   size_t buffer_length = Buffer::Length(buffer_obj);
 
