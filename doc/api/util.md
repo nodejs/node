@@ -348,8 +348,9 @@ changes:
     line. Defaults to 60 for legacy compatibility.
 
 The `util.inspect()` method returns a string representation of `object` that is
-primarily useful for debugging. Additional `options` may be passed that alter
-certain aspects of the formatted string.
+intended for debugging. The output of `util.inspect` may change at any time
+and should not be depended upon programmatically. Additional `options` may be
+passed that alter certain aspects of the formatted string.
 `util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
 identifiable tag for an inspected value.
 
