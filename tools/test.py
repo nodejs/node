@@ -1347,69 +1347,124 @@ ARCH_GUESS = utils.GuessArchitecture()
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
-      default='release')
-  result.add_option("-v", "--verbose", help="Verbose output",
-      default=False, action="store_true")
-  result.add_option('--logfile', dest='logfile',
-      help='write test output to file. NOTE: this only applies the tap progress indicator')
-  result.add_option("-p", "--progress",
-      help="The style of progress indicator (verbose, dots, color, mono, tap)",
-      choices=PROGRESS_INDICATORS.keys(), default="mono")
-  result.add_option("--report", help="Print a summary of the tests to be run",
-      default=False, action="store_true")
-  result.add_option("-s", "--suite", help="A test suite",
-      default=[], action="append")
-  result.add_option("-t", "--timeout", help="Timeout in seconds",
-      default=120, type="int")
-  result.add_option("--arch", help='The architecture to run tests for',
-      default='none')
-  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
-      default=False, action="store_true")
-  result.add_option("--special-command", default=None)
-  result.add_option("--node-args", dest="node_args", help="Args to pass through to Node",
-      default=[], action="append")
-  result.add_option("--expect-fail", dest="expect_fail",
-      help="Expect test cases to fail", default=False, action="store_true")
-  result.add_option("--valgrind", help="Run tests through valgrind",
-      default=False, action="store_true")
-  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
-      default=False, action="store_true")
-  result.add_option("--cat", help="Print the source of the tests",
-      default=False, action="store_true")
+  result.add_option("--arch",
+                    default="none",
+                    help="The architecture to run tests for")
+  result.add_option("--abort-on-timeout",
+                    action="store_true",
+                    default=False,
+                    dest="abort_on_timeout",
+                    help="Send SIGABRT instead of SIGTERM to kill processes"
+                         " that time out")
+  result.add_option("--cat",
+                    action="store_true",
+                    default=False,
+                    help="Print the source of the tests")
+  result.add_option("--check-deopts",
+                    action="store_true",
+                    default=False,
+                    help="Check tests for permanent deoptimizations")
+  result.add_option("--expect-fail",
+                    action="store_true",
+                    default=False,
+                    dest="expect_fail",
+                    help="Expect test cases to fail")
   result.add_option("--flaky-tests",
-      help="Regard tests marked as flaky (run|skip|dontcare)",
-      default="run")
-  result.add_option("--warn-unused", help="Report unused rules",
-      default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run",
-      default=1, type="int")
-  result.add_option("-J", help="Run tasks in parallel on all cores",
-      default=False, action="store_true")
-  result.add_option("--time", help="Print timing information after running",
-      default=False, action="store_true")
-  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
-        dest="suppress_dialogs", default=True, action="store_true")
-  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
-        dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to V8 shell", default="shell")
-  result.add_option("--store-unexpected-output",
-      help="Store the temporary JS files from tests that fails",
-      dest="store_unexpected_output", default=True, action="store_true")
+                    default="run",
+                    help="Regard tests marked as flaky (run|skip|dontcare)")
+  result.add_option("-j",
+                    default=1,
+                    help="The number of parallel tasks to run",
+                    type="int")
+  result.add_option("-J",
+                    action="store_true",
+                    default=False,
+                    help="Run tasks in parallel on all cores")
+  result.add_option("--logfile",
+                    dest="logfile",
+                    help="Write test output to file. NOTE: this only applies"
+                         " to the tap progress indicator")
+  result.add_option("--node-args",
+                    action="append",
+                    default=[],
+                    dest="node_args",
+                    help="Args to pass through to Node")
   result.add_option("--no-store-unexpected-output",
-      help="Deletes the temporary JS files from tests that fails",
-      dest="store_unexpected_output", action="store_false")
+                    action="store_false",
+                    dest="store_unexpected_output",
+                    help="Deletes the temporary JS files from tests that "
+                         "fail")
+  result.add_option("--no-suppress-dialogs",
+                    action="store_false",
+                    dest="suppress_dialogs",
+                    help="Display Windows dialogs for crashing tests")
+  result.add_option("-m", "--mode",
+                    default="release",
+                    help="The test modes in which to run (comma-separated)")
+  result.add_option("-p", "--progress",
+                    choices=PROGRESS_INDICATORS.keys(),
+                    default="mono",
+                    help="The style of progress indicator (verbose, dots,"
+                         " color, mono, tap)")
+  result.add_option("--repeat",
+                    default=1,
+                    help="Number of times to repeat given tests",
+                    type="int")
+  result.add_option("--report",
+                    action="store_true",
+                    default=False,
+                    help="Print a summary of the tests to be run")
   result.add_option("-r", "--run",
-      help="Divide the tests in m groups (interleaved) and run tests from group n (--run=n,m with n < m)",
-      default="")
-  result.add_option('--temp-dir',
-      help='Optional path to change directory used for tests', default=False)
-  result.add_option('--repeat',
-      help='Number of times to repeat given tests',
-      default=1, type="int")
-  result.add_option('--abort-on-timeout',
-      help='Send SIGABRT instead of SIGTERM to kill processes that time out',
-      default=False, action="store_true", dest="abort_on_timeout")
+                    default="",
+                    help="Divide the tests in m groups (interleaved) and run"
+                         " tests from group n (--run=n,m with n < m)")
+  result.add_option("-v", "--verbose",
+                    action="store_true",
+                    default=False,
+                    help="Verbose output")
+  result.add_option("--shell",
+                    default="shell",
+                    help="Path to V8 shell")
+  result.add_option("--snapshot",
+                    action="store_true",
+                    default=False,
+                    help="Run the tests with snapshot turned on")
+  result.add_option("--special-command",
+                    default=None)
+  result.add_option("--store-unexpected-output",
+                    action="store_true",
+                    default=True,
+                    dest="store_unexpected_output",
+                    help="Store the temporary JS files from tests that fails")
+  result.add_option("-s", "--suite",
+                    action="append",
+                    default=[],
+                    help="A test suite")
+  result.add_option("--suppress-dialogs",
+                    action="store_true",
+                    default=True,
+                    dest="suppress_dialogs",
+                    help="Suppress Windows dialogs for crashing tests")
+  result.add_option("--temp-dir",
+                    default=False,
+                    help="Optional path to change directory used for tests")
+  result.add_option("--time",
+                    action="store_true",
+                    default=False,
+                    help="Print timing information after running")
+  result.add_option("-t", "--timeout",
+                    default=120,
+                    help="Timeout in seconds",
+                    type="int")
+  result.add_option("--valgrind",
+                    action="store_true",
+                    default=False,
+                    help="Run tests through valgrind")
+  result.add_option("--warn-unused",
+                    action="store_true",
+                    default=False,
+                    help="Report unused rules")
+
   return result
 
 
