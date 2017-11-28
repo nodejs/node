@@ -14,7 +14,7 @@ const bench = common.createBenchmark(main, {
   dur: [5]
 });
 
-const TCP = process.binding('tcp_wrap').TCP;
+const { TCP, constants: TCPConstants } = process.binding('tcp_wrap');
 const TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
 const WriteWrap = process.binding('stream_wrap').WriteWrap;
 const PORT = common.PORT;
@@ -36,7 +36,7 @@ function fail(err, syscall) {
 }
 
 function server() {
-  const serverHandle = new TCP();
+  const serverHandle = new TCP(TCPConstants.SERVER);
   var err = serverHandle.bind('127.0.0.1', PORT);
   if (err)
     fail(err, 'bind');
@@ -92,7 +92,7 @@ function client() {
       throw new Error(`invalid type: ${type}`);
   }
 
-  const clientHandle = new TCP();
+  const clientHandle = new TCP(TCPConstants.SOCKET);
   const connectReq = new TCPConnectWrap();
   const err = clientHandle.connect(connectReq, '127.0.0.1', PORT);
 
