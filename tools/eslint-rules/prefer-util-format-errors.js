@@ -26,6 +26,11 @@ module.exports = {
         if (!isArrowFunctionWithTemplateLiteral(msg))
           return;
 
+        // Checks to see if order of arguments to function is the same as the
+        // order of them being concatenated in the template string. The idea is
+        // that if both match, then you can use `util.format`-style args.
+        // Would pass rule: (a, b) => `${b}${a}`.
+        // Would fail rule: (a, b) => `${a}${b}`, and needs to be rewritten.
         const { expressions } = msg.body;
         const hasSequentialParams = msg.params.every((param, index) => {
           const expr = expressions[index];
