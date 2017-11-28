@@ -53,7 +53,7 @@ set nghttp2_debug=
 set link_module=
 
 :next-arg
-if "%1"=="" goto args-done
+if "%1"=="" goto environment-validate
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
 if /i "%1"=="release"       set config=Release&goto arg-ok
 if /i "%1"=="clean"         set target=Clean&goto arg-ok
@@ -125,8 +125,17 @@ shift
 shift
 goto next-arg
 
-:args-done
+:environment-validate
+REM Make sure we can find python
+call :run-python --version > NUL 2>&1
+if errorlevel 1 (
+  echo Could not find python2. More information can be found at
+  echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows-1
+  exit /b 1
+)
 
+
+REM Shortcut for just linting (does not need python)
 if "%*"=="lint" (
   goto lint-cpp
 )
@@ -167,14 +176,14 @@ if "%i18n_arg%"=="without-intl" set configure_flags=%configure_flags% --without-
 
 if defined config_flags set configure_flags=%configure_flags% %config_flags%
 
+if not "%target%"=="Clean" goto no-clean
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
 if "%target%"=="Clean" rmdir /S /Q %~dp0deps\icu
 :no-depsicu
 
-call :getnodeversion || exit /b 1
-
-if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
+for /d %%I IN ("%~dp0%config%\node-v*") do rmdir /Q /S "%%I"
+:no-clean
 
 if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
 
@@ -354,6 +363,7 @@ if not defined msi goto run
 
 :msibuild
 echo Building node-v%FULLVERSION%-%target_arch%.msi
+call :getnodeversion || exit /b 1
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
@@ -554,8 +564,13 @@ echo   vcbuild.bat lint                     : runs the C++ and JavaScript linter
 goto exit
 
 :run-python
-call tools\msvs\find_python.cmd
-if errorlevel 1 echo Could not find python2 & goto :exit
+IF NOT DEFINED DEBUG_HELPER (
+  call tools\msvs\find_python.cmd 1>NUL 2>&1
+) ELSE (
+  call tools\msvs\find_python.cmd
+)
+if errorlevel 1 exit /b 1
+
 set cmd1="%VCBUILD_PYTHON_LOCATION%" %*
 echo %cmd1%
 %cmd1%
@@ -573,8 +588,6 @@ rem ***************
 set NODE_VERSION=
 set TAG=
 set FULLVERSION=
-:: Call as subroutine for validation of python
-call :run-python tools\getnodeversion.py > nul
 for /F "tokens=*" %%i in ('"%VCBUILD_PYTHON_LOCATION%" tools\getnodeversion.py') do set NODE_VERSION=%%i
 if not defined NODE_VERSION (
   echo Cannot determine current version of Node.js

@@ -1,7 +1,8 @@
 @IF NOT DEFINED DEBUG_HELPER @ECHO OFF
+IF NOT "%VCBUILD_PYTHON_LOCATION%"=="" EXIT /B
 SETLOCAL
 :: If python.exe is in %Path%, just validate
-FOR /F "delims=" %%a IN ('where python 2^> NUL') DO (
+FOR /F "delims=" %%a IN ('where python') DO (
   SET need_path=0
   SET p=%%~dpa
   IF NOT ERRORLEVEL 1 GOTO :validate
@@ -19,7 +20,7 @@ EXIT /B 1
 :: Helper subroutine to handle quotes in %1
 :find-main-branch
 SET main_key="%~1\Python\PythonCore"
-REG QUERY %main_key% /s | findstr "2." | findstr InstallPath > NUL 2> NUL
+REG QUERY %main_key% /s | findstr "2." | findstr InstallPath
 IF NOT ERRORLEVEL 1 CALL :find-key %main_key%
 EXIT /B
 
@@ -41,7 +42,7 @@ EXIT /B 1
 :validate
 IF NOT EXIST "%p%python.exe" EXIT /B 1
 :: Check if %p% is python2
-"%p%python.exe" -V 2>&1 | findstr /R "^Python.2.*" > NUL
+"%p%python.exe" -V 2>&1 | findstr /R "^Python.2.*"
 IF ERRORLEVEL 1 EXIT /B %ERRORLEVEL%
 :: We can wrap it up
 ENDLOCAL & SET pt=%p%& SET need_path_ext=%need_path%
