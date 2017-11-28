@@ -22,19 +22,28 @@ get-boxstarter -Force
 Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
 ```
 
+Entire installation will take up about 8 GB of disk space.
+
 ## Linux
 
-For building Node.js on Linux, following packets are required (note, that this
+For building Node.js on Linux, following packages are required (note, that this
 can vary from distribution to distribution):
-  * `git-core`
+  * `git`
   * `python`
   * `gcc-c++` or `g++`
   * `make`
 
 To bootstrap Node.js on Linux, run in terminal:
-  * OpenSUSE: `sudo zypper install git-core python gcc-c++ make`
-  * Fedora: `sudo dnf install git-core python gcc-c++ make`
-  * Ubuntu, Debian: `sudo apt-get install git-core python g++ make`
+  * OpenSUSE: `sudo zypper install git python gcc-c++ make`
+  * Fedora: `sudo dnf install git python gcc-c++ make`
+  * Ubuntu, Debian: `sudo apt-get install git python g++ make`
+
+## macOS
+
+To install required tools on macOS, run in terminal:
+```console
+xcode-select --install
+```
 
 [Boxstarter]: http://boxstarter.org/
 [Boxstarter WebLauncher]: http://boxstarter.org/WebLauncher
