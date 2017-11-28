@@ -98,7 +98,7 @@ typedef struct {
   EXTERN_C_END
 
 #define NAPI_MODULE(modname, regfunc) \
-  NAPI_MODULE_X(modname, regfunc, NULL, 0)
+  NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 
 #define NAPI_AUTO_LENGTH SIZE_MAX
 

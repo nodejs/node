@@ -499,7 +499,6 @@ _ALT_TOKEN_REPLACEMENT = {
 _ALT_TOKEN_REPLACEMENT_PATTERN = re.compile(
     r'[ =()](' + ('|'.join(_ALT_TOKEN_REPLACEMENT.keys())) + r')(?=[ (]|$)')
 
-
 # These constants define types of headers for use with
 # _IncludeState.CheckNextIncludeOrder().
 _C_SYS_HEADER = 1
@@ -525,6 +524,8 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 
 # Match string that indicates we're working on a Linux Kernel file.
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
+
+_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
 
 _regexp_compile_cache = {}
 
@@ -4156,6 +4157,27 @@ def CheckAltTokens(filename, clean_lines, linenum, error):
           'Use operator %s instead of %s' % (
               _ALT_TOKEN_REPLACEMENT[match.group(1)], match.group(1)))
 
+def CheckNullTokens(filename, clean_lines, linenum, error):
+  """Check NULL usage.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if Match(r'^\s*#', line):
+    return
+
+  if line.find('/*') >= 0 or line.find('*/') >= 0:
+    return
+
+  for match in _NULL_TOKEN_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/null_usage', 2,
+          'Use nullptr instead of NULL')
 
 def GetLineWidth(line):
   """Determines the width of the line in column positions.
@@ -4294,6 +4316,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
   CheckSpacingForFunctionCall(filename, clean_lines, linenum, error)
   CheckCheck(filename, clean_lines, linenum, error)
   CheckAltTokens(filename, clean_lines, linenum, error)
+  CheckNullTokens(filename, clean_lines, linenum, error)
   classinfo = nesting_state.InnermostClass()
   if classinfo:
     CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)

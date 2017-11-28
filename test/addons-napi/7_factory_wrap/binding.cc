@@ -16,6 +16,7 @@ napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env, MyObject::Init(env));
 
   NAPI_CALL(env,
+      // NOLINTNEXTLINE (readability/null_usage)
       napi_create_function(env, "exports", -1, CreateObject, NULL, &exports));
   return exports;
 }
