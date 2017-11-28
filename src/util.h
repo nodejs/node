@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // OSX 10.9 defaults to libc++ which provides a C++11 <type_traits> header.
 #if defined(__APPLE__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1090
@@ -310,29 +311,40 @@ class MaybeStackBuffer {
     return length_;
   }
 
-  // Call to make sure enough space for `storage` entries is available.
-  // There can only be 1 call to AllocateSufficientStorage or Invalidate
-  // per instance.
+  // Current maximum capacity of the buffer with which SetLength() can be used
+  // without first calling AllocateSufficientStorage().
+  size_t capacity() const {
+    return IsAllocated() ? capacity_ :
+                           IsInvalidated() ? 0 : kStackStorageSize;
+  }
+
+  // Make sure enough space for `storage` entries is available.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called Invalidate() cannot be used.
+  // Content of the buffer in the range [0, length()) is preserved.
   void AllocateSufficientStorage(size_t storage) {
-    if (storage <= kStackStorageSize) {
-      buf_ = buf_st_;
-    } else {
-      buf_ = Malloc<T>(storage);
+    CHECK(!IsInvalidated());
+    if (storage > capacity()) {
+      bool was_allocated = IsAllocated();
+      T* allocated_ptr = was_allocated ? buf_ : nullptr;
+      buf_ = Realloc(allocated_ptr, storage);
+      capacity_ = storage;
+      if (!was_allocated && length_ > 0)
+        memcpy(buf_, buf_st_, length_ * sizeof(buf_[0]));
     }
 
-    // Remember how much was allocated to check against that in SetLength().
     length_ = storage;
   }
 
   void SetLength(size_t length) {
-    // length_ stores how much memory was allocated.
-    CHECK_LE(length, length_);
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length, capacity());
     length_ = length;
   }
 
   void SetLengthAndZeroTerminate(size_t length) {
-    // length_ stores how much memory was allocated.
-    CHECK_LE(length + 1, length_);
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length + 1, capacity());
     SetLength(length);
 
     // T() is 0 for integer types, nullptr for pointers, etc.
@@ -340,15 +352,35 @@ class MaybeStackBuffer {
   }
 
   // Make derefencing this object return nullptr.
-  // Calling this is mutually exclusive with calling
-  // AllocateSufficientStorage.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called AllocateSufficientStorage() cannot
+  // be used.
   void Invalidate() {
-    CHECK_EQ(buf_, buf_st_);
+    CHECK(!IsAllocated());
     length_ = 0;
     buf_ = nullptr;
   }
 
-  MaybeStackBuffer() : length_(0), buf_(buf_st_) {
+  // If the buffer is stored in the heap rather than on the stack.
+  bool IsAllocated() const {
+    return !IsInvalidated() && buf_ != buf_st_;
+  }
+
+  // If Invalidate() has been called.
+  bool IsInvalidated() const {
+    return buf_ == nullptr;
+  }
+
+  // Release ownership of the malloc'd buffer.
+  // Note: This does not free the buffer.
+  void Release() {
+    CHECK(IsAllocated());
+    buf_ = buf_st_;
+    length_ = 0;
+    capacity_ = 0;
+  }
+
+  MaybeStackBuffer() : length_(0), capacity_(0), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
   }
@@ -358,12 +390,14 @@ class MaybeStackBuffer {
   }
 
   ~MaybeStackBuffer() {
-    if (buf_ != buf_st_)
+    if (IsAllocated())
       free(buf_);
   }
 
  private:
   size_t length_;
+  // capacity of the malloc'ed buf_
+  size_t capacity_;
   T* buf_;
   T buf_st_[kStackStorageSize];
 };
