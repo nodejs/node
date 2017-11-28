@@ -9,21 +9,6 @@
 #include "v8.h"
 #include "libplatform/libplatform.h"
 
-class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    return AllocateUninitialized(length);
-  }
-
-  virtual void* AllocateUninitialized(size_t length) {
-    return calloc(length, 1);
-  }
-
-  virtual void Free(void* data, size_t) {
-    free(data);
-  }
-};
-
 struct Argv {
  public:
   Argv() : Argv({"node", "-p", "process.version"}) {}
@@ -77,7 +62,6 @@ class NodeTestFixture : public ::testing::Test {
 
  protected:
   v8::Isolate::CreateParams params_;
-  ArrayBufferAllocator allocator_;
   v8::Isolate* isolate_;
 
   ~NodeTestFixture() {
@@ -89,7 +73,8 @@ class NodeTestFixture : public ::testing::Test {
     platform_ = new node::NodePlatform(8, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
-    params_.array_buffer_allocator = &allocator_;
+    params_.array_buffer_allocator =
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator();
     isolate_ = v8::Isolate::New(params_);
   }
 
