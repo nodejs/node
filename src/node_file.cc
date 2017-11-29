@@ -429,15 +429,23 @@ void Access(const FunctionCallbackInfo<Value>& args) {
 
 void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
+  int length = args.Length();
+  CHECK_GE(length, 2);
   CHECK(args[0]->IsInt32());
 
-  int fd = args[0]->Int32Value();
+  int fd = static_cast<int>(args[0]->Int32Value(context).FromJust());
 
-  if (args[1]->IsObject()) {
-    ASYNC_CALL(AfterNoArgs, close, args[1], UTF8, fd)
-  } else {
-    SYNC_CALL(close, 0, fd)
+  if (args[1]->IsObject()) {  // close(fd, req)
+    Local<Object> req_obj = args[1]->ToObject(context).ToLocalChecked();
+    FSReqWrap* req_wrap = AsyncCall(
+        env, req_obj, UTF8, "close", AfterNoArgs, uv_fs_close, fd);
+    if (req_wrap != nullptr) {
+      args.GetReturnValue().Set(req_wrap->persistent());
+    }
+  } else {  // close(fd, undefined, ctx)
+    SyncCall(env, args[2], "close", uv_fs_close, fd);
   }
 }
 
