@@ -3,6 +3,7 @@
 with(this){__filename}
 ^^^^
 SyntaxError: Strict mode code may not include a with statement
+    at new Script (vm.js:*:*)
     at createScript (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
@@ -18,7 +19,7 @@ throw new Error("hello")
 
 Error: hello
     at [eval]:1:7
-    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
@@ -32,7 +33,7 @@ throw new Error("hello")
 
 Error: hello
     at [eval]:1:7
-    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
@@ -46,7 +47,7 @@ var x = 100; y = x;
 
 ReferenceError: y is not defined
     at [eval]:1:16
-    at ContextifyScript.Script.runInThisContext (vm.js:*:*)
+    at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
