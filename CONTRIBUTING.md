@@ -74,7 +74,7 @@ for any individual to *act* in such a manner that is not in violation of the
 strict letter of the Code of Conduct guidelines while still going completely
 against the spirit of what that Code is intended to accomplish.
 
-Open, diverse and inclusive communities live and die on the basis of trust.
+Open, diverse, and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
@@ -177,7 +177,7 @@ Node.js changed that broke the module.
 Once an issue has been opened, it is not uncommon for there to be discussion
 around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
-is part of the process and should be kept focused, helpful and professional.
+is part of the process and should be kept focused, helpful, and professional.
 
 Short, clipped responses—that provide neither additional context nor supporting
 detail—are not helpful or professional. To many, such responses are simply
