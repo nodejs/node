@@ -654,6 +654,7 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     TryCatch try_catch(env->isolate());
+    Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
     Local<String> code =
         args[0]->ToString(env->context()).FromMaybe(Local<String>());
 
@@ -666,6 +667,7 @@ class ContextifyScript : public BaseObject {
     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
     MaybeLocal<Context> maybe_context = GetContext(env, options);
     if (try_catch.HasCaught()) {
+      no_abort_scope.Close();
       try_catch.ReThrow();
       return;
     }
@@ -702,6 +704,7 @@ class ContextifyScript : public BaseObject {
 
     if (v8_script.IsEmpty()) {
       DecorateErrorStack(env, try_catch);
+      no_abort_scope.Close();
       try_catch.ReThrow();
       return;
     }

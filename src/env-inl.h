@@ -408,6 +408,27 @@ Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
+Environment::ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
+    Environment* env)
+    : env_(env) {
+  env_->should_not_abort_scope_counter_++;
+}
+
+Environment::ShouldNotAbortOnUncaughtScope::~ShouldNotAbortOnUncaughtScope() {
+  Close();
+}
+
+void Environment::ShouldNotAbortOnUncaughtScope::Close() {
+  if (env_ != nullptr) {
+    env_->should_not_abort_scope_counter_--;
+    env_ = nullptr;
+  }
+}
+
+bool Environment::inside_should_not_abort_on_uncaught_scope() const {
+  return should_not_abort_scope_counter_ > 0;
+}
+
 inline std::vector<double>* Environment::destroy_async_id_list() {
   return &destroy_async_id_list_;
 }
