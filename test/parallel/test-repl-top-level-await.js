@@ -36,7 +36,7 @@ class REPLStream extends common.ArrayStream {
       throw new Error('Currently waiting for response to another command');
     }
     this.lines = [''];
-    return common.fires(new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const onError = (err) => {
         this.removeListener('line', onLine);
         reject(err);
@@ -50,7 +50,7 @@ class REPLStream extends common.ArrayStream {
       };
       this.once('error', onError);
       this.on('line', onLine);
-    }), new Error(), 1000);
+    });
   }
 }
 
