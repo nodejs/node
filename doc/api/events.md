@@ -581,7 +581,7 @@ added: REPLACEME
 - `eventName` {any}
 
 Returns a copy of the array of listeners for the event named `eventName`,
-including any wrappers (such as those created by `.once`.
+including any wrappers (such as those created by `.once`).
 
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
