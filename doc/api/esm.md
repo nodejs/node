@@ -147,15 +147,13 @@ be written:
 import url from 'url';
 import path from 'path';
 import process from 'process';
+import module from 'module';
 
-const builtins = new Set(
-  Object.keys(process.binding('natives')).filter((str) =>
-    /^(?!(?:internal|node|v8)\/)/.test(str))
-);
+const builtins = module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
-  if (builtins.has(specifier)) {
+  if (builtins.includes(specifier)) {
     return {
       url: specifier,
       format: 'builtin'
