@@ -1301,16 +1301,6 @@ void AppendExceptionLine(Environment* env,
   Local<Object> err_obj;
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
-
-    auto context = env->context();
-    auto processed_private_symbol = env->processed_private_symbol();
-    // Do it only once per message
-    if (err_obj->HasPrivate(context, processed_private_symbol).FromJust())
-      return;
-    err_obj->SetPrivate(
-        context,
-        processed_private_symbol,
-        True(env->isolate()));
   }
 
   // Print (filename):(line number): (message).
