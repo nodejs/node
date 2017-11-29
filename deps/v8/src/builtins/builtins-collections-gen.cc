@@ -302,11 +302,10 @@ TF_BUILTIN(MapConstructor, CollectionsBuiltinsAssembler) {
 
     BIND(&if_notobject);
     {
-      Node* ret = CallRuntime(
-          Runtime::kThrowTypeError, context,
-          SmiConstant(MessageTemplate::kIteratorValueNotAnObject), next_value);
-      GotoIfException(ret, &if_exception, &var_exception);
-      Unreachable();
+      Node* const exception = MakeTypeError(
+          MessageTemplate::kIteratorValueNotAnObject, context, next_value);
+      var_exception.Bind(exception);
+      Goto(&if_exception);
     }
   }
 
