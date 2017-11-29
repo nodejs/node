@@ -73,8 +73,8 @@ class NodeTestFixture : public ::testing::Test {
     platform_ = new node::NodePlatform(8, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
-    params_.array_buffer_allocator =
-        v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+    allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+    params_.array_buffer_allocator = allocator_;
     isolate_ = v8::Isolate::New(params_);
   }
 
@@ -85,6 +85,7 @@ class NodeTestFixture : public ::testing::Test {
       uv_run(&current_loop, UV_RUN_ONCE);
     }
     v8::V8::ShutdownPlatform();
+    delete allocator_;
     delete platform_;
     platform_ = nullptr;
     CHECK_EQ(0, uv_loop_close(&current_loop));
@@ -92,6 +93,7 @@ class NodeTestFixture : public ::testing::Test {
 
  private:
   node::NodePlatform* platform_ = nullptr;
+  v8::ArrayBuffer::Allocator* allocator_ = nullptr;
 };
 
 #endif  // TEST_CCTEST_NODE_TEST_FIXTURE_H_
