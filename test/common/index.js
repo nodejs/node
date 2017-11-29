@@ -872,32 +872,6 @@ function restoreWritable(name) {
   delete process[name].writeTimes;
 }
 
-function onResolvedOrRejected(promise, callback) {
-  return promise.then((result) => {
-    callback();
-    return result;
-  }, (error) => {
-    callback();
-    throw error;
-  });
-}
-
-function timeoutPromise(error, timeoutMs) {
-  let clearCallback = null;
-  let done = false;
-  const promise = onResolvedOrRejected(new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(error), timeoutMs);
-    clearCallback = () => {
-      if (done)
-        return;
-      clearTimeout(timeout);
-      resolve();
-    };
-  }), () => done = true);
-  promise.clear = clearCallback;
-  return promise;
-}
-
 exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
 exports.restoreStdout = restoreWritable.bind(null, 'stdout');
@@ -910,20 +884,4 @@ exports.firstInvalidFD = function firstInvalidFD() {
     while (fs.fstatSync(++fd));
   } catch (e) {}
   return fd;
-};
-
-exports.fires = function fires(promise, error, timeoutMs) {
-  if (!timeoutMs && util.isNumber(error)) {
-    timeoutMs = error;
-    error = null;
-  }
-  if (!error)
-    error = 'timeout';
-  if (!timeoutMs)
-    timeoutMs = 100;
-  const timeout = timeoutPromise(error, timeoutMs);
-  return Promise.race([
-    onResolvedOrRejected(promise, () => timeout.clear()),
-    timeout
-  ]);
 };
