@@ -525,7 +525,7 @@ _SEARCH_C_FILE = re.compile(r'\b(?:LINT_C_FILE|'
 # Match string that indicates we're working on a Linux Kernel file.
 _SEARCH_KERNEL_FILE = re.compile(r'\b(?:LINT_KERNEL_FILE)')
 
-_NULL_TOKEN_PATTERN = re.compile(r'\sNULL\s?')
+_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
 
 _regexp_compile_cache = {}
 
