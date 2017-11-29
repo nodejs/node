@@ -14,7 +14,7 @@
   human reviewers.
 * American English spelling is preferred. "Capitalize" vs. "Capitalise",
   "color" vs. "colour", etc.
-* Though controversial, the [Oxford comma][] is preferred for clarity's sake.
+* Use [serial commas][].
 * Generally avoid personal pronouns in reference documentation ("I", "you",
   "we").
   * Pronouns are acceptable in more colloquial documentation, like guides.
@@ -75,6 +75,6 @@
 
 [Em dashes]: https://en.wikipedia.org/wiki/Dash#Em_dash
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
-[Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
+[serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [The New York Times Manual of Style and Usage]: https://en.wikipedia.org/wiki/The_New_York_Times_Manual_of_Style_and_Usage
 [plugin]: http://editorconfig.org/#download
