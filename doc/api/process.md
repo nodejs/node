@@ -1899,8 +1899,8 @@ cases:
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`require.resolve()`]: modules.html#modules_require_resolve
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
-[Child Process]: child_process.html
-[Cluster]: cluster.html
+[Child Process]: child_process.md
+[Cluster]: cluster.md
 [Duplex]: stream.html#stream_duplex_and_transform_streams
 [LTS]: https://github.com/nodejs/LTS/
 [note on process I/O]: process.html#process_a_note_on_process_i_o

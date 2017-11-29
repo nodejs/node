@@ -591,8 +591,8 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 [`domain`]: domain.html
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
-[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
-[`net.Server`]: net.html#net_class_net_server
-[`process.on('warning')`]: process.html#process_event_warning
+[`fs.ReadStream`]: fs.md#fs_class_fs_readstream
+[`net.Server`]: net.md#net_class_net_server
+[`process.on('warning')`]: process.md#process_event_warning
 [`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
-[stream]: stream.html
+[stream]: stream.md
