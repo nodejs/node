@@ -183,6 +183,10 @@ added: v0.10
 Aborting instead of exiting causes a core file to be generated for post-mortem
 analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
+*Note*: If this flag is passed, the behavior can still be set to not abort
+through [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage
+of the `domain` module that uses it).
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0
@@ -598,3 +602,4 @@ greater than `4` (its current default value).  For more information, see the
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
