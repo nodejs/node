@@ -91,7 +91,6 @@ class ModuleWrap;
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
-  V(processed_private_symbol, "node:processed")                               \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(domain_private_symbol, "node:domain")                                     \
 

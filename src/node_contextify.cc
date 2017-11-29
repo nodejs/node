@@ -701,9 +701,7 @@ class ContextifyScript : public BaseObject {
         compile_options);
 
     if (v8_script.IsEmpty()) {
-      if (display_errors) {
-        DecorateErrorStack(env, try_catch);
-      }
+      DecorateErrorStack(env, try_catch);
       try_catch.ReThrow();
       return;
     }
