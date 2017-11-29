@@ -5,6 +5,7 @@ var 5;
     ^
 
 SyntaxError: Unexpected number
+    at new Script (vm.js:*)
     at createScript (vm.js:*)
     at Object.runInThisContext (vm.js:*)
     at Object.<anonymous> (*test*message*vm_dont_display_syntax_error.js:*)
@@ -14,4 +15,3 @@ SyntaxError: Unexpected number
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*)
     at Function.Module.runMain (module.js:*)
-    at startup (bootstrap_node.js:*:*)
