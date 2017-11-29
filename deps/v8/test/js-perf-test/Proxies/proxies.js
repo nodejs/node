@@ -42,7 +42,7 @@ newBenchmark("ProxyConstructorWithClass", {
 
 // ----------------------------------------------------------------------------
 
-var obj = {};
+let obj = {};
 
 newBenchmark("ProxyConstructorWithObject", {
   setup() { },
@@ -149,5 +149,317 @@ newBenchmark("ConstructProxyWithTrap", {
   },
   teardown() {
     return instance instanceof MyClass;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {
+  prop: SOME_NUMBER
+}
+let value;
+
+newBenchmark("GetStringWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p.prop;
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetStringWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      get: function(target, propertyKey, receiver) {
+        return SOME_OTHER_NUMBER;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p.prop;
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = [SOME_NUMBER];
+
+newBenchmark("GetIndexWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p[0];
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetIndexWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      get: function(target, propertyKey, receiver) {
+        return SOME_OTHER_NUMBER;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p[0];
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+var symbol = Symbol();
+obj[symbol] = SOME_NUMBER;
+
+newBenchmark("GetSymbolWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p[symbol];
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("GetSymbolWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      get: function(target, propertyKey, receiver) {
+        return SOME_OTHER_NUMBER;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = p[symbol];
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {};
+
+newBenchmark("HasStringWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = ('prop' in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("HasStringWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      has: function(target, propertyKey) {
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = ('prop' in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj[symbol] = SOME_NUMBER;
+
+newBenchmark("HasSymbolWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = (symbol in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("HasSymbolWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      has: function(target, propertyKey) {
+        return true;
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      value = (symbol in p);
+    }
+  },
+  teardown() {
+    return value === true;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = {
+  prop: undefined
+}
+value = SOME_NUMBER;
+
+newBenchmark("SetStringWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p.prop = value;
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("SetStringWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      set: function(target, propertyKey, value, receiver) {
+        target[propertyKey] = SOME_OTHER_NUMBER
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p.prop = value;
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+obj = [undefined];
+value = SOME_NUMBER;
+
+newBenchmark("SetIndexWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p[0] = value;
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("SetIndexWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      set: function(target, propertyKey, value, receiver) {
+        target[propertyKey] = SOME_OTHER_NUMBER
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p[0] = value;
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
+  }
+});
+// ----------------------------------------------------------------------------
+
+obj[symbol] = undefined;
+value = SOME_NUMBER;
+
+newBenchmark("SetSymbolWithoutTrap", {
+  setup() {
+    p = new Proxy(obj, {});
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p[symbol] = value;
+    }
+  },
+  teardown() {
+    return value === SOME_NUMBER;
+  }
+});
+
+// ----------------------------------------------------------------------------
+
+newBenchmark("SetSymbolWithTrap", {
+  setup() {
+    p = new Proxy(obj, {
+      set: function(target, propertyKey, value, receiver) {
+        target[propertyKey] = SOME_OTHER_NUMBER
+      }
+    });
+  },
+  run() {
+    for(var i = 0; i < ITERATIONS; i++) {
+      p[symbol] = value;
+    }
+  },
+  teardown() {
+    return value === SOME_OTHER_NUMBER;
   }
 });

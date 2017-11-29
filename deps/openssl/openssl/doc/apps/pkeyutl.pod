@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-pkeyutl,
 pkeyutl - public key algorithm utility
 
 =head1 SYNOPSIS

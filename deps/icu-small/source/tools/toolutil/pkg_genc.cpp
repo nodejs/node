@@ -47,6 +47,7 @@
 #include "unicode/uclean.h"
 #include "uoptions.h"
 #include "pkg_genc.h"
+#include "filetools.h"
 
 #define MAX_COLUMN ((uint32_t)(0xFFFFFFFFU))
 
@@ -284,7 +285,7 @@ writeAssemblyCode(const char *filename, const char *destdir, const char *optEntr
     }
 
 #if defined (WINDOWS_WITH_GNUC) && U_PLATFORM != U_PF_CYGWIN
-    /* Need to fix the file seperator character when using MinGW. */
+    /* Need to fix the file separator character when using MinGW. */
     swapFileSepChar(outFilePath, U_FILE_SEP_CHAR, '/');
 #endif
 

@@ -129,6 +129,10 @@ Ping npm registry
 
 Display prefix
 
+### npm-profile(1)
+
+Change settings on your registry profile
+
 ### npm-prune(1)
 
 Remove extraneous packages
@@ -188,6 +192,10 @@ Manage organization teams and team memberships
 ### npm-test(1)
 
 Test a package
+
+### npm-token(1)
+
+Manage your authentication tokens
 
 ### npm-uninstall(1)
 

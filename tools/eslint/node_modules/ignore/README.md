@@ -51,7 +51,8 @@ Actually, `ignore` does not rely on any versions of node specially.
 - [Usage](#usage)
 - [Guide for 2.x -> 3.x](#upgrade-2x---3x)
 - [Contributing](#contributing)
-- [Related Packages](#related)
+- Related Packages
+  - [`glob-gitignore`](https://www.npmjs.com/package/glob-gitignore) matches files using patterns and filters them according to gitignore rules.
 
 ## Usage
 
@@ -101,14 +102,15 @@ ig.filter(['.abc\\a.js', '.abc\\d\\e.js'])
   - Handle trailing whitespaces:
     - `'a '`(one space) should not match `'a  '`(two spaces).
     - `'a \ '` matches `'a  '`
+  - All test cases are verified with the result of `git check-ignore`.
 
 ## Methods
 
 ### .add(pattern)
 ### .add(patterns)
 
-- pattern `String|Ignore` An ignore pattern string, or the `Ignore` instance
-- patterns `Array.<pattern>` Array of ignore patterns.
+- **pattern** `String|Ignore` An ignore pattern string, or the `Ignore` instance
+- **patterns** `Array.<pattern>` Array of ignore patterns.
 
 Adds a rule or several rules to the current manager.
 
@@ -148,13 +150,48 @@ if (fs.existsSync(filename)) {
 instead.
 
 
+### .ignores(pathname)
+
+> new in 3.2.0
+
+Returns `Boolean` whether `pathname` should be ignored.
+
+```js
+ig.ignores('.abc/a.js')    // true
+```
+
 ### .filter(paths)
 
 Filters the given array of pathnames, and returns the filtered array.
 
-- paths `Array.<path>` The array of paths to be filtered.
+- **paths** `Array.<path>` The array of `pathname`s to be filtered.
 
-*NOTICE* that each `path` here should be a relative path to the root of your repository. Suppose the dir structure is:
+**NOTICE** that:
+
+- `pathname` should be a string that have been `path.join()`ed, or the return value of `path.relative()` to the current directory.
+
+```js
+// WRONG
+ig.ignores('./abc')
+
+// WRONG, for it will never happen.
+// If the gitignore rule locates at the root directory,
+// `'/abc'` should be changed to `'abc'`.
+// ```
+// path.relative('/', '/abc')  -> 'abc'
+// ```
+ig.ignores('/abc')
+
+// Right
+ig.ignores('abc')
+
+// Right
+ig.ignores(path.join('./abc'))  // path.join('./abc') -> 'abc'
+```
+
+- In other words, each `pathname` here should be a relative path to the directory of the git ignore rules.
+
+Suppose the dir structure is:
 
 ```
 /path/to/your/repo
@@ -201,16 +238,6 @@ Creates a filter function which could filter an array of paths with `Array.proto
 
 Returns `function(path)` the filter function.
 
-### .ignores(pathname)
-
-> new in 3.2.0
-
-Returns `Boolean` whether `pathname` should be ignored.
-
-```js
-ig.ignores('.abc/a.js')    // true
-```
-
 ****
 
 ## Upgrade 2.x -> 3.x
@@ -233,7 +260,3 @@ So use `bash install.sh` to install dependencies and `bash test.sh` to run test 
 - [azproduction](https://github.com/azproduction) *Mikhail Davydov*
 - [TrySound](https://github.com/TrySound) *Bogdan Chadkin*
 - [JanMattner](https://github.com/JanMattner) *Jan Mattner*
-
-## Related
-
-- [`glob-gitignore`](https://www.npmjs.com/package/glob-gitignore) matches files using patterns and filters them according to gitignore rules.

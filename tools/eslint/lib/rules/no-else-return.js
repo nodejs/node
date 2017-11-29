@@ -24,8 +24,15 @@ module.exports = {
             recommended: false
         },
 
-        schema: [],
-
+        schema: [{
+            type: "object",
+            properties: {
+                allowElseIf: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }],
         fixable: "code"
     },
 
@@ -59,10 +66,12 @@ module.exports = {
                         firstTokenOfElseBlock = startToken;
                     }
 
-                    // If the if block does not have curly braces and does not end in a semicolon
-                    // and the else block starts with (, [, /, +, ` or -, then it is not
-                    // safe to remove the else keyword, because ASI will not add a semicolon
-                    // after the if block
+                    /*
+                     * If the if block does not have curly braces and does not end in a semicolon
+                     * and the else block starts with (, [, /, +, ` or -, then it is not
+                     * safe to remove the else keyword, because ASI will not add a semicolon
+                     * after the if block
+                     */
                     const ifBlockMaybeUnsafe = node.parent.consequent.type !== "BlockStatement" && lastIfToken.value !== ";";
                     const elseBlockUnsafe = /^[([/+`-]/.test(firstTokenOfElseBlock.value);
 
@@ -79,10 +88,12 @@ module.exports = {
                         const nextTokenUnsafe = nextToken && /^[([/+`-]/.test(nextToken.value);
                         const nextTokenOnSameLine = nextToken && nextToken.loc.start.line === lastTokenOfElseBlock.loc.start.line;
 
-                        // If the else block contents does not end in a semicolon,
-                        // and the else block starts with (, [, /, +, ` or -, then it is not
-                        // safe to remove the else block, because ASI will not add a semicolon
-                        // after the remaining else block contents
+                        /*
+                         * If the else block contents does not end in a semicolon,
+                         * and the else block starts with (, [, /, +, ` or -, then it is not
+                         * safe to remove the else block, because ASI will not add a semicolon
+                         * after the remaining else block contents
+                         */
                         if (nextTokenUnsafe || (nextTokenOnSameLine && nextToken.value !== "}")) {
                             return null;
                         }
@@ -94,12 +105,14 @@ module.exports = {
                         fixedSource = source;
                     }
 
-                    // Extend the replacement range to include the entire
-                    // function to avoid conflicting with no-useless-return.
-                    // https://github.com/eslint/eslint/issues/8026
+                    /*
+                     * Extend the replacement range to include the entire
+                     * function to avoid conflicting with no-useless-return.
+                     * https://github.com/eslint/eslint/issues/8026
+                     */
                     return new FixTracker(fixer, sourceCode)
                         .retainEnclosingFunction(node)
-                        .replaceTextRange([elseToken.start, node.end], fixedSource);
+                        .replaceTextRange([elseToken.range[0], node.range[1]], fixedSource);
                 }
             });
         }
@@ -134,13 +147,13 @@ module.exports = {
 
         /**
          * Check to see if the node is valid for evaluation,
-         * meaning it has an else and not an else-if
+         * meaning it has an else.
          *
          * @param {Node} node The node being evaluated
          * @returns {boolean} True if the node is valid
          */
         function hasElse(node) {
-            return node.alternate && node.consequent && node.alternate.type !== "IfStatement";
+            return node.alternate && node.consequent;
         }
 
         /**
@@ -189,14 +202,15 @@ module.exports = {
             return checkForReturnOrIf(node);
         }
 
+
         /**
-         * Check the if statement
+         * Check the if statement, but don't catch else-if blocks.
          * @returns {void}
          * @param {Node} node The node for the if statement to check
          * @private
          */
-        function IfStatement(node) {
-            const parent = context.getAncestors().pop();
+        function checkIfWithoutElse(node) {
+            const parent = node.parent;
             let consequents,
                 alternate;
 
@@ -221,13 +235,40 @@ module.exports = {
             }
         }
 
+        /**
+         * Check the if statement
+         * @returns {void}
+         * @param {Node} node The node for the if statement to check
+         * @private
+         */
+        function checkIfWithElse(node) {
+            const parent = node.parent;
+
+
+            /*
+             * Fixing this would require splitting one statement into two, so no error should
+             * be reported if this node is in a position where only one statement is allowed.
+             */
+            if (!astUtils.STATEMENT_LIST_PARENTS.has(parent.type)) {
+                return;
+            }
+
+            const alternate = node.alternate;
+
+            if (alternate && alwaysReturns(node.consequent)) {
+                displayReport(alternate);
+            }
+        }
+
+        const allowElseIf = !(context.options[0] && context.options[0].allowElseIf === false);
+
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
 
         return {
 
-            "IfStatement:exit": IfStatement
+            "IfStatement:exit": allowElseIf ? checkIfWithoutElse : checkIfWithElse
 
         };
 

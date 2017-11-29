@@ -31,7 +31,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // This test must be executed first!
 TEST(Default) {
@@ -259,3 +260,6 @@ TEST(FlagsRemoveIncomplete) {
   CHECK(argv[1]);
   CHECK_EQ(2, argc);
 }
+
+}  // namespace internal
+}  // namespace v8

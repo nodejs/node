@@ -229,10 +229,9 @@ module.exports = {
             Literal(node) {
                 const val = node.value,
                     rawVal = node.raw;
-                let isValid;
 
                 if (settings && typeof val === "string") {
-                    isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
+                    let isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
                         isJSXLiteral(node) ||
                         astUtils.isSurroundedBy(rawVal, settings.quote);
 

@@ -25,14 +25,9 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
-#include "env-inl.h"
-#include "js_stream.h"
 #include "pipe_wrap.h"
 #include "tcp_wrap.h"
 #include "tty_wrap.h"
-#include "udp_wrap.h"
-#include "util.h"
-#include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
 

@@ -54,7 +54,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateArray(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateKeyValueArray(Node* node);
-  Reduction ReduceJSCreateLiteral(Node* node);
+  Reduction ReduceJSCreateLiteralArrayOrObject(Node* node);
+  Reduction ReduceJSCreateEmptyLiteralObject(Node* node);
+  Reduction ReduceJSCreateEmptyLiteralArray(Node* node);
+  Reduction ReduceJSCreateLiteralRegExp(Node* node);
   Reduction ReduceJSCreateFunctionContext(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
   Reduction ReduceJSCreateCatchContext(Node* node);
@@ -87,6 +90,8 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                                     Handle<JSObject> boilerplate,
                                     PretenureFlag pretenure,
                                     AllocationSiteUsageContext* site_context);
+  Node* AllocateLiteralRegExp(Node* effect, Node* control,
+                              Handle<JSRegExp> boilerplate);
 
   Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 

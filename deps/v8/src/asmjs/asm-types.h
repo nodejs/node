@@ -18,10 +18,8 @@ namespace internal {
 namespace wasm {
 
 class AsmType;
-class AsmFFIType;
 class AsmFunctionType;
 class AsmOverloadedFunctionType;
-class AsmFunctionTableType;
 
 // List of V(CamelName, string_name, number, parent_types)
 #define FOR_EACH_ASM_VALUE_TYPE_LIST(V)                                       \
@@ -58,9 +56,7 @@ class AsmFunctionTableType;
 // List of V(CamelName)
 #define FOR_EACH_ASM_CALLABLE_TYPE_LIST(V) \
   V(FunctionType)                          \
-  V(FFIType)                               \
-  V(OverloadedFunctionType)                \
-  V(FunctionTableType)
+  V(OverloadedFunctionType)
 
 class AsmValueType {
  public:
@@ -176,45 +172,6 @@ class V8_EXPORT_PRIVATE AsmOverloadedFunctionType final
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmOverloadedFunctionType);
 };
 
-class V8_EXPORT_PRIVATE AsmFFIType final : public AsmCallableType {
- public:
-  AsmFFIType* AsFFIType() override { return this; }
-
-  std::string Name() override { return "Function"; }
-  bool CanBeInvokedWith(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
-
- private:
-  friend AsmType;
-
-  AsmFFIType() = default;
-
-  DISALLOW_COPY_AND_ASSIGN(AsmFFIType);
-};
-
-class V8_EXPORT_PRIVATE AsmFunctionTableType : public AsmCallableType {
- public:
-  AsmFunctionTableType* AsFunctionTableType() override { return this; }
-
-  std::string Name() override;
-
-  bool CanBeInvokedWith(AsmType* return_type,
-                        const ZoneVector<AsmType*>& args) override;
-
-  size_t length() const { return length_; }
-  AsmType* signature() { return signature_; }
-
- private:
-  friend class AsmType;
-
-  AsmFunctionTableType(size_t length, AsmType* signature);
-
-  size_t length_;
-  AsmType* signature_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AsmFunctionTableType);
-};
-
 class V8_EXPORT_PRIVATE AsmType {
  public:
 #define DEFINE_CONSTRUCTOR(CamelName, string_name, number, parent_types) \
@@ -256,19 +213,6 @@ class V8_EXPORT_PRIVATE AsmType {
   // The (variadic) type for min and max.
   static AsmType* MinMaxType(Zone* zone, AsmType* dest, AsmType* src);
 
-  // The type for foreign functions.
-  static AsmType* FFIType(Zone* zone) {
-    auto* f = new (zone) AsmFFIType();
-    return reinterpret_cast<AsmType*>(f);
-  }
-
-  // The type for function tables.
-  static AsmType* FunctionTableType(Zone* zone, size_t length,
-                                    AsmType* signature) {
-    auto* f = new (zone) AsmFunctionTableType(length, signature);
-    return reinterpret_cast<AsmType*>(f);
-  }
-
   std::string Name();
   // IsExactly returns true if this is the exact same type as that. For
   // non-value types (e.g., callables), this returns this == that.
@@ -277,56 +221,6 @@ class V8_EXPORT_PRIVATE AsmType {
   // a type derived from that.) For non-value types (e.g., callables), this
   // returns this == that.
   bool IsA(AsmType* that);
-
-  // Types allowed in return statements. void is the type for returns without
-  // an expression.
-  bool IsReturnType() {
-    return this == AsmType::Void() || this == AsmType::Double() ||
-           this == AsmType::Signed() || this == AsmType::Float();
-  }
-
-  // Converts this to the corresponding valid argument type.
-  AsmType* ToReturnType() {
-    if (this->IsA(AsmType::Signed())) {
-      return AsmType::Signed();
-    }
-    if (this->IsA(AsmType::Double())) {
-      return AsmType::Double();
-    }
-    if (this->IsA(AsmType::Float())) {
-      return AsmType::Float();
-    }
-    if (this->IsA(AsmType::Void())) {
-      return AsmType::Void();
-    }
-    return AsmType::None();
-  }
-
-  // Types allowed to be parameters in asm functions.
-  bool IsParameterType() {
-    return this == AsmType::Double() || this == AsmType::Int() ||
-           this == AsmType::Float();
-  }
-
-  // Converts this to the corresponding valid argument type.
-  AsmType* ToParameterType() {
-    if (this->IsA(AsmType::Int())) {
-      return AsmType::Int();
-    }
-    if (this->IsA(AsmType::Double())) {
-      return AsmType::Double();
-    }
-    if (this->IsA(AsmType::Float())) {
-      return AsmType::Float();
-    }
-    return AsmType::None();
-  }
-
-  // Types allowed to be compared using the comparison operators.
-  bool IsComparableType() {
-    return this == AsmType::Double() || this == AsmType::Signed() ||
-           this == AsmType::Unsigned() || this == AsmType::Float();
-  }
 
   // The following methods are meant to be used for inspecting the traits of
   // element types for the heap view types.

@@ -132,12 +132,12 @@ const noCapitals = /^[^A-Z]+$/;
 assert(tlsCiphers.every((value) => noCapitals.test(value)));
 validateList(tlsCiphers);
 
-// Assert that we have sha and sha1 but not SHA and SHA1.
+// Assert that we have sha1 and sha256 but not SHA1 and SHA256.
 assert.notStrictEqual(0, crypto.getHashes().length);
 assert(crypto.getHashes().includes('sha1'));
-assert(crypto.getHashes().includes('sha'));
+assert(crypto.getHashes().includes('sha256'));
 assert(!crypto.getHashes().includes('SHA1'));
-assert(!crypto.getHashes().includes('SHA'));
+assert(!crypto.getHashes().includes('SHA256'));
 assert(crypto.getHashes().includes('RSA-SHA1'));
 assert(!crypto.getHashes().includes('rsa-sha1'));
 validateList(crypto.getHashes());
@@ -202,28 +202,6 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  crypto.createSign('SHA1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
-
-assert.throws(function() {
-  crypto.createVerify('SHA1').update('0', 'hex');
-}, (err) => {
-  // Throws TypeError, so there is no opensslErrorStack property.
-  if ((err instanceof Error) &&
-      /^TypeError: Bad input string$/.test(err) &&
-      err.opensslErrorStack === undefined) {
-    return true;
-  }
-});
-
-assert.throws(function() {
   const priv = [
     '-----BEGIN RSA PRIVATE KEY-----',
     'MIGrAgEAAiEA+3z+1QNF2/unumadiwEr+C5vfhezsb3hp4jAnCNRpPcCAwEAAQIgQNriSQK4',
@@ -260,7 +238,7 @@ assert.throws(function() {
   // Throws crypto error, so there is an opensslErrorStack property.
   // The openSSL stack should have content.
   if ((err instanceof Error) &&
-      /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/.test(err) &&
+      /asn1 encoding routines:[^:]*:wrong tag/.test(err) &&
       err.opensslErrorStack !== undefined &&
       Array.isArray(err.opensslErrorStack) &&
       err.opensslErrorStack.length > 0) {

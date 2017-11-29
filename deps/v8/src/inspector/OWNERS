@@ -8,7 +8,7 @@ pfeldman@chromium.org
 yangguo@chromium.org
 
 # Changes to remote debugging protocol require devtools review to
-# ensure backwards compatibility and committment to maintain.
+# ensure backwards compatibility and commitment to maintain.
 per-file js_protocol.json=set noparent
 per-file js_protocol.json=dgozman@chromium.org
 per-file js_protocol.json=pfeldman@chromium.org

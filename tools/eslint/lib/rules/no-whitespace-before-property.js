@@ -53,8 +53,10 @@ module.exports = {
                 fix(fixer) {
                     if (!node.computed && astUtils.isDecimalInteger(node.object)) {
 
-                        // If the object is a number literal, fixing it to something like 5.toString() would cause a SyntaxError.
-                        // Don't fix this case.
+                        /*
+                         * If the object is a number literal, fixing it to something like 5.toString() would cause a SyntaxError.
+                         * Don't fix this case.
+                         */
                         return null;
                     }
                     return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], replacementText);

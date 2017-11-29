@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_API_ARGUMENTS_INL_H_
+#define V8_API_ARGUMENTS_INL_H_
+
 #include "src/api-arguments.h"
 
 #include "src/tracing/trace-event.h"
@@ -153,3 +156,5 @@ void PropertyCallbackArguments::Call(AccessorNameSetterCallback f,
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_API_ARGUMENTS_INL_H_

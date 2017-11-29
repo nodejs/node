@@ -25,6 +25,7 @@ static const char userInitiatedProfiling[] = "userInitiatedProfiling";
 static const char profilerEnabled[] = "profilerEnabled";
 static const char preciseCoverageStarted[] = "preciseCoverageStarted";
 static const char preciseCoverageCallCount[] = "preciseCoverageCallCount";
+static const char preciseCoverageDetailed[] = "preciseCoverageDetailed";
 }
 
 namespace {
@@ -243,7 +244,10 @@ void V8ProfilerAgentImpl::restore() {
                                false)) {
     bool callCount = m_state->booleanProperty(
         ProfilerAgentState::preciseCoverageCallCount, false);
-    startPreciseCoverage(Maybe<bool>(callCount));
+    bool detailed =
+        m_state->booleanProperty(ProfilerAgentState::preciseCoverageDetailed,
+                                 v8::internal::FLAG_block_coverage);
+    startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed));
   }
 }
 
@@ -274,25 +278,25 @@ Response V8ProfilerAgentImpl::stop(
   return Response::OK();
 }
 
-Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount) {
+Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
+                                                   Maybe<bool> detailed) {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   bool callCountValue = callCount.fromMaybe(false);
+  bool detailedValue = detailed.fromMaybe(v8::internal::FLAG_block_coverage);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);
+  m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed,
+                      detailedValue);
   // BlockCount is a superset of PreciseCount. It includes block-granularity
   // coverage data if it exists (at the time of writing, that's the case for
   // each function recompiled after the BlockCount mode has been set); and
   // function-granularity coverage data otherwise.
-  // TODO(jgruber): Implement block binary coverage.
-  v8::debug::Coverage::Mode count_mode =
-      v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockCount
-                                        : v8::debug::Coverage::kPreciseCount;
-  v8::debug::Coverage::Mode binary_mode =
-      v8::internal::FLAG_block_coverage ? v8::debug::Coverage::kBlockBinary
-                                        : v8::debug::Coverage::kPreciseBinary;
-  v8::debug::Coverage::SelectMode(m_isolate,
-                                  callCountValue ? count_mode : binary_mode);
+  typedef v8::debug::Coverage C;
+  C::Mode mode = callCountValue
+                     ? (detailedValue ? C::kBlockCount : C::kPreciseCount)
+                     : (detailedValue ? C::kBlockBinary : C::kPreciseBinary);
+  C::SelectMode(m_isolate, mode);
   return Response::OK();
 }
 
@@ -300,6 +304,7 @@ Response V8ProfilerAgentImpl::stopPreciseCoverage() {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount, false);
+  m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed, false);
   v8::debug::Coverage::SelectMode(m_isolate, v8::debug::Coverage::kBestEffort);
   return Response::OK();
 }

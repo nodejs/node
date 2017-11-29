@@ -58,7 +58,7 @@ added: v0.3.3
 * Returns: {Array}
 
 The `os.cpus()` method returns an array of objects containing information about
-each CPU/core installed.
+each logical CPU core.
 
 The properties included on each object include:
 
@@ -401,7 +401,7 @@ added: v6.0.0
 * `options` {Object}
   * `encoding` {string} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
-    values will be `Buffer` instances. (Default: 'utf8')
+    values will be `Buffer` instances. **Default:** `'utf8'`
 * Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
@@ -1223,5 +1223,4 @@ information.
 
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
-[OS Constants]: #os_os_constants
 [uname(3)]: https://linux.die.net/man/3/uname

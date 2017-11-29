@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-pkey,
 pkey - public or private key processing tool
 
 =head1 SYNOPSIS

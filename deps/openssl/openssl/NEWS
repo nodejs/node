@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2l and OpenSSL 1.0.2m [2 Nov 2017]
+
+      o bn_sqrx8x_internal carry bug on x86_64 (CVE-2017-3736)
+      o Malformed X.509 IPAddressFamily could cause OOB read (CVE-2017-3735)
+
   Major changes between OpenSSL 1.0.2k and OpenSSL 1.0.2l [25 May 2017]
 
       o config now recognises 64-bit mingw and chooses mingw64 instead of mingw

@@ -6,8 +6,6 @@
 
 ##############################################################################
 ['variant != default', {
-  # Issue 6166.
-  'debugger/asm-js-breakpoint-during-exec': [PASS, FAIL],
   # Issue 6167.
   'debugger/eval-scopes': [PASS, FAIL],
   'debugger/scope-skip-variables-with-empty-name': [PASS, FAIL],
@@ -25,20 +23,5 @@
 ['variant == wasm_traps', {
   '*': [SKIP],
 }],  # variant == wasm_traps
-
-##############################################################################
-['variant == fullcode', {
-  # fullcode doesn't generate precise return positions
-  'debugger/return-break-locations': [SKIP],
-  'debugger/for-of-loops': [SKIP],
-  'debugger/break-locations-var-init': [SKIP],
-  'debugger/framework-precise-ranges': [SKIP],
-  'debugger/step-snapshot': [SKIP],
-  'debugger/step-into-next-script': [SKIP],
-  'debugger/asm-js-breakpoint-before-exec': [SKIP],
-  'debugger/break-locations-await': [SKIP],
-  'debugger/get-possible-breakpoints': [SKIP],
-  'debugger/stepping-with-blackboxed-ranges': [SKIP],
-}],  # variant == fullcode
 
 ]

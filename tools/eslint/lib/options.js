@@ -191,6 +191,12 @@ module.exports = optionator({
             description: "Automatically fix problems"
         },
         {
+            option: "fix-dry-run",
+            type: "Boolean",
+            default: false,
+            description: "Automatically fix problems without saving the changes to the file system"
+        },
+        {
             option: "debug",
             type: "Boolean",
             default: false,
@@ -213,6 +219,12 @@ module.exports = optionator({
             type: "Boolean",
             default: "true",
             description: "Prevent comments from changing config or rules"
+        },
+        {
+            option: "report-unused-disable-directives",
+            type: "Boolean",
+            default: false,
+            description: "Adds reported errors for unused eslint-disable directives"
         },
         {
             option: "print-config",

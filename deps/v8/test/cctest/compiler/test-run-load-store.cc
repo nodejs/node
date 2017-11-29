@@ -15,7 +15,6 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::base;
 
 namespace {
 template <typename Type>

@@ -5,7 +5,7 @@
  * 1999. Based on an original idea by Massimiliano Pala (madwolf@openca.org).
  */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2017 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -185,20 +185,23 @@ int MAIN(int argc, char **argv)
     }
     e = setup_engine(bio_err, engine, 0);
 
-    if (keyfile) {
+    if (keyfile != NULL) {
         pkey = load_key(bio_err,
                         strcmp(keyfile, "-") ? keyfile : NULL,
                         FORMAT_PEM, 1, passin, e, "private key");
-        if (!pkey) {
+        if (pkey == NULL)
             goto end;
-        }
         spki = NETSCAPE_SPKI_new();
-        if (challenge)
+        if (spki == NULL)
+            goto end;
+        if (challenge != NULL)
             ASN1_STRING_set(spki->spkac->challenge,
                             challenge, (int)strlen(challenge));
         NETSCAPE_SPKI_set_pubkey(spki, pkey);
         NETSCAPE_SPKI_sign(spki, pkey, EVP_md5());
         spkstr = NETSCAPE_SPKI_b64_encode(spki);
+        if (spkstr == NULL)
+            goto end;
 
         if (outfile)
             out = BIO_new_file(outfile, "w");
@@ -253,7 +256,7 @@ int MAIN(int argc, char **argv)
 
     spki = NETSCAPE_SPKI_b64_decode(spkstr, -1);
 
-    if (!spki) {
+    if (spki == NULL) {
         BIO_printf(bio_err, "Error loading SPKAC\n");
         ERR_print_errors(bio_err);
         goto end;
@@ -282,9 +285,9 @@ int MAIN(int argc, char **argv)
     pkey = NETSCAPE_SPKI_get_pubkey(spki);
     if (verify) {
         i = NETSCAPE_SPKI_verify(spki, pkey);
-        if (i > 0)
+        if (i > 0) {
             BIO_printf(bio_err, "Signature OK\n");
-        else {
+        } else {
             BIO_printf(bio_err, "Signature Failure\n");
             ERR_print_errors(bio_err);
             goto end;

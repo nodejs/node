@@ -1,8 +1,11 @@
 {{## def.checkMissingProperty:_properties:
-  {{~ _properties:_$property:$i }}
+  {{~ _properties:$propertyKey:$i }}
     {{?$i}} || {{?}}
-    {{ var $prop = it.util.getProperty(_$property); }}
-    ( {{=$data}}{{=$prop}} === undefined && (missing{{=$lvl}} = {{= it.util.toQuotedString(it.opts.jsonPointers ? _$property : $prop) }}) )
+    {{
+      var $prop = it.util.getProperty($propertyKey)
+        , $useData = $data + $prop;
+    }}
+    ( ({{# def.noPropertyInData }}) && (missing{{=$lvl}} = {{= it.util.toQuotedString(it.opts.jsonPointers ? $propertyKey : $prop) }}) )
   {{~}}
 #}}
 
@@ -20,15 +23,17 @@
   {{# def.error:_error }}
 #}}
 
+
 {{## def.allErrorsMissingProperty:_error:
   {{
-    var $prop = it.util.getProperty($reqProperty)
-      , $missingProperty = it.util.escapeQuotes($reqProperty);
+    var $prop = it.util.getProperty($propertyKey)
+      , $missingProperty = it.util.escapeQuotes($propertyKey)
+      , $useData = $data + $prop;
     if (it.opts._errorDataPathProperty) {
-      it.errorPath = it.util.getPath($currentErrorPath, $reqProperty, it.opts.jsonPointers);
+      it.errorPath = it.util.getPath($currentErrorPath, $propertyKey, it.opts.jsonPointers);
     }
   }}
-  if ({{=$data}}{{=$prop}} === undefined) {
+  if ({{# def.noPropertyInData }}) {
     {{# def.addError:_error }}
   }
 #}}

@@ -17,7 +17,7 @@ class FeedbackVectorHelper {
  public:
   explicit FeedbackVectorHelper(Handle<FeedbackVector> vector)
       : vector_(vector) {
-    int slot_count = vector->slot_count();
+    int slot_count = vector->length();
     slots_.reserve(slot_count);
     FeedbackMetadataIterator iter(vector->metadata());
     while (iter.HasNext()) {

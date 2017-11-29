@@ -2,7 +2,7 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  millions: [2]
+  millions: [4]
 });
 
 function main(conf) {

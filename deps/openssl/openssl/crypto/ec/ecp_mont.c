@@ -247,6 +247,8 @@ int ec_GFp_mont_group_set_curve(EC_GROUP *group, const BIGNUM *p,
         BN_CTX_free(new_ctx);
     if (mont != NULL)
         BN_MONT_CTX_free(mont);
+    if (one != NULL)
+        BN_free(one);
     return ret;
 }
 

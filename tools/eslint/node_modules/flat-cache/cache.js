@@ -39,6 +39,15 @@ var cache = {
     me.load( fName, dir );
   },
 
+  /**
+   * Returns the entire persisted object
+   * @method all
+   * @returns {*}
+   */
+  all: function () {
+    return this._persisted;
+  },
+
   keys: function () {
     return Object.keys( this._persisted );
   },

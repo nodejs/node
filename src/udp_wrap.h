@@ -24,11 +24,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "uv.h"
 #include "v8.h"
 
@@ -36,6 +35,9 @@ namespace node {
 
 class UDPWrap: public HandleWrap {
  public:
+  enum SocketType {
+    SOCKET
+  };
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
@@ -59,7 +61,9 @@ class UDPWrap: public HandleWrap {
   static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
+  static v8::Local<v8::Object> Instantiate(Environment* env,
+                                           AsyncWrap* parent,
+                                           SocketType type);
   uv_udp_t* UVHandle();
 
   size_t self_size() const override { return sizeof(*this); }

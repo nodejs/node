@@ -716,7 +716,7 @@ static limb felem_is_zero(const felem in)
     return (zero | two224m96p1 | two225m97p2);
 }
 
-static limb felem_is_zero_int(const felem in)
+static int felem_is_zero_int(const void *in)
 {
     return (int)(felem_is_zero(in) & ((limb) 1));
 }
@@ -1391,7 +1391,6 @@ static void make_points_affine(size_t num, felem points[ /* num */ ][3],
                                              sizeof(felem),
                                              tmp_felems,
                                              (void (*)(void *))felem_one,
-                                             (int (*)(const void *))
                                              felem_is_zero_int,
                                              (void (*)(void *, const void *))
                                              felem_assign,

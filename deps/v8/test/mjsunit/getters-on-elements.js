@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --noalways-opt --opt --no-stress-fullcodegen
+// Flags: --allow-natives-syntax --noalways-opt --opt
 
 // It's nice to run this in other browsers too.
 var standalone = false;

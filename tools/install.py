@@ -33,6 +33,7 @@ def try_unlink(path):
 def try_symlink(source_path, link_path):
   print 'symlinking %s -> %s' % (source_path, link_path)
   try_unlink(link_path)
+  try_mkdir_r(os.path.dirname(link_path))
   os.symlink(source_path, link_path)
 
 def try_mkdir_r(path):

@@ -1,5 +1,7 @@
 # Inspector
 
+<!--introduced_in=v8.0.0-->
+
 > Stability: 1 - Experimental
 
 The `inspector` module provides an API for interacting with the V8 inspector.
@@ -85,7 +87,7 @@ execution is suspended (through breakpoints, for example):
 session.on('Debugger.paused', ({ params }) => {
   console.log(params.hitBreakpoints);
 });
-// [ '/node/test/inspector/test-bindings.js:11:0' ]
+// [ '/the/file/that/has/the/breakpoint.js:11:0' ]
 ```
 
 ### session.connect()

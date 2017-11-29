@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_oneOf(it, $keyword) {
+module.exports = function generate_oneOf(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -41,10 +41,7 @@ module.exports = function generate_oneOf(it, $keyword) {
     }
   }
   it.compositeRule = $it.compositeRule = $wasComposite;
-  out += '' + ($closingBraces) + 'if (!' + ($valid) + ') {   ';
-  var $$outStack = $$outStack || [];
-  $$outStack.push(out);
-  out = ''; /* istanbul ignore else */
+  out += '' + ($closingBraces) + 'if (!' + ($valid) + ') {   var err =   '; /* istanbul ignore else */
   if (it.createErrors !== false) {
     out += ' { keyword: \'' + ('oneOf') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: {} ';
     if (it.opts.messages !== false) {
@@ -57,16 +54,13 @@ module.exports = function generate_oneOf(it, $keyword) {
   } else {
     out += ' {} ';
   }
-  var __err = out;
-  out = $$outStack.pop();
+  out += ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
   if (!it.compositeRule && $breakOnError) { /* istanbul ignore if */
     if (it.async) {
-      out += ' throw new ValidationError([' + (__err) + ']); ';
+      out += ' throw new ValidationError(vErrors); ';
     } else {
-      out += ' validate.errors = [' + (__err) + ']; return false; ';
+      out += ' validate.errors = vErrors; return false; ';
     }
-  } else {
-    out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
   }
   out += '} else {  errors = ' + ($errs) + '; if (vErrors !== null) { if (' + ($errs) + ') vErrors.length = ' + ($errs) + '; else vErrors = null; }';
   if (it.opts.allErrors) {

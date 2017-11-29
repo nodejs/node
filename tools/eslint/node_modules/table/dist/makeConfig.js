@@ -31,7 +31,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 const makeBorder = function makeBorder() {
   let border = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-  return _lodash2.default.assign({}, (0, _getBorderCharacters2.default)('honeywell'), border);
+  return Object.assign({}, (0, _getBorderCharacters2.default)('honeywell'), border);
 };
 
 /**
@@ -88,8 +88,8 @@ exports.default = function (rows) {
 
   if (!config.drawHorizontalLine) {
     /**
-     * @returns {boolean}
-     */
+         * @returns {boolean}
+         */
     config.drawHorizontalLine = () => {
       return true;
     };

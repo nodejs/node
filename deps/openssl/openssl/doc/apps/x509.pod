@@ -3,6 +3,7 @@
 
 =head1 NAME
 
+openssl-x509,
 x509 - Certificate display and signing utility
 
 =head1 SYNOPSIS

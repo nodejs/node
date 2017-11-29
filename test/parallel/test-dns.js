@@ -123,7 +123,7 @@ assert.throws(() => {
   const errorReg = common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: /^The "hostname" argument must be one of type string or falsey/
+    message: /^The "hostname" argument must be one of type string or falsy/
   }, 5);
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
@@ -220,24 +220,23 @@ assert.throws(() => {
   message: `The value "${invalidHost}" is invalid for option "host"`
 }));
 
-const badPortMsg = common.expectsError({
-  code: 'ERR_SOCKET_BAD_PORT',
-  type: RangeError,
-  message: 'Port should be > 0 and < 65536'
-}, 4);
-assert.throws(() => dns.lookupService('0.0.0.0', null, common.mustNotCall()),
-              badPortMsg);
-
-assert.throws(
-  () => dns.lookupService('0.0.0.0', undefined, common.mustNotCall()),
-  badPortMsg
-);
-
-assert.throws(() => dns.lookupService('0.0.0.0', 65538, common.mustNotCall()),
-              badPortMsg);
-
-assert.throws(() => dns.lookupService('0.0.0.0', 'test', common.mustNotCall()),
-              badPortMsg);
+const portErr = (port) => {
+  common.expectsError(
+    () => {
+      dns.lookupService('0.0.0.0', port, common.mustNotCall());
+    },
+    {
+      code: 'ERR_SOCKET_BAD_PORT',
+      message:
+        `Port should be > 0 and < 65536. Received ${port}.`,
+      type: RangeError
+    }
+  );
+};
+portErr(null);
+portErr(undefined);
+portErr(65538);
+portErr('test');
 
 assert.throws(() => {
   dns.lookupService('0.0.0.0', 80, null);

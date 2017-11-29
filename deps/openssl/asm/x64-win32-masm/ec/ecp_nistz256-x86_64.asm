@@ -1137,19 +1137,18 @@ DB	067h
 	adox	r13,rbp
 DB	067h,067h
 	mulx	rax,rcx,rdx
-	mov	rdx,r8
+	mov	rdx,QWORD PTR[(($L$poly+24))]
 	adox	r14,rcx
 	shlx	rcx,r8,rsi
 	adox	r15,rax
 	shrx	rax,r8,rsi
-	mov	rbp,QWORD PTR[(($L$poly+24))]
+	mov	rbp,rdx
 
 
 	add	r9,rcx
 	adc	r10,rax
 
-	mulx	r8,rcx,rbp
-	mov	rdx,r9
+	mulx	r8,rcx,r8
 	adc	r11,rcx
 	shlx	rcx,r9,rsi
 	adc	r8,0
@@ -1159,8 +1158,7 @@ DB	067h,067h
 	add	r10,rcx
 	adc	r11,rax
 
-	mulx	r9,rcx,rbp
-	mov	rdx,r10
+	mulx	r9,rcx,r9
 	adc	r8,rcx
 	shlx	rcx,r10,rsi
 	adc	r9,0
@@ -1170,8 +1168,7 @@ DB	067h,067h
 	add	r11,rcx
 	adc	r8,rax
 
-	mulx	r10,rcx,rbp
-	mov	rdx,r11
+	mulx	r10,rcx,r10
 	adc	r9,rcx
 	shlx	rcx,r11,rsi
 	adc	r10,0
@@ -1181,12 +1178,12 @@ DB	067h,067h
 	add	r8,rcx
 	adc	r9,rax
 
-	mulx	r11,rcx,rbp
+	mulx	r11,rcx,r11
 	adc	r10,rcx
 	adc	r11,0
 
 	xor	rdx,rdx
-	adc	r12,r8
+	add	r12,r8
 	mov	rsi,QWORD PTR[(($L$poly+8))]
 	adc	r13,r9
 	mov	r8,r12
@@ -1195,8 +1192,7 @@ DB	067h,067h
 	mov	r9,r13
 	adc	rdx,0
 
-	xor	eax,eax
-	sbb	r12,-1
+	sub	r12,-1
 	mov	r10,r14
 	sbb	r13,rsi
 	sbb	r14,0

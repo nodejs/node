@@ -112,9 +112,13 @@ module.exports = {
             const ancestor = findConditionalAncestor(node);
 
             if (ancestor) {
-                context.report({ node: ancestor, message: "Unexpected assignment within {{type}}.", data: {
-                    type: NODE_DESCRIPTIONS[ancestor.type] || ancestor.type
-                } });
+                context.report({
+                    node: ancestor,
+                    message: "Unexpected assignment within {{type}}.",
+                    data: {
+                        type: NODE_DESCRIPTIONS[ancestor.type] || ancestor.type
+                    }
+                });
             }
         }
 

@@ -170,7 +170,7 @@ function list_args(a) {
 }
 
 
-function f1(x, y) {
+function f7(x, y) {
   function g(p) {
     x = p;
   }
@@ -178,10 +178,10 @@ function f1(x, y) {
   return list_args(arguments);
 }
 
-assertArrayEquals([0], f1());
-assertArrayEquals([1, void 0], f1(3));
-assertArrayEquals([2, 5, 5], f1(3, 5));
-assertArrayEquals([3, 5, 5, 7], f1(3, 5, 7));
+assertArrayEquals([0], f7());
+assertArrayEquals([1, void 0], f7(3));
+assertArrayEquals([2, 5, 5], f7(3, 5));
+assertArrayEquals([3, 5, 5, 7], f7(3, 5, 7));
 
 // Check out of bounds behavior.
 function arg_get(x) { return arguments[x]; }

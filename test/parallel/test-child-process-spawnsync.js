@@ -28,7 +28,7 @@ const spawnSync = require('child_process').spawnSync;
 // Echo does different things on Windows and Unix, but in both cases, it does
 // more-or-less nothing if there are no parameters
 const ret = spawnSync('sleep', ['0']);
-assert.strictEqual(ret.status, 0, 'exit status should be zero');
+assert.strictEqual(ret.status, 0);
 
 // Error test when command does not exist
 const ret_err = spawnSync('command_does_not_exist', ['bar']).error;

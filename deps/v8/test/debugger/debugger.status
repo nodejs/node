@@ -86,24 +86,4 @@
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
-##############################################################################
-['variant == fullcode', {
-  # fullcode doesn't generate precise return positions
-  'debug/debug-multiple-var-decl': [SKIP],
-  'debug/debug-step-into-valueof': [SKIP],
-  'regress/regress-5901-2': [SKIP],
-  'debug/debug-step-into-json': [SKIP],
-  'debug/es6/debug-step-destructuring-assignment': [SKIP],
-  'debug/es6/debug-step-into-regexp-subclass': [SKIP],
-  'debug/es8/async-debug-step-in': [SKIP],
-  'debug/debug-stepin-builtin-callback-opt': [SKIP],
-  'debug/debug-stepin-foreach': [SKIP],
-  'debug/es6/debug-stepin-default-parameters': [SKIP],
-  'debug/es6/debug-stepin-proxies': [SKIP],
-  'debug/es6/debug-promises/stepin-handler': [SKIP],
-  'debug/debug-liveedit-stepin': [SKIP],
-  'debug/es6/debug-stepin-microtasks': [SKIP],
-  'debug/ignition/elided-instruction': [SKIP],
-  'debug/es6/debug-stepin-string-template': [SKIP],
-}],  # variant == fullcode
 ]

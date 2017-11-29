@@ -25,7 +25,7 @@ it was either assigned a dedicated client method, a dedicated server
 method, or a generic method, that can be used for both client and
 server connections. (The method might have been changed with
 L<SSL_CTX_set_ssl_version(3)|SSL_CTX_set_ssl_version(3)> or
-SSL_set_ssl_method().)
+SSL_set_ssl_method(3).)
 
 When beginning a new handshake, the SSL engine must know whether it must
 call the connect (client) or accept (server) routines. Even though it may

@@ -23,9 +23,20 @@
 
 typedef uint8_t byte;
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 using namespace v8::internal::wasm::fuzzer;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 namespace {
 
@@ -318,6 +329,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     f->EmitCode(&end_opcode, 1);
     builder.AddExport(v8::internal::CStrVector("main"), f);
 
+    builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
 
     num_args = 3;

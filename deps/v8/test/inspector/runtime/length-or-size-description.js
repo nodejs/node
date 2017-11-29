@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let {session, contextGroup, Protocol} = InspectorTest.start("Test that descriptions for arrays, maps, and sets include the correct length or size.")
+// Flags: --harmony-sharedarraybuffer
+
+let {session, contextGroup, Protocol} = InspectorTest.start("Test that descriptions for arrays, maps, and sets include the correct length or size.");
 
 contextGroup.setupInjectedScriptEnvironment();
 
@@ -15,6 +17,12 @@ Promise.all([
   testExpression("new Array(2)"),
   testExpression("new Uint8Array()"),
   testExpression("new Uint8Array(2)"),
+  testExpression("new ArrayBuffer()"),
+  testExpression("new ArrayBuffer(2)"),
+  testExpression("new SharedArrayBuffer()"),
+  testExpression("new SharedArrayBuffer(2)"),
+  testExpression("new DataView(new ArrayBuffer())"),
+  testExpression("new DataView(new ArrayBuffer(5))"),
   // WeakMap and WeakSet should not have size in description.
   testExpression("new WeakMap([[{}, 42]])"),
   testExpression("new WeakSet([{}])")

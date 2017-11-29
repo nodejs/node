@@ -217,6 +217,14 @@ enum ContextLookupFlags {
     async_generator_await_reject_shared_fun)                                   \
   V(ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
     async_generator_await_resolve_shared_fun)                                  \
+  V(ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
+    async_generator_yield_resolve_shared_fun)                                  \
+  V(ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN, SharedFunctionInfo,             \
+    async_generator_return_resolve_shared_fun)                                 \
+  V(ASYNC_GENERATOR_RETURN_CLOSED_RESOLVE_SHARED_FUN, SharedFunctionInfo,      \
+    async_generator_return_closed_resolve_shared_fun)                          \
+  V(ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN, SharedFunctionInfo,       \
+    async_generator_return_closed_reject_shared_fun)                           \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
@@ -228,7 +236,6 @@ enum ContextLookupFlags {
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
   V(CALLSITE_FUNCTION_INDEX, JSFunction, callsite_function)                    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
-  V(CURRENT_MODULE_INDEX, Module, current_module)                              \
   V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
@@ -270,6 +277,7 @@ enum ContextLookupFlags {
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
+  V(INTL_PLURAL_RULES_FUNCTION_INDEX, JSFunction, intl_plural_rules_function)  \
   V(INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX, JSFunction,                         \
     intl_v8_break_iterator_function)                                           \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
@@ -601,23 +609,23 @@ class Context: public FixedArray {
   Context* script_context();
 
   // Compute the native context.
-  inline Context* native_context();
+  inline Context* native_context() const;
   inline void set_native_context(Context* context);
 
   // Predicates for context types.  IsNativeContext is also defined on Object
   // because we frequently have to know if arbitrary objects are natives
   // contexts.
-  inline bool IsNativeContext();
-  inline bool IsFunctionContext();
-  inline bool IsCatchContext();
-  inline bool IsWithContext();
-  inline bool IsDebugEvaluateContext();
-  inline bool IsBlockContext();
-  inline bool IsModuleContext();
-  inline bool IsEvalContext();
-  inline bool IsScriptContext();
+  inline bool IsNativeContext() const;
+  inline bool IsFunctionContext() const;
+  inline bool IsCatchContext() const;
+  inline bool IsWithContext() const;
+  inline bool IsDebugEvaluateContext() const;
+  inline bool IsBlockContext() const;
+  inline bool IsModuleContext() const;
+  inline bool IsEvalContext() const;
+  inline bool IsScriptContext() const;
 
-  inline bool HasSameSecurityTokenAs(Context* that);
+  inline bool HasSameSecurityTokenAs(Context* that) const;
 
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);
@@ -641,8 +649,8 @@ class Context: public FixedArray {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   inline void set_##name(type* value);                    \
-  inline bool is_##name(type* value);                     \
-  inline type* name();
+  inline bool is_##name(type* value) const;               \
+  inline type* name() const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -670,7 +678,8 @@ class Context: public FixedArray {
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
                         int* index, PropertyAttributes* attributes,
                         InitializationFlag* init_flag,
-                        VariableMode* variable_mode);
+                        VariableMode* variable_mode,
+                        bool* is_sloppy_function_name = nullptr);
 
   // Code generation support.
   static int SlotOffset(int index) {
@@ -685,6 +694,8 @@ class Context: public FixedArray {
     DCHECK(IsFastElementsKind(elements_kind));
     return elements_kind + FIRST_JS_ARRAY_MAP_SLOT;
   }
+
+  inline Map* GetInitialJSArrayMap(ElementsKind kind) const;
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
   static const int kNotFound = -1;

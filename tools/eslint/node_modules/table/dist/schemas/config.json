@@ -1,6 +1,6 @@
 {
-    "id": "config.json",
-    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$id": "config.json",
+    "$schema": "http://json-schema.org/draft-06/schema#",
     "type": "object",
     "properties": {
         "border": {

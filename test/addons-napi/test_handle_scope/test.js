@@ -10,11 +10,7 @@ testHandleScope.NewScope();
 
 assert.ok(testHandleScope.NewScopeEscape() instanceof Object);
 
-assert.throws(
-  () => {
-    testHandleScope.NewScopeEscapeTwice();
-  },
-  Error);
+testHandleScope.NewScopeEscapeTwice();
 
 assert.throws(
   () => {

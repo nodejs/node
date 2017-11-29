@@ -73,6 +73,10 @@ test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
+test(function() {
+  String.prototype.includes.call(null);
+}, "String.prototype.includes called on null or undefined", TypeError);
+
 // kCannotFreezeArrayBufferView
 test(function() {
   Object.freeze(new Uint16Array(1));
@@ -120,6 +124,11 @@ test(function() {
 test(function() {
   "a".startsWith(/a/);
 }, "First argument to String.prototype.startsWith " +
+   "must not be a regular expression", TypeError);
+
+test(function() {
+  "a".includes(/a/);
+}, "First argument to String.prototype.includes " +
    "must not be a regular expression", TypeError);
 
 // kFlagsGetterNonObject
@@ -426,12 +435,12 @@ test(function() {
 
 // kNumberFormatRange
 test(function() {
-  Number(1).toFixed(100);
-}, "toFixed() digits argument must be between 0 and 20", RangeError);
+  Number(1).toFixed(101);
+}, "toFixed() digits argument must be between 0 and 100", RangeError);
 
 test(function() {
-  Number(1).toExponential(100);
-}, "toExponential() argument must be between 0 and 20", RangeError);
+  Number(1).toExponential(101);
+}, "toExponential() argument must be between 0 and 100", RangeError);
 
 // kStackOverflow
 test(function() {
@@ -441,8 +450,8 @@ test(function() {
 
 // kToPrecisionFormatRange
 test(function() {
-  Number(1).toPrecision(100);
-}, "toPrecision() argument must be between 1 and 21", RangeError);
+  Number(1).toPrecision(101);
+}, "toPrecision() argument must be between 1 and 100", RangeError);
 
 // kToPrecisionFormatRange
 test(function() {

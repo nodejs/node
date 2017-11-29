@@ -43,7 +43,7 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_empty_string_ = Type::NewConstant(factory->empty_string(), zone);
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
   falsish_ = Type::Union(
@@ -272,7 +272,6 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
-  static Type* ToPrimitiveToString(Type*, Typer*);
 #define DECLARE_METHOD(Name)                \
   static Type* Name(Type* type, Typer* t) { \
     return t->operation_typer_.Name(type);  \
@@ -288,6 +287,7 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
+  static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
   static Type* ObjectIsNaN(Type*, Typer*);
   static Type* ObjectIsNonCallable(Type*, Typer*);
@@ -507,16 +507,13 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
   return Type::String();
 }
 
-// static
-Type* Typer::Visitor::ToPrimitiveToString(Type* type, Typer* t) {
-  // ES6 section 7.1.1 ToPrimitive( argument, "default" ) followed by
-  // ES6 section 7.1.12 ToString ( argument )
-  type = ToPrimitive(type, t);
-  if (type->Is(Type::String())) return type;
-  return Type::String();
-}
-
 // Type checks.
+
+Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
+  if (type->Is(Type::Callable())) return t->singleton_true_;
+  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  return Type::Boolean();
+}
 
 Type* Typer::Visitor::ObjectIsDetectableCallable(Type* type, Typer* t) {
   if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
@@ -835,6 +832,8 @@ Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeObjectId(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeArgumentsElementsState(Node* node) {
   return Type::Internal();
 }
@@ -851,6 +850,9 @@ Type* Typer::Visitor::TypeTypedObjectState(Node* node) {
 
 Type* Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
+Type* Typer::Visitor::TypeCallWithCallerSavedRegisters(Node* node) {
+  UNREACHABLE();
+}
 
 Type* Typer::Visitor::TypeProjection(Node* node) {
   Type* const type = Operand(node, 0);
@@ -861,6 +863,8 @@ Type* Typer::Visitor::TypeProjection(Node* node) {
   }
   return Type::Any();
 }
+
+Type* Typer::Visitor::TypeMapGuard(Node* node) { UNREACHABLE(); }
 
 Type* Typer::Visitor::TypeTypeGuard(Node* node) {
   Type* const type = Operand(node, 0);
@@ -1018,9 +1022,6 @@ Type* Typer::Visitor::JSShiftRightLogicalTyper(Type* lhs, Type* rhs, Typer* t) {
   return NumberShiftRightLogical(ToNumber(lhs, t), ToNumber(rhs, t), t);
 }
 
-// JS string concatenation.
-
-Type* Typer::Visitor::TypeJSStringConcat(Node* node) { return Type::String(); }
 
 // JS arithmetic operators.
 
@@ -1097,10 +1098,6 @@ Type* Typer::Visitor::TypeJSToString(Node* node) {
   return TypeUnaryOp(node, ToString);
 }
 
-Type* Typer::Visitor::TypeJSToPrimitiveToString(Node* node) {
-  return TypeUnaryOp(node, ToPrimitiveToString);
-}
-
 // JS object operators.
 
 
@@ -1141,11 +1138,17 @@ Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
   return Type::Array();
 }
 
+Type* Typer::Visitor::TypeJSCreateEmptyLiteralArray(Node* node) {
+  return Type::Array();
+}
 
 Type* Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateEmptyLiteralObject(Node* node) {
+  return Type::OtherObject();
+}
 
 Type* Typer::Visitor::TypeJSCreateLiteralRegExp(Node* node) {
   return Type::OtherObject();
@@ -1859,6 +1862,12 @@ Type* Typer::Visitor::TypeCheckMaps(Node* node) {
   UNREACHABLE();
 }
 
+Type* Typer::Visitor::TypeCompareMaps(Node* node) { return Type::Boolean(); }
+
+Type* Typer::Visitor::TypeCheckMapValue(Node* node) {
+  UNREACHABLE();
+}
+
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
   return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
@@ -1883,11 +1892,6 @@ Type* Typer::Visitor::TypeCheckSeqString(Node* node) {
   return Type::Intersect(arg, Type::SeqString(), zone());
 }
 
-Type* Typer::Visitor::TypeCheckNonEmptyString(Node* node) {
-  Type* arg = Operand(node, 0);
-  return Type::Intersect(arg, Type::NonEmptyString(), zone());
-}
-
 Type* Typer::Visitor::TypeCheckSymbol(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Symbol(), zone());
@@ -1905,12 +1909,7 @@ Type* Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
 
 Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   Type* type = Operand(node, 0);
-  if (type->Maybe(Type::Hole())) {
-    // Turn "the hole" into undefined.
-    type = Type::Intersect(type, Type::NonInternal(), zone());
-    type = Type::Union(type, Type::Undefined(), zone());
-  }
-  return type;
+  return typer_->operation_typer()->ConvertTaggedHoleToUndefined(type);
 }
 
 Type* Typer::Visitor::TypeAllocate(Node* node) {
@@ -1920,18 +1919,6 @@ Type* Typer::Visitor::TypeAllocate(Node* node) {
 Type* Typer::Visitor::TypeLoadField(Node* node) {
   return FieldAccessOf(node->op()).type;
 }
-
-Type* Typer::Visitor::TypeLoadBuffer(Node* node) {
-  switch (BufferAccessOf(node->op()).external_array_type()) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
-    return Type::Union(typer_->cache_.k##ElemType, Type::Undefined(), zone());
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  }
-  UNREACHABLE();
-}
-
 
 Type* Typer::Visitor::TypeLoadElement(Node* node) {
   return ElementAccessOf(node->op()).type;
@@ -1952,12 +1939,6 @@ Type* Typer::Visitor::TypeStoreField(Node* node) {
   UNREACHABLE();
 }
 
-
-Type* Typer::Visitor::TypeStoreBuffer(Node* node) {
-  UNREACHABLE();
-}
-
-
 Type* Typer::Visitor::TypeStoreElement(Node* node) {
   UNREACHABLE();
 }
@@ -1968,6 +1949,10 @@ Type* Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
 
 Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   UNREACHABLE();
+}
+
+Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsCallable);
 }
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {

@@ -271,6 +271,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
+  static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
   static const bool kNeedsHoleCheck = false;
 };
@@ -311,16 +312,16 @@ class ObjectHashTable
                                         Handle<Object> key, bool* was_present,
                                         int32_t hash);
 
+  // Returns the index to the value of an entry.
+  static inline int EntryToValueIndex(int entry) {
+    return EntryToIndex(entry) + ObjectHashTableShape::kEntryValueIndex;
+  }
+
  protected:
   friend class MarkCompactCollector;
 
   void AddEntry(int entry, Object* key, Object* value);
   void RemoveEntry(int entry);
-
-  // Returns the index to the value of an entry.
-  static inline int EntryToValueIndex(int entry) {
-    return EntryToIndex(entry) + 1;
-  }
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {

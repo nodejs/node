@@ -9,7 +9,6 @@
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
 #include "src/objects/code-cache-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
@@ -104,20 +103,14 @@ void ObjectStats::PrintJSON(const char* key) {
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)           \
   PrintInstanceTypeJSON(key, gc_count, "*FIXED_ARRAY_" #name, \
                         FIRST_FIXED_ARRAY_SUB_TYPE + name);
-#define CODE_AGE_WRAPPER(name)           \
-  PrintInstanceTypeJSON(                 \
-      key, gc_count, "*CODE_AGE_" #name, \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER)
   CODE_KIND_LIST(CODE_KIND_WRAPPER)
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER)
-  CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER)
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef CODE_AGE_WRAPPER
 #undef PRINT_INSTANCE_TYPE_DATA
 #undef PRINT_KEY_AND_ID
 }
@@ -161,21 +154,14 @@ void ObjectStats::Dump(std::stringstream& stream) {
   DumpInstanceTypeData(stream, "*FIXED_ARRAY_" #name, \
                        FIRST_FIXED_ARRAY_SUB_TYPE + name);
 
-#define CODE_AGE_WRAPPER(name)    \
-  DumpInstanceTypeData(           \
-      stream, "*CODE_AGE_" #name, \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge);
-
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER);
   CODE_KIND_LIST(CODE_KIND_WRAPPER);
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER);
-  CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER);
   stream << "\"END\":{}}}";
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef CODE_AGE_WRAPPER
 #undef PRINT_INSTANCE_TYPE_DATA
 }
 
@@ -218,19 +204,6 @@ void ObjectStats::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[index]));
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                   \
-  index =                                                                     \
-      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge; \
-  counters->count_of_CODE_AGE_##name()->Increment(                            \
-      static_cast<int>(object_counts_[index]));                               \
-  counters->count_of_CODE_AGE_##name()->Decrement(                            \
-      static_cast<int>(object_counts_last_time_[index]));                     \
-  counters->size_of_CODE_AGE_##name()->Increment(                             \
-      static_cast<int>(object_sizes_[index]));                                \
-  counters->size_of_CODE_AGE_##name()->Decrement(                             \
-      static_cast<int>(object_sizes_last_time_[index]));
-  CODE_AGE_LIST_COMPLETE(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
@@ -239,6 +212,12 @@ void ObjectStats::CheckpointObjectStats() {
 
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
+
+ObjectStatsCollector::ObjectStatsCollector(Heap* heap, ObjectStats* stats)
+    : heap_(heap),
+      stats_(stats),
+      marking_state_(
+          heap->mark_compact_collector()->non_atomic_marking_state()) {}
 
 void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   Map* map = obj->map();
@@ -267,7 +246,6 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsJSCollection()) {
     RecordJSCollectionDetails(JSObject::cast(obj));
   }
-  if (obj->IsJSFunction()) RecordJSFunctionDetails(JSFunction::cast(obj));
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
@@ -328,7 +306,8 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
-  return array->map()->instance_type() == FIXED_ARRAY_TYPE &&
+  return (array->map()->instance_type() == FIXED_ARRAY_TYPE ||
+          array->map()->instance_type() == HASH_TABLE_TYPE) &&
          array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
          array != heap->empty_byte_array() &&
@@ -342,10 +321,9 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
   return array->map() == heap->fixed_cow_array_map();
 }
 
-static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
+bool ObjectStatsCollector::SameLiveness(HeapObject* obj1, HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
-         ObjectMarking::Color(obj1, MarkingState::Internal(obj1)) ==
-             ObjectMarking::Color(obj2, MarkingState::Internal(obj2));
+         marking_state_->Color(obj1) == marking_state_->Color(obj2);
 }
 
 bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,
@@ -513,7 +491,7 @@ void ObjectStatsCollector::RecordBytecodeArrayDetails(BytecodeArray* obj) {
 }
 
 void ObjectStatsCollector::RecordCodeDetails(Code* code) {
-  stats_->RecordCodeSubTypeStats(code->kind(), code->GetAge(), code->Size());
+  stats_->RecordCodeSubTypeStats(code->kind(), code->Size());
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
@@ -547,14 +525,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
-                           0);
-  }
-}
-
-void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
-    FeedbackVector* feedback_vector = function->feedback_vector();
-    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
                            0);
   }
 }

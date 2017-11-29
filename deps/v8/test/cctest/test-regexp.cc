@@ -89,8 +89,8 @@
 #endif  // V8_INTERPRETED_REGEXP
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
@@ -222,8 +222,8 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("[\\d]", "[0-9]");
   CheckParseEq("[x\\dz]", "[x 0-9 z]");
   CheckParseEq("[\\d-z]", "[0-9 - z]");
-  CheckParseEq("[\\d-\\d]", "[0-9 - 0-9]");
-  CheckParseEq("[z-\\d]", "[z - 0-9]");
+  CheckParseEq("[\\d-\\d]", "[0-9 0-9 -]");
+  CheckParseEq("[z-\\d]", "[0-9 z -]");
   // Control character outside character class.
   CheckParseEq("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
   CheckParseEq("\\c!", "'\\c!'");
@@ -2032,3 +2032,6 @@ TEST(UncachedExternalString) {
   CompileRun("var re = /y(.)/; re.test('ab');");
   ExpectString("external.substring(1).match(re)[1]", "z");
 }
+
+}  // namespace internal
+}  // namespace v8

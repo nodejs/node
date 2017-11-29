@@ -6,6 +6,7 @@ rules:
   no-undef: off
   no-unused-vars: off
   strict: off
+  symbol-description: off
 
   # add new ECMAScript features gradually
   no-var: error

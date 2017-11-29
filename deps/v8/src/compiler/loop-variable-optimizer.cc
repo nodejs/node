@@ -306,7 +306,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   Node* arith = phi->InputAt(1);
   InductionVariable::ArithmeticType arithmeticType;
   if (arith->opcode() == IrOpcode::kJSAdd ||
-      arith->opcode() == IrOpcode::kSpeculativeNumberAdd) {
+      arith->opcode() == IrOpcode::kSpeculativeNumberAdd ||
+      arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
              arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
@@ -404,6 +405,8 @@ void LoopVariableOptimizer::ChangeToPhisAndInsertGuards() {
     }
   }
 }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

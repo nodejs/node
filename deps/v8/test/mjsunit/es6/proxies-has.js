@@ -5,12 +5,13 @@
 var target = {
   "target_one": 1
 };
+target[0] = 42;
 target.__proto__ = {
   "target_two": 2
 };
 var handler = {
   has: function(target, name) {
-    return name == "present";
+    return name == "present" || name == '0';
   }
 }
 
@@ -19,6 +20,25 @@ var proxy = new Proxy(target, handler);
 // Test simple cases.
 assertTrue("present" in proxy);
 assertFalse("nonpresent" in proxy);
+
+// Test element cases.
+assertTrue(0 in proxy);
+assertFalse(1 in proxy);
+assertTrue('0' in proxy);
+assertFalse('1' in proxy);
+
+var symbol0 = {
+  [Symbol.toPrimitive](hint) {
+    return 0;
+  }
+};
+var symbol1 = {
+  [Symbol.toPrimitive](hint) {
+    return 1;
+  }
+};
+assertTrue(symbol0 in proxy);
+assertFalse(symbol1 in proxy);
 
 // Test interesting algorithm steps:
 
@@ -58,4 +78,49 @@ assertFalse("in_your_dreams" in proxy);
   var proxy = new Proxy({}, {});
   var object = Object.create(proxy);
   object.hasOwnProperty(0);
+})();
+
+(function FalseTargetPropExists() {
+  var target2 = {
+    attr: 1
+  };
+  var p = new Proxy(target2, {
+    has: function(t, prop) {
+      return false;
+    }
+  });
+
+  assertFalse("attr" in p);
+})();
+
+(function TargetHasAccessorProperty() {
+  var target = {};
+  Object.defineProperty(target, 'prop', {
+    get: function() {
+      assertSame(this, target);
+      return 42;
+    },
+    configurable: true
+  })
+  var proxy = new Proxy(target, {
+    has: function(t, prop) {
+      return false;
+    },
+  });
+  assertFalse('prop' in proxy);
+})();
+
+(function TargetHasNonConfigurableProperty() {
+  var target = {};
+  Object.defineProperty(target, 'prop', {
+    value: 42,
+    configurable: false,
+    writable: true
+  })
+  var proxy = new Proxy(target, {
+    has: function(t, prop) {
+      return false;
+    },
+  });
+  assertThrows(function() { 'prop' in proxy; }, TypeError);
 })();

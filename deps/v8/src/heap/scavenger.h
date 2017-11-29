@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_SCAVENGER_H_
 #define V8_HEAP_SCAVENGER_H_
 
+#include "src/base/platform/condition-variable.h"
 #include "src/heap/local-allocator.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/slot-set.h"
@@ -13,73 +14,57 @@
 namespace v8 {
 namespace internal {
 
-static const int kCopiedListSegmentSize = 64;
-static const int kPromotionListSegmentSize = 64;
+static const int kCopiedListSegmentSize = 256;
+static const int kPromotionListSegmentSize = 256;
 
 using AddressRange = std::pair<Address, Address>;
-using CopiedList = Worklist<AddressRange, kCopiedListSegmentSize>;
 using ObjectAndSize = std::pair<HeapObject*, int>;
+using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
 using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
-
-// A list of copied ranges. Keeps the last consecutive range local and announces
-// all other ranges to a global work list.
-class CopiedRangesList {
- public:
-  CopiedRangesList(CopiedList* copied_list, int task_id)
-      : current_start_(nullptr),
-        current_end_(nullptr),
-        copied_list_(copied_list, task_id) {}
-
-  ~CopiedRangesList() {
-    CHECK_NULL(current_start_);
-    CHECK_NULL(current_end_);
-  }
-
-  void Insert(HeapObject* object, int size) {
-    const Address object_address = object->address();
-    if (current_end_ != object_address) {
-      if (current_start_ != nullptr) {
-        copied_list_.Push(AddressRange(current_start_, current_end_));
-      }
-      current_start_ = object_address;
-      current_end_ = current_start_ + size;
-      return;
-    }
-    DCHECK_EQ(current_end_, object_address);
-    current_end_ += size;
-    return;
-  }
-
-  bool Pop(AddressRange* entry) {
-    if (copied_list_.Pop(entry)) {
-      return true;
-    } else if (current_start_ != nullptr) {
-      *entry = AddressRange(current_start_, current_end_);
-      current_start_ = current_end_ = nullptr;
-      return true;
-    }
-    return false;
-  }
-
- private:
-  Address current_start_;
-  Address current_end_;
-  CopiedList::View copied_list_;
-};
 
 class Scavenger {
  public:
-  Scavenger(Heap* heap, bool is_logging, bool is_incremental_marking,
-            CopiedList* copied_list, PromotionList* promotion_list, int task_id)
-      : heap_(heap),
-        promotion_list_(promotion_list, task_id),
-        copied_list_(copied_list, task_id),
-        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
-        copied_size_(0),
-        promoted_size_(0),
-        allocator_(heap),
-        is_logging_(is_logging),
-        is_incremental_marking_(is_incremental_marking) {}
+  class Barrier {
+   public:
+    Barrier() : tasks_(0), waiting_(0), done_(false) {}
+
+    void Start() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      tasks_++;
+    }
+
+    void NotifyAll() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      if (waiting_ > 0) condition_.NotifyAll();
+    }
+
+    void Wait() {
+      base::LockGuard<base::Mutex> guard(&mutex_);
+      waiting_++;
+      if (waiting_ == tasks_) {
+        done_ = true;
+        condition_.NotifyAll();
+      } else {
+        // Spurious wakeup is ok here.
+        condition_.Wait(&mutex_);
+      }
+      waiting_--;
+    }
+
+    void Reset() { done_ = false; }
+
+    bool Done() { return done_; }
+
+   private:
+    base::ConditionVariable condition_;
+    base::Mutex mutex_;
+    int tasks_;
+    int waiting_;
+    bool done_;
+  };
+
+  Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
+            PromotionList* promotion_list, int task_id);
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
@@ -92,18 +77,30 @@ class Scavenger {
 
   // Processes remaining work (=objects) after single objects have been
   // manually scavenged using ScavengeObject or CheckAndScavengeObject.
-  void Process();
+  void Process(Barrier* barrier = nullptr);
 
   // Finalize the Scavenger. Needs to be called from the main thread.
   void Finalize();
 
+  size_t bytes_copied() const { return copied_size_; }
+  size_t bytes_promoted() const { return promoted_size_; }
+
+  void AnnounceLockedPage(MemoryChunk* chunk) {
+    allocator_.AnnounceLockedPage(chunk);
+  }
+
  private:
+  // Number of objects to process before interrupting for potentially waking
+  // up other tasks.
+  static const int kInterruptThreshold = 128;
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   inline Heap* heap() { return heap_; }
 
+  inline void PageMemoryFence(Object* object);
+
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
-  V8_INLINE void MigrateObject(Map* map, HeapObject* source, HeapObject* target,
+  V8_INLINE bool MigrateObject(Map* map, HeapObject* source, HeapObject* target,
                                int size);
 
   V8_INLINE bool SemiSpaceCopyObject(Map* map, HeapObject** slot,
@@ -135,13 +132,16 @@ class Scavenger {
 
   Heap* const heap_;
   PromotionList::View promotion_list_;
-  CopiedRangesList copied_list_;
-  base::HashMap local_pretenuring_feedback_;
+  CopiedList::View copied_list_;
+  Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
   LocalAllocator allocator_;
-  bool is_logging_;
-  bool is_incremental_marking_;
+  const bool is_logging_;
+  const bool is_incremental_marking_;
+  const bool is_compacting_;
+
+  friend class IterateAndScavengePromotedObjectsVisitor;
 };
 
 // Helper class for turning the scavenger into an object visitor that is also

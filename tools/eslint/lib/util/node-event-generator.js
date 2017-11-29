@@ -33,10 +33,10 @@ const lodash = require("lodash");
 //------------------------------------------------------------------------------
 
 /**
-* Gets the possible types of a selector
-* @param {Object} parsedSelector An object (from esquery) describing the matching behavior of the selector
-* @returns {string[]|null} The node types that could possibly trigger this selector, or `null` if all node types could trigger it
-*/
+ * Gets the possible types of a selector
+ * @param {Object} parsedSelector An object (from esquery) describing the matching behavior of the selector
+ * @returns {string[]|null} The node types that could possibly trigger this selector, or `null` if all node types could trigger it
+ */
 function getPossibleTypes(parsedSelector) {
     switch (parsedSelector.type) {
         case "identifier":
@@ -160,7 +160,7 @@ function tryParseSelector(rawSelector) {
         return esquery.parse(rawSelector.replace(/:exit$/, ""));
     } catch (err) {
         if (typeof err.offset === "number") {
-            throw new Error(`Syntax error in selector "${rawSelector}" at position ${err.offset}: ${err.message}`);
+            throw new SyntaxError(`Syntax error in selector "${rawSelector}" at position ${err.offset}: ${err.message}`);
         }
         throw err;
     }
@@ -194,7 +194,7 @@ const parseSelector = lodash.memoize(rawSelector => {
  *
  * ```ts
  * interface EventGenerator {
- *     emitter: EventEmitter;
+ *     emitter: SafeEmitter;
  *     enterNode(node: ASTNode): void;
  *     leaveNode(node: ASTNode): void;
  * }
@@ -203,10 +203,12 @@ const parseSelector = lodash.memoize(rawSelector => {
 class NodeEventGenerator {
 
     /**
-    * @param {EventEmitter} emitter - An event emitter which is the destination of events. This emitter must already
-    * have registered listeners for all of the events that it needs to listen for.
-    * @returns {NodeEventGenerator} new instance
-    */
+     * @param {SafeEmitter} emitter
+     * An SafeEmitter which is the destination of events. This emitter must already
+     * have registered listeners for all of the events that it needs to listen for.
+     * (See lib/util/safe-emitter.js for more details on `SafeEmitter`.)
+     * @returns {NodeEventGenerator} new instance
+     */
     constructor(emitter) {
         this.emitter = emitter;
         this.currentAncestry = [];
@@ -215,23 +217,7 @@ class NodeEventGenerator {
         this.anyTypeEnterSelectors = [];
         this.anyTypeExitSelectors = [];
 
-        const eventNames = typeof emitter.eventNames === "function"
-
-            // Use the built-in eventNames() function if available (Node 6+)
-            ? emitter.eventNames()
-
-            /*
-             * Otherwise, use the private _events property.
-             * Using a private property isn't ideal here, but this seems to
-             * be the best way to get a list of event names without overriding
-             * addEventListener, which would hurt performance. This property
-             * is widely used and unlikely to be removed in a future version
-             * (see https://github.com/nodejs/node/issues/1817). Also, future
-             * node versions will have eventNames() anyway.
-             */
-            : Object.keys(emitter._events); // eslint-disable-line no-underscore-dangle
-
-        eventNames.forEach(rawSelector => {
+        emitter.eventNames().forEach(rawSelector => {
             const selector = parseSelector(rawSelector);
 
             if (selector.listenerTypes) {

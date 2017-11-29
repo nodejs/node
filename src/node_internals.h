@@ -25,9 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
-#include "util.h"
 #include "util-inl.h"
-#include "env.h"
 #include "env-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -57,6 +55,12 @@
 #define Z_MAX_LEVEL 9
 #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
 
+enum {
+  NM_F_BUILTIN  = 1 << 0,
+  NM_F_LINKED   = 1 << 1,
+  NM_F_INTERNAL = 1 << 2,
+};
+
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
@@ -74,6 +78,82 @@ struct sockaddr;
                               constant_value,                                 \
                               constant_attributes).FromJust();                \
   } while (0)
+
+
+#if HAVE_OPENSSL
+#define NODE_BUILTIN_OPENSSL_MODULES(V) V(crypto) V(tls_wrap)
+#else
+#define NODE_BUILTIN_OPENSSL_MODULES(V)
+#endif
+
+#if NODE_HAVE_I18N_SUPPORT
+#define NODE_BUILTIN_ICU_MODULES(V) V(icu)
+#else
+#define NODE_BUILTIN_ICU_MODULES(V)
+#endif
+
+// A list of built-in modules. In order to do module registration
+// in node::Init(), need to add built-in modules in the following list.
+// Then in node::RegisterBuiltinModules(), it calls modules' registration
+// function. This helps the built-in modules are loaded properly when
+// node is built as static library. No need to depends on the
+// __attribute__((constructor)) like mechanism in GCC.
+#define NODE_BUILTIN_STANDARD_MODULES(V)                                      \
+    V(async_wrap)                                                             \
+    V(buffer)                                                                 \
+    V(cares_wrap)                                                             \
+    V(config)                                                                 \
+    V(contextify)                                                             \
+    V(fs)                                                                     \
+    V(fs_event_wrap)                                                          \
+    V(http2)                                                                  \
+    V(http_parser)                                                            \
+    V(inspector)                                                              \
+    V(js_stream)                                                              \
+    V(module_wrap)                                                            \
+    V(os)                                                                     \
+    V(performance)                                                            \
+    V(pipe_wrap)                                                              \
+    V(process_wrap)                                                           \
+    V(serdes)                                                                 \
+    V(signal_wrap)                                                            \
+    V(spawn_sync)                                                             \
+    V(stream_wrap)                                                            \
+    V(tcp_wrap)                                                               \
+    V(timer_wrap)                                                             \
+    V(trace_events)                                                           \
+    V(tty_wrap)                                                               \
+    V(udp_wrap)                                                               \
+    V(url)                                                                    \
+    V(util)                                                                   \
+    V(uv)                                                                     \
+    V(v8)                                                                     \
+    V(zlib)
+
+#define NODE_BUILTIN_MODULES(V)                                               \
+  NODE_BUILTIN_STANDARD_MODULES(V)                                            \
+  NODE_BUILTIN_OPENSSL_MODULES(V)                                             \
+  NODE_BUILTIN_ICU_MODULES(V)
+
+#define NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, priv, flags)          \
+  static node::node_module _module = {                                        \
+    NODE_MODULE_VERSION,                                                      \
+    flags,                                                                    \
+    nullptr,                                                                  \
+    __FILE__,                                                                 \
+    nullptr,                                                                  \
+    (node::addon_context_register_func) (regfunc),                            \
+    NODE_STRINGIFY(modname),                                                  \
+    priv,                                                                     \
+    nullptr                                                                   \
+  };                                                                          \
+  void _register_ ## modname() {                                              \
+    node_module_register(&_module);                                           \
+  }
+
+
+#define NODE_BUILTIN_MODULE_CONTEXT_AWARE(modname, regfunc)                   \
+  NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_BUILTIN)
 
 namespace node {
 
@@ -168,7 +248,11 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
+uint32_t GetProcessId();
 bool SafeGetenv(const char* key, std::string* text);
+
+std::string GetHumanReadableProcessName();
+void GetHumanReadableProcessName(char (*name)[1024]);
 
 template <typename T, size_t N>
 constexpr size_t arraysize(const T(&)[N]) { return N; }
@@ -185,13 +269,24 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
-enum ErrorHandlingMode { FATAL_ERROR, CONTEXTIFY_ERROR };
+enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
                          v8::Local<v8::Message> message,
                          enum ErrorHandlingMode mode);
 
 NO_RETURN void FatalError(const char* location, const char* message);
+
+// Like a `TryCatch` but exits the process if an exception was caught.
+class FatalTryCatch : public v8::TryCatch {
+ public:
+  explicit FatalTryCatch(Environment* env)
+      : TryCatch(env->isolate()), env_(env) {}
+  ~FatalTryCatch();
+
+ private:
+  Environment* env_;
+};
 
 void ProcessEmitWarning(Environment* env, const char* fmt, ...);
 
@@ -202,6 +297,12 @@ void SetupProcessObject(Environment* env,
                         const char* const* argv,
                         int exec_argc,
                         const char* const* exec_argv);
+
+// Call _register<module_name> functions for all of
+// the built-in modules. Because built-in modules don't
+// use the __attribute__((constructor)). Need to
+// explicitly call the _register* functions.
+void RegisterBuiltinModules();
 
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
@@ -239,11 +340,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
 };
-
-// Clear any domain and/or uncaughtException handlers to force the error's
-// propagation and shutdown the process. Use this to force the process to exit
-// by clearing all callbacks that could handle the error.
-void ClearFatalExceptionHandlers(Environment* env);
 
 namespace Buffer {
 v8::MaybeLocal<v8::Object> Copy(Environment* env, const char* data, size_t len);
@@ -305,6 +401,8 @@ class InternalCallbackScope {
                         v8::Local<v8::Object> object,
                         const async_context& asyncContext,
                         ResourceExpectation expect = kRequireResource);
+  // Utility that can be used by AsyncWrap classes.
+  explicit InternalCallbackScope(AsyncWrap* async_wrap);
   ~InternalCallbackScope();
   void Close();
 
@@ -324,8 +422,334 @@ class InternalCallbackScope {
   bool closed_ = false;
 };
 
-#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)          \
-  NODE_MODULE_CONTEXT_AWARE_X(modname, regfunc, NULL, NM_F_INTERNAL)  \
+static inline const char *errno_string(int errorno) {
+#define ERRNO_CASE(e)  case e: return #e;
+  switch (errorno) {
+#ifdef EACCES
+  ERRNO_CASE(EACCES);
+#endif
+
+#ifdef EADDRINUSE
+  ERRNO_CASE(EADDRINUSE);
+#endif
+
+#ifdef EADDRNOTAVAIL
+  ERRNO_CASE(EADDRNOTAVAIL);
+#endif
+
+#ifdef EAFNOSUPPORT
+  ERRNO_CASE(EAFNOSUPPORT);
+#endif
+
+#ifdef EAGAIN
+  ERRNO_CASE(EAGAIN);
+#endif
+
+#ifdef EWOULDBLOCK
+# if EAGAIN != EWOULDBLOCK
+  ERRNO_CASE(EWOULDBLOCK);
+# endif
+#endif
+
+#ifdef EALREADY
+  ERRNO_CASE(EALREADY);
+#endif
+
+#ifdef EBADF
+  ERRNO_CASE(EBADF);
+#endif
+
+#ifdef EBADMSG
+  ERRNO_CASE(EBADMSG);
+#endif
+
+#ifdef EBUSY
+  ERRNO_CASE(EBUSY);
+#endif
+
+#ifdef ECANCELED
+  ERRNO_CASE(ECANCELED);
+#endif
+
+#ifdef ECHILD
+  ERRNO_CASE(ECHILD);
+#endif
+
+#ifdef ECONNABORTED
+  ERRNO_CASE(ECONNABORTED);
+#endif
+
+#ifdef ECONNREFUSED
+  ERRNO_CASE(ECONNREFUSED);
+#endif
+
+#ifdef ECONNRESET
+  ERRNO_CASE(ECONNRESET);
+#endif
+
+#ifdef EDEADLK
+  ERRNO_CASE(EDEADLK);
+#endif
+
+#ifdef EDESTADDRREQ
+  ERRNO_CASE(EDESTADDRREQ);
+#endif
+
+#ifdef EDOM
+  ERRNO_CASE(EDOM);
+#endif
+
+#ifdef EDQUOT
+  ERRNO_CASE(EDQUOT);
+#endif
+
+#ifdef EEXIST
+  ERRNO_CASE(EEXIST);
+#endif
+
+#ifdef EFAULT
+  ERRNO_CASE(EFAULT);
+#endif
+
+#ifdef EFBIG
+  ERRNO_CASE(EFBIG);
+#endif
+
+#ifdef EHOSTUNREACH
+  ERRNO_CASE(EHOSTUNREACH);
+#endif
+
+#ifdef EIDRM
+  ERRNO_CASE(EIDRM);
+#endif
+
+#ifdef EILSEQ
+  ERRNO_CASE(EILSEQ);
+#endif
+
+#ifdef EINPROGRESS
+  ERRNO_CASE(EINPROGRESS);
+#endif
+
+#ifdef EINTR
+  ERRNO_CASE(EINTR);
+#endif
+
+#ifdef EINVAL
+  ERRNO_CASE(EINVAL);
+#endif
+
+#ifdef EIO
+  ERRNO_CASE(EIO);
+#endif
+
+#ifdef EISCONN
+  ERRNO_CASE(EISCONN);
+#endif
+
+#ifdef EISDIR
+  ERRNO_CASE(EISDIR);
+#endif
+
+#ifdef ELOOP
+  ERRNO_CASE(ELOOP);
+#endif
+
+#ifdef EMFILE
+  ERRNO_CASE(EMFILE);
+#endif
+
+#ifdef EMLINK
+  ERRNO_CASE(EMLINK);
+#endif
+
+#ifdef EMSGSIZE
+  ERRNO_CASE(EMSGSIZE);
+#endif
+
+#ifdef EMULTIHOP
+  ERRNO_CASE(EMULTIHOP);
+#endif
+
+#ifdef ENAMETOOLONG
+  ERRNO_CASE(ENAMETOOLONG);
+#endif
+
+#ifdef ENETDOWN
+  ERRNO_CASE(ENETDOWN);
+#endif
+
+#ifdef ENETRESET
+  ERRNO_CASE(ENETRESET);
+#endif
+
+#ifdef ENETUNREACH
+  ERRNO_CASE(ENETUNREACH);
+#endif
+
+#ifdef ENFILE
+  ERRNO_CASE(ENFILE);
+#endif
+
+#ifdef ENOBUFS
+  ERRNO_CASE(ENOBUFS);
+#endif
+
+#ifdef ENODATA
+  ERRNO_CASE(ENODATA);
+#endif
+
+#ifdef ENODEV
+  ERRNO_CASE(ENODEV);
+#endif
+
+#ifdef ENOENT
+  ERRNO_CASE(ENOENT);
+#endif
+
+#ifdef ENOEXEC
+  ERRNO_CASE(ENOEXEC);
+#endif
+
+#ifdef ENOLINK
+  ERRNO_CASE(ENOLINK);
+#endif
+
+#ifdef ENOLCK
+# if ENOLINK != ENOLCK
+  ERRNO_CASE(ENOLCK);
+# endif
+#endif
+
+#ifdef ENOMEM
+  ERRNO_CASE(ENOMEM);
+#endif
+
+#ifdef ENOMSG
+  ERRNO_CASE(ENOMSG);
+#endif
+
+#ifdef ENOPROTOOPT
+  ERRNO_CASE(ENOPROTOOPT);
+#endif
+
+#ifdef ENOSPC
+  ERRNO_CASE(ENOSPC);
+#endif
+
+#ifdef ENOSR
+  ERRNO_CASE(ENOSR);
+#endif
+
+#ifdef ENOSTR
+  ERRNO_CASE(ENOSTR);
+#endif
+
+#ifdef ENOSYS
+  ERRNO_CASE(ENOSYS);
+#endif
+
+#ifdef ENOTCONN
+  ERRNO_CASE(ENOTCONN);
+#endif
+
+#ifdef ENOTDIR
+  ERRNO_CASE(ENOTDIR);
+#endif
+
+#ifdef ENOTEMPTY
+# if ENOTEMPTY != EEXIST
+  ERRNO_CASE(ENOTEMPTY);
+# endif
+#endif
+
+#ifdef ENOTSOCK
+  ERRNO_CASE(ENOTSOCK);
+#endif
+
+#ifdef ENOTSUP
+  ERRNO_CASE(ENOTSUP);
+#else
+# ifdef EOPNOTSUPP
+  ERRNO_CASE(EOPNOTSUPP);
+# endif
+#endif
+
+#ifdef ENOTTY
+  ERRNO_CASE(ENOTTY);
+#endif
+
+#ifdef ENXIO
+  ERRNO_CASE(ENXIO);
+#endif
+
+
+#ifdef EOVERFLOW
+  ERRNO_CASE(EOVERFLOW);
+#endif
+
+#ifdef EPERM
+  ERRNO_CASE(EPERM);
+#endif
+
+#ifdef EPIPE
+  ERRNO_CASE(EPIPE);
+#endif
+
+#ifdef EPROTO
+  ERRNO_CASE(EPROTO);
+#endif
+
+#ifdef EPROTONOSUPPORT
+  ERRNO_CASE(EPROTONOSUPPORT);
+#endif
+
+#ifdef EPROTOTYPE
+  ERRNO_CASE(EPROTOTYPE);
+#endif
+
+#ifdef ERANGE
+  ERRNO_CASE(ERANGE);
+#endif
+
+#ifdef EROFS
+  ERRNO_CASE(EROFS);
+#endif
+
+#ifdef ESPIPE
+  ERRNO_CASE(ESPIPE);
+#endif
+
+#ifdef ESRCH
+  ERRNO_CASE(ESRCH);
+#endif
+
+#ifdef ESTALE
+  ERRNO_CASE(ESTALE);
+#endif
+
+#ifdef ETIME
+  ERRNO_CASE(ETIME);
+#endif
+
+#ifdef ETIMEDOUT
+  ERRNO_CASE(ETIMEDOUT);
+#endif
+
+#ifdef ETXTBSY
+  ERRNO_CASE(ETXTBSY);
+#endif
+
+#ifdef EXDEV
+  ERRNO_CASE(EXDEV);
+#endif
+
+  default: return "";
+  }
+}
+
+#define NODE_MODULE_CONTEXT_AWARE_INTERNAL(modname, regfunc)                  \
+  NODE_MODULE_CONTEXT_AWARE_CPP(modname, regfunc, nullptr, NM_F_INTERNAL)
 
 }  // namespace node
 

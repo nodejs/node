@@ -100,14 +100,6 @@ const d2 = require('../fixtures/b/d');
   assert.notStrictEqual(threeFolder, three);
 }
 
-console.error('test package.json require() loading');
-assert.throws(
-  function() {
-    require('../fixtures/packages/invalid');
-  },
-  /^SyntaxError: Error parsing .+: Unexpected token , in JSON at position 1$/
-);
-
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok',
                    'Failed loading package');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok',

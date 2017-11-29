@@ -1,5 +1,7 @@
 # Deprecated APIs
 
+<!--introduced_in=v7.7.0-->
+
 Node.js may deprecate APIs when either: (a) use of the API is considered to be
 unsafe, (b) an improved alternative API has been made available, or (c)
 breaking changes to the API are expected in a future major release.
@@ -122,7 +124,7 @@ to the `constants` property exposed by the relevant module. For instance,
 Type: End-of-life
 
 Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
-in Node.js 6.0 because the method defaulted to using the non-recommendend
+in Node.js 6.0 because the method defaulted to using the non-recommended
 `'SHA1'` digest. Previously, a deprecation warning was printed. Starting in
 Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with an
 undefined `digest` will throw a `TypeError`.
@@ -202,7 +204,7 @@ code.
 <a id="DEP0019"></a>
 ### DEP0019: require('.') resolved outside directory
 
-Type: End-of-Life
+Type: Runtime
 
 In certain cases, `require('.')` may resolve outside the package directory.
 This behavior is deprecated and will be removed in a future major Node.js
@@ -598,10 +600,9 @@ a V8-inspector based CLI debugger available through `node inspect`.
 <a id="DEP0069"></a>
 ### DEP0069: vm.runInDebugContext(string)
 
-Type: Documentation-only
+Type: End-of-Life
 
-The DebugContext will be removed in V8 soon and will not be available in Node
-10+.
+DebugContext has been removed in V8 and is not available in Node 10+.
 
 *Note*: DebugContext was an experimental API.
 
@@ -638,7 +639,7 @@ Type: End-of-Life
 <a id="DEP0073"></a>
 ### DEP0073: Several internal properties of net.Server
 
-Type: Runtime
+Type: End-of-Life
 
 Accessing several internal, undocumented properties of `net.Server` instances
 with inappropriate names has been deprecated.
@@ -703,7 +704,7 @@ Type: Runtime
 <a id="DEP0079"></a>
 ### DEP0079: Custom inspection function on Objects via .inspect()
 
-Type: Documentation-only
+Type: Runtime
 
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
@@ -728,6 +729,83 @@ Type: Runtime
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
 
+<a id="DEP0082"></a>
+### DEP0082: REPLServer.prototype.memory()
+
+Type: Runtime
+
+`REPLServer.prototype.memory()` is a function only necessary for the
+internal mechanics of the `REPLServer` itself, and is therefore not
+necessary in user space.
+
+<a id="DEP0083"></a>
+### DEP0083: Disabling ECDH by setting ecdhCurve to false
+
+Type: Runtime
+
+The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
+be set to `false` to disable ECDH entirely on the server only. This mode is
+deprecated in preparation for migrating to OpenSSL 1.1.0 and consistency with
+the client. Use the `ciphers` parameter instead.
+
+<a id="DEP0084"></a>
+### DEP0084: requiring bundled internal dependencies
+
+Type: Runtime
+
+Since Node.js versions 4.4.0 and 5.2.0, several modules only intended for
+internal usage are mistakenly exposed to user code through `require()`. These
+modules are:
+
+- `v8/tools/codemap`
+- `v8/tools/consarray`
+- `v8/tools/csvparser`
+- `v8/tools/logreader`
+- `v8/tools/profile_view`
+- `v8/tools/profile`
+- `v8/tools/SourceMap`
+- `v8/tools/splaytree`
+- `v8/tools/tickprocessor-driver`
+- `v8/tools/tickprocessor`
+- `node-inspect/lib/_inspect` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_client` (from 7.6.0)
+- `node-inspect/lib/internal/inspect_repl` (from 7.6.0)
+
+The `v8/*` modules do not have any exports, and if not imported in a specific
+order would in fact throw errors. As such there are virtually no legitimate use
+cases for importing them through `require()`.
+
+On the other hand, `node-inspect` may be installed locally through a package
+manager, as it is published on the npm registry under the same name. No source
+code modification is necessary if that is done.
+
+<a id="DEP0085"></a>
+### DEP0085: AsyncHooks Sensitive API
+
+Type: End-of-Life
+
+The AsyncHooks Sensitive API was never documented and had various of minor
+issues, see https://github.com/nodejs/node/issues/15572. Use the `AsyncResource`
+API instead.
+
+
+<a id="DEP0086"></a>
+### DEP0086: Remove runInAsyncIdScope
+
+Type: End-of-Life
+
+`runInAsyncIdScope` doesn't emit the `before` or `after` event and can thus
+cause a lot of issues. See https://github.com/nodejs/node/issues/14328 for more
+details.
+
+<a id="DEP0089"></a>
+### DEP0089: require('assert')
+
+Type: Documentation-only
+
+Importing assert directly is not recommended as the exposed functions will use
+loose equality checks. Use `require('assert').strict` instead. The API is the
+same as the legacy assert but it will always use strict equality checks.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

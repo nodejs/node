@@ -33,11 +33,14 @@ const dgram = require('dgram');
   socket.bind(0);
   socket.on('listening', common.mustCall(() => {
     // Try to set with an invalid interfaceAddress (wrong address class)
+    //
+    // This operation succeeds on some platforms, throws `EINVAL` on some
+    // platforms, and throws `ENOPROTOOPT` on others. This is unpleasant, but
+    // we should at least test for it.
     try {
       socket.setMulticastInterface('::');
-      throw new Error('Not detected.');
     } catch (e) {
-      console.error(`setMulticastInterface: wrong family error is: ${e}`);
+      assert(e.code === 'EINVAL' || e.code === 'ENOPROTOOPT');
     }
 
     socket.close();

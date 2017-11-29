@@ -27,7 +27,6 @@
 #include "aliased_buffer.h"
 #include "env.h"
 #include "node.h"
-#include "util.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -38,41 +37,9 @@
 
 namespace node {
 
-inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                                uint32_t* zero_fill_field) :
-
-// Create string and private symbol properties as internalized one byte strings.
-//
-// Internalized because it makes property lookups a little faster and because
-// the string is created in the old space straight away.  It's going to end up
-// in the old space sooner or later anyway but now it doesn't go through
-// v8::Eternal's new space handling first.
-//
-// One byte because our strings are ASCII and we can safely skip V8's UTF-8
-// decoding step.  It's a one-time cost, but why pay it when you don't have to?
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        v8::Private::New(                                                     \
-            isolate,                                                          \
-            v8::String::NewFromOneByte(                                       \
-                isolate,                                                      \
-                reinterpret_cast<const uint8_t*>(StringValue),                \
-                v8::NewStringType::kInternalized,                             \
-                sizeof(StringValue) - 1).ToLocalChecked())),
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
-#undef V
-#define V(PropertyName, StringValue)                                          \
-    PropertyName ## _(                                                        \
-        isolate,                                                              \
-        v8::String::NewFromOneByte(                                           \
-            isolate,                                                          \
-            reinterpret_cast<const uint8_t*>(StringValue),                    \
-            v8::NewStringType::kInternalized,                                 \
-            sizeof(StringValue) - 1).ToLocalChecked()),
-    PER_ISOLATE_STRING_PROPERTIES(V)
-#undef V
-    event_loop_(event_loop), zero_fill_field_(zero_fill_field) {}
+inline v8::Isolate* IsolateData::isolate() const {
+  return isolate_;
+}
 
 inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
@@ -82,11 +49,22 @@ inline uint32_t* IsolateData::zero_fill_field() const {
   return zero_fill_field_;
 }
 
+inline MultiIsolatePlatform* IsolateData::platform() const {
+  return platform_;
+}
+
 inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
     : isolate_(isolate),
       fields_(isolate, kFieldsCount),
       async_id_fields_(isolate, kUidFieldsCount) {
   v8::HandleScope handle_scope(isolate_);
+
+  // Always perform async_hooks checks, not just when async_hooks is enabled.
+  // TODO(AndreasMadsen): Consider removing this for LTS releases.
+  // See discussion in https://github.com/nodejs/node/pull/15454
+  // When removing this, do it by reverting the commit. Otherwise the test
+  // and flag changes won't be included.
+  fields_[kCheck] = 1;
 
   // kAsyncIdCounter should start at 1 because that'll be the id the execution
   // context during bootstrap (code that runs before entering uv_run()).
@@ -129,10 +107,19 @@ inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
   return providers_[idx].Get(isolate_);
 }
 
+inline void Environment::AsyncHooks::no_force_checks() {
+  // fields_ does not have the -= operator defined
+  fields_[kCheck] = fields_[kCheck] - 1;
+}
+
 inline void Environment::AsyncHooks::push_async_ids(double async_id,
                                               double trigger_async_id) {
-  CHECK_GE(async_id, -1);
-  CHECK_GE(trigger_async_id, -1);
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0) {
+    CHECK_GE(async_id, -1);
+    CHECK_GE(trigger_async_id, -1);
+  }
 
   async_ids_stack_.push({ async_id_fields_[kExecutionAsyncId],
                     async_id_fields_[kTriggerAsyncId] });
@@ -145,9 +132,11 @@ inline bool Environment::AsyncHooks::pop_async_id(double async_id) {
   // stack was multiple MakeCallback()'s deep.
   if (async_ids_stack_.empty()) return false;
 
-  // Ask for the async_id to be restored as a sanity check that the stack
+  // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
-  if (async_id_fields_[kExecutionAsyncId] != async_id) {
+  // Since async_hooks is experimental, do only perform the check
+  // when async_hooks is enabled.
+  if (fields_[kCheck] > 0 && async_id_fields_[kExecutionAsyncId] != async_id) {
     fprintf(stderr,
             "Error: async hook stack has become corrupted ("
             "actual: %.f, expected: %.f)\n",
@@ -185,7 +174,9 @@ inline Environment::AsyncHooks::InitScope::InitScope(
     Environment* env, double init_trigger_async_id)
         : env_(env),
           async_id_fields_ref_(env->async_hooks()->async_id_fields()) {
-  CHECK_GE(init_trigger_async_id, -1);
+  if (env_->async_hooks()->fields()[AsyncHooks::kCheck] > 0) {
+    CHECK_GE(init_trigger_async_id, -1);
+  }
   env->async_hooks()->push_async_ids(
     async_id_fields_ref_[AsyncHooks::kExecutionAsyncId],
     init_trigger_async_id);
@@ -207,22 +198,6 @@ inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
 
 inline bool Environment::AsyncCallbackScope::in_makecallback() const {
   return env_->makecallback_cntr_ > 1;
-}
-
-inline Environment::DomainFlag::DomainFlag() {
-  for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
-}
-
-inline uint32_t* Environment::DomainFlag::fields() {
-  return fields_;
-}
-
-inline int Environment::DomainFlag::fields_count() const {
-  return kFieldsCount;
-}
-
-inline uint32_t Environment::DomainFlag::count() const {
-  return fields_[kCount];
 }
 
 inline Environment::TickInfo::TickInfo() {
@@ -292,8 +267,10 @@ inline Environment::Environment(IsolateData* isolate_data,
       abort_on_uncaught_exception_(false),
       emit_napi_warning_(true),
       makecallback_cntr_(0),
+      scheduled_immediate_count_(isolate_, 1),
+      should_abort_on_uncaught_toggle_(isolate_, 1),
 #if HAVE_INSPECTOR
-      inspector_agent_(this),
+      inspector_agent_(new inspector::Agent(this)),
 #endif
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
@@ -329,10 +306,19 @@ inline Environment::Environment(IsolateData* isolate_data,
   performance_state_->milestones[
     performance::NODE_PERFORMANCE_MILESTONE_V8_START] =
         performance::performance_v8_start;
+
+  // By default, always abort when --abort-on-uncaught-exception was passed.
+  should_abort_on_uncaught_toggle_[0] = 1;
 }
 
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
+
+#if HAVE_INSPECTOR
+  // Destroy inspector agent before erasing the context. The inspector
+  // destructor depends on the context still being accessible.
+  inspector_agent_.reset();
+#endif
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
@@ -343,18 +329,11 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-  delete http2_state_;
   free(performance_state_);
 }
 
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
-}
-
-inline bool Environment::in_domain() const {
-  // The const_cast is okay, it doesn't violate conceptual const-ness.
-  return using_domains() &&
-         const_cast<Environment*>(this)->domain_flag()->count() > 0;
 }
 
 inline Environment* Environment::from_immediate_check_handle(
@@ -368,15 +347,6 @@ inline uv_check_t* Environment::immediate_check_handle() {
 
 inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
-}
-
-inline Environment* Environment::from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle) {
-  return ContainerOf(&Environment::destroy_async_ids_timer_handle_, handle);
-}
-
-inline uv_timer_t* Environment::destroy_async_ids_timer_handle() {
-  return &destroy_async_ids_timer_handle_;
 }
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
@@ -395,10 +365,6 @@ inline uv_loop_t* Environment::event_loop() const {
 
 inline Environment::AsyncHooks* Environment::async_hooks() {
   return &async_hooks_;
-}
-
-inline Environment::DomainFlag* Environment::domain_flag() {
-  return &domain_flag_;
 }
 
 inline Environment::TickInfo* Environment::tick_info() {
@@ -435,6 +401,11 @@ inline bool Environment::abort_on_uncaught_exception() const {
 
 inline void Environment::set_abort_on_uncaught_exception(bool value) {
   abort_on_uncaught_exception_ = value;
+}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::should_abort_on_uncaught_toggle() {
+  return should_abort_on_uncaught_toggle_;
 }
 
 inline std::vector<double>* Environment::destroy_async_id_list() {
@@ -498,12 +469,13 @@ inline void Environment::set_http_parser_buffer(char* buffer) {
 }
 
 inline http2::http2_state* Environment::http2_state() const {
-  return http2_state_;
+  return http2_state_.get();
 }
 
-inline void Environment::set_http2_state(http2::http2_state* buffer) {
-  CHECK_EQ(http2_state_, nullptr);  // Should be set only once.
-  http2_state_ = buffer;
+inline void Environment::set_http2_state(
+    std::unique_ptr<http2::http2_state> buffer) {
+  CHECK(!http2_state_);  // Should be set only once.
+  http2_state_ = std::move(buffer);
 }
 
 inline double* Environment::fs_stats_field_array() const {
@@ -513,6 +485,25 @@ inline double* Environment::fs_stats_field_array() const {
 inline void Environment::set_fs_stats_field_array(double* fields) {
   CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
   fs_stats_field_array_ = fields;
+}
+
+inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+Environment::scheduled_immediate_count() {
+  return scheduled_immediate_count_;
+}
+
+void Environment::SetImmediate(native_immediate_callback cb,
+                               void* data,
+                               v8::Local<v8::Object> obj) {
+  native_immediate_callbacks_.push_back({
+    cb,
+    data,
+    std::unique_ptr<v8::Persistent<v8::Object>>(
+        obj.IsEmpty() ? nullptr : new v8::Persistent<v8::Object>(isolate_, obj))
+  });
+  if (scheduled_immediate_count_[0] == 0)
+    ActivateImmediateCheck();
+  scheduled_immediate_count_[0] = scheduled_immediate_count_[0] + 1;
 }
 
 inline performance::performance_state* Environment::performance_state() {

@@ -29,8 +29,6 @@ browserify(bOpts)
   }
 
   var outputFile = path.join(distDir, json.name);
-  var outputBundle = outputFile + '.bundle.js';
-  fs.writeFileSync(outputBundle, buf);
   var uglifyOpts = {
     warnings: true,
     compress: {},
@@ -40,15 +38,24 @@ browserify(bOpts)
   };
   if (compress) {
     var compressOpts = compress.split(',');
-    for (var i=0; i<compressOpts.length; ++i) {
+    for (var i=0, il = compressOpts.length; i<il; ++i) {
       var pair = compressOpts[i].split('=');
       uglifyOpts.compress[pair[0]] = pair.length < 1 || pair[1] != 'false';
     }
   }
-  if (standalone) uglifyOpts.outSourceMap = json.name + '.min.js.map';
+  if (standalone) {
+    uglifyOpts.sourceMap = {
+      filename: json.name + '.min.js',
+      url: json.name + '.min.js.map'
+    };
+  }
 
-  var result = uglify.minify(outputBundle, uglifyOpts);
+  var result = uglify.minify(buf.toString(), uglifyOpts);
   fs.writeFileSync(outputFile + '.min.js', result.code);
   if (result.map) fs.writeFileSync(outputFile + '.min.js.map', result.map);
-  if (!standalone) fs.unlinkSync(outputBundle);
+  if (standalone) fs.writeFileSync(outputFile + '.bundle.js', buf);
+  if (result.warnings) {
+    for (var j=0, jl = result.warnings.length; j<jl; ++j)
+      console.warn('UglifyJS warning:', result.warnings[j]);
+  }
 });

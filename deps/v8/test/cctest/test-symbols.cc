@@ -44,8 +44,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Create) {
   CcTest::InitializeVM();
@@ -82,3 +82,6 @@ TEST(Create) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -64,8 +64,6 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
 
-        const DEFINED_MESSAGE = "'{{name}}' is defined but never used.";
-        const ASSIGNED_MESSAGE = "'{{name}}' is assigned a value but never used.";
         const REST_PROPERTY_TYPE = /^(?:Experimental)?RestProperty$/;
 
         const config = {
@@ -98,6 +96,49 @@ module.exports = {
                     config.caughtErrorsIgnorePattern = new RegExp(firstOption.caughtErrorsIgnorePattern);
                 }
             }
+        }
+
+        /**
+         * Generate the warning message about the variable being
+         * defined and unused, including the ignore pattern if configured.
+         * @param {Variable} unusedVar - eslint-scope variable object.
+         * @returns {string} The warning message to be used with this unused variable.
+         */
+        function getDefinedMessage(unusedVar) {
+            let type;
+            let pattern;
+
+            if (config.varsIgnorePattern) {
+                type = "vars";
+                pattern = config.varsIgnorePattern.toString();
+            }
+
+            if (unusedVar.defs && unusedVar.defs[0] && unusedVar.defs[0].type) {
+                const defType = unusedVar.defs[0].type;
+
+                if (defType === "CatchClause" && config.caughtErrorsIgnorePattern) {
+                    type = "args";
+                    pattern = config.caughtErrorsIgnorePattern.toString();
+                } else if (defType === "Parameter" && config.argsIgnorePattern) {
+                    type = "args";
+                    pattern = config.argsIgnorePattern.toString();
+                }
+            }
+
+            const additional = type ? ` Allowed unused ${type} must match ${pattern}.` : "";
+
+            return `'{{name}}' is defined but never used.${additional}`;
+        }
+
+        /**
+         * Generate the warning message about the variable being
+         * assigned and unused, including the ignore pattern if configured.
+         * @returns {string} The warning message to be used with this unused variable.
+         */
+        function getAssignedMessage() {
+            const additional = config.varsIgnorePattern ? ` Allowed unused vars must match ${config.varsIgnorePattern.toString()}.` : "";
+
+            return `'{{name}}' is assigned a value but never used.${additional}`;
         }
 
         //--------------------------------------------------------------------------
@@ -586,13 +627,15 @@ module.exports = {
                         context.report({
                             node: programNode,
                             loc: getLocation(unusedVar),
-                            message: DEFINED_MESSAGE,
+                            message: getDefinedMessage(unusedVar),
                             data: unusedVar
                         });
                     } else if (unusedVar.defs.length > 0) {
                         context.report({
                             node: unusedVar.identifiers[0],
-                            message: unusedVar.references.some(ref => ref.isWrite()) ? ASSIGNED_MESSAGE : DEFINED_MESSAGE,
+                            message: unusedVar.references.some(ref => ref.isWrite())
+                                ? getAssignedMessage()
+                                : getDefinedMessage(unusedVar),
                             data: unusedVar
                         });
                     }

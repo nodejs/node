@@ -19,12 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --expose_internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const JSStream = process.binding('js_stream').JSStream;
 const util = require('util');
 const vm = require('vm');
+const { previewMapIterator } = require('internal/v8');
 
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
@@ -278,6 +280,7 @@ assert.strictEqual(
     '{ readwrite: [Getter/Setter] }');
 
   assert.strictEqual(
+    // eslint-disable-next-line accessor-pairs
     util.inspect({ set writeonly(val) {} }),
     '{ writeonly: [Setter] }');
 
@@ -441,11 +444,9 @@ assert.strictEqual(util.inspect(-0), '-0');
 
 // test for Array constructor in different context
 {
-  const Debug = vm.runInDebugContext('Debug');
   const map = new Map();
   map.set(1, 2);
-  const mirror = Debug.MakeMirror(map.entries(), true);
-  const vals = mirror.preview();
+  const vals = previewMapIterator(map.entries(), 100);
   const valsOutput = [];
   for (const o of vals) {
     valsOutput.push(o);
@@ -474,7 +475,7 @@ assert.strictEqual(util.inspect(-0), '-0');
     }
   });
   const setter = Object.create(null, {
-    b: {
+    b: { // eslint-disable-line accessor-pairs
       set: function() {}
     }
   });
@@ -565,25 +566,31 @@ assert.doesNotThrow(() => {
   assert.strictEqual(util.inspect(x).includes('inspect'), true);
 }
 
-// util.inspect should not display the escaped value of a key.
+// util.inspect should display the escaped value of a key.
 {
   const w = {
     '\\': 1,
     '\\\\': 2,
     '\\\\\\': 3,
     '\\\\\\\\': 4,
+    '\n': 5,
+    '\r': 6
   };
 
   const y = ['a', 'b', 'c'];
-  y['\\\\\\'] = 'd';
+  y['\\\\'] = 'd';
+  y['\n'] = 'e';
+  y['\r'] = 'f';
 
   assert.strictEqual(
     util.inspect(w),
-    '{ \'\\\': 1, \'\\\\\': 2, \'\\\\\\\': 3, \'\\\\\\\\\': 4 }'
+    '{ \'\\\\\': 1, \'\\\\\\\\\': 2, \'\\\\\\\\\\\\\': 3, ' +
+    '\'\\\\\\\\\\\\\\\\\': 4, \'\\n\': 5, \'\\r\': 6 }'
   );
   assert.strictEqual(
     util.inspect(y),
-    '[ \'a\', \'b\', \'c\', \'\\\\\\\': \'d\' ]'
+    '[ \'a\', \'b\', \'c\', \'\\\\\\\\\': \'d\', ' +
+    '\'\\n\': \'e\', \'\\r\': \'f\' ]'
   );
 }
 
@@ -1134,7 +1141,7 @@ if (typeof Symbol !== 'undefined') {
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
+    message: 'The "options" argument must be of type Object'
   })
   );
 
@@ -1143,9 +1150,15 @@ if (typeof Symbol !== 'undefined') {
   }, common.expectsError({
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "options" argument must be of type object'
+    message: 'The "options" argument must be of type Object'
   })
   );
 }
 
 assert.doesNotThrow(() => util.inspect(process));
+
+// Setting custom inspect property to a non-function should do nothing.
+{
+  const obj = { inspect: 'fhqwhgads' };
+  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+}

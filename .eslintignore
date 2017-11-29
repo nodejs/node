@@ -1,10 +1,12 @@
+lib/internal/v8.js
 lib/internal/v8_prof_polyfill.js
 lib/punycode.js
-test/addons/??_*/
+test/addons/??_*
 test/fixtures
-test/tmp*/
+test/message/esm_display_syntax_error.mjs
 tools/eslint
 tools/icu
+tools/remark-*
 node_modules
-benchmark/tmp/
+benchmark/tmp
 doc/**/*.js

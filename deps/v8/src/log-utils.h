@@ -31,7 +31,7 @@ class Log {
   static bool InitLogAtStart() {
     return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
            FLAG_log_handles || FLAG_log_suspect || FLAG_ll_prof ||
-           FLAG_perf_basic_prof || FLAG_perf_prof ||
+           FLAG_perf_basic_prof || FLAG_perf_prof || FLAG_log_source_code ||
            FLAG_log_internal_timer_events || FLAG_prof_cpp || FLAG_trace_ic;
   }
 
@@ -87,6 +87,13 @@ class Log {
     // Append a portion of a string.
     void AppendStringPart(const char* str, int len);
 
+    // Helpers for appending char, C-string and heap string without
+    // buffering. This is useful for entries that can exceed the 2kB
+    // limit.
+    void AppendUnbufferedChar(char c);
+    void AppendUnbufferedCString(const char* str);
+    void AppendUnbufferedHeapString(String* source);
+
     // Write the log message to the log file currently opened.
     void WriteToLogFile();
 
@@ -114,7 +121,6 @@ class Log {
     size_t rv = fwrite(msg, 1, length, output_handle_);
     DCHECK_EQ(length, rv);
     USE(rv);
-    fflush(output_handle_);
     return length;
   }
 

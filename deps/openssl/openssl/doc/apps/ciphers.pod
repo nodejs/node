@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-ciphers,
 ciphers - SSL cipher display and cipher list tool.
 
 =head1 SYNOPSIS

@@ -1,6 +1,8 @@
+'use strict';
+
 // Declare internals
 
-var internals = {};
+const internals = {};
 
 
 exports.escapeJavaScript = function (input) {
@@ -9,11 +11,11 @@ exports.escapeJavaScript = function (input) {
         return '';
     }
 
-    var escaped = '';
+    let escaped = '';
 
-    for (var i = 0, il = input.length; i < il; ++i) {
+    for (let i = 0; i < input.length; ++i) {
 
-        var charCode = input.charCodeAt(i);
+        const charCode = input.charCodeAt(i);
 
         if (internals.isSafe(charCode)) {
             escaped += input[i];
@@ -33,11 +35,11 @@ exports.escapeHtml = function (input) {
         return '';
     }
 
-    var escaped = '';
+    let escaped = '';
 
-    for (var i = 0, il = input.length; i < il; ++i) {
+    for (let i = 0; i < input.length; ++i) {
 
-        var charCode = input.charCodeAt(i);
+        const charCode = input.charCodeAt(i);
 
         if (internals.isSafe(charCode)) {
             escaped += input[i];
@@ -51,20 +53,54 @@ exports.escapeHtml = function (input) {
 };
 
 
+exports.escapeJson = function (input) {
+
+    if (!input) {
+        return '';
+    }
+
+    const lessThan = 0x3C;
+    const greaterThan = 0x3E;
+    const andSymbol = 0x26;
+    const lineSeperator = 0x2028;
+
+    // replace method
+    let charCode;
+    return input.replace(/[<>&\u2028\u2029]/g, (match) => {
+
+        charCode = match.charCodeAt(0);
+
+        if (charCode === lessThan) {
+            return '\\u003c';
+        }
+        else if (charCode === greaterThan) {
+            return '\\u003e';
+        }
+        else if (charCode === andSymbol) {
+            return '\\u0026';
+        }
+        else if (charCode === lineSeperator) {
+            return '\\u2028';
+        }
+        return '\\u2029';
+    });
+};
+
+
 internals.escapeJavaScriptChar = function (charCode) {
 
     if (charCode >= 256) {
         return '\\u' + internals.padLeft('' + charCode, 4);
     }
 
-    var hexValue = new Buffer(String.fromCharCode(charCode), 'ascii').toString('hex');
+    const hexValue = new Buffer(String.fromCharCode(charCode), 'ascii').toString('hex');
     return '\\x' + internals.padLeft(hexValue, 2);
 };
 
 
 internals.escapeHtmlChar = function (charCode) {
 
-    var namedEscape = internals.namedHtml[charCode];
+    const namedEscape = internals.namedHtml[charCode];
     if (typeof namedEscape !== 'undefined') {
         return namedEscape;
     }
@@ -73,7 +109,7 @@ internals.escapeHtmlChar = function (charCode) {
         return '&#' + charCode + ';';
     }
 
-    var hexValue = new Buffer(String.fromCharCode(charCode), 'ascii').toString('hex');
+    const hexValue = new Buffer(String.fromCharCode(charCode), 'ascii').toString('hex');
     return '&#x' + internals.padLeft(hexValue, 2) + ';';
 };
 
@@ -110,9 +146,9 @@ internals.namedHtml = {
 
 internals.safeCharCodes = (function () {
 
-    var safe = {};
+    const safe = {};
 
-    for (var i = 32; i < 123; ++i) {
+    for (let i = 32; i < 123; ++i) {
 
         if ((i >= 97) ||                    // a-z
             (i >= 65 && i <= 90) ||         // A-Z

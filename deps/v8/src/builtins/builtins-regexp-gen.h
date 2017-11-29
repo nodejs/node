@@ -20,6 +20,13 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                           Label* const if_ismodified);
 
  protected:
+  // Allocate a RegExpResult with the given length (the number of captures,
+  // including the match itself), index (the index where the match starts),
+  // and input string. |length| and |index| are expected to be tagged, and
+  // |input| must be a string.
+  Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
+                             Node* input);
+
   Node* FastLoadLastIndex(Node* regexp);
   Node* SlowLoadLastIndex(Node* context, Node* regexp);
   Node* LoadLastIndex(Node* context, Node* regexp, bool is_fastpath);

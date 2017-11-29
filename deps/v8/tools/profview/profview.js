@@ -213,6 +213,14 @@ let bucketDescriptors =
         color : "#8080ff",
         backgroundColor : "#e0e0ff",
         text : "C++/external" },
+      { kinds : [ "CPPPARSE" ],
+        color : "#b890f7",
+        backgroundColor : "#ebdeff",
+        text : "C++/Parser" },
+      { kinds : [ "CPPCOMPBC" ],
+        color : "#52b0ce",
+        backgroundColor : "#a5c8d4",
+        text : "C++/Bytecode compiler" },
       { kinds : [ "CPPCOMP" ],
         color : "#00ffff",
         backgroundColor : "#c0ffff",
@@ -251,6 +259,10 @@ function codeTypeToText(type) {
   switch (type) {
     case "UNKNOWN":
       return "Unknown";
+    case "CPPPARSE":
+      return "C++ (parser)";
+    case "CPPCOMPBC":
+      return "C++ (bytecode compiler)";
     case "CPPCOMP":
       return "C++ (compiler)";
     case "CPPGC":

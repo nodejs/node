@@ -164,6 +164,10 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
   current_block_ = nullptr;
 }
 
+void RawMachineAssembler::DebugAbort(Node* message) {
+  AddNode(machine()->DebugAbort(), message);
+}
+
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
 void RawMachineAssembler::Unreachable() {
@@ -226,6 +230,18 @@ Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
   return AddNode(common()->Call(descriptor), function, arg0);
 }
 
+Node* RawMachineAssembler::CallCFunction1WithCallerSavedRegisters(
+    MachineType return_type, MachineType arg0_type, Node* function,
+    Node* arg0) {
+  MachineSignature::Builder builder(zone(), 1, 1);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->CallWithCallerSavedRegisters(descriptor), function,
+                 arg0);
+}
 
 Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
                                           MachineType arg0_type,
@@ -255,6 +271,21 @@ Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
   return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2);
+}
+
+Node* RawMachineAssembler::CallCFunction3WithCallerSavedRegisters(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2) {
+  MachineSignature::Builder builder(zone(), 1, 3);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->CallWithCallerSavedRegisters(descriptor), function,
+                 arg0, arg1, arg2);
 }
 
 Node* RawMachineAssembler::CallCFunction6(

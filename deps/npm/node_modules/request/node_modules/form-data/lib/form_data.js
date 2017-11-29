@@ -21,8 +21,9 @@ util.inherits(FormData, CombinedStream);
  * and file uploads to other web applications.
  *
  * @constructor
+ * @param {Object} options - Properties to be added/overriden for FormData and CombinedStream
  */
-function FormData() {
+function FormData(options) {
   if (!(this instanceof FormData)) {
     return new FormData();
   }
@@ -32,6 +33,11 @@ function FormData() {
   this._valuesToMeasure = [];
 
   CombinedStream.call(this);
+
+  options = options || {};
+  for (var option in options) {
+    this[option] = options[option];
+  }
 }
 
 FormData.LINE_BREAK = '\r\n';
@@ -186,6 +192,7 @@ FormData.prototype._multiPartHeader = function(field, value, options) {
 
   var header;
   for (var prop in headers) {
+    if (!headers.hasOwnProperty(prop)) continue;
     header = headers[prop];
 
     // skip nullish headers.
@@ -209,20 +216,25 @@ FormData.prototype._multiPartHeader = function(field, value, options) {
 
 FormData.prototype._getContentDisposition = function(value, options) {
 
-  var contentDisposition;
+  var filename
+    , contentDisposition
+    ;
 
-  // custom filename takes precedence
-  // fs- and request- streams have path property
-  // formidable and the browser add a name property.
-  var filename = options.filename || value.name || value.path;
-
-  // or try http response
-  if (!filename && value.readable && value.hasOwnProperty('httpVersion')) {
-    filename = value.client._httpMessage.path;
+  if (typeof options.filepath === 'string') {
+    // custom filepath for relative paths
+    filename = path.normalize(options.filepath).replace(/\\/g, '/');
+  } else if (options.filename || value.name || value.path) {
+    // custom filename take precedence
+    // formidable and the browser add a name property
+    // fs- and request- streams have path property
+    filename = path.basename(options.filename || value.name || value.path);
+  } else if (value.readable && value.hasOwnProperty('httpVersion')) {
+    // or try http response
+    filename = path.basename(value.client._httpMessage.path);
   }
 
   if (filename) {
-    contentDisposition = 'filename="' + path.basename(filename) + '"';
+    contentDisposition = 'filename="' + filename + '"';
   }
 
   return contentDisposition;
@@ -248,9 +260,9 @@ FormData.prototype._getContentType = function(value, options) {
     contentType = value.headers['content-type'];
   }
 
-  // or guess it from the filename
-  if (!contentType && options.filename) {
-    contentType = mime.lookup(options.filename);
+  // or guess it from the filepath or filename
+  if (!contentType && (options.filepath || options.filename)) {
+    contentType = mime.lookup(options.filepath || options.filename);
   }
 
   // fallback to the default content type if `value` is not simple value
@@ -388,7 +400,8 @@ FormData.prototype.submit = function(params, cb) {
     options = populate({
       port: params.port,
       path: params.pathname,
-      host: params.hostname
+      host: params.hostname,
+      protocol: params.protocol
     }, defaults);
 
   // use custom params

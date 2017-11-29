@@ -15,7 +15,7 @@
 #include "src/inspector/v8-profiler-agent-impl.h"
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
-#include "src/inspector/v8-value-copier.h"
+#include "src/inspector/v8-value-utils.h"
 
 #include "include/v8-inspector.h"
 
@@ -185,6 +185,8 @@ void createBoundFunctionProperty(v8::Local<v8::Context> context,
   }
   createDataProperty(context, console, funcName, func);
 }
+
+enum InspectRequest { kRegular, kCopyToClipboard, kQueryObjects };
 
 }  // namespace
 
@@ -552,10 +554,9 @@ void V8Console::lastEvaluationResultCallback(
 }
 
 static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
-                        int sessionId, bool copyToClipboard,
-                        V8InspectorImpl* inspector) {
-  if (info.Length() < 1) return;
-  if (!copyToClipboard) info.GetReturnValue().Set(info[0]);
+                        v8::Local<v8::Value> value, int sessionId,
+                        InspectRequest request, V8InspectorImpl* inspector) {
+  if (request == kRegular) info.GetReturnValue().Set(value);
 
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), inspector);
@@ -563,13 +564,17 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
   protocol::Response response =
-      injectedScript->wrapObject(info[0], "", false /** forceValueType */,
+      injectedScript->wrapObject(value, "", false /** forceValueType */,
                                  false /** generatePreview */, &wrappedObject);
   if (!response.isSuccess()) return;
 
   std::unique_ptr<protocol::DictionaryValue> hints =
       protocol::DictionaryValue::create();
-  if (copyToClipboard) hints->setBoolean("copyToClipboard", true);
+  if (request == kCopyToClipboard) {
+    hints->setBoolean("copyToClipboard", true);
+  } else if (request == kQueryObjects) {
+    hints->setBoolean("queryObjects", true);
+  }
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {
     session->runtimeAgent()->inspect(std::move(wrappedObject),
                                      std::move(hints));
@@ -578,12 +583,37 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void V8Console::inspectCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                                 int sessionId) {
-  inspectImpl(info, sessionId, false, m_inspector);
+  if (info.Length() < 1) return;
+  inspectImpl(info, info[0], sessionId, kRegular, m_inspector);
 }
 
 void V8Console::copyCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                              int sessionId) {
-  inspectImpl(info, sessionId, true, m_inspector);
+  if (info.Length() < 1) return;
+  inspectImpl(info, info[0], sessionId, kCopyToClipboard, m_inspector);
+}
+
+void V8Console::queryObjectsCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info, int sessionId) {
+  if (info.Length() < 1) return;
+  v8::Local<v8::Value> arg = info[0];
+  if (arg->IsFunction()) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::TryCatch tryCatch(isolate);
+    v8::Local<v8::Value> prototype;
+    if (arg.As<v8::Function>()
+            ->Get(isolate->GetCurrentContext(),
+                  toV8StringInternalized(isolate, "prototype"))
+            .ToLocal(&prototype) &&
+        prototype->IsObject()) {
+      arg = prototype;
+    }
+    if (tryCatch.HasCaught()) {
+      tryCatch.ReThrow();
+      return;
+    }
+  }
+  inspectImpl(info, arg, sessionId, kQueryObjects, m_inspector);
 }
 
 void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
@@ -683,6 +713,10 @@ v8::Local<v8::Object> V8Console::createCommandLineAPI(
   createBoundFunctionProperty(context, commandLineAPI, data, "copy",
                               &V8Console::call<&V8Console::copyCallback>,
                               "function copy(value) { [Command Line API] }");
+  createBoundFunctionProperty(
+      context, commandLineAPI, data, "queryObjects",
+      &V8Console::call<&V8Console::queryObjectsCallback>,
+      "function queryObjects(constructor) { [Command Line API] }");
   createBoundFunctionProperty(
       context, commandLineAPI, data, "$_",
       &V8Console::call<&V8Console::lastEvaluationResultCallback>);

@@ -1,5 +1,4 @@
-#include "base-object.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "node_internals.h"
@@ -284,7 +283,7 @@ void Open(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (args.Length() > 2 && args[2]->IsBoolean()) {
-    wait_for_connect =  args[2]->BooleanValue();
+    wait_for_connect = args[2]->BooleanValue(env->context()).FromJust();
   }
 
   agent->StartIoThread(wait_for_connect);
@@ -349,5 +348,5 @@ void InitInspectorBindings(Local<Object> target, Local<Value> unused,
 }  // namespace inspector
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector,
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(inspector,
                                   node::inspector::InitInspectorBindings);

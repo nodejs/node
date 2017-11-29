@@ -255,8 +255,6 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
      * We can't continue in constant-time because we need to copy the result
      * and we cannot fake its length. This unavoidably leaks timing
      * information at the API boundary.
-     * TODO(emilia): this could be addressed at the call site,
-     * see BoringSSL commit 0aa0767340baf925bda4804882aab0cb974b2d26.
      */
     if (!good) {
         mlen = -1;
@@ -266,8 +264,10 @@ int RSA_padding_check_PKCS1_type_2(unsigned char *to, int tlen,
     memcpy(to, em + msg_index, mlen);
 
  err:
-    if (em != NULL)
+    if (em != NULL) {
+        OPENSSL_cleanse(em, num);
         OPENSSL_free(em);
+    }
     if (mlen == -1)
         RSAerr(RSA_F_RSA_PADDING_CHECK_PKCS1_TYPE_2,
                RSA_R_PKCS_DECODING_ERROR);

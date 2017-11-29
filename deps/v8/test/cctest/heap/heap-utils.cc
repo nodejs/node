@@ -176,7 +176,6 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   }
   space->EmptyAllocationInfo();
   space->ResetFreeList();
-  space->ClearStats();
 }
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space) {

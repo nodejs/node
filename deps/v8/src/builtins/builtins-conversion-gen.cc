@@ -2,15 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins-conversion-gen.h"
-
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+class ConversionBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit ConversionBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  void Generate_NonPrimitiveToPrimitive(Node* context, Node* input,
+                                        ToPrimitiveHint hint);
+
+  void Generate_OrdinaryToPrimitive(Node* context, Node* input,
+                                    OrdinaryToPrimitiveHint hint);
+};
 
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
@@ -122,56 +134,6 @@ TF_BUILTIN(ToString, CodeStubAssembler) {
   Node* input = Parameter(Descriptor::kArgument);
 
   Return(ToString(context, input));
-}
-
-// ES6 section 7.1.1 ToPrimitive( argument, "default" ) followed by
-// ES6 section 7.1.12 ToString ( argument )
-compiler::Node* ConversionBuiltinsAssembler::ToPrimitiveToString(
-    Node* context, Node* input, Variable* feedback) {
-  Label is_string(this), to_primitive(this, Label::kDeferred),
-      to_string(this, Label::kDeferred), done(this);
-  VARIABLE(result, MachineRepresentation::kTagged, input);
-
-  GotoIf(TaggedIsSmi(input), &to_string);
-  GotoIf(IsString(input), &is_string);
-  BranchIfJSReceiver(input, &to_primitive, &to_string);
-
-  BIND(&to_primitive);
-  {
-    Callable callable = CodeFactory::NonPrimitiveToPrimitive(isolate());
-    result.Bind(CallStub(callable, context, input));
-    Goto(&to_string);
-  }
-
-  BIND(&to_string);
-  {
-    if (feedback) {
-      feedback->Bind(SmiConstant(BinaryOperationFeedback::kAny));
-    }
-    result.Bind(CallBuiltin(Builtins::kToString, context, result.value()));
-    Goto(&done);
-  }
-
-  BIND(&is_string);
-  {
-    if (feedback) {
-      feedback->Bind(
-          SelectSmiConstant(WordEqual(input, EmptyStringConstant()),
-                            BinaryOperationFeedback::kString,
-                            BinaryOperationFeedback::kNonEmptyString));
-    }
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return result.value();
-}
-
-TF_BUILTIN(ToPrimitiveToString, ConversionBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* input = Parameter(Descriptor::kArgument);
-
-  Return(ToPrimitiveToString(context, input));
 }
 
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )

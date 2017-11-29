@@ -72,9 +72,7 @@ class TypedOptimizationTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    TypedOptimization reducer(&graph_reducer, &deps_,
-                              TypedOptimization::kDeoptimizationEnabled,
-                              &jsgraph);
+    TypedOptimization reducer(&graph_reducer, &deps_, &jsgraph);
     return reducer.Reduce(node);
   }
 

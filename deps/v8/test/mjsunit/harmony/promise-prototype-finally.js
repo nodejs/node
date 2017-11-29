@@ -4,320 +4,241 @@
 
 // Flags: --harmony-promise-finally --allow-natives-syntax
 
-var asyncAssertsExpected = 0;
+assertThrows(() => Promise.prototype.finally.call(5), TypeError);
 
-function assertUnreachable() {
-  %AbortJS("Unreachable: failure");
-}
+testAsync(assert => {
+  assert.plan(1);
 
-function assertAsyncRan() {
-  ++asyncAssertsExpected;
-}
+  Promise.resolve(3).finally().then(x => {
+    assert.equals(3, x);
+  }, assert.unreachable);
+}, "resolve/finally/then");
 
-function assertAsync(b, s) {
-  if (b) {
-    print(s, "succeeded");
-  } else {
-    %AbortJS(s + " FAILED!");
-  }
-  --asyncAssertsExpected;
-}
+testAsync(assert => {
+  assert.plan(1);
 
-function assertEqualsAsync(b, s) {
-  if (b === s) {
-    print(b, "===", s, "succeeded");
-  } else {
-    %AbortJS(b + "===" + s + " FAILED!");
-  }
-  --asyncAssertsExpected;
-}
-
-function assertAsyncDone(iteration) {
-  var iteration = iteration || 0;
-  %EnqueueMicrotask(function() {
-    if (asyncAssertsExpected === 0)
-      assertAsync(true, "all");
-    else if (
-      iteration > 10 // Shouldn't take more.
-    )
-      assertAsync(false, "all... " + asyncAssertsExpected);
-    else
-      assertAsyncDone(iteration + 1);
+  Promise.reject(3).finally().then(assert.unreachable, x => {
+    assert.equals(3, x);
   });
-}
+}, "reject/finally/then");
 
-(function() {
-  assertThrows(
-    function() {
-      Promise.prototype.finally.call(5);
-    },
-    TypeError
-  );
-})();
+testAsync(assert => {
+  assert.plan(1);
 
-// resolve/finally/then
-(function() {
-  Promise.resolve(3).finally().then(
-    x => {
-      assertEqualsAsync(3, x);
-    },
-    assertUnreachable
-  );
-  assertAsyncRan();
-})();
+  Promise.resolve(3).finally(2).then(x => {
+    assert.equals(3, x);
+  }, assert.unreachable);
+}, "resolve/finally-return-notcallable/then");
 
-// reject/finally/then
-(function() {
-  Promise.reject(3).finally().then(assertUnreachable, x => {
-    assertEqualsAsync(3, x);
+testAsync(assert => {
+  assert.plan(1);
+
+  Promise.reject(3).finally(2).then(assert.unreachable, e => {
+    assert.equals(3, e);
   });
-  assertAsyncRan();
-})();
+}, "reject/finally-return-notcallable/then");
 
-// resolve/finally-return-notcallable/then
-(function() {
-  Promise.resolve(3).finally(2).then(
-    x => {
-      assertEqualsAsync(3, x);
-    },
-    assertUnreachable
-  );
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(1);
 
-// reject/finally-return-notcallable/then
-(function() {
-  Promise.reject(3).finally(2).then(
-    assertUnreachable, e => {
-      assertEqualsAsync(3, e);
-    });
-  assertAsyncRan();
-})();
-
-// reject/finally/catch
-(function() {
   Promise.reject(3).finally().catch(reason => {
-    assertEqualsAsync(3, reason);
+    assert.equals(3, reason);
   });
-  assertAsyncRan();
-})();
+}, "reject/finally/catch");
 
-// reject/finally/then/catch
-(function() {
-  Promise.reject(3).finally().then(assertUnreachable).catch(reason => {
-    assertEqualsAsync(3, reason);
+testAsync(assert => {
+  assert.plan(1);
+
+  Promise.reject(3).finally().then(assert.unreachable).catch(reason => {
+    assert.equals(3, reason);
   });
-  assertAsyncRan();
-})();
+}, "reject/finally/then/catch");
 
-// resolve/then/finally/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.resolve(3)
     .then(x => {
-      assertEqualsAsync(3, x);
+      assert.equals(3, x);
       return x;
     })
     .finally()
-    .then(
-      x => {
-        assertEqualsAsync(3, x);
-      },
-      assertUnreachable
-    );
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+    .then(x => {
+      assert.equals(3, x);
+    }, assert.unreachable);
+}, "resolve/then/finally/then");
 
-// reject/catch/finally/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .catch(x => {
-      assertEqualsAsync(3, x);
+      assert.equals(3, x);
       return x;
     })
     .finally()
-    .then(
-      x => {
-        assertEqualsAsync(3, x);
-      },
-      assertUnreachable
-    );
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+    .then(x => {
+      assert.equals(3, x);
+    }, assert.unreachable);
+}, "reject/catch/finally/then");
 
-// resolve/finally-throw/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.resolve(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      print("in finally");
+      assert.equals(0, arguments.length);
       throw 1;
     })
-    .then(assertUnreachable, function onRejected(reason) {
-      assertEqualsAsync(1, reason);
+    .then(assert.unreachable, function onRejected(reason) {
+      assert.equals(1, reason);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "resolve/finally-throw/then");
 
-// reject/finally-throw/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       throw 1;
     })
-    .then(assertUnreachable, function onRejected(reason) {
-      assertEqualsAsync(1, reason);
+    .then(assert.unreachable, function onRejected(reason) {
+      assert.equals(1, reason);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "reject/finally-throw/then");
 
-// resolve/finally-return/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.resolve(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return 4;
     })
-    .then(
-      x => {
-        assertEqualsAsync(x, 3);
-      },
-      assertUnreachable
-    );
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+    .then(x => {
+      assert.equals(x, 3);
+    }, assert.unreachable);
+}, "resolve/finally-return/then");
 
 // reject/finally-return/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return 4;
     })
-    .then(assertUnreachable, x => {
-      assertEqualsAsync(x, 3);
+    .then(assert.unreachable, x => {
+      assert.equals(x, 3);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+});
 
 // reject/catch-throw/finally-throw/then
-(function() {
+testAsync(assert => {
+  assert.plan(3);
+
   Promise.reject(3)
     .catch(e => {
-      assertEqualsAsync(3, e);
+      assert.equals(3, e);
       throw e;
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       throw 4;
     })
-    .then(assertUnreachable, function onRejected(e) {
-      assertEqualsAsync(4, e);
+    .then(assert.unreachable, function onRejected(e) {
+      assert.equals(4, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+});
 
-// resolve/then-throw/finally-throw/then
-(function() {
+testAsync(assert => {
+  assert.plan(3);
+
   Promise.resolve(3)
     .then(e => {
-      assertEqualsAsync(3, e);
+      assert.equals(3, e);
       throw e;
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       throw 4;
     })
-    .then(assertUnreachable, function onRejected(e) {
-      assertEqualsAsync(4, e);
+    .then(assert.unreachable, function onRejected(e) {
+      assert.equals(4, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "resolve/then-throw/finally-throw/then");
 
-// resolve/finally-return-rejected-promise/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.resolve(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.reject(4);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(4, e);
+    .then(assert.unreachable, e => {
+      assert.equals(4, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "resolve/finally-return-rejected-promise/then");
 
-// reject/finally-return-rejected-promise/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.reject(4);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(4, e);
+    .then(assert.unreachable, e => {
+      assert.equals(4, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "reject/finally-return-rejected-promise/then");
 
-// resolve/finally-return-resolved-promise/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.resolve(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.resolve(4);
     })
-    .then(
-      x => {
-        assertEqualsAsync(3, x);
-      },
-      assertUnreachable
-    );
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+    .then(x => {
+      assert.equals(3, x);
+    }, assert.unreachable);
+}, "resolve/finally-return-resolved-promise/then");
 
-// reject/finally-return-resolved-promise/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.resolve(4);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(3, e);
+    .then(assert.unreachable, e => {
+      assert.equals(3, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "reject/finally-return-resolved-promise/then");
 
-// reject/finally-return-resolved-promise/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   Promise.reject(3)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.resolve(4);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(3, e);
+    .then(assert.unreachable, e => {
+      assert.equals(3, e);
     });
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+}, "reject/finally-return-resolved-promise/then");
 
-// resolve/finally-thenable-resolve/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   var thenable = {
     then: function(onResolve, onReject) {
       onResolve(5);
@@ -326,22 +247,17 @@ function assertAsyncDone(iteration) {
 
   Promise.resolve(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return thenable;
     })
-    .then(
-      x => {
-        assertEqualsAsync(5, x);
-      },
-      assertUnreachable
-    );
+    .then(x => {
+      assert.equals(5, x);
+    }, assert.unreachable);
+}, "resolve/finally-thenable-resolve/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(2);
 
-// reject/finally-thenable-resolve/then
-(function() {
   var thenable = {
     then: function(onResolve, onReject) {
       onResolve(1);
@@ -350,19 +266,17 @@ function assertAsyncDone(iteration) {
 
   Promise.reject(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return thenable;
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(5, e);
+    .then(assert.unreachable, e => {
+      assert.equals(5, e);
     });
+}, "reject/finally-thenable-resolve/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(2);
 
-// reject/finally-thenable-reject/then
-(function() {
   var thenable = {
     then: function(onResolve, onReject) {
       onReject(1);
@@ -371,19 +285,17 @@ function assertAsyncDone(iteration) {
 
   Promise.reject(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return thenable;
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "reject/finally-thenable-reject/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(2);
 
-// resolve/finally-thenable-reject/then
-(function() {
   var thenable = {
     then: function(onResolve, onReject) {
       onReject(1);
@@ -392,159 +304,133 @@ function assertAsyncDone(iteration) {
 
   Promise.resolve(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return thenable;
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "resolve/finally-thenable-reject/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// resolve/finally/finally/then
-(function() {
   Promise.resolve(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(
-      x => {
-        assertEqualsAsync(5, x);
-      },
-      assertUnreachable
-    );
+    .then(x => {
+      assert.equals(5, x);
+    }, assert.unreachable);
+}, "resolve/finally/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// resolve/finally-throw/finally/then
-(function() {
   Promise.resolve(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       throw 1;
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "resolve/finally-throw/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// resolve/finally-return-rejected-promise/finally/then
-(function() {
   Promise.resolve(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.reject(1);
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "resolve/finally-return-rejected-promise/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// reject/finally/finally/then
-(function() {
   Promise.reject(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(5, e);
+    .then(assert.unreachable, e => {
+      assert.equals(5, e);
     });
+}, "reject/finally/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// reject/finally-throw/finally/then
-(function() {
   Promise.reject(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       throw 1;
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "reject/finally-throw/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(3);
 
-// reject/finally-return-rejected-promise/finally/then
-(function() {
   Promise.reject(5)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return Promise.reject(1);
     })
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(1, e);
+    .then(assert.unreachable, e => {
+      assert.equals(1, e);
     });
+}, "reject/finally-return-rejected-promise/finally/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(2);
 
-// resolve/finally-deferred-resolve/then
-(function() {
   var resolve, reject;
   var deferred = new Promise((x, y) => {
     resolve = x;
     reject = y;
   });
+
   Promise.resolve(1)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return deferred;
     })
-    .then(
-      x => {
-        assertEqualsAsync(1, x);
-      },
-      assertUnreachable
-    );
-
-  assertAsyncRan();
-  assertAsyncRan();
+    .then(x => {
+      assert.equals(1, x);
+    }, assert.unreachable);
 
   resolve(5);
-})();
+}, "resolve/finally-deferred-resolve/then");
 
-// resolve/finally-deferred-reject/then
-(function() {
+//
+testAsync(assert => {
+  assert.plan(2);
+
   var resolve, reject;
   var deferred = new Promise((x, y) => {
     resolve = x;
@@ -552,46 +438,38 @@ function assertAsyncDone(iteration) {
   });
   Promise.resolve(1)
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
       return deferred;
     })
-    .then(assertUnreachable, e => {
-      assertEqualsAsync(5, e);
+    .then(assert.unreachable, e => {
+      assert.equals(5, e);
     });
 
-  assertAsyncRan();
-  assertAsyncRan();
-
   reject(5);
-})();
+}, "resolve/finally-deferred-reject/then");
 
-// all/finally/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   var resolve, reject;
   var deferred = new Promise((x, y) => {
     resolve = x;
     reject = y;
   });
-
   Promise.all([deferred])
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(
-      ([x]) => {
-        assertEqualsAsync(1, x);
-      },
-      assertUnreachable
-    );
-
-  assertAsyncRan();
-  assertAsyncRan();
+    .then(([x]) => {
+      assert.equals(1, x);
+    }, assert.unreachable);
 
   resolve(1);
-})();
+}, "all/finally/then");
 
-// race/finally/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   var resolve, reject;
   var d1 = new Promise((x, y) => {
     resolve = x;
@@ -601,61 +479,48 @@ function assertAsyncDone(iteration) {
     resolve = x;
     reject = y;
   });
-
   Promise.race([d1, d2])
     .finally(function onFinally() {
-      assertEqualsAsync(0, arguments.length);
+      assert.equals(0, arguments.length);
     })
-    .then(
-      x => {
-        assertEqualsAsync(1, x);
-      },
-      assertUnreachable
-    );
-
-  assertAsyncRan();
-  assertAsyncRan();
+    .then(x => {
+      assert.equals(1, x);
+    }, assert.unreachable);
 
   resolve(1);
-})();
+}, "race/finally/then");
 
-// resolve/finally-customthen/then
-(function() {
+testAsync(assert => {
+  assert.plan(2);
+
   class MyPromise extends Promise {
-      then(onFulfilled, onRejected) {
-          assertEqualsAsync(5, onFulfilled);
-          assertEqualsAsync(5, onRejected);
-          return super.then(onFulfilled, onRejected);
-      }
+    then(onFulfilled, onRejected) {
+      assert.equals(5, onFulfilled);
+      assert.equals(5, onRejected);
+      return super.then(onFulfilled, onRejected);
+    }
   }
 
   MyPromise.resolve(3).finally(5);
+}, "resolve/finally-customthen/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
+testAsync(assert => {
+  assert.plan(2);
 
-// reject/finally-customthen/then
-(function() {
   class MyPromise extends Promise {
-      then(onFulfilled, onRejected) {
-          assertEqualsAsync(5, onFulfilled);
-          assertEqualsAsync(5, onRejected);
-          return super.then(onFulfilled, onRejected);
-      }
+    then(onFulfilled, onRejected) {
+      assert.equals(5, onFulfilled);
+      assert.equals(5, onRejected);
+      return super.then(onFulfilled, onRejected);
+    }
   }
 
   MyPromise.reject(3).finally(5);
+}, "reject/finally-customthen/then");
 
-  assertAsyncRan();
-  assertAsyncRan();
-})();
-
-var descriptor = Object.getOwnPropertyDescriptor(Promise.prototype, 'finally');
+var descriptor = Object.getOwnPropertyDescriptor(Promise.prototype, "finally");
 assertTrue(descriptor.writable);
 assertTrue(descriptor.configurable);
 assertFalse(descriptor.enumerable);
 assertEquals("finally", Promise.prototype.finally.name);
 assertEquals(1, Promise.prototype.finally.length);
-
-assertAsyncDone();

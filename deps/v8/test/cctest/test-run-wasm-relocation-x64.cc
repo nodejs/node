@@ -17,8 +17,9 @@
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 #define __ assm.
 
@@ -134,3 +135,7 @@ TEST(WasmRelocationX64WasmMemorySizeReference) {
 #endif
 }
 #undef __
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

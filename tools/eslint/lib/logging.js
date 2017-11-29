@@ -15,7 +15,7 @@ module.exports = {
      * @returns {void}
      */
     info() {
-        console.log.apply(console, Array.prototype.slice.call(arguments));
+        console.log.apply(console, arguments);
     },
 
     /**
@@ -23,6 +23,6 @@ module.exports = {
      * @returns {void}
      */
     error() {
-        console.error.apply(console, Array.prototype.slice.call(arguments));
+        console.error.apply(console, arguments);
     }
 };

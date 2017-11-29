@@ -61,13 +61,13 @@ function makeRegistryItems(rulesConfig) {
 }
 
 /**
-* Creates an object in which to store rule configs and error counts
-*
-* Unless a rulesConfig is provided at construction, the registry will not contain
-* any rules, only methods.  This will be useful for building up registries manually.
-*
-* Registry class
-*/
+ * Creates an object in which to store rule configs and error counts
+ *
+ * Unless a rulesConfig is provided at construction, the registry will not contain
+ * any rules, only methods.  This will be useful for building up registries manually.
+ *
+ * Registry class
+ */
 class Registry {
 
     /**
@@ -269,10 +269,8 @@ class Registry {
      * @returns {Registry}              New registry with errorCount populated
      */
     lintSourceCode(sourceCodes, config, cb) {
-        let ruleSetIdx,
-            lintedRegistry;
+        let lintedRegistry = new Registry();
 
-        lintedRegistry = new Registry();
         lintedRegistry.rules = Object.assign({}, this.rules);
 
         const ruleSets = lintedRegistry.buildRuleSets();
@@ -287,7 +285,7 @@ class Registry {
         filenames.forEach(filename => {
             debug(`Linting file: ${filename}`);
 
-            ruleSetIdx = 0;
+            let ruleSetIdx = 0;
 
             ruleSets.forEach(ruleSet => {
                 const lintConfig = Object.assign({}, config, { rules: ruleSet });
@@ -295,11 +293,13 @@ class Registry {
 
                 lintResults.forEach(result => {
 
-                    // It is possible that the error is from a configuration comment
-                    // in a linted file, in which case there may not be a config
-                    // set in this ruleSetIdx.
-                    // (https://github.com/eslint/eslint/issues/5992)
-                    // (https://github.com/eslint/eslint/issues/7860)
+                    /*
+                     * It is possible that the error is from a configuration comment
+                     * in a linted file, in which case there may not be a config
+                     * set in this ruleSetIdx.
+                     * (https://github.com/eslint/eslint/issues/5992)
+                     * (https://github.com/eslint/eslint/issues/7860)
+                     */
                     if (
                         lintedRegistry.rules[result.ruleId] &&
                         lintedRegistry.rules[result.ruleId][ruleSetIdx]

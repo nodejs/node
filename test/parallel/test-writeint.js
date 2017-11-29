@@ -41,10 +41,10 @@ function test8(clazz) {
   assert.strictEqual(0xfb, buffer[1]);
 
   /* Make sure we handle truncation correctly */
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt8(0xabc, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt8(0xabc, 0);
   }, errorOutOfBounds);
 
@@ -54,10 +54,10 @@ function test8(clazz) {
 
   assert.strictEqual(0x7f, buffer[0]);
   assert.strictEqual(0x80, buffer[1]);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt8(0x7f + 1, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt8(-0x80 - 1, 0);
   }, errorOutOfBounds);
 }
@@ -94,10 +94,10 @@ function test16(clazz) {
   assert.strictEqual(0xff, buffer[1]);
   assert.strictEqual(0x80, buffer[2]);
   assert.strictEqual(0x00, buffer[3]);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt16BE(0x7fff + 1, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt16BE(-0x8000 - 1, 0);
   }, errorOutOfBounds);
 
@@ -107,10 +107,10 @@ function test16(clazz) {
   assert.strictEqual(0x7f, buffer[1]);
   assert.strictEqual(0x00, buffer[2]);
   assert.strictEqual(0x80, buffer[3]);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt16LE(0x7fff + 1, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt16LE(-0x8000 - 1, 0);
   }, errorOutOfBounds);
 }
@@ -163,10 +163,10 @@ function test32(clazz) {
   assert.strictEqual(0x00, buffer[5]);
   assert.strictEqual(0x00, buffer[6]);
   assert.strictEqual(0x00, buffer[7]);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt32BE(0x7fffffff + 1, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt32BE(-0x80000000 - 1, 0);
   }, errorOutOfBounds);
 
@@ -180,10 +180,10 @@ function test32(clazz) {
   assert.strictEqual(0x00, buffer[5]);
   assert.strictEqual(0x00, buffer[6]);
   assert.strictEqual(0x80, buffer[7]);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt32LE(0x7fffffff + 1, 0);
   }, errorOutOfBounds);
-  assert.throws(function() {
+  assert.throws(() => {
     buffer.writeInt32LE(-0x80000000 - 1, 0);
   }, errorOutOfBounds);
 }

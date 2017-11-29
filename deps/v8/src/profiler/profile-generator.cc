@@ -202,7 +202,7 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
   if (!node) {
     node = new ProfileNode(tree_, entry, this);
     map_entry->value = node;
-    children_list_.Add(node);
+    children_list_.push_back(node);
   }
   return node;
 }
@@ -348,7 +348,7 @@ class Position {
     return node->children()->at(child_idx_);
   }
   INLINE(bool has_current_child()) {
-    return child_idx_ < node->children()->length();
+    return child_idx_ < static_cast<int>(node->children()->size());
   }
   INLINE(void next_child()) { ++child_idx_; }
 

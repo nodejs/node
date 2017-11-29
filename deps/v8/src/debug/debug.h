@@ -107,102 +107,45 @@ class BreakLocation {
   DebugBreakType type_;
   int position_;
 
-  friend class CodeBreakIterator;
-  friend class BytecodeArrayBreakIterator;
+  friend class BreakIterator;
 };
 
 class BreakIterator {
  public:
-  static std::unique_ptr<BreakIterator> GetIterator(
-      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code);
+  explicit BreakIterator(Handle<DebugInfo> debug_info);
 
-  virtual ~BreakIterator() {}
+  BreakLocation GetBreakLocation();
+  bool Done() const { return source_position_iterator_.done(); }
+  void Next();
 
-  virtual BreakLocation GetBreakLocation() = 0;
-  virtual bool Done() const = 0;
-  virtual void Next() = 0;
-
+  void SkipToPosition(int position);
   void SkipTo(int count) {
     while (count-- > 0) Next();
   }
 
-  virtual int code_offset() = 0;
+  int code_offset() { return source_position_iterator_.code_offset(); }
   int break_index() const { return break_index_; }
   inline int position() const { return position_; }
   inline int statement_position() const { return statement_position_; }
 
-  virtual bool IsDebugBreak() = 0;
-  virtual void ClearDebugBreak() = 0;
-  virtual void SetDebugBreak() = 0;
+  void ClearDebugBreak();
+  void SetDebugBreak();
 
- protected:
-  explicit BreakIterator(Handle<DebugInfo> debug_info);
-
+ private:
   int BreakIndexFromPosition(int position);
 
   Isolate* isolate() { return debug_info_->GetIsolate(); }
+
+  DebugBreakType GetDebugBreakType();
 
   Handle<DebugInfo> debug_info_;
   int break_index_;
   int position_;
   int statement_position_;
-
- private:
+  SourcePositionTableIterator source_position_iterator_;
   DisallowHeapAllocation no_gc_;
+
   DISALLOW_COPY_AND_ASSIGN(BreakIterator);
-};
-
-class CodeBreakIterator : public BreakIterator {
- public:
-  explicit CodeBreakIterator(Handle<DebugInfo> debug_info);
-  ~CodeBreakIterator() override {}
-
-  BreakLocation GetBreakLocation() override;
-  bool Done() const override { return reloc_iterator_.done(); }
-  void Next() override;
-
-  bool IsDebugBreak() override;
-  void ClearDebugBreak() override;
-  void SetDebugBreak() override;
-
-  void SkipToPosition(int position);
-
-  int code_offset() override;
-
- private:
-  int GetModeMask();
-  DebugBreakType GetDebugBreakType();
-
-  RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
-  RelocInfo* rinfo() { return reloc_iterator_.rinfo(); }
-
-  RelocIterator reloc_iterator_;
-  SourcePositionTableIterator source_position_iterator_;
-  DISALLOW_COPY_AND_ASSIGN(CodeBreakIterator);
-};
-
-class BytecodeArrayBreakIterator : public BreakIterator {
- public:
-  explicit BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info);
-  ~BytecodeArrayBreakIterator() override {}
-
-  BreakLocation GetBreakLocation() override;
-  bool Done() const override { return source_position_iterator_.done(); }
-  void Next() override;
-
-  bool IsDebugBreak() override;
-  void ClearDebugBreak() override;
-  void SetDebugBreak() override;
-
-  void SkipToPosition(int position);
-
-  int code_offset() override { return source_position_iterator_.code_offset(); }
-
- private:
-  DebugBreakType GetDebugBreakType();
-
-  SourcePositionTableIterator source_position_iterator_;
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBreakIterator);
 };
 
 // Linked list holding debug info objects. The debug info objects are kept as
@@ -256,7 +199,7 @@ class DebugFeatureTracker {
 class Debug {
  public:
   // Debug event triggers.
-  void OnDebugBreak(Handle<Object> break_points_hit);
+  void OnDebugBreak(Handle<FixedArray> break_points_hit);
 
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
@@ -287,6 +230,10 @@ class Debug {
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
+
+  bool SetBreakpoint(Handle<Script> script, Handle<String> condition,
+                     int* offset, int* id);
+  void RemoveBreakpoint(int id);
 
   // The parameter is either a BreakPointInfo object, or a FixedArray of
   // BreakPointInfo objects.
@@ -348,6 +295,13 @@ class Debug {
   void ScheduleFrameRestart(StackFrame* frame);
 
   bool AllFramesOnStackAreBlackboxed();
+
+  // Set new script source, throw an exception if error occurred. When preview
+  // is true: try to set source, throw exception if any without actual script
+  // change. stack_changed is true if after editing script on pause stack is
+  // changed and client should request stack trace again.
+  bool SetScriptSource(Handle<Script> script, Handle<String> source,
+                       bool preview, bool* stack_changed);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -492,7 +446,8 @@ class Debug {
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
-                                   Handle<Object> args[]);
+                                   Handle<Object> args[],
+                                   bool catch_exceptions = true);
 
   inline void AssertDebugContext() {
     DCHECK(isolate_->context() == *debug_context());
@@ -588,6 +543,9 @@ class Debug {
     Address restart_fp_;
 
     int async_task_count_;
+
+    // Last used inspector breakpoint id.
+    int last_breakpoint_id_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -604,7 +562,7 @@ class Debug {
   friend class LegacyDebugDelegate;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
-  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
+  friend void CheckDebuggerUnloaded();               // In test-debug.cc
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
@@ -614,11 +572,12 @@ class LegacyDebugDelegate : public v8::debug::DebugDelegate {
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
                             int parent_id, bool created_by_user) override;
-  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+  void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
                              v8::Local<v8::Object> exec_state,
-                             v8::Local<v8::Value> break_points_hit) override;
+                             v8::Local<v8::Value> break_points_hit,
+                             const std::vector<debug::BreakpointId>&) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Object> exec_state,
                        v8::Local<v8::Value> exception,
@@ -786,22 +745,12 @@ class DebugCodegen : public AllStatic {
     IGNORE_RESULT_REGISTER
   };
 
-  static void GenerateDebugBreakStub(MacroAssembler* masm,
-                                     DebugBreakCallHelperMode mode);
-
-  static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode);
-
   // Builtin to drop frames to restart function.
   static void GenerateFrameDropperTrampoline(MacroAssembler* masm);
 
   // Builtin to atomically (wrt deopts) handle debugger statement and
   // drop frames to restart function if necessary.
   static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
-
-  static void PatchDebugBreakSlot(Isolate* isolate, Address pc,
-                                  Handle<Code> code);
-  static bool DebugBreakSlotIsPatched(Address pc);
-  static void ClearDebugBreakSlot(Isolate* isolate, Address pc);
 };
 
 

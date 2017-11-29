@@ -4,88 +4,16 @@
 
 #include "src/api.h"
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen/full-codegen.h"
+#include "src/frame-constants.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 
 namespace v8 {
 namespace internal {
-
-
-int Deoptimizer::patch_size() {
-  // Size of the code used to patch lazy bailout points.
-  // Patching is done by Deoptimizer::DeoptimizeFunction.
-  return 4 * kInstructionSize;
-}
-
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  // Empty because there is no need for relocation information for the code
-  // patching in Deoptimizer::PatchCodeForDeoptimization below.
-}
-
-
-void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
-  Address code_start_address = code->instruction_start();
-  // Invalidate the relocation information, as it will become invalid by the
-  // code patching below, and is not needed any more.
-  code->InvalidateRelocation();
-
-  // Fail hard and early if we enter this code object again.
-  byte* pointer = code->FindCodeAgeSequence();
-  if (pointer != NULL) {
-    pointer += kNoCodeAgeSequenceLength;
-  } else {
-    pointer = code->instruction_start();
-  }
-
-  {
-    PatchingAssembler patcher(Assembler::IsolateData(isolate), pointer, 1);
-    patcher.brk(0);
-  }
-
-  DeoptimizationInputData* data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  int osr_offset = data->OsrPcOffset()->value();
-  if (osr_offset > 0) {
-    PatchingAssembler patcher(Assembler::IsolateData(isolate),
-                              code_start_address + osr_offset, 1);
-    patcher.brk(0);
-  }
-
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-#ifdef DEBUG
-  Address prev_call_address = NULL;
-#endif
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-
-    Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
-
-    PatchingAssembler patcher(isolate, call_address,
-                              patch_size() / kInstructionSize);
-    patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
-    patcher.blr(ip0);
-    patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
-
-    DCHECK((prev_call_address == NULL) ||
-           (call_address >= prev_call_address + patch_size()));
-    DCHECK(call_address + patch_size() <= code->instruction_end());
-#ifdef DEBUG
-    prev_call_address = call_address;
-#endif
-  }
-}
-
 
 #define __ masm()->
 
@@ -99,13 +27,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all allocatable double registers.
   CPURegList saved_double_registers(
       CPURegister::kVRegister, kDRegSizeInBits,
-      RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask());
+      RegisterConfiguration::Default()->allocatable_double_codes_mask());
   __ PushCPURegList(saved_double_registers);
 
   // Save all allocatable float registers.
   CPURegList saved_float_registers(
       CPURegister::kVRegister, kSRegSizeInBits,
-      RegisterConfiguration::Crankshaft()->allocatable_float_codes_mask());
+      RegisterConfiguration::Default()->allocatable_float_codes_mask());
   __ PushCPURegList(saved_float_registers);
 
   // We save all the registers expcept jssp, sp and lr.

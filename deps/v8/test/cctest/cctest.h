@@ -31,8 +31,11 @@
 #include <memory>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/flags.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
@@ -315,6 +318,17 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   return converted;
 }
 
+template <typename T>
+static inline i::Handle<T> GetGlobal(const char* name) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Handle<i::String> str_name =
+      isolate->factory()->InternalizeUtf8String(name);
+
+  i::Handle<i::Object> value =
+      i::Object::GetProperty(isolate->global_object(), str_name)
+          .ToHandleChecked();
+  return i::Handle<T>::cast(value);
+}
 
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
@@ -494,7 +508,7 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsString());
-  v8::String::Utf8Value utf8(result);
+  v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(), result);
   CHECK_EQ(0, strcmp(expected, *utf8));
 }
 
@@ -632,6 +646,60 @@ class ManualGCScope {
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
   bool flag_stress_incremental_marking_;
+};
+
+// This is an abstract base class that can be overridden to implement a test
+// platform. It delegates all operations to a given platform at the time
+// of construction.
+class TestPlatform : public v8::Platform {
+ public:
+  // v8::Platform implementation.
+  void OnCriticalMemoryPressure() override {
+    old_platform_->OnCriticalMemoryPressure();
+  }
+
+  void CallOnBackgroundThread(v8::Task* task,
+                              ExpectedRuntime expected_runtime) override {
+    old_platform_->CallOnBackgroundThread(task, expected_runtime);
+  }
+
+  void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {
+    old_platform_->CallOnForegroundThread(isolate, task);
+  }
+
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate, v8::Task* task,
+                                     double delay_in_seconds) override {
+    old_platform_->CallDelayedOnForegroundThread(isolate, task,
+                                                 delay_in_seconds);
+  }
+
+  double MonotonicallyIncreasingTime() override {
+    return old_platform_->MonotonicallyIncreasingTime();
+  }
+
+  void CallIdleOnForegroundThread(v8::Isolate* isolate,
+                                  v8::IdleTask* task) override {
+    old_platform_->CallIdleOnForegroundThread(isolate, task);
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override {
+    return old_platform_->IdleTasksEnabled(isolate);
+  }
+
+  v8::TracingController* GetTracingController() override {
+    return old_platform_->GetTracingController();
+  }
+
+ protected:
+  TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
+  ~TestPlatform() { i::V8::SetPlatformForTesting(old_platform_); }
+
+  v8::Platform* old_platform() const { return old_platform_; }
+
+ private:
+  v8::Platform* old_platform_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestPlatform);
 };
 
 #endif  // ifndef CCTEST_H_

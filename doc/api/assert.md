@@ -7,6 +7,57 @@
 The `assert` module provides a simple set of assertion tests that can be used to
 test invariants.
 
+A `strict` and a `legacy` mode exist, while it is recommended to only use
+[`strict mode`][].
+
+For more information about the used equality comparisons see
+[MDN's guide on equality comparisons and sameness][mdn-equality-guide].
+
+## Strict mode
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17002
+    description: Added strict mode to the assert module.
+-->
+
+When using the `strict mode`, any `assert` function will use the equality used in
+the strict function mode. So [`assert.deepEqual()`][] will, for example, work the
+same as [`assert.deepStrictEqual()`][].
+
+It can be accessed using:
+
+```js
+const assert = require('assert').strict;
+```
+
+## Legacy mode
+
+> Stability: 0 - Deprecated: Use strict mode instead.
+
+When accessing `assert` directly instead of using the `strict` property, the
+[Abstract Equality Comparison][] will be used for any function without a
+"strict" in its name (e.g. [`assert.deepEqual()`][]).
+
+It can be accessed using:
+
+```js
+const assert = require('assert');
+```
+
+It is recommended to use the [`strict mode`][] instead as the
+[Abstract Equality Comparison][] can often have surprising results. Especially
+in case of [`assert.deepEqual()`][] as the used comparison rules there are very
+lax.
+
+E.g.
+
+```js
+// WARNING: This does not throw an AssertionError!
+assert.deepEqual(/a/gi, new Date());
+```
+
 ## assert(value[, message])
 <!-- YAML
 added: v0.5.9
@@ -20,7 +71,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -40,6 +91,14 @@ changes:
 * `expected` {any}
 * `message` {any}
 
+**Strict mode**
+
+An alias of [`assert.deepStrictEqual()`][].
+
+**Legacy mode**
+
+> Stability: 0 - Deprecated: Use [`assert.deepStrictEqual()`][] instead.
+
 Tests for deep equality between the `actual` and `expected` parameters.
 Primitive values are compared with the [Abstract Equality Comparison][]
 ( `==` ).
@@ -47,10 +106,10 @@ Primitive values are compared with the [Abstract Equality Comparison][]
 Only [enumerable "own" properties][] are considered. The
 [`assert.deepEqual()`][] implementation does not test the
 [`[[Prototype]]`][prototype-spec] of objects or enumerable own [`Symbol`][]
-properties. For such checks, consider using [assert.deepStrictEqual()][]
+properties. For such checks, consider using [`assert.deepStrictEqual()`][]
 instead. [`assert.deepEqual()`][] can have potentially surprising results. The
 following example does not throw an `AssertionError` because the properties on
-the [RegExp][] object are not enumerable:
+the [`RegExp`][] object are not enumerable:
 
 ```js
 // WARNING: This does not throw an AssertionError!
@@ -101,17 +160,17 @@ assert.deepEqual(obj1, obj4);
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15169
     description: Enumerable symbol properties are now compared.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
   - version: v8.5.0
@@ -134,50 +193,50 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Similar to `assert.deepEqual()` with the following exceptions:
+Tests for deep equality between the `actual` and `expected` parameters.
+"Deep" equality means that the enumerable "own" properties of child objects
+are recursively evaluated also by the following rules.
 
-1. Primitive values besides `NaN` are compared using the [Strict Equality
-   Comparison][] ( `===` ). Set and Map values, Map keys and `NaN` are compared
-   using the [SameValueZero][] comparison (which means they are free of the
-   [caveats][]).
-2. [`[[Prototype]]`][prototype-spec] of objects are compared using
-  the [Strict Equality Comparison][] too.
-3. [Type tags][Object.prototype.toString()] of objects should be the same.
-4. [Object wrappers][] are compared both as objects and unwrapped values.
-5. `0` and `-0` are not considered equal.
-6. Enumerable own [`Symbol`][] properties are compared as well.
+### Comparison details
+
+* Primitive values are compared using the [SameValue Comparison][], used by
+  [`Object.is()`][].
+* [Type tags][Object.prototype.toString()] of objects should be the same.
+* [`[[Prototype]]`][prototype-spec] of objects are compared using
+  the [Strict Equality Comparison][].
+* Only [enumerable "own" properties][] are considered.
+* [`Error`][] names and messages are always compared, even if these are not
+  enumerable properties.
+* Enumerable own [`Symbol`][] properties are compared as well.
+* [Object wrappers][] are compared both as objects and unwrapped values.
+* Object properties are compared unordered.
+* Map keys and Set items are compared unordered.
+* Recursion stops when both sides differ or both sides encounter a circular
+  reference.
 
 ```js
-const assert = require('assert');
-
-assert.deepEqual({ a: 1 }, { a: '1' });
-// OK, because 1 == '1'
+const assert = require('assert').strict;
 
 assert.deepStrictEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
-// because 1 !== '1' using strict equality
+// because 1 !== '1' using SameValue comparison
 
 // The following objects don't have own properties
 const date = new Date();
 const object = {};
 const fakeDate = {};
-
 Object.setPrototypeOf(fakeDate, Date.prototype);
 
-assert.deepEqual(object, fakeDate);
-// OK, doesn't check [[Prototype]]
 assert.deepStrictEqual(object, fakeDate);
 // AssertionError: {} deepStrictEqual Date {}
 // Different [[Prototype]]
 
-assert.deepEqual(date, fakeDate);
-// OK, doesn't check type tags
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
 
 assert.deepStrictEqual(NaN, NaN);
-// OK, because of the SameValueZero comparison
+// OK, because of the SameValue comparison
 
 assert.deepStrictEqual(new Number(1), new Number(2));
 // Fails because the wrapped number is unwrapped and compared as well.
@@ -200,7 +259,7 @@ assert.deepStrictEqual({ [symbol1]: 1 }, { [symbol2]: 1 });
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## assert.doesNotThrow(block[, error][, message])
@@ -276,6 +335,14 @@ added: v0.1.21
 * `expected` {any}
 * `message` {any}
 
+**Strict mode**
+
+An alias of [`assert.strictEqual()`][].
+
+**Legacy mode**
+
+> Stability: 0 - Deprecated: Use [`assert.strictEqual()`][] instead.
+
 Tests shallow, coercive equality between the `actual` and `expected` parameters
 using the [Abstract Equality Comparison][] ( `==` ).
 
@@ -296,7 +363,7 @@ assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## assert.fail([message])
@@ -312,7 +379,7 @@ added: v0.1.21
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`. If
-the `message` parameter is an instance of an `Error` then it will be thrown
+the `message` parameter is an instance of an [`Error`][] then it will be thrown
 instead of the `AssertionError`. If just the two `actual` and `expected`
 arguments are provided, `operator` will default to `'!='`. If `message` is
 provided only it will be used as the error message, the other arguments will be
@@ -322,7 +389,7 @@ all stack frames above that function will be removed from stacktrace (see
 `Failed` will be used.
 
 ```js
-const assert = require('assert');
+const assert = require('assert').strict;
 
 assert.fail(1, 2, undefined, '>');
 // AssertionError [ERR_ASSERTION]: 1 > 2
@@ -337,7 +404,7 @@ assert.fail(1, 2, new TypeError('need array'));
 // TypeError: need array
 ```
 
-*Note*: Is the last two cases `actual`, `expected`, and `operator` have no
+*Note*: In the last two cases `actual`, `expected`, and `operator` have no
 influence on the error message.
 
 ```js
@@ -373,7 +440,7 @@ Throws `value` if `value` is truthy. This is useful when testing the `error`
 argument in callbacks.
 
 ```js
-const assert = require('assert');
+const assert = require('assert').strict;
 
 assert.ifError(0);
 // OK
@@ -389,7 +456,7 @@ assert.ifError(new Error());
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -408,6 +475,14 @@ changes:
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
+
+**Strict mode**
+
+An alias of [`assert.notDeepStrictEqual()`][].
+
+**Legacy mode**
+
+> Stability: 0 - Deprecated: Use [`assert.notDeepStrictEqual()`][] instead.
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
@@ -441,26 +516,26 @@ assert.notDeepEqual(obj1, obj3);
 // AssertionError: { a: { b: 1 } } notDeepEqual { a: { b: 1 } }
 
 assert.notDeepEqual(obj1, obj4);
-// OK, obj1 and obj2 are not deeply equal
+// OK, obj1 and obj4 are not deeply equal
 ```
 
 If the values are deeply equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15398
     description: -0 and +0 are not considered equal anymore.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15036
     description: NaN is now compared using the [SameValueZero][] comparison.
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15001
     description: Error names and messages are now properly compared
   - version: v8.0.0
@@ -483,10 +558,7 @@ changes:
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
 ```js
-const assert = require('assert');
-
-assert.notDeepEqual({ a: 1 }, { a: '1' });
-// AssertionError: { a: 1 } notDeepEqual { a: '1' }
+const assert = require('assert').strict;
 
 assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
@@ -495,8 +567,8 @@ assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 If the values are deeply and strictly equal, an `AssertionError` is thrown with
 a `message` property set equal to the value of the `message` parameter. If the
 `message` parameter is undefined, a default error message is assigned. If the
-`message` parameter is an instance of an `Error` then it will be thrown instead
-of the `AssertionError`.
+`message` parameter is an instance of an [`Error`][] then it will be thrown
+instead of the `AssertionError`.
 
 ## assert.notEqual(actual, expected[, message])
 <!-- YAML
@@ -505,6 +577,14 @@ added: v0.1.21
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
+
+**Strict mode**
+
+An alias of [`assert.notStrictEqual()`][].
+
+**Legacy mode**
+
+> Stability: 0 - Deprecated: Use [`assert.notStrictEqual()`][] instead.
 
 Tests shallow, coercive inequality with the [Abstract Equality Comparison][]
 ( `!=` ).
@@ -522,41 +602,45 @@ assert.notEqual(1, '1');
 // AssertionError: 1 != '1'
 ```
 
-If the values are equal, an `AssertionError` is thrown with a `message`
-property set equal to the value of the `message` parameter. If the `message`
-parameter is undefined, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+If the values are equal, an `AssertionError` is thrown with a `message` property
+set equal to the value of the `message` parameter. If the `message` parameter is
+undefined, a default error message is assigned. If the `message` parameter is an
+instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ## assert.notStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict inequality as determined by the [Strict Equality Comparison][]
-( `!==` ).
+Tests strict inequality between the `actual` and `expected` parameters as
+determined by the [SameValue Comparison][].
 
 ```js
-const assert = require('assert');
+const assert = require('assert').strict;
 
 assert.notStrictEqual(1, 2);
 // OK
 
 assert.notStrictEqual(1, 1);
-// AssertionError: 1 !== 1
+// AssertionError: 1 notStrictEqual 1
 
 assert.notStrictEqual(1, '1');
 // OK
 ```
 
-If the values are strictly equal, an `AssertionError` is thrown with a
-`message` property set equal to the value of the `message` parameter. If the
-`message` parameter is undefined, a default error message is assigned. If the
-`message` parameter is an instance of an `Error` then it will be thrown instead
-of the `AssertionError`.
+If the values are strictly equal, an `AssertionError` is thrown with a `message`
+property set equal to the value of the `message` parameter. If the `message`
+parameter is undefined, a default error message is assigned. If the `message`
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
+`AssertionError`.
 
 ## assert.ok(value[, message])
 <!-- YAML
@@ -571,11 +655,11 @@ Tests if `value` is truthy. It is equivalent to
 If `value` is not truthy, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is `undefined`, a default error message is assigned. If the `message`
-parameter is an instance of an `Error` then it will be thrown instead of the
+parameter is an instance of an [`Error`][] then it will be thrown instead of the
 `AssertionError`.
 
 ```js
-const assert = require('assert');
+const assert = require('assert').strict;
 
 assert.ok(true);
 // OK
@@ -592,32 +676,36 @@ assert.ok(false, 'it\'s false');
 ## assert.strictEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17003
+    description: Used comparison changed from Strict Equality to `Object.is()`
 -->
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
 
-Tests strict equality as determined by the [Strict Equality Comparison][]
-( `===` ).
+Tests strict equality between the `actual` and `expected` parameters as
+determined by the [SameValue Comparison][].
 
 ```js
-const assert = require('assert');
+const assert = require('assert').strict;
 
 assert.strictEqual(1, 2);
-// AssertionError: 1 === 2
+// AssertionError: 1 strictEqual 2
 
 assert.strictEqual(1, 1);
 // OK
 
 assert.strictEqual(1, '1');
-// AssertionError: 1 === '1'
+// AssertionError: 1 strictEqual '1'
 ```
 
 If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` property set equal to the value of the `message` parameter. If the
 `message` parameter is undefined, a default error message is assigned. If the
-`message` parameter is an instance of an `Error` then it will be thrown instead
-of the `AssertionError`.
+`message` parameter is an instance of an [`Error`][] then it will be thrown
+instead of the `AssertionError`.
 
 ## assert.throws(block[, error][, message])
 <!-- YAML
@@ -690,33 +778,6 @@ assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
 assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
 ```
 
-## Caveats
-
-For the following cases, consider using ES2015 [`Object.is()`][],
-which uses the [SameValueZero][] comparison.
-
-```js
-const a = 0;
-const b = -a;
-assert.notStrictEqual(a, b);
-// AssertionError: 0 !== -0
-// Strict Equality Comparison doesn't distinguish between -0 and +0...
-assert(!Object.is(a, b));
-// but Object.is() does!
-
-const str1 = 'foo';
-const str2 = 'foo';
-assert.strictEqual(str1 / 1, str2 / 1);
-// AssertionError: NaN === NaN
-// Strict Equality Comparison can't be used to check NaN...
-assert(Object.is(str1 / 1, str2 / 1));
-// but Object.is() can!
-```
-
-For more information, see
-[MDN's guide on equality comparisons and sameness][mdn-equality-guide].
-
-[`Error`]: errors.html#errors_class_error
 [`Error.captureStackTrace`]: errors.html#errors_error_capturestacktrace_targetobject_constructoropt
 [`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
@@ -726,13 +787,16 @@ For more information, see
 [`TypeError`]: errors.html#errors_class_typeerror
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
+[`assert.notDeepStrictEqual()`]: #assert_assert_notdeepstrictequal_actual_expected_message
+[`assert.notStrictEqual()`]: #assert_assert_notstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
+[`assert.strictEqual()`]: #assert_assert_strictequal_actual_expected_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
+[`strict mode`]: #assert_strict_mode
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
-[SameValueZero]: https://tc39.github.io/ecma262/#sec-samevaluezero
+[SameValue Comparison]: https://tc39.github.io/ecma262/#sec-samevalue
 [Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
-[caveats]: #assert_caveats
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

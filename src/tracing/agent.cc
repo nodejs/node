@@ -36,6 +36,7 @@ void Agent::Start(const string& enabled_categories) {
   } else {
     trace_config->AddIncludedCategory("v8");
     trace_config->AddIncludedCategory("node");
+    trace_config->AddIncludedCategory("node.async_hooks");
   }
 
   // This thread should be created *after* async handles are created

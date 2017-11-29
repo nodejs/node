@@ -4,9 +4,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
-#include "async-wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
+#include "async_wrap.h"
+#include "req_wrap-inl.h"
 #include "node.h"
 #include "util.h"
 
@@ -78,6 +77,7 @@ class WriteWrap: public ReqWrap<uv_write_t>,
                                size_t extra = 0);
   inline void Dispose();
   inline char* Extra(size_t offset = 0);
+  inline size_t ExtraSize() const;
 
   inline StreamBase* wrap() const { return wrap_; }
 

@@ -23,6 +23,19 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
+### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
+- `callback` {Function}
+
+See [`server.close()`][`http.close()`] from the HTTP module for details.
+
+### server.listen()
+
+Starts the HTTPS server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
+
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
@@ -90,30 +103,6 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
-### server.close([callback])
-<!-- YAML
-added: v0.1.90
--->
-- `callback` {Function}
-
-See [`http.close()`][] for details.
-
-### server.listen(handle[, callback])
-- `handle` {Object}
-- `callback` {Function}
-
-### server.listen(path[, callback])
-- `path` {string}
-- `callback` {Function}
-
-### server.listen([port][, host][, backlog][, callback])
-- `port` {number}
-- `hostname` {string}
-- `backlog` {number}
-- `callback` {Function}
-
-See [`http.listen()`][] for details.
-
 ## https.get(options[, callback])
 <!-- YAML
 added: v0.3.6
@@ -161,6 +150,9 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/6569
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638
     description: The `options` parameter can be a WHATWG `URL` object.
@@ -175,9 +167,9 @@ changes:
 
 Makes a request to a secure web server.
 
-The following additional `options` from [`tls.connect()`][] are also accepted when using a
-  custom [`Agent`][]:
-  `pfx`, `key`, `passphrase`, `cert`, `ca`, `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
+The following additional `options` from [`tls.connect()`][] are also accepted
+when using a custom [`Agent`][]: `ca`, `cert`, `ciphers`, `clientCertEngine`,
+`key`, `passphrase`, `pfx`, `rejectUnauthorized`, `secureProtocol`, `servername`
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`url.parse()`][]. If it is a [`URL`][]
@@ -268,10 +260,11 @@ const req = https.request(options, (res) => {
 [`http.Server`]: http.html#http_class_http_server
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
-[`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
+[`net.Server`]: net.html#net_class_net_server
+[`server.listen()`]: net.html#net_server_listen
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener

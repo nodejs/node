@@ -24,6 +24,7 @@ var GlobalIntl = global.Intl;
 var GlobalIntlDateTimeFormat = GlobalIntl.DateTimeFormat;
 var GlobalIntlNumberFormat = GlobalIntl.NumberFormat;
 var GlobalIntlCollator = GlobalIntl.Collator;
+var GlobalIntlPluralRules = utils.ImportNow("PluralRules");
 var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
@@ -32,6 +33,7 @@ var IntlFallbackSymbol = utils.ImportNow("intl_fallback_symbol");
 var InternalArray = utils.InternalArray;
 var MaxSimple;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
+var ObjectKeys = global.Object.keys;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var StringSubstr = GlobalString.prototype.substr;
@@ -124,7 +126,8 @@ var AVAILABLE_LOCALES = {
   'collator': UNDEFINED,
   'numberformat': UNDEFINED,
   'dateformat': UNDEFINED,
-  'breakiterator': UNDEFINED
+  'breakiterator': UNDEFINED,
+  'pluralrules': UNDEFINED,
 };
 
 /**
@@ -190,7 +193,7 @@ var SERVICE_RE = UNDEFINED;
 function GetServiceRE() {
   if (IS_UNDEFINED(SERVICE_RE)) {
     SERVICE_RE =
-        new GlobalRegExp('^(collator|numberformat|dateformat|breakiterator)$');
+        new GlobalRegExp('^(' + %_Call(ArrayJoin, ObjectKeys(AVAILABLE_LOCALES), '|') + ')$');
   }
   return SERVICE_RE;
 }
@@ -748,7 +751,7 @@ function canonicalizeLanguageTag(localeID) {
 
   // ECMA 402 6.2.3
   var tag = %CanonicalizeLanguageTag(localeString);
-  // TODO(jshin): This should not happen because the structual validity
+  // TODO(jshin): This should not happen because the structural validity
   // is already checked. If that's the case, remove this.
   if (tag === 'invalid-tag') {
     throw %make_range_error(kInvalidLanguageTag, localeString);
@@ -797,7 +800,7 @@ function initializeLocaleList(locales) {
 }
 
 /**
- * Check the structual Validity of the language tag per ECMA 402 6.2.2:
+ * Check the structural Validity of the language tag per ECMA 402 6.2.2:
  *   - Well-formed per RFC 5646 2.1
  *   - There are no duplicate variant subtags
  *   - There are no duplicate singletion (extension) subtags
@@ -1071,6 +1074,108 @@ function compare(collator, x, y) {
 
 
 AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, 'collator', false);
+
+function PluralRulesConstructor() {
+  if (IS_UNDEFINED(new.target)) {
+    throw %make_type_error(kConstructorNotFunction, "PluralRules");
+  }
+
+  var locales = arguments[0];
+  var options = arguments[1];
+
+  if (IS_UNDEFINED(options)) {
+    options = {};
+  }
+
+  var getOption = getGetOption(options, 'pluralrules');
+
+  var locale = resolveLocale('pluralrules', locales, options);
+
+  var internalOptions = {};
+  defineWEProperty(internalOptions, 'type', getOption(
+    'type', 'string', ['cardinal', 'ordinal'], 'cardinal'));
+
+  SetNumberFormatDigitOptions(internalOptions, options, 0, 3);
+
+  var requestedLocale = locale.locale;
+  var resolved = %object_define_properties({}, {
+    type: {value: internalOptions.type, writable: true},
+    locale: {writable: true},
+    maximumFractionDigits: {writable: true},
+    minimumFractionDigits: {writable: true},
+    minimumIntegerDigits: {writable: true},
+    requestedLocale: {value: requestedLocale, writable: true},
+  });
+  if (HAS_OWN_PROPERTY(internalOptions, 'minimumSignificantDigits')) {
+    defineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
+  }
+  if (HAS_OWN_PROPERTY(internalOptions, 'maximumSignificantDigits')) {
+    defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
+  }
+  defineWEProperty(resolved, 'pluralCategories', []);
+  var pluralRules = %CreatePluralRules(requestedLocale, internalOptions,
+                                       resolved);
+
+  %MarkAsInitializedIntlObjectOfType(pluralRules, 'pluralrules');
+  pluralRules[resolvedSymbol] = resolved;
+
+  return pluralRules;
+}
+%SetCode(GlobalIntlPluralRules, PluralRulesConstructor);
+
+DEFINE_METHOD(
+  GlobalIntlPluralRules.prototype,
+  resolvedOptions() {
+    if (!%IsInitializedIntlObjectOfType(this, 'pluralrules')) {
+      throw %make_type_error(kIncompatibleMethodReceiver,
+                             'Intl.PluralRules.prototype.resolvedOptions',
+                             this);
+    }
+
+    var result = {
+      locale: this[resolvedSymbol].locale,
+      type: this[resolvedSymbol].type,
+      minimumIntegerDigits: this[resolvedSymbol].minimumIntegerDigits,
+      minimumFractionDigits: this[resolvedSymbol].minimumFractionDigits,
+      maximumFractionDigits: this[resolvedSymbol].maximumFractionDigits,
+    };
+
+    if (HAS_OWN_PROPERTY(this[resolvedSymbol], 'minimumSignificantDigits')) {
+      defineWECProperty(result, 'minimumSignificantDigits',
+                        this[resolvedSymbol].minimumSignificantDigits);
+    }
+
+    if (HAS_OWN_PROPERTY(this[resolvedSymbol], 'maximumSignificantDigits')) {
+      defineWECProperty(result, 'maximumSignificantDigits',
+                        this[resolvedSymbol].maximumSignificantDigits);
+    }
+
+    defineWECProperty(result, 'pluralCategories',
+                      this[resolvedSymbol].pluralCategories);
+
+    return result;
+  }
+);
+
+DEFINE_METHOD(
+  GlobalIntlPluralRules,
+  supportedLocalesOf(locales) {
+    return supportedLocalesOf('pluralrules', locales, arguments[1]);
+  }
+);
+
+DEFINE_METHOD(
+  GlobalIntlPluralRules.prototype,
+  select(value) {
+    if (!%IsInitializedIntlObjectOfType(this, 'pluralrules')) {
+      throw %make_type_error(kIncompatibleMethodReceiver,
+                            'Intl.PluralRules.prototype.select',
+                            this);
+    }
+
+    return %PluralRulesSelect(this, TO_NUMBER(value) + 0);
+  }
+);
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.

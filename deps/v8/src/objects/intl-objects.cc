@@ -14,6 +14,7 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"
 #include "unicode/calendar.h"
@@ -27,6 +28,7 @@
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
+#include "unicode/plurrule.h"
 #include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
@@ -34,6 +36,7 @@
 #include "unicode/ucol.h"
 #include "unicode/ucurr.h"
 #include "unicode/unum.h"
+#include "unicode/upluralrules.h"
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
 
@@ -48,12 +51,13 @@ namespace {
 
 bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
                           const char* key, icu::UnicodeString* setting) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object =
       JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
-        v8::Utils::ToLocal(Handle<String>::cast(object)));
+        v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(object)));
     *setting = icu::UnicodeString::fromUTF8(*utf8_string);
     return true;
   }
@@ -237,6 +241,42 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
   }
 }
 
+void SetNumericSettings(Isolate* isolate, icu::DecimalFormat* number_format,
+                        Handle<JSObject> options) {
+  int32_t digits;
+  if (ExtractIntegerSetting(isolate, options, "minimumIntegerDigits",
+                            &digits)) {
+    number_format->setMinimumIntegerDigits(digits);
+  }
+
+  if (ExtractIntegerSetting(isolate, options, "minimumFractionDigits",
+                            &digits)) {
+    number_format->setMinimumFractionDigits(digits);
+  }
+
+  if (ExtractIntegerSetting(isolate, options, "maximumFractionDigits",
+                            &digits)) {
+    number_format->setMaximumFractionDigits(digits);
+  }
+
+  bool significant_digits_used = false;
+  if (ExtractIntegerSetting(isolate, options, "minimumSignificantDigits",
+                            &digits)) {
+    number_format->setMinimumSignificantDigits(digits);
+    significant_digits_used = true;
+  }
+
+  if (ExtractIntegerSetting(isolate, options, "maximumSignificantDigits",
+                            &digits)) {
+    number_format->setMaximumSignificantDigits(digits);
+    significant_digits_used = true;
+  }
+
+  number_format->setSignificantDigitsUsed(significant_digits_used);
+
+  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
+}
+
 icu::DecimalFormat* CreateICUNumberFormat(Isolate* isolate,
                                           const icu::Locale& icu_locale,
                                           Handle<JSObject> options) {
@@ -305,102 +345,20 @@ icu::DecimalFormat* CreateICUNumberFormat(Isolate* isolate,
     number_format->setCurrency(currency.getBuffer(), status);
   }
 
-  int32_t digits;
-  if (ExtractIntegerSetting(isolate, options, "minimumIntegerDigits",
-                            &digits)) {
-    number_format->setMinimumIntegerDigits(digits);
-  }
-
-  if (ExtractIntegerSetting(isolate, options, "minimumFractionDigits",
-                            &digits)) {
-    number_format->setMinimumFractionDigits(digits);
-  }
-
-  if (ExtractIntegerSetting(isolate, options, "maximumFractionDigits",
-                            &digits)) {
-    number_format->setMaximumFractionDigits(digits);
-  }
-
-  bool significant_digits_used = false;
-  if (ExtractIntegerSetting(isolate, options, "minimumSignificantDigits",
-                            &digits)) {
-    number_format->setMinimumSignificantDigits(digits);
-    significant_digits_used = true;
-  }
-
-  if (ExtractIntegerSetting(isolate, options, "maximumSignificantDigits",
-                            &digits)) {
-    number_format->setMaximumSignificantDigits(digits);
-    significant_digits_used = true;
-  }
-
-  number_format->setSignificantDigitsUsed(significant_digits_used);
+  SetNumericSettings(isolate, number_format, options);
 
   bool grouping;
   if (ExtractBooleanSetting(isolate, options, "useGrouping", &grouping)) {
     number_format->setGroupingUsed(grouping);
   }
 
-  // Set rounding mode.
-  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
-
   return number_format;
 }
 
-void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
-                               icu::DecimalFormat* number_format,
-                               Handle<JSObject> resolved) {
+void SetResolvedNumericSettings(Isolate* isolate, const icu::Locale& icu_locale,
+                                icu::DecimalFormat* number_format,
+                                Handle<JSObject> resolved) {
   Factory* factory = isolate->factory();
-  icu::UnicodeString pattern;
-  number_format->toPattern(pattern);
-  JSObject::SetProperty(
-      resolved, factory->intl_pattern_symbol(),
-      factory
-          ->NewStringFromTwoByte(Vector<const uint16_t>(
-              reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
-              pattern.length()))
-          .ToHandleChecked(),
-      SLOPPY)
-      .Assert();
-
-  // Set resolved currency code in options.currency if not empty.
-  icu::UnicodeString currency(number_format->getCurrency());
-  if (!currency.isEmpty()) {
-    JSObject::SetProperty(
-        resolved, factory->NewStringFromStaticChars("currency"),
-        factory
-            ->NewStringFromTwoByte(Vector<const uint16_t>(
-                reinterpret_cast<const uint16_t*>(currency.getBuffer()),
-                currency.length()))
-            .ToHandleChecked(),
-        SLOPPY)
-        .Assert();
-  }
-
-  // Ugly hack. ICU doesn't expose numbering system in any way, so we have
-  // to assume that for given locale NumberingSystem constructor produces the
-  // same digits as NumberFormat/Calendar would.
-  UErrorCode status = U_ZERO_ERROR;
-  icu::NumberingSystem* numbering_system =
-      icu::NumberingSystem::createInstance(icu_locale, status);
-  if (U_SUCCESS(status)) {
-    const char* ns = numbering_system->getName();
-    JSObject::SetProperty(resolved,
-                          factory->NewStringFromStaticChars("numberingSystem"),
-                          factory->NewStringFromAsciiChecked(ns), SLOPPY)
-        .Assert();
-  } else {
-    JSObject::SetProperty(resolved,
-                          factory->NewStringFromStaticChars("numberingSystem"),
-                          factory->undefined_value(), SLOPPY)
-        .Assert();
-  }
-  delete numbering_system;
-
-  JSObject::SetProperty(
-      resolved, factory->NewStringFromStaticChars("useGrouping"),
-      factory->ToBoolean(number_format->isGroupingUsed()), SLOPPY)
-      .Assert();
 
   JSObject::SetProperty(
       resolved, factory->NewStringFromStaticChars("minimumIntegerDigits"),
@@ -445,7 +403,7 @@ void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
 
   // Set the locale
   char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
+  UErrorCode status = U_ZERO_ERROR;
   uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
                      FALSE, &status);
   if (U_SUCCESS(status)) {
@@ -458,6 +416,53 @@ void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
                           factory->NewStringFromStaticChars("und"), SLOPPY)
         .Assert();
   }
+}
+
+void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
+                               icu::DecimalFormat* number_format,
+                               Handle<JSObject> resolved) {
+  Factory* factory = isolate->factory();
+
+  // Set resolved currency code in options.currency if not empty.
+  icu::UnicodeString currency(number_format->getCurrency());
+  if (!currency.isEmpty()) {
+    JSObject::SetProperty(
+        resolved, factory->NewStringFromStaticChars("currency"),
+        factory
+            ->NewStringFromTwoByte(Vector<const uint16_t>(
+                reinterpret_cast<const uint16_t*>(currency.getBuffer()),
+                currency.length()))
+            .ToHandleChecked(),
+        SLOPPY)
+        .Assert();
+  }
+
+  // Ugly hack. ICU doesn't expose numbering system in any way, so we have
+  // to assume that for given locale NumberingSystem constructor produces the
+  // same digits as NumberFormat/Calendar would.
+  UErrorCode status = U_ZERO_ERROR;
+  icu::NumberingSystem* numbering_system =
+      icu::NumberingSystem::createInstance(icu_locale, status);
+  if (U_SUCCESS(status)) {
+    const char* ns = numbering_system->getName();
+    JSObject::SetProperty(resolved,
+                          factory->NewStringFromStaticChars("numberingSystem"),
+                          factory->NewStringFromAsciiChecked(ns), SLOPPY)
+        .Assert();
+  } else {
+    JSObject::SetProperty(resolved,
+                          factory->NewStringFromStaticChars("numberingSystem"),
+                          factory->undefined_value(), SLOPPY)
+        .Assert();
+  }
+  delete numbering_system;
+
+  JSObject::SetProperty(
+      resolved, factory->NewStringFromStaticChars("useGrouping"),
+      factory->ToBoolean(number_format->isGroupingUsed()), SLOPPY)
+      .Assert();
+
+  SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
 }
 
 icu::Collator* CreateICUCollator(Isolate* isolate,
@@ -644,6 +649,88 @@ void SetResolvedCollatorSettings(Isolate* isolate,
   }
 }
 
+bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
+                          Handle<JSObject> options, icu::PluralRules** pl,
+                          icu::DecimalFormat** nf) {
+  // Make formatter from options. Numbering system is added
+  // to the locale as Unicode extension (if it was specified at all).
+  UErrorCode status = U_ZERO_ERROR;
+
+  UPluralType type = UPLURAL_TYPE_CARDINAL;
+
+  icu::UnicodeString type_string;
+  if (ExtractStringSetting(isolate, options, "type", &type_string)) {
+    if (type_string == UNICODE_STRING_SIMPLE("ordinal")) {
+      type = UPLURAL_TYPE_ORDINAL;
+    } else {
+      CHECK(type_string == UNICODE_STRING_SIMPLE("cardinal"));
+    }
+  }
+
+  icu::PluralRules* plural_rules =
+      icu::PluralRules::forLocale(icu_locale, type, status);
+
+  if (U_FAILURE(status)) {
+    delete plural_rules;
+    return false;
+  }
+
+  icu::DecimalFormat* number_format = static_cast<icu::DecimalFormat*>(
+      icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status));
+
+  if (U_FAILURE(status)) {
+    delete plural_rules;
+    delete number_format;
+    return false;
+  }
+
+  *pl = plural_rules;
+  *nf = number_format;
+
+  SetNumericSettings(isolate, number_format, options);
+
+  // Set rounding mode.
+
+  return true;
+}
+
+bool SetResolvedPluralRulesSettings(Isolate* isolate,
+                                    const icu::Locale& icu_locale,
+                                    icu::PluralRules* plural_rules,
+                                    icu::DecimalFormat* number_format,
+                                    Handle<JSObject> resolved) {
+  SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
+
+  Factory* factory = isolate->factory();
+
+  Handle<JSObject> pluralCategories = Handle<JSObject>::cast(
+      JSObject::GetProperty(
+          resolved, factory->NewStringFromStaticChars("pluralCategories"))
+          .ToHandleChecked());
+
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::StringEnumeration> categories(
+      plural_rules->getKeywords(status));
+  if (U_FAILURE(status)) return false;
+
+  if (U_FAILURE(status)) return false;
+
+  for (int32_t i = 0;; i++) {
+    const icu::UnicodeString* category = categories->snext(status);
+    if (U_FAILURE(status)) return false;
+    if (category == NULL) return true;
+
+    std::string keyword;
+    Handle<String> value = factory->NewStringFromAsciiChecked(
+        category->toUTF8String(keyword).data());
+
+    LookupIterator it(isolate, pluralCategories, i, LookupIterator::OWN);
+    JSObject::DefineOwnPropertyIgnoreAttributes(&it, value,
+                                                PropertyAttributes::NONE)
+        .ToHandleChecked();
+  }
+}
+
 icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
@@ -704,12 +791,13 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
 icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -753,12 +841,14 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -804,12 +894,13 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
                                             Handle<String> locale,
                                             Handle<JSObject> options,
                                             Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
@@ -849,15 +940,76 @@ void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
+bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
+                                        Handle<JSObject> options,
+                                        Handle<JSObject> resolved,
+                                        icu::PluralRules** plural_rules,
+                                        icu::DecimalFormat** number_format) {
+  // Convert BCP47 into ICU locale format.
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale icu_locale;
+  char locale_name[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+  v8::String::Utf8Value bcp47_locale(reinterpret_cast<v8::Isolate*>(isolate),
+                                     v8::Utils::ToLocal(locale));
+  if (bcp47_locale.length() != 0) {
+    uloc_forLanguageTag(*bcp47_locale, locale_name, ULOC_FULLNAME_CAPACITY,
+                        &icu_length, &status);
+    if (U_FAILURE(status) || icu_length == 0) {
+      return false;
+    }
+    icu_locale = icu::Locale(locale_name);
+  }
+
+  bool success = CreateICUPluralRules(isolate, icu_locale, options,
+                                      plural_rules, number_format);
+  if (!success) {
+    // Remove extensions and try again.
+    icu::Locale no_extension_locale(icu_locale.getBaseName());
+    success = CreateICUPluralRules(isolate, no_extension_locale, options,
+                                   plural_rules, number_format);
+
+    if (!success) {
+      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
+    }
+
+    // Set resolved settings (pattern, numbering system).
+    success = SetResolvedPluralRulesSettings(
+        isolate, no_extension_locale, *plural_rules, *number_format, resolved);
+  } else {
+    success = SetResolvedPluralRulesSettings(isolate, icu_locale, *plural_rules,
+                                             *number_format, resolved);
+  }
+
+  return success;
+}
+
+icu::PluralRules* PluralRules::UnpackPluralRules(Isolate* isolate,
+                                                 Handle<JSObject> obj) {
+  return reinterpret_cast<icu::PluralRules*>(obj->GetEmbedderField(0));
+}
+
+icu::DecimalFormat* PluralRules::UnpackNumberFormat(Isolate* isolate,
+                                                    Handle<JSObject> obj) {
+  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(1));
+}
+
+void PluralRules::DeletePluralRules(const v8::WeakCallbackInfo<void>& data) {
+  delete reinterpret_cast<icu::PluralRules*>(data.GetInternalField(0));
+  delete reinterpret_cast<icu::DecimalFormat*>(data.GetInternalField(1));
+  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);

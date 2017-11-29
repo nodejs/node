@@ -96,39 +96,11 @@ ContainedInLattice AddRange(ContainedInLattice containment,
   return containment;
 }
 
+// Generic RegExp methods. Dispatches to implementation specific methods.
 
-// More makes code generation slower, less makes V8 benchmark score lower.
-const int kMaxLookaheadForBoyerMoore = 8;
 // In a 3-character pattern you can maximally step forwards 3 characters
 // at a time, which is not always enough to pay for the extra logic.
 const int kPatternTooShortForBoyerMoore = 2;
-
-
-// Identifies the sort of regexps where the regexp engine is faster
-// than the code used for atom matches.
-static bool HasFewDifferentCharacters(Handle<String> pattern) {
-  int length = Min(kMaxLookaheadForBoyerMoore, pattern->length());
-  if (length <= kPatternTooShortForBoyerMoore) return false;
-  const int kMod = 128;
-  bool character_found[kMod];
-  int different = 0;
-  memset(&character_found[0], 0, sizeof(character_found));
-  for (int i = 0; i < length; i++) {
-    int ch = (pattern->Get(i) & (kMod - 1));
-    if (!character_found[ch]) {
-      character_found[ch] = true;
-      different++;
-      // We declare a regexp low-alphabet if it has at least 3 times as many
-      // characters as it has different characters.
-      if (different * 3 > length) return false;
-    }
-  }
-  return true;
-}
-
-
-// Generic RegExp methods. Dispatches to implementation specific methods.
-
 
 MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
@@ -149,7 +121,8 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(re->GetIsolate(), &zone, &reader, flags,
+  DCHECK(!isolate->has_pending_exception());
+  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return ThrowRegExpException(re, pattern, parse_result.error);
@@ -158,7 +131,8 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   bool has_been_compiled = false;
 
   if (parse_result.simple && !(flags & JSRegExp::kIgnoreCase) &&
-      !(flags & JSRegExp::kSticky) && !HasFewDifferentCharacters(pattern)) {
+      !(flags & JSRegExp::kSticky) &&
+      pattern->length() <= kPatternTooShortForBoyerMoore) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
@@ -166,12 +140,11 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
              !(flags & JSRegExp::kSticky) && parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    Handle<String> atom_string;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, atom_string,
-        isolate->factory()->NewStringFromTwoByte(atom_pattern),
-        Object);
-    if (!HasFewDifferentCharacters(atom_string)) {
+    if (atom_pattern.length() <= kPatternTooShortForBoyerMoore) {
+      Handle<String> atom_string;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, atom_string,
+          isolate->factory()->NewStringFromTwoByte(atom_pattern), Object);
       AtomCompile(re, pattern, flags, atom_string);
       has_been_compiled = true;
     }
@@ -1252,7 +1225,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             }
             // SET_REGISTER is currently only used for newly introduced loop
             // counters. They can have a significant previous value if they
-            // occour in a loop. TODO(lrn): Propagate this information, so
+            // occur in a loop. TODO(lrn): Propagate this information, so
             // we can set undo_action to IGNORE if we know there is no value to
             // restore.
             undo_action = RESTORE;
@@ -3029,6 +3002,8 @@ static void EmitHat(RegExpCompiler* compiler,
   on_success->Emit(compiler, &new_trace);
 }
 
+// More makes code generation slower, less makes V8 benchmark score lower.
+const int kMaxLookaheadForBoyerMoore = 8;
 
 // Emit the code to handle \b and \B (word-boundary or non-word-boundary).
 void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
@@ -5086,6 +5061,16 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
 
 void AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges, Zone* zone) {
 #ifdef V8_INTL_SUPPORT
+  DCHECK(CharacterRange::IsCanonical(ranges));
+
+  // Micro-optimization to avoid passing large ranges to UnicodeSet::closeOver.
+  // See also https://crbug.com/v8/6727.
+  // TODO(jgruber): This only covers the special case of the {0,0x10FFFF} range,
+  // which we use frequently internally. But large ranges can also easily be
+  // created by the user. We might want to have a more general caching mechanism
+  // for such ranges.
+  if (ranges->length() == 1 && ranges->at(0).IsEverything(kNonBmpEnd)) return;
+
   // Use ICU to compute the case fold closure over the ranges.
   icu::UnicodeSet set;
   for (int i = 0; i < ranges->length(); i++) {
@@ -5843,7 +5828,7 @@ static void AddClassNegated(const int *elmv,
   ranges->Add(CharacterRange::Range(last, String::kMaxCodePoint), zone);
 }
 
-void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                                     bool add_unicode_case_equivalents,
                                     Zone* zone) {
   if (add_unicode_case_equivalents && (type == 'w' || type == 'W')) {
@@ -5866,7 +5851,7 @@ void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
   AddClassEscape(type, ranges, zone);
 }
 
-void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+void CharacterRange::AddClassEscape(char type, ZoneList<CharacterRange>* ranges,
                                     Zone* zone) {
   switch (type) {
     case 's':

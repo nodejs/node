@@ -1,6 +1,11 @@
 # Changes
 
 
+## v1.3.0
+
+* Add nothrow option to which.sync
+* update tap
+
 ## v1.2.14
 
 * appveyor: drop node 5 and 0.x

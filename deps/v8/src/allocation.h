@@ -5,15 +5,21 @@
 #ifndef V8_ALLOCATION_H_
 #define V8_ALLOCATION_H_
 
+#include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/platform/platform.h"
 #include "src/globals.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 
-// Called when allocation routines fail to allocate.
-// This function should not return, but should terminate the current
-// processing.
+// This file defines memory allocation functions. If a first attempt at an
+// allocation fails, these functions call back into the embedder, then attempt
+// the allocation a second time. The embedder callback must not reenter V8.
+
+// Called when allocation routines fail to allocate, even with a possible retry.
+// This function should not return, but should terminate the current processing.
 V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(const char* message);
 
 // Superclass for classes managed with new & delete.
@@ -26,28 +32,16 @@ class V8_EXPORT_PRIVATE Malloced {
   static void Delete(void* p);
 };
 
-// DEPRECATED
-// TODO(leszeks): Delete this during a quiet period
-#define BASE_EMBEDDED
-
-
-// Superclass for classes only using static method functions.
-// The subclass of AllStatic cannot be instantiated at all.
-class AllStatic {
-#ifdef DEBUG
- public:
-  AllStatic() = delete;
-#endif
-};
-
-
 template <typename T>
 T* NewArray(size_t size) {
-  T* result = new T[size];
-  if (result == NULL) FatalProcessOutOfMemory("NewArray");
+  T* result = new (std::nothrow) T[size];
+  if (result == nullptr) {
+    V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
+    result = new (std::nothrow) T[size];
+    if (result == nullptr) FatalProcessOutOfMemory("NewArray");
+  }
   return result;
 }
-
 
 template <typename T>
 void DeleteArray(T* array) {
@@ -73,6 +67,10 @@ class FreeStoreAllocationPolicy {
 
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
+
+bool AllocVirtualMemory(size_t size, void* hint, base::VirtualMemory* result);
+bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
+                               base::VirtualMemory* result);
 
 }  // namespace internal
 }  // namespace v8

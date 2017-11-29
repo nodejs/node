@@ -33,7 +33,7 @@ var {{=$valid}} = undefined;
 
 {{
   var $schemaFormat = it.schema.format
-    , $isDataFormat = it.opts.v5 && $schemaFormat.$data
+    , $isDataFormat = it.opts.$data && $schemaFormat.$data
     , $closingBraces = '';
 }}
 
@@ -58,7 +58,7 @@ var {{=$valid}} = undefined;
   var $isMax = $keyword == 'formatMaximum'
     , $exclusiveKeyword = 'formatExclusive' + ($isMax ? 'Maximum' : 'Minimum')
     , $schemaExcl = it.schema[$exclusiveKeyword]
-    , $isDataExcl = it.opts.v5 && $schemaExcl && $schemaExcl.$data
+    , $isDataExcl = it.opts.$data && $schemaExcl && $schemaExcl.$data
     , $op = $isMax ? '<' : '>'
     , $result = 'result' + $lvl;
 }}

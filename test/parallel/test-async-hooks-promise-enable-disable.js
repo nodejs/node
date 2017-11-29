@@ -8,6 +8,8 @@ let p_resource = null;
 let p_er = null;
 let p_inits = 0;
 
+common.crashOnUnhandledRejection();
+
 // Not useful to place common.mustCall() around 'exit' event b/c it won't be
 // able to check it anway.
 process.on('exit', (code) => {

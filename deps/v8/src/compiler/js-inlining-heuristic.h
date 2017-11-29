@@ -50,6 +50,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
     int num_functions;
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.
+    int total_size = 0;
   };
 
   // Comparator for candidates.

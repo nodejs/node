@@ -221,9 +221,9 @@ In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
 Node.js has two IRC channels:
-[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
+[#Node.js](https://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
-[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
+[#Node-dev](https://webchat.freenode.net/?channels=node-dev) for development of
 Node.js core specifically.
 
 ### Setting up your local environment
@@ -242,6 +242,10 @@ who you are:
 $ git config --global user.name "J. Random User"
 $ git config --global user.email "j.random.user@example.com"
 ```
+Please make sure this local email is also added to your
+[GitHub email list](https://github.com/settings/emails) so that your commits
+will be properly associated with your account and you will be promoted
+to Contributor once your first commit is landed.
 
 #### Step 1: Fork
 
@@ -305,8 +309,8 @@ notes about [commit squashing](#commit-squashing)).
 A good commit message should describe what changed and why.
 
 1. The first line should:
-   - contain a short description of the change
-   - be 50 characters or less
+   - contain a short description of the change (preferably 50 characters or less,
+     and no more than 72 characters)
    - be entirely in lowercase with the exception of proper nouns, acronyms, and
    the words that refer to code, like function/variable names
    - be prefixed with the name of the changed subsystem and start with an
@@ -329,6 +333,14 @@ use `Refs:`.
    - `Fixes: https://github.com/nodejs/node/issues/1337`
    - `Refs: http://eslint.org/docs/rules/space-in-parens.html`
    - `Refs: https://github.com/nodejs/node/pull/3615`
+
+5. If your commit introduces a breaking change (`semver-major`), it should
+contain an explanation about the reason of the breaking change, which
+situation would trigger the breaking change and what is the exact change.
+
+Breaking changes will be listed in the wiki with the aim to make upgrading
+easier.  Please have a look at [Breaking Changes](https://github.com/nodejs/node/wiki/Breaking-changes-between-v4-LTS-and-v6-LTS)
+for the level of detail that's suitable.
 
 Sample complete commit message:
 
@@ -621,6 +633,7 @@ Focus first on the most significant aspects of the change:
 1. Does this change make sense for Node.js?
 2. Does this change make Node.js better, even if only incrementally?
 3. Are there clear bugs or larger scale issues that need attending to?
+4. Is the commit message readable and correct? If it contains a breaking change is it clear enough?
 
 When changes are necessary, *request* them, do not *demand* them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
@@ -849,12 +862,9 @@ By making a contribution to this project, I certify that:
 [benchmark results]: ./doc/guides/writing-and-running-benchmarks.md
 [Building guide]: ./BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
-[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
-[guide for writing tests in Node.js]: ./doc/guides/writing-tests.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
 [Node.js help repository]: https://github.com/nodejs/help/issues
-[notes about the waiting time]: #waiting-until-the-pull-request-gets-landed
 [Onboarding guide]: ./doc/onboarding.md
-[on GitHub]: https://github.com/nodejs/node
 [Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues

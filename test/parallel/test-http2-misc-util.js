@@ -35,7 +35,7 @@ common.expectsError(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
-    message: 'The "test" argument must be of type object'
+    message: 'The "test" argument must be of type Object'
   });
 
 common.expectsError(

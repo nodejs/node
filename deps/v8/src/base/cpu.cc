@@ -221,14 +221,14 @@ class CPUInfo final {
     delete[] data_;
   }
 
-  // Extract the content of a the first occurence of a given field in
+  // Extract the content of a the first occurrence of a given field in
   // the content of the cpuinfo file and return it as a heap-allocated
   // string that must be freed by the caller using delete[].
   // Return NULL if not found.
   char* ExtractField(const char* field) const {
     DCHECK(field != NULL);
 
-    // Look for first field occurence, and ensure it starts the line.
+    // Look for first field occurrence, and ensure it starts the line.
     size_t fieldlen = strlen(field);
     char* p = data_;
     for (;;) {

@@ -254,7 +254,8 @@ class ForkContext {
         return new ForkContext(
             parentContext.idGenerator,
             parentContext,
-            (forkLeavingPath ? 2 : 1) * parentContext.count);
+            (forkLeavingPath ? 2 : 1) * parentContext.count
+        );
     }
 }
 

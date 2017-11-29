@@ -15,6 +15,9 @@ function bytes() {
   return buffer;
 }
 
+// V8 internal constants
+var kV8MaxPages = 32767;
+
 // Header declaration constants
 var kWasmH0 = 0;
 var kWasmH1 = 0x61;
@@ -28,6 +31,7 @@ var kWasmV3 = 0;
 
 var kHeaderSize = 8;
 var kPageSize = 65536;
+var kSpecMaxPages = 65535;
 
 function bytesWithHeader() {
   var buffer = new ArrayBuffer(kHeaderSize + arguments.length);
@@ -52,18 +56,19 @@ let kDeclNoLocals = 0;
 
 // Section declaration constants
 let kUnknownSectionCode = 0;
-let kTypeSectionCode = 1;      // Function signature declarations
-let kImportSectionCode = 2;    // Import declarations
-let kFunctionSectionCode = 3;  // Function declarations
-let kTableSectionCode = 4;     // Indirect function table and other tables
-let kMemorySectionCode = 5;    // Memory attributes
-let kGlobalSectionCode = 6;    // Global declarations
-let kExportSectionCode = 7;    // Exports
-let kStartSectionCode = 8;     // Start function declaration
-let kElementSectionCode = 9;  // Elements section
-let kCodeSectionCode = 10;      // Function code
-let kDataSectionCode = 11;     // Data segments
-let kNameSectionCode = 12;     // Name section (encoded as string)
+let kTypeSectionCode = 1;        // Function signature declarations
+let kImportSectionCode = 2;      // Import declarations
+let kFunctionSectionCode = 3;    // Function declarations
+let kTableSectionCode = 4;       // Indirect function table and other tables
+let kMemorySectionCode = 5;      // Memory attributes
+let kGlobalSectionCode = 6;      // Global declarations
+let kExportSectionCode = 7;      // Exports
+let kStartSectionCode = 8;       // Start function declaration
+let kElementSectionCode = 9;     // Elements section
+let kCodeSectionCode = 10;       // Function code
+let kDataSectionCode = 11;       // Data segments
+let kNameSectionCode = 12;       // Name section (encoded as string)
+let kExceptionSectionCode = 13;  // Exception section (must appear before code section)
 
 // Name section types
 let kModuleNameCode = 0;
@@ -87,7 +92,6 @@ let kWasmI32 = 0x7f;
 let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
-let kWasmS128 = 0x7b;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
@@ -118,7 +122,6 @@ let kSig_v_l = makeSig([kWasmI64], []);
 let kSig_v_d = makeSig([kWasmF64], []);
 let kSig_v_dd = makeSig([kWasmF64, kWasmF64], []);
 let kSig_v_ddi = makeSig([kWasmF64, kWasmF64, kWasmI32], []);
-let kSig_s_v = makeSig([], [kWasmS128]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -320,7 +323,31 @@ let kExprI32ReinterpretF32 = 0xbc;
 let kExprI64ReinterpretF64 = 0xbd;
 let kExprF32ReinterpretI32 = 0xbe;
 let kExprF64ReinterpretI64 = 0xbf;
-let kExprS128LoadMem = 0xc0;
+
+// Prefix opcodes
+let kAtomicPrefix = 0xfe;
+
+let kExprI32AtomicAdd = 0x1e;
+let kExprI32AtomicAdd8U = 0x20;
+let kExprI32AtomicAdd16U = 0x21;
+let kExprI32AtomicSub = 0x25;
+let kExprI32AtomicSub8U = 0x27;
+let kExprI32AtomicSub16U = 0x28;
+let kExprI32AtomicAnd = 0x2c;
+let kExprI32AtomicAnd8U = 0x2e;
+let kExprI32AtomicAnd16U = 0x2f;
+let kExprI32AtomicOr = 0x33;
+let kExprI32AtomicOr8U = 0x35;
+let kExprI32AtomicOr16U = 0x36;
+let kExprI32AtomicXor = 0x3a;
+let kExprI32AtomicXor8U = 0x3c;
+let kExprI32AtomicXor16U = 0x3d;
+let kExprI32AtomicExchange = 0x41;
+let kExprI32AtomicExchange8U = 0x43;
+let kExprI32AtomicExchange16U = 0x44;
+let kExprI32AtomicCompareExchange = 0x48
+let kExprI32AtomicCompareExchange8U = 0x4a
+let kExprI32AtomicCompareExchange16U = 0x4b
 
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
@@ -360,8 +387,7 @@ function assertTraps(trap, code) {
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
-function assertWasmThrows(value, code) {
-  assertEquals('number', typeof value);
+function assertWasmThrows(values, code) {
   try {
     if (typeof code === 'function') {
       code();
@@ -369,10 +395,31 @@ function assertWasmThrows(value, code) {
       eval(code);
     }
   } catch (e) {
-    assertEquals('number', typeof e);
-    assertEquals(value, e);
+    assertTrue(e instanceof WebAssembly.RuntimeError);
+    assertNotEquals(e['WasmExceptionTag'], undefined);
+    assertTrue(Number.isInteger(e['WasmExceptionTag']));
+    // TODO(kschimpf): Extract values from the exception.
+    let e_values = [];
+    assertEquals(values, e_values);
     // Success.
     return;
   }
-  throw new MjsUnitAssertionError('Did not throw, expected: ' + value);
+  throw new MjsUnitAssertionError('Did not throw, expected: ' + values);
+}
+
+function wasmI32Const(val) {
+  let bytes = [kExprI32Const];
+  for (let i = 0; i < 4; ++i) {
+    bytes.push(0x80 | ((val >> (7 * i)) & 0x7f));
+  }
+  bytes.push((val >> (7 * 4)) & 0x7f);
+  return bytes;
+}
+
+function wasmF32Const(f) {
+  return [kExprF32Const].concat(Array.from(new Uint8Array((new Float32Array([f])).buffer)));
+}
+
+function wasmF64Const(f) {
+  return [kExprF64Const].concat(Array.from(new Uint8Array((new Float64Array([f])).buffer)));
 }

@@ -29,7 +29,6 @@ class StringsStorage {
   const char* GetName(int index);
   const char* GetFunctionName(Name* name);
   const char* GetFunctionName(const char* name);
-  size_t GetUsedMemorySize() const;
 
  private:
   static const int kMaxNameSize = 1024;
@@ -43,6 +42,7 @@ class StringsStorage {
 
   DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };
+
 }  // namespace internal
 }  // namespace v8
 

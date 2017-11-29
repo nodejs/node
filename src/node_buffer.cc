@@ -22,11 +22,9 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "env.h"
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "string_search.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
 #include "v8.h"
@@ -1302,4 +1300,4 @@ void Initialize(Local<Object> target,
 }  // namespace Buffer
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(buffer, node::Buffer::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(buffer, node::Buffer::Initialize)

@@ -152,7 +152,7 @@ ucol_reset(UCollationElements *elems);
  * A single character may contain more than one collation element.
  * @param elems The UCollationElements containing the text.
  * @param status A pointer to a UErrorCode to receive any errors.
- * @return The next collation elements ordering, otherwise returns NULLORDER
+ * @return The next collation elements ordering, otherwise returns UCOL_NULLORDER
  *         if an error has occured or if the end of string has been reached
  * @stable ICU 2.0
  */
@@ -168,7 +168,7 @@ ucol_next(UCollationElements *elems, UErrorCode *status);
  *               a U_BUFFER_OVERFLOW_ERROR is returned if the internal stack
  *               buffer has been exhausted.
  * @return The previous collation elements ordering, otherwise returns
- *         NULLORDER if an error has occured or if the start of string has
+ *         UCOL_NULLORDER if an error has occured or if the start of string has
  *         been reached.
  * @stable ICU 2.0
  */

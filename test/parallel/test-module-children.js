@@ -1,10 +1,11 @@
 // Flags: --no-deprecation
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
 
-const dir = path.join(common.fixturesDir, 'GH-7131');
+const dir = fixtures.path('GH-7131');
 const b = require(path.join(dir, 'b'));
 const a = require(path.join(dir, 'a'));
 

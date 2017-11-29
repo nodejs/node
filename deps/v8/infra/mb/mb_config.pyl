@@ -78,6 +78,7 @@
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
       # TODO(machenbach): Switch plugins on when errors are fixed.
       'V8 Win64 - clang': 'gn_release_x64_clang',
+      'V8 Win64 ASAN': 'gn_release_x64_asan_no_lsan',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -106,6 +107,10 @@
       'V8 Random Deopt Fuzzer - debug': 'gn_debug_x86',
     },
     'client.v8.clusterfuzz': {
+      'V8 Mac64 ASAN - release builder':
+          'gn_release_x64_asan_no_lsan_edge_verify_heap',
+      'V8 Mac64 ASAN - debug builder':
+          'gn_debug_x64_asan_no_lsan_static_edge',
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
       'V8 Linux64 - debug builder': 'gn_debug_x64',
       'V8 Linux64 ASAN no inline - release builder':
@@ -122,6 +127,9 @@
           'gn_release_simulate_arm64_msan_no_origins_edge',
       'V8 Linux MSAN chained origins':
           'gn_release_simulate_arm64_msan_edge',
+      'V8 Linux64 UBSan - release builder': 'gn_release_x64_ubsan_recover',
+      'V8 Linux64 UBSanVptr - release builder':
+          'gn_release_x64_ubsan_vptr_recover_edge',
     },
     'client.v8.ports': {
       # Arm.
@@ -205,6 +213,7 @@
       'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
+      'v8_win64_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
       'v8_mac_rel_ng': 'gn_release_x86_trybot',
@@ -375,6 +384,9 @@
       'minimal_symbols', 'swarming'],
     'gn_release_x64_asan_no_lsan': [
       'gn', 'release_bot', 'x64', 'asan', 'swarming'],
+    'gn_release_x64_asan_no_lsan_edge_verify_heap': [
+      'gn', 'release_bot', 'x64', 'asan', 'edge', 'swarming',
+      'v8_verify_heap'],
     'gn_release_x64_asan_symbolized_edge_verify_heap': [
       'gn', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
       'v8_verify_heap'],
@@ -389,7 +401,7 @@
     'gn_release_x64_correctness_fuzzer' : [
       'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'gn_release_x64_gcc_coverage': [
-      'gn', 'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx'],
+      'gn', 'release_bot', 'x64', 'coverage', 'gcc'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -406,10 +418,14 @@
       'minimal_symbols', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_ubsan_recover': [
+      'gn', 'release_bot', 'x64', 'ubsan_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr': [
-      'gn', 'release_bot', 'x64', 'ubsan_vptr'],
+      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'swarming'],
+    'gn_release_x64_ubsan_vptr_recover_edge': [
+      'gn', 'release_bot', 'x64', 'edge', 'ubsan_vptr_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr_minimal_symbols': [
-      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
+      'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols', 'swarming'],
     'gn_release_x64_valgrind': [
       'gn', 'release_bot', 'x64', 'swarming', 'valgrind',
       'no_custom_libcxx'],
@@ -425,10 +441,13 @@
       'gn', 'debug_bot', 'x64', 'swarming'],
     'gn_debug_x64_asan_edge': [
       'gn', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
+    'gn_debug_x64_asan_no_lsan_static_edge': [
+      'gn', 'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
+      'v8_optimized_debug', 'x64', 'asan', 'edge', 'swarming'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_gcc': [
-      'gn', 'debug_bot', 'x64', 'gcc', 'no_custom_libcxx'],
+      'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
@@ -462,10 +481,9 @@
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
-      'gn', 'release_bot', 'x86', 'gcc', 'no_custom_libcxx'],
+      'gn', 'release_bot', 'x86', 'gcc'],
     'gn_release_x86_gcc_minimal_symbols': [
-      'gn', 'release_bot', 'x86', 'gcc', 'minimal_symbols',
-      'no_custom_libcxx'],
+      'gn', 'release_bot', 'x86', 'gcc', 'minimal_symbols'],
     'gn_release_x86_gcmole': [
       'gn', 'release_bot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_gcmole_trybot': [
@@ -591,7 +609,8 @@
     },
 
     'gcc': {
-      'gn_args': 'is_clang=false use_sysroot=false',
+      # TODO(machenbach): Remove cxx11 restriction when updating gcc version.
+      'gn_args': 'is_clang=false use_cxx11=true',
       'gyp_defines': 'clang=0',
     },
 
@@ -726,11 +745,21 @@
       'gyp_defines': 'clang=1 tsan=1',
     },
 
+    'ubsan_recover': {
+      # Ubsan with recovery.
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
+    },
+
     'ubsan_vptr': {
       # TODO(krasin): Remove is_ubsan_no_recover=true when
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan_vptr instead.
       'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=true',
+    },
+
+    'ubsan_vptr_recover': {
+      # Ubsan vptr with recovery.
+      'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=false',
     },
 
     'valgrind': {

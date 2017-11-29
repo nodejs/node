@@ -10,7 +10,6 @@
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/v8threads.h"
@@ -244,30 +243,6 @@ static bool IsSuitableForOnStackReplacement(Isolate* isolate,
 
 namespace {
 
-BailoutId DetermineEntryAndDisarmOSRForBaseline(JavaScriptFrame* frame) {
-  Handle<Code> caller_code(frame->function()->shared()->code());
-
-  // Passing the PC in the JavaScript frame from the caller directly is
-  // not GC safe, so we walk the stack to get it.
-  if (!caller_code->contains(frame->pc())) {
-    // Code on the stack may not be the code object referenced by the shared
-    // function info.  It may have been replaced to include deoptimization data.
-    caller_code = Handle<Code>(frame->LookupCode());
-  }
-
-  DCHECK_EQ(frame->LookupCode(), *caller_code);
-  DCHECK_EQ(Code::FUNCTION, caller_code->kind());
-  DCHECK(caller_code->contains(frame->pc()));
-
-  // Revert the patched back edge table, regardless of whether OSR succeeds.
-  BackEdgeTable::Revert(frame->isolate(), *caller_code);
-
-  // Return a BailoutId representing an AST id of the {IterationStatement}.
-  uint32_t pc_offset =
-      static_cast<uint32_t>(frame->pc() - caller_code->instruction_start());
-  return caller_code->TranslatePcOffsetToBytecodeOffset(pc_offset);
-}
-
 BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
   InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
 
@@ -280,7 +255,6 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
   DCHECK(frame->LookupCode()->is_interpreter_trampoline_builtin());
   DCHECK(frame->function()->shared()->HasBytecodeArray());
   DCHECK(frame->is_interpreted());
-  DCHECK(FLAG_ignition_osr);
 
   // Reset the OSR loop nesting depth to disarm back edges.
   bytecode->set_osr_loop_nesting_level(0);
@@ -306,12 +280,11 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
   DCHECK_EQ(frame->function(), *function);
+  DCHECK(frame->is_interpreted());
 
   // Determine the entry point for which this OSR request has been fired and
   // also disarm all back edges in the calling code to stop new requests.
-  BailoutId ast_id = frame->is_interpreted()
-                         ? DetermineEntryAndDisarmOSRForInterpreter(frame)
-                         : DetermineEntryAndDisarmOSRForBaseline(frame);
+  BailoutId ast_id = DetermineEntryAndDisarmOSRForInterpreter(frame);
   DCHECK(!ast_id.IsNone());
 
   MaybeHandle<Code> maybe_result;

@@ -15,8 +15,9 @@
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static void UpdateMemoryReferences(Handle<Code> code, Address old_base,
                                    Address new_base, uint32_t old_size,
@@ -212,3 +213,7 @@ TEST(Uint32LessThanFunctionTableRelocation) {
   // Check that after limit is increased, index is within bounds.
   CHECK_EQ(0xaced, m.Call());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

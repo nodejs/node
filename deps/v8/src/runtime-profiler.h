@@ -27,15 +27,12 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  void MaybeOptimizeFullCodegen(JSFunction* function, JavaScriptFrame* frame,
-                                int frame_count);
-  void MaybeBaselineIgnition(JSFunction* function, JavaScriptFrame* frame);
-  void MaybeOptimizeIgnition(JSFunction* function, JavaScriptFrame* frame);
-  // Potentially attempts OSR from ignition and returns whether no other
+  void MaybeOptimize(JSFunction* function, JavaScriptFrame* frame);
+  // Potentially attempts OSR from and returns whether no other
   // optimization attempts should be made.
-  bool MaybeOSRIgnition(JSFunction* function, JavaScriptFrame* frame);
-  OptimizationReason ShouldOptimizeIgnition(JSFunction* function,
-                                            JavaScriptFrame* frame);
+  bool MaybeOSR(JSFunction* function, JavaScriptFrame* frame);
+  OptimizationReason ShouldOptimize(JSFunction* function,
+                                    JavaScriptFrame* frame);
   void Optimize(JSFunction* function, OptimizationReason reason);
   void Baseline(JSFunction* function, OptimizationReason reason);
 

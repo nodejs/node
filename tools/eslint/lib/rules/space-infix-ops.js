@@ -112,7 +112,7 @@ module.exports = {
             const nonSpacedNode = getFirstNonSpacedToken(leftNode, rightNode);
 
             if (nonSpacedNode) {
-                if (!(int32Hint && sourceCode.getText(node).substr(-2) === "|0")) {
+                if (!(int32Hint && sourceCode.getText(node).endsWith("|0"))) {
                     report(node, nonSpacedNode);
                 }
             }

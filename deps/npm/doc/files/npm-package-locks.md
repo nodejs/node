@@ -92,7 +92,7 @@ which will look something like this:
     }
 
 This file describes an *exact*, and more importantly *reproducible*
-`node_modules` tree. Once it's present, and future installation will base its
+`node_modules` tree. Once it's present, any future installation will base its
 work off this file, instead of recalculating dependency versions off
 package.json(5).
 

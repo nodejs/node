@@ -16,7 +16,6 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
@@ -30,41 +29,21 @@ using v8::Isolate;
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
-class MockPlatform : public v8::Platform {
+class MockPlatform : public TestPlatform {
  public:
-  explicit MockPlatform(v8::Platform* platform)
-      : platform_(platform), task_(nullptr) {}
-  virtual ~MockPlatform() { delete task_; }
-
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    platform_->CallOnBackgroundThread(task, expected_runtime);
+  MockPlatform() : task_(nullptr) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
   }
+  virtual ~MockPlatform() { delete task_; }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     task_ = task;
   }
 
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
-    platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
-  }
-
-  double MonotonicallyIncreasingTime() override {
-    return platform_->MonotonicallyIncreasingTime();
-  }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
-    platform_->CallIdleOnForegroundThread(isolate, task);
-  }
-
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
-
-  v8::TracingController* GetTracingController() override {
-    return platform_->GetTracingController();
-  }
 
   bool PendingTask() { return task_ != nullptr; }
 
@@ -76,7 +55,6 @@ class MockPlatform : public v8::Platform {
   }
 
  private:
-  v8::Platform* platform_;
   Task* task_;
 };
 
@@ -84,9 +62,7 @@ TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockPlatform platform;
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
@@ -96,8 +72,8 @@ TEST(IncrementalMarkingUsingTasks) {
     platform.PerformTask();
   }
   CHECK(marking->IsStopped());
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

@@ -7,14 +7,38 @@
 <!--name=vm-->
 
 The `vm` module provides APIs for compiling and running code within V8 Virtual
-Machine contexts. It can be accessed using:
+Machine contexts.
+
+JavaScript code can be compiled and run immediately or
+compiled, saved, and run later.
+
+A common use case is to run the code in a sandboxed environment.
+The sandboxed code uses a different V8 Context, meaning that
+it has a different global object than the rest of the code.
+
+One can provide the context by ["contextifying"][contextified] a sandbox
+object. The sandboxed code treats any property on the sandbox like a
+global variable. Any changes on global variables caused by the sandboxed
+code are reflected in the sandbox object.
 
 ```js
 const vm = require('vm');
-```
 
-JavaScript code can be compiled and run immediately or compiled, saved, and run
-later.
+const x = 1;
+
+const sandbox = { x: 2 };
+vm.createContext(sandbox); // Contextify the sandbox.
+
+const code = 'x += 40; var y = 17;';
+// x and y are global variables in the sandboxed environment.
+// Initially, x has the value 2 because that is the value of sandbox.x.
+vm.runInContext(code, sandbox);
+
+console.log(sandbox.x); // 42
+console.log(sandbox.y); // 17
+
+console.log(x); // 1; y is not defined.
+```
 
 *Note*: The vm module is not a security mechanism.
 **Do not use it to run untrusted code**.
@@ -310,31 +334,6 @@ console.log(util.inspect(sandbox));
 // { globalVar: 1024 }
 ```
 
-## vm.runInDebugContext(code)
-<!-- YAML
-added: v0.11.14
--->
-
-> Stability: 0 - Deprecated. An alternative is in development.
-
-* `code` {string} The JavaScript code to compile and run.
-
-The `vm.runInDebugContext()` method compiles and executes `code` inside the V8
-debug context. The primary use case is to gain access to the V8 `Debug` object:
-
-```js
-const vm = require('vm');
-const Debug = vm.runInDebugContext('Debug');
-console.log(Debug.findScript(process.emit).name);  // 'events.js'
-console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
-```
-
-*Note*: The debug context and object are intrinsically tied to V8's debugger
-implementation and may change (or even be removed) without prior warning.
-
-The `Debug` object can also be made available using the V8-specific
-`--expose_debug_as=` [command line option][].
-
 ## vm.runInNewContext(code[, sandbox][, options])
 <!-- YAML
 added: v0.3.1
@@ -445,7 +444,7 @@ to the `http` module passed to it. For instance:
 const vm = require('vm');
 
 const code = `
-(function(require) {
+((require) => {
   const http = require('http');
 
   http.createServer((request, response) => {
@@ -488,7 +487,6 @@ associating it with the `sandbox` object is what this document refers to as
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
-[command line option]: cli.html
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [global object]: https://es5.github.io/#x15.1
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2

@@ -17,15 +17,10 @@ static const char
   kSPACE   = 0x20,
   kTAB     = 0x09,
   kLF      = 0x0A,
-  kCR      = 0x0D,
+  kCR      = 0x0D;
   // kHASH    = 0x23,
   // kSLASH   = 0x2f,
-  kBKSLASH = 0x5C,
   // kSTAR    = 0x2A,
-  kL_U     = 0x75,
-  kU_U     = 0x55,
-  kQUOT    = 0x27,
-  kDBLQ    = 0x22;
 
 # include "cptbl.h"
 
@@ -273,7 +268,7 @@ bool fixAt(std::string &linestr, size_t pos) {
         U8_NEXT(s, i, length, c);
       }
       if(c<0) {
-        fprintf(stderr, "Illegal utf-8 sequence at Column: %d\n", old_pos);
+        fprintf(stderr, "Illegal utf-8 sequence at Column: %d\n", (int)old_pos);
         fprintf(stderr, "Line: >>%s<<\n", linestr.c_str());
         return true;
       }

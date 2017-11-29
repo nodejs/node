@@ -35,7 +35,7 @@
 // providing your own trait:
 // Example usage:
 //   struct MyCreateTrait {
-//     static void Construct(MyClass* allocated_ptr) {
+//     static void Construct(void* allocated_ptr) {
 //       new (allocated_ptr) MyClass(/* extra parameters... */);
 //     }
 //   };
@@ -105,7 +105,7 @@ struct StaticallyAllocatedInstanceTrait {
 
   template <typename ConstructTrait>
   static void InitStorageUsingTrait(StorageType* storage) {
-    ConstructTrait::Construct(MutableInstance(storage));
+    ConstructTrait::Construct(storage);
   }
 };
 
@@ -128,9 +128,7 @@ struct DynamicallyAllocatedInstanceTrait {
 template <typename T>
 struct DefaultConstructTrait {
   // Constructs the provided object which was already allocated.
-  static void Construct(T* allocated_ptr) {
-    new(allocated_ptr) T();
-  }
+  static void Construct(void* allocated_ptr) { new (allocated_ptr) T(); }
 };
 
 

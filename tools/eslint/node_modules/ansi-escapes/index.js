@@ -3,12 +3,12 @@ const x = module.exports;
 const ESC = '\u001B[';
 const isTerminalApp = process.env.TERM_PROGRAM === 'Apple_Terminal';
 
-x.cursorTo = function (x, y) {
-	if (arguments.length === 0) {
-		return ESC + 'H';
+x.cursorTo = (x, y) => {
+	if (typeof x !== 'number') {
+		throw new TypeError('The `x` argument is required');
 	}
 
-	if (arguments.length === 1) {
+	if (typeof y !== 'number') {
 		return ESC + (x + 1) + 'G';
 	}
 
@@ -16,6 +16,10 @@ x.cursorTo = function (x, y) {
 };
 
 x.cursorMove = (x, y) => {
+	if (typeof x !== 'number') {
+		throw new TypeError('The `x` argument is required');
+	}
+
 	let ret = '';
 
 	if (x < 0) {

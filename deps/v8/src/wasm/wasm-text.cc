@@ -14,9 +14,20 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8;
 using namespace v8::internal;
 using namespace v8::internal::wasm;
+
+#if __clang__
+// TODO(mostynb@opera.com): remove the using statements and these pragmas.
+#pragma clang diagnostic pop
+#endif
 
 namespace {
 bool IsValidFunctionName(const Vector<const char> &name) {
@@ -143,9 +154,14 @@ void wasm::PrintWasmText(const WasmModule *module,
       }
       case kExprGetLocal:
       case kExprSetLocal:
-      case kExprTeeLocal:
-      case kExprCatch: {
+      case kExprTeeLocal: {
         LocalIndexOperand<false> operand(&i, i.pc());
+        os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
+        break;
+      }
+      case kExprThrow:
+      case kExprCatch: {
+        ExceptionIndexOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << operand.index;
         break;
       }
@@ -183,7 +199,6 @@ void wasm::PrintWasmText(const WasmModule *module,
       case kExprGrowMemory:
       case kExprDrop:
       case kExprSelect:
-      case kExprThrow:
         os << WasmOpcodes::OpcodeName(opcode);
         break;
 

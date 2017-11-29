@@ -35,7 +35,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/gay-fixed.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static const int kBufferSize = 500;
 
@@ -510,3 +511,6 @@ TEST(FastFixedDtoaGayFixed) {
     CHECK_EQ(0, strcmp(current_test.representation, buffer.start()));
   }
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -35,10 +35,11 @@
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+namespace heap {
 
-
-AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
+AllocationResult HeapTester::AllocateAfterFailures() {
   Heap* heap = CcTest::heap();
 
   // New space.
@@ -90,8 +91,7 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   return heap->true_value();
 }
 
-
-Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
+Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
   // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
@@ -116,8 +116,8 @@ void TestGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  info.GetReturnValue().Set(v8::Utils::ToLocal(
-      v8::internal::HeapTester::TestAllocateAfterFailures()));
+  info.GetReturnValue().Set(
+      v8::Utils::ToLocal(HeapTester::TestAllocateAfterFailures()));
 }
 
 void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
@@ -196,6 +196,7 @@ unsigned int Pseudorandom() {
   return lo & 0xFFFF;
 }
 
+namespace {
 
 // Plain old data class.  Represents a block of allocated memory.
 class Block {
@@ -207,6 +208,7 @@ class Block {
   int size;
 };
 
+}  // namespace
 
 TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
@@ -215,7 +217,8 @@ TEST(CodeRange) {
   code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
-  List< ::Block> blocks(1000);
+  std::vector<Block> blocks;
+  blocks.reserve(1000);
 
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
@@ -234,19 +237,22 @@ TEST(CodeRange) {
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
       CHECK(base != NULL);
-      blocks.Add(::Block(base, static_cast<int>(allocated)));
+      blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {
       // Free a block.
-      int index = Pseudorandom() % blocks.length();
+      size_t index = Pseudorandom() % blocks.size();
       code_range.FreeRawMemory(blocks[index].base, blocks[index].size);
       current_allocated -= blocks[index].size;
-      if (index < blocks.length() - 1) {
-        blocks[index] = blocks.RemoveLast();
-      } else {
-        blocks.RemoveLast();
+      if (index < blocks.size() - 1) {
+        blocks[index] = blocks.back();
       }
+      blocks.pop_back();
     }
   }
 }
+
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8

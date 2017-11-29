@@ -10,11 +10,7 @@ const includeData = {};
 
 function preprocess(inputFile, input, cb) {
   input = stripComments(input);
-  processIncludes(inputFile, input, function(err, data) {
-    if (err) return cb(err);
-
-    cb(null, data);
-  });
+  processIncludes(inputFile, input, cb);
 }
 
 function stripComments(input) {
@@ -25,12 +21,11 @@ function processIncludes(inputFile, input, cb) {
   const includes = input.match(includeExpr);
   if (includes === null) return cb(null, input);
   var errState = null;
-  console.error(includes);
   var incCount = includes.length;
   if (incCount === 0) cb(null, input);
   includes.forEach(function(include) {
     var fname = include.replace(/^@include\s+/, '');
-    if (!fname.match(/\.md$/)) fname += '.md';
+    if (!fname.match(/\.md$/)) fname = `${fname}.md`;
 
     if (includeData.hasOwnProperty(fname)) {
       input = input.split(include).join(includeData[fname]);
@@ -52,8 +47,8 @@ function processIncludes(inputFile, input, cb) {
         // Add comments to let the HTML generator know how the anchors for
         // headings should look like.
         includeData[fname] = `<!-- [start-include:${fname}] -->\n` +
-                             inc + `\n<!-- [end-include:${fname}] -->\n`;
-        input = input.split(include + '\n').join(includeData[fname] + '\n');
+                             `${inc}\n<!-- [end-include:${fname}] -->\n`;
+        input = input.split(`${include}\n`).join(`${includeData[fname]}\n`);
         if (incCount === 0) {
           return cb(null, input);
         }

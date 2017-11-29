@@ -40,3 +40,11 @@ assert.strictEqual(parseInt(mask, 8), process.umask(old));
 assert.strictEqual(old, process.umask());
 // 2. If the test fails, process.umask() will return 0
 assert.strictEqual(old, process.umask());
+
+assert.throws(() => {
+  process.umask({});
+}, /argument must be an integer or octal string/);
+
+assert.throws(() => {
+  process.umask('123x');
+}, /invalid octal string/);

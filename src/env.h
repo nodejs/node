@@ -30,7 +30,7 @@
 #include "inspector_agent.h"
 #endif
 #include "handle_wrap.h"
-#include "req-wrap.h"
+#include "req_wrap.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -111,6 +111,7 @@ class ModuleWrap;
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(channel_string, "channel")                                                \
+  V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
   V(constants_string, "constants")                                            \
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
@@ -119,6 +120,7 @@ class ModuleWrap;
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
   V(destroy_string, "destroy")                                                \
+  V(destroyed_string, "destroyed")                                            \
   V(detached_string, "detached")                                              \
   V(dns_a_string, "A")                                                        \
   V(dns_aaaa_string, "AAAA")                                                  \
@@ -132,7 +134,6 @@ class ModuleWrap;
   V(dns_txt_string, "TXT")                                                    \
   V(domain_string, "domain")                                                  \
   V(emit_string, "emit")                                                      \
-  V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(enumerable_string, "enumerable")                                          \
   V(idle_string, "idle")                                                      \
@@ -184,6 +185,7 @@ class ModuleWrap;
   V(kill_signal_string, "killSignal")                                         \
   V(length_string, "length")                                                  \
   V(mac_string, "mac")                                                        \
+  V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
   V(minttl_string, "minttl")                                                  \
@@ -286,6 +288,7 @@ class ModuleWrap;
   V(verify_error_string, "verifyError")                                       \
   V(version_string, "version")                                                \
   V(weight_string, "weight")                                                  \
+  V(windows_hide_string, "windowsHide")                                       \
   V(windows_verbatim_arguments_string, "windowsVerbatimArguments")            \
   V(wrap_string, "wrap")                                                      \
   V(writable_string, "writable")                                              \
@@ -305,8 +308,8 @@ class ModuleWrap;
   V(internal_binding_cache_object, v8::Object)                                \
   V(buffer_prototype_object, v8::Object)                                      \
   V(context, v8::Context)                                                     \
-  V(domain_array, v8::Array)                                                  \
-  V(domains_stack_array, v8::Array)                                           \
+  V(http2ping_constructor_template, v8::ObjectTemplate)                       \
+  V(http2stream_constructor_template, v8::ObjectTemplate)                     \
   V(inspector_console_api_object, v8::Object)                                 \
   V(module_load_list_array, v8::Array)                                        \
   V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
@@ -339,10 +342,13 @@ struct node_async_ids {
 
 class IsolateData {
  public:
-  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                     uint32_t* zero_fill_field = nullptr);
+  IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
+              MultiIsolatePlatform* platform = nullptr,
+              uint32_t* zero_fill_field = nullptr);
+  ~IsolateData();
   inline uv_loop_t* event_loop() const;
   inline uint32_t* zero_fill_field() const;
+  inline MultiIsolatePlatform* platform() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
@@ -355,6 +361,7 @@ class IsolateData {
 #undef VP
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
+  inline v8::Isolate* isolate() const;
 
  private:
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
@@ -367,8 +374,10 @@ class IsolateData {
 #undef VS
 #undef VP
 
+  v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
+  MultiIsolatePlatform* platform_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -386,6 +395,7 @@ class Environment {
       kDestroy,
       kPromiseResolve,
       kTotals,
+      kCheck,
       kFieldsCount,
     };
 
@@ -406,6 +416,8 @@ class Environment {
     inline int async_id_fields_count() const;
 
     inline v8::Local<v8::String> provider_string(int idx);
+
+    inline void no_force_checks();
 
     inline void push_async_ids(double async_id, double trigger_async_id);
     inline bool pop_async_id(double async_id);
@@ -457,26 +469,6 @@ class Environment {
     Environment* env_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncCallbackScope);
-  };
-
-  class DomainFlag {
-   public:
-    inline uint32_t* fields();
-    inline int fields_count() const;
-    inline uint32_t count() const;
-
-   private:
-    friend class Environment;  // So we can call the constructor.
-    inline DomainFlag();
-
-    enum Fields {
-      kCount,
-      kFieldsCount
-    };
-
-    uint32_t fields_[kFieldsCount];
-
-    DISALLOW_COPY_AND_ASSIGN(DomainFlag);
   };
 
   class TickInfo {
@@ -547,15 +539,11 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
-  static inline Environment* from_destroy_async_ids_timer_handle(
-    uv_timer_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-  inline uv_timer_t* destroy_async_ids_timer_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -564,7 +552,6 @@ class Environment {
   inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
-  inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
   inline uint64_t timer_base() const;
 
@@ -579,8 +566,15 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  // This stores whether the --abort-on-uncaught-exception flag was passed
+  // to Node.
   inline bool abort_on_uncaught_exception() const;
   inline void set_abort_on_uncaught_exception(bool value);
+  // This is a pseudo-boolean that keeps track of whether an uncaught exception
+  // should abort the process or not if --abort-on-uncaught-exception was
+  // passed to Node. If the flag was not passed, it is ignored.
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>&
+  should_abort_on_uncaught_toggle();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -604,13 +598,28 @@ class Environment {
   inline void set_http_parser_buffer(char* buffer);
 
   inline http2::http2_state* http2_state() const;
-  inline void set_http2_state(http2::http2_state * state);
+  inline void set_http2_state(std::unique_ptr<http2::http2_state> state);
 
   inline double* fs_stats_field_array() const;
   inline void set_fs_stats_field_array(double* fields);
 
+  inline AliasedBuffer<uint32_t, v8::Uint32Array>& scheduled_immediate_count();
+
   inline performance::performance_state* performance_state();
   inline std::map<std::string, uint64_t>* performance_marks();
+
+  void CollectExceptionInfo(v8::Local<v8::Value> context,
+                            int errorno,
+                            const char* syscall = nullptr,
+                            const char* message = nullptr,
+                            const char* path = nullptr);
+
+  void CollectUVExceptionInfo(v8::Local<v8::Value> context,
+                              int errorno,
+                              const char* syscall = nullptr,
+                              const char* message = nullptr,
+                              const char* path = nullptr,
+                              const char* dest = nullptr);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -663,8 +672,8 @@ class Environment {
 #undef V
 
 #if HAVE_INSPECTOR
-  inline inspector::Agent* inspector_agent() {
-    return &inspector_agent_;
+  inline inspector::Agent* inspector_agent() const {
+    return inspector_agent_.get();
   }
 #endif
 
@@ -681,6 +690,15 @@ class Environment {
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
 
+  typedef void (*native_immediate_callback)(Environment* env, void* data);
+  // cb will be called as cb(env, data) on the next event loop iteration.
+  // obj will be kept alive between now and after the callback has run.
+  inline void SetImmediate(native_immediate_callback cb,
+                           void* data,
+                           v8::Local<v8::Object> obj = v8::Local<v8::Object>());
+  // This needs to be available for the JS-land setImmediate().
+  void ActivateImmediateCheck();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -689,12 +707,10 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_timer_t destroy_async_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
 
   AsyncHooks async_hooks_;
-  DomainFlag domain_flag_;
   TickInfo tick_info_;
   const uint64_t timer_base_;
   bool using_domains_;
@@ -705,11 +721,14 @@ class Environment {
   size_t makecallback_cntr_;
   std::vector<double> destroy_async_id_list_;
 
+  AliasedBuffer<uint32_t, v8::Uint32Array> scheduled_immediate_count_;
+  AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
+
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;
 
 #if HAVE_INSPECTOR
-  inspector::Agent inspector_agent_;
+  std::unique_ptr<inspector::Agent> inspector_agent_;
 #endif
 
   HandleWrapQueue handle_wrap_queue_;
@@ -722,7 +741,7 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
-  http2::http2_state* http2_state_ = nullptr;
+  std::unique_ptr<http2::http2_state> http2_state_;
 
   double* fs_stats_field_array_;
 
@@ -738,6 +757,15 @@ class Environment {
     size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
+
+  struct NativeImmediateCallback {
+    native_immediate_callback cb_;
+    void* data_;
+    std::unique_ptr<v8::Persistent<v8::Object>> keep_alive_;
+  };
+  std::vector<NativeImmediateCallback> native_immediate_callbacks_;
+  void RunAndClearNativeImmediates();
+  static void CheckImmediate(uv_check_t* handle);
 
   static void EnvPromiseHook(v8::PromiseHookType type,
                              v8::Local<v8::Promise> promise,

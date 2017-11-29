@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --validate-asm --no-stress-fullcodegen --lazy-inner-functions
+// Flags: --validate-asm --lazy-inner-functions
 
 function outer() {
   "use asm";

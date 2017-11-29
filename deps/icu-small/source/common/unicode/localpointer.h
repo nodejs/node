@@ -213,7 +213,6 @@ public:
             errorCode=U_MEMORY_ALLOCATION_ERROR;
         }
     }
-#if U_HAVE_RVALUE_REFERENCES
     /**
      * Move constructor, leaves src with isNull().
      * @param src source smart pointer
@@ -222,7 +221,6 @@ public:
     LocalPointer(LocalPointer<T> &&src) U_NOEXCEPT : LocalPointerBase<T>(src.ptr) {
         src.ptr=NULL;
     }
-#endif
     /**
      * Destructor deletes the object it owns.
      * @stable ICU 4.4
@@ -230,7 +228,6 @@ public:
     ~LocalPointer() {
         delete LocalPointerBase<T>::ptr;
     }
-#if U_HAVE_RVALUE_REFERENCES
     /**
      * Move assignment operator, leaves src with isNull().
      * The behavior is undefined if *this and src are the same object.
@@ -241,7 +238,6 @@ public:
     LocalPointer<T> &operator=(LocalPointer<T> &&src) U_NOEXCEPT {
         return moveFrom(src);
     }
-#endif
     // do not use #ifndef U_HIDE_DRAFT_API for moveFrom, needed by non-draft API
     /**
      * Move assignment, leaves src with isNull().
@@ -362,7 +358,6 @@ public:
             errorCode=U_MEMORY_ALLOCATION_ERROR;
         }
     }
-#if U_HAVE_RVALUE_REFERENCES
     /**
      * Move constructor, leaves src with isNull().
      * @param src source smart pointer
@@ -371,7 +366,6 @@ public:
     LocalArray(LocalArray<T> &&src) U_NOEXCEPT : LocalPointerBase<T>(src.ptr) {
         src.ptr=NULL;
     }
-#endif
     /**
      * Destructor deletes the array it owns.
      * @stable ICU 4.4
@@ -379,7 +373,6 @@ public:
     ~LocalArray() {
         delete[] LocalPointerBase<T>::ptr;
     }
-#if U_HAVE_RVALUE_REFERENCES
     /**
      * Move assignment operator, leaves src with isNull().
      * The behavior is undefined if *this and src are the same object.
@@ -390,7 +383,6 @@ public:
     LocalArray<T> &operator=(LocalArray<T> &&src) U_NOEXCEPT {
         return moveFrom(src);
     }
-#endif
     // do not use #ifndef U_HIDE_DRAFT_API for moveFrom, needed by non-draft API
     /**
      * Move assignment, leaves src with isNull().
@@ -492,7 +484,6 @@ public:
  * @see LocalPointer
  * @stable ICU 4.4
  */
-#if U_HAVE_RVALUE_REFERENCES
 #define U_DEFINE_LOCAL_OPEN_POINTER(LocalPointerClassName, Type, closeFunction) \
     class LocalPointerClassName : public LocalPointerBase<Type> { \
     public: \
@@ -526,34 +517,6 @@ public:
             ptr=p; \
         } \
     }
-#else
-#define U_DEFINE_LOCAL_OPEN_POINTER(LocalPointerClassName, Type, closeFunction) \
-    class LocalPointerClassName : public LocalPointerBase<Type> { \
-    public: \
-        using LocalPointerBase<Type>::operator*; \
-        using LocalPointerBase<Type>::operator->; \
-        explicit LocalPointerClassName(Type *p=NULL) : LocalPointerBase<Type>(p) {} \
-        ~LocalPointerClassName() { closeFunction(ptr); } \
-        LocalPointerClassName &moveFrom(LocalPointerClassName &src) U_NOEXCEPT { \
-            if (ptr != NULL) { closeFunction(ptr); } \
-            LocalPointerBase<Type>::ptr=src.ptr; \
-            src.ptr=NULL; \
-            return *this; \
-        } \
-        void swap(LocalPointerClassName &other) U_NOEXCEPT { \
-            Type *temp=LocalPointerBase<Type>::ptr; \
-            LocalPointerBase<Type>::ptr=other.ptr; \
-            other.ptr=temp; \
-        } \
-        friend inline void swap(LocalPointerClassName &p1, LocalPointerClassName &p2) U_NOEXCEPT { \
-            p1.swap(p2); \
-        } \
-        void adoptInstead(Type *p) { \
-            if (ptr != NULL) { closeFunction(ptr); } \
-            ptr=p; \
-        } \
-    }
-#endif
 
 U_NAMESPACE_END
 

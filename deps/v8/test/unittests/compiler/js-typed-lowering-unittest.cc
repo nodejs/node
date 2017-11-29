@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-typed-lowering.h"
 #include "src/code-factory.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -28,26 +27,17 @@ namespace compiler {
 
 namespace {
 
-const ExternalArrayType kExternalArrayTypes[] = {
-    kExternalUint8Array,   kExternalInt8Array,   kExternalUint16Array,
-    kExternalInt16Array,   kExternalUint32Array, kExternalInt32Array,
-    kExternalFloat32Array, kExternalFloat64Array};
-
 const size_t kIndices[] = {0, 1, 42, 100, 1024};
 
 Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
                           Type::Number(),    Type::String(), Type::Object()};
-
-STATIC_ASSERT(LANGUAGE_END == 2);
-const LanguageMode kLanguageModes[] = {SLOPPY, STRICT};
 
 }  // namespace
 
 
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
-  JSTypedLoweringTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
+  JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
   ~JSTypedLoweringTest() override {}
 
  protected:
@@ -58,9 +48,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &deps_,
-                            JSTypedLowering::kDeoptimizationEnabled, &jsgraph,
-                            zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
     return reducer.Reduce(node);
   }
 
@@ -74,7 +62,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  private:
   JSOperatorBuilder javascript_;
-  CompilationDependencies deps_;
 };
 
 
@@ -250,23 +237,6 @@ TEST_F(JSTypedLoweringTest, JSToStringWithBoolean) {
                        IsHeapConstant(factory()->false_string())));
 }
 
-// -----------------------------------------------------------------------------
-// JSToPrimitiveToString
-
-TEST_F(JSTypedLoweringTest, JSToPrimitiveToStringWithBoolean) {
-  Node* const input = Parameter(Type::Boolean(), 0);
-  Node* const context = Parameter(Type::Any(), 1);
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToString(), input,
-                                        context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSelect(MachineRepresentation::kTagged, input,
-                       IsHeapConstant(factory()->true_string()),
-                       IsHeapConstant(factory()->false_string())));
-}
 
 // -----------------------------------------------------------------------------
 // JSStrictEqual
@@ -463,212 +433,6 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
                                                Context::PREVIOUS_INDEX),
                                            context, effect, graph()->start()),
                                value, _, control));
-    }
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// JSLoadProperty
-
-
-TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
-  const size_t kLength = 17;
-  double backing_store[kLength];
-  Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, sizeof(backing_store));
-  VectorSlotPair feedback;
-  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    Handle<JSTypedArray> array =
-        factory()->NewJSTypedArray(type, buffer, 0, kLength);
-    int const element_size = static_cast<int>(array->element_size());
-
-    Node* key = Parameter(
-        Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
-    Node* base = HeapConstant(array);
-    Node* context = UndefinedConstant();
-    Node* effect = graph()->start();
-    Node* control = graph()->start();
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
-                                context, EmptyFrameState(), effect, control));
-
-    Matcher<Node*> offset_matcher =
-        element_size == 1
-            ? key
-            : IsNumberShiftLeft(key,
-                                IsNumberConstant(WhichPowerOf2(element_size)));
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsLoadBuffer(BufferAccess(type),
-                     IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
-                     offset_matcher,
-                     IsNumberConstant(array->byte_length()->Number()), effect,
-                     control));
-  }
-}
-
-
-TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
-  const size_t kLength = 17;
-  double backing_store[kLength];
-  Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, sizeof(backing_store));
-  VectorSlotPair feedback;
-  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    Handle<JSTypedArray> array =
-        factory()->NewJSTypedArray(type, buffer, 0, kLength);
-    ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
-
-    int min = random_number_generator()->NextInt(static_cast<int>(kLength));
-    int max = random_number_generator()->NextInt(static_cast<int>(kLength));
-    if (min > max) std::swap(min, max);
-    Node* key = Parameter(Type::Range(min, max, zone()));
-    Node* base = HeapConstant(array);
-    Node* context = UndefinedConstant();
-    Node* effect = graph()->start();
-    Node* control = graph()->start();
-    Reduction r =
-        Reduce(graph()->NewNode(javascript()->LoadProperty(feedback), base, key,
-                                context, EmptyFrameState(), effect, control));
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(
-        r.replacement(),
-        IsLoadElement(access,
-                      IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
-                      key, effect, control));
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// JSStoreProperty
-
-
-TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
-  const size_t kLength = 17;
-  double backing_store[kLength];
-  Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, sizeof(backing_store));
-  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Handle<JSTypedArray> array =
-          factory()->NewJSTypedArray(type, buffer, 0, kLength);
-      int const element_size = static_cast<int>(array->element_size());
-
-      Node* key = Parameter(
-          Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
-      Node* base = HeapConstant(array);
-      Node* value =
-          Parameter(AccessBuilder::ForTypedArrayElement(type, true).type);
-      Node* context = UndefinedConstant();
-      Node* effect = graph()->start();
-      Node* control = graph()->start();
-      VectorSlotPair feedback;
-      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, context,
-                                    EmptyFrameState(), effect, control);
-      Reduction r = Reduce(node);
-
-      Matcher<Node*> offset_matcher =
-          element_size == 1
-              ? key
-              : IsNumberShiftLeft(
-                    key, IsNumberConstant(WhichPowerOf2(element_size)));
-
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(
-          r.replacement(),
-          IsStoreBuffer(
-              BufferAccess(type),
-              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
-              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
-              value, effect, control));
-    }
-  }
-}
-
-
-TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
-  const size_t kLength = 17;
-  double backing_store[kLength];
-  Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, sizeof(backing_store));
-  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Handle<JSTypedArray> array =
-          factory()->NewJSTypedArray(type, buffer, 0, kLength);
-      int const element_size = static_cast<int>(array->element_size());
-
-      Node* key = Parameter(
-          Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
-      Node* base = HeapConstant(array);
-      Node* value = Parameter(Type::PlainPrimitive());
-      Node* context = UndefinedConstant();
-      Node* effect = graph()->start();
-      Node* control = graph()->start();
-      VectorSlotPair feedback;
-      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, context,
-                                    EmptyFrameState(), effect, control);
-      Reduction r = Reduce(node);
-
-      Matcher<Node*> offset_matcher =
-          element_size == 1
-              ? key
-              : IsNumberShiftLeft(
-                    key, IsNumberConstant(WhichPowerOf2(element_size)));
-
-      Matcher<Node*> value_matcher = IsPlainPrimitiveToNumber(value);
-
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(
-          r.replacement(),
-          IsStoreBuffer(
-              BufferAccess(type),
-              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
-              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
-              value_matcher, effect, control));
-    }
-  }
-}
-
-
-TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
-  const size_t kLength = 17;
-  double backing_store[kLength];
-  Handle<JSArrayBuffer> buffer =
-      NewArrayBuffer(backing_store, sizeof(backing_store));
-  TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Handle<JSTypedArray> array =
-          factory()->NewJSTypedArray(type, buffer, 0, kLength);
-      ElementAccess access = AccessBuilder::ForTypedArrayElement(type, true);
-
-      int min = random_number_generator()->NextInt(static_cast<int>(kLength));
-      int max = random_number_generator()->NextInt(static_cast<int>(kLength));
-      if (min > max) std::swap(min, max);
-      Node* key = Parameter(Type::Range(min, max, zone()));
-      Node* base = HeapConstant(array);
-      Node* value = Parameter(access.type);
-      Node* context = UndefinedConstant();
-      Node* effect = graph()->start();
-      Node* control = graph()->start();
-      VectorSlotPair feedback;
-      const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-      Node* node = graph()->NewNode(op, base, key, value, context,
-                                    EmptyFrameState(), effect, control);
-      Reduction r = Reduce(node);
-
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(
-          r.replacement(),
-          IsStoreElement(
-              access, IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
-              key, value, effect, control));
     }
   }
 }

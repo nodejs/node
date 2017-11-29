@@ -2,17 +2,13 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
-const util = require('util');
 const stream = require('stream');
 
 // Verify that when piping a stream to an `OutgoingMessage` (or a type that
 // inherits from `OutgoingMessage`), if data is emitted after the
 // `OutgoingMessage` was closed - a `write after end` error is raised
 
-function MyStream() {
-  stream.call(this);
-}
-util.inherits(MyStream, stream);
+class MyStream extends stream {}
 
 const server = http.createServer(common.mustCall(function(req, res) {
   const myStream = new MyStream();

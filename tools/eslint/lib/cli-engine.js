@@ -24,11 +24,15 @@ const fs = require("fs"),
     fileEntryCache = require("file-entry-cache"),
     globUtil = require("./util/glob-util"),
     validator = require("./config/config-validator"),
-    stringify = require("json-stable-stringify"),
+    stringify = require("json-stable-stringify-without-jsonify"),
     hash = require("./util/hash"),
+    ModuleResolver = require("./util/module-resolver"),
+    naming = require("./util/naming"),
     pkg = require("../package.json");
 
 const debug = require("debug")("eslint:cli-engine");
+
+const resolver = new ModuleResolver();
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -56,6 +60,7 @@ const debug = require("debug")("eslint:cli-engine");
  * @property {string[]} plugins An array of plugins to load.
  * @property {Object<string,*>} rules An object of rules to use.
  * @property {string[]} rulePaths An array of directories to load custom rules from.
+ * @property {boolean} reportUnusedDisableDirectives `true` adds reports for unused eslint-disable directives
  */
 
 /**
@@ -137,20 +142,15 @@ function calculateStatsPerRun(results) {
  * @param {string} filename An optional string representing the texts filename.
  * @param {boolean|Function} fix Indicates if fixes should be processed.
  * @param {boolean} allowInlineConfig Allow/ignore comments that change config.
+ * @param {boolean} reportUnusedDisableDirectives Allow/ignore comments that change config.
  * @param {Linter} linter Linter context
  * @returns {LintResult} The results for linting on this text.
  * @private
  */
-function processText(text, configHelper, filename, fix, allowInlineConfig, linter) {
-
-    // clear all existing settings for a new file
-    linter.reset();
-
+function processText(text, configHelper, filename, fix, allowInlineConfig, reportUnusedDisableDirectives, linter) {
     let filePath,
-        messages,
         fileExtension,
-        processor,
-        fixedResult;
+        processor;
 
     if (filename) {
         filePath = path.resolve(filename);
@@ -174,51 +174,29 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, linte
         }
     }
 
-    if (processor) {
-        debug("Using processor");
-        const parsedBlocks = processor.preprocess(text, filename);
-        const unprocessedMessages = [];
+    const autofixingEnabled = typeof fix !== "undefined" && (!processor || processor.supportsAutofix);
 
-        parsedBlocks.forEach(block => {
-            unprocessedMessages.push(linter.verify(block, config, {
-                filename,
-                allowInlineConfig
-            }));
-        });
+    const fixedResult = linter.verifyAndFix(text, config, {
+        filename,
+        allowInlineConfig,
+        reportUnusedDisableDirectives,
+        fix: !!autofixingEnabled && fix,
+        preprocess: processor && (rawText => processor.preprocess(rawText, filename)),
+        postprocess: processor && (problemLists => processor.postprocess(problemLists, filename))
+    });
 
-        // TODO(nzakas): Figure out how fixes might work for processors
-
-        messages = processor.postprocess(unprocessedMessages, filename);
-
-    } else {
-
-        if (fix) {
-            fixedResult = linter.verifyAndFix(text, config, {
-                filename,
-                allowInlineConfig,
-                fix
-            });
-            messages = fixedResult.messages;
-        } else {
-            messages = linter.verify(text, config, {
-                filename,
-                allowInlineConfig
-            });
-        }
-    }
-
-    const stats = calculateStatsPerFile(messages);
+    const stats = calculateStatsPerFile(fixedResult.messages);
 
     const result = {
         filePath: filename,
-        messages,
+        messages: fixedResult.messages,
         errorCount: stats.errorCount,
         warningCount: stats.warningCount,
         fixableErrorCount: stats.fixableErrorCount,
         fixableWarningCount: stats.fixableWarningCount
     };
 
-    if (fixedResult && fixedResult.fixed) {
+    if (fixedResult.fixed) {
         result.output = fixedResult.output;
     }
 
@@ -242,7 +220,15 @@ function processText(text, configHelper, filename, fix, allowInlineConfig, linte
 function processFile(filename, configHelper, options, linter) {
 
     const text = fs.readFileSync(path.resolve(filename), "utf8"),
-        result = processText(text, configHelper, filename, options.fix, options.allowInlineConfig, linter);
+        result = processText(
+            text,
+            configHelper,
+            filename,
+            options.fix,
+            options.allowInlineConfig,
+            options.reportUnusedDisableDirectives,
+            linter
+        );
 
     return result;
 
@@ -258,8 +244,8 @@ function processFile(filename, configHelper, options, linter) {
 function createIgnoreResult(filePath, baseDir) {
     let message;
     const isHidden = /^\./.test(path.basename(filePath));
-    const isInNodeModules = baseDir && /^node_modules/.test(path.relative(baseDir, filePath));
-    const isInBowerComponents = baseDir && /^bower_components/.test(path.relative(baseDir, filePath));
+    const isInNodeModules = baseDir && path.relative(baseDir, filePath).startsWith("node_modules");
+    const isInBowerComponents = baseDir && path.relative(baseDir, filePath).startsWith("bower_components");
 
     if (isHidden) {
         message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern '!<relative/path/to/filename>'\") to override.";
@@ -372,6 +358,8 @@ function getCacheFile(cacheFile, cwd) {
     return resolvedCacheFile;
 }
 
+const configHashCache = new WeakMap();
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -421,9 +409,13 @@ class CLIEngine {
             });
         }
 
-        Object.keys(this.options.rules || {}).forEach(name => {
-            validator.validateRuleOptions(name, this.options.rules[name], "CLI", this.linter.rules);
-        });
+        if (this.options.rules && Object.keys(this.options.rules).length) {
+            const loadedRules = this.linter.getRules();
+
+            Object.keys(this.options.rules).forEach(name => {
+                validator.validateRuleOptions(loadedRules.get(name), name, this.options.rules[name], "CLI");
+            });
+        }
 
         this.config = new Config(this.options, this.linter);
     }
@@ -493,11 +485,9 @@ class CLIEngine {
      * @returns {Object} The results for all files that were linted.
      */
     executeOnFiles(patterns) {
-        const results = [],
-            options = this.options,
+        const options = this.options,
             fileCache = this._fileCache,
             configHelper = this.config;
-        let prevConfig; // the previous configuration used
         const cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
 
         if (!options.cache && fs.existsSync(cacheFile)) {
@@ -512,42 +502,18 @@ class CLIEngine {
         function hashOfConfigFor(filename) {
             const config = configHelper.getConfig(filename);
 
-            if (!prevConfig) {
-                prevConfig = {};
+            if (!configHashCache.has(config)) {
+                configHashCache.set(config, hash(`${pkg.version}_${stringify(config)}`));
             }
 
-            // reuse the previously hashed config if the config hasn't changed
-            if (prevConfig.config !== config) {
-
-                /*
-                 * config changed so we need to calculate the hash of the config
-                 * and the hash of the plugins being used
-                 */
-                prevConfig.config = config;
-
-                const eslintVersion = pkg.version;
-
-                prevConfig.hash = hash(`${eslintVersion}_${stringify(config)}`);
-            }
-
-            return prevConfig.hash;
+            return configHashCache.get(config);
         }
 
-        /**
-         * Executes the linter on a file defined by the `filename`. Skips
-         * unsupported file extensions and any files that are already linted.
-         * @param {string} filename The resolved filename of the file to be linted
-         * @param {boolean} warnIgnored always warn when a file is ignored
-         * @param {Linter} linter Linter context
-         * @returns {void}
-         */
-        function executeOnFile(filename, warnIgnored, linter) {
-            let hashOfConfig,
-                descriptor;
-
-            if (warnIgnored) {
-                results.push(createIgnoreResult(filename, options.cwd));
-                return;
+        const startTime = Date.now();
+        const fileList = globUtil.listFilesToProcess(this.resolveFileGlobPatterns(patterns), options);
+        const results = fileList.map(fileInfo => {
+            if (fileInfo.ignored) {
+                return createIgnoreResult(fileInfo.filename, options.cwd);
             }
 
             if (options.cache) {
@@ -557,15 +523,12 @@ class CLIEngine {
                  * with the metadata and the flag that determines if
                  * the file has changed
                  */
-                descriptor = fileCache.getFileDescriptor(filename);
-                const meta = descriptor.meta || {};
-
-                hashOfConfig = hashOfConfigFor(filename);
-
-                const changed = descriptor.changed || meta.hashOfConfig !== hashOfConfig;
+                const descriptor = fileCache.getFileDescriptor(fileInfo.filename);
+                const hashOfConfig = hashOfConfigFor(fileInfo.filename);
+                const changed = descriptor.changed || descriptor.meta.hashOfConfig !== hashOfConfig;
 
                 if (!changed) {
-                    debug(`Skipping file since hasn't changed: ${filename}`);
+                    debug(`Skipping file since hasn't changed: ${fileInfo.filename}`);
 
                     /*
                      * Add the the cached results (always will be 0 error and
@@ -573,62 +536,44 @@ class CLIEngine {
                      * failed, in order to guarantee that next execution will
                      * process those files as well.
                      */
-                    results.push(descriptor.meta.results);
-
-                    // move to the next file
-                    return;
+                    return descriptor.meta.results;
                 }
             }
 
-            debug(`Processing ${filename}`);
+            debug(`Processing ${fileInfo.filename}`);
 
-            const res = processFile(filename, configHelper, options, linter);
+            return processFile(fileInfo.filename, configHelper, options, this.linter);
+        });
 
-            if (options.cache) {
+        if (options.cache) {
+            results.forEach(result => {
+                if (result.messages.length) {
 
-                /*
-                 * if a file contains errors or warnings we don't want to
-                 * store the file in the cache so we can guarantee that
-                 * next execution will also operate on this file
-                 */
-                if (res.errorCount > 0 || res.warningCount > 0) {
-                    debug(`File has problems, skipping it: ${filename}`);
-
-                    // remove the entry from the cache
-                    fileCache.removeEntry(filename);
+                    /*
+                     * if a file contains errors or warnings we don't want to
+                     * store the file in the cache so we can guarantee that
+                     * next execution will also operate on this file
+                     */
+                    fileCache.removeEntry(result.filePath);
                 } else {
 
                     /*
                      * since the file passed we store the result here
-                     * TODO: check this as we might not need to store the
-                     * successful runs as it will always should be 0 errors and
-                     * 0 warnings.
+                     * TODO: it might not be necessary to store the results list in the cache,
+                     * since it should always be 0 errors/warnings
                      */
-                    descriptor.meta.hashOfConfig = hashOfConfig;
-                    descriptor.meta.results = res;
+                    const descriptor = fileCache.getFileDescriptor(result.filePath);
+
+                    descriptor.meta.hashOfConfig = hashOfConfigFor(result.filePath);
+                    descriptor.meta.results = result;
                 }
-            }
-
-            results.push(res);
-        }
-
-        const startTime = Date.now();
-
-
-        patterns = this.resolveFileGlobPatterns(patterns);
-        const fileList = globUtil.listFilesToProcess(patterns, options);
-
-        fileList.forEach(fileInfo => {
-            executeOnFile(fileInfo.filename, fileInfo.ignored, this.linter);
-        });
-
-        const stats = calculateStatsPerRun(results);
-
-        if (options.cache) {
+            });
 
             // persist the cache to disk
             fileCache.reconcile();
         }
+
+        const stats = calculateStatsPerRun(results);
 
         debug(`Linting complete in: ${Date.now() - startTime}ms`);
 
@@ -665,7 +610,17 @@ class CLIEngine {
                 results.push(createIgnoreResult(filename, options.cwd));
             }
         } else {
-            results.push(processText(text, configHelper, filename, options.fix, options.allowInlineConfig, this.linter));
+            results.push(
+                processText(
+                    text,
+                    configHelper,
+                    filename,
+                    options.fix,
+                    options.allowInlineConfig,
+                    options.reportUnusedDisableDirectives,
+                    this.linter
+                )
+            );
         }
 
         const stats = calculateStatsPerRun(results);
@@ -713,7 +668,6 @@ class CLIEngine {
      */
     getFormatter(format) {
 
-        let formatterPath;
 
         // default is stylish
         format = format || "stylish";
@@ -724,13 +678,22 @@ class CLIEngine {
             // replace \ with / for Windows compatibility
             format = format.replace(/\\/g, "/");
 
-            // if there's a slash, then it's a file
-            if (format.indexOf("/") > -1) {
-                const cwd = this.options ? this.options.cwd : process.cwd();
+            const cwd = this.options ? this.options.cwd : process.cwd();
+            const namespace = naming.getNamespaceFromTerm(format);
 
+            let formatterPath;
+
+            // if there's a slash, then it's a file
+            if (!namespace && format.indexOf("/") > -1) {
                 formatterPath = path.resolve(cwd, format);
             } else {
-                formatterPath = `./formatters/${format}`;
+                try {
+                    const npmFormat = naming.normalizePackageName(format, "eslint-formatter");
+
+                    formatterPath = resolver.resolve(npmFormat, `${cwd}/node_modules`);
+                } catch (e) {
+                    formatterPath = `./formatters/${format}`;
+                }
             }
 
             try {

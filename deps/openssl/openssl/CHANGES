@@ -2,6 +2,44 @@
  OpenSSL CHANGES
  _______________
 
+ This is a high-level summary of the most important changes.
+ For a full list of changes, see the git commit log; for example,
+ https://github.com/openssl/openssl/commits/ and pick the appropriate
+ release branch.
+
+ Changes between 1.0.2l and 1.0.2m [2 Nov 2017]
+
+  *) bn_sqrx8x_internal carry bug on x86_64
+
+     There is a carry propagating bug in the x86_64 Montgomery squaring
+     procedure. No EC algorithms are affected. Analysis suggests that attacks
+     against RSA and DSA as a result of this defect would be very difficult to
+     perform and are not believed likely. Attacks against DH are considered just
+     feasible (although very difficult) because most of the work necessary to
+     deduce information about a private key may be performed offline. The amount
+     of resources required for such an attack would be very significant and
+     likely only accessible to a limited number of attackers. An attacker would
+     additionally need online access to an unpatched system using the target
+     private key in a scenario with persistent DH parameters and a private
+     key that is shared between multiple clients.
+
+     This only affects processors that support the BMI1, BMI2 and ADX extensions
+     like Intel Broadwell (5th generation) and later or AMD Ryzen.
+
+     This issue was reported to OpenSSL by the OSS-Fuzz project.
+     (CVE-2017-3736)
+     [Andy Polyakov]
+
+  *) Malformed X.509 IPAddressFamily could cause OOB read
+
+     If an X.509 certificate has a malformed IPAddressFamily extension,
+     OpenSSL could do a one-byte buffer overread. The most likely result
+     would be an erroneous display of the certificate in text format.
+
+     This issue was reported to OpenSSL by the OSS-Fuzz project.
+     (CVE-2017-3735)
+     [Rich Salz]
+
  Changes between 1.0.2k and 1.0.2l [25 May 2017]
 
   *) Have 'config' recognise 64-bit mingw and choose 'mingw64' as the target

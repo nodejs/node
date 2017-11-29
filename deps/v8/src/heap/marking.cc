@@ -14,7 +14,7 @@ void Bitmap::Clear() {
   }
   // This fence prevents re-ordering of publishing stores with the mark-bit
   // clearing stores.
-  base::MemoryFence();
+  base::SeqCst_MemoryFence();
 }
 
 void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
@@ -40,7 +40,7 @@ void Bitmap::SetRange(uint32_t start_index, uint32_t end_index) {
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit setting stores.
-  base::MemoryFence();
+  base::SeqCst_MemoryFence();
 }
 
 void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
@@ -68,7 +68,7 @@ void Bitmap::ClearRange(uint32_t start_index, uint32_t end_index) {
   }
   // This fence prevents re-ordering of publishing stores with the mark-
   // bit clearing stores.
-  base::MemoryFence();
+  base::SeqCst_MemoryFence();
 }
 
 bool Bitmap::AllBitsSetInRange(uint32_t start_index, uint32_t end_index) {

@@ -47,8 +47,6 @@ const DEFAULT_OPTIONS = {
  * @returns {string} Path of ignore file or an empty string.
  */
 function findFile(cwd, name) {
-    cwd = cwd || DEFAULT_OPTIONS.cwd;
-
     const ignoreFilePath = path.resolve(cwd, name);
 
     return fs.existsSync(ignoreFilePath) && fs.statSync(ignoreFilePath).isFile() ? ignoreFilePath : "";
@@ -116,8 +114,10 @@ class IgnoredPaths {
             default: ignore()
         };
 
-        // Add a way to keep track of ignored files.  This was present in node-ignore
-        // 2.x, but dropped for now as of 3.0.10.
+        /*
+         * Add a way to keep track of ignored files.  This was present in node-ignore
+         * 2.x, but dropped for now as of 3.0.10.
+         */
         this.ig.custom.ignoreFiles = [];
         this.ig.default.ignoreFiles = [];
 
@@ -186,7 +186,7 @@ class IgnoredPaths {
                                     addPattern(this.ig.default, pattern);
                                 });
                             } else {
-                                throw new Error("Package.json eslintIgnore property requires an array of paths");
+                                throw new TypeError("Package.json eslintIgnore property requires an array of paths");
                             }
                         }
                     }

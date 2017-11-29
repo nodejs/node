@@ -598,13 +598,35 @@ filename scales linearly with the number of registered extensions.
 In other words, adding extensions slows down the module loader and
 should be discouraged.
 
-#### require.resolve()
+#### require.resolve(request[, options])
 <!-- YAML
 added: v0.3.0
+changes:
+  - version: v8.9.0
+    pr-url: https://github.com/nodejs/node/pull/16397
+    description: The `paths` option is now supported.
 -->
+
+* `request` {string} The module path to resolve.
+* `options` {Object}
+  * `paths` {Array} Paths to resolve module location from. If present, these
+    paths are used instead of the default resolution paths. Note that each of
+    these paths is used as a starting point for the module resolution algorithm,
+    meaning that the `node_modules` hierarchy is checked from this location.
+* Returns: {string}
 
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
+
+#### require.resolve.paths(request)
+<!-- YAML
+added: v8.9.0
+-->
+
+* `request` {string} The module path whose lookup paths are being retrieved.
+* Returns: {Array}
+
+Returns an array containing the paths searched during resolution of `request`.
 
 ## The `module` Object
 <!-- YAML
@@ -794,6 +816,28 @@ The `module.require` method provides a way to load a module as if
 `module` object.  Since `require()` returns the `module.exports`, and the
 `module` is typically *only* available within a specific module's code, it must
 be explicitly exported in order to be used.
+
+## The `Module` Object
+
+<!-- YAML
+added: v0.3.7
+-->
+
+* {Object}
+
+Provides general utility methods when interacting with instances of
+`Module` -- the `module` variable often seen in file modules. Accessed
+via `require('module')`.
+
+### module.builtinModules
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string[]}
+
+A list of  the names of all modules provided by Node.js. Can be used to verify
+if a module is maintained by a third-party module or not.
 
 [`__dirname`]: #modules_dirname
 [`__filename`]: #modules_filename

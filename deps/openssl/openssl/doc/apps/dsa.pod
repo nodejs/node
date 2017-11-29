@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-dsa,
 dsa - DSA key processing
 
 =head1 SYNOPSIS

@@ -29,8 +29,8 @@
 
 #include "src/property-details.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 void TestPairPositive(Representation more_general,
               Representation less_general) {
@@ -126,3 +126,6 @@ TEST(RepresentationMoreGeneralThan) {
   TestPairNegative(Representation::External(), Representation::External());
   TestPairPositive(Representation::External(), Representation::None());
 }
+
+}  // namespace internal
+}  // namespace v8

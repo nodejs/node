@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
   void RecordFinalizeParsing(double duration_ms);
   void RecordAnalyze(double duration_ms);
   void RecordPrepareToCompile(double duration_ms);
-  void RecordCompile(double duration_ms, size_t ast_size_in_bytes);
+  void RecordCompile(double duration_ms);
   void RecordFinalizeCompiling(double duration_ms);
 
   double EstimatePrepareToParseInMs() const;
@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
   double EstimateFinalizeParsingInMs() const;
   double EstimateAnalyzeInMs() const;
   double EstimatePrepareToCompileInMs() const;
-  double EstimateCompileInMs(size_t ast_size_in_bytes) const;
+  double EstimateCompileInMs() const;
   double EstimateFinalizeCompilingInMs() const;
 
   void DumpStatistics() const;
@@ -89,7 +89,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
   base::RingBuffer<double> finalize_parsing_events_;
   base::RingBuffer<double> analyze_events_;
   base::RingBuffer<double> prepare_compile_events_;
-  base::RingBuffer<std::pair<size_t, double>> compile_events_;
+  base::RingBuffer<double> compile_events_;
   base::RingBuffer<double> finalize_compiling_events_;
 
   RuntimeCallStats* runtime_call_stats_;

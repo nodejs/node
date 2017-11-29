@@ -260,6 +260,7 @@ namespace compiler {
   V(Arm64I8x16GtU)                 \
   V(Arm64I8x16GeU)                 \
   V(Arm64S128Zero)                 \
+  V(Arm64S128Dup)                  \
   V(Arm64S128And)                  \
   V(Arm64S128Or)                   \
   V(Arm64S128Xor)                  \

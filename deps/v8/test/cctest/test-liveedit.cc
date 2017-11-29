@@ -33,8 +33,8 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Anonymous namespace.
 namespace {
@@ -176,3 +176,6 @@ TEST(LiveEditDiffer) {
   CompareStrings("abbabababababaaabbabababababbabbbbbbbababa",
                  "bbbbabababbbabababbbabababababbabbababa");
 }
+
+}  // namespace internal
+}  // namespace v8

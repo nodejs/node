@@ -1,13 +1,15 @@
+'use strict';
+
 // Load modules
 
-var Dgram = require('dgram');
-var Dns = require('dns');
-var Hoek = require('hoek');
+const Dgram = require('dgram');
+const Dns = require('dns');
+const Hoek = require('hoek');
 
 
 // Declare internals
 
-var internals = {};
+const internals = {};
 
 
 exports.time = function (options, callback) {
@@ -17,19 +19,19 @@ exports.time = function (options, callback) {
         options = {};
     }
 
-    var settings = Hoek.clone(options);
+    const settings = Hoek.clone(options);
     settings.host = settings.host || 'pool.ntp.org';
     settings.port = settings.port || 123;
     settings.resolveReference = settings.resolveReference || false;
 
     // Declare variables used by callback
 
-    var timeoutId = 0;
-    var sent = 0;
+    let timeoutId = 0;
+    let sent = 0;
 
     // Ensure callback is only called once
 
-    var finish = function (err, result) {
+    const finish = Hoek.once((err, result) => {
 
         if (timeoutId) {
             clearTimeout(timeoutId);
@@ -37,29 +39,24 @@ exports.time = function (options, callback) {
         }
 
         socket.removeAllListeners();
-        socket.once('error', internals.ignore);
+        socket.once('error', Hoek.ignore);
         socket.close();
         return callback(err, result);
-    };
-
-    finish = Hoek.once(finish);
+    });
 
     // Create UDP socket
 
-    var socket = Dgram.createSocket('udp4');
+    const socket = Dgram.createSocket('udp4');
 
-    socket.once('error', function (err) {
-
-        return finish(err);
-    });
+    socket.once('error', (err) => finish(err));
 
     // Listen to incoming messages
 
-    socket.on('message', function (buffer, rinfo) {
+    socket.on('message', (buffer, rinfo) => {
 
-        var received = Date.now();
+        const received = Date.now();
 
-        var message = new internals.NtpMessage(buffer);
+        const message = new internals.NtpMessage(buffer);
         if (!message.isValid) {
             return finish(new Error('Invalid server response'), message);
         }
@@ -79,10 +76,10 @@ exports.time = function (options, callback) {
         //
         // d = (T4 - T1) - (T3 - T2)     t = ((T2 - T1) + (T3 - T4)) / 2
 
-        var T1 = message.originateTimestamp;
-        var T2 = message.receiveTimestamp;
-        var T3 = message.transmitTimestamp;
-        var T4 = received;
+        const T1 = message.originateTimestamp;
+        const T2 = message.receiveTimestamp;
+        const T3 = message.transmitTimestamp;
+        const T4 = received;
 
         message.d = (T4 - T1) - (T3 - T2);
         message.t = ((T2 - T1) + (T3 - T4)) / 2;
@@ -96,7 +93,7 @@ exports.time = function (options, callback) {
 
         // Resolve reference IP address
 
-        Dns.reverse(message.referenceId, function (err, domains) {
+        Dns.reverse(message.referenceId, (err, domains) => {
 
             if (/* $lab:coverage:off$ */ !err /* $lab:coverage:on$ */) {
                 message.referenceHost = domains[0];
@@ -109,7 +106,7 @@ exports.time = function (options, callback) {
     // Set timeout
 
     if (settings.timeout) {
-        timeoutId = setTimeout(function () {
+        timeoutId = setTimeout(() => {
 
             timeoutId = 0;
             return finish(new Error('Timeout'));
@@ -118,18 +115,18 @@ exports.time = function (options, callback) {
 
     // Construct NTP message
 
-    var message = new Buffer(48);
-    for (var i = 0; i < 48; i++) {                      // Zero message
+    const message = new Buffer(48);
+    for (let i = 0; i < 48; ++i) {                      // Zero message
         message[i] = 0;
     }
 
-    message[0] = (0 << 6) + (4 << 3) + (3 << 0)         // Set version number to 4 and Mode to 3 (client)
+    message[0] = (0 << 6) + (4 << 3) + (3 << 0);        // Set version number to 4 and Mode to 3 (client)
     sent = Date.now();
-    internals.fromMsecs(sent, message, 40);               // Set transmit timestamp (returns as originate)
+    internals.fromMsecs(sent, message, 40);             // Set transmit timestamp (returns as originate)
 
     // Send NTP request
 
-    socket.send(message, 0, message.length, settings.port, settings.host, function (err, bytes) {
+    socket.send(message, 0, message.length, settings.port, settings.host, (err, bytes) => {
 
         if (err ||
             bytes !== 48) {
@@ -152,7 +149,7 @@ internals.NtpMessage = function (buffer) {
 
     // Leap indicator
 
-    var li = (buffer[0] >> 6);
+    const li = (buffer[0] >> 6);
     switch (li) {
         case 0: this.leapIndicator = 'no-warning'; break;
         case 1: this.leapIndicator = 'last-minute-61'; break;
@@ -162,12 +159,12 @@ internals.NtpMessage = function (buffer) {
 
     // Version
 
-    var vn = ((buffer[0] & 0x38) >> 3);
+    const vn = ((buffer[0] & 0x38) >> 3);
     this.version = vn;
 
     // Mode
 
-    var mode = (buffer[0] & 0x7);
+    const mode = (buffer[0] & 0x7);
     switch (mode) {
         case 1: this.mode = 'symmetric-active'; break;
         case 2: this.mode = 'symmetric-passive'; break;
@@ -181,7 +178,7 @@ internals.NtpMessage = function (buffer) {
 
     // Stratum
 
-    var stratum = buffer[1];
+    const stratum = buffer[1];
     if (stratum === 0) {
         this.stratum = 'death';
     }
@@ -205,7 +202,7 @@ internals.NtpMessage = function (buffer) {
 
     // Root delay (msecs)
 
-    var rootDelay = 256 * (256 * (256 * buffer[4] + buffer[5]) + buffer[6]) + buffer[7];
+    const rootDelay = 256 * (256 * (256 * buffer[4] + buffer[5]) + buffer[6]) + buffer[7];
     this.rootDelay = 1000 * (rootDelay / 0x10000);
 
     // Root dispersion (msecs)
@@ -259,14 +256,14 @@ internals.NtpMessage = function (buffer) {
 
 internals.toMsecs = function (buffer, offset) {
 
-    var seconds = 0;
-    var fraction = 0;
+    let seconds = 0;
+    let fraction = 0;
 
-    for (var i = 0; i < 4; ++i) {
+    for (let i = 0; i < 4; ++i) {
         seconds = (seconds * 256) + buffer[offset + i];
     }
 
-    for (i = 4; i < 8; ++i) {
+    for (let i = 4; i < 8; ++i) {
         fraction = (fraction * 256) + buffer[offset + i];
     }
 
@@ -276,8 +273,8 @@ internals.toMsecs = function (buffer, offset) {
 
 internals.fromMsecs = function (ts, buffer, offset) {
 
-    var seconds = Math.floor(ts / 1000) + 2208988800;
-    var fraction = Math.round((ts % 1000) / 1000 * Math.pow(2, 32));
+    const seconds = Math.floor(ts / 1000) + 2208988800;
+    const fraction = Math.round((ts % 1000) / 1000 * Math.pow(2, 32));
 
     buffer[offset + 0] = (seconds & 0xFF000000) >> 24;
     buffer[offset + 1] = (seconds & 0x00FF0000) >> 16;
@@ -308,23 +305,19 @@ exports.offset = function (options, callback) {
         options = {};
     }
 
-    var now = Date.now();
-    var clockSyncRefresh = options.clockSyncRefresh || 24 * 60 * 60 * 1000;                    // Daily
+    const now = Date.now();
+    const clockSyncRefresh = options.clockSyncRefresh || 24 * 60 * 60 * 1000;                    // Daily
 
     if (internals.last.offset &&
         internals.last.host === options.host &&
         internals.last.port === options.port &&
         now < internals.last.expires) {
 
-        process.nextTick(function () {
-
-            callback(null, internals.last.offset);
-        });
-
+        process.nextTick(() => callback(null, internals.last.offset));
         return;
     }
 
-    exports.time(options, function (err, time) {
+    exports.time(options, (err, time) => {
 
         if (err) {
             return callback(err, 0);
@@ -357,19 +350,15 @@ exports.start = function (options, callback) {
     }
 
     if (internals.now.intervalId) {
-        process.nextTick(function () {
-
-            callback();
-        });
-
+        process.nextTick(() => callback());
         return;
     }
 
-    exports.offset(options, function (err, offset) {
+    exports.offset(options, (ignoreErr, offset) => {
 
-        internals.now.intervalId = setInterval(function () {
+        internals.now.intervalId = setInterval(() => {
 
-            exports.offset(options, function () { });
+            exports.offset(options, Hoek.ignore);
         }, options.clockSyncRefresh || 24 * 60 * 60 * 1000);                                // Daily
 
         return callback();
@@ -396,7 +385,7 @@ exports.isLive = function () {
 
 exports.now = function () {
 
-    var now = Date.now();
+    const now = Date.now();
     if (!exports.isLive() ||
         now >= internals.last.expires) {
 
@@ -404,9 +393,4 @@ exports.now = function () {
     }
 
     return now + internals.last.offset;
-};
-
-
-internals.ignore = function () {
-
 };

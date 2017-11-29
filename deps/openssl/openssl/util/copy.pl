@@ -19,7 +19,7 @@ foreach $arg (@ARGV) {
 		next;
 		}
 	$arg =~ s|\\|/|g;	# compensate for bug/feature in cygwin glob...
-	foreach (glob $arg)
+	foreach (glob qq("$arg"))
 		{
 		push @filelist, $_;
 		}

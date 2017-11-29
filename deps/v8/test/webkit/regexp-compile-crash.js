@@ -21,7 +21,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-description("Test regexp compiling to make sure it doens't crash like bug 16127");
+description("Test regexp compiling to make sure it doesn't crash like bug 16127");
 
 shouldBeTrue('!!/\\)[;\s]+/');
 shouldThrow('/[/');

@@ -7,15 +7,15 @@
 
 A node module to edit a string with a users preferred text editor using $VISUAL or $ENVIRONMENT.
 
-Version: 2.0.1
+Version: 2.1.0
 
 As of version 2.0.0, node 0.10 is no longer support. Minimum node version is now 0.12.
 
-##Install
+## Install
 
 `npm install external-editor --save`
 
-##Usage
+## Usage
 
 A simple example using the `.edit` convenience method
 
@@ -57,8 +57,9 @@ A full featured example
     }
     
     
-####API
+#### API
 **Static Methods**
+
 - `edit(text)`
     - `text` (string) *Optional* Defaults to empty string
     - **Returns** (string) The contents of the file
@@ -71,12 +72,14 @@ A full featured example
 
 
 **Static Properties**
+
 - `CreateFileError` Error thrown if the temporary file could not be created. 
 - `ReadFileError` Error thrown if the temporary file could not be read.
 - `RemoveFileError` Error thrown if the temporary file could not be removed during cleanup.
 - `LaunchEditorError` Error thrown if the editor could not be launched.
 
 **Public Methods**
+
 - `new ExternalEditor(text)`
     - `text` (string) *Optional* Defaults to empty string
     - Could throw `CreateFileError`
@@ -91,18 +94,19 @@ A full featured example
     - Could throw `RemoveFileError`
     
 **Public Properties**
+
 - `text` (string) *readonly* The text in the temporary file.
 - `editor.bin` (string) The editor determined from the environment.
 - `editor.args` (array) Default arguments for the bin
 - `temp_file` (string) Path to temporary file. Can be changed, but be careful as the temporary file probably already 
     exists and would need be removed manually.
     
-##Errors
+## Errors
 
 All errors have a simple message explaining what went wrong. They all also have an `original_error` property containing
 the original error thrown for debugging purposes.
     
-##Why Synchronous?
+## Why Synchronous?
  
 Everything is synchronous to make sure the editor has complete control of the stdin and stdout. Testing has shown 
 async launching of the editor can lead to issues when using readline or other packages which try to read from stdin or 
@@ -114,11 +118,11 @@ If async is really needed, you can use `editAsync` or `runAsync`. If you are usi
 listening to the stdin or you write to stdout, you will most likely have problem, so make sure to remove any other 
 listeners on stdin, stdout, or stdin.
 
-##Demo
+## Demo
 
 [![asciicast](https://asciinema.org/a/a1qh9lypbe65mj0ivfuoslz2s.png)](https://asciinema.org/a/a1qh9lypbe65mj0ivfuoslz2s)
     
-##License
+## License
 
 The MIT License (MIT)
 

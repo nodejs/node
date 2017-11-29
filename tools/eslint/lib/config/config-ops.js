@@ -105,27 +105,27 @@ module.exports = {
     merge: function deepmerge(target, src, combine, isRule) {
 
         /*
-         The MIT License (MIT)
-
-         Copyright (c) 2012 Nicholas Fisher
-
-         Permission is hereby granted, free of charge, to any person obtaining a copy
-         of this software and associated documentation files (the "Software"), to deal
-         in the Software without restriction, including without limitation the rights
-         to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-         copies of the Software, and to permit persons to whom the Software is
-         furnished to do so, subject to the following conditions:
-
-         The above copyright notice and this permission notice shall be included in
-         all copies or substantial portions of the Software.
-
-         THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-         IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-         FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-         AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-         LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-         OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-         THE SOFTWARE.
+         * The MIT License (MIT)
+         *
+         * Copyright (c) 2012 Nicholas Fisher
+         *
+         * Permission is hereby granted, free of charge, to any person obtaining a copy
+         * of this software and associated documentation files (the "Software"), to deal
+         * in the Software without restriction, including without limitation the rights
+         * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+         * copies of the Software, and to permit persons to whom the Software is
+         * furnished to do so, subject to the following conditions:
+         *
+         * The above copyright notice and this permission notice shall be included in
+         * all copies or substantial portions of the Software.
+         *
+         * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+         * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+         * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+         * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+         * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+         * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+         * THE SOFTWARE.
          */
 
         /*
@@ -193,25 +193,25 @@ module.exports = {
     },
 
     /**
-     * Converts new-style severity settings (off, warn, error) into old-style
-     * severity settings (0, 1, 2) for all rules. Assumption is that severity
-     * values have already been validated as correct.
-     * @param {Object} config The config object to normalize.
-     * @returns {void}
+     * Normalizes the severity value of a rule's configuration to a number
+     * @param {(number|string|[number, ...*]|[string, ...*])} ruleConfig A rule's configuration value, generally
+     * received from the user. A valid config value is either 0, 1, 2, the string "off" (treated the same as 0),
+     * the string "warn" (treated the same as 1), the string "error" (treated the same as 2), or an array
+     * whose first element is one of the above values. Strings are matched case-insensitively.
+     * @returns {(0|1|2)} The numeric severity value if the config value was valid, otherwise 0.
      */
-    normalize(config) {
+    getRuleSeverity(ruleConfig) {
+        const severityValue = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
-        if (config.rules) {
-            Object.keys(config.rules).forEach(ruleId => {
-                const ruleConfig = config.rules[ruleId];
-
-                if (typeof ruleConfig === "string") {
-                    config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
-                } else if (Array.isArray(ruleConfig) && typeof ruleConfig[0] === "string") {
-                    ruleConfig[0] = RULE_SEVERITY[ruleConfig[0].toLowerCase()] || 0;
-                }
-            });
+        if (severityValue === 0 || severityValue === 1 || severityValue === 2) {
+            return severityValue;
         }
+
+        if (typeof severityValue === "string") {
+            return RULE_SEVERITY[severityValue.toLowerCase()] || 0;
+        }
+
+        return 0;
     },
 
     /**

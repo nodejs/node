@@ -273,11 +273,9 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     CSA_ASSERT(this, IsRegularHeapObjectSize(var_total_size.value()));
 
     Node* elements;
-    int heap_alignment =
-        ElementSizeLog2Of(MachineType::PointerRepresentation());
 
-    if (UnalignedLoadSupported(MachineType::Float64(), heap_alignment) &&
-        UnalignedStoreSupported(MachineType::Float64(), heap_alignment)) {
+    if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
+        UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
       elements = AllocateInNewSpace(var_total_size.value());
     } else {
       elements = AllocateInNewSpace(var_total_size.value(), kDoubleAlignment);

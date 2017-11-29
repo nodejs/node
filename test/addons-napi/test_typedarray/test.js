@@ -27,7 +27,7 @@ assert.strictEqual(byteResult[2], 6);
 const doubleResult = test_typedarray.Multiply(doubleArray, -3);
 assert.ok(doubleResult instanceof Float64Array);
 assert.strictEqual(doubleResult.length, 3);
-assert.strictEqual(doubleResult[0], 0);
+assert.strictEqual(doubleResult[0], -0);
 assert.strictEqual(Math.round(10 * doubleResult[1]) / 10, -3.3);
 assert.strictEqual(Math.round(10 * doubleResult[2]) / 10, -6.6);
 
@@ -49,7 +49,9 @@ arrayTypes.forEach((currentType) => {
   const theArray = test_typedarray.CreateTypedArray(template, buffer);
 
   assert.ok(theArray instanceof currentType,
-            'Type of new array should match that of the template');
+            'Type of new array should match that of the template. ' +
+            `Expected type: ${currentType.name}, ` +
+            `actual type: ${template.constructor.name}`);
   assert.notStrictEqual(theArray, template);
   assert.strictEqual(theArray.buffer, buffer);
 });

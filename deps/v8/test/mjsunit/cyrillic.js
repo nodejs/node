@@ -132,7 +132,7 @@ for (var i = 0; i < 2; i++) {
 
 
 // Sigma is special because there are two lower case versions of the same upper
-// case character.  JS requires that case independece means that you should
+// case character.  JS requires that case independence means that you should
 // convert everything to upper case, so the two sigma variants are equal to each
 // other in a case independt comparison.
 for (var i = 0; i < 2; i++) {

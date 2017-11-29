@@ -35,9 +35,26 @@ If the column number is not known, you may pass `null` instead.
 
 ## Options
 
-name                   | type     | default         | description
------------------------|----------|-----------------|------------------------------------------------------
-highlightCode          | boolean  | `false`         | Syntax highlight the code as JavaScript for terminals
-linesAbove             | number   | 2               | The number of lines to show above the error
-linesBelow             | number   | 3               | The number of lines to show below the error
-forceColor             | boolean  | `false`         | Forcibly syntax highlight the code as JavaScript (for non-terminals); overrides highlightCode
+### `highlightCode`
+
+`boolean`, defaults to `false`.
+
+Toggles syntax highlighting the code as JavaScript for terminals.
+
+### `linesAbove`
+
+`number`, defaults to `2`.
+
+Adjust the number of lines to show above the error.
+
+### `linesBelow`
+
+`number`, defaults to `3`.
+
+Adjust the number of lines to show below the error.
+
+### `forceColor`
+
+`boolean`, defaults to `false`.
+
+Enable this to forcibly syntax highlight the code as JavaScript (for non-terminals); overrides `highlightCode`.

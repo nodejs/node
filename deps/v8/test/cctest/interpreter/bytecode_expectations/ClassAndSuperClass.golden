@@ -27,15 +27,15 @@ bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
   /*  104 S> */ B(LdaConstant), U8(0),
-  /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(5),
+  /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(2),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(Mov), R(this), R(3),
   /*  117 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
-  /*  117 E> */ B(CallAnyReceiver), R(1), R(this), U8(1), U8(3),
-  /*  126 E> */ B(AddSmi), I8(1), U8(9),
+  /*  117 E> */ B(CallAnyReceiver), R(1), R(this), U8(1), U8(0),
+  /*  126 E> */ B(AddSmi), I8(1), U8(6),
   /*  130 S> */ B(Return),
 ]
 constant pool: [
@@ -67,7 +67,7 @@ bytecodes: [
                 B(Mov), R(closure), R(0),
   /*  125 E> */ B(StackCheck),
   /*  130 S> */ B(LdaConstant), U8(0),
-  /*  130 E> */ B(LdaKeyedProperty), R(closure), U8(3),
+  /*  130 E> */ B(LdaKeyedProperty), R(closure), U8(0),
                 B(Star), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
@@ -76,7 +76,7 @@ bytecodes: [
                 B(Mov), R(this), R(1),
   /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper_Strict), R(1), U8(4),
   /*  143 S> */ B(LdaConstant), U8(0),
-  /*  150 E> */ B(LdaKeyedProperty), R(closure), U8(5),
+  /*  150 E> */ B(LdaKeyedProperty), R(closure), U8(2),
                 B(Star), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
@@ -106,18 +106,16 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 40
 bytecodes: [
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(0),
   /*  113 E> */ B(StackCheck),
   /*  118 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*  118 E> */ B(Construct), R(2), R(3), U8(1), U8(3),
+  /*  118 E> */ B(Construct), R(2), R(3), U8(1), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
   /*  118 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
@@ -125,7 +123,7 @@ bytecodes: [
   /*  128 S> */ B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
-  /*  136 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(5),
+  /*  136 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
@@ -151,16 +149,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 36
 bytecodes: [
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(0),
   /*  112 E> */ B(StackCheck),
   /*  117 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(2),
                 B(Ldar), R(0),
-  /*  117 E> */ B(Construct), R(2), R(0), U8(0), U8(3),
+  /*  117 E> */ B(Construct), R(2), R(0), U8(0), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
   /*  117 E> */ B(ThrowSuperAlreadyCalledIfNotHole),
@@ -168,7 +164,7 @@ bytecodes: [
   /*  126 S> */ B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
-  /*  134 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(5),
+  /*  134 E> */ B(StaNamedPropertyStrict), R(2), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),

@@ -46,7 +46,8 @@ module.exports = {
                 current.init = true;
                 current.valid = !astUtils.isDefaultThisBinding(
                     current.node,
-                    sourceCode);
+                    sourceCode
+                );
             }
             return current;
         };

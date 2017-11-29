@@ -31,16 +31,17 @@ namespace {
     }                                                                      \
   } while (0)
 
-void PrintStackTrace(v8::Local<v8::StackTrace> stack) {
+void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack) {
   printf("Stack Trace (length %d):\n", stack->GetFrameCount());
   for (int i = 0, e = stack->GetFrameCount(); i != e; ++i) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(i);
     v8::Local<v8::String> script = frame->GetScriptName();
     v8::Local<v8::String> func = frame->GetFunctionName();
-    printf("[%d] (%s) %s:%d:%d\n", i,
-           script.IsEmpty() ? "<null>" : *v8::String::Utf8Value(script),
-           func.IsEmpty() ? "<null>" : *v8::String::Utf8Value(func),
-           frame->GetLineNumber(), frame->GetColumn());
+    printf(
+        "[%d] (%s) %s:%d:%d\n", i,
+        script.IsEmpty() ? "<null>" : *v8::String::Utf8Value(isolate, script),
+        func.IsEmpty() ? "<null>" : *v8::String::Utf8Value(isolate, func),
+        frame->GetLineNumber(), frame->GetColumn());
   }
 }
 
@@ -51,21 +52,23 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(Handle<Object> exc,
+void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
 
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
+
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
   v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);
-  PrintStackTrace(stack);
+  PrintStackTrace(v8_isolate, stack);
   CHECK(!stack.IsEmpty());
   CHECK_EQ(N, stack->GetFrameCount());
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
     v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
-    v8::String::Utf8Value funName(frame->GetFunctionName());
+    v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
     CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
@@ -79,7 +82,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
 
-  uint32_t js_throwing_index = r.module().AddJsFunction(
+  uint32_t js_throwing_index = r.builder().AddJsFunction(
       sigs.v_v(),
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
 
@@ -91,7 +94,7 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   BUILD(f2, WASM_CALL_FUNCTION0(wasm_index_1));
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -116,15 +119,15 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
       {"callFn", 1, 24}                                      // -
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }
 
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
 TEST(CollectDetailedWasmStack_WasmError) {
   TestSignatures sigs;
-  WasmRunner<int> r(kExecuteCompiled);
-  // Set the execution context, such that a runtime error can be thrown.
-  r.SetModuleContext();
+  // Create a WasmRunner with stack checks and traps enabled.
+  WasmRunner<int> r(kExecuteCompiled, "main", true);
 
   BUILD(r, WASM_UNREACHABLE);
   uint32_t wasm_index_1 = r.function()->func_index;
@@ -133,7 +136,7 @@ TEST(CollectDetailedWasmStack_WasmError) {
   BUILD(f2, WASM_CALL_FUNCTION0(0));
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -156,5 +159,6 @@ TEST(CollectDetailedWasmStack_WasmError) {
       {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
       {"callFn", 1, 24}                                      //-
   };
-  CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
+  CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
+                      expected_exceptions);
 }

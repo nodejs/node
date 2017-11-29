@@ -6,8 +6,7 @@
 
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen/full-codegen.h"
-#include "src/ia32/frames-ia32.h"
+#include "src/frame-constants.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
@@ -15,156 +14,6 @@ namespace v8 {
 namespace internal {
 
 const int Deoptimizer::table_entry_size_ = 10;
-
-
-int Deoptimizer::patch_size() {
-  return Assembler::kCallInstructionLength;
-}
-
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  Isolate* isolate = code->GetIsolate();
-  HandleScope scope(isolate);
-
-  // Compute the size of relocation information needed for the code
-  // patching in Deoptimizer::PatchCodeForDeoptimization below.
-  int min_reloc_size = 0;
-  int prev_pc_offset = 0;
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    int pc_offset = deopt_data->Pc(i)->value();
-    if (pc_offset == -1) continue;
-    pc_offset = pc_offset + 1;  // We will encode the pc offset after the call.
-    DCHECK_GE(pc_offset, prev_pc_offset);
-    int pc_delta = pc_offset - prev_pc_offset;
-    // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
-    // if encodable with small pc delta encoding and up to 6 bytes
-    // otherwise.
-    if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
-      min_reloc_size += 2;
-    } else {
-      min_reloc_size += 6;
-    }
-    prev_pc_offset = pc_offset;
-  }
-
-  // If the relocation information is not big enough we create a new
-  // relocation info object that is padded with comments to make it
-  // big enough for lazy doptimization.
-  int reloc_length = code->relocation_info()->length();
-  if (min_reloc_size > reloc_length) {
-    int comment_reloc_size = RelocInfo::kMinRelocCommentSize;
-    // Padding needed.
-    int min_padding = min_reloc_size - reloc_length;
-    // Number of comments needed to take up at least that much space.
-    int additional_comments =
-        (min_padding + comment_reloc_size - 1) / comment_reloc_size;
-    // Actual padding size.
-    int padding = additional_comments * comment_reloc_size;
-    // Allocate new relocation info and copy old relocation to the end
-    // of the new relocation info array because relocation info is
-    // written and read backwards.
-    Factory* factory = isolate->factory();
-    Handle<ByteArray> new_reloc =
-        factory->NewByteArray(reloc_length + padding, TENURED);
-    MemCopy(new_reloc->GetDataStartAddress() + padding,
-            code->relocation_info()->GetDataStartAddress(), reloc_length);
-    // Create a relocation writer to write the comments in the padding
-    // space. Use position 0 for everything to ensure short encoding.
-    RelocInfoWriter reloc_info_writer(
-        new_reloc->GetDataStartAddress() + padding, 0);
-    intptr_t comment_string
-        = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
-    for (int i = 0; i < additional_comments; ++i) {
-#ifdef DEBUG
-      byte* pos_before = reloc_info_writer.pos();
-#endif
-      reloc_info_writer.Write(&rinfo);
-      DCHECK(RelocInfo::kMinRelocCommentSize ==
-             pos_before - reloc_info_writer.pos());
-    }
-    // Replace relocation information on the code object.
-    code->set_relocation_info(*new_reloc);
-  }
-}
-
-
-void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
-  Address code_start_address = code->instruction_start();
-
-  // Fail hard and early if we enter this code object again.
-  byte* pointer = code->FindCodeAgeSequence();
-  if (pointer != NULL) {
-    pointer += kNoCodeAgeSequenceLength;
-  } else {
-    pointer = code->instruction_start();
-  }
-  CodePatcher patcher(isolate, pointer, 1);
-  patcher.masm()->int3();
-
-  DeoptimizationInputData* data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  int osr_offset = data->OsrPcOffset()->value();
-  if (osr_offset > 0) {
-    CodePatcher osr_patcher(isolate, code_start_address + osr_offset, 1);
-    osr_patcher.masm()->int3();
-  }
-
-  // We will overwrite the code's relocation info in-place. Relocation info
-  // is written backward. The relocation info is the payload of a byte
-  // array.  Later on we will slide this to the start of the byte array and
-  // create a filler object in the remaining space.
-  ByteArray* reloc_info = code->relocation_info();
-  Address reloc_end_address = reloc_info->address() + reloc_info->Size();
-  RelocInfoWriter reloc_info_writer(reloc_end_address, code_start_address);
-
-  // Since the call is a relative encoding, write new
-  // reloc info.  We do not need any of the existing reloc info because the
-  // existing code will not be used again (we zap it in debug builds).
-  //
-  // Emit call to lazy deoptimization at all lazy deopt points.
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-#ifdef DEBUG
-  Address prev_call_address = NULL;
-#endif
-  // For each LLazyBailout instruction insert a call to the corresponding
-  // deoptimization entry.
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
-    if (deopt_data->Pc(i)->value() == -1) continue;
-    // Patch lazy deoptimization entry.
-    Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    CodePatcher patcher(isolate, call_address, patch_size());
-    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
-    patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
-    // We use RUNTIME_ENTRY for deoptimization bailouts.
-    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
-                    RelocInfo::RUNTIME_ENTRY,
-                    reinterpret_cast<intptr_t>(deopt_entry), NULL);
-    reloc_info_writer.Write(&rinfo);
-    DCHECK_GE(reloc_info_writer.pos(),
-              reloc_info->address() + ByteArray::kHeaderSize);
-    DCHECK(prev_call_address == NULL ||
-           call_address >= prev_call_address + patch_size());
-    DCHECK(call_address + patch_size() <= code->instruction_end());
-#ifdef DEBUG
-    prev_call_address = call_address;
-#endif
-  }
-
-  // Move the relocation info to the beginning of the byte array.
-  const int new_reloc_length = reloc_end_address - reloc_info_writer.pos();
-  MemMove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_length);
-
-  // Right trim the relocation info to free up remaining space.
-  const int delta = reloc_info->length() - new_reloc_length;
-  if (delta > 0) {
-    isolate->heap()->RightTrimFixedArray(reloc_info, delta);
-  }
-}
-
 
 #define __ masm()->
 
@@ -176,7 +25,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
-  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);

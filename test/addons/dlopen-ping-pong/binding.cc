@@ -41,7 +41,7 @@ void init(Local<Object> exports) {
   NODE_SET_METHOD(exports, "ping", Ping);
 }
 
-NODE_MODULE(binding, init)
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)
 
 }  // anonymous namespace
 

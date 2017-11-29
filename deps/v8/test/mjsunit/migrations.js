@@ -278,7 +278,7 @@ var migrations = [
     migr: function(o, i) { Object.seal(o); },
   },
   { // Must be the last in the sequence, because after the global object freeze
-    // the other modifications does not make sence.
+    // the other modifications does not make sense.
     name: "freeze",
     migr: function(o, i) { Object.freeze(o); },
   },

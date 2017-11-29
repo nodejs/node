@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
-// Flags: --opt --no-always-opt --no-stress-fullcodegen
+// Flags: --opt --no-always-opt
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.

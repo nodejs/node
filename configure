@@ -57,7 +57,7 @@ from gyp_node import run_gyp
 parser = optparse.OptionParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
-            'android', 'aix')
+            'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x32','x64', 'x86', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
@@ -144,7 +144,7 @@ parser.add_option("--partly-static",
 parser.add_option("--enable-vtune-profiling",
     action="store_true",
     dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel VTune profiler to profile"
+    help="Enable profiling support for Intel VTune profiler to profile "
          "JavaScript code executed in nodejs. This feature is only available "
          "for x32, x86 and x64 architectures.")
 
@@ -152,9 +152,9 @@ parser.add_option("--enable-vtune-profiling",
 parser.add_option("--link-module",
     action="append",
     dest="linked_module",
-    help="Path to a JS file to be bundled in the binary as a builtin."
-         "This module will be referenced by path without extension."
-         "e.g. /root/x/y.js will be referenced via require('root/x/y')."
+    help="Path to a JS file to be bundled in the binary as a builtin. "
+         "This module will be referenced by path without extension; "
+         "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
 parser.add_option("--openssl-no-asm",
@@ -171,6 +171,12 @@ parser.add_option('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
     help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
+
+parser.add_option('--openssl-system-ca-path',
+    action='store',
+    dest='openssl_system_ca_path',
+    help='Use the specified path to system CA (PEM format) in addition to '
+         'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
@@ -213,6 +219,27 @@ shared_optgroup.add_option('--shared-libuv-libpath',
     action='store',
     dest='shared_libuv_libpath',
     help='a directory to search for the shared libuv DLL')
+
+shared_optgroup.add_option('--shared-nghttp2',
+    action='store_true',
+    dest='shared_nghttp2',
+    help='link to a shared nghttp2 DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-nghttp2-includes',
+    action='store',
+    dest='shared_nghttp2_includes',
+    help='directory containing nghttp2 header files')
+
+shared_optgroup.add_option('--shared-nghttp2-libname',
+    action='store',
+    dest='shared_nghttp2_libname',
+    default='nghttp2',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-nghttp2-libpath',
+    action='store',
+    dest='shared_nghttp2_libpath',
+    help='a directory to search for the shared nghttp2 DLLs')
 
 shared_optgroup.add_option('--shared-openssl',
     action='store_true',
@@ -665,8 +692,7 @@ def check_compiler(o):
     # to a version that is not completely ancient.
     warn('C compiler too old, need gcc 4.2 or clang 3.2 (CC=%s)' % CC)
 
-  if is_clang:
-    o['variables']['llvm_version'] = get_llvm_version(CC)
+  o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else 0
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
@@ -1013,6 +1039,8 @@ def configure_openssl(o):
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
+  if options.openssl_system_ca_path:
+    o['variables']['openssl_system_ca_path'] = options.openssl_system_ca_path
   o['variables']['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
@@ -1092,8 +1120,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/59.1/icu4c-59_1-src.zip',
-      'md5': '29a41f9bb576b06c7eef0487a84a7674',
+      'url': 'https://ssl.icu-project.org/files/icu4c/60.1/icu4c-60_1-src.zip',
+      'md5': 'e6cb990ac2a3161d31a3def8435f80cb',
     },
   ]
   def icu_download(path):
@@ -1351,13 +1379,17 @@ def configure_inspector(o):
   o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
 
 
-def get_bin_override():
+def make_bin_override():
+  if sys.platform == 'win32':
+    raise Exception('make_bin_override should not be called on win32.')
   # If the system python is not the python we are running (which should be
   # python 2), then create a directory with a symlink called `python` to our
   # sys.executable. This directory will be prefixed to the PATH, so that
   # other tools that shell out to `python` will use the appropriate python
 
-  if os.path.realpath(which('python')) == os.path.realpath(sys.executable):
+  which_python = which('python')
+  if (which_python and
+      os.path.realpath(which_python) == os.path.realpath(sys.executable)):
     return
 
   bin_override = os.path.abspath('out/tools/bin')
@@ -1403,6 +1435,7 @@ configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_library('libcares', output)
+configure_library('nghttp2', output)
 # stay backwards compatible with shared cares builds
 output['variables']['node_shared_cares'] = \
     output['variables'].pop('node_shared_libcares')
@@ -1449,8 +1482,6 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
-  'NODE_TARGET_TYPE': variables['node_target_type'] if options.enable_static \
-      else '',
 }
 
 if options.prefix:
@@ -1458,7 +1489,8 @@ if options.prefix:
 
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
-bin_override = get_bin_override()
+# On Windows there's no reason to search for a different python binary.
+bin_override = None if sys.platform == 'win32' else make_bin_override()
 if bin_override:
   config = 'export PATH:=' + bin_override + ':$(PATH)\n' + config
 

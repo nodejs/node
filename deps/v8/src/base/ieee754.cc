@@ -2401,7 +2401,7 @@ double cbrt(double x) {
    * error of about 1 in 16.  Adding a bias of -0.03306235651 to the
    * (e%3+m)/3 term reduces the error to about 1 in 32. With the IEEE
    * floating point representation, for finite positive normal values,
-   * ordinary integer divison of the value in bits magically gives
+   * ordinary integer division of the value in bits magically gives
    * almost exactly the RHS of the above provided we first subtract the
    * exponent bias (1023 for doubles) and later add it back.  We do the
    * subtraction virtually to keep e >= 0 so that ordinary integer

@@ -19,12 +19,15 @@ class MathBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void MathRoundingOperation(Node* context, Node* x,
-                             Node* (CodeStubAssembler::*float64op)(Node*));
-  void MathUnaryOperation(Node* context, Node* x,
-                          Node* (CodeStubAssembler::*float64op)(Node*));
+  void MathRoundingOperation(
+      Node* context, Node* x,
+      TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
+  void MathUnaryOperation(
+      Node* context, Node* x,
+      TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>));
   void MathMaxMin(Node* context, Node* argc,
-                  Node* (CodeStubAssembler::*float64op)(Node*, Node*),
+                  TNode<Float64T> (CodeStubAssembler::*float64op)(
+                      SloppyTNode<Float64T>, SloppyTNode<Float64T>),
                   double default_val);
 };
 
@@ -114,7 +117,8 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
 }
 
 void MathBuiltinsAssembler::MathRoundingOperation(
-    Node* context, Node* x, Node* (CodeStubAssembler::*float64op)(Node*)) {
+    Node* context, Node* x,
+    TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>)) {
   // We might need to loop once for ToNumber conversion.
   VARIABLE(var_x, MachineRepresentation::kTagged, x);
   Label loop(this, &var_x);
@@ -159,7 +163,8 @@ void MathBuiltinsAssembler::MathRoundingOperation(
 }
 
 void MathBuiltinsAssembler::MathUnaryOperation(
-    Node* context, Node* x, Node* (CodeStubAssembler::*float64op)(Node*)) {
+    Node* context, Node* x,
+    TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>)) {
   Node* x_value = TruncateTaggedToFloat64(context, x);
   Node* value = (this->*float64op)(x_value);
   Node* result = AllocateHeapNumberWithValue(value);
@@ -168,7 +173,9 @@ void MathBuiltinsAssembler::MathUnaryOperation(
 
 void MathBuiltinsAssembler::MathMaxMin(
     Node* context, Node* argc,
-    Node* (CodeStubAssembler::*float64op)(Node*, Node*), double default_val) {
+    TNode<Float64T> (CodeStubAssembler::*float64op)(SloppyTNode<Float64T>,
+                                                    SloppyTNode<Float64T>),
+    double default_val) {
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   argc = arguments.GetLength();
 

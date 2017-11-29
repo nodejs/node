@@ -22,7 +22,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   }
   int backing_store_length = GetSlowModeBackingStoreLength(length);
   Handle<LayoutDescriptor> result = Handle<LayoutDescriptor>::cast(
-      isolate->factory()->NewByteArray(backing_store_length));
+      isolate->factory()->NewByteArray(backing_store_length, TENURED));
   memset(result->GetDataStartAddress(), 0, result->DataSize());
   return result;
 }

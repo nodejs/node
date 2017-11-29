@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/code-generator.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
+#include "src/compiler/code-generator.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/mips/macro-assembler-mips.h"
+#include "src/mips64/macro-assembler-mips64.h"
 
 namespace v8 {
 namespace internal {
@@ -546,6 +546,42 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                                 \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_BINOP(bin_instr)                                 \
+  do {                                                                   \
+    Label binop;                                                         \
+    __ Daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ sync();                                                           \
+    __ bind(&binop);                                                     \
+    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
+    __ bin_instr(i.TempRegister(1), i.OutputRegister(0),                 \
+                 Operand(i.InputRegister(2)));                           \
+    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));          \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));    \
+    __ sync();                                                           \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)               \
+  do {                                                                        \
+    Label binop;                                                              \
+    __ daddu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));      \
+    __ andi(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
+    __ Dsubu(i.TempRegister(0), i.TempRegister(0),                            \
+             Operand(i.TempRegister(3)));                                     \
+    __ sll(i.TempRegister(3), i.TempRegister(3), 3);                          \
+    __ sync();                                                                \
+    __ bind(&binop);                                                          \
+    __ Ll(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(1), i.TempRegister(3), \
+                   size, sign_extend);                                        \
+    __ bin_instr(i.TempRegister(2), i.OutputRegister(0),                      \
+                 Operand(i.InputRegister(2)));                                \
+    __ InsertBits(i.TempRegister(1), i.TempRegister(2), i.TempRegister(3),    \
+                  size);                                                      \
+    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));               \
+    __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));         \
+    __ sync();                                                                \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                        \
   do {                                                                      \
     FrameScope scope(tasm(), StackFrame::MANUAL);                           \
@@ -649,7 +685,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
   switch (arch_opcode) {
     case kArchCallCodeObject: {
-      EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
@@ -685,33 +720,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
         __ Ld(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
       }
-      __ Ld(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Ld(at, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(at);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
-      break;
-    }
-    case kArchTailCallJSFunctionFromJSFunction: {
-      Register func = i.InputRegister(0);
-      if (FLAG_debug_code) {
-        // Check the function's context matches the context argument.
-        __ Ld(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ Assert(eq, kWrongFunctionContext, cp, Operand(kScratchReg));
-      }
-      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                       i.TempRegister(0), i.TempRegister(1),
-                                       i.TempRegister(2));
-      __ Ld(at, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Jump(at);
-      frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchPrepareCallCFunction: {
@@ -719,6 +738,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ PrepareCallCFunction(num_parameters, kScratchReg);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
+      break;
+    }
+    case kArchSaveCallerRegisters: {
+      // kReturnRegister0 should have been saved before entering the stub.
+      __ PushCallerSaved(kSaveFPRegs, kReturnRegister0);
+      break;
+    }
+    case kArchRestoreCallerRegisters: {
+      // Don't overwrite the returned value.
+      __ PopCallerSaved(kSaveFPRegs, kReturnRegister0);
       break;
     }
     case kArchPrepareTailCall:
@@ -745,6 +774,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
+      break;
+    case kArchDebugAbort:
+      DCHECK(i.InputRegister(0).is(a0));
+      if (!frame_access_state()->has_frame()) {
+        // We don't actually want to generate a pile of code for this, so just
+        // claim there is a stack frame, without generating one.
+        FrameScope scope(tasm(), StackFrame::NONE);
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ Call(isolate()->builtins()->builtin_handle(Builtins::kAbortJS),
+                RelocInfo::CODE_TARGET);
+      }
+      __ stop("kArchDebugAbort");
       break;
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
@@ -1298,7 +1341,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 
     case kMips64CmpS:
-      // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
+      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
     case kMips64AddS:
       // TODO(plind): add special case: combine mult & add.
@@ -1352,7 +1395,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputDoubleRegister(1));
       break;
     case kMips64CmpD:
-      // Psuedo-instruction used for FP cmp/branch. No opcode emitted here.
+      // Pseudo-instruction used for FP cmp/branch. No opcode emitted here.
       break;
     case kMips64AddD:
       // TODO(plind): add special case: combine mult & add.
@@ -1829,70 +1872,70 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kCheckedLoadInt8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lb);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lb);
       break;
     case kCheckedLoadUint8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lbu);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lbu);
       break;
     case kCheckedLoadInt16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lh);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lh);
       break;
     case kCheckedLoadUint16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lhu);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lhu);
       break;
     case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(lw);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Lw);
       break;
     case kCheckedLoadWord64:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ld);
+      ASSEMBLE_CHECKED_LOAD_INTEGER(Ld);
       break;
     case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Single, lwc1);
+      ASSEMBLE_CHECKED_LOAD_FLOAT(Single, Lwc1);
       break;
     case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Double, ldc1);
+      ASSEMBLE_CHECKED_LOAD_FLOAT(Double, Ldc1);
       break;
     case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sb);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sb);
       break;
     case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sh);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sh);
       break;
     case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sw);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sw);
       break;
     case kCheckedStoreWord64:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sd);
+      ASSEMBLE_CHECKED_STORE_INTEGER(Sd);
       break;
     case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Single, swc1);
+      ASSEMBLE_CHECKED_STORE_FLOAT(Single, Swc1);
       break;
     case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Double, sdc1);
+      ASSEMBLE_CHECKED_STORE_FLOAT(Double, Sdc1);
       break;
     case kAtomicLoadInt8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lb);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;
     case kAtomicLoadUint8:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lbu);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lbu);
       break;
     case kAtomicLoadInt16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lh);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lh);
       break;
     case kAtomicLoadUint16:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lhu);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lhu);
       break;
     case kAtomicLoadWord32:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(lw);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
     case kAtomicStoreWord8:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sb);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
       break;
     case kAtomicStoreWord16:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sh);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sh);
       break;
     case kAtomicStoreWord32:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
     case kAtomicExchangeInt8:
     case kAtomicExchangeUint8:
@@ -1904,33 +1947,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
-    case kAtomicAddInt8:
-    case kAtomicAddUint8:
-    case kAtomicAddInt16:
-    case kAtomicAddUint16:
-    case kAtomicAddWord32:
-    case kAtomicSubInt8:
-    case kAtomicSubUint8:
-    case kAtomicSubInt16:
-    case kAtomicSubUint16:
-    case kAtomicSubWord32:
-    case kAtomicAndInt8:
-    case kAtomicAndUint8:
-    case kAtomicAndInt16:
-    case kAtomicAndUint16:
-    case kAtomicAndWord32:
-    case kAtomicOrInt8:
-    case kAtomicOrUint8:
-    case kAtomicOrInt16:
-    case kAtomicOrUint16:
-    case kAtomicOrWord32:
-    case kAtomicXorInt8:
-    case kAtomicXorUint8:
-    case kAtomicXorInt16:
-    case kAtomicXorUint16:
-    case kAtomicXorWord32:
       UNREACHABLE();
       break;
+#define ATOMIC_BINOP_CASE(op, inst)             \
+  case kAtomic##op##Int8:                       \
+    ASSEMBLE_ATOMIC_BINOP_EXT(true, 8, inst);   \
+    break;                                      \
+  case kAtomic##op##Uint8:                      \
+    ASSEMBLE_ATOMIC_BINOP_EXT(false, 8, inst);  \
+    break;                                      \
+  case kAtomic##op##Int16:                      \
+    ASSEMBLE_ATOMIC_BINOP_EXT(true, 16, inst);  \
+    break;                                      \
+  case kAtomic##op##Uint16:                     \
+    ASSEMBLE_ATOMIC_BINOP_EXT(false, 16, inst); \
+    break;                                      \
+  case kAtomic##op##Word32:                     \
+    ASSEMBLE_ATOMIC_BINOP(inst);                \
+    break;
+      ATOMIC_BINOP_CASE(Add, Addu)
+      ATOMIC_BINOP_CASE(Sub, Subu)
+      ATOMIC_BINOP_CASE(And, And)
+      ATOMIC_BINOP_CASE(Or, Or)
+      ATOMIC_BINOP_CASE(Xor, Xor)
+#undef ATOMIC_BINOP_CASE
     case kMips64AssertEqual:
       __ Assert(eq, static_cast<BailoutReason>(i.InputOperand(2).immediate()),
                 i.InputRegister(0), Operand(i.InputRegister(1)));
@@ -3037,7 +3077,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   Condition cc = kNoCondition;
   // MIPS does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
-  // emit mips psuedo-instructions, which are handled here by branch
+  // emit mips pseudo-instructions, which are handled here by branch
   // instructions that do the actual comparison. Essential that the input
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
@@ -3226,13 +3266,16 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       uint16_t pos =
           base::bits::CountTrailingZeros64(i.InputOperand(1).immediate());
       __ Dext(result, i.InputRegister(0), pos, 1);
+      if (cc == eq) {
+        __ xori(result, result, 1);
+      }
     } else {
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
-      __ Sltu(result, zero_reg, kScratchReg);
-    }
-    if (cc == eq) {
-      // Sltu produces 0 for equality, invert the result.
-      __ xori(result, result, 1);
+      if (cc == eq) {
+        __ Sltu(result, kScratchReg, 1);
+      } else {
+        __ Sltu(result, zero_reg, kScratchReg);
+      }
     }
     return;
   } else if (instr->arch_opcode() == kMips64Dadd ||
@@ -3279,18 +3322,42 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       case ne: {
         Register left = i.InputRegister(0);
         Operand right = i.InputOperand(1);
-        Register select;
-        if (instr->InputAt(1)->IsImmediate() && right.immediate() == 0) {
-          // Pass left operand if right is zero.
-          select = left;
+        if (instr->InputAt(1)->IsImmediate()) {
+          if (is_int16(-right.immediate())) {
+            if (right.immediate() == 0) {
+              if (cc == eq) {
+                __ Sltu(result, left, 1);
+              } else {
+                __ Sltu(result, zero_reg, left);
+              }
+            } else {
+              __ Daddu(result, left, Operand(-right.immediate()));
+              if (cc == eq) {
+                __ Sltu(result, result, 1);
+              } else {
+                __ Sltu(result, zero_reg, result);
+              }
+            }
+          } else {
+            if (is_uint16(right.immediate())) {
+              __ Xor(result, left, right);
+            } else {
+              __ li(kScratchReg, right);
+              __ Xor(result, left, kScratchReg);
+            }
+            if (cc == eq) {
+              __ Sltu(result, result, 1);
+            } else {
+              __ Sltu(result, zero_reg, result);
+            }
+          }
         } else {
-          __ Dsubu(kScratchReg, left, right);
-          select = kScratchReg;
-        }
-        __ Sltu(result, zero_reg, select);
-        if (cc == eq) {
-          // Sltu produces 0 for equality, invert the result.
-          __ xori(result, result, 1);
+          __ Xor(result, left, right);
+          if (cc == eq) {
+            __ Sltu(result, result, 1);
+          } else {
+            __ Sltu(result, zero_reg, result);
+          }
         }
       } break;
       case lt:
@@ -3359,15 +3426,17 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     } else {
       if (instr->arch_opcode() == kMips64CmpD) {
         __ cmp(cc, L, kDoubleCompareReg, left, right);
+        __ dmfc1(result, kDoubleCompareReg);
       } else {
         DCHECK(instr->arch_opcode() == kMips64CmpS);
         __ cmp(cc, W, kDoubleCompareReg, left, right);
+        __ mfc1(result, kDoubleCompareReg);
       }
-      __ dmfc1(result, kDoubleCompareReg);
-      __ andi(result, result, 1);  // Cmp returns all 1's/0's, use only LSB.
-
-      if (!predicate)  // Toggle result for not equal.
-        __ xori(result, result, 1);
+      if (predicate) {
+        __ And(result, result, 1);  // cmp returns all 1's/0's, use only LSB.
+      } else {
+        __ Addu(result, result, 1);  // Toggle result for not equal.
+      }
     }
     return;
   } else {
@@ -3401,24 +3470,6 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   });
 }
 
-CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, SourcePosition pos) {
-  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
-  Deoptimizer::BailoutType bailout_type =
-      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
-                                                   : Deoptimizer::EAGER;
-  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      tasm()->isolate(), deoptimization_id, bailout_type);
-  if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  if (info()->is_source_positions_enabled()) {
-    __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
-  }
-  __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-  return kSuccess;
-}
-
 void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
@@ -3440,12 +3491,13 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
 void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+
   if (frame_access_state()->has_frame()) {
     if (descriptor->IsCFunctionCall()) {
       __ Push(ra, fp);
       __ mov(fp, sp);
     } else if (descriptor->IsJSFunctionCall()) {
-      __ Prologue(this->info()->GeneratePreagedPrologue());
+      __ Prologue();
       if (descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
@@ -3729,28 +3781,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   UNREACHABLE();
 }
 
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  int current_pc = tasm()->pc_offset();
-  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-    // Block tramoline pool emission for duration of padding.
-    v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
-        tasm());
-    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-    DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
-    while (padding_size > 0) {
-      __ nop();
-      padding_size -= v8::internal::Assembler::kInstrSize;
-    }
-  }
-}
 
 #undef __
 

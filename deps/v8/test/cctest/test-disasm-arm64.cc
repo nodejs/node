@@ -33,6 +33,8 @@
 
 #include "src/macro-assembler.h"
 
+#include "src/frames-inl.h"
+
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/disasm-arm64.h"
@@ -1314,6 +1316,17 @@ TEST_(load_store_unscaled) {
   COMPARE(ldrsh(w10, MemOperand(x11, -6)), "ldursh w10, [x11, #-6]");
   COMPARE(ldrsh(x12, MemOperand(x13, -7)), "ldursh x12, [x13, #-7]");
   COMPARE(ldrsw(x14, MemOperand(x15, -8)), "ldursw x14, [x15, #-8]");
+
+  COMPARE(ldr(b0, MemOperand(x1, -1)), "ldur b0, [x1, #-1]");
+  COMPARE(ldr(h2, MemOperand(x3, -1)), "ldur h2, [x3, #-1]");
+  COMPARE(ldr(s4, MemOperand(x5, 255)), "ldur s4, [x5, #255]");
+  COMPARE(ldr(d6, MemOperand(x7, -256)), "ldur d6, [x7, #-256]");
+  COMPARE(ldr(q8, MemOperand(x9, 1)), "ldur q8, [x9, #1]");
+  COMPARE(str(b16, MemOperand(x17, -1)), "stur b16, [x17, #-1]");
+  COMPARE(str(h18, MemOperand(x19, -1)), "stur h18, [x19, #-1]");
+  COMPARE(str(s20, MemOperand(x21, 255)), "stur s20, [x21, #255]");
+  COMPARE(str(d22, MemOperand(x23, -256)), "stur d22, [x23, #-256]");
+  COMPARE(str(q24, MemOperand(x25, 1)), "stur q24, [x25, #1]");
 
   CLEANUP();
 }

@@ -53,11 +53,10 @@ function findReference(scope, node) {
 /**
  * Checks if the given identifier node is shadowed in the given scope.
  * @param {Object} scope The current scope.
- * @param {Object} globalScope The global scope.
  * @param {string} node The identifier node to check
  * @returns {boolean} Whether or not the name is shadowed.
  */
-function isShadowed(scope, globalScope, node) {
+function isShadowed(scope, node) {
     const reference = findReference(scope, node);
 
     return reference && reference.resolved && reference.resolved.defs.length > 0;
@@ -66,15 +65,15 @@ function isShadowed(scope, globalScope, node) {
 /**
  * Checks if the given identifier node is a ThisExpression in the global scope or the global window property.
  * @param {Object} scope The current scope.
- * @param {Object} globalScope The global scope.
  * @param {string} node The identifier node to check
  * @returns {boolean} Whether or not the node is a reference to the global object.
  */
-function isGlobalThisReferenceOrGlobalWindow(scope, globalScope, node) {
+function isGlobalThisReferenceOrGlobalWindow(scope, node) {
     if (scope.type === "global" && node.type === "ThisExpression") {
         return true;
-    } else if (node.name === "window") {
-        return !isShadowed(scope, globalScope, node);
+    }
+    if (node.name === "window") {
+        return !isShadowed(scope, node);
     }
 
     return false;
@@ -96,14 +95,7 @@ module.exports = {
     },
 
     create(context) {
-        let globalScope;
-
         return {
-
-            Program() {
-                globalScope = context.getScope();
-            },
-
             CallExpression(node) {
                 const callee = node.callee,
                     currentScope = context.getScope();
@@ -112,11 +104,11 @@ module.exports = {
                 if (callee.type === "Identifier") {
                     const identifierName = callee.name;
 
-                    if (!isShadowed(currentScope, globalScope, callee) && isProhibitedIdentifier(callee.name)) {
+                    if (!isShadowed(currentScope, callee) && isProhibitedIdentifier(callee.name)) {
                         report(context, node, identifierName);
                     }
 
-                } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, globalScope, callee.object)) {
+                } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, callee.object)) {
                     const identifierName = getPropertyName(callee);
 
                     if (isProhibitedIdentifier(identifierName)) {

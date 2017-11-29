@@ -86,8 +86,10 @@ module.exports = {
                 return;
             }
 
-            // The alias has been declared and not assigned: check it was
-            // assigned later in the same scope.
+            /*
+             * The alias has been declared and not assigned: check it was
+             * assigned later in the same scope.
+             */
             if (!variable.references.some(reference => {
                 const write = reference.writeExpr;
 

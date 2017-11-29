@@ -1110,7 +1110,7 @@ TEST(DoScavenge) {
 
 TEST(DoScavengeWithIncrementalWriteBarrier) {
   if (FLAG_never_compact || !FLAG_incremental_marking) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
@@ -1178,7 +1178,9 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  CHECK(ObjectMarking::IsBlack(*obj, MarkingState::Internal(*obj)));
+  IncrementalMarking::MarkingState* marking_state =
+      heap->incremental_marking()->marking_state();
+  CHECK(marking_state->IsBlack(*obj));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
@@ -1459,7 +1461,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
                                         int double_descriptor,
                                         bool check_tagged_value = true) {
   if (FLAG_never_compact || !FLAG_incremental_marking) return;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1499,8 +1501,9 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  CHECK(ObjectMarking::IsBlack(*obj, MarkingState::Internal(*obj)));
-  CHECK(ObjectMarking::IsBlack(*obj_value, MarkingState::Internal(*obj_value)));
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  CHECK(marking_state->IsBlack(*obj));
+  CHECK(marking_state->IsBlack(*obj_value));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger incremental write barrier, which should add a slot to remembered
@@ -1542,7 +1545,7 @@ enum OldToWriteBarrierKind {
 };
 static void TestWriteBarrierObjectShiftFieldsRight(
     OldToWriteBarrierKind write_barrier_kind) {
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());

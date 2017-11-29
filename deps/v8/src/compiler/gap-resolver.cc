@@ -43,7 +43,7 @@ MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
       1 << (ElementSizeLog2Of(dst_rep) - ElementSizeLog2Of(smaller_rep));
   int base = -1;
   USE(base);
-  DCHECK_EQ(aliases, RegisterConfiguration::Turbofan()->GetAliases(
+  DCHECK_EQ(aliases, RegisterConfiguration::Default()->GetAliases(
                          dst_rep, 0, smaller_rep, &base));
 
   int src_index = -1;

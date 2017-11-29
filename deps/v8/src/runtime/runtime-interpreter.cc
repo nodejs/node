@@ -15,7 +15,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/ostreams.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
@@ -173,20 +172,6 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
 }
 
 #endif
-
-RUNTIME_FUNCTION(Runtime_InterpreterAdvanceBytecodeOffset) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BytecodeArray, bytecode_array, 0);
-  CONVERT_SMI_ARG_CHECKED(bytecode_offset, 1);
-  interpreter::BytecodeArrayIterator it(bytecode_array);
-  int offset = bytecode_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
-  while (it.current_offset() < offset) it.Advance();
-  DCHECK_EQ(offset, it.current_offset());
-  it.Advance();  // Advance by one bytecode.
-  offset = it.current_offset() + BytecodeArray::kHeaderSize - kHeapObjectTag;
-  return Smi::FromInt(offset);
-}
 
 }  // namespace internal
 }  // namespace v8

@@ -1,3 +1,5 @@
+// Flags: --expose-internals
+
 'use strict';
 
 const common = require('../common');
@@ -5,6 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const { kSocket } = require('internal/http2/util');
 
 {
   const server = h2.createServer();
@@ -13,7 +16,7 @@ const h2 = require('http2');
     common.mustCall(() => {
       const destroyCallbacks = [
         (client) => client.destroy(),
-        (client) => client.socket.destroy()
+        (client) => client[kSocket].destroy()
       ];
 
       let remaining = destroyCallbacks.length;
@@ -23,9 +26,9 @@ const h2 = require('http2');
         client.on(
           'connect',
           common.mustCall(() => {
-            const socket = client.socket;
+            const socket = client[kSocket];
 
-            assert(client.socket, 'client session has associated socket');
+            assert(socket, 'client session has associated socket');
             assert(
               !client.destroyed,
               'client has not been destroyed before destroy is called'
@@ -41,7 +44,7 @@ const h2 = require('http2');
             destroyCallback(client);
 
             assert(
-              !client.socket,
+              !client[kSocket],
               'client.socket undefined after destroy is called'
             );
 
@@ -71,19 +74,37 @@ const h2 = require('http2');
   );
 }
 
-// test destroy before connect
+// test destroy before client operations
 {
   const server = h2.createServer();
   server.listen(
     0,
     common.mustCall(() => {
       const client = h2.connect(`http://localhost:${server.address().port}`);
-
-      const req = client.request({ ':path': '/' });
+      const req = client.request();
       client.destroy();
 
       req.on('response', common.mustNotCall());
       req.resume();
+
+      const sessionError = {
+        type: Error,
+        code: 'ERR_HTTP2_INVALID_SESSION',
+        message: 'The session has been destroyed'
+      };
+
+      common.expectsError(() => client.request(), sessionError);
+      common.expectsError(() => client.settings({}), sessionError);
+      common.expectsError(() => client.shutdown(), sessionError);
+
+      // Wait for setImmediate call from destroy() to complete
+      // so that state.destroyed is set to true
+      setImmediate(() => {
+        common.expectsError(() => client.request(), sessionError);
+        common.expectsError(() => client.settings({}), sessionError);
+        common.expectsError(() => client.shutdown(), sessionError);
+      });
+
       req.on(
         'end',
         common.mustCall(() => {
@@ -91,28 +112,6 @@ const h2 = require('http2');
         })
       );
       req.end();
-    })
-  );
-}
-
-// test destroy before request
-{
-  const server = h2.createServer();
-  server.listen(
-    0,
-    common.mustCall(() => {
-      const client = h2.connect(`http://localhost:${server.address().port}`);
-      client.destroy();
-
-      assert.throws(
-        () => client.request({ ':path': '/' }),
-        common.expectsError({
-          code: 'ERR_HTTP2_INVALID_SESSION',
-          message: 'The session has been destroyed'
-        })
-      );
-
-      server.close();
     })
   );
 }

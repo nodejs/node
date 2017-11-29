@@ -12,6 +12,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node {
 
 #define NONE reinterpret_cast<Node*>(1)
 
@@ -875,6 +876,11 @@ TEST(AppendAndTrim) {
   }
 }
 
+#undef NONE
+#undef CHECK_USES
+#undef CHECK_INPUTS
+
+}  // namespace node
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -182,7 +182,7 @@ class ProfileNode {
 
   CodeEntry* entry() const { return entry_; }
   unsigned self_ticks() const { return self_ticks_; }
-  const List<ProfileNode*>* children() const { return &children_list_; }
+  const std::vector<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
   unsigned function_id() const;
   ProfileNode* parent() const { return parent_; }
@@ -212,7 +212,7 @@ class ProfileNode {
   unsigned self_ticks_;
   // Mapping from CodeEntry* to ProfileNode*
   base::CustomMatcherHashMap children_;
-  List<ProfileNode*> children_list_;
+  std::vector<ProfileNode*> children_list_;
   ProfileNode* parent_;
   unsigned id_;
   base::CustomMatcherHashMap line_ticks_;

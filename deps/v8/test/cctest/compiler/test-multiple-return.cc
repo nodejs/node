@@ -27,7 +27,7 @@ namespace {
 CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
                                   int param_count) {
   LocationSignature::Builder locations(zone, return_count, param_count);
-  const RegisterConfiguration* config = RegisterConfiguration::Turbofan();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
 
   // Add return location(s).
   CHECK(return_count <= config->num_allocatable_general_registers());

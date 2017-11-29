@@ -55,11 +55,12 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckBounds(Node* node, Node* frame_state);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   Node* LowerCheckMaps(Node* node, Node* frame_state);
+  Node* LowerCompareMaps(Node* node);
+  void LowerCheckMapValue(Node* node, Node* frame_state);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckSeqString(Node* node, Node* frame_state);
-  Node* LowerCheckNonEmptyString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   Node* LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -84,6 +85,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerTruncateTaggedToFloat64(Node* node);
   Node* LowerTruncateTaggedToWord32(Node* node);
   Node* LowerCheckedTruncateTaggedToWord32(Node* node, Node* frame_state);
+  Node* LowerObjectIsCallable(Node* node);
   Node* LowerObjectIsDetectableCallable(Node* node);
   Node* LowerObjectIsNaN(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);

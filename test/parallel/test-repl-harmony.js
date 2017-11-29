@@ -28,7 +28,9 @@ const args = ['-i'];
 const child = spawn(process.execPath, args);
 
 const input = '(function(){"use strict"; const y=1;y=2})()\n';
-const expectOut = /^> TypeError: Assignment to constant variable\.\n/;
+// This message will vary based on JavaScript engine, so don't check the message
+// contents beyond confirming that the `Error` is a `TypeError`.
+const expectOut = /^> TypeError: /;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {

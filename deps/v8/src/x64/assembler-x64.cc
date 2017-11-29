@@ -123,36 +123,20 @@ void CpuFeatures::PrintFeatures() {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
-Address RelocInfo::wasm_memory_reference() {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  return Memory::Address_at(pc_);
-}
+Address RelocInfo::embedded_address() const { return Memory::Address_at(pc_); }
 
-Address RelocInfo::wasm_global_reference() {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  return Memory::Address_at(pc_);
-}
+uint32_t RelocInfo::embedded_size() const { return Memory::uint32_at(pc_); }
 
-uint32_t RelocInfo::wasm_memory_size_reference() {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
-  return Memory::uint32_at(pc_);
-}
-
-uint32_t RelocInfo::wasm_function_table_size_reference() {
-  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  return Memory::uint32_at(pc_);
-}
-
-void RelocInfo::unchecked_update_wasm_memory_reference(
-    Isolate* isolate, Address address, ICacheFlushMode icache_flush_mode) {
+void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+                                     ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate, pc_, sizeof(Address));
   }
 }
 
-void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
-                                           ICacheFlushMode icache_flush_mode) {
+void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
+                                  ICacheFlushMode icache_flush_mode) {
   Memory::uint32_at(pc_) = size;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate, pc_, sizeof(uint32_t));
@@ -347,6 +331,29 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
+
+  // Collection stage
+  auto jump_opt = jump_optimization_info();
+  if (jump_opt && jump_opt->is_collecting()) {
+    auto& bitmap = jump_opt->farjmp_bitmap();
+    int num = static_cast<int>(farjmp_positions_.size());
+    if (num && bitmap.empty()) {
+      bool can_opt = false;
+
+      bitmap.resize((num + 31) / 32, 0);
+      for (int i = 0; i < num; i++) {
+        int disp_pos = farjmp_positions_[i];
+        int disp = long_at(disp_pos);
+        if (is_int8(disp)) {
+          bitmap[i / 32] |= 1 << (i & 31);
+          can_opt = true;
+        }
+      }
+      if (can_opt) {
+        jump_opt->set_optimizable();
+      }
+    }
+  }
 }
 
 
@@ -417,6 +424,21 @@ void Assembler::bind_to(Label* L, int pos) {
       L->UnuseNear();
     }
   }
+
+  // Optimization stage
+  auto jump_opt = jump_optimization_info();
+  if (jump_opt && jump_opt->is_optimizing()) {
+    auto it = label_farjmp_maps_.find(L);
+    if (it != label_farjmp_maps_.end()) {
+      auto& pos_vector = it->second;
+      for (auto fixup_pos : pos_vector) {
+        int disp = pos - (fixup_pos + sizeof(int8_t));
+        CHECK(is_int8(disp));
+        set_byte_at(fixup_pos, disp);
+      }
+      label_farjmp_maps_.erase(it);
+    }
+  }
   L->bind_to(pos);
 }
 
@@ -425,6 +447,21 @@ void Assembler::bind(Label* L) {
   bind_to(L, pc_offset());
 }
 
+void Assembler::record_farjmp_position(Label* L, int pos) {
+  auto& pos_vector = label_farjmp_maps_[L];
+  pos_vector.push_back(pos);
+}
+
+bool Assembler::is_optimizable_farjmp(int idx) {
+  if (predictable_code_size()) return false;
+
+  auto jump_opt = jump_optimization_info();
+  CHECK(jump_opt->is_optimizing());
+
+  auto& bitmap = jump_opt->farjmp_bitmap();
+  CHECK(idx < static_cast<int>(bitmap.size() * 32));
+  return !!(bitmap[idx / 32] & (1 << (idx & 31)));
+}
 
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
@@ -1284,19 +1321,34 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
     }
     L->link_to(pc_offset(), Label::kNear);
     emit(disp);
-  } else if (L->is_linked()) {
-    // 0000 1111 1000 tttn #32-bit disp.
-    emit(0x0F);
-    emit(0x80 | cc);
-    emitl(L->pos());
-    L->link_to(pc_offset() - sizeof(int32_t));
   } else {
-    DCHECK(L->is_unused());
-    emit(0x0F);
-    emit(0x80 | cc);
-    int32_t current = pc_offset();
-    emitl(current);
-    L->link_to(current);
+    auto jump_opt = jump_optimization_info();
+    if (V8_UNLIKELY(jump_opt)) {
+      if (jump_opt->is_optimizing() && is_optimizable_farjmp(farjmp_num_++)) {
+        // 0111 tttn #8-bit disp
+        emit(0x70 | cc);
+        record_farjmp_position(L, pc_offset());
+        emit(0);
+        return;
+      }
+      if (jump_opt->is_collecting()) {
+        farjmp_positions_.push_back(pc_offset() + 2);
+      }
+    }
+    if (L->is_linked()) {
+      // 0000 1111 1000 tttn #32-bit disp.
+      emit(0x0F);
+      emit(0x80 | cc);
+      emitl(L->pos());
+      L->link_to(pc_offset() - sizeof(int32_t));
+    } else {
+      DCHECK(L->is_unused());
+      emit(0x0F);
+      emit(0x80 | cc);
+      int32_t current = pc_offset();
+      emitl(current);
+      L->link_to(current);
+    }
   }
 }
 
@@ -1349,18 +1401,32 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
     }
     L->link_to(pc_offset(), Label::kNear);
     emit(disp);
-  } else if (L->is_linked()) {
-    // 1110 1001 #32-bit disp.
-    emit(0xE9);
-    emitl(L->pos());
-    L->link_to(pc_offset() - long_size);
   } else {
-    // 1110 1001 #32-bit disp.
-    DCHECK(L->is_unused());
-    emit(0xE9);
-    int32_t current = pc_offset();
-    emitl(current);
-    L->link_to(current);
+    auto jump_opt = jump_optimization_info();
+    if (V8_UNLIKELY(jump_opt)) {
+      if (jump_opt->is_optimizing() && is_optimizable_farjmp(farjmp_num_++)) {
+        emit(0xEB);
+        record_farjmp_position(L, pc_offset());
+        emit(0);
+        return;
+      }
+      if (jump_opt->is_collecting()) {
+        farjmp_positions_.push_back(pc_offset() + 1);
+      }
+    }
+    if (L->is_linked()) {
+      // 1110 1001 #32-bit disp.
+      emit(0xE9);
+      emitl(L->pos());
+      L->link_to(pc_offset() - long_size);
+    } else {
+      // 1110 1001 #32-bit disp.
+      DCHECK(L->is_unused());
+      emit(0xE9);
+      int32_t current = pc_offset();
+      emitl(current);
+      L->link_to(current);
+    }
   }
 }
 
@@ -4793,20 +4859,14 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
       !serializer_enabled() && !emit_debug_code()) {
     return;
-  } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
-    // Don't record psuedo relocation info for code age sequence mode.
-    return;
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
-
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-    1 << RelocInfo::RUNTIME_ENTRY |
-    1 << RelocInfo::INTERNAL_REFERENCE |
-    1 << RelocInfo::CODE_AGE_SEQUENCE;
-
+                                  1 << RelocInfo::RUNTIME_ENTRY |
+                                  1 << RelocInfo::INTERNAL_REFERENCE;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being

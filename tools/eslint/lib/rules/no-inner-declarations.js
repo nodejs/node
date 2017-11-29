@@ -63,10 +63,14 @@ module.exports = {
                     body.distance === 2);
 
             if (!valid) {
-                context.report({ node, message: "Move {{type}} declaration to {{body}} root.", data: {
-                    type: (node.type === "FunctionDeclaration" ? "function" : "variable"),
-                    body: (body.type === "Program" ? "program" : "function body")
-                } });
+                context.report({
+                    node,
+                    message: "Move {{type}} declaration to {{body}} root.",
+                    data: {
+                        type: (node.type === "FunctionDeclaration" ? "function" : "variable"),
+                        body: (body.type === "Program" ? "program" : "function body")
+                    }
+                });
             }
         }
 

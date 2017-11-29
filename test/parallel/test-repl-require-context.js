@@ -2,10 +2,9 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const child = cp.spawn(process.execPath, ['--interactive']);
-const fixture = path.join(common.fixturesDir, 'is-object.js').replace(/\\/g,
-                                                                      '/');
+const fixtures = require('../common/fixtures');
+const fixture = fixtures.path('is-object.js').replace(/\\/g, '/');
 let output = '';
 
 child.stdout.setEncoding('utf8');

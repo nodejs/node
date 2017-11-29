@@ -22,8 +22,8 @@ class ValueUnwrapContext {
 Node* AsyncBuiltinsAssembler::Await(
     Node* context, Node* generator, Node* value, Node* outer_promise,
     int context_length, const ContextInitializer& init_closure_context,
-    int on_resolve_context_index, int on_reject_context_index,
-    bool is_predicted_as_caught) {
+    Node* on_resolve_context_index, Node* on_reject_context_index,
+    Node* is_predicted_as_caught) {
   DCHECK_GE(context_length, Context::MIN_CONTEXT_SLOTS);
 
   Node* const native_context = LoadNativeContext(context);
@@ -146,7 +146,8 @@ Node* AsyncBuiltinsAssembler::Await(
       CallRuntime(Runtime::kSetProperty, context, on_reject, key,
                   TrueConstant(), SmiConstant(STRICT));
 
-      if (is_predicted_as_caught) PromiseSetHandledHint(value);
+      GotoIf(IsFalse(is_predicted_as_caught), &common);
+      PromiseSetHandledHint(value);
     }
 
     Goto(&common);
@@ -172,7 +173,7 @@ Node* AsyncBuiltinsAssembler::Await(
 void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                                                      Node* native_context,
                                                      Node* function,
-                                                     int context_index) {
+                                                     Node* context_index) {
   Node* const function_map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   StoreMapNoWriteBarrier(function, function_map);
@@ -191,13 +192,9 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
       function, JSFunction::kSharedFunctionInfoOffset, shared_info);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
 
-  Node* const code = BitcastTaggedToWord(
-      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset));
-  Node* const code_entry =
-      IntPtrAdd(code, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
-  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeEntryOffset,
-                                 code_entry,
-                                 MachineType::PointerRepresentation());
+  Node* const code =
+      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
+  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
   StoreObjectFieldRoot(function, JSFunction::kNextFunctionLinkOffset,
                        Heap::kUndefinedValueRootIndex);
 }

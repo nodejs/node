@@ -31,18 +31,18 @@ SimplifiedOperatorBuilder* PropertyAccessBuilder::simplified() const {
   return jsgraph()->simplified();
 }
 
+bool HasOnlyStringMaps(MapHandles const& maps) {
+  for (auto map : maps) {
+    if (!map->IsStringMap()) return false;
+  }
+  return true;
+}
+
 namespace {
 
 bool HasOnlyNumberMaps(MapHandles const& maps) {
   for (auto map : maps) {
     if (map->instance_type() != HEAP_NUMBER_TYPE) return false;
-  }
-  return true;
-}
-
-bool HasOnlyStringMaps(MapHandles const& maps) {
-  for (auto map : maps) {
-    if (!map->IsStringMap()) return false;
   }
   return true;
 }
@@ -224,7 +224,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
   Node* storage = receiver;
   if (!field_index.is_inobject()) {
     storage = *effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectProperties()),
+        simplified()->LoadField(AccessBuilder::ForJSObjectPropertiesOrHash()),
         storage, *effect, *control);
   }
   FieldAccess field_access = {

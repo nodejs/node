@@ -34,11 +34,11 @@ PASS (-0.0).toPrecision(4) is "0.000"
 PASS (0.0).toPrecision() is "0"
 PASS (-0.0).toPrecision() is "0"
 PASS (1234.567).toPrecision() is "1234.567"
-PASS (1234.567).toPrecision(0) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(null) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(false) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision('foo') threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(-1) threw exception RangeError: toPrecision() argument must be between 1 and 21.
+PASS (1234.567).toPrecision(0) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(null) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(false) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision('foo') threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(-1) threw exception RangeError: toPrecision() argument must be between 1 and 100.
 PASS (1234.567).toPrecision(1) is "1e+3"
 PASS (1234.567).toPrecision(true) is "1e+3"
 PASS (1234.567).toPrecision('1') is "1e+3"
@@ -46,12 +46,12 @@ PASS (1234.567).toPrecision(2) is "1.2e+3"
 PASS (1234.567).toPrecision(2.9) is "1.2e+3"
 PASS (1234.567).toPrecision(5) is "1234.6"
 PASS (1234.567).toPrecision(21) is "1234.56700000000000728"
-PASS (1234.567).toPrecision(22) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(100) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(101) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(posInf) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(negInf) threw exception RangeError: toPrecision() argument must be between 1 and 21.
-PASS (1234.567).toPrecision(nan) threw exception RangeError: toPrecision() argument must be between 1 and 21.
+FAIL (1234.567).toPrecision(22) should throw an exception. Was 1234.567000000000007276.
+FAIL (1234.567).toPrecision(100) should throw an exception. Was 1234.567000000000007275957614183425903320312500000000000000000000000000000000000000000000000000000000.
+PASS (1234.567).toPrecision(101) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(posInf) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(negInf) threw exception RangeError: toPrecision() argument must be between 1 and 100.
+PASS (1234.567).toPrecision(nan) threw exception RangeError: toPrecision() argument must be between 1 and 100.
 PASS posInf.toPrecision() is "Infinity"
 PASS negInf.toPrecision() is "-Infinity"
 PASS nan.toPrecision() is "NaN"

@@ -16,6 +16,10 @@
 #define V8_CANDIDATE_STRING ""
 #endif
 
+#ifndef V8_EMBEDDER_STRING
+#define V8_EMBEDDER_STRING ""
+#endif
+
 #define V8_SX(x) #x
 #define V8_S(x) V8_SX(x)
 
@@ -23,7 +27,7 @@
 #define V8_VERSION_STRING                                        \
   V8_S(V8_MAJOR_VERSION)                                         \
   "." V8_S(V8_MINOR_VERSION) "." V8_S(V8_BUILD_NUMBER) "." V8_S( \
-      V8_PATCH_LEVEL) V8_CANDIDATE_STRING
+      V8_PATCH_LEVEL) V8_EMBEDDER_STRING V8_CANDIDATE_STRING
 #else
 #define V8_VERSION_STRING \
   V8_S(V8_MAJOR_VERSION)  \

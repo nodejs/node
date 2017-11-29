@@ -27,13 +27,14 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
+// import fixtures directly from its module
+const fixtures = require('../common/fixtures');
 
-const fs = require('fs');
 const cipher_list = ['AES128-SHA256', 'AES256-SHA256'];
 const cipher_version_pattern = /TLS|SSL/;
 const options = {
-  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
-  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`),
+  key: fixtures.readKey('agent2-key.pem'),
+  cert: fixtures.readKey('agent2-cert.pem'),
   ciphers: cipher_list.join(':'),
   honorCipherOrder: true
 };

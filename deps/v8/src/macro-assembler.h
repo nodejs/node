@@ -187,30 +187,6 @@ class NoCurrentFrameScope {
   bool saved_;
 };
 
-
-// Support for "structured" code comments.
-#ifdef DEBUG
-
-class Comment {
- public:
-  Comment(Assembler* assembler, const char* msg);
-  ~Comment();
-
- private:
-  Assembler* assembler_;
-  const char* msg_;
-};
-
-#else
-
-class Comment {
- public:
-  Comment(Assembler*, const char*) {}
-};
-
-#endif  // DEBUG
-
-
 // Wrapper class for passing expected and actual parameter counts as
 // either registers or immediate values. Used to make sure that the
 // caller provides exactly the expected number of parameters to the

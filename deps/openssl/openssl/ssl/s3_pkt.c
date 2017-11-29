@@ -1427,7 +1427,7 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
         (s->s3->handshake_fragment_len >= 4) &&
         (s->s3->handshake_fragment[0] == SSL3_MT_CLIENT_HELLO) &&
         (s->session != NULL) && (s->session->cipher != NULL) &&
-        !(s->ctx->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION)) {
+        !(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION)) {
         /*
          * s->s3->handshake_fragment_len = 0;
          */

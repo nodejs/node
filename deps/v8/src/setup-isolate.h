@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_SETUP_ISOLATE_H_
+#define V8_SETUP_ISOLATE_H_
+
 namespace v8 {
 namespace internal {
 
@@ -39,7 +42,11 @@ class SetupIsolateDelegate {
  protected:
   static void SetupBuiltinsInternal(Isolate* isolate);
   static void AddBuiltin(Builtins* builtins, int index, Code* code);
+  static void PopulateWithPlaceholders(Isolate* isolate);
+  static void ReplacePlaceholders(Isolate* isolate);
 };
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_SETUP_ISOLATE_H_

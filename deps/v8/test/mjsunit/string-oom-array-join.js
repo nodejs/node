@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var a = "a";
-for (var i = 0; i < 23; i++) a += a;
+// Flags: --allow-natives-syntax
+
+var a = "a".repeat(%StringMaxLength() / 10);
 var b = [];
-for (var i = 0; i < (1<<5); i++) b.push(a);
+for (var i = 0; i < 11; i++) b.push(a);
 
 function join() {
   b.join();

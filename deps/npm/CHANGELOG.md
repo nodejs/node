@@ -1,3 +1,402 @@
+## v5.5.1 (2017-10-04):
+
+A very quick, record time, patch release, of a bug fix to a (sigh) last minute bug fix.
+
+* [`e628e058b`](https://github.com/npm/npm/commit/e628e058b)
+  Fix login to properly recognize OTP request and store bearer tokens.
+  ([@Rebecca Turner](https://github.com/Rebecca Turner))
+
+## v5.5.0 (2017-10-04):
+
+Hey y'all, this is a big new feature release!  We've got some security
+related goodies plus a some quality-of-life improvements for anyone who uses
+the public registry (so, virtually everyone).
+
+The changes largely came together in one piece, so I'm just gonna leave the commit line here:
+
+* [`f6ebf5e8b`](https://github.com/npm/npm/commit/f6ebf5e8bd6a212c7661e248c62c423f2b54d978)
+  [`f97ad6a38`](https://github.com/npm/npm/commit/f97ad6a38412581d059108ea29be470acb4fa510)
+  [`f644018e6`](https://github.com/npm/npm/commit/f644018e6ef1ff7523c6ec60ae55a24e87a9d9ae)
+  [`8af91528c`](https://github.com/npm/npm/commit/8af91528ce6277cd3a8c7ca8c8102671baf10d2f)
+  [`346a34260`](https://github.com/npm/npm/commit/346a34260b5fba7de62717135f3e083cc4820853)
+  Two factor authentication, profile editing and token management.
+  ([@iarna](https://github.com/iarna))
+
+### TWO FACTOR AUTHENTICATION
+
+You can now enable two-factor authentication for your npm account.  You can
+even do it from the CLI.  In fact, you have to, for the time being:
+
+```
+npm profile enable-tfa
+```
+
+With the default two-factor authentication mode you'll be prompted to enter
+a one-time password when logging in, when publishing and when modifying access rights to
+your modules.
+
+### TOKEN MANAGEMENT
+
+You can now create, list and delete authentication tokens from the comfort
+of the command line.  Authentication tokens created this way can have NEW
+restrictions placed on them.  For instance, you can create a `read-only`
+token to give to your CI.  It will be able to download your private modules
+but it won't be able to publish or modify modules.  You can also create
+tokens that can only be used from certain network addresses.  This way you
+can lock down access to your corporate VPN or other trusted machines.
+
+Deleting tokens isn't new, you could [do it via the
+website](https://www.npmjs.com/settings/tokens) but now you can do it via
+the CLI as well.
+
+### CHANGE YOUR PASSWORD, SET YOUR EMAIL
+
+You can finally change your password from the CLI with `npm profile set
+password`!  You can also update your email address with `npm profile set
+email <address>`. If you change your email address we'll send you a new
+verification email so you verify that its yours.
+
+### AND EVERYTHING ELSE ON YOUR PROFILE
+
+You can also update all of the other attributes of your profile that
+previously you could only update via the website: `fullname`, `homepage`,
+`freenode`, `twitter` and `github`.
+
+### AVAILABLE STAND ALONE
+
+All of these features were implemented in a stand alone library, so if you
+have use for them in your own project you can find them in
+[npm-profile](https://www.npmjs.com/package/npm-profile) on the registry.
+There's also a little mini-cli written just for it at
+[npm-profile-cli](https://www.npmjs.com/package/npm-profile-cli).  You might
+also be interested in the [API
+documentation](https://github.com/npm/registry/tree/master/docs) for these
+new features: [user profile editing](https://github.com/npm/registry/blob/master/docs/user/profile.md) and
+[authentication](https://github.com/npm/registry/blob/master/docs/user/authentication.md).
+
+### BUG FIXES
+
+* [`5ee55dc71`](https://github.com/npm/npm/commit/5ee55dc71b8b74b8418c3d5ec17483a07b3b6777)
+  install.sh: Drop support for upgrading from npm@1 as npm@5 can't run on
+  any Node.js version that ships npm@1. This fixes an issue some folks were seeing when trying
+  to upgrade using `curl | http://npmjs.com/install.sh`.
+  ([@iarna](https://github.com/iarna))
+* [`5cad1699a`](https://github.com/npm/npm/commit/5cad1699a7a0fc85ac7f77a95087a9647f75e344)
+  `npm-lifecycle@1.0.3` Fix a bug where when more than one lifecycle script
+  got queued to run, npm would crash.
+  ([@zkat](https://github.com/zkat))
+* [`cd256cbb2`](https://github.com/npm/npm/commit/cd256cbb2f97fcbcb82237e94b66eac80e493626)
+  `npm-packlist@1.1.9` Fix a bug where test directories would always be
+  excluded from published modules.
+  ([@isaacs](https://github.com/isaacs))
+* [`2a11f0215`](https://github.com/npm/npm/commit/2a11f021561acb1eb1ad4ad45ad955793b1eb4af)
+  Fix formatting of unsupported version warning
+  ([@iarna](https://github.com/iarna))
+
+### DEPENDENCY UPDATES
+
+* [`6d2a285a5`](https://github.com/npm/npm/commit/6d2a285a58655f10834f64d38449eb1f3c8b6c47)
+  `npm-registry-client@8.5.0`
+* [`69e64e27b`](https://github.com/npm/npm/commit/69e64e27bf58efd0b76b3cf6e8182c77f8cc452f)
+  `request@2.83.0`
+* [`34e0f4209`](https://github.com/npm/npm/commit/34e0f42090f6153eb5462f742e402813e4da56c8)
+  `abbrev@1.1.1`
+* [`10d31739d`](https://github.com/npm/npm/commit/10d31739d39765f1f0249f688bd934ffad92f872)
+  `aproba@1.2.0`
+* [`2b02e86c0`](https://github.com/npm/npm/commit/2b02e86c06cf2a5fe7146404f5bfd27f190ee4f4)
+  `meant@1.0.1`
+* [`b81fff808`](https://github.com/npm/npm/commit/b81fff808ee269361d3dcf38c1b6019f1708ae02)
+  `rimraf@2.6.2`:
+  Fixes a long standing bug in rimraf's attempts to work around Windows limitations
+  where it owns a file and can change its perms but can't remove it without
+  first changing its perms. This _may_ be an improvement for Windows users of npm under
+  some circumstances.
+  ([@isaacs](https://github.com/isaacs))
+
+## v5.4.2 (2017-09-14):
+
+This is a small bug fix release wrapping up most of the issues introduced with 5.4.0.
+
+### Bugs
+
+* [`0b28ac72d`](https://github.com/npm/npm/commit/0b28ac72d29132e9b761717aba20506854465865)
+  [#18458](https://github.com/npm/npm/pull/18458)
+  Fix a bug on Windows where rolling back of failed optional dependencies would fail.
+  ([@marcins](https://github.com/marcins))
+* [`3a1b29991`](https://github.com/npm/npm/commit/3a1b299913ce94fdf25ed3ae5c88fe6699b04e24)
+  `write-file-atomic@2.1.0` Revert update of `write-file-atomic`. There were changes made to it
+  that were resulting in EACCES errors for many users.
+  ([@iarna](https://github.com/iarna))
+* [`cd8687e12`](https://github.com/npm/npm/commit/cd8687e1257f59a253436d69e8d79a29c85d00c8)
+  Fix a bug where if npm decided it needed to move a module during an upgrade it would strip
+  out much of the `package.json`. This would result in broken trees after package updates.
+* [`5bd0244ee`](https://github.com/npm/npm/commit/5bd0244eec347ce435e88ff12148c35da7c69efe)
+  [#18385](https://github.com/npm/npm/pull/18385)
+  Fix `npm outdated` when run on non-registry dependencies.
+  ([@joshclow](https://github.com/joshclow))
+  ([@iarna](https://github.com/iarna))
+
+### Ux
+
+* [`339f17b1e`](https://github.com/npm/npm/commit/339f17b1e6816eccff7df97875db33917eccdd13)
+  Report unsupported node versions with greater granularity.
+  ([@iarna](https://github.com/iarna))
+
+### Docs
+
+* [`b2ab6f43b`](https://github.com/npm/npm/commit/b2ab6f43b8ae645134238acd8dd3083e5ba8846e)
+  [#18397](https://github.com/npm/npm/pull/18397)
+  Document that the default loglevel with `npm@5` is `notice`.
+  ([@KenanY](https://github.com/KenanY))
+* [`e5aedcd82`](https://github.com/npm/npm/commit/e5aedcd82af81fa9e222f9210f6f890c72a18dd3)
+  [#18372](https://github.com/npm/npm/pull/18372)
+  In npm-config documentation, note that env vars use \_ in place of -.
+  ([@jakubholynet](https://github.com/jakubholynet))
+
+## v5.4.1 (2017-09-06):
+
+This is a very small bug fix release to fix a problem where permissions on
+installed binaries were being set incorrectly.
+
+* [`767ff6eee`](https://github.com/npm/npm/commit/767ff6eee7fa3a0f42ad677dedc0ec1f0dc15e7c)
+  [zkat/pacote#117](https://github.com/zkat/pacote/pull/117)
+  [#18324](https://github.com/npm/npm/issues/18324)
+  `pacote@6.0.2`
+  ([@zkat](https://github.com/zkat))
+
+## v5.4.0 (2017-08-22):
+
+Here's another ~~small~~ big release, with a ~~handful~~ bunch of fixes and
+a couple of ~~small~~ new features! This release has been incubating rather
+longer than usual and it's grown quite a bit in that time. I'm also excited
+to say that it has contributions from **27** different folks, which is a new
+record for us. Our previous record was 5.1.0 at 21. Before that the record
+had been held by 1.3.16 since _December of 2013_.
+
+![chart of contributor counts by version, showing an increasing rate over time and spikes mid in the 1.x series and later at 5.x](https://pbs.twimg.com/media/DH38rbZUwAAf9hS.jpg)
+
+If you can't get enough of the bleeding edge, I encourage you to check out
+our canary release of npm. Get it with `npm install -g npmc`. It's going to
+be seeing some exciting stuff in the next couple of weeks, starting with a
+rewriten `npm dedupe`, but moving on to… well, you'll just have to wait and
+find out.
+
+### PERFORMANCE
+
+* [`d080379f6`](https://github.com/npm/npm/commit/d080379f620c716afa2c1d2e2ffc0a1ac3459194)
+  `pacote@6.0.1` Updates extract to use tar@4, which is much faster than the
+  older tar@2. It reduces install times by as much as 10%.
+  ([@zkat](https://github.com/zkat))
+* [`4cd6a1774`](https://github.com/npm/npm/commit/4cd6a1774f774506323cae5685c9ca9a10deab63)
+  [`0195c0a8c`](https://github.com/npm/npm/commit/0195c0a8cdf816834c2f737372194ddc576c451d)
+  [#16804](https://github.com/npm/npm/pull/16804)
+  `tar@4.0.1` Update publish to use tar@4. tar@4 brings many advantages
+  over tar@2: It's faster, better tested and easier to work with.  It also
+  produces exactly the same byte-for-byte output when producing tarballs
+  from the same set of files.  This will have some nice carry on effects for
+  things like caching builds from git.  And finally, last but certainly not
+  least, upgrading to it also let's us finally eliminate `fstream`—if
+  you know what that is you'll know why we're so relieved.
+  ([@isaacs](https://github.com/isaacs))
+
+### FEATURES
+
+* [`1ac470dd2`](https://github.com/npm/npm/commit/1ac470dd283cc7758dc37721dd6331d5b316dc99)
+  [#10382](https://github.com/npm/npm/pull/10382)
+  If you make a typo when writing a command now, npm will print a brief "did you
+  mean..." message with some possible alternatives to what you meant.
+  ([@watilde](https://github.com/watilde))
+* [`20c46228d`](https://github.com/npm/npm/commit/20c46228d8f9243910f8c343f4830d52455d754e)
+  [#12356](https://github.com/npm/npm/pull/12356)
+  When running lifecycle scripts, `INIT_CWD` will now contain the original
+  working directory that npm was executed from. Remember that you can use `npm
+  run-script` even if you're not inside your package root directory!
+  ([@MichaelQQ](https://github.com/MichaelQQ))
+* [`be91e1726`](https://github.com/npm/npm/commit/be91e1726e9c21c4532723e4f413b73a93dd53d1)
+  [`4e7c41f4a`](https://github.com/npm/npm/commit/4e7c41f4a29744a9976cc22c77eee9d44172f21e)
+  `libnpx@9.6.0`: Fixes a number of issues on Windows and adds support for
+  several more languages: Korean, Norwegian (bokmål and nynorsk), Ukrainian,
+  Serbian, Bahasa Indonesia, Polish, Dutch and Arabic.
+  ([@zkat](https://github.com/zkat))
+* [`2dec601c6`](https://github.com/npm/npm/commit/2dec601c6d5a576751d50efbcf76eaef4deff31e)
+  [#17142](https://github.com/npm/npm/pull/17142)
+  Add the new `commit-hooks` option to `npm version` so that you can disable commit
+  hooks when committing the version bump.
+  ([@faazshift](https://github.com/faazshift))
+* [`bde151902`](https://github.com/npm/npm/commit/bde15190230b5c62dbd98095311eab71f6b52321)
+  [#14461](https://github.com/npm/npm/pull/14461)
+  Make output from `npm ping` clear as to its success or failure.
+  ([@legodude17](https://github.com/legodude17))
+
+### BUGFIXES
+
+* [`b6d5549d2`](https://github.com/npm/npm/commit/b6d5549d2c2d38dd0e4319c56b69ad137f0d50cd)
+  [#17844](https://github.com/npm/npm/pull/17844)
+  Make package-lock.json sorting locale-agnostic. Previously, sorting would vary
+  by locale, due to using `localeCompare` for key sorting.  This'll give you
+  a little package-lock.json churn as it reshuffles things, sorry!
+  ([@LotharSee](https://github.com/LotharSee))
+* [`44b98b9dd`](https://github.com/npm/npm/commit/44b98b9ddcfcccf68967fdf106fca52bf0c3da4b)
+  [#17919](https://github.com/npm/npm/pull/17919)
+  Fix a crash where `npm prune --production` would fail while removing `.bin`.
+  ([@fasterthanlime](https://github.com/fasterthanlime))
+* [`c3d1d3ba8`](https://github.com/npm/npm/commit/c3d1d3ba82aa41dfb2bd135e6cdc59f8d33cd9fb)
+  [#17816](https://github.com/npm/npm/pull/17816)
+  Fail more smoothly when attempting to install an invalid package name.
+  ([@SamuelMarks](https://github.com/SamuelMarks))
+* [`55ac2fca8`](https://github.com/npm/npm/commit/55ac2fca81bf08338302dc7dc2070494e71add5c)
+  [#12784](https://github.com/npm/npm/pull/12784)
+  Guard against stack overflows when marking packages as failed.
+  ([@vtravieso](https://github.com/vtravieso))
+* [`597cc0e4b`](https://github.com/npm/npm/commit/597cc0e4b5e6ee719014e3171d4e966df42a275c)
+  [#15087](https://github.com/npm/npm/pull/15087)
+  Stop outputting progressbars or using color on dumb terminals.
+  ([@iarna](https://github.com/iarna))
+* [`7a7710ba7`](https://github.com/npm/npm/commit/7a7710ba72e6f82414653c2e7e91fea9a1aba7e2)
+  [#15088](https://github.com/npm/npm/pull/15088)
+  Don't exclude modules that are both dev & prod when using `npm ls --production`.
+  ([@iarna](https://github.com/iarna))
+* [`867df2b02`](https://github.com/npm/npm/commit/867df2b0214689822b87b51578e347f353be97e8)
+  [#18164](https://github.com/npm/npm/pull/18164)
+  Only do multiple procs on OSX for now. We've seen a handful of issues
+  relating to this in Docker and in on Windows with antivirus.
+  ([@zkat](https://github.com/zkat))
+* [`23540af7b`](https://github.com/npm/npm/commit/23540af7b0ec5f12bbdc1558745c8c4f0861042b)
+  [#18117](https://github.com/npm/npm/pull/18117)
+  Some package managers would write spaces to the \_from field in package.json's in the
+  form of `name @spec`. This was causing npm to fail to interpret them. We now handle that
+  correctly and doubly make sure we don't do that ourselves.
+  ([@IgorNadj](https://github.com/IgorNadj))
+* [`0ef320cb4`](https://github.com/npm/npm/commit/0ef320cb40222693b7367b97c60ddffabc2d58c5)
+  [#16634](https://github.com/npm/npm/pull/16634)
+  Convert any bin script with a shbang a the start to Unix line-endings. (These sorts of scripts
+  are not compatible with Windows line-endings even on Windows.)
+  ([@ScottFreeCode](https://github.com/ScottFreeCode))
+* [`71191ca22`](https://github.com/npm/npm/commit/71191ca2227694355c49dfb187104f68df5126bd)
+  [#16476](https://github.com/npm/npm/pull/16476)
+  `npm-lifecycle@1.0.2` Running an install with `--ignore-scripts` was resulting in the
+  the package object being mutated to have the lifecycle scripts removed from it and that
+  in turn was being written out to disk, causing further problems. This fixes that:
+  No more mutation, no more unexpected changes.
+  ([@addaleax](https://github.com/addaleax))
+* [`459fa9d51`](https://github.com/npm/npm/commit/459fa9d51600904ee75ed6267b159367a1209793)
+  [npm/read-package-json#74](https://github.com/npm/read-package-json/pull/74)
+  [#17802](https://github.com/npm/npm/pull/17802)
+  `read-package-json@2.0.1` Use unix-style slashes for generated bin
+  entries, which lets them be cross platform even when produced on Windows.
+  ([@iarna](https://github.com/iarna))
+* [`5ec72ab5b`](https://github.com/npm/npm/commit/5ec72ab5b27c5c83cee9ff568cf75a9479d4b83a)
+  [#18229](https://github.com/npm/npm/pull/18229)
+  Make install.sh find nodejs on debian.
+  ([@cebe](https://github.com/cebe))
+
+### DOCUMENTATION
+
+* [`b019680db`](https://github.com/npm/npm/commit/b019680db78ae0a6dff2289dbfe9f61fccbbe824)
+  [#10846](https://github.com/npm/npm/pull/10846)
+  Remind users that they have to install missing `peerDependencies` manually.
+  ([@ryanflorence](https://github.com/ryanflorence))
+* [`3aee5986a`](https://github.com/npm/npm/commit/3aee5986a65add2f815b24541b9f4b69d7fb445f)
+  [#17898](https://github.com/npm/npm/pull/17898)
+  Minor punctuation fixes to the README.
+  ([@AndersDJohnson](https://github.com/AndersDJohnson))
+* [`e0d0a7e1d`](https://github.com/npm/npm/commit/e0d0a7e1dda2c43822b17eb71f4d51900575cc61)
+  [#17832](https://github.com/npm/npm/pull/17832)
+  Fix grammar, format, and spelling in documentation for `run-script`.
+  ([@simonua](https://github.com/simonua))
+* [`3fd6a5f2f`](https://github.com/npm/npm/commit/3fd6a5f2f8802a9768dba2ec32c593b5db5a878d)
+  [#17897](https://github.com/npm/npm/pull/17897)
+  Add more info about using `files` with `npm pack`/`npm publish`.
+  ([@davidjgoss](https://github.com/davidjgoss))
+* [`f00cdc6eb`](https://github.com/npm/npm/commit/f00cdc6eb90a0735bc3c516720de0b1428c79c31)
+  [#17785](https://github.com/npm/npm/pull/17785)
+  Add a note about filenames for certificates on Windows, which use a different
+  extension and file type.
+  ([@lgp1985](https://github.com/lgp1985))
+* [`0cea6f974`](https://github.com/npm/npm/commit/0cea6f9741243b1937abfa300c2a111d9ed79143)
+  [#18022](https://github.com/npm/npm/pull/18022)
+  Clarify usage for the `files` field in `package.json`.
+  ([@xcambar](https://github.com/xcambar))
+* [`a0fdd1571`](https://github.com/npm/npm/commit/a0fdd15710971234cbc57086cd1a4dc037a39471)
+  [#15234](https://github.com/npm/npm/pull/15234)
+  Clarify the behavior of the `files` array in the package-json docs.
+  ([@jbcpollak](https://github.com/jbcpollak))
+* [`cecd6aa5d`](https://github.com/npm/npm/commit/cecd6aa5d4dd04af765b26b749c1cd032f7eb913)
+  [#18137](https://github.com/npm/npm/pull/18137)
+  Clarify interaction between npmignore and files in package.json.
+  ([@supertong](https://github.com/supertong))
+* [`6b8972039`](https://github.com/npm/npm/commit/6b89720396767961001e727fc985671ce88b901b)
+  [#18044](https://github.com/npm/npm/pull/18044)
+  Corrected the typo in package-locks docs.
+  ([@vikramnr](https://github.com/vikramnr))
+* [`6e012924f`](https://github.com/npm/npm/commit/6e012924f99c475bc3637c86ab6a113875405fc7)
+  [#17667](https://github.com/npm/npm/pull/17667)
+  Fix description of package.json in npm-scripts docs.
+  ([@tripu](https://github.com/tripu))
+
+### POSSIBLY INTERESTING DEPENDENCY UPDATES
+
+* [`48d84171a`](https://github.com/npm/npm/commit/48d84171a302fde2510b3f31e4a004c5a4d39c73)
+  [`f60b05d63`](https://github.com/npm/npm/commit/f60b05d6307a7c46160ce98d6f3ccba89411c4ba)
+  `semver@5.4.1` Perf improvements.
+  ([@zkat](https://github.com/zkat))
+* [`f4650b5d4`](https://github.com/npm/npm/commit/f4650b5d4b2be2c04c229cc53aa930e260af9b4e)
+  `write-file-atomic@2.3.0`:
+  Serialize writes to the same file so that results are deterministic.
+  Cleanup tempfiles when process is interrupted or killed.
+  ([@ferm10n](https://github.com/ferm10n))
+  ([@iarna](https://github.com/iarna))
+
+### CHORES
+
+* [`96d78df98`](https://github.com/npm/npm/commit/96d78df9843187bc53be2c93913e8567003ccb73)
+  [`80e2f4960`](https://github.com/npm/npm/commit/80e2f4960691bc5dbd8320002e4d9143784b9ce9)
+  [`4f49f687b`](https://github.com/npm/npm/commit/4f49f687bbd54b6a0e406936ae35593d8e971e1e)
+  [`07d2296b1`](https://github.com/npm/npm/commit/07d2296b10e3d8d6f079eba3a61f0258501d7161)
+  [`a267ab430`](https://github.com/npm/npm/commit/a267ab4309883012a9d55934533c5915e9842277)
+  [#18176](https://github.com/npm/npm/pull/18176)
+  [#18025](https://github.com/npm/npm/pull/18025)
+  Move the lifecycle code out of npm into a separate library,
+  [`npm-lifecycle`](https://github.com/npm/lifecycle). Shh, I didn't tell you this, but this
+  portends to some pretty cool stuff to come very soon now.
+  ([@mikesherov](https://github.com/mikesherov))
+* [`0933c7eaf`](https://github.com/npm/npm/commit/0933c7eaf9cfcdf56471fe4e71c403e2016973da)
+  [#18025](https://github.com/npm/npm/pull/18025)
+  Force Travis to use Precise instead of Trusty.  We have issues with our
+  couchdb setup and Trusty.  =/
+  ([@mikesherov](https://github.com/mikesherov))
+* [`afb086230`](https://github.com/npm/npm/commit/afb086230223f3c4fcddee4e958d18fce5db0ff9)
+  [#18138](https://github.com/npm/npm/pull/18138)
+  Fix typos in files-and-ignores test.
+  ([@supertong](https://github.com/supertong))
+* [`3e6d11cde`](https://github.com/npm/npm/commit/3e6d11cde096b4ee7b07e7569b37186aa2115b1a)
+  [#18175](https://github.com/npm/npm/pull/18175)
+  Update dependencies to eliminate transitive dependencies with the WTFPL license, which
+  some more serious corporate lawyery types aren't super comfortable with.
+  ([@zkat](https://github.com/zkat))
+* [`ee4c9bd8a`](https://github.com/npm/npm/commit/ee4c9bd8ae574a0d6b24725ba6c7b718d8aaad8d)
+  [#16474](https://github.com/npm/npm/pull/16474)
+  The tests in `test/tap/lifecycle-signal.js`, as well as the features
+  they are testing, are partially broken. This moves them from
+  being skipped in CI to being disabled only for certain platforms.
+  In particular, because `npm` spawns its lifecycle scripts in a
+  shell, signals are not necessarily forwarded by the shell and
+  won’t cause scripts to exit; also, shells may report the signal
+  they receive using their exit status, rather than terminating
+  themselves with a signal.
+  ([@addaleax](https://github.com/addaleax))
+* [`9462e5d9c`](https://github.com/npm/npm/commit/9462e5d9cfbaa50218de6d0a630d6552e72ad0a8)
+  [#16547](https://github.com/npm/npm/pull/16547)
+  Remove unused file: bin/read-package-json.js
+  ([@metux](https://github.com/metux))
+* [`0756d687d`](https://github.com/npm/npm/commit/0756d687d4ccfcd4a7fd83db0065eceb9261befb)
+  [#16550](https://github.com/npm/npm/pull/16550)
+  The build tools for the documentation need to be built/installed
+  before the documents, even with parallel builds.
+  Make has a simple mechanism which was made exactly for that:
+  target dependencies.
+  ([@metux](https://github.com/metux))
+
 ## v5.3.0 (2017-07-12):
 
 As mentioned before, we're continuing to do relatively rapid, smaller releases

@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_not(it, $keyword) {
+module.exports = function generate_not(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;

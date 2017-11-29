@@ -9,6 +9,8 @@
 #include "src/base/format-macros.h"
 #include "src/base/logging.h"
 
+// No-op macro which is used to work around MSVC's funky VA_ARGS support.
+#define EXPAND(x) x
 
 // TODO(all) Replace all uses of this macro with C++'s offsetof. To do that, we
 // have to make sure that only standard-layout types and simple field
@@ -102,26 +104,32 @@ V8_INLINE Dest bit_cast(Source const& source) {
   return dest;
 }
 
+// Explicitly declare the assignment operator as deleted.
+#define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete;
 
-// Put this in the private: declarations for a class to be unassignable.
-#define DISALLOW_ASSIGN(TypeName) void operator=(const TypeName&)
-
-
-// A macro to disallow the evil copy constructor and operator= functions
-// This should be used in the private: declarations for a class
+// Explicitly declare the copy constructor and assignment operator as deleted.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;      \
-  void operator=(const TypeName&) = delete
+  DISALLOW_ASSIGN(TypeName)
 
-
-// A macro to disallow all the implicit constructors, namely the
+// Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
-//
-// This should be used in the private: declarations for a class
-// that wants to prevent anyone from instantiating it. This is
-// especially useful for classes containing only static methods.
+// This is especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName() = delete;                           \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
+
+// Disallow copying a type, but provide default construction, move construction
+// and move assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(TypeName) \
+  TypeName() = default;                               \
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)
+
+// Disallow copying a type, and only provide move construction and move
+// assignment. Especially useful for move-only structs.
+#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName) \
+  TypeName(TypeName&&) = default;                  \
+  TypeName& operator=(TypeName&&) = default;       \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.
@@ -183,7 +191,8 @@ V8_INLINE Dest bit_cast(Source const& source) {
 
 // TODO(rongjie) Remove this workaround once we require gcc >= 5.0
 #if __GNUG__ && __GNUC__ < 5
-#define IS_TRIVIALLY_COPYABLE(T) __has_trivial_copy(T)
+#define IS_TRIVIALLY_COPYABLE(T) \
+  (__has_trivial_copy(T) && __has_trivial_destructor(T))
 #else
 #define IS_TRIVIALLY_COPYABLE(T) std::is_trivially_copyable<T>::value
 #endif
@@ -275,7 +284,7 @@ struct Use {
 // This allows conversion of Addresses and integral types into
 // 0-relative int offsets.
 template <typename T>
-inline intptr_t OffsetFrom(T x) {
+constexpr inline intptr_t OffsetFrom(T x) {
   return x - static_cast<T>(0);
 }
 
@@ -284,7 +293,7 @@ inline intptr_t OffsetFrom(T x) {
 // This allows conversion of 0-relative int offsets into Addresses and
 // integral types.
 template <typename T>
-inline T AddressFrom(intptr_t x) {
+constexpr inline T AddressFrom(intptr_t x) {
   return static_cast<T>(static_cast<T>(0) + x);
 }
 
@@ -296,12 +305,28 @@ inline T RoundDown(T x, intptr_t m) {
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
-
+template <intptr_t m, typename T>
+constexpr inline T RoundDown(T x) {
+  // m must be a power of two.
+  STATIC_ASSERT(m != 0 && ((m & (m - 1)) == 0));
+  return AddressFrom<T>(OffsetFrom(x) & -m);
+}
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
 inline T RoundUp(T x, intptr_t m) {
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
+}
+template <intptr_t m, typename T>
+constexpr inline T RoundUp(T x) {
+  return RoundDown<m, T>(static_cast<T>(x + m - 1));
+}
+
+inline void* AlignedAddress(void* address, size_t alignment) {
+  // The alignment must be a power of two.
+  DCHECK_EQ(alignment & (alignment - 1), 0u);
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address) &
+                                 ~static_cast<uintptr_t>(alignment - 1));
 }
 
 #endif   // V8_BASE_MACROS_H_

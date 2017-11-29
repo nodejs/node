@@ -50,7 +50,7 @@ function test(clazz) {
   buffer[1] = 0xff;
   buffer[2] = 0x7f;
   buffer[3] = 0x7f;
-  assert.ok(isNaN(buffer.readFloatBE(0)));
+  assert.ok(Number.isNaN(buffer.readFloatBE(0)));
   assert.strictEqual(3.4028234663852886e+38, buffer.readFloatLE(0));
 
   buffer[0] = 0xab;
@@ -70,7 +70,7 @@ function test(clazz) {
 
   buffer[3] = 0x80;
   assert.strictEqual(1.793662034335766e-43, buffer.readFloatBE(0));
-  assert.strictEqual(0, buffer.readFloatLE(0));
+  assert.strictEqual(-0, buffer.readFloatLE(0));
   assert.strictEqual(true, 1 / buffer.readFloatLE(0) < 0);
 
   buffer[0] = 0;

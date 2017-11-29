@@ -21,6 +21,7 @@ const readJson = BB.promisify(require('read-package-json'))
 const semver = require('semver')
 const statAsync = BB.promisify(require('graceful-fs').stat)
 const writeStreamAtomic = require('fs-write-stream-atomic')
+const readUserInfo = require('./utils/read-user-info.js')
 
 publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
                 "\n\nPublishes '.' if no argument supplied" +
@@ -198,6 +199,14 @@ function upload (arg, pkg, isRetry, cached) {
       } else {
         throw err
       }
+    })
+  }).catch((err) => {
+    if (err.code !== 'EOTP' && !(err.code === 'E401' && /one-time pass/.test(err.message))) throw err
+    // we prompt on stdout and read answers from stdin, so they need to be ttys.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) throw err
+    return readUserInfo.otp('Enter OTP:  ').then((otp) => {
+      npm.config.set('otp', otp)
+      return upload(arg, pkg, isRetry, cached)
     })
   })
 }

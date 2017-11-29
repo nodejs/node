@@ -722,29 +722,6 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
   }
 }
 
-// Finds all references to original and replaces them with substitution.
-static void ReplaceCodeObject(Handle<Code> original,
-                              Handle<Code> substitution) {
-  // Perform a full GC in order to ensure that we are not in the middle of an
-  // incremental marking phase when we are replacing the code object.
-  // Since we are not in an incremental marking phase we can write pointers
-  // to code objects (that are never in new space) without worrying about
-  // write barriers.
-  Heap* heap = original->GetHeap();
-  HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
-  // Now iterate over all pointers of all objects, including code_target
-  // implicit pointers.
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (obj->IsJSFunction()) {
-      JSFunction* fun = JSFunction::cast(obj);
-      if (fun->code() == *original) fun->ReplaceCode(*substitution);
-    } else if (obj->IsSharedFunctionInfo()) {
-      SharedFunctionInfo* info = SharedFunctionInfo::cast(obj);
-      if (info->code() == *original) info->set_code(*substitution);
-    }
-  }
-}
-
 // Patch function feedback vector.
 // The feedback vector is a cache for complex object boilerplates and for a
 // native context. We must clean cached values, or if the structure of the
@@ -885,30 +862,7 @@ void LiveEdit::ReplaceFunctionCode(
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
     shared_info->ClearBytecodeArray();
-    if (!shared_info->HasBaselineCode()) {
-      // Every function from this SFI is interpreted.
-      if (!new_shared_info->HasBaselineCode()) {
-        // We have newly compiled bytecode. Simply replace the old one.
-        shared_info->set_bytecode_array(new_shared_info->bytecode_array());
-      } else {
-        // Rely on self-healing for places that used to run bytecode.
-        shared_info->ReplaceCode(*new_code);
-      }
-    } else {
-      // Functions from this SFI can be either interpreted or running FCG.
-      DCHECK(old_code->kind() == Code::FUNCTION);
-      if (new_shared_info->HasBytecodeArray()) {
-        // Start using new bytecode everywhere.
-        shared_info->set_bytecode_array(new_shared_info->bytecode_array());
-        ReplaceCodeObject(old_code,
-                          isolate->builtins()->InterpreterEntryTrampoline());
-      } else {
-        // Start using new FCG code everywhere.
-        // Rely on self-healing for places that used to run bytecode.
-        DCHECK(new_code->kind() == Code::FUNCTION);
-        ReplaceCodeObject(old_code, new_code);
-      }
-    }
+    shared_info->set_bytecode_array(new_shared_info->bytecode_array());
 
     if (shared_info->HasBreakInfo()) {
       // Existing break points will be re-applied. Reset the debug info here.

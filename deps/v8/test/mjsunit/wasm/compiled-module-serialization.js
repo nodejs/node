@@ -189,7 +189,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprCallIndirect, sig_index1, kTableZero])  // --
       .exportAs("main");
 
-    builder.setFunctionTableLength(kTableSize);
+    builder.setFunctionTableBounds(kTableSize, kTableSize);
     builder.addFunctionTableInit(0, false, [f1.index]);
     builder.addExportOfKind("table", kExternalTable, 0);
 

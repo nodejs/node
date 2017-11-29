@@ -302,63 +302,6 @@ TEST(AssemblerIa328) {
   CHECK(11.99 < res && res < 12.001);
 }
 
-
-typedef int (*F7)(double x, double y);
-
-TEST(AssemblerIa329) {
-  CcTest::InitializeVM();
-  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
-  HandleScope scope(isolate);
-  v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof(buffer),
-                      v8::internal::CodeObjectRequired::kYes);
-  enum { kEqual = 0, kGreater = 1, kLess = 2, kNaN = 3, kUndefined = 4 };
-  Label equal_l, less_l, greater_l, nan_l;
-  __ fld_d(Operand(esp, 3 * kPointerSize));
-  __ fld_d(Operand(esp, 1 * kPointerSize));
-  __ FCmp();
-  __ j(parity_even, &nan_l);
-  __ j(equal, &equal_l);
-  __ j(below, &less_l);
-  __ j(above, &greater_l);
-
-  __ mov(eax, kUndefined);
-  __ ret(0);
-
-  __ bind(&equal_l);
-  __ mov(eax, kEqual);
-  __ ret(0);
-
-  __ bind(&greater_l);
-  __ mov(eax, kGreater);
-  __ ret(0);
-
-  __ bind(&less_l);
-  __ mov(eax, kLess);
-  __ ret(0);
-
-  __ bind(&nan_l);
-  __ mov(eax, kNaN);
-  __ ret(0);
-
-
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef OBJECT_PRINT
-  OFStream os(stdout);
-  code->Print(os);
-#endif
-
-  F7 f = FUNCTION_CAST<F7>(code->entry());
-  CHECK_EQ(kLess, f(1.1, 2.2));
-  CHECK_EQ(kEqual, f(2.2, 2.2));
-  CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(std::numeric_limits<double>::quiet_NaN(), 1.1));
-}
-
-
 TEST(AssemblerIa3210) {
   // Test chaining of label usages within instructions (issue 1644).
   CcTest::InitializeVM();

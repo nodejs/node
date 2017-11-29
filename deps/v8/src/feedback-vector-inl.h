@@ -8,7 +8,12 @@
 #include "src/factory.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/shared-function-info.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
@@ -89,32 +94,27 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   return 1;
 }
 
-bool FeedbackVector::is_empty() const {
-  return length() == kReservedIndexCount;
-}
+ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
+          kSharedFunctionInfoOffset)
+ACCESSORS(FeedbackVector, optimized_code_cell, Object, kOptimizedCodeOffset)
+INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
+INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
+INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
+INT32_ACCESSORS(FeedbackVector, deopt_count, kDeoptCountOffset)
 
-int FeedbackVector::slot_count() const {
-  return length() - kReservedIndexCount;
-}
+bool FeedbackVector::is_empty() const { return length() == 0; }
 
 FeedbackMetadata* FeedbackVector::metadata() const {
   return shared_function_info()->feedback_metadata();
 }
 
-SharedFunctionInfo* FeedbackVector::shared_function_info() const {
-  return SharedFunctionInfo::cast(get(kSharedFunctionInfoIndex));
-}
+void FeedbackVector::clear_invocation_count() { set_invocation_count(0); }
 
-int FeedbackVector::invocation_count() const {
-  return Smi::ToInt(get(kInvocationCountIndex));
-}
-
-void FeedbackVector::clear_invocation_count() {
-  set(kInvocationCountIndex, Smi::kZero);
-}
-
-Object* FeedbackVector::optimized_code_cell() const {
-  return get(kOptimizedCodeIndex);
+void FeedbackVector::increment_deopt_count() {
+  int count = deopt_count();
+  if (count < std::numeric_limits<int32_t>::max()) {
+    set_deopt_count(count + 1);
+  }
 }
 
 Code* FeedbackVector::optimized_code() const {
@@ -142,17 +142,36 @@ bool FeedbackVector::has_optimization_marker() const {
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackSlot FeedbackVector::ToSlot(int index) {
-  DCHECK_GE(index, kReservedIndexCount);
-  return FeedbackSlot(index - kReservedIndexCount);
+  DCHECK_GE(index, 0);
+  return FeedbackSlot(index);
 }
 
 Object* FeedbackVector::Get(FeedbackSlot slot) const {
   return get(GetIndex(slot));
 }
 
+Object* FeedbackVector::get(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  return RELAXED_READ_FIELD(this, offset);
+}
+
 void FeedbackVector::Set(FeedbackSlot slot, Object* value,
                          WriteBarrierMode mode) {
   set(GetIndex(slot), value, mode);
+}
+
+void FeedbackVector::set(int index, Object* value, WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+}
+
+inline Object** FeedbackVector::slots_start() {
+  return HeapObject::RawField(this, kFeedbackSlotsOffset);
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.
@@ -162,12 +181,12 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
       return BinaryOperationHint::kNone;
     case BinaryOperationFeedback::kSignedSmall:
       return BinaryOperationHint::kSignedSmall;
+    case BinaryOperationFeedback::kSignedSmallInputs:
+      return BinaryOperationHint::kSignedSmallInputs;
     case BinaryOperationFeedback::kNumber:
       return BinaryOperationHint::kNumber;
     case BinaryOperationFeedback::kNumberOrOddball:
       return BinaryOperationHint::kNumberOrOddball;
-    case BinaryOperationFeedback::kNonEmptyString:
-      return BinaryOperationHint::kNonEmptyString;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
     case BinaryOperationFeedback::kAny:
@@ -218,6 +237,11 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
     Object* const obj = Get(slot);
     switch (kind) {
       case FeedbackSlotKind::kCall:
+        // If we are not running interpreted code, we need to ignore the special
+        // IC slots for call/construct used by the interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code is retired
+        // from service.
+        if (!code_is_interpreted) break;
       case FeedbackSlotKind::kLoadProperty:
       case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -296,6 +320,10 @@ Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->uninitialized_symbol();
 }
 
+Handle<Symbol> FeedbackVector::GenericSentinel(Isolate* isolate) {
+  return isolate->factory()->generic_symbol();
+}
+
 Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
@@ -352,5 +380,7 @@ void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
 Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_FEEDBACK_VECTOR_INL_H_

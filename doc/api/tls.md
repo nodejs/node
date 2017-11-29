@@ -408,27 +408,10 @@ added: v3.0.0
 Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
-### server.listen(port[, hostname][, callback])
-<!-- YAML
-added: v0.3.2
--->
+### server.listen()
 
-* `port` {number} The TCP/IP port on which to begin listening for connections.
-  A value of `0` (zero) will assign a random port.
-* `hostname` {string} The hostname, IPv4, or IPv6 address on which to begin
-  listening for connections. If `undefined`, the server will accept connections
-  on any IPv6 address (`::`) when IPv6 is available, or any IPv4 address
-  (`0.0.0.0`) otherwise.
-* `callback` {Function} A callback function to be invoked when the server has
-  begun listening on the `port` and `hostname`.
-
-The `server.listen()` methods instructs the server to begin accepting
-connections on the specified `port` and `hostname`.
-
-This function operates asynchronously. If the `callback` is given, it will be
-called when the server has started listening.
-
-See [`net.Server`][] for more information.
+Starts the server listening for encrypted connections.
+This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### server.setTicketKeys(keys)
 <!-- YAML
@@ -575,12 +558,12 @@ Always returns `true`. This may be used to distinguish TLS sockets from regular
 added: v0.11.4
 -->
 
-Returns an object representing the cipher name and the SSL/TLS protocol version
-that first defined the cipher.
+Returns an object representing the cipher name. The `version` key is a legacy
+field which always contains the value `'TLSv1/SSLv3'`.
 
 For example: `{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
-See `SSL_CIPHER_get_name()` and `SSL_CIPHER_get_version()` in
+See `SSL_CIPHER_get_name()` in
 https://www.openssl.org/docs/man1.0.2/ssl/SSL_CIPHER_get_name.html for more
 information.
 
@@ -922,6 +905,9 @@ port or host argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/6569
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
     description: If the `key` option is an array, individual entries do not
@@ -976,8 +962,6 @@ changes:
     certificate can match or chain to.
     For self-signed certificates, the certificate is its own CA, and must be
     provided.
-  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
-    CRLs (Certificate Revocation Lists).
   * `ciphers` {string} Optional cipher suite specification, replacing the
     default.  For more information, see [modifying the default cipher suite][].
   * `honorCipherOrder` {boolean} Attempt to use the server's cipher suite
@@ -991,20 +975,24 @@ changes:
     [`crypto.getCurves()`][] to obtain a list of available curve names. On
     recent releases, `openssl ecparam -list_curves` will also display the name
     and description of each available elliptic curve.
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
+  * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
+    CRLs (Certificate Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
     [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits, otherwise an
     error will be thrown. It is strongly recommended to use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
     discarded and DHE ciphers will not be available.
-  * `secureProtocol` {string} Optional SSL method to use, default is
-    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
-    the function names as strings. For example, `"SSLv3_method"` to force SSL
-    version 3.
   * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
+  * `secureProtocol` {string} Optional SSL method to use, default is
+    `"SSLv23_method"`. The possible values are listed as [SSL_METHODS][], use
+    the function names as strings. For example, `"SSLv3_method"` to force SSL
+    version 3.
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
@@ -1025,13 +1013,16 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 
 If the 'ca' option is not given, then Node.js will use the default
 publicly trusted list of CAs as given in
-<http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
+<https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
 added: v0.3.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/6569
+    description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
@@ -1042,6 +1033,8 @@ changes:
 -->
 
 * `options` {Object}
+  * `clientCertEngine` {string} Optional name of an OpenSSL engine which can
+    provide the client certificate.
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds. Defaults to `120`
     seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
@@ -1171,8 +1164,7 @@ added: v0.11.13
 -->
 
 The default curve name to use for ECDH key agreement in a tls server. The
-default value is `'prime256v1'` (NIST P-256). Consult [RFC 4492] and
-[FIPS.186-4] for more details.
+default value is `'auto'`. See [`tls.createSecureContext()`] for further information.
 
 
 ## Deprecated APIs
@@ -1292,6 +1284,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.getConnections()`]: net.html#net_server_getconnections_callback
+[`server.listen()`]: net.html#net_server_listen
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
@@ -1302,13 +1295,11 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[FIPS.186-4]: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-[RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_timeout.html
 [SSL_METHODS]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [Stream]: stream.html#stream_stream

@@ -139,8 +139,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   VARIABLE(var_target_map, MachineRepresentation::kTagged);
   // Check if the receiver has the default |from_kind| map.
   {
-    Node* packed_map =
-        LoadContextElement(native_context, Context::ArrayMapIndex(from_kind));
+    Node* packed_map = LoadJSArrayElementsMap(from_kind, native_context);
     GotoIf(WordNotEqual(receiver_map, packed_map), &check_holey_map);
     var_target_map.Bind(
         LoadContextElement(native_context, Context::ArrayMapIndex(to_kind)));
@@ -174,8 +173,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
     Node* receiver, Node* receiver_map, Node* native_context,
     ElementsKind packed_kind, ElementsKind holey_kind, Label* done,
     Label* map_mismatch, Label* bailout) {
-  Node* packed_map =
-      LoadContextElement(native_context, Context::ArrayMapIndex(packed_kind));
+  Node* packed_map = LoadJSArrayElementsMap(packed_kind, native_context);
   GotoIf(WordNotEqual(receiver_map, packed_map), map_mismatch);
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
     TrapAllocationMemento(receiver, bailout);
@@ -227,7 +225,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapMulti(
 void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
     Node* receiver, Node* index, Node* value, UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
-    Node* new_length = SmiTag(IntPtrAdd(index, IntPtrConstant(1)));
+    Node* new_length = SmiTag(Signed(IntPtrAdd(index, IntPtrConstant(1))));
     StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset, new_length,
                                    MachineRepresentation::kTagged);
   }
@@ -447,7 +445,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
   BIND(&if_array);
   {
-    Node* length = SmiUntag(LoadJSArrayLength(receiver));
+    Node* length = SmiUntag(LoadFastJSArrayLength(receiver));
     GotoIf(UintPtrLessThan(intptr_index, length), &if_in_bounds);
     Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     GotoIf(UintPtrGreaterThanOrEqual(intptr_index, capacity), &if_grow);
@@ -753,22 +751,19 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
       accessor(this), readonly(this);
-  Node* properties = LoadProperties(receiver);
-  Node* properties_map = LoadMap(properties);
-  Branch(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-         &dictionary_properties, &fast_properties);
+  Node* bitfield3 = LoadMapBitField3(receiver_map);
+  Branch(IsSetWord32<Map::DictionaryMap>(bitfield3), &dictionary_properties,
+         &fast_properties);
 
   BIND(&fast_properties);
   {
     Comment("fast property store");
-    Node* bitfield3 = LoadMapBitField3(receiver_map);
     Node* descriptors = LoadMapDescriptors(receiver_map);
-    Label descriptor_found(this);
+    Label descriptor_found(this), lookup_transition(this);
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
-    // TODO(jkummerow): Maybe look for existing map transitions?
     Label* notfound = use_stub_cache == kUseStubCache ? &stub_cache : slow;
     DescriptorLookup(p->name, descriptors, bitfield3, &descriptor_found,
-                     &var_name_index, notfound);
+                     &var_name_index, &lookup_transition);
 
     BIND(&descriptor_found);
     {
@@ -789,10 +784,64 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&data_property);
       {
         CheckForAssociatedProtector(p->name, slow);
+        Node* properties = LoadFastProperties(receiver);
         OverwriteExistingFastProperty(receiver, receiver_map, properties,
                                       descriptors, name_index, details,
                                       p->value, slow);
         Return(p->value);
+      }
+    }
+
+    BIND(&lookup_transition);
+    {
+      Comment("lookup transition");
+      VARIABLE(var_handler, MachineRepresentation::kTagged);
+      Label tuple3(this), fixedarray(this), found_handler(this, &var_handler);
+      Node* maybe_handler =
+          LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
+      GotoIf(TaggedIsSmi(maybe_handler), notfound);
+      Node* handler_map = LoadMap(maybe_handler);
+      GotoIf(WordEqual(handler_map, Tuple3MapConstant()), &tuple3);
+      GotoIf(WordEqual(handler_map, FixedArrayMapConstant()), &fixedarray);
+
+      // TODO(jkummerow): Consider implementing TransitionArray search.
+      Goto(notfound);
+
+      VARIABLE(var_transition_cell, MachineRepresentation::kTagged);
+      Label check_key(this, &var_transition_cell);
+      BIND(&tuple3);
+      {
+        var_transition_cell.Bind(LoadObjectField(
+            maybe_handler, StoreHandler::kTransitionCellOffset));
+        Goto(&check_key);
+      }
+
+      BIND(&fixedarray);
+      {
+        var_transition_cell.Bind(LoadFixedArrayElement(
+            maybe_handler, StoreHandler::kTransitionCellIndex));
+        Goto(&check_key);
+      }
+
+      BIND(&check_key);
+      {
+        Node* transition = LoadWeakCellValue(var_transition_cell.value(), slow);
+        Node* transition_bitfield3 = LoadMapBitField3(transition);
+        GotoIf(IsSetWord32<Map::Deprecated>(transition_bitfield3), slow);
+        Node* nof =
+            DecodeWord32<Map::NumberOfOwnDescriptorsBits>(transition_bitfield3);
+        Node* last_added = Int32Sub(nof, Int32Constant(1));
+        Node* transition_descriptors = LoadMapDescriptors(transition);
+        Node* key = DescriptorArrayGetKey(transition_descriptors, last_added);
+        GotoIf(WordNotEqual(key, p->name), slow);
+        var_handler.Bind(maybe_handler);
+        Goto(&found_handler);
+      }
+
+      BIND(&found_handler);
+      {
+        Comment("KeyedStoreGeneric found transition handler");
+        HandleStoreICHandlerCase(p, var_handler.value(), notfound);
       }
     }
   }
@@ -805,6 +854,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index), not_found(this);
+    Node* properties = LoadSlowProperties(receiver);
     NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
                                          &var_name_index, &not_found);
     BIND(&dictionary_found);
@@ -982,9 +1032,9 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
          &miss);
 
   // Optimistically write the state transition to the vector.
-  StoreFixedArrayElement(vector, slot,
-                         LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
-                         SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  StoreFeedbackVectorSlot(vector, slot,
+                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                          SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   EmitGenericPropertyStore(receiver, receiver_map, &p, &miss, language_mode,
@@ -993,9 +1043,9 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
   BIND(&miss);
   {
     // Undo the optimistic state transition.
-    StoreFixedArrayElement(vector, slot,
-                           LoadRoot(Heap::kuninitialized_symbolRootIndex),
-                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    StoreFeedbackVectorSlot(vector, slot,
+                            LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                            SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);
   }

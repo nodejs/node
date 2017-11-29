@@ -86,14 +86,14 @@ class GraphAssembler;
 enum class GraphAssemblerLabelType { kDeferred, kNonDeferred };
 
 // Label with statically known count of incoming branches and phis.
-template <size_t MergeCount, size_t VarCount = 0u>
-class GraphAssemblerStaticLabel {
+template <size_t VarCount>
+class GraphAssemblerLabel {
  public:
   Node* PhiAt(size_t index);
 
   template <typename... Reps>
-  explicit GraphAssemblerStaticLabel(GraphAssemblerLabelType is_deferred,
-                                     Reps... reps)
+  explicit GraphAssemblerLabel(GraphAssemblerLabelType is_deferred,
+                               Reps... reps)
       : is_deferred_(is_deferred == GraphAssemblerLabelType::kDeferred) {
     STATIC_ASSERT(VarCount == sizeof...(reps));
     MachineRepresentation reps_array[] = {MachineRepresentation::kNone,
@@ -103,100 +103,25 @@ class GraphAssemblerStaticLabel {
     }
   }
 
-  ~GraphAssemblerStaticLabel() { DCHECK(IsBound() || MergedCount() == 0); }
+  ~GraphAssemblerLabel() { DCHECK(IsBound() || merged_count_ == 0); }
 
  private:
   friend class GraphAssembler;
 
   void SetBound() {
     DCHECK(!IsBound());
-    DCHECK_EQ(merged_count_, MergeCount);
     is_bound_ = true;
   }
   bool IsBound() const { return is_bound_; }
-
-  size_t PhiCount() const { return VarCount; }
-  size_t MaxMergeCount() const { return MergeCount; }
-  size_t MergedCount() const { return merged_count_; }
   bool IsDeferred() const { return is_deferred_; }
-
-  // For each phi, the buffer must have at least MaxMergeCount() + 1
-  // node entries.
-  Node** GetBindingsPtrFor(size_t phi_index) {
-    DCHECK_LT(phi_index, PhiCount());
-    return &bindings_[phi_index * (MergeCount + 1)];
-  }
-  void SetBinding(size_t phi_index, size_t merge_index, Node* binding) {
-    DCHECK_LT(phi_index, PhiCount());
-    DCHECK_LT(merge_index, MergeCount);
-    bindings_[phi_index * (MergeCount + 1) + merge_index] = binding;
-  }
-  MachineRepresentation GetRepresentationFor(size_t phi_index) {
-    DCHECK_LT(phi_index, PhiCount());
-    return representations_[phi_index];
-  }
-  // The controls buffer must have at least MaxMergeCount() entries.
-  Node** GetControlsPtr() { return controls_; }
-  // The effects buffer must have at least MaxMergeCount() + 1 entries.
-  Node** GetEffectsPtr() { return effects_; }
-  void IncrementMergedCount() { merged_count_++; }
 
   bool is_bound_ = false;
   bool is_deferred_;
   size_t merged_count_ = 0;
-  Node* effects_[MergeCount + 1];  // Extra element for control edge,
-                                   // so that we can use the array to
-                                   // construct EffectPhi.
-  Node* controls_[MergeCount];
-  Node* bindings_[(MergeCount + 1) * VarCount + 1];
+  Node* effect_;
+  Node* control_;
+  Node* bindings_[VarCount + 1];
   MachineRepresentation representations_[VarCount + 1];
-};
-
-// General label (with zone allocated buffers for incoming branches and phi
-// inputs).
-class GraphAssemblerLabel {
- public:
-  Node* PhiAt(size_t index);
-
-  GraphAssemblerLabel(GraphAssemblerLabelType is_deferred, size_t merge_count,
-                      size_t var_count, MachineRepresentation* representations,
-                      Zone* zone);
-
-  ~GraphAssemblerLabel();
-
- private:
-  friend class GraphAssembler;
-
-  void SetBound() {
-    DCHECK(!is_bound_);
-    is_bound_ = true;
-  }
-  bool IsBound() const { return is_bound_; }
-  size_t PhiCount() const { return var_count_; }
-  size_t MaxMergeCount() const { return max_merge_count_; }
-  size_t MergedCount() const { return merged_count_; }
-  bool IsDeferred() const { return is_deferred_; }
-
-  // For each phi, the buffer must have at least MaxMergeCount() + 1
-  // node entries.
-  Node** GetBindingsPtrFor(size_t phi_index);
-  void SetBinding(size_t phi_index, size_t merge_index, Node* binding);
-  MachineRepresentation GetRepresentationFor(size_t phi_index);
-  // The controls buffer must have at least MaxMergeCount() entries.
-  Node** GetControlsPtr();
-  // The effects buffer must have at least MaxMergeCount() + 1 entries.
-  Node** GetEffectsPtr();
-  void IncrementMergedCount() { merged_count_++; }
-
-  bool is_bound_ = false;
-  bool is_deferred_;
-  size_t merged_count_ = 0;
-  size_t max_merge_count_;
-  size_t var_count_;
-  Node** effects_ = nullptr;
-  Node** controls_ = nullptr;
-  Node** bindings_ = nullptr;
-  MachineRepresentation* representations_ = nullptr;
 };
 
 class GraphAssembler {
@@ -205,32 +130,23 @@ class GraphAssembler {
 
   void Reset(Node* effect, Node* control);
 
-  // Create non-deferred label with statically known number of incoming
-  // gotos/branches.
-  template <size_t MergeCount, typename... Reps>
-  static GraphAssemblerStaticLabel<MergeCount, sizeof...(Reps)> MakeLabel(
-      Reps... reps) {
-    return GraphAssemblerStaticLabel<MergeCount, sizeof...(Reps)>(
-        GraphAssemblerLabelType::kNonDeferred, reps...);
-  }
-
-  // Create deferred label with statically known number of incoming
-  // gotos/branches.
-  template <size_t MergeCount, typename... Reps>
-  static GraphAssemblerStaticLabel<MergeCount, sizeof...(Reps)>
-  MakeDeferredLabel(Reps... reps) {
-    return GraphAssemblerStaticLabel<MergeCount, sizeof...(Reps)>(
-        GraphAssemblerLabelType::kDeferred, reps...);
-  }
-
-  // Create label with number of incoming branches supplied at runtime.
+  // Create label.
   template <typename... Reps>
-  GraphAssemblerLabel MakeLabelFor(GraphAssemblerLabelType is_deferred,
-                                   size_t merge_count, Reps... reps) {
-    MachineRepresentation reps_array[] = {MachineRepresentation::kNone,
-                                          reps...};
-    return GraphAssemblerLabel(is_deferred, merge_count, sizeof...(reps),
-                               &(reps_array[1]), temp_zone());
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
+      GraphAssemblerLabelType is_deferred, Reps... reps) {
+    return GraphAssemblerLabel<sizeof...(Reps)>(is_deferred, reps...);
+  }
+
+  // Convenience wrapper for creating non-deferred labels.
+  template <typename... Reps>
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
+    return MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, reps...);
+  }
+
+  // Convenience wrapper for creating deferred labels.
+  template <typename... Reps>
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
+    return MakeLabelFor(GraphAssemblerLabelType::kDeferred, reps...);
   }
 
   // Value creation.
@@ -260,6 +176,9 @@ class GraphAssembler {
   CHECKED_ASSEMBLER_MACH_BINOP_LIST(BINOP_DECL)
 #undef BINOP_DECL
 
+  // Debugging
+  Node* DebugBreak();
+
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);
@@ -278,41 +197,43 @@ class GraphAssembler {
 
   Node* DeoptimizeIf(DeoptimizeReason reason, Node* condition,
                      Node* frame_state);
-  Node* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
-                         Node* condition, Node* frame_state);
-  Node* DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
-                         Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
+                        Node* condition, Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
+                        Node* frame_state);
   template <typename... Args>
   Node* Call(const CallDescriptor* desc, Args... args);
   template <typename... Args>
   Node* Call(const Operator* op, Args... args);
 
   // Basic control operations.
-  template <class LabelType>
-  void Bind(LabelType* label);
+  template <size_t VarCount>
+  void Bind(GraphAssemblerLabel<VarCount>* label);
 
-  template <class LabelType, typename... vars>
-  void Goto(LabelType* label, vars...);
+  template <typename... Vars>
+  void Goto(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars...);
 
-  void Branch(Node* condition, GraphAssemblerStaticLabel<1>* if_true,
-              GraphAssemblerStaticLabel<1>* if_false);
+  void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
+              GraphAssemblerLabel<0u>* if_false);
 
   // Control helpers.
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.
-  template <class LabelType, typename... vars>
-  void GotoIf(Node* condition, LabelType* label, vars...);
+  template <typename... Vars>
+  void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+              Vars...);
 
-  // {GotoUnless(c, l)} is equivalent to {Branch(c, templ, l);Bind(templ)}.
-  template <class LabelType, typename... vars>
-  void GotoUnless(Node* condition, LabelType* label, vars...);
+  // {GotoIfNot(c, l)} is equivalent to {Branch(c, templ, l);Bind(templ)}.
+  template <typename... Vars>
+  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+                 Vars...);
 
   // Extractors (should be only used when destructing/resetting the assembler).
   Node* ExtractCurrentControl();
   Node* ExtractCurrentEffect();
 
  private:
-  template <class LabelType, typename... Vars>
-  void MergeState(LabelType label, Vars... vars);
+  template <typename... Vars>
+  void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
 
   Operator const* ToNumberOperator();
 
@@ -332,70 +253,78 @@ class GraphAssembler {
   Node* current_control_;
 };
 
-template <size_t MergeCount, size_t VarCount>
-Node* GraphAssemblerStaticLabel<MergeCount, VarCount>::PhiAt(size_t index) {
+template <size_t VarCount>
+Node* GraphAssemblerLabel<VarCount>::PhiAt(size_t index) {
   DCHECK(IsBound());
-  return GetBindingsPtrFor(index)[0];
+  DCHECK_LT(index, VarCount);
+  return bindings_[index];
 }
 
-template <class LabelType, typename... Vars>
-void GraphAssembler::MergeState(LabelType label, Vars... vars) {
+template <typename... Vars>
+void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
+                                Vars... vars) {
   DCHECK(!label->IsBound());
-  size_t merged_count = label->MergedCount();
-  DCHECK_LT(merged_count, label->MaxMergeCount());
-  DCHECK_EQ(label->PhiCount(), sizeof...(vars));
-  label->GetEffectsPtr()[merged_count] = current_effect_;
-  label->GetControlsPtr()[merged_count] = current_control_;
-  // We need to start with nullptr to avoid 0-length arrays.
+
+  int merged_count = static_cast<int>(label->merged_count_);
   Node* var_array[] = {nullptr, vars...};
-  for (size_t i = 0; i < sizeof...(vars); i++) {
-    label->SetBinding(i, merged_count, var_array[i + 1]);
-  }
-  label->IncrementMergedCount();
-}
+  if (merged_count == 0) {
+    // Just set the control, effect and variables directly.
+    label->control_ = current_control_;
+    label->effect_ = current_effect_;
+    for (size_t i = 0; i < sizeof...(vars); i++) {
+      label->bindings_[i] = var_array[i + 1];
+    }
+  } else if (merged_count == 1) {
+    // Create merge, effect phi and a phi for each variable.
+    label->control_ =
+        graph()->NewNode(common()->Merge(2), label->control_, current_control_);
+    label->effect_ = graph()->NewNode(common()->EffectPhi(2), label->effect_,
+                                      current_effect_, label->control_);
+    for (size_t i = 0; i < sizeof...(vars); i++) {
+      label->bindings_[i] = graph()->NewNode(
+          common()->Phi(label->representations_[i], 2), label->bindings_[i],
+          var_array[i + 1], label->control_);
+    }
+  } else {
+    // Append to the merge, effect phi and phis.
+    DCHECK_EQ(IrOpcode::kMerge, label->control_->opcode());
+    label->control_->AppendInput(graph()->zone(), current_control_);
+    NodeProperties::ChangeOp(label->control_,
+                             common()->Merge(merged_count + 1));
 
-template <class LabelType>
-void GraphAssembler::Bind(LabelType* label) {
-  DCHECK(current_control_ == nullptr);
-  DCHECK(current_effect_ == nullptr);
-  DCHECK(label->MaxMergeCount() > 0);
-  DCHECK_EQ(label->MaxMergeCount(), label->MergedCount());
+    DCHECK_EQ(IrOpcode::kEffectPhi, label->effect_->opcode());
+    label->effect_->ReplaceInput(merged_count, current_effect_);
+    label->effect_->AppendInput(graph()->zone(), label->control_);
+    NodeProperties::ChangeOp(label->effect_,
+                             common()->EffectPhi(merged_count + 1));
 
-  int merge_count = static_cast<int>(label->MaxMergeCount());
-  if (merge_count == 1) {
-    current_control_ = label->GetControlsPtr()[0];
-    current_effect_ = label->GetEffectsPtr()[0];
-    label->SetBound();
-    return;
-  }
-
-  current_control_ = graph()->NewNode(common()->Merge(merge_count), merge_count,
-                                      label->GetControlsPtr());
-
-  Node** effects = label->GetEffectsPtr();
-  current_effect_ = effects[0];
-  for (size_t i = 1; i < label->MaxMergeCount(); i++) {
-    if (current_effect_ != effects[i]) {
-      effects[label->MaxMergeCount()] = current_control_;
-      current_effect_ = graph()->NewNode(common()->EffectPhi(merge_count),
-                                         merge_count + 1, effects);
-      break;
+    for (size_t i = 0; i < sizeof...(vars); i++) {
+      DCHECK_EQ(IrOpcode::kPhi, label->bindings_[i]->opcode());
+      label->bindings_[i]->ReplaceInput(merged_count, var_array[i + 1]);
+      label->bindings_[i]->AppendInput(graph()->zone(), label->control_);
+      NodeProperties::ChangeOp(
+          label->bindings_[i],
+          common()->Phi(label->representations_[i], merged_count + 1));
     }
   }
+  label->merged_count_++;
+}
 
-  for (size_t var = 0; var < label->PhiCount(); var++) {
-    Node** bindings = label->GetBindingsPtrFor(var);
-    bindings[label->MaxMergeCount()] = current_control_;
-    bindings[0] = graph()->NewNode(
-        common()->Phi(label->GetRepresentationFor(var), merge_count),
-        merge_count + 1, bindings);
-  }
+template <size_t VarCount>
+void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
+  DCHECK(current_control_ == nullptr);
+  DCHECK(current_effect_ == nullptr);
+  DCHECK(label->merged_count_ > 0);
+
+  current_control_ = label->control_;
+  current_effect_ = label->effect_;
 
   label->SetBound();
 }
 
-template <class LabelType, typename... Vars>
-void GraphAssembler::Goto(LabelType* label, Vars... vars) {
+template <typename... Vars>
+void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
+                          Vars... vars) {
   DCHECK_NOT_NULL(current_control_);
   DCHECK_NOT_NULL(current_effect_);
   MergeState(label, vars...);
@@ -403,8 +332,10 @@ void GraphAssembler::Goto(LabelType* label, Vars... vars) {
   current_effect_ = nullptr;
 }
 
-template <class LabelType, typename... Vars>
-void GraphAssembler::GotoIf(Node* condition, LabelType* label, Vars... vars) {
+template <typename... Vars>
+void GraphAssembler::GotoIf(Node* condition,
+                            GraphAssemblerLabel<sizeof...(Vars)>* label,
+                            Vars... vars) {
   BranchHint hint =
       label->IsDeferred() ? BranchHint::kFalse : BranchHint::kNone;
   Node* branch =
@@ -416,9 +347,10 @@ void GraphAssembler::GotoIf(Node* condition, LabelType* label, Vars... vars) {
   current_control_ = graph()->NewNode(common()->IfFalse(), branch);
 }
 
-template <class LabelType, typename... Vars>
-void GraphAssembler::GotoUnless(Node* condition, LabelType* label,
-                                Vars... vars) {
+template <typename... Vars>
+void GraphAssembler::GotoIfNot(Node* condition,
+                               GraphAssemblerLabel<sizeof...(Vars)>* label,
+                               Vars... vars) {
   BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
   Node* branch =
       graph()->NewNode(common()->Branch(hint), condition, current_control_);

@@ -20,20 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "stream_wrap.h"
-#include "stream_base.h"
 #include "stream_base-inl.h"
 
 #include "env-inl.h"
-#include "env.h"
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_counters.h"
 #include "pipe_wrap.h"
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "tcp_wrap.h"
 #include "udp_wrap.h"
-#include "util.h"
 #include "util-inl.h"
 
 #include <stdlib.h>  // abort()
@@ -104,6 +100,7 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
 void LibuvStreamWrap::AddMethods(Environment* env,
                                  v8::Local<v8::FunctionTemplate> target,
                                  int flags) {
+  env->SetProtoMethod(target, "updateWriteQueueSize", UpdateWriteQueueSize);
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
   StreamBase::AddMethods<LibuvStreamWrap>(env, target, flags);
 }
@@ -144,11 +141,14 @@ bool LibuvStreamWrap::IsIPCPipe() {
 }
 
 
-void LibuvStreamWrap::UpdateWriteQueueSize() {
+uint32_t LibuvStreamWrap::UpdateWriteQueueSize() {
   HandleScope scope(env()->isolate());
-  Local<Integer> write_queue_size =
-      Integer::NewFromUnsigned(env()->isolate(), stream()->write_queue_size);
-  object()->Set(env()->write_queue_size_string(), write_queue_size);
+  uint32_t write_queue_size = stream()->write_queue_size;
+  object()->Set(env()->context(),
+                env()->write_queue_size_string(),
+                Integer::NewFromUnsigned(env()->isolate(),
+                                         write_queue_size)).FromJust();
+  return write_queue_size;
 }
 
 
@@ -187,7 +187,7 @@ static Local<Object> AcceptHandle(Environment* env, LibuvStreamWrap* parent) {
   Local<Object> wrap_obj;
   UVType* handle;
 
-  wrap_obj = WrapType::Instantiate(env, parent);
+  wrap_obj = WrapType::Instantiate(env, parent, WrapType::SOCKET);
   if (wrap_obj.IsEmpty())
     return Local<Object>();
 
@@ -270,6 +270,16 @@ void LibuvStreamWrap::OnRead(uv_stream_t* handle,
   }
 
   static_cast<StreamBase*>(wrap)->OnRead(nread, buf, type);
+}
+
+
+void LibuvStreamWrap::UpdateWriteQueueSize(
+    const FunctionCallbackInfo<Value>& args) {
+  LibuvStreamWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  uint32_t write_queue_size = wrap->UpdateWriteQueueSize();
+  args.GetReturnValue().Set(write_queue_size);
 }
 
 
@@ -388,5 +398,5 @@ void LibuvStreamWrap::OnAfterWriteImpl(WriteWrap* w, void* ctx) {
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(stream_wrap,
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(stream_wrap,
                                   node::LibuvStreamWrap::Initialize)

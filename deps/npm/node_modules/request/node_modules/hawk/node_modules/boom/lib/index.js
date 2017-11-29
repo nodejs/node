@@ -1,16 +1,80 @@
+'use strict';
+
 // Load modules
 
-var Http = require('http');
-var Hoek = require('hoek');
+const Hoek = require('hoek');
 
 
 // Declare internals
 
-var internals = {};
+const internals = {
+    STATUS_CODES: Object.setPrototypeOf({
+        '100': 'Continue',
+        '101': 'Switching Protocols',
+        '102': 'Processing',
+        '200': 'OK',
+        '201': 'Created',
+        '202': 'Accepted',
+        '203': 'Non-Authoritative Information',
+        '204': 'No Content',
+        '205': 'Reset Content',
+        '206': 'Partial Content',
+        '207': 'Multi-Status',
+        '300': 'Multiple Choices',
+        '301': 'Moved Permanently',
+        '302': 'Moved Temporarily',
+        '303': 'See Other',
+        '304': 'Not Modified',
+        '305': 'Use Proxy',
+        '307': 'Temporary Redirect',
+        '400': 'Bad Request',
+        '401': 'Unauthorized',
+        '402': 'Payment Required',
+        '403': 'Forbidden',
+        '404': 'Not Found',
+        '405': 'Method Not Allowed',
+        '406': 'Not Acceptable',
+        '407': 'Proxy Authentication Required',
+        '408': 'Request Time-out',
+        '409': 'Conflict',
+        '410': 'Gone',
+        '411': 'Length Required',
+        '412': 'Precondition Failed',
+        '413': 'Request Entity Too Large',
+        '414': 'Request-URI Too Large',
+        '415': 'Unsupported Media Type',
+        '416': 'Requested Range Not Satisfiable',
+        '417': 'Expectation Failed',
+        '418': 'I\'m a teapot',
+        '422': 'Unprocessable Entity',
+        '423': 'Locked',
+        '424': 'Failed Dependency',
+        '425': 'Unordered Collection',
+        '426': 'Upgrade Required',
+        '428': 'Precondition Required',
+        '429': 'Too Many Requests',
+        '431': 'Request Header Fields Too Large',
+        '451': 'Unavailable For Legal Reasons',
+        '500': 'Internal Server Error',
+        '501': 'Not Implemented',
+        '502': 'Bad Gateway',
+        '503': 'Service Unavailable',
+        '504': 'Gateway Time-out',
+        '505': 'HTTP Version Not Supported',
+        '506': 'Variant Also Negotiates',
+        '507': 'Insufficient Storage',
+        '509': 'Bandwidth Limit Exceeded',
+        '510': 'Not Extended',
+        '511': 'Network Authentication Required'
+    }, null)
+};
+
 
 exports.wrap = function (error, statusCode, message) {
 
     Hoek.assert(error instanceof Error, 'Cannot wrap non-Error object');
+    Hoek.assert(!error.isBoom || (!statusCode && !message), 'Cannot provide statusCode or message with boom error');
+
     return (error.isBoom ? error : internals.initialize(error, statusCode || 500, message));
 };
 
@@ -20,18 +84,27 @@ exports.create = function (statusCode, message, data) {
     return internals.create(statusCode, message, data, exports.create);
 };
 
+
 internals.create = function (statusCode, message, data, ctor) {
 
-    var error = new Error(message ? message : undefined);       // Avoids settings null message
+    if (message instanceof Error) {
+        if (data) {
+            message.data = data;
+        }
+        return exports.wrap(message, statusCode);
+    }
+
+    const error = new Error(message ? message : undefined);       // Avoids settings null message
     Error.captureStackTrace(error, ctor);                       // Filter the stack to our external API
     error.data = data || null;
     internals.initialize(error, statusCode);
     return error;
 };
 
+
 internals.initialize = function (error, statusCode, message) {
 
-    var numberCode = parseInt(statusCode, 10);
+    const numberCode = parseInt(statusCode, 10);
     Hoek.assert(!isNaN(numberCode) && numberCode >= 400, 'First argument must be a number (400+):', statusCode);
 
     error.isBoom = true;
@@ -67,7 +140,7 @@ internals.initialize = function (error, statusCode, message) {
 internals.reformat = function () {
 
     this.output.payload.statusCode = this.output.statusCode;
-    this.output.payload.error = Http.STATUS_CODES[this.output.statusCode] || 'Unknown';
+    this.output.payload.error = internals.STATUS_CODES[this.output.statusCode] || 'Unknown';
 
     if (this.output.statusCode === 500) {
         this.output.payload.message = 'An internal server error occurred';              // Hide actual error from user
@@ -88,15 +161,13 @@ exports.badRequest = function (message, data) {
 
 exports.unauthorized = function (message, scheme, attributes) {          // Or function (message, wwwAuthenticate[])
 
-    var err = internals.create(401, message, undefined, exports.unauthorized);
+    const err = internals.create(401, message, undefined, exports.unauthorized);
 
     if (!scheme) {
         return err;
     }
 
-    var wwwAuthenticate = '';
-    var i = 0;
-    var il = 0;
+    let wwwAuthenticate = '';
 
     if (typeof scheme === 'string') {
 
@@ -109,29 +180,36 @@ exports.unauthorized = function (message, scheme, attributes) {          // Or f
         }
 
         if (attributes) {
-            var names = Object.keys(attributes);
-            for (i = 0, il = names.length; i < il; ++i) {
-                var name = names[i];
-                if (i) {
-                    wwwAuthenticate += ',';
-                }
+            if (typeof attributes === 'string') {
+                wwwAuthenticate = wwwAuthenticate + ' ' + Hoek.escapeHeaderAttribute(attributes);
+                err.output.payload.attributes = attributes;
+            }
+            else {
+                const names = Object.keys(attributes);
+                for (let i = 0; i < names.length; ++i) {
+                    const name = names[i];
+                    if (i) {
+                        wwwAuthenticate = wwwAuthenticate + ',';
+                    }
 
-                var value = attributes[name];
-                if (value === null ||
-                    value === undefined) {              // Value can be zero
+                    let value = attributes[name];
+                    if (value === null ||
+                        value === undefined) {              // Value can be zero
 
-                    value = '';
+                        value = '';
+                    }
+                    wwwAuthenticate = wwwAuthenticate + ' ' + name + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
+                    err.output.payload.attributes[name] = value;
                 }
-                wwwAuthenticate += ' ' + name + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
-                err.output.payload.attributes[name] = value;
             }
         }
 
+
         if (message) {
             if (attributes) {
-                wwwAuthenticate += ',';
+                wwwAuthenticate = wwwAuthenticate + ',';
             }
-            wwwAuthenticate += ' error="' + Hoek.escapeHeaderAttribute(message) + '"';
+            wwwAuthenticate = wwwAuthenticate + ' error="' + Hoek.escapeHeaderAttribute(message) + '"';
             err.output.payload.attributes.error = message;
         }
         else {
@@ -142,19 +220,25 @@ exports.unauthorized = function (message, scheme, attributes) {          // Or f
 
         // function (message, wwwAuthenticate[])
 
-        var wwwArray = scheme;
-        for (i = 0, il = wwwArray.length; i < il; ++i) {
+        const wwwArray = scheme;
+        for (let i = 0; i < wwwArray.length; ++i) {
             if (i) {
-                wwwAuthenticate += ', ';
+                wwwAuthenticate = wwwAuthenticate + ', ';
             }
 
-            wwwAuthenticate += wwwArray[i];
+            wwwAuthenticate = wwwAuthenticate + wwwArray[i];
         }
     }
 
     err.output.headers['WWW-Authenticate'] = wwwAuthenticate;
 
     return err;
+};
+
+
+exports.paymentRequired = function (message, data) {
+
+    return internals.create(402, message, data, exports.paymentRequired);
 };
 
 
@@ -170,9 +254,19 @@ exports.notFound = function (message, data) {
 };
 
 
-exports.methodNotAllowed = function (message, data) {
+exports.methodNotAllowed = function (message, data, allow) {
 
-    return internals.create(405, message, data, exports.methodNotAllowed);
+    const err = internals.create(405, message, data, exports.methodNotAllowed);
+
+    if (typeof allow === 'string') {
+        allow = [allow];
+    }
+
+    if (Array.isArray(allow)) {
+        err.output.headers.Allow = allow.join(', ');
+    }
+
+    return err;
 };
 
 
@@ -247,9 +341,22 @@ exports.expectationFailed = function (message, data) {
     return internals.create(417, message, data, exports.expectationFailed);
 };
 
+
+exports.teapot = function (message, data) {
+
+    return internals.create(418, message, data, exports.teapot);
+};
+
+
 exports.badData = function (message, data) {
 
     return internals.create(422, message, data, exports.badData);
+};
+
+
+exports.locked = function (message, data) {
+
+    return internals.create(423, message, data, exports.locked);
 };
 
 
@@ -265,6 +372,12 @@ exports.tooManyRequests = function (message, data) {
 };
 
 
+exports.illegal = function (message, data) {
+
+    return internals.create(451, message, data, exports.illegal);
+};
+
+
 // 5xx Server Errors
 
 exports.internal = function (message, data, statusCode) {
@@ -272,12 +385,14 @@ exports.internal = function (message, data, statusCode) {
     return internals.serverError(message, data, statusCode, exports.internal);
 };
 
+
 internals.serverError = function (message, data, statusCode, ctor) {
 
-    var error;
+    let error;
     if (data instanceof Error) {
         error = exports.wrap(data, statusCode, message);
-    } else {
+    }
+    else {
         error = internals.create(statusCode || 500, message, undefined, ctor);
         error.data = data;
     }
@@ -298,9 +413,9 @@ exports.badGateway = function (message, data) {
 };
 
 
-exports.serverTimeout = function (message, data) {
+exports.serverUnavailable = function (message, data) {
 
-    return internals.serverError(message, data, 503, exports.serverTimeout);
+    return internals.serverError(message, data, 503, exports.serverUnavailable);
 };
 
 
@@ -312,7 +427,7 @@ exports.gatewayTimeout = function (message, data) {
 
 exports.badImplementation = function (message, data) {
 
-    var err = internals.serverError(message, data, 500, exports.badImplementation);
+    const err = internals.serverError(message, data, 500, exports.badImplementation);
     err.isDeveloperError = true;
     return err;
 };

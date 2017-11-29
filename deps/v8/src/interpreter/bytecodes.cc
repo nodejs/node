@@ -38,34 +38,59 @@ const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
 #undef ENTRY
 };
 
-const int Bytecodes::kBytecodeSizes[][3] = {
-#define ENTRY(Name, ...)                            \
-  { BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,  \
-    BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,  \
-    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize },
+const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
-};
-
-const OperandSize* const Bytecodes::kOperandSizes[][3] = {
-#define ENTRY(Name, ...)                                    \
-  { BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,  \
-    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,  \
-    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes },
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
 };
 
-const OperandSize Bytecodes::kOperandKindSizes[][3] = {
-#define ENTRY(Name, ...)                                \
-  { OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kSingle>::kOperandSize,  \
-    OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kDouble>::kOperandSize,  \
-    OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kQuadruple>::kOperandSize },
-    OPERAND_TYPE_LIST(ENTRY)
+const OperandSize* const Bytecodes::kOperandSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
 #undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+
+const OperandSize
+Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kSingle>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kDouble>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kQuadruple>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }
 };
 // clang-format on
 

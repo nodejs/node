@@ -39,7 +39,7 @@ void AddAndSetEntry(PositionTableEntry& value,
   value.is_statement = other.is_statement;
 }
 
-// Helper: Substract the offsets from 'other' from 'value'.
+// Helper: Subtract the offsets from 'other' from 'value'.
 void SubtractFromEntry(PositionTableEntry& value,
                        const PositionTableEntry& other) {
   value.code_offset -= other.code_offset;

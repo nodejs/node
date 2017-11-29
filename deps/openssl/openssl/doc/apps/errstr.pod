@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-errstr,
 errstr - lookup error codes
 
 =head1 SYNOPSIS

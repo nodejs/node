@@ -14,6 +14,35 @@ namespace v8 {
 namespace internal {
 
 // static
+LookupIterator LookupIterator::PropertyOrElement(
+    Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
+    bool* success, Handle<JSReceiver> holder, Configuration configuration) {
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    *success = true;
+    return LookupIterator(isolate, receiver, index, holder, configuration);
+  }
+
+  Handle<Name> name;
+  *success = Object::ToName(isolate, key).ToHandle(&name);
+  if (!*success) {
+    DCHECK(isolate->has_pending_exception());
+    // Return an unusable dummy.
+    return LookupIterator(receiver, isolate->factory()->empty_string());
+  }
+
+  if (name->AsArrayIndex(&index)) {
+    LookupIterator it(isolate, receiver, index, holder, configuration);
+    // Here we try to avoid having to rebuild the string later
+    // by storing it on the indexed LookupIterator.
+    it.name_ = name;
+    return it;
+  }
+
+  return LookupIterator(receiver, name, holder, configuration);
+}
+
+// static
 LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  Handle<Object> key,
@@ -42,6 +71,67 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
   }
 
   return LookupIterator(receiver, name, configuration);
+}
+
+// static
+LookupIterator LookupIterator::ForTransitionHandler(
+    Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+    Handle<Object> value, MaybeHandle<Object> handler,
+    Handle<Map> transition_map) {
+  if (handler.is_null()) return LookupIterator(receiver, name);
+
+  PropertyDetails details = PropertyDetails::Empty();
+  bool has_property;
+  if (transition_map->is_dictionary_map()) {
+    details = PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    has_property = false;
+  } else {
+    details = transition_map->GetLastDescriptorDetails();
+    has_property = true;
+  }
+  LookupIterator it(isolate, receiver, name, transition_map, details,
+                    has_property);
+
+  if (!transition_map->is_dictionary_map()) {
+    PropertyConstness new_constness = kConst;
+    if (FLAG_track_constant_fields) {
+      if (it.constness() == kConst) {
+        DCHECK_EQ(kData, it.property_details_.kind());
+        // Check that current value matches new value otherwise we should make
+        // the property mutable.
+        if (!it.IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
+      }
+    } else {
+      new_constness = kMutable;
+    }
+
+    int descriptor_number = transition_map->LastAdded();
+    Handle<Map> new_map = Map::PrepareForDataProperty(
+        transition_map, descriptor_number, new_constness, value);
+    // Reload information; this is no-op if nothing changed.
+    it.property_details_ =
+        new_map->instance_descriptors()->GetDetails(descriptor_number);
+    it.transition_ = new_map;
+  }
+  return it;
+}
+
+LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
+                               Handle<Name> name, Handle<Map> transition_map,
+                               PropertyDetails details, bool has_property)
+    : configuration_(DEFAULT),
+      state_(TRANSITION),
+      has_property_(has_property),
+      interceptor_state_(InterceptorState::kUninitialized),
+      property_details_(details),
+      isolate_(isolate),
+      name_(name),
+      transition_(transition_map),
+      receiver_(receiver),
+      initial_holder_(GetRoot(isolate, receiver)),
+      index_(kMaxUInt32),
+      number_(static_cast<uint32_t>(DescriptorArray::kNotFound)) {
+  holder_ = initial_holder_;
 }
 
 template <bool is_element>
@@ -321,11 +411,13 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
 // Can only be called when the receiver is a JSObject. JSProxy has to be handled
 // via a trap. Adding properties to primitive values is not observable.
-void LookupIterator::PrepareTransitionToDataProperty(
+// Returns true if a new transition has been created, or false if an existing
+// transition was followed.
+bool LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSObject> receiver, Handle<Object> value,
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
-  if (state_ == TRANSITION) return;
+  if (state_ == TRANSITION) return false;
 
   if (!IsElement() && name()->IsPrivate()) {
     attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
@@ -371,11 +463,13 @@ void LookupIterator::PrepareTransitionToDataProperty(
           PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
       transition_ = map;
     }
-    return;
+    return false;
   }
 
+  bool created_new_map;
   Handle<Map> transition = Map::TransitionToDataProperty(
-      map, name_, value, attributes, kDefaultFieldConstness, store_mode);
+      map, name_, value, attributes, kDefaultFieldConstness, store_mode,
+      &created_new_map);
   state_ = TRANSITION;
   transition_ = transition;
 
@@ -387,6 +481,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
   }
+  return created_new_map;
 }
 
 void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
@@ -568,6 +663,12 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   }
 }
 
+bool LookupIterator::HolderIsReceiver() const {
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  // Optimization that only works if configuration_ is not mutable.
+  if (!check_prototype_chain()) return true;
+  return *receiver_ == *holder_;
+}
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);

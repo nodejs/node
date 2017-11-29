@@ -57,7 +57,7 @@ bytecodes: [
   /*   34 E> */ B(StackCheck),
   /*   56 S> */ B(LdaSmi), I8(10),
                 B(Star), R(0),
-  /*   69 S> */ B(Inc), U8(3),
+  /*   69 S> */ B(Inc), U8(0),
                 B(Star), R(0),
                 B(Star), R(1),
   /*   74 S> */ B(Jump), U8(2),

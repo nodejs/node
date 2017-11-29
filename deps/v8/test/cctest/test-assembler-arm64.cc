@@ -9743,7 +9743,7 @@ TEST(fcmp) {
     __ Mrs(x4, NZCV);
     __ Fcmp(s8, 0.0);
     __ Mrs(x5, NZCV);
-    masm.FPTmpList()->set_list(d0.Bit());
+    masm.FPTmpList()->set_list(d0.bit());
     __ Fcmp(s8, 255.0);
     masm.FPTmpList()->set_list(0);
     __ Mrs(x6, NZCV);
@@ -9765,7 +9765,7 @@ TEST(fcmp) {
     __ Mrs(x14, NZCV);
     __ Fcmp(d19, 0.0);
     __ Mrs(x15, NZCV);
-    masm.FPTmpList()->set_list(d0.Bit());
+    masm.FPTmpList()->set_list(d0.bit());
     __ Fcmp(d19, 12.3456);
     masm.FPTmpList()->set_list(0);
     __ Mrs(x16, NZCV);
@@ -12007,29 +12007,29 @@ TEST(register_bit) {
   // teardown.
 
   // Simple tests.
-  CHECK(x0.Bit() == (1UL << 0));
-  CHECK(x1.Bit() == (1UL << 1));
-  CHECK(x10.Bit() == (1UL << 10));
+  CHECK(x0.bit() == (1UL << 0));
+  CHECK(x1.bit() == (1UL << 1));
+  CHECK(x10.bit() == (1UL << 10));
 
   // AAPCS64 definitions.
-  CHECK(fp.Bit() == (1UL << kFramePointerRegCode));
-  CHECK(lr.Bit() == (1UL << kLinkRegCode));
+  CHECK(fp.bit() == (1UL << kFramePointerRegCode));
+  CHECK(lr.bit() == (1UL << kLinkRegCode));
 
   // Fixed (hardware) definitions.
-  CHECK(xzr.Bit() == (1UL << kZeroRegCode));
+  CHECK(xzr.bit() == (1UL << kZeroRegCode));
 
   // Internal ABI definitions.
-  CHECK(jssp.Bit() == (1UL << kJSSPCode));
-  CHECK(csp.Bit() == (1UL << kSPRegInternalCode));
-  CHECK(csp.Bit() != xzr.Bit());
+  CHECK(jssp.bit() == (1UL << kJSSPCode));
+  CHECK(csp.bit() == (1UL << kSPRegInternalCode));
+  CHECK(csp.bit() != xzr.bit());
 
-  // xn.Bit() == wn.Bit() at all times, for the same n.
-  CHECK(x0.Bit() == w0.Bit());
-  CHECK(x1.Bit() == w1.Bit());
-  CHECK(x10.Bit() == w10.Bit());
-  CHECK(jssp.Bit() == wjssp.Bit());
-  CHECK(xzr.Bit() == wzr.Bit());
-  CHECK(csp.Bit() == wcsp.Bit());
+  // xn.bit() == wn.bit() at all times, for the same n.
+  CHECK(x0.bit() == w0.bit());
+  CHECK(x1.bit() == w1.bit());
+  CHECK(x10.bit() == w10.bit());
+  CHECK(jssp.bit() == wjssp.bit());
+  CHECK(xzr.bit() == wzr.bit());
+  CHECK(csp.bit() == wcsp.bit());
 }
 
 
@@ -12061,9 +12061,9 @@ TEST(peek_poke_simple) {
   SETUP();
   START();
 
-  static const RegList x0_to_x3 = x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit();
-  static const RegList x10_to_x13 = x10.Bit() | x11.Bit() |
-                                    x12.Bit() | x13.Bit();
+  static const RegList x0_to_x3 = x0.bit() | x1.bit() | x2.bit() | x3.bit();
+  static const RegList x10_to_x13 =
+      x10.bit() | x11.bit() | x12.bit() | x13.bit();
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -12151,35 +12151,35 @@ TEST(peek_poke_unaligned) {
   //    x0-x6 should be unchanged.
   //    w10-w12 should contain the lower words of x0-x2.
   __ Poke(x0, 1);
-  Clobber(&masm, x0.Bit());
+  Clobber(&masm, x0.bit());
   __ Peek(x0, 1);
   __ Poke(x1, 2);
-  Clobber(&masm, x1.Bit());
+  Clobber(&masm, x1.bit());
   __ Peek(x1, 2);
   __ Poke(x2, 3);
-  Clobber(&masm, x2.Bit());
+  Clobber(&masm, x2.bit());
   __ Peek(x2, 3);
   __ Poke(x3, 4);
-  Clobber(&masm, x3.Bit());
+  Clobber(&masm, x3.bit());
   __ Peek(x3, 4);
   __ Poke(x4, 5);
-  Clobber(&masm, x4.Bit());
+  Clobber(&masm, x4.bit());
   __ Peek(x4, 5);
   __ Poke(x5, 6);
-  Clobber(&masm, x5.Bit());
+  Clobber(&masm, x5.bit());
   __ Peek(x5, 6);
   __ Poke(x6, 7);
-  Clobber(&masm, x6.Bit());
+  Clobber(&masm, x6.bit());
   __ Peek(x6, 7);
 
   __ Poke(w0, 1);
-  Clobber(&masm, w10.Bit());
+  Clobber(&masm, w10.bit());
   __ Peek(w10, 1);
   __ Poke(w1, 2);
-  Clobber(&masm, w11.Bit());
+  Clobber(&masm, w11.bit());
   __ Peek(w11, 2);
   __ Poke(w2, 3);
-  Clobber(&masm, w12.Bit());
+  Clobber(&masm, w12.bit());
   __ Peek(w12, 3);
 
   __ Drop(4);
@@ -12360,7 +12360,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   // Registers in the TmpList can be used by the macro assembler for debug code
   // (for example in 'Pop'), so we can't use them here. We can't use jssp
   // because it will be the stack pointer for this test.
-  static RegList const allowed = ~(masm.TmpList()->list() | jssp.Bit());
+  static RegList const allowed = ~(masm.TmpList()->list() | jssp.bit());
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -12716,7 +12716,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   // example in 'Pop'), so we can't use them here. We can't use jssp because it
   // will be the stack pointer for this test.
   static RegList const allowed =
-      ~(x8.Bit() | x9.Bit() | jssp.Bit() | xzr.Bit());
+      ~(x8.bit() | x9.bit() | jssp.bit() | xzr.bit());
   // Work out which registers to use, based on reg_size.
   Register r[10];
   Register x[10];
@@ -12725,15 +12725,15 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   // Calculate some handy register lists.
   RegList r0_to_r3 = 0;
   for (int i = 0; i <= 3; i++) {
-    r0_to_r3 |= x[i].Bit();
+    r0_to_r3 |= x[i].bit();
   }
   RegList r4_to_r5 = 0;
   for (int i = 4; i <= 5; i++) {
-    r4_to_r5 |= x[i].Bit();
+    r4_to_r5 |= x[i].bit();
   }
   RegList r6_to_r9 = 0;
   for (int i = 6; i <= 9; i++) {
-    r6_to_r9 |= x[i].Bit();
+    r6_to_r9 |= x[i].bit();
   }
 
   // The literal base is chosen to have two useful properties:
@@ -12819,7 +12819,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
   // Work out which registers to use, based on reg_size.
   Register tmp = x8;
-  static RegList const allowed = ~(tmp.Bit() | jssp.Bit());
+  static RegList const allowed = ~(tmp.bit() | jssp.bit());
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -13044,17 +13044,17 @@ TEST(push_pop_csp) {
   __ Mov(x1, 0x1111111111111111UL);
   __ Mov(x0, 0x0000000000000000UL);
   __ Claim(2);
-  __ PushXRegList(x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit());
+  __ PushXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
   __ Push(x3, x2);
-  __ PopXRegList(x0.Bit() | x1.Bit() | x2.Bit() | x3.Bit());
+  __ PopXRegList(x0.bit() | x1.bit() | x2.bit() | x3.bit());
   __ Push(x2, x1, x3, x0);
   __ Pop(x4, x5);
   __ Pop(x6, x7, x8, x9);
 
   __ Claim(2);
-  __ PushWRegList(w0.Bit() | w1.Bit() | w2.Bit() | w3.Bit());
+  __ PushWRegList(w0.bit() | w1.bit() | w2.bit() | w3.bit());
   __ Push(w3, w1, w2, w0);
-  __ PopWRegList(w10.Bit() | w11.Bit() | w12.Bit() | w13.Bit());
+  __ PopWRegList(w10.bit() | w11.bit() | w12.bit() | w13.bit());
   __ Pop(w14, w15, w16, w17);
 
   __ Claim(2);
@@ -13064,12 +13064,12 @@ TEST(push_pop_csp) {
   __ Pop(x22, x23);
 
   __ Claim(2);
-  __ PushXRegList(x1.Bit() | x22.Bit());
-  __ PopXRegList(x24.Bit() | x26.Bit());
+  __ PushXRegList(x1.bit() | x22.bit());
+  __ PopXRegList(x24.bit() | x26.bit());
 
   __ Claim(2);
-  __ PushWRegList(w1.Bit() | w2.Bit() | w4.Bit() | w22.Bit());
-  __ PopWRegList(w25.Bit() | w27.Bit() | w28.Bit() | w29.Bit());
+  __ PushWRegList(w1.bit() | w2.bit() | w4.bit() | w22.bit());
+  __ PopWRegList(w25.bit() | w27.bit() | w28.bit() | w29.bit());
 
   __ Claim(2);
   __ PushXRegList(0);

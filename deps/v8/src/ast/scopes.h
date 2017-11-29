@@ -264,7 +264,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // eval call.
   void RecordEvalCall() {
     scope_calls_eval_ = true;
-    RecordInnerScopeEvalCall();
   }
 
   void RecordInnerScopeEvalCall() {
@@ -363,14 +362,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
 
-  // Information about which scopes calls eval.
-  bool calls_eval() const { return scope_calls_eval_; }
-  bool calls_sloppy_eval() const {
-    return scope_calls_eval_ && is_sloppy(language_mode());
-  }
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
-  bool IsAsmFunction() const;
+  // Returns true if this scope or any inner scopes that might be eagerly
+  // compiled are asm modules.
+  bool ContainsAsmModule() const;
   // Does this scope have the potential to execute declarations non-linearly?
   bool is_nonlinear() const { return scope_nonlinear_; }
 
@@ -467,11 +463,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
-
-  bool replaced_from_parse_task() const { return replaced_from_parse_task_; }
-  void set_replaced_from_parse_task(bool replaced_from_parse_task) {
-    replaced_from_parse_task_ = replaced_from_parse_task;
-  }
 #endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
@@ -556,10 +547,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // True if this scope may contain objects from a temp zone that needs to be
   // fixed up.
   bool needs_migration_;
-
-  // True if scope comes from other zone - as a result of being created in a
-  // parse tasks.
-  bool replaced_from_parse_task_ = false;
 #endif
 
   // Source positions.
@@ -693,6 +680,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
                                         IsClassConstructor(function_kind())));
   }
 
+  bool calls_sloppy_eval() const {
+    return scope_calls_eval_ && is_sloppy(language_mode());
+  }
+
   bool was_lazily_parsed() const { return was_lazily_parsed_; }
 
 #ifdef DEBUG
@@ -713,8 +704,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
-  bool asm_function() const { return asm_function_; }
-  void set_asm_function() { asm_function_ = true; }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);
@@ -858,10 +847,14 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return sloppy_block_function_map_;
   }
 
+  // Replaces the outer scope with the outer_scope_info in |info| if there is
+  // one.
+  void AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate);
+
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
-  static void Analyze(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
+  static void Analyze(ParseInfo* info);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope contents for lazily compiled functions. In particular,
@@ -869,6 +862,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // yet know what they will resolve to since the outer Scopes are incomplete)
   // and recreates them with the correct Zone with ast_node_factory.
   void AnalyzePartially(AstNodeFactory* ast_node_factory);
+
+  // Allocate ScopeInfos for top scope and any inner scopes that need them.
+  // Does nothing if ScopeInfo is already allocated.
+  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate,
+                                 AnalyzeMode mode);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);
@@ -927,7 +925,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(ParseInfo* info, Isolate* isolate, AnalyzeMode mode);
+  void AllocateVariables(ParseInfo* info);
 
   void SetDefaults();
 
@@ -937,8 +935,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_simple_parameters_ : 1;
   // This scope contains an "use asm" annotation.
   bool asm_module_ : 1;
-  // This scope's outer context is an asm module.
-  bool asm_function_ : 1;
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;

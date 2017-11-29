@@ -39,7 +39,7 @@ function F(x) {
 }
 
 // First make CALL IC in F go MEGAMORPHIC and ensure that we put the stub
-// that calls p.f (guarded by a negative dictionary lookup on the reciever)
+// that calls p.f (guarded by a negative dictionary lookup on the receiver)
 // into the stub cache
 assertEquals("p", F(o));
 assertEquals("p", F(o));

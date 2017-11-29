@@ -348,12 +348,12 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  List<SharedFunctionInfo*> functions(2);
+  std::vector<SharedFunctionInfo*> functions;
   frame->GetFunctions(&functions);
-  if (functions.length() > 1) {
-    int inlined_jsframe_index = functions.length() - 1;
+  if (functions.size() > 1) {
+    int inlined_jsframe_index = static_cast<int>(functions.size()) - 1;
     TranslatedState translated_values(frame);
-    translated_values.Prepare(false, frame->fp());
+    translated_values.Prepare(frame->fp());
 
     int argument_count = 0;
     TranslatedFrame* translated_frame =
@@ -941,19 +941,19 @@ MaybeHandle<Object> StoreLookupSlot(
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
-  Handle<Object> holder = context->Lookup(name, context_lookup_flags, &index,
-                                          &attributes, &flag, &mode);
+  bool is_sloppy_function_name;
+  Handle<Object> holder =
+      context->Lookup(name, context_lookup_flags, &index, &attributes, &flag,
+                      &mode, &is_sloppy_function_name);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
   } else if (holder->IsModule()) {
     if ((attributes & READ_ONLY) == 0) {
       Module::StoreVariable(Handle<Module>::cast(holder), index, value);
-    } else if (is_strict(language_mode)) {
-      // Setting read only property in strict mode.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
-                      Object);
+    } else {
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
     }
     return value;
   }
@@ -967,11 +967,9 @@ MaybeHandle<Object> StoreLookupSlot(
     }
     if ((attributes & READ_ONLY) == 0) {
       Handle<Context>::cast(holder)->set(index, *value);
-    } else if (is_strict(language_mode)) {
-      // Setting read only property in strict mode.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
-                      Object);
+    } else if (!is_sloppy_function_name || is_strict(language_mode)) {
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kConstAssign, name), Object);
     }
     return value;
   }

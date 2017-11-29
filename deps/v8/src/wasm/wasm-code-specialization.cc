@@ -11,10 +11,21 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+#endif
+
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
-namespace {
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
@@ -24,6 +35,12 @@ int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   DCHECK_GE(kMaxInt, call_idx);
   return static_cast<int>(call_idx);
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+namespace {
 
 int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
                                        size_t offset_l) {
@@ -67,8 +84,7 @@ bool IsAtWasmDirectCallTarget(RelocIterator& it) {
 
 }  // namespace
 
-CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone)
-    : objects_to_relocate(isolate->heap(), ZoneAllocationPolicy(zone)) {}
+CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
@@ -78,7 +94,6 @@ void CodeSpecialization::RelocateMemoryReferences(Address old_start,
                                                   uint32_t new_size) {
   DCHECK(old_mem_start == nullptr && old_mem_size == 0 &&
          new_mem_start == nullptr && new_mem_size == 0);
-  DCHECK(old_start != new_start || old_size != new_size);
   old_mem_start = old_start;
   old_mem_size = old_size;
   new_mem_start = new_start;
@@ -87,14 +102,12 @@ void CodeSpecialization::RelocateMemoryReferences(Address old_start,
 
 void CodeSpecialization::RelocateGlobals(Address old_start, Address new_start) {
   DCHECK(old_globals_start == 0 && new_globals_start == 0);
-  DCHECK(old_start != 0 || new_start != 0);
   old_globals_start = old_start;
   new_globals_start = new_start;
 }
 
 void CodeSpecialization::PatchTableSize(uint32_t old_size, uint32_t new_size) {
   DCHECK(old_function_table_size == 0 && new_function_table_size == 0);
-  DCHECK(old_size != 0 || new_size != 0);
   old_function_table_size = old_size;
   new_function_table_size = new_size;
 }
@@ -106,11 +119,8 @@ void CodeSpecialization::RelocateDirectCalls(
   relocate_direct_calls_instance = instance;
 }
 
-void CodeSpecialization::RelocateObject(Handle<Object> old_obj,
-                                        Handle<Object> new_obj) {
-  DCHECK(!old_obj.is_null() && !new_obj.is_null());
-  has_objects_to_relocate = true;
-  objects_to_relocate.Set(*old_obj, new_obj);
+void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
+  pointers_to_relocate.insert(std::make_pair(old_ptr, new_ptr));
 }
 
 bool CodeSpecialization::ApplyToWholeInstance(
@@ -121,9 +131,9 @@ bool CodeSpecialization::ApplyToWholeInstance(
   WasmModule* module = compiled_module->module();
   std::vector<WasmFunction>* wasm_functions =
       &compiled_module->module()->functions;
-  DCHECK_EQ(wasm_functions->size() +
-                compiled_module->module()->num_exported_functions,
-            code_table->length());
+  DCHECK_EQ(wasm_functions->size(), code_table->length());
+  DCHECK_EQ(compiled_module->export_wrappers()->length(),
+            compiled_module->module()->num_exported_functions);
 
   bool changed = false;
   int func_index = module->num_imported_functions;
@@ -141,10 +151,12 @@ bool CodeSpecialization::ApplyToWholeInstance(
     // If we patch direct calls, the instance registered for that
     // (relocate_direct_calls_instance) should match the instance we currently
     // patch (instance).
+    int wrapper_index = 0;
     DCHECK_EQ(instance, *relocate_direct_calls_instance);
     for (auto exp : module->export_table) {
       if (exp.kind != kExternalFunction) continue;
-      Code* export_wrapper = Code::cast(code_table->get(func_index));
+      Code* export_wrapper =
+          Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
       DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
       // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
       for (RelocIterator it(export_wrapper,
@@ -160,9 +172,10 @@ bool CodeSpecialization::ApplyToWholeInstance(
         break;
       }
       changed = true;
-      func_index++;
+      ++wrapper_index;
     }
     DCHECK_EQ(code_table->length(), func_index);
+    DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
   }
   return changed;
 }
@@ -177,7 +190,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   bool reloc_globals = old_globals_start || new_globals_start;
   bool patch_table_size = old_function_table_size || new_function_table_size;
   bool reloc_direct_calls = !relocate_direct_calls_instance.is_null();
-  bool reloc_objects = has_objects_to_relocate;
+  bool reloc_pointers = pointers_to_relocate.size() > 0;
 
   int reloc_mode = 0;
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
@@ -188,7 +201,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   add_mode(reloc_globals, RelocInfo::WASM_GLOBAL_REFERENCE);
   add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
-  add_mode(reloc_objects, RelocInfo::EMBEDDED_OBJECT);
+  add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
 
   std::unique_ptr<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
@@ -244,13 +257,12 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
                                        UPDATE_WRITE_BARRIER, icache_flush_mode);
         changed = true;
       } break;
-      case RelocInfo::EMBEDDED_OBJECT: {
-        DCHECK(reloc_objects);
-        Object* old = it.rinfo()->target_object();
-        Handle<Object>* new_obj = objects_to_relocate.Find(old);
-        if (new_obj) {
-          it.rinfo()->set_target_object(HeapObject::cast(**new_obj),
-                                        UPDATE_WRITE_BARRIER,
+      case RelocInfo::WASM_GLOBAL_HANDLE: {
+        DCHECK(reloc_pointers);
+        Address old_ptr = it.rinfo()->global_handle();
+        if (pointers_to_relocate.count(old_ptr) == 1) {
+          Address new_ptr = pointers_to_relocate[old_ptr];
+          it.rinfo()->set_global_handle(code->GetIsolate(), new_ptr,
                                         icache_flush_mode);
           changed = true;
         }

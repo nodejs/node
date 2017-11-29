@@ -25,7 +25,7 @@ void WriteToFile(FILE* file, Isolate* isolate,
       return;
     }
 
-    v8::String::Utf8Value str(str_obj);
+    v8::String::Utf8Value str(isolate, str_obj);
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
@@ -77,7 +77,7 @@ void D8Console::Time(const debug::ConsoleCallArguments& args,
       Shell::ReportException(isolate_, &try_catch);
       return;
     }
-    v8::String::Utf8Value utf8(label);
+    v8::String::Utf8Value utf8(isolate_, label);
     std::string string(*utf8);
     auto find = timers_.find(string);
     if (find != timers_.end()) {
@@ -104,7 +104,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
       Shell::ReportException(isolate_, &try_catch);
       return;
     }
-    v8::String::Utf8Value utf8(label);
+    v8::String::Utf8Value utf8(isolate_, label);
     std::string string(*utf8);
     auto find = timers_.find(string);
     if (find != timers_.end()) {

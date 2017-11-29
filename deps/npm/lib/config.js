@@ -19,7 +19,7 @@ config.usage = usage(
   'npm config set <key> <value>' +
   '\nnpm config get [<key>]' +
   '\nnpm config delete <key>' +
-  '\nnpm config list' +
+  '\nnpm config list [--json]' +
   '\nnpm config edit' +
   '\nnpm set <key> <value>' +
   '\nnpm get [<key>]'
@@ -45,9 +45,11 @@ config.completion = function (opts, cb) {
     case 'rm':
       return cb(null, Object.keys(types))
     case 'edit':
-    case 'list': case 'ls':
+    case 'list':
+    case 'ls':
       return cb(null, [])
-    default: return cb(null, [])
+    default:
+      return cb(null, [])
   }
 }
 
@@ -57,12 +59,21 @@ config.completion = function (opts, cb) {
 function config (args, cb) {
   var action = args.shift()
   switch (action) {
-    case 'set': return set(args[0], args[1], cb)
-    case 'get': return get(args[0], cb)
-    case 'delete': case 'rm': case 'del': return del(args[0], cb)
-    case 'list': case 'ls': return list(cb)
-    case 'edit': return edit(cb)
-    default: return unknown(action, cb)
+    case 'set':
+      return set(args[0], args[1], cb)
+    case 'get':
+      return get(args[0], cb)
+    case 'delete':
+    case 'rm':
+    case 'del':
+      return del(args[0], cb)
+    case 'list':
+    case 'ls':
+      return npm.config.get('json') ? listJson(cb) : list(cb)
+    case 'edit':
+      return edit(cb)
+    default:
+      return unknown(action, cb)
   }
 }
 
@@ -159,13 +170,47 @@ function sort (a, b) {
 }
 
 function publicVar (k) {
-  return !(k.charAt(0) === '_' ||
-           k.indexOf(':_') !== -1 ||
-           types[k] !== types[k])
+  return !(k.charAt(0) === '_' || k.indexOf(':_') !== -1)
 }
 
 function getKeys (data) {
   return Object.keys(data).filter(publicVar).sort(sort)
+}
+
+function listJson (cb) {
+  const publicConf = npm.config.keys.reduce((publicConf, k) => {
+    var value = npm.config.get(k)
+
+    if (publicVar(k) &&
+        // argv is not really config, it's command config
+        k !== 'argv' &&
+        // logstream is a Stream, and would otherwise produce circular refs
+        k !== 'logstream') publicConf[k] = value
+
+    return publicConf
+  }, {})
+
+  output(JSON.stringify(publicConf, null, 2))
+  return cb()
+}
+
+function listFromSource (title, conf, long) {
+  var confKeys = getKeys(conf)
+  var msg = ''
+
+  if (confKeys.length) {
+    msg += '; ' + title + '\n'
+    confKeys.forEach(function (k) {
+      var val = JSON.stringify(conf[k])
+      if (conf[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+      } else msg += k + ' = ' + val + '\n'
+    })
+    msg += '\n'
+  }
+
+  return msg
 }
 
 function list (cb) {
@@ -185,92 +230,22 @@ function list (cb) {
   }
 
   // env configs
-  var env = npm.config.sources.env.data
-  var envKeys = getKeys(env)
-  if (envKeys.length) {
-    msg += '; environment configs\n'
-    envKeys.forEach(function (k) {
-      if (env[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' +
-          JSON.stringify(env[k]) + ' (overridden)\n'
-      } else msg += k + ' = ' + JSON.stringify(env[k]) + '\n'
-    })
-    msg += '\n'
-  }
+  msg += listFromSource('environment configs', npm.config.sources.env.data, long)
 
   // project config file
   var project = npm.config.sources.project
-  var pconf = project.data
-  var ppath = project.path
-  var pconfKeys = getKeys(pconf)
-  if (pconfKeys.length) {
-    msg += '; project config ' + ppath + '\n'
-    pconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(pconf[k])
-      if (pconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
-  }
+  msg += listFromSource('project config ' + project.path, project.data, long)
 
   // user config file
-  var uconf = npm.config.sources.user.data
-  var uconfKeys = getKeys(uconf)
-  if (uconfKeys.length) {
-    msg += '; userconfig ' + npm.config.get('userconfig') + '\n'
-    uconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(uconf[k])
-      if (uconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
-  }
+  msg += listFromSource('userconfig ' + npm.config.get('userconfig'), npm.config.sources.user.data, long)
 
   // global config file
-  var gconf = npm.config.sources.global.data
-  var gconfKeys = getKeys(gconf)
-  if (gconfKeys.length) {
-    msg += '; globalconfig ' + npm.config.get('globalconfig') + '\n'
-    gconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === '_')
-              ? '---sekretz---'
-              : JSON.stringify(gconf[k])
-      if (gconf[k] !== npm.config.get(k)) {
-        if (!long) return
-        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-      } else msg += k + ' = ' + val + '\n'
-    })
-    msg += '\n'
-  }
+  msg += listFromSource('globalconfig ' + npm.config.get('globalconfig'), npm.config.sources.global.data, long)
 
   // builtin config file
   var builtin = npm.config.sources.builtin || {}
   if (builtin && builtin.data) {
-    var bconf = builtin.data
-    var bpath = builtin.path
-    var bconfKeys = getKeys(bconf)
-    if (bconfKeys.length) {
-      msg += '; builtin config ' + bpath + '\n'
-      bconfKeys.forEach(function (k) {
-        var val = (k.charAt(0) === '_')
-                ? '---sekretz---'
-                : JSON.stringify(bconf[k])
-        if (bconf[k] !== npm.config.get(k)) {
-          if (!long) return
-          msg += '; ' + k + ' = ' + val + ' (overridden)\n'
-        } else msg += k + ' = ' + val + '\n'
-      })
-      msg += '\n'
-    }
+    msg += listFromSource('builtin config ' + builtin.path, builtin.data, long)
   }
 
   // only show defaults if --long

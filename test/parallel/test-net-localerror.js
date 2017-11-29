@@ -20,25 +20,24 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const assert = require('assert');
+const common = require('../common');
 const net = require('net');
 
-// Using port 0 as localPort / localAddress is already invalid.
-connect({
-  host: 'localhost',
-  port: 0,
-  localPort: 'foobar',
-}, /^TypeError: "localPort" option should be a number: foobar$/);
+const connect = (opts, code, type) => {
+  common.expectsError(
+    () => net.connect(opts),
+    { code, type }
+  );
+};
 
 connect({
   host: 'localhost',
   port: 0,
   localAddress: 'foobar',
-}, /^TypeError: "localAddress" option must be a valid IP: foobar$/);
+}, 'ERR_INVALID_IP_ADDRESS', TypeError);
 
-function connect(opts, msg) {
-  assert.throws(() => {
-    net.connect(opts);
-  }, msg);
-}
+connect({
+  host: 'localhost',
+  port: 0,
+  localPort: 'foobar',
+}, 'ERR_INVALID_ARG_TYPE', TypeError);

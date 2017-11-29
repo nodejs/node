@@ -7,14 +7,15 @@
 #include <string>
 #include <vector>
 #include "node_url.h"
-#include "base-object.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 
 namespace node {
 namespace loader {
 
-node::url::URL Resolve(std::string specifier, const node::url::URL* base,
-                       bool read_pkg_json = false);
+v8::Maybe<url::URL> Resolve(Environment* env,
+                            const std::string& specifier,
+                            const url::URL& base,
+                            bool read_pkg_json = false);
 
 class ModuleWrap : public BaseObject {
  public:
@@ -24,7 +25,7 @@ class ModuleWrap : public BaseObject {
                          v8::Local<v8::Context> context);
 
  private:
-  ModuleWrap(node::Environment* env,
+  ModuleWrap(Environment* env,
              v8::Local<v8::Object> object,
              v8::Local<v8::Module> module,
              v8::Local<v8::String> url);
@@ -34,6 +35,7 @@ class ModuleWrap : public BaseObject {
   static void Link(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Namespace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetUrl(v8::Local<v8::String> property,
                      const v8::PropertyCallbackInfo<v8::Value>& info);
   static void Resolve(const v8::FunctionCallbackInfo<v8::Value>& args);

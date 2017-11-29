@@ -11,7 +11,7 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [v8 options] [script.js | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
 
 `node debug [script.js | -e "script" | <host>:<port>] …`
 
@@ -183,6 +183,10 @@ added: v0.10
 Aborting instead of exiting causes a core file to be generated for post-mortem
 analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
+*Note*: If this flag is passed, the behavior can still be set to not abort
+through [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage
+of the `domain` module that uses it).
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0
@@ -207,6 +211,14 @@ added: v2.1.0
 
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
+
+### `--no-force-async-hooks-checks`
+<!-- YAML
+added: v9.0.0
+-->
+
+Disables runtime checks for `async_hooks`. These will still be enabled
+dynamically when `async_hooks` is enabled.
 
 ### `--trace-events-enabled`
 <!-- YAML
@@ -285,7 +297,7 @@ Track heap object allocations for heap snapshots.
 added: v5.2.0
 -->
 
-Process v8 profiler output generated using the v8 option `--prof`.
+Process V8 profiler output generated using the V8 option `--prof`.
 
 
 ### `--v8-options`
@@ -293,7 +305,7 @@ Process v8 profiler output generated using the v8 option `--prof`.
 added: v0.1.3
 -->
 
-Print v8 command line options.
+Print V8 command line options.
 
 *Note*: V8 options allow words to be separated by both dashes (`-`) or
 underscores (`_`).
@@ -463,6 +475,7 @@ Node options that are allowed are:
 V8 options that are allowed are:
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
+- `--stack-trace-limit`
 
 ### `NODE_PENDING_DEPRECATION=1`
 <!-- YAML
@@ -589,3 +602,4 @@ greater than `4` (its current default value).  For more information, see the
 [debugger]: debugger.html
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn

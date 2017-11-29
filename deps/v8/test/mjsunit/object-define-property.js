@@ -1014,7 +1014,7 @@ for (var i = 0; i < 1000; i++) {
 assertEquals(999, o[999]);
 
 
-// Regression test: Bizzare behavior on non-strict arguments object.
+// Regression test: Bizarre behavior on non-strict arguments object.
 // TODO(yangguo): Tests disabled, needs investigation!
 /*
 (function test(arg0) {

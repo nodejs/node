@@ -17,6 +17,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 }
 
 TEST(DefineGetterSetterThrowUseCount) {
+  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -113,4 +114,29 @@ TEST(AssigmentExpressionLHSIsCall) {
   CHECK_EQ(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy]);
   CHECK_NE(0, use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict]);
   use_counts[v8::Isolate::kAssigmentExpressionLHSIsCallInStrict] = 0;
+}
+
+TEST(LabeledExpressionStatement) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("typeof a");
+  CHECK_EQ(0, use_counts[v8::Isolate::kLabeledExpressionStatement]);
+
+  CompileRun("foo: null");
+  CHECK_EQ(1, use_counts[v8::Isolate::kLabeledExpressionStatement]);
+
+  CompileRun("foo: bar: baz: undefined");
+  CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
+
+  CompileRun(
+      "foo: if (false);"
+      "bar: { }"
+      "baz: switch (false) { }"
+      "bat: do { } while (false);");
+  CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
 }

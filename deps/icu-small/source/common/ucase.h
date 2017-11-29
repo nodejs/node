@@ -61,7 +61,7 @@ enum {
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case-insensitive string comparison.
- * See uchar.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
+ * See stringoptions.h. Also include _STRNCMP_STYLE and U_COMPARE_CODE_POINT_ORDER.
  * @internal
  */
 #define _STRCASECMP_OPTIONS_MASK 0xffff
@@ -69,10 +69,16 @@ enum {
 /**
  * Bit mask for getting just the options from a string compare options word
  * that are relevant for case folding (of a single string or code point).
- * See uchar.h.
+ *
+ * Currently only bit 0 for U_FOLD_CASE_EXCLUDE_SPECIAL_I.
+ * It is conceivable that at some point we might use one more bit for using uppercase sharp s.
+ * It is conceivable that at some point we might want the option to use only simple case foldings
+ * when operating on strings.
+ *
+ * See stringoptions.h.
  * @internal
  */
-#define _FOLD_CASE_OPTIONS_MASK 0xff
+#define _FOLD_CASE_OPTIONS_MASK 7
 
 /* single-code point functions */
 

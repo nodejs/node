@@ -1,5 +1,24 @@
 
 # flat-cache - Changelog
+## v1.3.0
+- **Other changes**
+  - Added #all method ([#16](https://github.com/royriojas/flat-cache/issues/16)) - [12293be]( https://github.com/royriojas/flat-cache/commit/12293be ), [Ozair Patel](https://github.com/Ozair Patel), 25/09/2017 16:46:38
+
+    * Added #all method
+    
+    * Added #all method test
+    
+    * Updated readme
+    
+    * Added yarn.lock
+    
+    * Added more keys for #all test
+    
+    * Beautified file
+    
+  - fix changelog title style ([#14](https://github.com/royriojas/flat-cache/issues/14)) - [af8338a]( https://github.com/royriojas/flat-cache/commit/af8338a ), [前端小武](https://github.com/前端小武), 19/12/2016 23:34:48
+
+    
 ## v1.2.2
 - **Bug Fixes**
   - Do not crash if cache file is invalid JSON. ([#13](https://github.com/royriojas/flat-cache/issues/13)) - [87beaa6]( https://github.com/royriojas/flat-cache/commit/87beaa6 ), [Roy Riojas](https://github.com/Roy Riojas), 19/12/2016 21:03:35

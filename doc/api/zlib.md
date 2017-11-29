@@ -110,7 +110,7 @@ http.createServer((request, response) => {
   }
 
   // Note: This is not a conformant accept-encoding parser.
-  // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+  // See https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (/\bdeflate\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'deflate' });
     raw.pipe(zlib.createDeflate()).pipe(response);
@@ -235,7 +235,7 @@ All of the constants defined in `zlib.h` are also defined on
 `require('zlib').constants`. In the normal course of operations, it will not be
 necessary to use these  constants. They are documented so that their presence is
 not surprising. This section is taken almost directly from the
-[zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
+[zlib documentation][].  See <https://zlib.net/manual.html#Constants> for more
 details.
 
 *Note*: Previously, the constants were available directly from
@@ -313,7 +313,7 @@ ignored by the decompression classes.
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See the description of `deflateInit2` and `inflateInit2` at
-<http://zlib.net/manual.html#Advanced> for more information on these.
+<https://zlib.net/manual.html#Advanced> for more information on these.
 
 ## Class: zlib.Deflate
 <!-- YAML
@@ -397,7 +397,7 @@ class of the compressor/decompressor classes.
 
 ### zlib.bytesRead
 <!-- YAML
-added: REPLACEME
+added: v8.1.0
 -->
 
 * {number}
@@ -405,6 +405,13 @@ added: REPLACEME
 The `zlib.bytesRead` property specifies the number of bytes read by the engine
 before the bytes are processed (compressed or decompressed, as appropriate for
 the derived class).
+
+### zlib.close([callback])
+<!-- YAML
+added: v0.9.4
+-->
+
+Close the underlying handle.
 
 ### zlib.flush([kind], callback)
 <!-- YAML
@@ -458,9 +465,12 @@ added: v0.5.8
 
 Creates and returns a new [DeflateRaw][] object with the given [options][].
 
-*Note*: The zlib library rejects requests for 256-byte windows (i.e.,
-`{ windowBits: 8 }` in `options`). An `Error` will be thrown when creating
-a [DeflateRaw][] object with this specific value of the `windowBits` option.
+*Note*: An upgrade of zlib from 1.2.8 to 1.2.11 changed behavior when windowBits
+is set to 8 for raw deflate streams. zlib would automatically set windowBits
+to 9 if was initially set to 8. Newer versions of zlib will throw an exception,
+so Node.js restored the original behavior of upgrading a value of 8 to 9,
+since passing `windowBits = 9` to zlib actually results in a compressed stream
+that effectively uses an 8-bit window only.
 
 ## zlib.createGunzip([options])
 <!-- YAML
@@ -713,4 +723,4 @@ Decompress a chunk of data with [Unzip][].
 [Unzip]: #zlib_class_zlib_unzip
 [`UV_THREADPOOL_SIZE`]: cli.html#cli_uv_threadpool_size_size
 [options]: #zlib_class_options
-[zlib documentation]: http://zlib.net/manual.html#Constants
+[zlib documentation]: https://zlib.net/manual.html#Constants

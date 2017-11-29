@@ -14,8 +14,8 @@ const net = require('net');
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
   type: Error,
-  message: 'HTTP/2 sockets should not be directly read from, written to, ' +
-           'paused and/or resumed.'
+  message: 'HTTP/2 sockets should not be directly manipulated ' +
+           '(e.g. read and written)'
 };
 
 const server = h2.createServer();
@@ -63,8 +63,8 @@ server.on('request', common.mustCall(function(request, response) {
   assert.strictEqual(request.socket.connecting, false);
 
   // socket events are bound and emitted on Http2Stream
-  request.socket.on('streamClosed', common.mustCall());
-  request.socket.once('streamClosed', common.mustCall());
+  request.socket.on('close', common.mustCall());
+  request.socket.once('close', common.mustCall());
   request.socket.on('testEvent', common.mustCall());
   request.socket.emit('testEvent');
 }));

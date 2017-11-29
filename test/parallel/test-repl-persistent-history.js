@@ -3,6 +3,7 @@
 // Flags: --expose-internals
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
@@ -53,20 +54,16 @@ const ENTER = { name: 'enter' };
 const CLEAR = { ctrl: true, name: 'u' };
 
 // File paths
-const fixtures = common.fixturesDir;
-const historyFixturePath = path.join(fixtures, '.node_repl_history');
+const historyFixturePath = fixtures.path('.node_repl_history');
 const historyPath = path.join(common.tmpDir, '.fixture_copy_repl_history');
 const historyPathFail = path.join(common.tmpDir, '.node_repl\u0000_history');
-const oldHistoryPathObj = path.join(fixtures,
-                                    'old-repl-history-file-obj.json');
-const oldHistoryPathFaulty = path.join(fixtures,
-                                       'old-repl-history-file-faulty.json');
-const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
-const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
-const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
+const oldHistoryPathObj = fixtures.path('old-repl-history-file-obj.json');
+const oldHistoryPathFaulty = fixtures.path('old-repl-history-file-faulty.json');
+const oldHistoryPath = fixtures.path('old-repl-history-file.json');
+const enoentHistoryPath = fixtures.path('enoent-repl-history-file.json');
+const emptyHistoryPath = fixtures.path('.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
-const emptyHiddenHistoryPath = path.join(fixtures,
-                                         '.empty-hidden-repl-history-file');
+const emptyHiddenHistoryPath = fixtures.path('.empty-hidden-repl-history-file');
 const devNullHistoryPath = path.join(common.tmpDir,
                                      '.dev-null-repl-history-file');
 // Common message bits

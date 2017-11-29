@@ -7,13 +7,13 @@
 
 #include <queue>
 
+#include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/globals.h"
-#include "src/list.h"
 
 namespace v8 {
 namespace internal {

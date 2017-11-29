@@ -21,9 +21,7 @@
 
 #include "node_internals.h"
 #include "node_watchdog.h"
-#include "base-object.h"
-#include "base-object-inl.h"
-#include "v8-debug.h"
+#include "base_object-inl.h"
 
 namespace node {
 
@@ -31,13 +29,13 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
-using v8::Debug;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::IndexedPropertyHandlerConfiguration;
 using v8::Integer;
 using v8::Just;
 using v8::Local;
@@ -58,12 +56,39 @@ using v8::ScriptOrigin;
 using v8::String;
 using v8::Symbol;
 using v8::TryCatch;
+using v8::Uint32;
 using v8::Uint8Array;
 using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+// The vm module executes code in a sandboxed environment with a different
+// global object than the rest of the code. This is achieved by applying
+// every call that changes or queries a property on the global `this` in the
+// sandboxed code, to the sandbox object.
+//
+// The implementation uses V8's interceptors for methods like `set`, `get`,
+// `delete`, `defineProperty`, and for any query of the property attributes.
+// Property handlers with interceptors are set on the object template for
+// the sandboxed code. Handlers for both named properties and for indexed
+// properties are used. Their functionality is almost identical, the indexed
+// interceptors mostly just call the named interceptors.
+//
+// For every `get` of a global property in the sandboxed context, the
+// interceptor callback checks the sandbox object for the property.
+// If the property is defined on the sandbox, that result is returned to
+// the original call instead of finishing the query on the global object.
+//
+// For every `set` of a global property, the interceptor callback defines or
+// changes the property both on the sandbox and the global proxy.
+
 namespace {
+
+// Convert an int to a V8 Name (String or Symbol).
+Local<Name> Uint32ToName(Local<Context> context, uint32_t index) {
+  return Uint32::New(context->GetIsolate(), index)->ToString(context)
+      .ToLocalChecked();
+}
 
 class ContextifyContext {
  protected:
@@ -111,93 +136,6 @@ class ContextifyContext {
     return Local<Object>::Cast(context()->GetEmbedderData(kSandboxObjectIndex));
   }
 
-  // XXX(isaacs): This function only exists because of a shortcoming of
-  // the V8 SetNamedPropertyHandler function.
-  //
-  // It does not provide a way to intercept Object.defineProperty(..)
-  // calls.  As a result, these properties are not copied onto the
-  // contextified sandbox when a new global property is added via either
-  // a function declaration or a Object.defineProperty(global, ...) call.
-  //
-  // Note that any function declarations or Object.defineProperty()
-  // globals that are created asynchronously (in a setTimeout, callback,
-  // etc.) will happen AFTER the call to copy properties, and thus not be
-  // caught.
-  //
-  // The way to properly fix this is to add some sort of a
-  // Object::SetNamedDefinePropertyHandler() function that takes a callback,
-  // which receives the property name and property descriptor as arguments.
-  //
-  // Luckily, such situations are rare, and asynchronously-added globals
-  // weren't supported by Node's VM module until 0.12 anyway.  But, this
-  // should be fixed properly in V8, and this copy function should be
-  // removed once there is a better way.
-  void CopyProperties() {
-    HandleScope scope(env()->isolate());
-
-    Local<Context> context = PersistentToLocal(env()->isolate(), context_);
-    Local<Object> global =
-        context->Global()->GetPrototype()->ToObject(env()->isolate());
-    Local<Object> sandbox_obj = sandbox();
-
-    Local<Function> clone_property_method;
-
-    Local<Array> names = global->GetOwnPropertyNames();
-    int length = names->Length();
-    for (int i = 0; i < length; i++) {
-      Local<String> key = names->Get(i)->ToString(env()->isolate());
-      Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
-
-      // Check for pending exceptions
-      if (has.IsNothing())
-        return;
-
-      if (!has.FromJust()) {
-        Local<Object> desc_vm_context =
-            global->GetOwnPropertyDescriptor(context, key)
-            .ToLocalChecked().As<Object>();
-
-        bool is_accessor =
-            desc_vm_context->Has(context, env()->get_string()).FromJust() ||
-            desc_vm_context->Has(context, env()->set_string()).FromJust();
-
-        auto define_property_on_sandbox = [&] (PropertyDescriptor* desc) {
-            desc->set_configurable(desc_vm_context
-                ->Get(context, env()->configurable_string()).ToLocalChecked()
-                ->BooleanValue(context).FromJust());
-            desc->set_enumerable(desc_vm_context
-                ->Get(context, env()->enumerable_string()).ToLocalChecked()
-                ->BooleanValue(context).FromJust());
-            CHECK(sandbox_obj->DefineProperty(context, key, *desc).FromJust());
-        };
-
-        if (is_accessor) {
-          Local<Function> get =
-              desc_vm_context->Get(context, env()->get_string())
-              .ToLocalChecked().As<Function>();
-          Local<Function> set =
-              desc_vm_context->Get(context, env()->set_string())
-              .ToLocalChecked().As<Function>();
-
-          PropertyDescriptor desc(get, set);
-          define_property_on_sandbox(&desc);
-        } else {
-          Local<Value> value =
-              desc_vm_context->Get(context, env()->value_string())
-              .ToLocalChecked();
-
-          bool writable =
-              desc_vm_context->Get(context, env()->writable_string())
-              .ToLocalChecked()->BooleanValue(context).FromJust();
-
-          PropertyDescriptor desc(value, writable);
-          define_property_on_sandbox(&desc);
-        }
-    }
-  }
-}
-
-
   // This is an object that just keeps an internal pointer to this
   // ContextifyContext.  It's passed to the NamedPropertyHandler.  If we
   // pass the main JavaScript context object we're embedded in, then the
@@ -220,20 +158,31 @@ class ContextifyContext {
     EscapableHandleScope scope(env->isolate());
     Local<FunctionTemplate> function_template =
         FunctionTemplate::New(env->isolate());
-    function_template->SetHiddenPrototype(true);
 
     function_template->SetClassName(sandbox_obj->GetConstructorName());
 
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
-    NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
-                                             GlobalPropertySetterCallback,
-                                             GlobalPropertyQueryCallback,
-                                             GlobalPropertyDeleterCallback,
-                                             GlobalPropertyEnumeratorCallback,
+    NamedPropertyHandlerConfiguration config(PropertyGetterCallback,
+                                             PropertySetterCallback,
+                                             PropertyDescriptorCallback,
+                                             PropertyDeleterCallback,
+                                             PropertyEnumeratorCallback,
+                                             PropertyDefinerCallback,
                                              CreateDataWrapper(env));
+
+    IndexedPropertyHandlerConfiguration indexed_config(
+        IndexedPropertyGetterCallback,
+        IndexedPropertySetterCallback,
+        IndexedPropertyDescriptorCallback,
+        IndexedPropertyDeleterCallback,
+        PropertyEnumeratorCallback,
+        IndexedPropertyDefinerCallback,
+        CreateDataWrapper(env));
+
     object_template->SetHandler(config);
+    object_template->SetHandler(indexed_config);
 
     Local<Context> ctx = NewContext(env->isolate(), object_template);
 
@@ -267,39 +216,8 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
-    env->SetMethod(target, "runInDebugContext", RunInDebugContext);
     env->SetMethod(target, "makeContext", MakeContext);
     env->SetMethod(target, "isContext", IsContext);
-  }
-
-
-  static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
-    Local<String> script_source(args[0]->ToString(args.GetIsolate()));
-    if (script_source.IsEmpty())
-      return;  // Exception pending.
-    Local<Context> debug_context = Debug::GetDebugContext(args.GetIsolate());
-    Environment* env = Environment::GetCurrent(args);
-    if (debug_context.IsEmpty()) {
-      // Force-load the debug context.
-      auto dummy_event_listener = [] (const Debug::EventDetails&) {};
-      Debug::SetDebugEventListener(args.GetIsolate(), dummy_event_listener);
-      debug_context = Debug::GetDebugContext(args.GetIsolate());
-      CHECK(!debug_context.IsEmpty());
-      // Ensure that the debug context has an Environment assigned in case
-      // a fatal error is raised.  The fatal exception handler in node.cc
-      // is not equipped to deal with contexts that don't have one and
-      // can't easily be taught that due to a deficiency in the V8 API:
-      // there is no way for the embedder to tell if the data index is
-      // in use.
-      const int index = Environment::kContextEmbedderDataIndex;
-      debug_context->SetAlignedPointerInEmbedderData(index, env);
-    }
-
-    Context::Scope context_scope(debug_context);
-    MaybeLocal<Script> script = Script::Compile(debug_context, script_source);
-    if (script.IsEmpty())
-      return;  // Exception pending.
-    args.GetReturnValue().Set(script.ToLocalChecked()->Run());
   }
 
 
@@ -373,7 +291,7 @@ class ContextifyContext {
   }
 
 
-  static void GlobalPropertyGetterCallback(
+  static void PropertyGetterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Value>& args) {
     ContextifyContext* ctx;
@@ -402,7 +320,7 @@ class ContextifyContext {
   }
 
 
-  static void GlobalPropertySetterCallback(
+  static void PropertySetterCallback(
       Local<Name> property,
       Local<Value> value,
       const PropertyCallbackInfo<Value>& args) {
@@ -414,15 +332,21 @@ class ContextifyContext {
       return;
 
     auto attributes = PropertyAttribute::None;
-    bool is_declared =
-        ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
-                                                            property)
+    bool is_declared_on_global_proxy = ctx->global_proxy()
+        ->GetRealNamedPropertyAttributes(ctx->context(), property)
         .To(&attributes);
     bool read_only =
         static_cast<int>(attributes) &
         static_cast<int>(PropertyAttribute::ReadOnly);
 
-    if (is_declared && read_only)
+    bool is_declared_on_sandbox = ctx->sandbox()
+        ->GetRealNamedPropertyAttributes(ctx->context(), property)
+        .To(&attributes);
+    read_only = read_only ||
+        (static_cast<int>(attributes) &
+        static_cast<int>(PropertyAttribute::ReadOnly));
+
+    if (read_only)
       return;
 
     // true for x = 5
@@ -440,17 +364,27 @@ class ContextifyContext {
     // this.f = function() {}, is_contextual_store = false.
     bool is_function = value->IsFunction();
 
+    bool is_declared = is_declared_on_global_proxy || is_declared_on_sandbox;
     if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
-    !is_function)
+        !is_function)
       return;
+
+    if (!is_declared_on_global_proxy && is_declared_on_sandbox  &&
+        args.ShouldThrowOnError() && is_contextual_store && !is_function) {
+      // The property exists on the sandbox but not on the global
+      // proxy. Setting it would throw because we are in strict mode.
+      // Don't attempt to set it by signaling that the call was
+      // intercepted. Only change the value on the sandbox.
+      args.GetReturnValue().Set(false);
+    }
 
     ctx->sandbox()->Set(property, value);
   }
 
 
-  static void GlobalPropertyQueryCallback(
+  static void PropertyDescriptorCallback(
       Local<Name> property,
-      const PropertyCallbackInfo<Integer>& args) {
+      const PropertyCallbackInfo<Value>& args) {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
@@ -459,23 +393,81 @@ class ContextifyContext {
       return;
 
     Local<Context> context = ctx->context();
-    Maybe<PropertyAttribute> maybe_prop_attr =
-        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
 
-    if (maybe_prop_attr.IsNothing()) {
-      maybe_prop_attr =
-          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-                                                              property);
-    }
+    Local<Object> sandbox = ctx->sandbox();
 
-    if (maybe_prop_attr.IsJust()) {
-      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
-      args.GetReturnValue().Set(prop_attr);
+    if (sandbox->HasOwnProperty(context, property).FromMaybe(false)) {
+      args.GetReturnValue().Set(
+          sandbox->GetOwnPropertyDescriptor(context, property)
+              .ToLocalChecked());
     }
   }
 
 
-  static void GlobalPropertyDeleterCallback(
+  static void PropertyDefinerCallback(
+      Local<Name> property,
+      const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    Local<Context> context = ctx->context();
+    v8::Isolate* isolate = context->GetIsolate();
+
+    auto attributes = PropertyAttribute::None;
+    bool is_declared =
+        ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                            property)
+            .To(&attributes);
+    bool read_only =
+        static_cast<int>(attributes) &
+            static_cast<int>(PropertyAttribute::ReadOnly);
+
+    // If the property is set on the global as read_only, don't change it on
+    // the global or sandbox.
+    if (is_declared && read_only)
+      return;
+
+    Local<Object> sandbox = ctx->sandbox();
+
+    auto define_prop_on_sandbox =
+        [&] (PropertyDescriptor* desc_for_sandbox) {
+          if (desc.has_enumerable()) {
+            desc_for_sandbox->set_enumerable(desc.enumerable());
+          }
+          if (desc.has_configurable()) {
+            desc_for_sandbox->set_configurable(desc.configurable());
+          }
+          // Set the property on the sandbox.
+          sandbox->DefineProperty(context, property, *desc_for_sandbox)
+              .FromJust();
+        };
+
+    if (desc.has_get() || desc.has_set()) {
+      PropertyDescriptor desc_for_sandbox(
+          desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>(),
+          desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>());
+
+      define_prop_on_sandbox(&desc_for_sandbox);
+    } else {
+      Local<Value> value =
+          desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+
+      if (desc.has_writable()) {
+        PropertyDescriptor desc_for_sandbox(value, desc.writable());
+        define_prop_on_sandbox(&desc_for_sandbox);
+      } else {
+        PropertyDescriptor desc_for_sandbox(value);
+        define_prop_on_sandbox(&desc_for_sandbox);
+      }
+    }
+  }
+
+  static void PropertyDeleterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Boolean>& args) {
     ContextifyContext* ctx;
@@ -496,7 +488,7 @@ class ContextifyContext {
   }
 
 
-  static void GlobalPropertyEnumeratorCallback(
+  static void PropertyEnumeratorCallback(
       const PropertyCallbackInfo<Array>& args) {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
@@ -506,6 +498,83 @@ class ContextifyContext {
       return;
 
     args.GetReturnValue().Set(ctx->sandbox()->GetPropertyNames());
+  }
+
+  static void IndexedPropertyGetterCallback(
+      uint32_t index,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    PropertyGetterCallback(Uint32ToName(ctx->context(), index), args);
+  }
+
+
+  static void IndexedPropertySetterCallback(
+      uint32_t index,
+      Local<Value> value,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    PropertySetterCallback(Uint32ToName(ctx->context(), index), value, args);
+  }
+
+
+  static void IndexedPropertyDescriptorCallback(
+      uint32_t index,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    PropertyDescriptorCallback(Uint32ToName(ctx->context(), index), args);
+  }
+
+
+  static void IndexedPropertyDefinerCallback(
+      uint32_t index,
+      const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    PropertyDefinerCallback(Uint32ToName(ctx->context(), index), desc, args);
+  }
+
+  static void IndexedPropertyDeleterCallback(
+      uint32_t index,
+      const PropertyCallbackInfo<Boolean>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), index);
+
+    if (success.FromMaybe(false))
+      return;
+
+    // Delete failed on the sandbox, intercept and do not delete on
+    // the global object.
+    args.GetReturnValue().Set(false);
   }
 };
 
@@ -702,14 +771,12 @@ class ContextifyScript : public BaseObject {
       TryCatch try_catch(env->isolate());
       // Do the eval within the context
       Context::Scope context_scope(contextify_context->context());
-      if (EvalMachine(contextify_context->env(),
-                      timeout,
-                      display_errors,
-                      break_on_sigint,
-                      args,
-                      &try_catch)) {
-        contextify_context->CopyProperties();
-      }
+      EvalMachine(contextify_context->env(),
+                  timeout,
+                  display_errors,
+                  break_on_sigint,
+                  args,
+                  &try_catch);
 
       if (try_catch.HasCaught()) {
         try_catch.ReThrow();
@@ -1071,4 +1138,4 @@ void InitContextify(Local<Object> target,
 }  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(contextify, node::InitContextify)

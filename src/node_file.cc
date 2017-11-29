@@ -23,9 +23,9 @@
 #include "node_internals.h"
 #include "node_stat_watcher.h"
 
-#include "req-wrap.h"
-#include "req-wrap-inl.h"
+#include "req_wrap-inl.h"
 #include "string_bytes.h"
+#include "string_search.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -349,6 +349,31 @@ class fs_req_wrap {
   DISALLOW_COPY_AND_ASSIGN(fs_req_wrap);
 };
 
+// Template counterpart of ASYNC_DEST_CALL
+template <typename Func, typename... Args>
+inline FSReqWrap* AsyncDestCall(Environment* env, Local<Object> req,
+    const char* dest, enum encoding enc, const char* syscall,
+    Func fn, Args... args) {
+  FSReqWrap* req_wrap = FSReqWrap::New(env, req, syscall, dest, enc);
+  int err = fn(env->event_loop(), req_wrap->req(), args..., After);
+  req_wrap->Dispatched();
+  if (err < 0) {
+    uv_fs_t* uv_req = req_wrap->req();
+    uv_req->result = err;
+    uv_req->path = nullptr;
+    After(uv_req);
+    req_wrap = nullptr;
+  }
+
+  return req_wrap;
+}
+
+// Template counterpart of ASYNC_CALL
+template <typename Func, typename... Args>
+inline FSReqWrap* AsyncCall(Environment* env, Local<Object> req,
+    enum encoding enc, const char* syscall, Func fn, Args... args) {
+  return AsyncDestCall(env, req, nullptr, enc, syscall, fn, args...);
+}
 
 #define ASYNC_DEST_CALL(func, request, dest, encoding, ...)                   \
   Environment* env = Environment::GetCurrent(args);                           \
@@ -373,6 +398,28 @@ class fs_req_wrap {
 #define ASYNC_CALL(func, req, encoding, ...)                                  \
   ASYNC_DEST_CALL(func, req, nullptr, encoding, __VA_ARGS__)                  \
 
+// Template counterpart of SYNC_DEST_CALL
+template <typename Func, typename... Args>
+inline void SyncDestCall(Environment* env, Local<Value> ctx,
+    const char* path, const char* dest, const char* syscall,
+    Func fn, Args... args) {
+  fs_req_wrap req_wrap;
+  env->PrintSyncTrace();
+  int err = fn(env->event_loop(), &req_wrap.req, args..., nullptr);
+  if (err) {
+    Local<Context> context = env->context();
+    Local<Object> ctx_obj = ctx->ToObject(context).ToLocalChecked();
+    env->CollectUVExceptionInfo(ctx_obj, err, syscall, nullptr, path, dest);
+  }
+}
+
+// Template counterpart of SYNC_CALL
+template <typename Func, typename... Args>
+inline void SyncCall(Environment* env, Local<Value> ctx,
+    const char* path, const char* syscall, Func fn, Args... args) {
+  return SyncDestCall(env, ctx, path, nullptr, syscall, fn, args...);
+}
+
 #define SYNC_DEST_CALL(func, path, dest, ...)                                 \
   fs_req_wrap req_wrap;                                                       \
   env->PrintSyncTrace();                                                      \
@@ -394,21 +441,22 @@ class fs_req_wrap {
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
-
-  if (args.Length() < 2)
-    return TYPE_ERROR("path and mode are required");
-  if (!args[1]->IsInt32())
-    return TYPE_ERROR("mode must be an integer");
+  Local<Context> context = env->context();
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[1]->IsInt32());
 
   BufferValue path(env->isolate(), args[0]);
-  ASSERT_PATH(path)
-
-  int mode = static_cast<int>(args[1]->Int32Value());
+  int mode = static_cast<int>(args[1]->Int32Value(context).FromJust());
 
   if (args[2]->IsObject()) {
-    ASYNC_CALL(access, args[2], UTF8, *path, mode);
+    Local<Object> req_obj = args[2]->ToObject(context).ToLocalChecked();
+    FSReqWrap* req_wrap = AsyncCall(
+        env, req_obj, UTF8, "access", uv_fs_access, *path, mode);
+    if (req_wrap != nullptr) {
+      args.GetReturnValue().Set(req_wrap->persistent());
+    }
   } else {
-    SYNC_CALL(access, *path, *path, mode);
+    SyncCall(env, args[3], *path, "access", uv_fs_access, *path, mode);
   }
 }
 
@@ -467,9 +515,10 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 }
 
 // Used to speed up module loading.  Returns the contents of the file as
-// a string or undefined when the file cannot be opened.  The speedup
-// comes from not creating Error objects on failure.
-static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
+// a string or undefined when the file cannot be opened.  Returns an empty
+// string when the file does not contain the substring '"main"' because that
+// is the property we care about.
+static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_loop_t* loop = env->event_loop();
 
@@ -516,12 +565,17 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
-  Local<String> chars_string =
-      String::NewFromUtf8(env->isolate(),
-                          &chars[start],
-                          String::kNormalString,
-                          offset - start);
-  args.GetReturnValue().Set(chars_string);
+  const size_t size = offset - start;
+  if (size == 0 || size == SearchString(&chars[start], size, "\"main\"")) {
+    args.GetReturnValue().SetEmptyString();
+  } else {
+    Local<String> chars_string =
+        String::NewFromUtf8(env->isolate(),
+                            &chars[start],
+                            String::kNormalString,
+                            size);
+    args.GetReturnValue().Set(chars_string);
+  }
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -828,24 +882,15 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void RealPath(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);
   Environment* env = Environment::GetCurrent(args);
-
-  const int argc = args.Length();
-
-  if (argc < 1)
-    return TYPE_ERROR("path required");
-
   BufferValue path(env->isolate(), args[0]);
   ASSERT_PATH(path)
 
   const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
 
-  Local<Value> callback = Null(env->isolate());
-  if (argc == 3)
-    callback = args[2];
-
-  if (callback->IsObject()) {
-    ASYNC_CALL(realpath, callback, encoding, *path);
+  if (args[2]->IsObject()) {
+    ASYNC_CALL(realpath, args[2], encoding, *path);
   } else {
     SYNC_CALL(realpath, *path, *path);
     const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
@@ -1433,7 +1478,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "rmdir", RMDir);
   env->SetMethod(target, "mkdir", MKDir);
   env->SetMethod(target, "readdir", ReadDir);
-  env->SetMethod(target, "internalModuleReadFile", InternalModuleReadFile);
+  env->SetMethod(target, "internalModuleReadJSON", InternalModuleReadJSON);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
@@ -1478,4 +1523,4 @@ void InitFs(Local<Object> target,
 
 }  // end namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs, node::InitFs)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(fs, node::InitFs)

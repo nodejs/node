@@ -2,26 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-opt  --no-stress-fullcodegen
+// Flags: --allow-natives-syntax --no-always-opt
+// Files: test/mjsunit/code-coverage-utils.js
 
 // Test precise code coverage.
-
-function GetCoverage(source) {
-  for (var script of %DebugCollectCoverage()) {
-    if (script.script.source == source) return script;
-  }
-  return undefined;
-}
-
-function TestCoverage(name, source, expectation) {
-  source = source.trim();
-  eval(source);
-  %CollectGarbage("collect dead objects");
-  var coverage = GetCoverage(source);
-  var result = JSON.stringify(coverage);
-  print(result);
-  assertEquals(JSON.stringify(expectation), result, name + " failed");
-}
 
 // Without precise coverage enabled, we lose coverage data to the GC.
 TestCoverage(

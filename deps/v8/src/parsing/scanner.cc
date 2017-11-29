@@ -1675,7 +1675,7 @@ bool Scanner::ScanRegExpPattern() {
       // or not, since any '/', '\\' or '[' is guaranteed to not be part
       // of the escape sequence.
 
-      // TODO(896): At some point, parse RegExps more throughly to capture
+      // TODO(896): At some point, parse RegExps more thoroughly to capture
       // octal esacpes in strict mode.
     } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;

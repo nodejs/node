@@ -8,9 +8,11 @@ load('../base.js');
 load('filter.js');
 load('map.js');
 load('every.js');
+load('join.js');
 load('some.js');
 load('reduce.js');
 load('reduce-right.js');
+load('to-string.js');
 
 var success = true;
 

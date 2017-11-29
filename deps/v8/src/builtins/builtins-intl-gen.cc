@@ -75,7 +75,7 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
                     var_did_change.Bind(Word32Or(Word32NotEqual(c, lower),
                                                  var_did_change.value()));
 
-                    Increment(var_cursor);
+                    Increment(&var_cursor);
                   },
                   kCharSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 

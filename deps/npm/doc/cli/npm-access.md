@@ -60,6 +60,9 @@ You must have privileges to set the access of a package:
 * You have been given read-write privileges for a package, either as a member
   of a team or directly as an owner.
 
+If you have two-factor authentication enabled then you'll have to pass in an
+otp with `--otp` when making access changes.
+
 If your account is not paid, then attempts to publish scoped packages will fail
 with an HTTP 402 status code (logically enough), unless you use
 `--access=public`.

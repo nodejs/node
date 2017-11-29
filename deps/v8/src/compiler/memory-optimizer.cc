@@ -78,6 +78,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
       return VisitAllocate(node, state);
     case IrOpcode::kCall:
       return VisitCall(node, state);
+    case IrOpcode::kCallWithCallerSavedRegisters:
+      return VisitCallWithCallerSavedRegisters(node, state);
     case IrOpcode::kLoadElement:
       return VisitLoadElement(node, state);
     case IrOpcode::kLoadField:
@@ -97,6 +99,7 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:
+    case IrOpcode::kDebugBreak:
       return VisitOtherEffect(node, state);
     default:
       break;
@@ -192,8 +195,8 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       group->Add(value);
       state = AllocationState::Open(group, state_size, top, zone());
     } else {
-      auto call_runtime = __ MakeDeferredLabel<1>();
-      auto done = __ MakeLabel<2>(MachineType::PointerRepresentation());
+      auto call_runtime = __ MakeDeferredLabel();
+      auto done = __ MakeLabel(MachineType::PointerRepresentation());
 
       // Setup a mutable reservation size node; will be patched as we fold
       // additional allocations into this new group.
@@ -212,7 +215,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
                     machine()->Is64() ? __ ChangeInt32ToInt64(size) : size),
           limit);
 
-      __ GotoUnless(check, &call_runtime);
+      __ GotoIfNot(check, &call_runtime);
       __ Goto(&done, top);
 
       __ Bind(&call_runtime);
@@ -249,8 +252,8 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       state = AllocationState::Open(group, object_size, top, zone());
     }
   } else {
-    auto call_runtime = __ MakeDeferredLabel<1>();
-    auto done = __ MakeLabel<2>(MachineRepresentation::kTaggedPointer);
+    auto call_runtime = __ MakeDeferredLabel();
+    auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
 
     // Load allocation top and limit.
     Node* top =
@@ -264,7 +267,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
 
     // Check if we can do bump pointer allocation here.
     Node* check = __ UintLessThan(new_top, limit);
-    __ GotoUnless(check, &call_runtime);
+    __ GotoIfNot(check, &call_runtime);
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              top_address, __ IntPtrConstant(0), new_top);
@@ -317,6 +320,16 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
 
 void MemoryOptimizer::VisitCall(Node* node, AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kCall, node->opcode());
+  // If the call can allocate, we start with a fresh state.
+  if (!(CallDescriptorOf(node->op())->flags() & CallDescriptor::kNoAllocate)) {
+    state = empty_state();
+  }
+  EnqueueUses(node, state);
+}
+
+void MemoryOptimizer::VisitCallWithCallerSavedRegisters(
+    Node* node, AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kCallWithCallerSavedRegisters, node->opcode());
   // If the call can allocate, we start with a fresh state.
   if (!(CallDescriptorOf(node->op())->flags() & CallDescriptor::kNoAllocate)) {
     state = empty_state();

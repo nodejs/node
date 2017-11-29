@@ -132,7 +132,7 @@ function postDecTest()
 
 function primitiveThisTest()
 {
-    // Test that conversion of this is persistant over multiple calls to eval,
+    // Test that conversion of this is persistent over multiple calls to eval,
     // even where 'this' is not directly used within the function.
     eval('this.value = "Seekrit message";');
     return eval('this.value') === "Seekrit message";

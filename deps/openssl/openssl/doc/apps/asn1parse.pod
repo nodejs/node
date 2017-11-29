@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-asn1parse,
 asn1parse - ASN.1 parsing tool
 
 =head1 SYNOPSIS

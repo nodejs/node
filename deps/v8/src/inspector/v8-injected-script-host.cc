@@ -10,7 +10,7 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-internal-value-type.h"
-#include "src/inspector/v8-value-copier.h"
+#include "src/inspector/v8-value-utils.h"
 
 #include "include/v8-inspector.h"
 
@@ -219,6 +219,14 @@ void V8InjectedScriptHost::subtypeCallback(
     info.GetReturnValue().Set(toV8StringInternalized(isolate, "promise"));
     return;
   }
+  if (value->IsArrayBuffer() || value->IsSharedArrayBuffer()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "arraybuffer"));
+    return;
+  }
+  if (value->IsDataView()) {
+    info.GetReturnValue().Set(toV8StringInternalized(isolate, "dataview"));
+    return;
+  }
   std::unique_ptr<StringBuffer> subtype =
       unwrapInspector(info)->client()->valueSubtype(value);
   if (subtype) {
@@ -240,13 +248,9 @@ void V8InjectedScriptHost::getInternalPropertiesCallback(
     allowedProperties.insert(String16("[[PromiseValue]]"));
   } else if (info[0]->IsGeneratorObject()) {
     allowedProperties.insert(String16("[[GeneratorStatus]]"));
-  } else if (info[0]->IsMapIterator() || info[0]->IsSetIterator()) {
-    allowedProperties.insert(String16("[[IteratorHasMore]]"));
-    allowedProperties.insert(String16("[[IteratorIndex]]"));
-    allowedProperties.insert(String16("[[IteratorKind]]"));
-    allowedProperties.insert(String16("[[Entries]]"));
   } else if (info[0]->IsMap() || info[0]->IsWeakMap() || info[0]->IsSet() ||
-             info[0]->IsWeakSet()) {
+             info[0]->IsWeakSet() || info[0]->IsMapIterator() ||
+             info[0]->IsSetIterator()) {
     allowedProperties.insert(String16("[[Entries]]"));
   }
   if (!allowedProperties.size()) return;

@@ -12,9 +12,6 @@ var COMPARE_FORMATS = {
 module.exports = function (minMax) {
   var keyword = 'format' + minMax;
   return function defFunc(ajv) {
-    if (ajv.RULES.keywords[keyword])
-      return console.warn('Keyword', keyword, 'is already defined');
-
     defFunc.definition = {
       type: 'string',
       inline: require('./dotjs/_formatLimit'),
@@ -53,7 +50,8 @@ function extendFormats(ajv) {
   var formats = ajv._formats;
   for (var name in COMPARE_FORMATS) {
     var format = formats[name];
-    if (typeof format != 'object')
+    // the last condition is needed if it's RegExp from another window
+    if (typeof format != 'object' || format instanceof RegExp || !format.validate)
       format = formats[name] = { validate: format };
     if (!format.compare)
       format.compare = COMPARE_FORMATS[name];

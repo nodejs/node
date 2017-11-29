@@ -44,7 +44,8 @@ BUILTIN(NumberPrototypeToExponential) {
     return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
                                 : isolate->heap()->Infinity_string();
   }
-  if (fraction_digits_number < 0.0 || fraction_digits_number > 20.0) {
+  if (fraction_digits_number < 0.0 ||
+      fraction_digits_number > kMaxFractionDigits) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kNumberFormatRange,
                                isolate->factory()->NewStringFromAsciiChecked(
@@ -84,7 +85,8 @@ BUILTIN(NumberPrototypeToFixed) {
   double const fraction_digits_number = fraction_digits->Number();
 
   // Check if the {fraction_digits} are in the supported range.
-  if (fraction_digits_number < 0.0 || fraction_digits_number > 20.0) {
+  if (fraction_digits_number < 0.0 ||
+      fraction_digits_number > kMaxFractionDigits) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kNumberFormatRange,
                                isolate->factory()->NewStringFromAsciiChecked(
@@ -158,7 +160,7 @@ BUILTIN(NumberPrototypeToPrecision) {
     return (value_number < 0.0) ? isolate->heap()->minus_Infinity_string()
                                 : isolate->heap()->Infinity_string();
   }
-  if (precision_number < 1.0 || precision_number > 21.0) {
+  if (precision_number < 1.0 || precision_number > kMaxFractionDigits) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kToPrecisionFormatRange));
   }

@@ -45,9 +45,11 @@ module.exports = class ForwardTokenCursor extends Cursor {
         return false;
     }
 
-    //
-    // Shorthand for performance.
-    //
+    /*
+     *
+     * Shorthand for performance.
+     *
+     */
 
     /** @inheritdoc */
     getOneToken() {

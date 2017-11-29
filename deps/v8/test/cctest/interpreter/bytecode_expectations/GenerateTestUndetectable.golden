@@ -17,7 +17,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -47,7 +47,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -77,7 +77,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -107,7 +107,7 @@ parameter count: 1
 bytecode array length: 25
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -137,7 +137,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -166,7 +166,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -195,7 +195,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),
@@ -224,7 +224,7 @@ parameter count: 1
 bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(3), U8(41), R(2),
+  /*   46 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(2),
                 B(Mov), R(2), R(0),
   /*   63 S> */ B(LdaSmi), I8(10),
                 B(Star), R(1),

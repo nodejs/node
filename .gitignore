@@ -36,6 +36,7 @@ node_g
 icu_config.gypi
 .eslintcache
 node_trace.*.log
+coverage/
 
 /out
 
@@ -104,6 +105,8 @@ deps/npm/node_modules/.bin/
 
 # test artifacts
 tools/faketime
+tools/remark-cli/node_modules
+tools/remark-preset-lint-node/node_modules
 icu_config.gypi
 *.tap
 

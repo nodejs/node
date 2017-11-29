@@ -69,18 +69,29 @@ class ProducedPreParsedScopeData : public ZoneObject {
  public:
   // Create a ProducedPreParsedScopeData object which will collect data as we
   // parse.
-  explicit ProducedPreParsedScopeData(Zone* zone)
-      : backing_store_(zone),
+  explicit ProducedPreParsedScopeData(Zone* zone,
+                                      ProducedPreParsedScopeData* parent)
+      : parent_(parent),
+        backing_store_(zone),
         data_for_inner_functions_(zone),
-        scope_data_start_(-1) {}
+        scope_data_start_(-1),
+        bailed_out_(false) {
+    if (parent != nullptr) {
+      parent->data_for_inner_functions_.push_back(this);
+    }
+  }
 
   // Create a ProducedPreParsedScopeData which is just a proxy for a previous
   // produced PreParsedScopeData.
   ProducedPreParsedScopeData(Handle<PreParsedScopeData> data, Zone* zone)
-      : backing_store_(zone),
+      : parent_(nullptr),
+        backing_store_(zone),
         data_for_inner_functions_(zone),
         scope_data_start_(-1),
+        bailed_out_(false),
         previously_produced_preparsed_scope_data_(data) {}
+
+  ProducedPreParsedScopeData* parent() const { return parent_; }
 
   // For gathering the inner function data and splitting it up according to the
   // laziness boundaries. Each lazy function gets its own
@@ -95,7 +106,7 @@ class ProducedPreParsedScopeData : public ZoneObject {
    private:
     DeclarationScope* function_scope_;
     PreParser* preparser_;
-    ProducedPreParsedScopeData* parent_data_;
+    ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 
     DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
@@ -103,6 +114,31 @@ class ProducedPreParsedScopeData : public ZoneObject {
   // Saves the information needed for allocating the Scope's (and its
   // subscopes') variables.
   void SaveScopeAllocationData(DeclarationScope* scope);
+
+  // In some cases, PreParser cannot produce the same Scope structure as
+  // Parser. If it happens, we're unable to produce the data that would enable
+  // skipping the inner functions of that function.
+  void Bailout() {
+    bailed_out_ = true;
+
+    // We don't need to call Bailout on existing / future children: the only way
+    // to try to retrieve their data is through calling Serialize on the parent,
+    // and if the parent is bailed out, it won't call Serialize on its children.
+  }
+
+  bool bailed_out() const { return bailed_out_; }
+
+#ifdef DEBUG
+  bool ThisOrParentBailedOut() const {
+    if (bailed_out_) {
+      return true;
+    }
+    if (parent_ == nullptr) {
+      return false;
+    }
+    return parent_->ThisOrParentBailedOut();
+  }
+#endif  // DEBUG
 
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
@@ -122,6 +158,8 @@ class ProducedPreParsedScopeData : public ZoneObject {
   void SaveDataForVariable(Variable* var);
   void SaveDataForInnerScopes(Scope* scope);
 
+  ProducedPreParsedScopeData* parent_;
+
   // TODO(marja): Make the backing store more efficient once we know exactly
   // what data is needed.
   ZoneDeque<uint32_t> backing_store_;
@@ -130,6 +168,9 @@ class ProducedPreParsedScopeData : public ZoneObject {
   // this scope's (and its subscopes') variables. scope_data_start_ marks where
   // the latter starts.
   int scope_data_start_;
+
+  // Whether we've given up producing the data for this function.
+  bool bailed_out_;
 
   // ProducedPreParsedScopeData can also mask a Handle<PreParsedScopeData>
   // which was produced already earlier. This happens for deeper lazy functions.

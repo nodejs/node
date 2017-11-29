@@ -91,35 +91,22 @@ const char* StringsStorage::GetName(Name* name) {
   return "";
 }
 
-
 const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }
-
 
 const char* StringsStorage::GetFunctionName(Name* name) {
   return GetName(name);
 }
 
-
 const char* StringsStorage::GetFunctionName(const char* name) {
   return GetCopy(name);
-}
-
-
-size_t StringsStorage::GetUsedMemorySize() const {
-  size_t size = sizeof(*this);
-  size += sizeof(base::HashMap::Entry) * names_.capacity();
-  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
-       p = names_.Next(p)) {
-    size += strlen(reinterpret_cast<const char*>(p->value)) + 1;
-  }
-  return size;
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
   uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
+
 }  // namespace internal
 }  // namespace v8

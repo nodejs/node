@@ -599,7 +599,7 @@ APPEND_V8STR(this->scriptnamestr, this->scriptnamelen, this->scriptnameattrs)
 dtrace:helper:ustack:
 /!this->done/
 {
-	this->position = COPYIN_UINT32(this->shared + V8_OFF_SHARED_FUNTOK);
+	this->position = COPYIN_UINT32(this->shared + V8_OFF_SHARED_FUNIDENT);
 	this->line_ends = COPYIN_PTR(this->script + V8_OFF_SCRIPT_LENDS);
 	this->map = V8_MAP_PTR(COPYIN_PTR(this->line_ends + V8_OFF_HEAPOBJ_MAP));
 	this->le_attrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);

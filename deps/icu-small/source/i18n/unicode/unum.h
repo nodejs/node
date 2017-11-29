@@ -115,7 +115,7 @@
  * <P>
  * You can also control the display of numbers with such function as
  * unum_getAttributes() and unum_setAttributes(), which let you set the
- * miminum fraction digits, grouping, etc.
+ * minimum fraction digits, grouping, etc.
  * @see UNumberFormatAttributes for more details
  * <P>
  * You can also use forms of the parse and format methods with
@@ -126,7 +126,7 @@
  * </ul>
  * <p>
  * It is also possible to change or set the symbols used for a particular
- * locale like the currency symbol, the grouping seperator , monetary seperator
+ * locale like the currency symbol, the grouping separator , monetary separator
  * etc by making use of functions unum_setSymbols() and unum_getSymbols().
  */
 
@@ -265,7 +265,12 @@ typedef enum UNumberFormatStyle {
 } UNumberFormatStyle;
 
 /** The possible number format rounding modes.
- *  @stable ICU 2.0
+ *
+ * <p>
+ * For more detail on rounding modes, see:
+ * http://userguide.icu-project.org/formatparse/numbers/rounding-modes
+ *
+ * @stable ICU 2.0
  */
 typedef enum UNumberFormatRoundingMode {
     UNUM_ROUND_CEILING,
@@ -883,7 +888,7 @@ unum_parseToUFormattable(const UNumberFormat* fmt,
  * @param localized TRUE if the pattern is localized, FALSE otherwise.
  * @param pattern The new pattern
  * @param patternLength The length of pattern, or -1 if null-terminated.
- * @param parseError A pointer to UParseError to recieve information
+ * @param parseError A pointer to UParseError to receive information
  * about errors occurred during parsing, or NULL if no parse error
  * information is desired.
  * @param status A pointer to an input-output UErrorCode.

@@ -17,11 +17,14 @@ module.exports = {
     ignorePath: null,
     cache: false,
 
-    // in order to honor the cacheFile option if specified
-    // this option should not have a default value otherwise
-    // it will always be used
+    /*
+     * in order to honor the cacheFile option if specified
+     * this option should not have a default value otherwise
+     * it will always be used
+     */
     cacheLocation: "",
     cacheFile: ".eslintcache",
     fix: false,
-    allowInlineConfig: true
+    allowInlineConfig: true,
+    reportUnusedDisableDirectives: false
 };

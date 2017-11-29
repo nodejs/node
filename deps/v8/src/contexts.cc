@@ -199,7 +199,8 @@ static PropertyAttributes GetAttributesForMode(VariableMode mode) {
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index, PropertyAttributes* attributes,
                                InitializationFlag* init_flag,
-                               VariableMode* variable_mode) {
+                               VariableMode* variable_mode,
+                               bool* is_sloppy_function_name) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
@@ -209,6 +210,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   *attributes = ABSENT;
   *init_flag = kCreatedInitialized;
   *variable_mode = VAR;
+  if (is_sloppy_function_name != nullptr) {
+    *is_sloppy_function_name = false;
+  }
 
   if (FLAG_trace_contexts) {
     PrintF("Context::Lookup(");
@@ -343,6 +347,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           *attributes = READ_ONLY;
           *init_flag = kCreatedInitialized;
           *variable_mode = CONST;
+          if (is_sloppy_function_name != nullptr &&
+              is_sloppy(scope_info->language_mode())) {
+            *is_sloppy_function_name = true;
+          }
           return context;
         }
       }

@@ -61,7 +61,7 @@ assertEquals("ABCSS", "abCß".toLocaleUpperCase("tr"));
 // test262/intl402/Strings/*
 
 // Buffer size decrease with a single locale or locale list.
-// In Turkic (tr, az), U+0307 preceeded by Capital Letter I is dropped.
+// In Turkic (tr, az), U+0307 preceded by Capital Letter I is dropped.
 assertEquals("abci", "aBcI\u0307".toLocaleLowerCase("tr"));
 assertEquals("abci", "aBcI\u0307".toLocaleLowerCase("az"));
 assertEquals("abci", "aBcI\u0307".toLocaleLowerCase(["tr", "en"]));

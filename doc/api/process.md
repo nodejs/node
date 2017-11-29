@@ -350,6 +350,9 @@ Signal events will be emitted when the Node.js process receives a signal. Please
 refer to signal(7) for a listing of standard POSIX signal names such as
 `SIGINT`, `SIGHUP`, etc.
 
+The signal handler will receive the signal's name (`'SIGINT'`,
+ `'SIGTERM'`, etc.) as the first argument.
+
 The name of each event will be the uppercase common name for the signal (e.g.
 `'SIGINT'` for `SIGINT` signals).
 
@@ -362,6 +365,14 @@ process.stdin.resume();
 process.on('SIGINT', () => {
   console.log('Received SIGINT.  Press Control-D to exit.');
 });
+
+// Using a single function to handle multiple signals
+function handle(signal) {
+  console.log(`Received ${signal}`);
+}
+
+process.on('SIGINT', handle);
+process.on('SIGTERM', handle);
 ```
 
 *Note*: An easy way to send the `SIGINT` signal is with `<Ctrl>-C` in most
@@ -645,7 +656,7 @@ If the Node.js process was not spawned with an IPC channel,
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/12794
     description: Added support for the `flags` argument.
 -->
@@ -1125,6 +1136,16 @@ if (process.getuid) {
 *Note*: This function is only available on POSIX platforms (i.e. not Windows
 or Android).
 
+## process.hasUncaughtExceptionCaptureCallback()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean}
+
+Indicates whether a callback has been set using
+[`process.setUncaughtExceptionCaptureCallback()`][].
+
 ## process.hrtime([time])
 <!-- YAML
 added: v0.7.6
@@ -1282,7 +1303,13 @@ Will generate:
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
 `external` refers to the memory usage of C++ objects bound to JavaScript
-objects managed by V8.
+objects managed by V8. `rss`, Resident Set Size, is the amount of space
+occupied in the main memory device (that is a subset of the total allocated
+memory) for the process, which includes the _heap_, _code segment_ and _stack_.
+
+The _heap_ is where objects, strings and closures are stored. Variables are
+stored in the _stack_ and the actual JavaScript code resides in the
+_code segment_.
 
 ## process.nextTick(callback[, ...args])
 <!-- YAML
@@ -1410,6 +1437,19 @@ system platform on which the Node.js process is running. For instance
 console.log(`This platform is ${process.platform}`);
 ```
 
+## process.ppid
+<!-- YAML
+added: v9.2.0
+-->
+
+* {integer}
+
+The `process.ppid` property returns the PID of the current parent process.
+
+```js
+console.log(`The parent process is pid ${process.ppid}`);
+```
+
 ## process.release
 <!-- YAML
 added: v3.0.0
@@ -1438,7 +1478,11 @@ tarball.
   compiling Node.js native add-ons. _This property is only present on Windows
   builds of Node.js and will be missing on all other platforms._
 * `lts` {string} a string label identifying the [LTS][] label for this release.
-  If the Node.js release is not an LTS release, this will be `undefined`.
+  This property only exists for LTS releases and is `undefined` for all other
+  release types, including _Current_ releases.  Currently the valid values are:
+  - `'Argon'` for the 4.x LTS line beginning with 4.2.0.
+  - `'Boron'` for the 6.x LTS line beginning with 6.9.0.
+  - `'Carbon'` for the 8.x LTS line beginning with 8.9.1.
 
 For example:
 
@@ -1603,6 +1647,29 @@ if (process.getuid && process.setuid) {
 or Android).
 
 
+## process.setUncaughtExceptionCaptureCallback(fn)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|null}
+
+The `process.setUncaughtExceptionCapture` function sets a function that will
+be invoked when an uncaught exception occurs, which will receive the exception
+value itself as its first argument.
+
+If such a function is set, the [`process.on('uncaughtException')`][] event will
+not be emitted. If `--abort-on-uncaught-exception` was passed from the
+command line or set through [`v8.setFlagsFromString()`][], the process will
+not abort.
+
+To unset the capture function, `process.setUncaughtExceptionCapture(null)`
+may be used. Calling this method with a non-`null` argument while another
+capture function is set will throw an error.
+
+*Note*: Using this function is mutually exclusive with using the
+deprecated [`domain`][] built-in module.
+
 ## process.stderr
 
 * {Stream}
@@ -1676,7 +1743,7 @@ important ways:
    respectively.
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
-4. Writes may be synchronous depending on the what the stream is connected to
+4. Writes may be synchronous depending on what the stream is connected to
    and whether the system is Windows or POSIX:
    - Files: *synchronous* on Windows and POSIX
    - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on POSIX
@@ -1790,6 +1857,9 @@ changes:
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3102
     description: The `icu` property is now supported.
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/15785
+    description: The `v8` property now includes a Node.js specific suffix.
 -->
 
 * {Object}
@@ -1810,7 +1880,7 @@ Will generate an object similar to:
 {
   http_parser: '2.3.0',
   node: '1.1.1',
-  v8: '4.1.0.14',
+  v8: '6.1.534.42-node.0',
   uv: '1.3.0',
   zlib: '1.2.8',
   ares: '1.10.0-DEV',
@@ -1882,9 +1952,9 @@ cases:
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`domain`]: domain.html
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1894,10 +1964,12 @@ cases:
 [`process.exit()`]: #process_process_exit_code
 [`process.exitCode`]: #process_process_exitcode
 [`process.kill()`]: #process_process_kill_pid_signal
+[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require()`]: globals.html#globals_require
 [`require.main`]: modules.html#modules_accessing_the_main_module
-[`require.resolve()`]: modules.html#modules_require_resolve
+[`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.md
 [Cluster]: cluster.md

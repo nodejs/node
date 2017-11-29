@@ -33,7 +33,8 @@
 #include "src/objects.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 TEST(EternalHandles) {
   CcTest::InitializeVM();
@@ -183,3 +184,6 @@ TEST(PhatomHandlesWithoutCallbacks) {
   CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
   CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }
+
+}  // namespace internal
+}  // namespace v8

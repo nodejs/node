@@ -88,12 +88,11 @@ function getTopLoopNode(node, excludedNode) {
  * Checks whether a given reference which refers to an upper scope's variable is
  * safe or not.
  *
- * @param {ASTNode} funcNode - A target function node.
  * @param {ASTNode} loopNode - A containing loop node.
  * @param {eslint-scope.Reference} reference - A reference to check.
  * @returns {boolean} `true` if the reference is safe or not.
  */
-function isSafe(funcNode, loopNode, reference) {
+function isSafe(loopNode, reference) {
     const variable = reference.resolved;
     const definition = variable && variable.defs[0];
     const declaration = definition && definition.parent;
@@ -106,8 +105,10 @@ function isSafe(funcNode, loopNode, reference) {
         return true;
     }
 
-    // Variables which are declared by `let` in the loop is safe.
-    // It's a different instance from the next loop step's.
+    /*
+     * Variables which are declared by `let` in the loop is safe.
+     * It's a different instance from the next loop step's.
+     */
     if (kind === "let" &&
         declaration.range[0] > loopNode.range[0] &&
         declaration.range[1] < loopNode.range[1]
@@ -115,8 +116,10 @@ function isSafe(funcNode, loopNode, reference) {
         return true;
     }
 
-    // WriteReferences which exist after this border are unsafe because those
-    // can modify the variable.
+    /*
+     * WriteReferences which exist after this border are unsafe because those
+     * can modify the variable.
+     */
     const border = getTopLoopNode(
         loopNode,
         (kind === "let") ? declaration : null
@@ -183,7 +186,7 @@ module.exports = {
             const references = context.getScope().through;
 
             if (references.length > 0 &&
-                !references.every(isSafe.bind(null, node, loopNode))
+                !references.every(isSafe.bind(null, loopNode))
             ) {
                 context.report({ node, message: "Don't make functions within a loop." });
             }

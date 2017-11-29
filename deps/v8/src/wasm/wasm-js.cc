@@ -15,13 +15,12 @@
 #include "src/parsing/parse-info.h"
 
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
-
-typedef uint8_t byte;
 
 using v8::internal::wasm::ErrorThrower;
 
@@ -39,35 +38,6 @@ namespace {
       DCHECK(!i_isolate->has_scheduled_exception()); \
     }                                                \
   } while (false)
-
-// Like an ErrorThrower, but turns all pending exceptions into scheduled
-// exceptions when going out of scope. Use this in API methods.
-// Note that pending exceptions are not necessarily created by the ErrorThrower,
-// but e.g. by the wasm start function. There might also be a scheduled
-// exception, created by another API call (e.g. v8::Object::Get). But there
-// should never be both pending and scheduled exceptions.
-class ScheduledErrorThrower : public ErrorThrower {
- public:
-  ScheduledErrorThrower(v8::Isolate* isolate, const char* context)
-      : ScheduledErrorThrower(reinterpret_cast<i::Isolate*>(isolate), context) {
-  }
-  ScheduledErrorThrower(i::Isolate* isolate, const char* context)
-      : ErrorThrower(isolate, context) {}
-  ~ScheduledErrorThrower() {
-    // There should never be both a pending and a scheduled exception.
-    DCHECK(!isolate()->has_scheduled_exception() ||
-           !isolate()->has_pending_exception());
-    // Don't throw another error if there is already a scheduled error.
-    if (isolate()->has_scheduled_exception()) {
-      Reset();
-    } else if (isolate()->has_pending_exception()) {
-      Reset();
-      isolate()->OptionalRescheduleException(false);
-    } else if (error()) {
-      isolate()->ScheduleThrow(*Reify());
-    }
-  }
-};
 
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
@@ -101,7 +71,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     return i::wasm::ModuleWireBytes(nullptr, nullptr);
   }
 
-  const byte* start = nullptr;
+  const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = args[0];
   if (source->IsArrayBuffer()) {
@@ -109,7 +79,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(source);
     ArrayBuffer::Contents contents = buffer->GetContents();
 
-    start = reinterpret_cast<const byte*>(contents.Data());
+    start = reinterpret_cast<const uint8_t*>(contents.Data());
     length = contents.ByteLength();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
@@ -119,7 +89,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     ArrayBuffer::Contents contents = buffer->GetContents();
 
     start =
-        reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
+        reinterpret_cast<const uint8_t*>(contents.Data()) + array->ByteOffset();
     length = array->ByteLength();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
@@ -164,7 +134,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
 
   Local<Context> context = isolate->GetCurrentContext();
   ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
@@ -187,7 +157,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.validate()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.validate()");
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
 
@@ -208,7 +178,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (i_isolate->wasm_module_callback()(args)) return;
 
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
 
@@ -228,7 +198,8 @@ void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module.imports()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Module.imports()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
@@ -241,7 +212,8 @@ void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module.exports()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Module.exports()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
@@ -255,23 +227,16 @@ void WebAssemblyModuleCustomSections(
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ScheduledErrorThrower thrower(i_isolate,
-                                "WebAssembly.Module.customSections()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Module.customSections()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
-  if (args.Length() < 2) {
-    thrower.TypeError("Argument 1 must be a string");
-    return;
-  }
-
-  i::Handle<i::Object> name = Utils::OpenHandle(*args[1]);
-  if (!name->IsString()) {
-    thrower.TypeError("Argument 1 must be a string");
-    return;
-  }
-
+  i::MaybeHandle<i::Object> maybe_name =
+      i::Object::ToString(i_isolate, Utils::OpenHandle(*args[1]));
+  i::Handle<i::Object> name;
+  if (!maybe_name.ToHandle(&name)) return;
   auto custom_sections =
       i::wasm::GetCustomSections(i_isolate, maybe_module.ToHandleChecked(),
                                  i::Handle<i::String>::cast(name), &thrower);
@@ -286,7 +251,8 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
 
   i::MaybeHandle<i::Object> instance_object;
   {
-    ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+    i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                           "WebAssembly Instantiation");
     i::MaybeHandle<i::JSReceiver> maybe_imports =
         GetValueAsImports(ffi, &thrower);
     if (thrower.error()) return {};
@@ -366,7 +332,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->wasm_instance_callback()(args)) return;
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
   GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
@@ -416,7 +382,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);
 
@@ -502,7 +469,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
   if (args.Length() < 1 || !args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a table descriptor");
     return;
@@ -555,7 +522,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory()");
   if (args.Length() < 1 || !args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a memory descriptor");
     return;
@@ -639,12 +606,25 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     var = i::Handle<i::WasmType>::cast(this_arg);                    \
   }
 
+void WebAssemblyInstanceGetExports(
+  const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope scope(isolate);
+    i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                           "WebAssembly.Instance.exports()");
+  EXTRACT_THIS(receiver, WasmInstanceObject);
+  i::Handle<i::JSObject> exports_object(receiver->exports_object());
+  args.GetReturnValue().Set(Utils::ToLocal(exports_object));
+}
+
 void WebAssemblyTableGetLength(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.length()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Table.length()");
   EXTRACT_THIS(receiver, WasmTableObject);
   args.GetReturnValue().Set(
       v8::Number::New(isolate, receiver->current_length()));
@@ -655,16 +635,16 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.grow()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.grow()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
-  int old_size = old_array->length();
   int64_t new_size64 = 0;
   if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
     return;
   }
+  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
+  int old_size = old_array->length();
   new_size64 += old_size;
 
   int64_t max_size64 = receiver->maximum_length()->Number();
@@ -700,19 +680,19 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.get()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.get()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
   i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
-  int i = 0;
-  if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
+  int64_t i = 0;
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   if (i < 0 || i >= array->length()) {
     thrower.RangeError("index out of bounds");
     return;
   }
 
-  i::Handle<i::Object> value(array->get(i), i_isolate);
+  i::Handle<i::Object> value(array->get(static_cast<int>(i)), i_isolate);
   return_value.Set(Utils::ToLocal(value));
 }
 
@@ -721,7 +701,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.set()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.set()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
@@ -731,8 +711,8 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Parameter 0.
-  int32_t index;
-  if (!args[0]->Int32Value(context).To(&index)) return;
+  int64_t index;
+  if (!args[0]->IntegerValue(context).To(&index)) return;
 
   // Parameter 1.
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
@@ -755,7 +735,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory.grow()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Memory.grow()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
@@ -770,6 +751,10 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     max_size64 = i::FLAG_wasm_max_mem_pages;
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer());
+  if (!old_buffer->is_growable()) {
+    thrower.RangeError("This memory cannot be grown");
+    return;
+  }
   uint32_t old_size =
       old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
   int64_t new_size64 = old_size + delta_size;
@@ -798,7 +783,8 @@ void WebAssemblyMemoryGetBuffer(
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory.buffer");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Memory.buffer");
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
   i::Handle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
@@ -846,8 +832,8 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
   return function;
 }
 
-Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
-                                 const char* str, FunctionCallback func) {
+void InstallGetter(Isolate* isolate, Handle<JSObject> object,
+                   const char* str, FunctionCallback func) {
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   // TODO(ishell): shouldn't we set "get "+name as getter's name?
@@ -859,7 +845,6 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
                                               Local<Function>(), attributes);
-  return function;
 }
 
 void WasmJs::Install(Isolate* isolate) {
@@ -902,8 +887,9 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> module_constructor =
       InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
-  Handle<JSObject> module_proto =
-      factory->NewJSObject(module_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(module_constructor);
+  Handle<JSObject> module_proto(
+      JSObject::cast(module_constructor->instance_prototype()));
   i::Handle<i::Map> module_map = isolate->factory()->NewMap(
       i::WASM_MODULE_TYPE, i::JSObject::kHeaderSize +
                                WasmModuleObject::kFieldCount * i::kPointerSize);
@@ -914,8 +900,6 @@ void WasmJs::Install(Isolate* isolate) {
               1);
   InstallFunc(isolate, module_constructor, "customSections",
               WebAssemblyModuleCustomSections, 2);
-  JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
-                        module_constructor, DONT_ENUM);
   JSObject::AddProperty(module_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
@@ -923,14 +907,14 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> instance_constructor =
       InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
-  Handle<JSObject> instance_proto =
-      factory->NewJSObject(instance_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(instance_constructor);
+  Handle<JSObject> instance_proto(
+      JSObject::cast(instance_constructor->instance_prototype()));
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
       i::WASM_INSTANCE_TYPE, WasmInstanceObject::kSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
-  JSObject::AddProperty(instance_proto,
-                        isolate->factory()->constructor_string(),
-                        instance_constructor, DONT_ENUM);
+  InstallGetter(isolate, instance_proto, "exports",
+                WebAssemblyInstanceGetExports);
   JSObject::AddProperty(instance_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
@@ -938,13 +922,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> table_constructor =
       InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
-  Handle<JSObject> table_proto =
-      factory->NewJSObject(table_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(table_constructor);
+  Handle<JSObject> table_proto(
+      JSObject::cast(table_constructor->instance_prototype()));
   i::Handle<i::Map> table_map =
       isolate->factory()->NewMap(i::WASM_TABLE_TYPE, WasmTableObject::kSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
-  JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
-                        table_constructor, DONT_ENUM);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
@@ -956,13 +939,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSFunction> memory_constructor =
       InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
-  Handle<JSObject> memory_proto =
-      factory->NewJSObject(memory_constructor, TENURED);
+  JSFunction::EnsureHasInitialMap(memory_constructor);
+  Handle<JSObject> memory_proto(
+      JSObject::cast(memory_constructor->instance_prototype()));
   i::Handle<i::Map> memory_map =
       isolate->factory()->NewMap(i::WASM_MEMORY_TYPE, WasmMemoryObject::kSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
-  JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
-                        memory_constructor, DONT_ENUM);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
   JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),

@@ -377,7 +377,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
 
 // Check that the debugger has been fully unloaded.
-void CheckDebuggerUnloaded(bool check_functions) {
+void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
   CHECK(CcTest::i_isolate()->debug()->debug_context().is_null());
@@ -391,19 +391,6 @@ void CheckDebuggerUnloaded(bool check_functions) {
   HeapIterator iterator(CcTest::heap());
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
-
-    // If deep check of functions is requested check that no debug break code
-    // is left in all functions.
-    if (check_functions) {
-      if (obj->IsJSFunction()) {
-        JSFunction* fun = JSFunction::cast(obj);
-        for (RelocIterator it(fun->shared()->code(),
-                              RelocInfo::kDebugBreakSlotMask);
-             !it.done(); it.next()) {
-          CHECK(!it.rinfo()->IsPatchedDebugBreakSlotSequence());
-        }
-      }
-    }
   }
 }
 
@@ -413,11 +400,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
 
 // Check that the debugger has been fully unloaded.
-static void CheckDebuggerUnloaded(v8::Isolate* isolate,
-                                  bool check_functions = false) {
-  v8::internal::CheckDebuggerUnloaded(check_functions);
-}
-
+static void CheckDebuggerUnloaded() { v8::internal::CheckDebuggerUnloaded(); }
 
 // --- D e b u g   E v e n t   H a n d l e r s
 // ---
@@ -707,7 +690,7 @@ static void DebugEventEvaluate(
           evaluate_check_function->Call(context, exec_state, argc, argv)
               .ToLocalChecked();
       if (!result->IsTrue()) {
-        v8::String::Utf8Value utf8(checks[i].expected);
+        v8::String::Utf8Value utf8(isolate, checks[i].expected);
         V8_Fatal(__FILE__, __LINE__, "%s != %s", checks[i].expr, *utf8);
       }
     }
@@ -783,7 +766,7 @@ static void DebugEventStepSequence(
             .ToLocalChecked();
     CHECK(result->IsString());
     v8::String::Utf8Value function_name(
-        result->ToString(context).ToLocalChecked());
+        CcTest::isolate(), result->ToString(context).ToLocalChecked());
     CHECK_EQ(1, StrLength(*function_name));
     CHECK_EQ((*function_name)[0],
               expected_step_sequence[break_point_hit_count]);
@@ -961,7 +944,7 @@ TEST(BreakPointICStore) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -993,7 +976,7 @@ TEST(BreakPointICLoad) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1024,7 +1007,7 @@ TEST(BreakPointICCall) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1065,7 +1048,7 @@ TEST(BreakPointICCallWithGC) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1106,7 +1089,7 @@ TEST(BreakPointConstructCallWithGC) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1151,7 +1134,7 @@ TEST(BreakPointReturn) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1203,7 +1186,7 @@ TEST(GCDuringBreakPointProcessing) {
   CallWithBreakPoints(context, env->Global(), foo, 1, 25);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1284,7 +1267,7 @@ TEST(BreakPointSurviveGC) {
   CallAndGC(context, env->Global(), foo);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1336,7 +1319,7 @@ TEST(BreakPointThroughJavaScript) {
   CHECK_EQ(8, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 
   // Make sure that the break point numbers are consecutive.
   CHECK_EQ(1, bp1);
@@ -1441,7 +1424,7 @@ TEST(ScriptBreakPointByNameThroughJavaScript) {
   CHECK_EQ(0, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 
   // Make sure that the break point numbers are consecutive.
   CHECK_EQ(1, sbp1);
@@ -1550,7 +1533,7 @@ TEST(ScriptBreakPointByIdThroughJavaScript) {
   CHECK_EQ(0, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 
   // Make sure that the break point numbers are consecutive.
   CHECK_EQ(1, sbp1);
@@ -1608,7 +1591,7 @@ TEST(EnableDisableScriptBreakPoint) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1664,7 +1647,7 @@ TEST(ConditionalScriptBreakPoint) {
   CHECK_EQ(5, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1740,7 +1723,7 @@ TEST(ScriptBreakPointMultiple) {
   CHECK_EQ(2, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1805,7 +1788,7 @@ TEST(ScriptBreakPointLineOffset) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1919,7 +1902,7 @@ TEST(ScriptBreakPointLine) {
   ClearBreakPointFromJS(env->GetIsolate(), sbp6);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1963,7 +1946,7 @@ TEST(ScriptBreakPointLineTopLevel) {
   CHECK_EQ(0, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -1995,7 +1978,7 @@ TEST(ScriptBreakPointTopLevelCrash) {
   ClearBreakPointFromJS(env->GetIsolate(), sbp2);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2023,7 +2006,7 @@ TEST(RemoveBreakPointInBreak) {
   CHECK_EQ(0, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2062,7 +2045,7 @@ TEST(DebuggerStatement) {
   CHECK_EQ(3, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2095,7 +2078,7 @@ TEST(DebuggerStatementBreakpoint) {
 
     ClearBreakPoint(bp);
     SetDebugEventListener(env->GetIsolate(), nullptr);
-    CheckDebuggerUnloaded(env->GetIsolate());
+    CheckDebuggerUnloaded();
 }
 
 
@@ -2235,7 +2218,7 @@ TEST(DebugEvaluate) {
   bar->Call(context, env->Global(), 2, argv_bar_3).ToLocalChecked();
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2271,7 +2254,7 @@ TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
   CHECK_EQ(1, debugEventCount);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2337,7 +2320,7 @@ TEST(DebugEvaluateWithCodeGenerationDisallowed) {
   checkGlobalEvalFunction.Clear();
   checkFrameEvalFunction.Clear();
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2368,7 +2351,7 @@ TEST(DebugStepLinear) {
   CHECK_EQ(4, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
@@ -2381,7 +2364,7 @@ TEST(DebugStepLinear) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2432,7 +2415,7 @@ TEST(DebugStepKeyedLoadLoop) {
   CHECK_EQ(44, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2482,7 +2465,7 @@ TEST(DebugStepKeyedStoreLoop) {
   CHECK_EQ(44, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2527,7 +2510,7 @@ TEST(DebugStepNamedLoadLoop) {
   CHECK_EQ(65, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2563,7 +2546,7 @@ static void DoDebugStepNamedStoreLoop(int expected) {
   CHECK_EQ(expected, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2601,7 +2584,7 @@ TEST(DebugStepLinearMixedICs) {
   CHECK_EQ(10, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
@@ -2614,7 +2597,7 @@ TEST(DebugStepLinearMixedICs) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2648,7 +2631,7 @@ TEST(DebugStepDeclarations) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2682,7 +2665,7 @@ TEST(DebugStepLocals) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2727,7 +2710,7 @@ TEST(DebugStepIf) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2785,7 +2768,7 @@ TEST(DebugStepSwitch) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2834,7 +2817,7 @@ TEST(DebugStepWhile) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2883,7 +2866,7 @@ TEST(DebugStepDoWhile) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2933,7 +2916,7 @@ TEST(DebugStepFor) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -2986,7 +2969,7 @@ TEST(DebugStepForContinue) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3040,7 +3023,7 @@ TEST(DebugStepForBreak) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3089,7 +3072,7 @@ TEST(DebugStepForIn) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3124,7 +3107,7 @@ TEST(DebugStepWith) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3161,7 +3144,7 @@ TEST(DebugConditional) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3213,7 +3196,7 @@ TEST(StepInOutSimple) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3266,7 +3249,7 @@ TEST(StepInOutTree) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate(), true);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3302,7 +3285,7 @@ TEST(StepInOutBranch) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3329,7 +3312,7 @@ TEST(DebugStepNatives) {
   CHECK_EQ(3, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
@@ -3341,7 +3324,7 @@ TEST(DebugStepNatives) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3369,7 +3352,7 @@ TEST(DebugStepFunctionApply) {
   CHECK_EQ(7, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
@@ -3381,7 +3364,7 @@ TEST(DebugStepFunctionApply) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3422,7 +3405,7 @@ TEST(DebugStepFunctionCall) {
   CHECK_EQ(8, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(isolate, DebugEventBreakPointHitCount);
@@ -3434,7 +3417,7 @@ TEST(DebugStepFunctionCall) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3465,7 +3448,7 @@ TEST(DebugStepFunctionCallApply) {
   CHECK_EQ(6, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 
   // Register a debug event listener which just counts.
   SetDebugEventListener(isolate, DebugEventBreakPointHitCount);
@@ -3477,7 +3460,7 @@ TEST(DebugStepFunctionCallApply) {
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3512,7 +3495,7 @@ TEST(PauseInScript) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3715,7 +3698,7 @@ TEST(BreakOnException) {
   DebugEventCounterCheck(4, 3, 2);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
   env->GetIsolate()->RemoveMessageListeners(MessageCallbackCount);
 }
 
@@ -3908,7 +3891,7 @@ TEST(StepWithException) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -3963,7 +3946,7 @@ TEST(DebugBreak) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -4006,7 +3989,7 @@ TEST(DisableBreak) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 TEST(DisableDebuggerStatement) {
@@ -4052,12 +4035,12 @@ TEST(NoBreakWhenBootstrapping) {
     v8::HandleScope handle_scope(isolate);
     v8::Context::New(isolate, &extensions);
   }
-  // Check that no DebugBreak events occured during the context creation.
+  // Check that no DebugBreak events occurred during the context creation.
   CHECK_EQ(0, break_point_hit_count);
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -4094,7 +4077,7 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
 static void NamedGetter(v8::Local<v8::Name> name,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   if (name->IsSymbol()) return;
-  v8::String::Utf8Value n(v8::Local<v8::String>::Cast(name));
+  v8::String::Utf8Value n(CcTest::isolate(), v8::Local<v8::String>::Cast(name));
   if (strcmp(*n, "a") == 0) {
     info.GetReturnValue().Set(v8_str(info.GetIsolate(), "AA"));
     return;
@@ -4803,7 +4786,7 @@ TEST(DebuggerUnload) {
   DebugLocalContext env;
 
   // Check debugger is unloaded before it is used.
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Set a debug event listener.
   break_point_hit_count = 0;
@@ -4834,7 +4817,7 @@ TEST(DebuggerUnload) {
   // Remove the debug event listener without clearing breakpoints. Do this
   // outside a handle scope.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate(), true);
+  CheckDebuggerUnloaded();
 }
 
 int event_listener_hit_count = 0;
@@ -4855,7 +4838,7 @@ TEST(DebuggerClearEventListenerWhileActive) {
   v8::HandleScope scope(env->GetIsolate());
 
   // Check debugger is unloaded before it is used.
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Set a debug event listener.
   SetDebugEventListener(env->GetIsolate(), EventListenerClearingItself);
@@ -4866,7 +4849,7 @@ TEST(DebuggerClearEventListenerWhileActive) {
   // The event listener should have been called.
   CHECK_EQ(1, event_listener_hit_count);
 
-  CheckDebuggerUnloaded(env->GetIsolate(), true);
+  CheckDebuggerUnloaded();
 }
 
 // Test for issue http://code.google.com/p/v8/issues/detail?id=289.
@@ -5082,7 +5065,7 @@ TEST(ContextData) {
   CHECK_GT(event_listener_hit_count, 3);
 
   SetDebugEventListener(isolate, nullptr);
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 // Debug event listener which issues a debug break when it hits a break event.
@@ -5176,7 +5159,7 @@ TEST(RegExpDebugBreak) {
                                         frame_function_name_source,
                                         "frame_function_name");
 
-  // Test RegExp which matches white spaces and comments at the begining of a
+  // Test RegExp which matches white spaces and comments at the beginning of a
   // source line.
   const char* script =
     "var sourceLineBeginningSkip = /^(?:[ \\v\\h]*(?:\\/\\*.*?\\*\\/)*)*/;\n"
@@ -5240,7 +5223,7 @@ TEST(EvalContextData) {
 
   // One time compile event and one time break event.
   CHECK_GT(event_listener_hit_count, 2);
-  CheckDebuggerUnloaded(CcTest::isolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -5278,7 +5261,7 @@ TEST(AfterCompileEventWhenEventListenerIsReset) {
 
   // Setting listener to NULL should cause debugger unload.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Compilation cache should be disabled when debugger is active.
   CHECK_EQ(2, after_compile_event_count);
@@ -5370,7 +5353,7 @@ TEST(BreakEventWhenEventListenerIsReset) {
 
   // Setting event listener to NULL should cause debugger unload.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   // Compilation cache should be disabled when debugger is active.
   CHECK_EQ(1, after_compile_event_count);
@@ -5410,7 +5393,7 @@ TEST(ExceptionEventWhenEventListenerIsReset) {
 
   // Setting event listener to NULL should cause debugger unload.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 
   CHECK_EQ(1, exception_event_count);
 }
@@ -5455,7 +5438,7 @@ TEST(ProvisionalBreakpointOnLineOutOfRange) {
   ClearBreakPointFromJS(env->GetIsolate(), sbp1);
   ClearBreakPointFromJS(env->GetIsolate(), sbp2);
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 static void BreakEventListener(const v8::Debug::EventDetails& details) {
@@ -5491,7 +5474,7 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -5525,7 +5508,7 @@ TEST(DebugBreakFunctionApply) {
   CHECK_GT(break_point_hit_count, 1);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -5538,7 +5521,7 @@ v8::Local<v8::Context> debugger_context;
 static void NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(name), "a"));
+  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(info.GetIsolate(), name), "a"));
   v8::Local<v8::Context> current = info.GetIsolate()->GetCurrentContext();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
@@ -5608,7 +5591,7 @@ TEST(CallingContextIsNotDebugContext) {
   SetDebugEventListener(isolate, nullptr);
   debugee_context = v8::Local<v8::Context>();
   debugger_context = v8::Local<v8::Context>();
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -5621,7 +5604,7 @@ static void DebugEventContextChecker(const v8::Debug::EventDetails& details) {
 }
 
 
-// Check that event details contain context where debug event occured.
+// Check that event details contain context where debug event occurred.
 TEST(DebugEventContext) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -5638,7 +5621,7 @@ TEST(DebugEventContext) {
   expected_context.Clear();
   SetDebugEventListener(isolate, nullptr);
   expected_context_data = v8::Local<v8::Value>();
-  CheckDebuggerUnloaded(isolate);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -5894,7 +5877,7 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
 
   // Get rid of the debug event listener.
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -6065,11 +6048,11 @@ TEST(Regress131642) {
 // Import from test-heap.cc
 namespace v8 {
 namespace internal {
-
+namespace heap {
 int CountNativeContexts();
-}
-}
-
+}  // namespace heap
+}  // namespace internal
+}  // namespace v8
 
 static void NopListener(const v8::Debug::EventDetails& event_details) {
 }
@@ -6078,15 +6061,15 @@ static void NopListener(const v8::Debug::EventDetails& event_details) {
 TEST(DebuggerCreatesContextIffActive) {
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  CHECK_EQ(1, v8::internal::CountNativeContexts());
+  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
   CompileRun("debugger;");
-  CHECK_EQ(1, v8::internal::CountNativeContexts());
+  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
 
   SetDebugEventListener(env->GetIsolate(), NopListener);
   CompileRun("debugger;");
-  CHECK_EQ(2, v8::internal::CountNativeContexts());
+  CHECK_EQ(2, v8::internal::heap::CountNativeContexts());
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
 }
@@ -6137,11 +6120,11 @@ TEST(PrecompiledFunction) {
       "bar();                          \n";
   v8::Local<v8::Value> result = ParserCacheCompileRun(source);
   CHECK(result->IsString());
-  v8::String::Utf8Value utf8(result);
+  v8::String::Utf8Value utf8(env->GetIsolate(), result);
   CHECK_EQ(0, strcmp("bar", *utf8));
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
+  CheckDebuggerUnloaded();
 }
 
 
@@ -6406,26 +6389,25 @@ TEST(BreakLocationIterator) {
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
-  Handle<i::AbstractCode> abstract_code(shared->abstract_code());
 
   {
-    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code);
-    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-    CHECK_EQ(17, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
-    CHECK_EQ(32, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsCall());
-    CHECK_EQ(32, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
-    CHECK_EQ(47, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsReturn());
-    CHECK_EQ(60, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->Done());
+    i::BreakIterator iterator(debug_info);
+    CHECK(iterator.GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(17, iterator.GetBreakLocation().position());
+    iterator.Next();
+    CHECK(iterator.GetBreakLocation().IsDebugBreakSlot());
+    CHECK_EQ(32, iterator.GetBreakLocation().position());
+    iterator.Next();
+    CHECK(iterator.GetBreakLocation().IsCall());
+    CHECK_EQ(32, iterator.GetBreakLocation().position());
+    iterator.Next();
+    CHECK(iterator.GetBreakLocation().IsDebuggerStatement());
+    CHECK_EQ(47, iterator.GetBreakLocation().position());
+    iterator.Next();
+    CHECK(iterator.GetBreakLocation().IsReturn());
+    CHECK_EQ(60, iterator.GetBreakLocation().position());
+    iterator.Next();
+    CHECK(iterator.Done());
   }
 
   DisableDebugger(isolate);
@@ -6583,14 +6565,9 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
       ++returns_count;
     }
   }
-  if (i::FLAG_stress_fullcodegen) {
-    // With fullcodegen we generate one return location.
-    CHECK(returns_count == 1);
-  } else {
-    // With Ignition we generate one return location per return statement,
-    // each has line = 5, column = 0 as statement position.
-    CHECK(returns_count == 4);
-  }
+  // With Ignition we generate one return location per return statement,
+  // each has line = 5, column = 0 as statement position.
+  CHECK(returns_count == 4);
 }
 
 TEST(DebugEvaluateNoSideEffect) {

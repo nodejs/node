@@ -46,12 +46,9 @@
 
 #include "node.h"
 #include "node_buffer.h"
-#include "env.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
-#include "base-object.h"
-#include "base-object-inl.h"
+#include "base_object-inl.h"
 #include "v8.h"
 
 #include <unicode/utypes.h>
@@ -877,6 +874,6 @@ void Init(Local<Object> target,
 }  // namespace i18n
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(icu, node::i18n::Init)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(icu, node::i18n::Init)
 
 #endif  // NODE_HAVE_I18N_SUPPORT

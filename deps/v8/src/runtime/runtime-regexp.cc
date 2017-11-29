@@ -387,7 +387,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 }
 
 void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
-                              List<int>* indices, unsigned int limit) {
+                              std::vector<int>* indices, unsigned int limit) {
   DCHECK(limit > 0);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
@@ -398,20 +398,20 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
     pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
     if (pos == NULL) return;
-    indices->Add(static_cast<int>(pos - subject_start));
+    indices->push_back(static_cast<int>(pos - subject_start));
     pos++;
     limit--;
   }
 }
 
 void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
-                              List<int>* indices, unsigned int limit) {
+                              std::vector<int>* indices, unsigned int limit) {
   DCHECK(limit > 0);
   const uc16* subject_start = subject.start();
   const uc16* subject_end = subject_start + subject.length();
   for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
     if (*pos == pattern) {
-      indices->Add(static_cast<int>(pos - subject_start));
+      indices->push_back(static_cast<int>(pos - subject_start));
       limit--;
     }
   }
@@ -419,8 +419,8 @@ void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
 
 template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
-                       Vector<const PatternChar> pattern, List<int>* indices,
-                       unsigned int limit) {
+                       Vector<const PatternChar> pattern,
+                       std::vector<int>* indices, unsigned int limit) {
   DCHECK(limit > 0);
   // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
@@ -430,14 +430,14 @@ void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
   while (limit > 0) {
     index = search.Search(subject, index);
     if (index < 0) return;
-    indices->Add(index);
+    indices->push_back(index);
     index += pattern_length;
     limit--;
   }
 }
 
 void FindStringIndicesDispatch(Isolate* isolate, String* subject,
-                               String* pattern, List<int>* indices,
+                               String* pattern, std::vector<int>* indices,
                                unsigned int limit) {
   {
     DisallowHeapAllocation no_gc;
@@ -488,9 +488,9 @@ void FindStringIndicesDispatch(Isolate* isolate, String* subject,
 }
 
 namespace {
-List<int>* GetRewoundRegexpIndicesList(Isolate* isolate) {
-  List<int>* list = isolate->regexp_indices();
-  list->Rewind(0);
+std::vector<int>* GetRewoundRegexpIndicesList(Isolate* isolate) {
+  std::vector<int>* list = isolate->regexp_indices();
+  list->clear();
   return list;
 }
 
@@ -498,8 +498,11 @@ void TruncateRegexpIndicesList(Isolate* isolate) {
   // Same size as smallest zone segment, preserving behavior from the
   // runtime zone.
   static const int kMaxRegexpIndicesListCapacity = 8 * KB;
-  if (isolate->regexp_indices()->capacity() > kMaxRegexpIndicesListCapacity) {
-    isolate->regexp_indices()->Clear();  //  Throw away backing storage
+  std::vector<int>* indicies = isolate->regexp_indices();
+  if (indicies->capacity() > kMaxRegexpIndicesListCapacity) {
+    // Throw away backing storage.
+    indicies->clear();
+    indicies->shrink_to_fit();
   }
 }
 }  // namespace
@@ -511,7 +514,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   DCHECK(subject->IsFlat());
   DCHECK(replacement->IsFlat());
 
-  List<int>* indices = GetRewoundRegexpIndicesList(isolate);
+  std::vector<int>* indices = GetRewoundRegexpIndicesList(isolate);
 
   DCHECK_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
@@ -522,13 +525,12 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
 
   FindStringIndicesDispatch(isolate, *subject, pattern, indices, 0xffffffff);
 
-  int matches = indices->length();
-  if (matches == 0) return *subject;
+  if (indices->empty()) return *subject;
 
   // Detect integer overflow.
   int64_t result_len_64 = (static_cast<int64_t>(replacement_len) -
                            static_cast<int64_t>(pattern_len)) *
-                              static_cast<int64_t>(matches) +
+                              static_cast<int64_t>(indices->size()) +
                           static_cast<int64_t>(subject_len);
   int result_len;
   if (result_len_64 > static_cast<int64_t>(String::kMaxLength)) {
@@ -554,12 +556,12 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
   Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(untyped_res);
 
-  for (int i = 0; i < matches; i++) {
+  for (int index : *indices) {
     // Copy non-matched subject content.
-    if (subject_pos < indices->at(i)) {
+    if (subject_pos < index) {
       String::WriteToFlat(*subject, result->GetChars() + result_pos,
-                          subject_pos, indices->at(i));
-      result_pos += indices->at(i) - subject_pos;
+                          subject_pos, index);
+      result_pos += index - subject_pos;
     }
 
     // Replace match.
@@ -569,7 +571,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
       result_pos += replacement_len;
     }
 
-    subject_pos = indices->at(i) + pattern_len;
+    subject_pos = index + pattern_len;
   }
   // Add remaining subject content at the end.
   if (subject_pos < subject_len) {
@@ -577,8 +579,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
                         subject_len);
   }
 
-  int32_t match_indices[] = {indices->at(matches - 1),
-                             indices->at(matches - 1) + pattern_len};
+  int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
   RegExpImpl::SetLastMatchInfo(last_match_info, subject, 0, match_indices);
 
   TruncateRegexpIndicesList(isolate);
@@ -643,7 +644,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
 
-  // Number of parts added by compiled replacement plus preceeding
+  // Number of parts added by compiled replacement plus preceding
   // string and possibly suffix after last match.  It is possible for
   // all components to use two elements when encoded as two smis.
   const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
@@ -777,7 +778,6 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (!heap->lo_space()->Contains(*answer)) {
     heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
   }
-  heap->AdjustLiveBytes(*answer, -delta);
   return *answer;
 }
 
@@ -855,18 +855,18 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   subject = String::Flatten(subject);
   pattern = String::Flatten(pattern);
 
-  List<int>* indices = GetRewoundRegexpIndicesList(isolate);
+  std::vector<int>* indices = GetRewoundRegexpIndicesList(isolate);
 
   FindStringIndicesDispatch(isolate, *subject, *pattern, indices, limit);
 
-  if (static_cast<uint32_t>(indices->length()) < limit) {
-    indices->Add(subject_length);
+  if (static_cast<uint32_t>(indices->size()) < limit) {
+    indices->push_back(subject_length);
   }
 
   // The list indices now contains the end of each part to create.
 
   // Create JSArray of substrings separated by separator.
-  int part_count = indices->length();
+  int part_count = static_cast<int>(indices->size());
 
   Handle<JSArray> result =
       isolate->factory()->NewJSArray(PACKED_ELEMENTS, part_count, part_count,
@@ -1352,7 +1352,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
 
     uint32_t last_index = 0;
     if (sticky) {
-      Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+      Handle<Object> last_index_obj(regexp->last_index(), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
                                  Object::ToLength(isolate, last_index_obj),
                                  String);
@@ -1367,7 +1367,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
         RegExpImpl::Exec(regexp, string, last_index, last_match_info), String);
 
     if (match_indices_obj->IsNull(isolate)) {
-      if (sticky) regexp->SetLastIndex(0);
+      if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
       return string;
     }
 
@@ -1376,7 +1376,8 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
     const int start_index = match_indices->Capture(0);
     const int end_index = match_indices->Capture(1);
 
-    if (sticky) regexp->SetLastIndex(end_index);
+    if (sticky)
+      regexp->set_last_index(Smi::FromInt(end_index), SKIP_WRITE_BARRIER);
 
     IncrementalStringBuilder builder(isolate);
     builder.AppendString(factory->NewSubString(string, 0, start_index));
@@ -1471,7 +1472,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const bool sticky = (flags & JSRegExp::kSticky) != 0;
   uint32_t last_index = 0;
   if (sticky) {
-    Handle<Object> last_index_obj(regexp->LastIndex(), isolate);
+    Handle<Object> last_index_obj(regexp->last_index(), isolate);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
@@ -1485,7 +1486,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
       RegExpImpl::Exec(regexp, subject, last_index, last_match_info));
 
   if (match_indices_obj->IsNull(isolate)) {
-    if (sticky) regexp->SetLastIndex(0);
+    if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
     return *subject;
   }
 
@@ -1495,7 +1496,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   const int index = match_indices->Capture(0);
   const int end_of_match = match_indices->Capture(1);
 
-  if (sticky) regexp->SetLastIndex(end_of_match);
+  if (sticky)
+    regexp->set_last_index(Smi::FromInt(end_of_match), SKIP_WRITE_BARRIER);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(factory->NewSubString(subject, 0, index));

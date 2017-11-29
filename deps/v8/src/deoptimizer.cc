@@ -9,10 +9,10 @@
 #include "src/accessors.h"
 #include "src/assembler-inl.h"
 #include "src/ast/prettyprinter.h"
+#include "src/callable.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
@@ -111,7 +111,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   CHECK(frame->is_optimized());
 
   TranslatedState translated_values(frame);
-  translated_values.Prepare(false, frame->fp());
+  translated_values.Prepare(frame->fp());
 
   TranslatedState::iterator frame_it = translated_values.end();
   int counter = jsframe_index;
@@ -222,10 +222,9 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   }
 }
 
-
 // Unlink functions referring to code marked for deoptimization, then move
 // marked code from the optimized code list to the deoptimized code list,
-// and patch code for lazy deopt.
+// and replace pc on the stack for codes marked for deoptimization.
 void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   DisallowHeapAllocation no_allocation;
 
@@ -243,13 +242,12 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       if (!code->marked_for_deoptimization()) return;
 
       // Unlink this function.
-      SharedFunctionInfo* shared = function->shared();
       if (!code->deopt_already_counted()) {
-        shared->increment_deopt_count();
+        function->feedback_vector()->increment_deopt_count();
         code->set_deopt_already_counted(true);
       }
 
-      function->set_code(shared->code());
+      function->set_code(function->shared()->code());
 
       if (FLAG_trace_deopt) {
         CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
@@ -307,10 +305,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 #endif
 
   // Move marked code from the optimized code list to the deoptimized
-  // code list, collecting them into a ZoneList.
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ZoneList<Code*> codes(10, &zone);
-
+  // code list.
   // Walk over all optimized code objects in this native context.
   Code* prev = NULL;
   Object* element = context->OptimizedCodeListHead();
@@ -320,9 +315,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     Object* next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
-      // Put the code into the list for later patching.
-      codes.Add(code, &zone);
-
+      // Make sure that this object does not point to any garbage.
+      code->InvalidateEmbeddedObjects();
       if (prev != NULL) {
         // Skip this code in the optimized code list.
         prev->set_next_code_link(next);
@@ -341,26 +335,24 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  // We need a handle scope only because of the macro assembler,
-  // which is used in code patching in EnsureCodeForDeoptimizationEntry.
-  HandleScope scope(isolate);
-
-  // Now patch all the codes for deoptimization.
-  for (int i = 0; i < codes.length(); i++) {
-#ifdef DEBUG
-    if (codes[i] == topmost_optimized_code) {
-      DCHECK(safe_to_deopt_topmost_optimized_code);
+  // Finds the with activations of codes marked for deoptimization, search for
+  // the trampoline to the deoptimizer call respective to each code, and use it
+  // to replace the current pc on the stack.
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
+    if (it.frame()->type() == StackFrame::OPTIMIZED) {
+      Code* code = it.frame()->LookupCode();
+      if (code->kind() == Code::OPTIMIZED_FUNCTION &&
+          code->marked_for_deoptimization()) {
+        // Obtain the trampoline to the deoptimizer call.
+        SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
+        int trampoline_pc = safepoint.trampoline_pc();
+        DCHECK_IMPLIES(code == topmost_optimized_code,
+                       safe_to_deopt_topmost_optimized_code);
+        // Replace the current pc on the stack with the trampoline.
+        it.frame()->set_pc(code->instruction_start() + trampoline_pc);
+      }
     }
-#endif
-    // It is finally time to die, code object.
-
-    // Do platform-specific patching to force any activations to lazy deopt.
-    PatchCodeForDeoptimization(isolate, codes[i]);
-
-    // We might be in the middle of incremental marking with compaction.
-    // Tell collector to treat this code object in a special way and
-    // ignore all slots that might have been recorded on it.
-    isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
   }
 }
 
@@ -439,11 +431,6 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
 }
 
-bool Deoptimizer::TraceEnabledFor(StackFrame::Type frame_type) {
-  return (frame_type == StackFrame::STUB) ? FLAG_trace_stub_failures
-                                          : FLAG_trace_deopt;
-}
-
 
 const char* Deoptimizer::MessageFor(BailoutType type) {
   switch (type) {
@@ -500,13 +487,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
     deoptimizing_throw_ = true;
   }
 
-  // For COMPILED_STUBs called from builtins, the function pointer is a SMI
-  // indicating an internal frame.
-  if (function->IsSmi()) {
-    function = nullptr;
-  }
   DCHECK(from != nullptr);
-  compiled_code_ = FindOptimizedCode(function);
+  compiled_code_ = FindOptimizedCode();
 #if DEBUG
   DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
@@ -514,12 +496,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   }
 #endif
 
-  StackFrame::Type frame_type = function == NULL
-      ? StackFrame::STUB
-      : StackFrame::JAVA_SCRIPT;
-  trace_scope_ = TraceEnabledFor(frame_type)
-                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
-                     : NULL;
+  DCHECK(function->IsJSFunction());
+  trace_scope_ =
+      FLAG_trace_deopt ? new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
 #ifdef DEBUG
   CHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -535,7 +514,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       // that can eventually lead to disabling optimization for a function.
       isolate->counters()->soft_deopts_executed()->Increment();
     } else if (function != nullptr) {
-      function->shared()->increment_deopt_count();
+      function->feedback_vector()->increment_deopt_count();
     }
   }
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
@@ -546,14 +525,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   }
   unsigned size = ComputeInputFrameSize();
   int parameter_count =
-      function == nullptr
-          ? 0
-          : (function->shared()->internal_formal_parameter_count() + 1);
+      function->shared()->internal_formal_parameter_count() + 1;
   input_ = new (size) FrameDescription(size, parameter_count);
-  input_->SetFrameType(frame_type);
 }
 
-Code* Deoptimizer::FindOptimizedCode(JSFunction* function) {
+Code* Deoptimizer::FindOptimizedCode() {
   Code* compiled_code = FindDeoptimizingCode(from_);
   return (compiled_code == NULL)
              ? static_cast<Code*>(isolate_->FindCodeObject(from_))
@@ -709,8 +685,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            "]\n",
            input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
-    if (bailout_type_ == EAGER || bailout_type_ == SOFT ||
-        (compiled_code_->is_hydrogen_stub())) {
+    if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
       compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
     }
   }
@@ -850,7 +825,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   int parameter_count = shared->internal_formal_parameter_count() + 1;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
-  output_frame->SetFrameType(StackFrame::INTERPRETED);
 
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
@@ -879,7 +853,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // There are no translation commands for the caller's pc and fp, the
-  // context, the function, new.target and the bytecode offset.  Synthesize
+  // context, the function and the bytecode offset.  Synthesize
   // their values and set them up
   // explicitly.
   //
@@ -968,13 +942,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   value = reinterpret_cast<intptr_t>(function);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
-  // The new.target slot is only used during function activiation which is
-  // before the first deopt point, so should never be needed. Just set it to
-  // undefined.
-  output_offset -= kPointerSize;
-  Object* new_target = isolate_->heap()->undefined_value();
-  WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
-
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
   Object* bytecode_array = shared->HasBreakInfo()
@@ -996,6 +963,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     DebugPrintOutputSlot(reinterpret_cast<intptr_t>(smi_bytecode_offset),
                          frame_index, output_offset, "bytecode offset @ ");
     PrintF(trace_scope_->file(), "%d\n", bytecode_offset);
+    PrintF(trace_scope_->file(), "  (input #0)\n");
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
 
@@ -1017,7 +985,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       // If we are lazy deopting to a catch handler, we set the accumulator to
       // the exception (which lives in the result register).
       intptr_t accumulator_value =
-          input_->GetRegister(FullCodeGenerator::result_register().code());
+          input_->GetRegister(kInterpreterAccumulatorRegister.code());
       WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
                          frame_index, output_offset, "accumulator ");
       value_iterator++;
@@ -1103,7 +1071,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   int parameter_count = height;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
-  output_frame->SetFrameType(StackFrame::ARGUMENTS_ADAPTOR);
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
@@ -1246,7 +1213,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new (output_frame_size) FrameDescription(output_frame_size);
-  output_frame->SetFrameType(StackFrame::CONSTRUCT);
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1344,7 +1310,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
-    Register result_reg = FullCodeGenerator::result_register();
+    Register result_reg = kReturnRegister0;
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
@@ -1448,7 +1414,6 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new (output_frame_size) FrameDescription(output_frame_size);
-  output_frame->SetFrameType(StackFrame::INTERNAL);
 
   // A frame for an accessor stub can not be bottommost.
   CHECK(frame_index > 0 && frame_index < output_count_);
@@ -1529,7 +1494,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   if (should_preserve_result) {
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
-    Register result_reg = FullCodeGenerator::result_register();
+    Register result_reg = kReturnRegister0;
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset,
@@ -1648,7 +1613,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   bool is_topmost = (output_count_ - 1 == frame_index);
   bool must_handle_result = !is_topmost || bailout_type_ == LAZY;
 
-  const RegisterConfiguration* config(RegisterConfiguration::Turbofan());
+  const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
   int register_parameter_count =
       continuation_descriptor.GetRegisterParameterCount();
@@ -1719,7 +1684,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   intptr_t value;
 
-  Register result_reg = FullCodeGenerator::result_register();
+  Register result_reg = kReturnRegister0;
   if (must_handle_result) {
     value = input_->GetRegister(result_reg.code());
   } else {
@@ -1878,8 +1843,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
     if (frame_index != 0) it->Advance();
   }
-  translated_state_.Prepare(it->frame()->has_adapted_arguments(),
-                            reinterpret_cast<Address>(stack_fp_));
+  translated_state_.Prepare(reinterpret_cast<Address>(stack_fp_));
 
   for (auto& materialization : values_to_materialize_) {
     Handle<Object> value = materialization.value_->GetValue();
@@ -1990,8 +1954,7 @@ unsigned Deoptimizer::ComputeJavascriptFixedSize(SharedFunctionInfo* shared) {
 // static
 unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
-  // pointer, function, context, new.target, bytecode offset and all the
-  // incoming arguments.
+  // pointer, function, context, bytecode offset and all the incoming arguments.
   return ComputeIncomingArgumentSize(shared) +
          InterpreterFrameConstants::kFixedFrameSize;
 }
@@ -3275,9 +3238,9 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Float32 value = registers->GetFloatRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (float)", value.get_scalar(),
-               RegisterConfiguration::Crankshaft()->GetFloatRegisterName(
-                   input_reg));
+        PrintF(
+            trace_file, "%e ; %s (float)", value.get_scalar(),
+            RegisterConfiguration::Default()->GetFloatRegisterName(input_reg));
       }
       TranslatedValue translated_value = TranslatedValue::NewFloat(this, value);
       frame.Add(translated_value);
@@ -3293,9 +3256,9 @@ int TranslatedState::CreateNextTranslatedValue(
       }
       Float64 value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (double)", value.get_scalar(),
-               RegisterConfiguration::Crankshaft()->GetDoubleRegisterName(
-                   input_reg));
+        PrintF(
+            trace_file, "%e ; %s (double)", value.get_scalar(),
+            RegisterConfiguration::Default()->GetDoubleRegisterName(input_reg));
       }
       TranslatedValue translated_value =
           TranslatedValue::NewDouble(this, value);
@@ -3409,11 +3372,12 @@ int TranslatedState::CreateNextTranslatedValue(
   return translated_value.GetChildrenCount();
 }
 
-TranslatedState::TranslatedState(JavaScriptFrame* frame)
+TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : isolate_(nullptr), stack_frame_pointer_(nullptr) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
-      static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
+      static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
+          &deopt_index);
   DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
@@ -3497,9 +3461,7 @@ void TranslatedState::Init(Address input_frame_pointer,
             Translation::BEGIN);
 }
 
-
-void TranslatedState::Prepare(bool has_adapted_arguments,
-                              Address stack_frame_pointer) {
+void TranslatedState::Prepare(Address stack_frame_pointer) {
   for (auto& frame : frames_) frame.Handlify();
 
   stack_frame_pointer_ = stack_frame_pointer;
@@ -3609,58 +3571,27 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_index(*index);
       return object;
     }
-    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE: {
-      Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
-          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
-      slot->value_ = object;
-      // Initialize the index to zero to make the heap verifier happy.
-      object->set_index(Smi::FromInt(0));
-      Handle<Object> properties = materializer.FieldAt(value_index);
-      Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> iterated_object = materializer.FieldAt(value_index);
-      Handle<Object> next_index = materializer.FieldAt(value_index);
-      Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(*properties);
-      object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_object(*iterated_object);
-      object->set_index(*next_index);
-      object->set_object_map(*iterated_object_map);
-      return object;
-    }
+#define ARRAY_ITERATOR_CASE(type) case type:
+      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
+#undef ARRAY_ITERATOR_CASE
+      {
+        Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
+            isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+        slot->value_ = object;
+        // Initialize the index to zero to make the heap verifier happy.
+        object->set_index(Smi::FromInt(0));
+        Handle<Object> properties = materializer.FieldAt(value_index);
+        Handle<Object> elements = materializer.FieldAt(value_index);
+        Handle<Object> iterated_object = materializer.FieldAt(value_index);
+        Handle<Object> next_index = materializer.FieldAt(value_index);
+        Handle<Object> iterated_object_map = materializer.FieldAt(value_index);
+        object->set_raw_properties_or_hash(*properties);
+        object->set_elements(FixedArrayBase::cast(*elements));
+        object->set_object(*iterated_object);
+        object->set_index(*next_index);
+        object->set_object_map(*iterated_object_map);
+        return object;
+      }
     case JS_STRING_ITERATOR_TYPE: {
       Handle<JSStringIterator> object = Handle<JSStringIterator>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
@@ -3781,6 +3712,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_extension(*extension);
       return object;
     }
+    case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE: {
       Handle<Object> lengthObject = materializer.FieldAt(value_index);
       int32_t array_length = 0;
@@ -3906,6 +3838,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
+    case FEEDBACK_VECTOR_TYPE:
     case FOREIGN_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
@@ -3935,7 +3868,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
-    case PREPARSED_SCOPE_DATA_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
@@ -3983,7 +3915,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
       int object_index = slot->object_index();
       TranslatedState::ObjectPosition pos = object_positions_[object_index];
 
-      // Make sure the duplicate is refering to a previous object.
+      // Make sure the duplicate is referring to a previous object.
       CHECK(pos.frame_index_ < frame_index ||
             (pos.frame_index_ == frame_index &&
              pos.value_index_ < *value_index - 1));

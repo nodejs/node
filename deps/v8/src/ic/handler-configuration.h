@@ -8,6 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/globals.h"
+#include "src/objects.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -24,9 +25,11 @@ class LoadHandler {
     kConstant,
     kAccessor,
     kInterceptor,
-    kNonExistent
+    kProxy,
+    kNonExistent,
+    kModuleExport
   };
-  class KindBits : public BitField<Kind, 0, 3> {};
+  class KindBits : public BitField<Kind, 0, 4> {};
 
   // Defines whether access rights check should be done on receiver object.
   // Applicable to named property kinds only when loading value from prototype
@@ -75,6 +78,12 @@ class LoadHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
 
+  //
+  // Encoding when KindBits contains kModuleExport.
+  //
+  class ExportsIndexBits : public BitField<unsigned, KindBits::kNext,
+                                           kSmiValueSize - KindBits::kNext> {};
+
   // The layout of an Tuple3 handler representing a load of a field from
   // prototype when prototype chain checks do not include non-existing lookups
   // or access checks.
@@ -112,8 +121,16 @@ class LoadHandler {
   // Creates a Smi-handler for calling a getter on a fast object.
   static inline Handle<Smi> LoadAccessor(Isolate* isolate, int descriptor);
 
+  // Creates a Smi-handler for calling a getter on a proxy.
+  static inline Handle<Smi> LoadProxy(Isolate* isolate);
+
   // Creates a Smi-handler for loading an Api getter property from fast object.
   static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);
+
+  // Creates a Smi-handler for loading a Module export.
+  // |index| is the index to the "value" slot in the Module's "exports"
+  // dictionary.
+  static inline Handle<Smi> LoadModuleExport(Isolate* isolate, int index);
 
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.
@@ -186,12 +203,20 @@ class StoreHandler {
   static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
   static const int kValidityCellOffset = Tuple3::kValue3Offset;
 
+  static inline WeakCell* GetTuple3TransitionCell(Object* tuple3_handler);
+  static Object* ValidTuple3HandlerOrNull(Object* handler, Name* name,
+                                          Handle<Map>* out_transition);
+
   // The layout of an array handler representing a transitioning store
   // when prototype chain checks include non-existing lookups and access checks.
   static const int kSmiHandlerIndex = 0;
   static const int kValidityCellIndex = 1;
   static const int kTransitionCellIndex = 2;
   static const int kFirstPrototypeIndex = 3;
+
+  static inline WeakCell* GetArrayTransitionCell(Object* array_handler);
+  static Object* ValidFixedArrayHandlerOrNull(Object* raw_handler, Name* name,
+                                              Handle<Map>* out_transition);
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,

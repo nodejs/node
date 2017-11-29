@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForHeapNumberValue();
 
   // Provides access to JSObject::properties() field.
-  static FieldAccess ForJSObjectProperties();
+  static FieldAccess ForJSObjectPropertiesOrHash();
 
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSFunctionFeedbackVector();
 
   // Provides access to JSFunction::code() field.
-  static FieldAccess ForJSFunctionCodeEntry();
+  static FieldAccess ForJSFunctionCode();
 
   // Provides access to JSFunction::next_function_link() field.
   static FieldAccess ForJSFunctionNextFunctionLink();
@@ -145,14 +145,23 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSIteratorResult::value() field.
   static FieldAccess ForJSIteratorResultValue();
 
+  // Provides access to JSRegExp::data() field.
+  static FieldAccess ForJSRegExpData();
+
   // Provides access to JSRegExp::flags() field.
   static FieldAccess ForJSRegExpFlags();
+
+  // Provides access to JSRegExp::last_index() field.
+  static FieldAccess ForJSRegExpLastIndex();
 
   // Provides access to JSRegExp::source() field.
   static FieldAccess ForJSRegExpSource();
 
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
+
+  // Provides access to PropertyArray::length() field.
+  static FieldAccess ForPropertyArrayLengthAndHash();
 
   // Provides access to FixedTypedArrayBase::base_pointer() field.
   static FieldAccess ForFixedTypedArrayBaseBasePointer();
@@ -276,6 +285,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 
+  // Provides access to EnumCache elements.
+  static ElementAccess ForDescriptorArrayEnumCacheBridgeCacheElement();
+
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
@@ -294,6 +306,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Dictionary fields.
   static FieldAccess ForDictionaryMaxNumberKey();
   static FieldAccess ForDictionaryNextEnumerationIndex();
+  static FieldAccess ForDictionaryObjectHashIndex();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

@@ -1,5 +1,7 @@
 # N-API
 
+<!--introduced_in=v7.10.0-->
+
 > Stability: 1 - Experimental
 
 N-API (pronounced N as in the letter, followed by API)
@@ -202,7 +204,7 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 ```
 
 ## Error Handling
-N-API uses both return values and Javascript exceptions for error handling.
+N-API uses both return values and JavaScript exceptions for error handling.
 The following sections explain the approach for each case.
 
 ### Return values
@@ -293,7 +295,7 @@ must be called in order to determine if an exception is pending or not.
 
 When an exception is pending one of two approaches can be employed.
 
-The first appoach is to do any appropriate cleanup and then return so that
+The first approach is to do any appropriate cleanup and then return so that
 execution will return to JavaScript. As part of the transition back to
 JavaScript the exception will be thrown at the point in the JavaScript
 code where the native method was invoked. The behavior of most N-API calls
@@ -551,10 +553,11 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
 ```
 
 - `[in] location`: Optional location at which the error occurred.
-- `[in] location_len`: The length of the location in bytes, or -1 if it is
-null-terminated.
+- `[in] location_len`: The length of the location in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[in] message`: The message associated with the error.
-- `[in] message_len`: The length of the message in bytes, or -1 if it is
+- `[in] message_len`: The length of the message in bytes, or
+NAPI_AUTO_LENGTH if it is
 null-terminated.
 
 The function call does not return, the process will be terminated.
@@ -1256,8 +1259,8 @@ napi_status napi_create_function(napi_env env,
 - `[in] env`: The environment that the API is invoked under.
 - `[in] utf8name`: A string representing the name of the function encoded as
 UTF8.
-- `[in] length`: The length of the utf8name in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the utf8name in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript.
 - `[in] data`: Optional arbitrary context data to be passed into the native
@@ -1489,8 +1492,8 @@ napi_status napi_create_string_latin1(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a ISO-8859-1-encoded string.
-- `[in] length`: The length of the string in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the string in bytes, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1514,8 +1517,8 @@ napi_status napi_create_string_utf16(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF16-LE-encoded string.
-- `[in] length`: The length of the string in two-byte code units, or -1 if
-it is null-terminated.
+- `[in] length`: The length of the string in two-byte code units, or
+NAPI_AUTO_LENGTH if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1539,8 +1542,8 @@ napi_status napi_create_string_utf8(napi_env env,
 
 - `[in] env`: The environment that the API is invoked under.
 - `[in] str`: Character buffer representing a UTF8-encoded string.
-- `[in] length`: The length of the string in bytes, or -1 if it is
-null-terminated.
+- `[in] length`: The length of the string in bytes, or NAPI_AUTO_LENGTH
+if it is null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String.
 
 Returns `napi_ok` if the API succeeded.
@@ -1787,7 +1790,7 @@ This API returns the C int32 primitive equivalent
 of the given JavaScript Number. If the number exceeds the range of the
 32 bit integer, then the result is truncated to the equivalent of the
 bottom 32 bits. This can result in a large positive number becoming
-a negative number if the the value is > 2^31 -1.
+a negative number if the value is > 2^31 -1.
 
 #### *napi_get_value_int64*
 <!-- YAML
@@ -2304,7 +2307,7 @@ status = napi_create_array(env, &arr);
 if (status != napi_ok) return status;
 
 // Create a napi_value for 'hello'
-status = napi_create_string_utf8(env, "hello", -1, &value);
+status = napi_create_string_utf8(env, "hello", NAPI_AUTO_LENGTH, &value);
 if (status != napi_ok) return status;
 
 // arr[123] = 'hello';
@@ -2860,7 +2863,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
-*from* Javascript.
+*from* JavaScript.
 
 *Note*: The newly created function is not automatically visible from
 script after this call. Instead, a property must be explicitly set on any
@@ -2993,7 +2996,7 @@ status = napi_get_named_property(env, global, "MyObject", &constructor);
 if (status != napi_ok) return;
 
 // const arg = "hello"
-status = napi_create_string_utf8(env, "hello", -1, &arg);
+status = napi_create_string_utf8(env, "hello", NAPI_AUTO_LENGTH, &arg);
 if (status != napi_ok) return;
 
 napi_value* argv = &arg;
@@ -3012,7 +3015,7 @@ constructor and methods can be called from JavaScript.
 
  1. The [`napi_define_class`][] API defines a JavaScript class with constructor,
     static properties and methods, and instance properties and methods that
-    correspond to the The C++ class.
+    correspond to the C++ class.
  2. When JavaScript code invokes the constructor, the constructor callback
     uses [`napi_wrap`][] to wrap a new C++ instance in a JavaScript object,
     then returns the wrapper object.
@@ -3020,6 +3023,29 @@ constructor and methods can be called from JavaScript.
     the corresponding `napi_callback` C++ function is invoked. For an instance
     callback, [`napi_unwrap`][] obtains the C++ instance that is the target of
     the call.
+
+For wrapped objects it may be difficult to distinguish between a function
+called on a class prototype and a function called on an instance of a class.
+A common pattern used to address this problem is to save a persistent
+reference to the class constructor for later `instanceof` checks.
+
+As an example:
+
+```C
+napi_value MyClass_constructor = nullptr;
+status = napi_get_reference_value(env, MyClass::es_constructor, &MyClass_constructor);
+assert(napi_ok == status);
+bool is_instance = false;
+status = napi_instanceof(env, es_this, MyClass_constructor, &is_instance);
+assert(napi_ok == status);
+if (is_instance) {
+  // napi_unwrap() ...
+} else {
+  // otherwise...
+}
+```
+
+The reference must be freed once it is no longer needed.
 
 ### *napi_define_class*
 <!-- YAML
@@ -3040,8 +3066,8 @@ napi_status napi_define_class(napi_env env,
  - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity.
- - `[in] length`: The length of the utf8name in bytes, or -1 if it is
-null-terminated.
+ - `[in] length`: The length of the utf8name in bytes, or NAPI_AUTO_LENGTH
+if it is null-terminated.
  - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual
    C++ constructor function.)
@@ -3660,6 +3686,23 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 - `[in] script`: A JavaScript string containing the script to execute.
 - `[out] result`: The value resulting from having executed the script.
 
+## libuv event loop
+
+N-API provides a function for getting the current event loop associated with
+a specific `napi_env`.
+
+### napi_get_uv_event_loop
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
+                                               uv_loop_t** loop);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[out] loop`: The current libuv loop instance.
+
 [Promises]: #n_api_promises
 [Simple Asynchronous Operations]: #n_api_simple_asynchronous_operations
 [Custom Asynchronous Operations]: #n_api_custom_asynchronous_operations
@@ -3680,6 +3723,7 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
 
+[`napi_async_init`]: #n_api_napi_async_init
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope

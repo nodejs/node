@@ -24,9 +24,9 @@
 
 /* eslint-disable strict */
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
-const path = require('path');
 
 common.globalCheck = false;
 
@@ -34,17 +34,18 @@ baseFoo = 'foo'; // eslint-disable-line no-undef
 global.baseBar = 'bar';
 
 assert.strictEqual(global.baseFoo, 'foo',
-                   'x -> global.x in base level not working');
+                   `x -> global.x failed: global.baseFoo = ${global.baseFoo}`);
 
 assert.strictEqual(baseBar, // eslint-disable-line no-undef
                    'bar',
-                   'global.x -> x in base level not working');
+                   // eslint-disable-next-line no-undef
+                   `global.x -> x failed: baseBar = ${baseBar}`);
 
-const mod = require(path.join(common.fixturesDir, 'global', 'plain'));
+const mod = require(fixtures.path('global', 'plain'));
 const fooBar = mod.fooBar;
 
-assert.strictEqual(fooBar.foo, 'foo', 'x -> global.x in sub level not working');
+assert.strictEqual(fooBar.foo, 'foo');
 
-assert.strictEqual(fooBar.bar, 'bar', 'global.x -> x in sub level not working');
+assert.strictEqual(fooBar.bar, 'bar');
 
 assert.strictEqual(Object.prototype.toString.call(global), '[object global]');

@@ -22,7 +22,7 @@ The [Node.js build team](https://github.com/nodejs/build) is able to provide thi
 
 The _dist_ user on nodejs.org controls the assets available in <https://nodejs.org/download/>. <https://nodejs.org/dist/> is an alias for <https://nodejs.org/download/release/>.
 
-The Jenkins release build slaves upload their artifacts to the web server as the _staging_ user. The _dist_ user has access to move these assets to public access while, for security, the _staging_ user does not.
+The Jenkins release build workers upload their artifacts to the web server as the _staging_ user. The _dist_ user has access to move these assets to public access while, for security, the _staging_ user does not.
 
 Nightly builds are promoted automatically on the server by a cron task for the _dist_ user.
 
@@ -134,6 +134,9 @@ The new entry should take the following form:
 
 The release type should be either Current, LTS, or Maintenance, depending on the type of release being produced.
 
+Be sure that the `<a>` tag, as well as the two headings, are not
+indented at all.
+
 At the top of each `CHANGELOG_*.md` file, and in the root `CHANGELOG.md` file,
 there is a table indexing all releases in each major release line. A link to
 the new release needs to be added to each. Follow the existing examples and be
@@ -201,17 +204,17 @@ This is particularly recommended if there has been recent work relating to the m
 
 Use **[iojs+release](https://ci-release.nodejs.org/job/iojs+release/)** to produce release artifacts. Enter the commit that you want to build from and select "release" for "disttype".
 
-Artifacts from each slave are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test macOS and Windows installers if there are any concerns. Click through to the individual slaves for a run to find the artifacts.
+Artifacts from each worker are uploaded to Jenkins and are available if further testing is required. Use this opportunity particularly to test macOS and Windows installers if there are any concerns. Click through to the individual workers for a run to find the artifacts.
 
-All release slaves should achieve "SUCCESS" (and be green, not red). A release with failures should not be promoted as there are likely problems to be investigated.
+All release workers should achieve "SUCCESS" (and be green, not red). A release with failures should not be promoted as there are likely problems to be investigated.
 
 You can rebuild the release as many times as you need prior to promoting them if you encounter problems.
 
-If you have an error on Windows and need to start again, be aware that you'll get immediate failure unless you wait up to 2 minutes for the linker to stop from previous jobs. i.e. if a build fails after having started compiling, that slave will still have a linker process that's running for another couple of minutes which will prevent Jenkins from clearing the workspace to start a new one. This isn't a big deal, it's just a hassle because it'll result in another failed build if you start again!
+If you have an error on Windows and need to start again, be aware that you'll get immediate failure unless you wait up to 2 minutes for the linker to stop from previous jobs. i.e. if a build fails after having started compiling, that worker will still have a linker process that's running for another couple of minutes which will prevent Jenkins from clearing the workspace to start a new one. This isn't a big deal, it's just a hassle because it'll result in another failed build if you start again!
 
 ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on release builds, I think it's because of the additional macro settings that go in to a release build that nullify previous builds. Also most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from initial promotion.
 
-You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an macOS slave). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
+You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an macOS worker). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
 
 ### 9. Test the Build
 

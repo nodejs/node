@@ -1,5 +1,7 @@
 # Node.js 0.10 ChangeLog
 
+<!--lint disable prohibited-strings-->
+
 <table>
 <tr>
 <th colspan="2">Stable</th>
@@ -62,6 +64,7 @@
 </table>
 
 * Other Versions
+  * [9.x](CHANGELOG_V9.md)
   * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [6.x](CHANGELOG_V6.md)

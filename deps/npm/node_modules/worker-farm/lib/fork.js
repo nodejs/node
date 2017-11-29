@@ -9,8 +9,9 @@ function fork (forkModule) {
   let filteredArgs = process.execArgv.filter(function (v) {
         return !(/^--(debug|inspect)/).test(v)
       })
-    , child        = childProcess.fork(childModule, { execArgv: filteredArgs }, {
-          env: process.env
+    , child        = childProcess.fork(childModule, process.argv, {
+          execArgv: filteredArgs
+        , env: process.env
         , cwd: process.cwd()
       })
 

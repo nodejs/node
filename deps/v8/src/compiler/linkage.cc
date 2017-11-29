@@ -171,8 +171,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // Some inline intrinsics are also safe to call without a FrameState.
     case Runtime::kInlineClassOf:
     case Runtime::kInlineCreateIterResultObject:
-    case Runtime::kInlineFixedArrayGet:
-    case Runtime::kInlineFixedArraySet:
     case Runtime::kInlineGeneratorClose:
     case Runtime::kInlineGeneratorGetContext:
     case Runtime::kInlineGeneratorGetInputOrDebugPos:
@@ -399,7 +397,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       kNoCalleeSaved,                   // callee-saved fp
       CallDescriptor::kCanUseRoots |    // flags
           flags,                        // flags
-      descriptor.DebugName(isolate));
+      descriptor.DebugName(isolate), descriptor.allocatable_registers());
 }
 
 // static

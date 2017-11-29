@@ -185,8 +185,8 @@
  *
  * The length can be negative for a NUL-terminated string.
  *
- * If the offset points to a single, unpaired surrogate, then that itself
- * will be returned as the code point.
+ * If the offset points to a single, unpaired surrogate, then
+ * c is set to that unpaired surrogate.
  * Iteration through a string is more efficient with U16_NEXT_UNSAFE or U16_NEXT.
  *
  * @param s const UChar * string
@@ -212,6 +212,53 @@
         } \
     } \
 }
+
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Get a code point from a string at a random-access offset,
+ * without changing the offset.
+ * "Safe" macro, handles unpaired surrogates and checks for string boundaries.
+ *
+ * The offset may point to either the lead or trail surrogate unit
+ * for a supplementary code point, in which case the macro will read
+ * the adjacent matching surrogate as well.
+ *
+ * The length can be negative for a NUL-terminated string.
+ *
+ * If the offset points to a single, unpaired surrogate, then
+ * c is set to U+FFFD.
+ * Iteration through a string is more efficient with U16_NEXT_UNSAFE or U16_NEXT_OR_FFFD.
+ *
+ * @param s const UChar * string
+ * @param start starting string offset (usually 0)
+ * @param i string offset, must be start<=i<length
+ * @param length string length
+ * @param c output UChar32 variable
+ * @see U16_GET_UNSAFE
+ * @draft ICU 60
+ */
+#define U16_GET_OR_FFFD(s, start, i, length, c) { \
+    (c)=(s)[i]; \
+    if(U16_IS_SURROGATE(c)) { \
+        uint16_t __c2; \
+        if(U16_IS_SURROGATE_LEAD(c)) { \
+            if((i)+1!=(length) && U16_IS_TRAIL(__c2=(s)[(i)+1])) { \
+                (c)=U16_GET_SUPPLEMENTARY((c), __c2); \
+            } else { \
+                (c)=0xfffd; \
+            } \
+        } else { \
+            if((i)>(start) && U16_IS_LEAD(__c2=(s)[(i)-1])) { \
+                (c)=U16_GET_SUPPLEMENTARY(__c2, (c)); \
+            } else { \
+                (c)=0xfffd; \
+            } \
+        } \
+    } \
+}
+
+#endif  // U_HIDE_DRAFT_API
 
 /* definitions with forward iteration --------------------------------------- */
 
@@ -253,8 +300,7 @@
  * for a supplementary code point, in which case the macro will read
  * the following trail surrogate as well.
  * If the offset points to a trail surrogate or
- * to a single, unpaired lead surrogate, then that itself
- * will be returned as the code point.
+ * to a single, unpaired lead surrogate, then c is set to that unpaired surrogate.
  *
  * @param s const UChar * string
  * @param i string offset, must be i<length
@@ -273,6 +319,44 @@
         } \
     } \
 }
+
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Get a code point from a string at a code point boundary offset,
+ * and advance the offset to the next code point boundary.
+ * (Post-incrementing forward iteration.)
+ * "Safe" macro, handles unpaired surrogates and checks for string boundaries.
+ *
+ * The length can be negative for a NUL-terminated string.
+ *
+ * The offset may point to the lead surrogate unit
+ * for a supplementary code point, in which case the macro will read
+ * the following trail surrogate as well.
+ * If the offset points to a trail surrogate or
+ * to a single, unpaired lead surrogate, then c is set to U+FFFD.
+ *
+ * @param s const UChar * string
+ * @param i string offset, must be i<length
+ * @param length string length
+ * @param c output UChar32 variable
+ * @see U16_NEXT_UNSAFE
+ * @draft ICU 60
+ */
+#define U16_NEXT_OR_FFFD(s, i, length, c) { \
+    (c)=(s)[(i)++]; \
+    if(U16_IS_SURROGATE(c)) { \
+        uint16_t __c2; \
+        if(U16_IS_SURROGATE_LEAD(c) && (i)!=(length) && U16_IS_TRAIL(__c2=(s)[(i)])) { \
+            ++(i); \
+            (c)=U16_GET_SUPPLEMENTARY((c), __c2); \
+        } else { \
+            (c)=0xfffd; \
+        } \
+    } \
+}
+
+#endif  // U_HIDE_DRAFT_API
 
 /**
  * Append a code point to a string, overwriting 1 or 2 code units.
@@ -481,8 +565,7 @@
  * for a supplementary code point, then the macro will read
  * the preceding lead surrogate as well.
  * If the offset is behind a lead surrogate or behind a single, unpaired
- * trail surrogate, then that itself
- * will be returned as the code point.
+ * trail surrogate, then c is set to that unpaired surrogate.
  *
  * @param s const UChar * string
  * @param start starting string offset (usually 0)
@@ -501,6 +584,43 @@
         } \
     } \
 }
+
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Move the string offset from one code point boundary to the previous one
+ * and get the code point between them.
+ * (Pre-decrementing backward iteration.)
+ * "Safe" macro, handles unpaired surrogates and checks for string boundaries.
+ *
+ * The input offset may be the same as the string length.
+ * If the offset is behind a trail surrogate unit
+ * for a supplementary code point, then the macro will read
+ * the preceding lead surrogate as well.
+ * If the offset is behind a lead surrogate or behind a single, unpaired
+ * trail surrogate, then c is set to U+FFFD.
+ *
+ * @param s const UChar * string
+ * @param start starting string offset (usually 0)
+ * @param i string offset, must be start<i
+ * @param c output UChar32 variable
+ * @see U16_PREV_UNSAFE
+ * @draft ICU 60
+ */
+#define U16_PREV_OR_FFFD(s, start, i, c) { \
+    (c)=(s)[--(i)]; \
+    if(U16_IS_SURROGATE(c)) { \
+        uint16_t __c2; \
+        if(U16_IS_SURROGATE_TRAIL(c) && (i)>(start) && U16_IS_LEAD(__c2=(s)[(i)-1])) { \
+            --(i); \
+            (c)=U16_GET_SUPPLEMENTARY(__c2, (c)); \
+        } else { \
+            (c)=0xfffd; \
+        } \
+    } \
+}
+
+#endif  // U_HIDE_DRAFT_API
 
 /**
  * Move the string offset from one code point boundary to the previous one.

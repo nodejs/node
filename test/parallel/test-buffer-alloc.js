@@ -310,12 +310,12 @@ assert.strictEqual('TWFu', (Buffer.from('Man')).toString('base64'));
   assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
   // check that the base64 decoder ignores whitespace
-  const expectedWhite = expected.slice(0, 60) + ' \n' +
-                        expected.slice(60, 120) + ' \n' +
-                        expected.slice(120, 180) + ' \n' +
-                        expected.slice(180, 240) + ' \n' +
-                        expected.slice(240, 300) + '\n' +
-                        expected.slice(300, 360) + '\n';
+  const expectedWhite = `${expected.slice(0, 60)} \n` +
+                        `${expected.slice(60, 120)} \n` +
+                        `${expected.slice(120, 180)} \n` +
+                        `${expected.slice(180, 240)} \n` +
+                        `${expected.slice(240, 300)}\n` +
+                        `${expected.slice(300, 360)}\n`;
   b = Buffer.allocUnsafe(1024);
   bytesWritten = b.write(expectedWhite, 0, 'base64');
   assert.strictEqual(quote.length, bytesWritten);
@@ -934,8 +934,8 @@ assert.throws(() => Buffer.allocUnsafe(10).copy(),
               /TypeError: argument should be a Buffer/);
 
 const regErrorMsg =
-  new RegExp('The first argument must be one of type string, buffer, ' +
-             'arrayBuffer, array, or array-like object\\.');
+  new RegExp('The first argument must be one of type string, Buffer, ' +
+             'ArrayBuffer, Array, or Array-like Object\\.');
 
 assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);

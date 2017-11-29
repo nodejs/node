@@ -22,12 +22,12 @@
 #include "uassert.h"
 #include "unistrappender.h"
 
-        static UChar gDefaultSymbols[] = {0xa4, 0xa4, 0xa4};
+static const UChar gDefaultSymbols[] = {0xa4, 0xa4, 0xa4};
 
-static UChar gPercent = 0x25;
-static UChar gPerMill = 0x2030;
-static UChar gNegative = 0x2D;
-static UChar gPositive = 0x2B;
+static const UChar gPercent = 0x25;
+static const UChar gPerMill = 0x2030;
+static const UChar gNegative = 0x2D;
+static const UChar gPositive = 0x2B;
 
 #define PACK_TOKEN_AND_LENGTH(t, l) ((UChar) (((t) << 8) | (l & 0xFF)))
 
@@ -226,7 +226,7 @@ AffixPattern::append(const AffixPattern &other) {
             addLiteral(literal.getBuffer(), 0, literal.length());
             break;
         case kCurrency:
-            addCurrency(iter.getTokenLength());
+            addCurrency(static_cast<uint8_t>(iter.getTokenLength()));
             break;
         default:
             add(iter.getTokenType());
@@ -481,7 +481,7 @@ AffixPattern::parseUserAffixString(
                 break;
             case 0xA4:
                 appender.flush();
-                appendTo.add(kCurrency, tokenSize);
+                appendTo.add(kCurrency, static_cast<uint8_t>(tokenSize));
                 break;
             default:
                 appender.append(token);

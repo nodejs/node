@@ -1,6 +1,6 @@
 Tests that all sessions get console api notifications.
 Error in 2
-From session 2
+From session 1
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -27,7 +27,7 @@ From session 2
         type : error
     }
 }
-From session 1
+From session 2
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -55,7 +55,7 @@ From session 1
     }
 }
 Logging in 1
-From session 2
+From session 1
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -82,7 +82,7 @@ From session 2
         type : log
     }
 }
-From session 1
+From session 2
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -110,7 +110,7 @@ From session 1
     }
 }
 Error in setTimeout 1
-From session 2
+From session 1
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -136,7 +136,7 @@ From session 2
         type : error
     }
 }
-From session 1
+From session 2
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -163,7 +163,7 @@ From session 1
     }
 }
 Logging in setTimeout 2
-From session 2
+From session 1
 {
     method : Runtime.consoleAPICalled
     params : {
@@ -189,7 +189,7 @@ From session 2
         type : log
     }
 }
-From session 1
+From session 2
 {
     method : Runtime.consoleAPICalled
     params : {

@@ -16,7 +16,7 @@ builder0.addFunction('main', kSig_i_i)
       kExprCallIndirect, sig_index, kTableZero
     ])  // --
     .exportAs('main');
-builder0.setFunctionTableLength(3);
+builder0.setFunctionTableBounds(3, 3);
 builder0.addExportOfKind('table', kExternalTable);
 let module0 = new WebAssembly.Module(builder0.toBuffer());
 let instance0 = new WebAssembly.Instance(module0);

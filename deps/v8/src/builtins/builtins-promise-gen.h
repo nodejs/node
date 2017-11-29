@@ -55,16 +55,23 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kCapabilitiesContextLength,
   };
 
-  // This is used by the PromiseThenFinally and PromiseCatchFinally
-  // builtins to store the onFinally in the onFinallySlot.
-  //
-  // This is also used by the PromiseValueThunkFinally to store the
-  // value in the onFinallySlot and PromiseThrowerFinally to store the
-  // reason in the onFinallySlot.
+  // This is used by the Promise.prototype.finally builtin to store
+  // onFinally callback and the Promise constructor.
+  // TODO(gsathya): Add extra slot for Promise constructor.
+  // TODO(gsathya): For native promises we can create a variant of
+  // this without extra space for the constructor to save memory.
   enum PromiseFinallyContextSlot {
     kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
 
-    kOnFinallyContextLength,
+    kPromiseFinallyContextLength,
+  };
+
+  // This is used by the ThenFinally and CatchFinally builtins to
+  // store the value to return or reason to throw.
+  enum PromiseValueThunkOrReasonContextSlot {
+    kValueSlot = Context::MIN_CONTEXT_SLOTS,
+
+    kPromiseValueThunkOrReasonContextLength,
   };
 
   explicit PromiseBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -81,7 +88,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   // This allocates and initializes a promise with the given state and
   // fields.
-  Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
+  Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
+                                Node* result);
 
   Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
                                               Node* resolve, Node* reject,
@@ -149,12 +157,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                              Node* debug_event);
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* native_context);
-  Node* CreatePromiseFinallyContext(Node* on_finally, Node* native_context);
-
   Node* CreateValueThunkFunction(Node* value, Node* native_context);
-  Node* CreateValueThunkFunctionContext(Node* value, Node* native_context);
 
-  Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
   Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
@@ -174,7 +178,12 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void SetPromiseHandledByIfTrue(Node* context, Node* condition, Node* promise,
                                  const NodeGenerator& handled_by);
 
+  Node* PromiseStatus(Node* promise);
+
  private:
+  Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
+  void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
+
   Node* AllocateJSPromise(Node* context);
 };
 

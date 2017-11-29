@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_LOOKUP_CACHE_INL_H_
+#define V8_LOOKUP_CACHE_INL_H_
+
 #include "src/lookup-cache.h"
 
 #include "src/objects-inl.h"
@@ -38,3 +41,5 @@ void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_LOOKUP_CACHE_INL_H_

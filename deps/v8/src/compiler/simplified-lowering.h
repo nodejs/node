@@ -34,11 +34,6 @@ class SimplifiedLowering final {
                                       RepresentationSelector* selector);
   void DoJSToNumberTruncatesToWord32(Node* node,
                                      RepresentationSelector* selector);
-  // TODO(turbofan): The representation can be removed once the result of the
-  // representation analysis is stored in the node bounds.
-  void DoLoadBuffer(Node* node, MachineRepresentation rep,
-                    RepresentationChanger* changer);
-  void DoStoreBuffer(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
   void DoStringToNumber(Node* node);
   void DoIntegral32ToBit(Node* node);

@@ -4,16 +4,21 @@
 
 {{
   var $key = 'key' + $lvl
+    , $idx = 'idx' + $lvl
     , $matched = 'patternMatched' + $lvl
+    , $dataProperties = 'dataProperties' + $lvl
     , $closingBraces = ''
     , $ownProperties = it.opts.ownProperties;
 }}
 
 var {{=$valid}} = true;
+{{? $ownProperties }}
+  var {{=$dataProperties}} = undefined;
+{{?}}
+
 {{~ $schema:$pProperty }}
   var {{=$matched}} = false;
-  for (var {{=$key}} in {{=$data}}) {
-    {{# def.checkOwnProperty }}
+  {{# def.iterateProperties }}
     {{=$matched}} = {{= it.usePattern($pProperty) }}.test({{=$key}});
     if ({{=$matched}}) break;
   }

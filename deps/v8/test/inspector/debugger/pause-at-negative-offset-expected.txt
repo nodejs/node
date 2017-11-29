@@ -1,0 +1,2 @@
+Tests that we dont crash on pause at negative offset
+(anonymous) (test.js:-3:-3)

@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-genpkey,
 genpkey - generate a private key
 
 =head1 SYNOPSIS

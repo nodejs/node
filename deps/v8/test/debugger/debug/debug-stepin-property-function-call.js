@@ -134,7 +134,7 @@ function testCall_RuntimeVariable3() {
 
 var functionsCalled = 0;
 for (var n in this) {
-  if (n.substr(0, 4) != 'test' || typeof this[n] !== "function") {
+  if (n.substr(0, 4) != 'test' || typeof this[n] !== "function" || n == 'testAsync') {
     continue;
   }
   state = 1;

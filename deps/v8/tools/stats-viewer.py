@@ -325,7 +325,7 @@ class SharedDataAccess(object):
 
 
 class Counter(object):
-  """A pointer to a single counter withing a binary counters file."""
+  """A pointer to a single counter within a binary counters file."""
 
   def __init__(self, data, offset):
     """Create a new instance.
@@ -381,7 +381,7 @@ class CounterCollection(object):
 
 
 class ChromeCounter(object):
-  """A pointer to a single counter withing a binary counters file."""
+  """A pointer to a single counter within a binary counters file."""
 
   def __init__(self, data, name_offset, value_offset):
     """Create a new instance.

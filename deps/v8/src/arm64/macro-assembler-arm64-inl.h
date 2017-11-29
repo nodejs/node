@@ -1244,25 +1244,6 @@ void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
 
 void TurboAssembler::jmp(Label* L) { B(L); }
 
-void MacroAssembler::IsObjectJSStringType(Register object,
-                                          Register type,
-                                          Label* not_string,
-                                          Label* string) {
-  Ldr(type, FieldMemOperand(object, HeapObject::kMapOffset));
-  Ldrb(type.W(), FieldMemOperand(type, Map::kInstanceTypeOffset));
-
-  STATIC_ASSERT(kStringTag == 0);
-  DCHECK((string != NULL) || (not_string != NULL));
-  if (string == NULL) {
-    TestAndBranchIfAnySet(type.W(), kIsNotStringMask, not_string);
-  } else if (not_string == NULL) {
-    TestAndBranchIfAllClear(type.W(), kIsNotStringMask, string);
-  } else {
-    TestAndBranchIfAnySet(type.W(), kIsNotStringMask, not_string);
-    B(string);
-  }
-}
-
 void TurboAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
@@ -1275,14 +1256,6 @@ void TurboAssembler::Push(Smi* smi) {
   Register tmp = temps.AcquireX();
   Mov(tmp, Operand(smi));
   Push(tmp);
-}
-
-void MacroAssembler::PushObject(Handle<Object> handle) {
-  if (handle->IsHeapObject()) {
-    Push(Handle<HeapObject>::cast(handle));
-  } else {
-    Push(Smi::cast(*handle));
-  }
 }
 
 void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {

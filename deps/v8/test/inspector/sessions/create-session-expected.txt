@@ -60,7 +60,7 @@ From session 3
     }
 }
 Destroying and creating context
-From session 3
+From session 2
 {
     method : Runtime.executionContextDestroyed
     params : {
@@ -76,7 +76,7 @@ From session 1
     }
 }
 id matching: true
-From session 2
+From session 3
 {
     method : Runtime.executionContextDestroyed
     params : {
@@ -84,7 +84,7 @@ From session 2
     }
 }
 id matching: true
-From session 3
+From session 2
 {
     method : Runtime.executionContextCreated
     params : {
@@ -106,7 +106,7 @@ From session 1
         }
     }
 }
-From session 2
+From session 3
 {
     method : Runtime.executionContextCreated
     params : {

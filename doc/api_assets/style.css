@@ -211,6 +211,7 @@ abbr {
 p {
   text-rendering: optimizeLegibility;
   margin: 0 0 1.125rem 0;
+  line-height: 1.5;
 }
 
 #apicontent > *:last-child {

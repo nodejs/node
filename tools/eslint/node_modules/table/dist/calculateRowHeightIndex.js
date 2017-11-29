@@ -31,11 +31,11 @@ exports.default = (rows, config) => {
 
     _lodash2.default.forEach(cells, (value, index1) => {
       if (!_lodash2.default.isNumber(config.columns[index1].width)) {
-        throw new Error('column[index].width must be a number.');
+        throw new TypeError('column[index].width must be a number.');
       }
 
       if (!_lodash2.default.isBoolean(config.columns[index1].wrapWord)) {
-        throw new Error('column[index].wrapWord must be a boolean.');
+        throw new TypeError('column[index].wrapWord must be a boolean.');
       }
 
       cellHeightIndex[index1] = (0, _calculateCellHeight2.default)(value, config.columns[index1].width, config.columns[index1].wrapWord);

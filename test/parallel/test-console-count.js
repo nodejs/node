@@ -54,10 +54,12 @@ assert.strictEqual(buf, 'default: 2\n');
 
 process.stdout.write = stdoutWrite;
 
-// Symbol labels do not work
+// Symbol labels do not work. Only check that the `Error` is a `TypeError`. Do
+// not check the message because it is different depending on the JavaScript
+// engine.
 assert.throws(
   () => console.count(Symbol('test')),
-  /^TypeError: Cannot convert a Symbol value to a string$/);
+  TypeError);
 assert.throws(
   () => console.countReset(Symbol('test')),
-  /^TypeError: Cannot convert a Symbol value to a string$/);
+  TypeError);

@@ -65,6 +65,7 @@ function writeFile(config, format) {
  * @param {string} moduleName The module name to get.
  * @returns {Object} The peer dependencies of the given module.
  * This object is the object of `peerDependencies` field of `package.json`.
+ * Returns null if npm was not found.
  */
 function getPeerDependencies(moduleName) {
     let result = getPeerDependencies.cache.get(moduleName);
@@ -200,14 +201,18 @@ function configureRules(answers, config) {
     // Now that we know which rules to disable, strip out configs with errors
     registry = registry.stripFailingConfigs();
 
-    // If there is only one config that results in no errors for a rule, we should use it.
-    // createConfig will only add rules that have one configuration in the registry.
+    /*
+     * If there is only one config that results in no errors for a rule, we should use it.
+     * createConfig will only add rules that have one configuration in the registry.
+     */
     const singleConfigs = registry.createConfig().rules;
 
-    // The "sweet spot" for number of options in a config seems to be two (severity plus one option).
-    // Very often, a third option (usually an object) is available to address
-    // edge cases, exceptions, or unique situations. We will prefer to use a config with
-    // specificity of two.
+    /*
+     * The "sweet spot" for number of options in a config seems to be two (severity plus one option).
+     * Very often, a third option (usually an object) is available to address
+     * edge cases, exceptions, or unique situations. We will prefer to use a config with
+     * specificity of two.
+     */
     const specTwoConfigs = registry.filterBySpecificity(2).createConfig().rules;
 
     // Maybe a specific combination using all three options works
@@ -356,7 +361,8 @@ function hasESLintVersionConflict(answers) {
     // Get the required range of ESLint version.
     const configName = getStyleGuideName(answers);
     const moduleName = `eslint-config-${configName}@latest`;
-    const requiredESLintVersionRange = getPeerDependencies(moduleName).eslint;
+    const peerDependencies = getPeerDependencies(moduleName) || {};
+    const requiredESLintVersionRange = peerDependencies.eslint;
 
     if (!requiredESLintVersionRange) {
         return false;
@@ -380,7 +386,6 @@ function hasESLintVersionConflict(answers) {
  * @returns {Promise} The promise with the result of the prompt
  */
 function promptUser() {
-    let config;
 
     return inquirer.prompt([
         {
@@ -467,7 +472,8 @@ function promptUser() {
                 earlyAnswers.styleguide = "airbnb-base";
             }
 
-            config = getConfigForStyleGuide(earlyAnswers.styleguide, earlyAnswers.installESLint);
+            const config = getConfigForStyleGuide(earlyAnswers.styleguide, earlyAnswers.installESLint);
+
             writeFile(config, earlyAnswers.format);
 
             return void 0;
@@ -527,7 +533,8 @@ function promptUser() {
             if (earlyAnswers.source === "auto") {
                 const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
 
-                config = processAnswers(combinedAnswers);
+                const config = processAnswers(combinedAnswers);
+
                 installModules(config);
                 writeFile(config, earlyAnswers.format);
 
@@ -573,7 +580,8 @@ function promptUser() {
             ]).then(answers => {
                 const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
 
-                config = processAnswers(totalAnswers);
+                const config = processAnswers(totalAnswers);
+
                 installModules(config);
                 writeFile(config, answers.format);
             });

@@ -1,11 +1,11 @@
 // Flags: --expose_internals
 'use strict';
-const common = require('../common');
+require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 const binding = process.binding('util');
 const spawnSync = require('child_process').spawnSync;
-const path = require('path');
 
 const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
 const kDecoratedPrivateSymbolIndex = binding['decorated_private_symbol'];
@@ -24,16 +24,20 @@ const obj = {};
 decorateErrorStack(obj);
 assert.strictEqual(obj.stack, undefined);
 
-// Verify that the stack is decorated when possible
+// Verify that the stack is decorated when possible.
 function checkStack(stack) {
-  const matches = stack.match(/var foo bar;/g);
-  assert.strictEqual(Array.isArray(matches), true);
-  assert.strictEqual(matches.length, 1);
+  // Matching only on a minimal piece of the stack because the string will vary
+  // greatly depending on the JavaScript engine. V8 includes `;` because it
+  // displays the line of code (`var foo bar;`) that is causing a problem.
+  // ChakraCore does not display the line of code but includes `;` in the phrase
+  // `Expected ';' `.
+  assert.ok(/;/g.test(stack));
+  // Test that it's a multiline string.
+  assert.ok(/\n/g.test(stack));
 }
 let err;
 const badSyntaxPath =
-    path.join(common.fixturesDir, 'syntax', 'bad_syntax')
-        .replace(/\\/g, '\\\\');
+  fixtures.path('syntax', 'bad_syntax').replace(/\\/g, '\\\\');
 
 try {
   require(badSyntaxPath);

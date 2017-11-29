@@ -145,7 +145,7 @@ require('js-yaml').load(untrusted_code) + ''
 ### safeLoadAll (string [, iterator] [, options ])
 
 Same as `safeLoad()`, but understands multi-document sources. Applies
-`iterator` to each document if specified, or returns aray of documents.
+`iterator` to each document if specified, or returns array of documents.
 
 ``` javascript
 var yaml = require('js-yaml');
@@ -182,7 +182,7 @@ options:
 - `noRefs` _(default: `false`)_ - if `true`, don't convert duplicate objects into references
 - `noCompatMode` _(default: `false`)_ - if `true` don't try to be compatible with older
   yaml versions. Currently: don't quote "yes", "no" and so on, as required for YAML 1.1
-- `condenseFlow` _(default: `false`)_ - if `true` flow sequences will be condensed, omitting the space between `key: value` or `a, b`. Eg. `'[a,b]'` or `{a:{b:c}}`. Can be useful when using yaml for pretty URL query params as spaces are %-encoded.
+- `condenseFlow` _(default: `false`)_ - if `true` flow sequences will be condensed, omitting the space between `a, b`. Eg. `'[a,b]'`, and omitting the space between `key: value` and quoting the key. Eg. `'{"a":b}'` Can be useful when using yaml for pretty URL query params as spaces are %-encoded.
 
 The following table show availlable styles (e.g. "canonical",
 "binary"...) available for each tag (.e.g. !!null, !!int ...). Yaml
@@ -262,7 +262,7 @@ Caveats
 -------
 
 Note, that you use arrays or objects as key in JS-YAML. JS does not allow objects
-or arrays as keys, and stringifies (by calling .toString method) them at the
+or arrays as keys, and stringifies (by calling `toString()` method) them at the
 moment of adding them.
 
 ``` yaml
@@ -298,7 +298,7 @@ files via `require()`, no changes are needed. Just upgrade the library.
 
 Otherwise, you should:
 
-1. Replace all occurences of `require('xxxx.yml')` by `fs.readFileSync()` +
+1. Replace all occurrences of `require('xxxx.yml')` by `fs.readFileSync()` +
   `yaml.safeLoad()`.
 2. rewrite your custom tags constructors and custom loader
   classes, to conform the new API. See

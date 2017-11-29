@@ -77,4 +77,4 @@ inline void Initialize(v8::Local<v8::Object> exports,
 
 }  // anonymous namespace
 
-NODE_MODULE_CONTEXT_AWARE(binding, Initialize)
+NODE_MODULE_CONTEXT_AWARE(NODE_GYP_MODULE_NAME, Initialize)

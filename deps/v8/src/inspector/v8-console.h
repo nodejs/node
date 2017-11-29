@@ -164,6 +164,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
                         int sessionId) {
     inspectedObject(info, sessionId, 4);
   }
+  void queryObjectsCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
+                            int sessionId);
 
   V8InspectorImpl* m_inspector;
 };

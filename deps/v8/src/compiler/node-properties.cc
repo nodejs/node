@@ -360,6 +360,14 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
   InferReceiverMapsResult result = kReliableReceiverMaps;
   while (true) {
     switch (effect->opcode()) {
+      case IrOpcode::kMapGuard: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_return = MapGuardMapsOf(effect->op());
+          return result;
+        }
+        break;
+      }
       case IrOpcode::kCheckMaps: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
@@ -480,6 +488,38 @@ bool NodeProperties::IsInputRange(Edge edge, int first, int num) {
   if (num == 0) return false;
   int const index = edge.index();
   return first <= index && index < first + num;
+}
+
+// static
+size_t NodeProperties::HashCode(Node* node) {
+  size_t h = base::hash_combine(node->op()->HashCode(), node->InputCount());
+  for (Node* input : node->inputs()) {
+    h = base::hash_combine(h, input->id());
+  }
+  return h;
+}
+
+// static
+bool NodeProperties::Equals(Node* a, Node* b) {
+  DCHECK_NOT_NULL(a);
+  DCHECK_NOT_NULL(b);
+  DCHECK_NOT_NULL(a->op());
+  DCHECK_NOT_NULL(b->op());
+  if (!a->op()->Equals(b->op())) return false;
+  if (a->InputCount() != b->InputCount()) return false;
+  Node::Inputs aInputs = a->inputs();
+  Node::Inputs bInputs = b->inputs();
+
+  auto aIt = aInputs.begin();
+  auto bIt = bInputs.begin();
+  auto aEnd = aInputs.end();
+
+  for (; aIt != aEnd; ++aIt, ++bIt) {
+    DCHECK_NOT_NULL(*aIt);
+    DCHECK_NOT_NULL(*bIt);
+    if ((*aIt)->id() != (*bIt)->id()) return false;
+  }
+  return true;
 }
 
 }  // namespace compiler

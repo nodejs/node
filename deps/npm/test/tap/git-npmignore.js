@@ -50,8 +50,7 @@ var modules = resolve(testdir, 'node_modules')
 var installed = resolve(modules, 'gitch')
 var expected = [
   'a.js',
-  'package.json',
-  '.npmignore'
+  'package.json'
 ].sort()
 
 var NPM_OPTS = {

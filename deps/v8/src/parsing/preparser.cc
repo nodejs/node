@@ -43,30 +43,18 @@ namespace {
 
 PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
   // These symbols require slightly different treatement:
-  // - regular keywords (enum, await, etc.; treated in 1st switch.)
+  // - regular keywords (async, await, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
-    case Token::ENUM:
-      return PreParserIdentifier::Enum();
     case Token::AWAIT:
       return PreParserIdentifier::Await();
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-      return PreParserIdentifier::FutureStrictReserved();
-    case Token::LET:
-      return PreParserIdentifier::Let();
-    case Token::STATIC:
-      return PreParserIdentifier::Static();
-    case Token::YIELD:
-      return PreParserIdentifier::Yield();
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
       break;
   }
   switch (scanner->current_contextual_token()) {
-    case Token::PROTOTYPE:
-      return PreParserIdentifier::Prototype();
     case Token::CONSTRUCTOR:
       return PreParserIdentifier::Constructor();
     case Token::NAME:
@@ -74,15 +62,14 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
     default:
       break;
   }
-  if (scanner->literal_contains_escapes())
+  if (scanner->literal_contains_escapes()) {
     return PreParserIdentifier::Default();
+  }
   switch (scanner->current_contextual_token()) {
     case Token::EVAL:
       return PreParserIdentifier::Eval();
     case Token::ARGUMENTS:
       return PreParserIdentifier::Arguments();
-    case Token::UNDEFINED:
-      return PreParserIdentifier::Undefined();
     default:
       break;
   }
@@ -149,7 +136,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // functions.
   std::unique_ptr<ProducedPreParsedScopeData::DataGatheringScope>
       produced_preparsed_scope_data_scope;
-  if (FLAG_experimental_preparser_scope_analysis && !IsArrowFunction(kind)) {
+  if (FLAG_preparser_scope_analysis && !IsArrowFunction(kind)) {
     track_unresolved_variables_ = true;
     produced_preparsed_scope_data_scope.reset(
         new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
@@ -301,7 +288,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       produced_preparsed_scope_data_scope;
   if (!function_state_->next_function_is_likely_called() &&
       produced_preparsed_scope_data_ != nullptr) {
-    DCHECK(FLAG_experimental_preparser_scope_analysis);
+    DCHECK(FLAG_preparser_scope_analysis);
     DCHECK(track_unresolved_variables_);
     produced_preparsed_scope_data_scope.reset(
         new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
@@ -383,8 +370,33 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   return kLazyParsingComplete;
 }
 
+PreParserStatement PreParser::BuildParameterInitializationBlock(
+    const PreParserFormalParameters& parameters, bool* ok) {
+  DCHECK(!parameters.is_simple);
+  DCHECK(scope()->is_function_scope());
+  if (FLAG_preparser_scope_analysis &&
+      scope()->AsDeclarationScope()->calls_sloppy_eval()) {
+    DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+    // We cannot replicate the Scope structure constructed by the Parser,
+    // because we've lost information whether each individual parameter was
+    // simple or not. Give up trying to produce data to skip inner functions.
+    if (produced_preparsed_scope_data_->parent() != nullptr) {
+      // Lazy parsing started before the current function; the function which
+      // cannot contain skippable functions is the parent function. (Its inner
+      // functions cannot either; they are implicitly bailed out.)
+      produced_preparsed_scope_data_->parent()->Bailout();
+    } else {
+      // Lazy parsing started at the current function; it cannot contain
+      // skippable functions.
+      produced_preparsed_scope_data_->Bailout();
+    }
+  }
+
+  return PreParserStatement::Default();
+}
+
 PreParserExpression PreParser::ExpressionFromIdentifier(
-    PreParserIdentifier name, int start_position, InferName infer) {
+    const PreParserIdentifier& name, int start_position, InferName infer) {
   VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
     DCHECK_NOT_NULL(name.string_);
@@ -406,8 +418,9 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->RemoveUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_experimental_preparser_scope_analysis) {
-        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
+      if (FLAG_preparser_scope_analysis) {
+        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,
+                                   declaration_descriptor->declaration_kind);
         // This is only necessary if there is an initializer, but we don't have
         // that information here.  Consequently, the preparser sometimes says
         // maybe-assigned where the parser (correctly) says never-assigned.

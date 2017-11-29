@@ -31,7 +31,7 @@
 # it is equivalent to:
 #   cat file1 file2 file3 ...files... > target
 #
-# The reason for writing a seperate utility is that 'cat' is not available
+# The reason for writing a separate utility is that 'cat' is not available
 # on all supported build platforms, but Python is, and hence this provides
 # us with an easy and uniform way of doing this on all platforms.
 
@@ -49,7 +49,7 @@ def Concatenate(filenames):
     True, if the operation was successful.
   """
   if len(filenames) < 2:
-    print "An error occured generating %s:\nNothing to do." % filenames[-1]
+    print "An error occurred generating %s:\nNothing to do." % filenames[-1]
     return False
 
   try:
@@ -59,7 +59,7 @@ def Concatenate(filenames):
           target.write(current.read())
     return True
   except IOError as e:
-    print "An error occured when writing %s:\n%s" % (filenames[-1], e)
+    print "An error occurred when writing %s:\n%s" % (filenames[-1], e)
     return False
 
 

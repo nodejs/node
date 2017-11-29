@@ -1,7 +1,6 @@
 #include "inspector_io.h"
 
 #include "inspector_socket_server.h"
-#include "env.h"
 #include "env-inl.h"
 #include "node.h"
 #include "node_crypto.h"
@@ -26,17 +25,6 @@ using v8_inspector::StringView;
 
 template<typename Transport>
 using TransportAndIo = std::pair<Transport*, InspectorIo*>;
-
-std::string GetProcessTitle() {
-  char title[2048];
-  int err = uv_get_process_title(title, sizeof(title));
-  if (err == 0) {
-    return title;
-  } else {
-    // Title is too long, or could not be retrieved.
-    return "Node.js";
-  }
-}
 
 std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
   std::string script_path;
@@ -115,9 +103,9 @@ int CloseAsyncAndLoop(uv_async_t* async) {
 
 // Delete main_thread_req_ on async handle close
 void ReleasePairOnAsyncClose(uv_handle_t* async) {
-  AsyncAndAgent* pair = node::ContainerOf(&AsyncAndAgent::first,
-                                          reinterpret_cast<uv_async_t*>(async));
-  delete pair;
+  std::unique_ptr<AsyncAndAgent> pair(node::ContainerOf(&AsyncAndAgent::first,
+      reinterpret_cast<uv_async_t*>(async)));
+  // Unique_ptr goes out of scope here and pointer is deleted.
 }
 
 }  // namespace
@@ -485,7 +473,7 @@ std::vector<std::string> InspectorIoDelegate::GetTargetIds() {
 }
 
 std::string InspectorIoDelegate::GetTargetTitle(const std::string& id) {
-  return script_name_.empty() ? GetProcessTitle() : script_name_;
+  return script_name_.empty() ? GetHumanReadableProcessName() : script_name_;
 }
 
 std::string InspectorIoDelegate::GetTargetUrl(const std::string& id) {

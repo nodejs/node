@@ -88,6 +88,9 @@ class Script : public Struct {
   // This must only be called if the type of this script is TYPE_WASM.
   DECL_ACCESSORS(wasm_compiled_module, Object)
 
+  // [host_defined_options]: Options defined by the embedder.
+  DECL_ACCESSORS(host_defined_options, FixedArray)
+
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type();
@@ -195,7 +198,9 @@ class Script : public Struct {
   static const int kFlagsOffset = kSharedFunctionInfosOffset + kPointerSize;
   static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
   static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
-  static const int kSize = kSourceMappingUrlOffset + kPointerSize;
+  static const int kHostDefinedOptionsOffset =
+      kSourceMappingUrlOffset + kPointerSize;
+  static const int kSize = kHostDefinedOptionsOffset + kPointerSize;
 
  private:
   // Bit positions in the flags field.

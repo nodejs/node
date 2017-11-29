@@ -42,10 +42,12 @@ assert.doesNotThrow(function() {
   console.timeEnd('label');
 });
 
+// Check that the `Error` is a `TypeError` but do not check the message as it
+// will be different in different JavaScript engines.
 assert.throws(() => console.time(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 assert.throws(() => console.timeEnd(Symbol('test')),
-              /^TypeError: Cannot convert a Symbol value to a string$/);
+              TypeError);
 
 
 // an Object with a custom .inspect() function
@@ -66,6 +68,13 @@ console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
+
+// test console.debug() goes to stdout
+console.debug('foo');
+console.debug('foo', 'bar');
+console.debug('%s %s', 'foo', 'bar', 'hop');
+console.debug({ slashes: '\\\\' });
+console.debug(custom_inspect);
 
 // test console.info() goes to stdout
 console.info('foo');
@@ -150,6 +159,10 @@ for (const expected of expectedStrings) {
 for (const expected of expectedStrings) {
   assert.strictEqual(strings.shift(), `${expected}\n`);
   assert.strictEqual(errStrings.shift(), `${expected}\n`);
+}
+
+for (const expected of expectedStrings) {
+  assert.strictEqual(strings.shift(), `${expected}\n`);
 }
 
 assert.strictEqual(strings.shift(),

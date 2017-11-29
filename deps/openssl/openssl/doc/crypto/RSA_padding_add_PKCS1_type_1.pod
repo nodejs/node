@@ -104,6 +104,13 @@ The RSA_padding_check_xxx() functions return the length of the
 recovered data, -1 on error. Error codes can be obtained by calling
 L<ERR_get_error(3)|ERR_get_error(3)>.
 
+=head1 WARNING
+
+The RSA_padding_check_PKCS1_type_2() padding check leaks timing
+information which can potentially be used to mount a Bleichenbacher
+padding oracle attack. This is an inherent weakness in the PKCS #1
+v1.5 padding design. Prefer PKCS1_OAEP padding.
+
 =head1 SEE ALSO
 
 L<RSA_public_encrypt(3)|RSA_public_encrypt(3)>,

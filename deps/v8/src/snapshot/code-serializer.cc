@@ -11,7 +11,7 @@
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/snapshot/deserializer.h"
+#include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
 #include "src/visitors.h"
@@ -142,7 +142,6 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
 void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   DCHECK_LT(builtin_index, Builtins::builtin_count);
   DCHECK_LE(0, builtin_index);
@@ -163,7 +162,7 @@ void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
   uint32_t stub_key = code_stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
-  stub_keys_.Add(stub_key);
+  stub_keys_.push_back(stub_key);
 
   SerializerReference reference =
       reference_map()->AddAttachedReference(code_stub);
@@ -195,24 +194,17 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  Deserializer deserializer(&scd);
-  deserializer.AddAttachedObject(source);
-  Vector<const uint32_t> code_stub_keys = scd.CodeStubKeys();
-  for (int i = 0; i < code_stub_keys.length(); i++) {
-    deserializer.AddAttachedObject(
-        CodeStub::GetCode(isolate, code_stub_keys[i]).ToHandleChecked());
-  }
-
   // Deserialize.
-  Handle<HeapObject> as_heap_object;
-  if (!deserializer.DeserializeObject(isolate).ToHandle(&as_heap_object)) {
+  MaybeHandle<SharedFunctionInfo> maybe_result =
+      ObjectDeserializer::DeserializeSharedFunctionInfo(isolate, &scd, source);
+
+  Handle<SharedFunctionInfo> result;
+  if (!maybe_result.ToHandle(&result)) {
     // Deserializing may fail if the reservations cannot be fulfilled.
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
 
-  Handle<SharedFunctionInfo> result =
-      Handle<SharedFunctionInfo>::cast(as_heap_object);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
@@ -266,34 +258,16 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
-  Deserializer deserializer(&scd, true);
-  deserializer.AddAttachedObject(isolate->native_context());
+  MaybeHandle<WasmCompiledModule> maybe_result =
+      ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
+                                                        wire_bytes);
 
-  MaybeHandle<String> maybe_wire_bytes_as_string =
-      isolate->factory()->NewStringFromOneByte(wire_bytes, TENURED);
-  Handle<String> wire_bytes_as_string;
-  if (!maybe_wire_bytes_as_string.ToHandle(&wire_bytes_as_string)) {
-    return nothing;
-  }
-  deserializer.AddAttachedObject(
-      handle(SeqOneByteString::cast(*wire_bytes_as_string)));
+  Handle<WasmCompiledModule> result;
+  if (!maybe_result.ToHandle(&result)) return nothing;
 
-  Vector<const uint32_t> stub_keys = scd.CodeStubKeys();
-  for (int i = 0; i < stub_keys.length(); ++i) {
-    deserializer.AddAttachedObject(
-        CodeStub::GetCode(isolate, stub_keys[i]).ToHandleChecked());
-  }
-
-  MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
-  if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
-  // Cast without type checks, as the module wrapper is not there yet.
-  Handle<WasmCompiledModule> compiled_module(
-      static_cast<WasmCompiledModule*>(*obj.ToHandleChecked()), isolate);
-
-  WasmCompiledModule::ReinitializeAfterDeserialization(isolate,
-                                                       compiled_module);
-  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
-  return compiled_module;
+  WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
+  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*result));
+  return result;
 }
 
 void WasmCompiledModuleSerializer::SerializeCodeObject(
@@ -359,21 +333,23 @@ class Checksum {
   DISALLOW_COPY_AND_ASSIGN(Checksum);
 };
 
-SerializedCodeData::SerializedCodeData(const List<byte>* payload,
+SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
-  const List<uint32_t>* stub_keys = cs->stub_keys();
+  const std::vector<uint32_t>* stub_keys = cs->stub_keys();
 
-  List<Reservation> reservations;
+  std::vector<Reservation> reservations;
   cs->EncodeReservations(&reservations);
 
   // Calculate sizes.
-  int reservation_size = reservations.length() * kInt32Size;
-  int num_stub_keys = stub_keys->length();
-  int stub_keys_size = stub_keys->length() * kInt32Size;
-  int payload_offset = kHeaderSize + reservation_size + stub_keys_size;
-  int padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
-  int size = padded_payload_offset + payload->length();
+  uint32_t reservation_size =
+      static_cast<uint32_t>(reservations.size()) * kUInt32Size;
+  uint32_t num_stub_keys = static_cast<uint32_t>(stub_keys->size());
+  uint32_t stub_keys_size = num_stub_keys * kUInt32Size;
+  uint32_t payload_offset = kHeaderSize + reservation_size + stub_keys_size;
+  uint32_t padded_payload_offset = POINTER_SIZE_ALIGN(payload_offset);
+  uint32_t size =
+      padded_payload_offset + static_cast<uint32_t>(payload->size());
 
   // Allocate backing store and create result data.
   AllocateData(size);
@@ -385,27 +361,29 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
   SetHeaderValue(kCpuFeaturesOffset,
                  static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
-  SetHeaderValue(kNumReservationsOffset, reservations.length());
+  SetHeaderValue(kNumReservationsOffset,
+                 static_cast<uint32_t>(reservations.size()));
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
-  SetHeaderValue(kPayloadLengthOffset, payload->length());
+  SetHeaderValue(kPayloadLengthOffset, static_cast<uint32_t>(payload->size()));
 
   // Zero out any padding in the header.
   memset(data_ + kUnalignedHeaderSize, 0, kHeaderSize - kUnalignedHeaderSize);
 
   // Copy reservation chunk sizes.
-  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+  CopyBytes(data_ + kHeaderSize,
+            reinterpret_cast<const byte*>(reservations.data()),
             reservation_size);
 
   // Copy code stub keys.
   CopyBytes(data_ + kHeaderSize + reservation_size,
-            reinterpret_cast<byte*>(stub_keys->begin()), stub_keys_size);
+            reinterpret_cast<const byte*>(stub_keys->data()), stub_keys_size);
 
   // Zero out any padding before the payload.
   memset(data_ + payload_offset, 0, padded_payload_offset - payload_offset);
 
   // Copy serialized data.
-  CopyBytes(data_ + padded_payload_offset, payload->begin(),
-            static_cast<size_t>(payload->length()));
+  CopyBytes(data_ + padded_payload_offset, payload->data(),
+            static_cast<size_t>(payload->size()));
 
   Checksum checksum(DataWithoutHeader());
   SetHeaderValue(kChecksum1Offset, checksum.a());
@@ -417,9 +395,6 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
   if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
-  if (GetExtraReferences() > GetExtraReferences(isolate)) {
-    return MAGIC_NUMBER_MISMATCH;
-  }
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);

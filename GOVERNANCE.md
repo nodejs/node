@@ -134,4 +134,4 @@ The TSC follows a [Consensus Seeking][] decision making model as described by
 the [TSC Charter][].
 
 [TSC Charter]: https://github.com/nodejs/TSC/blob/master/TSC-Charter.md
-[Consensus Seeking]: http://en.wikipedia.org/wiki/Consensus-seeking_decision-making
+[Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making

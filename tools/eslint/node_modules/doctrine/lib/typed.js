@@ -1133,7 +1133,7 @@
             for (i = 0, iz = node.elements.length; i < iz; ++i) {
                 result += stringifyImpl(node.elements[i], compact);
                 if ((i + 1) !== iz) {
-                    result += '|';
+                    result += compact ? '|' : ' | ';
                 }
             }
 

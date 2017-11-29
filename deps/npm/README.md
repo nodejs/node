@@ -141,12 +141,12 @@ you have chosen.
 
 ## More Docs
 
-Check out the [docs](https://docs.npmjs.com/),
+Check out the [docs](https://docs.npmjs.com/).
 
 You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
-you should [read this](https://docs.npmjs.com/misc/developers)
+you should [read this](https://docs.npmjs.com/misc/developers).
 
 ## BUGS
 

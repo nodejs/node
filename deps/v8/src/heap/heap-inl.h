@@ -9,7 +9,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
-#include "src/feedback-vector-inl.h"
+#include "src/feedback-vector.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
@@ -426,11 +426,11 @@ bool Heap::ShouldBePromoted(Address old_address) {
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-void Heap::RecordWrite(Object* object, int offset, Object* o) {
-  if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
+void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
+  if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  store_buffer()->InsertEntry(HeapObject::cast(object)->address() + offset);
+  store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
 }
 
 void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
@@ -518,9 +518,9 @@ AllocationMemento* Heap::FindAllocationMemento(Map* map, HeapObject* object) {
   UNREACHABLE();
 }
 
-template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
-                                base::HashMap* pretenuring_feedback) {
+                                PretenuringFeedbackMap* pretenuring_feedback) {
+  DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(InFromSpace(object) ||
          (InToSpace(object) &&
           Page::FromAddress(object->address())
@@ -535,37 +535,16 @@ void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
       FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate == nullptr) return;
 
-  if (mode == kGlobal) {
-    DCHECK_EQ(pretenuring_feedback, global_pretenuring_feedback_);
-    // Entering global pretenuring feedback is only used in the scavenger, where
-    // we are allowed to actually touch the allocation site.
-    if (!memento_candidate->IsValid()) return;
-    AllocationSite* site = memento_candidate->GetAllocationSite();
-    DCHECK(!site->IsZombie());
-    // For inserting in the global pretenuring storage we need to first
-    // increment the memento found count on the allocation site.
-    if (site->IncrementMementoFoundCount()) {
-      global_pretenuring_feedback_->LookupOrInsert(site,
-                                                   ObjectHash(site->address()));
-    }
-  } else {
-    DCHECK_EQ(mode, kCached);
-    DCHECK_NE(pretenuring_feedback, global_pretenuring_feedback_);
-    // Entering cached feedback is used in the parallel case. We are not allowed
-    // to dereference the allocation site and rather have to postpone all checks
-    // till actually merging the data.
-    Address key = memento_candidate->GetAllocationSiteUnchecked();
-    base::HashMap::Entry* e =
-        pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
-    DCHECK(e != nullptr);
-    (*bit_cast<intptr_t*>(&e->value))++;
-  }
+  // Entering cached feedback is used in the parallel case. We are not allowed
+  // to dereference the allocation site and rather have to postpone all checks
+  // till actually merging the data.
+  Address key = memento_candidate->GetAllocationSiteUnchecked();
+  (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
 }
 
 
 void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
-  global_pretenuring_feedback_->Remove(
-      site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
+  global_pretenuring_feedback_.erase(site);
 }
 
 Isolate* Heap::isolate() {
@@ -575,33 +554,34 @@ Isolate* Heap::isolate() {
 }
 
 void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
-  old_space_strings_.AddAll(new_space_strings_);
-  new_space_strings_.Clear();
+  old_space_strings_.reserve(old_space_strings_.size() +
+                             new_space_strings_.size());
+  std::move(std::begin(new_space_strings_), std::end(new_space_strings_),
+            std::back_inserter(old_space_strings_));
+  new_space_strings_.clear();
 }
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
   if (heap_->InNewSpace(string)) {
-    new_space_strings_.Add(string);
+    new_space_strings_.push_back(string);
   } else {
-    old_space_strings_.Add(string);
+    old_space_strings_.push_back(string);
   }
 }
 
 void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
-  if (!new_space_strings_.is_empty()) {
-    Object** start = &new_space_strings_[0];
-    v->VisitRootPointers(Root::kExternalStringsTable, start,
-                         start + new_space_strings_.length());
+  if (!new_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, new_space_strings_.data(),
+                         new_space_strings_.data() + new_space_strings_.size());
   }
 }
 
 void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
-  if (!old_space_strings_.is_empty()) {
-    Object** start = &old_space_strings_[0];
-    v->VisitRootPointers(Root::kExternalStringsTable, start,
-                         start + old_space_strings_.length());
+  if (!old_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, old_space_strings_.data(),
+                         old_space_strings_.data() + old_space_strings_.size());
   }
 }
 
@@ -610,12 +590,12 @@ void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
 // mode.
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
-  for (int i = 0; i < new_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
     DCHECK(heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
-  for (int i = 0; i < old_space_strings_.length(); ++i) {
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
     DCHECK(!heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
@@ -627,17 +607,7 @@ void Heap::ExternalStringTable::Verify() {
 void Heap::ExternalStringTable::AddOldString(String* string) {
   DCHECK(string->IsExternalString());
   DCHECK(!heap_->InNewSpace(string));
-  old_space_strings_.Add(string);
-}
-
-
-void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
-  new_space_strings_.Rewind(position);
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    Verify();
-  }
-#endif
+  old_space_strings_.push_back(string);
 }
 
 Oddball* Heap::ToBoolean(bool condition) {

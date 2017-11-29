@@ -25,9 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "openssl/bio.h"
-#include "env.h"
 #include "env-inl.h"
-#include "util.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -39,6 +37,7 @@ class NodeBIO {
   NodeBIO() : env_(nullptr),
               initial_(kInitialBufferLength),
               length_(0),
+              eof_return_(-1),
               read_head_(nullptr),
               write_head_(nullptr) {
   }
@@ -97,14 +96,19 @@ class NodeBIO {
     return length_;
   }
 
+  inline void set_eof_return(int num) {
+    eof_return_ = num;
+  }
+
+  inline int eof_return() {
+    return eof_return_;
+  }
+
   inline void set_initial(size_t initial) {
     initial_ = initial;
   }
 
-  static inline NodeBIO* FromBIO(BIO* bio) {
-    CHECK_NE(bio->ptr, nullptr);
-    return static_cast<NodeBIO*>(bio->ptr);
-  }
+  static NodeBIO* FromBIO(BIO* bio);
 
  private:
   static int New(BIO* bio);
@@ -116,11 +120,11 @@ class NodeBIO {
   static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
                    void* ptr);
 
+  static const BIO_METHOD* GetMethod();
+
   // Enough to handle the most of the client hellos
   static const size_t kInitialBufferLength = 1024;
   static const size_t kThroughputBufferLength = 16384;
-
-  static const BIO_METHOD method;
 
   class Buffer {
    public:
@@ -153,6 +157,7 @@ class NodeBIO {
   Environment* env_;
   size_t initial_;
   size_t length_;
+  int eof_return_;
   Buffer* read_head_;
   Buffer* write_head_;
 };

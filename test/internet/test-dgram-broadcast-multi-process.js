@@ -150,11 +150,7 @@ if (process.argv[2] !== 'child') {
                             worker.pid,
                             count);
 
-              assert.strictEqual(
-                count,
-                messages.length,
-                'A worker received an invalid multicast message'
-              );
+              assert.strictEqual(count, messages.length);
             });
 
             clearTimeout(timer);

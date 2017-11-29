@@ -197,6 +197,8 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
   }
 }
 
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

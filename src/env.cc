@@ -1,12 +1,8 @@
 #include "node_internals.h"
-#include "async-wrap.h"
+#include "async_wrap.h"
 #include "v8-profiler.h"
-
-#if defined(_MSC_VER)
-#define getpid GetCurrentProcessId
-#else
-#include <unistd.h>
-#endif
+#include "node_buffer.h"
+#include "node_platform.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -16,10 +12,62 @@ namespace node {
 using v8::Context;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Message;
+using v8::Private;
 using v8::StackFrame;
 using v8::StackTrace;
+using v8::String;
+
+IsolateData::IsolateData(Isolate* isolate,
+                         uv_loop_t* event_loop,
+                         MultiIsolatePlatform* platform,
+                         uint32_t* zero_fill_field) :
+
+// Create string and private symbol properties as internalized one byte strings.
+//
+// Internalized because it makes property lookups a little faster and because
+// the string is created in the old space straight away.  It's going to end up
+// in the old space sooner or later anyway but now it doesn't go through
+// v8::Eternal's new space handling first.
+//
+// One byte because our strings are ASCII and we can safely skip V8's UTF-8
+// decoding step.  It's a one-time cost, but why pay it when you don't have to?
+#define V(PropertyName, StringValue)                                          \
+    PropertyName ## _(                                                        \
+        isolate,                                                              \
+        Private::New(                                                         \
+            isolate,                                                          \
+            String::NewFromOneByte(                                           \
+                isolate,                                                      \
+                reinterpret_cast<const uint8_t*>(StringValue),                \
+                v8::NewStringType::kInternalized,                             \
+                sizeof(StringValue) - 1).ToLocalChecked())),
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+#define V(PropertyName, StringValue)                                          \
+    PropertyName ## _(                                                        \
+        isolate,                                                              \
+        String::NewFromOneByte(                                               \
+            isolate,                                                          \
+            reinterpret_cast<const uint8_t*>(StringValue),                    \
+            v8::NewStringType::kInternalized,                                 \
+            sizeof(StringValue) - 1).ToLocalChecked()),
+    PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+    isolate_(isolate),
+    event_loop_(event_loop),
+    zero_fill_field_(zero_fill_field),
+    platform_(platform) {
+  if (platform_ != nullptr)
+    platform_->RegisterIsolate(this, event_loop);
+}
+
+IsolateData::~IsolateData() {
+  if (platform_ != nullptr)
+    platform_->UnregisterIsolate(this);
+}
 
 void Environment::Start(int argc,
                         const char* const* argv,
@@ -48,8 +96,6 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  uv_timer_init(event_loop(), destroy_async_ids_timer_handle());
-
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
 
@@ -72,10 +118,6 @@ void Environment::Start(int argc,
       nullptr);
   RegisterHandleCleanup(
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&destroy_async_ids_timer_handle_),
       close_and_finish,
       nullptr);
 
@@ -130,7 +172,8 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
+  fprintf(stderr, "(node:%u) WARNING: Detected use of sync API\n",
+          GetProcessId());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
@@ -226,6 +269,138 @@ void Environment::EnvPromiseHook(v8::PromiseHookType type,
   for (const PromiseHookCallback& hook : env->promise_hooks_) {
     hook.cb_(type, promise, parent, hook.arg_);
   }
+}
+
+void Environment::RunAndClearNativeImmediates() {
+  size_t count = native_immediate_callbacks_.size();
+  if (count > 0) {
+    std::vector<NativeImmediateCallback> list;
+    native_immediate_callbacks_.swap(list);
+    for (const auto& cb : list) {
+      cb.cb_(this, cb.data_);
+      if (cb.keep_alive_)
+        cb.keep_alive_->Reset();
+    }
+
+#ifdef DEBUG
+    CHECK_GE(scheduled_immediate_count_[0], count);
+#endif
+    scheduled_immediate_count_[0] = scheduled_immediate_count_[0] - count;
+  }
+}
+
+static bool MaybeStopImmediate(Environment* env) {
+  if (env->scheduled_immediate_count()[0] == 0) {
+    uv_check_stop(env->immediate_check_handle());
+    uv_idle_stop(env->immediate_idle_handle());
+    return true;
+  }
+  return false;
+}
+
+
+void Environment::CheckImmediate(uv_check_t* handle) {
+  Environment* env = Environment::from_immediate_check_handle(handle);
+  HandleScope scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  if (MaybeStopImmediate(env))
+    return;
+
+  env->RunAndClearNativeImmediates();
+
+  MakeCallback(env->isolate(),
+               env->process_object(),
+               env->immediate_callback_string(),
+               0,
+               nullptr,
+               {0, 0}).ToLocalChecked();
+
+  MaybeStopImmediate(env);
+}
+
+void Environment::ActivateImmediateCheck() {
+  uv_check_start(&immediate_check_handle_, CheckImmediate);
+  // Idle handle is needed only to stop the event loop from blocking in poll.
+  uv_idle_start(&immediate_idle_handle_, [](uv_idle_t*){ });
+}
+
+
+void CollectExceptionInfo(Environment* env,
+                          v8::Local<v8::Object> obj,
+                          int errorno,
+                          const char* err_string,
+                          const char* syscall,
+                          const char* message,
+                          const char* path,
+                          const char* dest) {
+  obj->Set(env->errno_string(), v8::Integer::New(env->isolate(), errorno));
+
+  obj->Set(env->context(), env->code_string(),
+           OneByteString(env->isolate(), err_string)).FromJust();
+
+  if (message != nullptr) {
+    obj->Set(env->context(), env->message_string(),
+             OneByteString(env->isolate(), message)).FromJust();
+  }
+
+  v8::Local<v8::Value> path_buffer;
+  if (path != nullptr) {
+    path_buffer =
+      Buffer::Copy(env->isolate(), path, strlen(path)).ToLocalChecked();
+    obj->Set(env->context(), env->path_string(), path_buffer).FromJust();
+  }
+
+  v8::Local<v8::Value> dest_buffer;
+  if (dest != nullptr) {
+    dest_buffer =
+      Buffer::Copy(env->isolate(), dest, strlen(dest)).ToLocalChecked();
+    obj->Set(env->context(), env->dest_string(), dest_buffer).FromJust();
+  }
+
+  if (syscall != nullptr) {
+    obj->Set(env->context(), env->syscall_string(),
+             OneByteString(env->isolate(), syscall)).FromJust();
+  }
+}
+
+void Environment::CollectExceptionInfo(v8::Local<v8::Value> object,
+                                       int errorno,
+                                       const char* syscall,
+                                       const char* message,
+                                       const char* path) {
+  if (!object->IsObject() || errorno == 0)
+    return;
+
+  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  const char* err_string = node::errno_string(errorno);
+
+  if (message == nullptr || message[0] == '\0') {
+    message = strerror(errorno);
+  }
+
+  node::CollectExceptionInfo(this, obj, errorno, err_string,
+                             syscall, message, path, nullptr);
+}
+
+void Environment::CollectUVExceptionInfo(v8::Local<v8::Value> object,
+                                         int errorno,
+                                         const char* syscall,
+                                         const char* message,
+                                         const char* path,
+                                         const char* dest) {
+  if (!object->IsObject() || errorno == 0)
+    return;
+
+  v8::Local<v8::Object> obj = object.As<v8::Object>();
+  const char* err_string = uv_err_name(errorno);
+
+  if (message == nullptr || message[0] == '\0') {
+    message = uv_strerror(errorno);
+  }
+
+  node::CollectExceptionInfo(this, obj, errorno, err_string,
+                             syscall, message, path, dest);
 }
 
 }  // namespace node

@@ -118,8 +118,10 @@ module.exports = {
                     message: "Unexpected space between function name and paren.",
                     fix(fixer) {
 
-                        // Only autofix if there is no newline
-                        // https://github.com/eslint/eslint/issues/7787
+                        /*
+                         * Only autofix if there is no newline
+                         * https://github.com/eslint/eslint/issues/7787
+                         */
                         if (!hasNewline) {
                             return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
                         }

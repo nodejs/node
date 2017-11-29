@@ -1,3 +1,55 @@
+2017.11.11, Version 1.16.1 (Stable), 4056fbe46493ef87237e307e0025e551db875e13
+
+Changes since version 1.16.0:
+
+* unix: move net/if.h include (cjihrig)
+
+* win: fix undeclared NDIS_IF_MAX_STRING_SIZE (Nick Logan)
+
+
+2017.11.07, Version 1.16.0 (Stable), d68779f0ea742918f653b9c20237460271c39aeb
+
+Changes since version 1.15.0:
+
+* win: change st_blksize from `2048` to `4096` (Joran Dirk Greef)
+
+* unix,win: add fs open flags, map O_DIRECT|O_DSYNC (Joran Dirk Greef)
+
+* win, fs: fix non-symlink reparse points (Wade Brainerd)
+
+* test: fix -Wstrict-prototypes warnings (Ben Noordhuis)
+
+* unix, windows: map ENOTTY errno (Ben Noordhuis)
+
+* unix: fall back to fsync() if F_FULLFSYNC fails (Joran Dirk Greef)
+
+* unix: do not close invalid kqueue fd after fork (jBarz)
+
+* zos: reset epoll data after fork (jBarz)
+
+* zos: skip fork_threadpool_queue_work_simple (jBarz)
+
+* test: keep platform_output as first test (Bartosz Sosnowski)
+
+* win: fix non-English dlopen error message (Bartosz Sosnowski)
+
+* unix,win: add uv_os_getppid() (cjihrig)
+
+* test: fix const qualification compiler warning (Ben Noordhuis)
+
+* doc: mark uv_default_loop() as not thread safe (rayrase)
+
+* win, pipe: null-initialize stream->shutdown_req (Jameson Nash)
+
+* tty, win: get SetWinEventHook pointer at startup (Bartosz Sosnowski)
+
+* test: no extra new line in skipped test output (Bartosz Sosnowski)
+
+* pipe: allow access from other users (Bartosz Sosnowski)
+
+* unix,win: add uv_if_{indextoname,indextoiid} (Pekka Nikander)
+
+
 2017.10.03, Version 1.15.0 (Stable), 8b69ce1419d2958011d415a636810705c36c2cc2
 
 Changes since version 1.14.1:

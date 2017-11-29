@@ -40,7 +40,7 @@ var require = function(name) {
   } else if (name === 'sinon') {
     path = base + 'sinon/sinon.js';
   } else {
-    throw Error('We cannnot load the library: ' + name);
+    throw Error('We cannot load the library: ' + name);
   }
   eval('(function() { ' + read(path) + '}())');
   if (name === 'sinon') {

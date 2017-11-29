@@ -1,7 +1,7 @@
 'use strict';
 
 var isWin = process.platform === 'win32';
-var resolveCommand = require('./resolveCommand');
+var resolveCommand = require('./util/resolveCommand');
 
 var isNode10 = process.version.indexOf('v0.10.') === 0;
 

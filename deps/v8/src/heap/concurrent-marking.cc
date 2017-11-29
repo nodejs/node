@@ -9,18 +9,40 @@
 
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/mark-compact-inl.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/marking.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
 #include "src/isolate.h"
-#include "src/locked-queue-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
 
 namespace v8 {
 namespace internal {
+
+class ConcurrentMarkingState final
+    : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
+ public:
+  explicit ConcurrentMarkingState(LiveBytesMap* live_bytes)
+      : live_bytes_(live_bytes) {}
+
+  Bitmap* bitmap(const MemoryChunk* chunk) {
+    return Bitmap::FromAddress(chunk->address() + MemoryChunk::kHeaderSize);
+  }
+
+  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
+    (*live_bytes_)[chunk] += by;
+  }
+
+  // The live_bytes and SetLiveBytes methods of the marking state are
+  // not used by the concurrent marker.
+
+ private:
+  LiveBytesMap* live_bytes_;
+};
 
 // Helper class for storing in-object slot addresses and values.
 class SlotSnapshot {
@@ -50,36 +72,35 @@ class ConcurrentMarkingVisitor final
 
   explicit ConcurrentMarkingVisitor(ConcurrentMarking::MarkingWorklist* shared,
                                     ConcurrentMarking::MarkingWorklist* bailout,
-                                    int task_id)
-      : shared_(shared, task_id), bailout_(bailout, task_id) {}
+                                    LiveBytesMap* live_bytes,
+                                    WeakObjects* weak_objects, int task_id)
+      : shared_(shared, task_id),
+        bailout_(bailout, task_id),
+        weak_objects_(weak_objects),
+        marking_state_(live_bytes),
+        task_id_(task_id) {}
 
   bool ShouldVisit(HeapObject* object) {
-    return ObjectMarking::GreyToBlack<AccessMode::ATOMIC>(
-        object, marking_state(object));
+    return marking_state_.GreyToBlack(object);
   }
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      Object* object = reinterpret_cast<Object*>(
-          base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+    for (Object** slot = start; slot < end; slot++) {
+      Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
+      MarkCompactCollector::RecordSlot(host, slot, object);
     }
   }
 
-  void VisitPointersInSnapshot(const SlotSnapshot& snapshot) {
+  void VisitPointersInSnapshot(HeapObject* host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
+      Object** slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
+      MarkCompactCollector::RecordSlot(host, slot, object);
     }
-  }
-
-  void VisitCodeEntry(JSFunction* host, Address entry_address) override {
-    Address code_entry = base::AsAtomicWord::Relaxed_Load(
-        reinterpret_cast<Address*>(entry_address));
-    Object* code = Code::GetObjectFromCodeEntry(code_entry);
-    VisitPointer(host, &code);
   }
 
   // ===========================================================================
@@ -90,7 +111,7 @@ class ConcurrentMarkingVisitor final
     int size = JSObject::BodyDescriptor::SizeOf(map, object);
     const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
     if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(snapshot);
+    VisitPointersInSnapshot(object, snapshot);
     return size;
   }
 
@@ -99,13 +120,12 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitJSApiObject(Map* map, JSObject* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = JSObject::BodyDescriptor::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       // It is OK to iterate body of JS API object here because they do not have
       // unboxed double fields.
-      DCHECK(map->HasFastPointerLayout());
+      DCHECK_IMPLIES(FLAG_unbox_double_fields, map->HasFastPointerLayout());
       JSObject::BodyDescriptor::IterateBody(object, size, this);
       // The main thread will do wrapper tracing in Blink.
       bailout_.Push(object);
@@ -140,15 +160,12 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
-      int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
-      // Aging of bytecode arrays is done on the main thread.
-      bailout_.Push(object);
-    }
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
+    object->MakeOlder();
+    return size;
   }
 
   int VisitAllocationSite(Map* map, AllocationSite* object) {
@@ -167,15 +184,26 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitMap(Map* map, Map* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
+  int VisitMap(Map* meta_map, Map* map) {
+    if (marking_state_.IsGrey(map)) {
+      // Maps have ad-hoc weakness for descriptor arrays. They also clear the
+      // code-cache. Conservatively visit strong fields skipping the
+      // descriptor array field and the code cache field.
+      VisitMapPointer(map, map->map_slot());
+      VisitPointer(map, HeapObject::RawField(map, Map::kPrototypeOffset));
+      VisitPointer(
+          map, HeapObject::RawField(map, Map::kConstructorOrBackPointerOffset));
+      VisitPointer(map, HeapObject::RawField(
+                            map, Map::kTransitionsOrPrototypeInfoOffset));
+      VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
+      VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
+      bailout_.Push(map);
+    }
     return 0;
   }
 
   int VisitNativeContext(Map* map, Context* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
+    if (marking_state_.IsGrey(object)) {
       int size = Context::BodyDescriptorWeak::SizeOf(map, object);
       VisitMapPointer(object, object->map_slot());
       Context::BodyDescriptorWeak::IterateBody(object, size, this);
@@ -186,28 +214,32 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitSharedFunctionInfo(Map* map, SharedFunctionInfo* object) {
-    if (ObjectMarking::IsGrey<AccessMode::ATOMIC>(object,
-                                                  marking_state(object))) {
-      int size = SharedFunctionInfo::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      SharedFunctionInfo::BodyDescriptorWeak::IterateBody(object, size, this);
-      // Resetting of IC age counter is done on the main thread.
-      bailout_.Push(object);
+  int VisitTransitionArray(Map* map, TransitionArray* array) {
+    if (marking_state_.IsGrey(array)) {
+      // TODO(ulan): process transition arrays.
+      bailout_.Push(array);
     }
     return 0;
   }
 
-  int VisitTransitionArray(Map* map, TransitionArray* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
-  }
-
   int VisitWeakCell(Map* map, WeakCell* object) {
-    // TODO(ulan): implement iteration of strong fields.
-    bailout_.Push(object);
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    if (!object->cleared()) {
+      HeapObject* value = HeapObject::cast(object->value());
+      if (marking_state_.IsBlackOrGrey(value)) {
+        // Weak cells with live values are directly processed here to reduce
+        // the processing time of weak cells during the main GC pause.
+        Object** slot = HeapObject::RawField(object, WeakCell::kValueOffset);
+        MarkCompactCollector::RecordSlot(object, slot, value);
+      } else {
+        // If we do not know about liveness of values of weak cells, we have to
+        // process them when we know the liveness of the whole transitive
+        // closure.
+        weak_objects_->weak_cells.Push(task_id_, object);
+      }
+    }
+    return WeakCell::BodyDescriptor::SizeOf(map, object);
   }
 
   int VisitJSWeakCollection(Map* map, JSWeakCollection* object) {
@@ -224,8 +256,7 @@ class ConcurrentMarkingVisitor final
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     CHECK_NOT_NULL(chunk->synchronized_heap());
 #endif
-    if (ObjectMarking::WhiteToGrey<AccessMode::ATOMIC>(object,
-                                                       marking_state(object))) {
+    if (marking_state_.WhiteToGrey(object)) {
       shared_.Push(object);
     }
   }
@@ -261,23 +292,21 @@ class ConcurrentMarkingVisitor final
     JSObject::BodyDescriptor::IterateBody(object, size, &visitor);
     return slot_snapshot_;
   }
-
-  MarkingState marking_state(HeapObject* object) const {
-    return MarkingState::Internal(object);
-  }
-
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
+  WeakObjects* weak_objects_;
+  ConcurrentMarkingState marking_state_;
+  int task_id_;
   SlotSnapshot slot_snapshot_;
 };
 
 class ConcurrentMarking::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, ConcurrentMarking* concurrent_marking,
-       base::Mutex* lock, int task_id)
+       TaskState* task_state, int task_id)
       : CancelableTask(isolate),
         concurrent_marking_(concurrent_marking),
-        lock_(lock),
+        task_state_(task_state),
         task_id_(task_id) {}
 
   virtual ~Task() {}
@@ -285,20 +314,22 @@ class ConcurrentMarking::Task : public CancelableTask {
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override {
-    concurrent_marking_->Run(task_id_, lock_);
+    concurrent_marking_->Run(task_id_, task_state_);
   }
 
   ConcurrentMarking* concurrent_marking_;
-  base::Mutex* lock_;
+  TaskState* task_state_;
   int task_id_;
   DISALLOW_COPY_AND_ASSIGN(Task);
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                                     MarkingWorklist* bailout)
+                                     MarkingWorklist* bailout,
+                                     WeakObjects* weak_objects)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
+      weak_objects_(weak_objects),
       pending_task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
@@ -309,36 +340,60 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
   }
 }
 
-void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
-  ConcurrentMarkingVisitor visitor(shared_, bailout_, task_id);
+void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
+  size_t kBytesUntilInterruptCheck = 64 * KB;
+  int kObjectsUntilInterrupCheck = 1000;
+  LiveBytesMap* live_bytes = nullptr;
+  {
+    base::LockGuard<base::Mutex> guard(&task_state->lock);
+    live_bytes = &task_state->live_bytes;
+  }
+  ConcurrentMarkingVisitor visitor(shared_, bailout_, live_bytes, weak_objects_,
+                                   task_id);
   double time_ms;
-  size_t bytes_marked = 0;
+  size_t total_bytes_marked = 0;
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Starting concurrent marking task %d\n", task_id);
   }
   {
     TimedScope scope(&time_ms);
-    while (true) {
-      base::LockGuard<base::Mutex> guard(lock);
-      HeapObject* object;
-      if (!shared_->Pop(task_id, &object)) break;
-      Address new_space_top = heap_->new_space()->original_top();
-      Address new_space_limit = heap_->new_space()->original_limit();
-      Address addr = object->address();
-      if (new_space_top <= addr && addr < new_space_limit) {
-        bailout_->Push(task_id, object);
-      } else {
-        Map* map = object->synchronized_map();
-        bytes_marked += visitor.Visit(map, object);
+    bool done = false;
+    while (!done) {
+      base::LockGuard<base::Mutex> guard(&task_state->lock);
+      size_t bytes_marked = 0;
+      int objects_processed = 0;
+      while (bytes_marked < kBytesUntilInterruptCheck &&
+             objects_processed < kObjectsUntilInterrupCheck) {
+        HeapObject* object;
+        if (!shared_->Pop(task_id, &object)) {
+          done = true;
+          break;
+        }
+        objects_processed++;
+        Address new_space_top = heap_->new_space()->original_top();
+        Address new_space_limit = heap_->new_space()->original_limit();
+        Address addr = object->address();
+        if (new_space_top <= addr && addr < new_space_limit) {
+          bailout_->Push(task_id, object);
+        } else {
+          Map* map = object->synchronized_map();
+          bytes_marked += visitor.Visit(map, object);
+        }
+      }
+      total_bytes_marked += bytes_marked;
+      if (task_state->interrupt_request.Value()) {
+        task_state->interrupt_condition.Wait(&task_state->lock);
       }
     }
     {
       // Take the lock to synchronize with worklist update after
       // young generation GC.
-      base::LockGuard<base::Mutex> guard(lock);
+      base::LockGuard<base::Mutex> guard(&task_state->lock);
       bailout_->FlushToGlobal(task_id);
     }
+    weak_objects_->weak_cells.FlushToGlobal(task_id);
+    weak_objects_->transition_arrays.FlushToGlobal(task_id);
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
@@ -349,7 +404,7 @@ void ConcurrentMarking::Run(int task_id, base::Mutex* lock) {
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Task %d concurrently marked %dKB in %.2fms\n", task_id,
-        static_cast<int>(bytes_marked / KB), time_ms);
+        static_cast<int>(total_bytes_marked / KB), time_ms);
   }
 }
 
@@ -364,10 +419,11 @@ void ConcurrentMarking::ScheduleTasks() {
           heap_->isolate()->PrintWithTimestamp(
               "Scheduling concurrent marking task %d\n", i);
         }
+        task_state_[i].interrupt_request.SetValue(false);
         is_pending_[i] = true;
         ++pending_task_count_;
         V8::GetCurrentPlatform()->CallOnBackgroundThread(
-            new Task(heap_->isolate(), this, &task_lock_[i].lock, i),
+            new Task(heap_->isolate(), this, &task_state_[i], i),
             v8::Platform::kShortRunningTask);
       }
     }
@@ -393,18 +449,49 @@ void ConcurrentMarking::EnsureCompleted() {
   }
 }
 
+void ConcurrentMarking::FlushLiveBytes(
+    MajorNonAtomicMarkingState* marking_state) {
+  DCHECK_EQ(pending_task_count_, 0);
+  for (int i = 1; i <= kTasks; i++) {
+    LiveBytesMap& live_bytes = task_state_[i].live_bytes;
+    for (auto pair : live_bytes) {
+      // ClearLiveness sets the live bytes to zero.
+      // Pages with zero live bytes might be already unmapped.
+      if (pair.second != 0) {
+        marking_state->IncrementLiveBytes(pair.first, pair.second);
+      }
+    }
+    live_bytes.clear();
+  }
+}
+
+void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
+  for (int i = 1; i <= kTasks; i++) {
+    if (task_state_[i].live_bytes.count(chunk)) {
+      task_state_[i].live_bytes[chunk] = 0;
+    }
+  }
+}
+
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking) {
   if (!FLAG_concurrent_marking) return;
+  // Request task_state for all tasks.
   for (int i = 1; i <= kTasks; i++) {
-    concurrent_marking_->task_lock_[i].lock.Lock();
+    concurrent_marking_->task_state_[i].interrupt_request.SetValue(true);
+  }
+  // Now take a lock to ensure that the tasks are waiting.
+  for (int i = 1; i <= kTasks; i++) {
+    concurrent_marking_->task_state_[i].lock.Lock();
   }
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (!FLAG_concurrent_marking) return;
   for (int i = kTasks; i >= 1; i--) {
-    concurrent_marking_->task_lock_[i].lock.Unlock();
+    concurrent_marking_->task_state_[i].interrupt_request.SetValue(false);
+    concurrent_marking_->task_state_[i].interrupt_condition.NotifyAll();
+    concurrent_marking_->task_state_[i].lock.Unlock();
   }
 }
 

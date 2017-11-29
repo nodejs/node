@@ -26,12 +26,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const https = require('https');
 
-const fs = require('fs');
-
-const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
-const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
+const key = fixtures.readKey('agent1-key.pem');
+const cert = fixtures.readKey('agent1-cert.pem');
 
 // number of bytes discovered empirically to trigger the bug
 const data = Buffer.alloc(1024 * 32 + 1);
@@ -68,6 +67,6 @@ const test = common.mustCall(function(res) {
   res.on('data', function(chunk) {
     bytes += chunk.length;
     this.pause();
-    setTimeout(this.resume.bind(this), 1);
+    setTimeout(() => { this.resume(); }, 1);
   });
 });

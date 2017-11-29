@@ -316,7 +316,7 @@ reader.pipe(writer);
 added: v0.9.4
 -->
 
-* `src` {[Readable][] Stream} The source stream that
+* `src` {stream.Readable} The source stream that
   [unpiped][`stream.unpipe()`] this writable
 
 The `'unpipe'` event is emitted when the [`stream.unpipe()`][] method is called
@@ -436,6 +436,14 @@ process.nextTick(() => {
 ```
 
 See also: [`writable.cork()`][].
+
+##### writable.writableHighWaterMark
+<!-- YAML
+added: REPLACEME
+-->
+
+Return the value of `highWaterMark` passed when constructing this
+`Writable`.
 
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
@@ -756,7 +764,7 @@ available data. In the latter case, [`stream.read()`][stream-read] will return
 const fs = require('fs');
 const rr = fs.createReadStream('foo.txt');
 rr.on('readable', () => {
-  console.log('readable:', rr.read());
+  console.log(`readable: ${rr.read()}`);
 });
 rr.on('end', () => {
   console.log('end');
@@ -878,6 +886,14 @@ to prevent memory leaks.
 *Note*: The [`process.stderr`][] and [`process.stdout`][] Writable streams are
 never closed until the Node.js process exits, regardless of the specified
 options.
+
+##### readable.readableHighWaterMark
+<!-- YAML
+added: REPLACEME
+-->
+
+Return the value of `highWaterMark` passed when constructing this
+`Readable`.
 
 ##### readable.read([size])
 <!-- YAML
@@ -1437,9 +1453,12 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} An error.
-* `callback` {Function} A callback function that takes an optional error argument
-  which is invoked when the writable is destroyed.
+* `err` {Error} A possible error.
+* `callback` {Function} A callback function that takes an optional error
+  argument.
+
+The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
+It can be overriden by child classes but it **must not** be called directly.
 
 #### writable.\_final(callback)
 <!-- YAML
@@ -1505,6 +1524,47 @@ class MyWritable extends Writable {
     }
   }
 }
+```
+
+#### Decoding buffers in a Writable Stream
+
+Decoding buffers is a common task, for instance, when using transformers whose
+input is a string. This is not a trivial process when using multi-byte
+characters encoding, such as UTF-8. The following example shows how to decode
+multi-byte strings using `StringDecoder` and [Writable][].
+
+```js
+const { Writable } = require('stream');
+const { StringDecoder } = require('string_decoder');
+
+class StringWritable extends Writable {
+  constructor(options) {
+    super(options);
+    const state = this._writableState;
+    this._decoder = new StringDecoder(state.defaultEncoding);
+    this.data = '';
+  }
+  _write(chunk, encoding, callback) {
+    if (encoding === 'buffer') {
+      chunk = this._decoder.write(chunk);
+    }
+    this.data += chunk;
+    callback();
+  }
+  _final(callback) {
+    this.data += this._decoder.end();
+    callback();
+  }
+}
+
+const euro = [[0xE2, 0x82], [0xAC]].map(Buffer.from);
+const w = new StringWritable();
+
+w.write('currency: ');
+w.write(euro[0]);
+w.end(euro[1]);
+
+console.log(w.data); // currency: €
 ```
 
 ### Implementing a Readable Stream
@@ -1606,9 +1666,12 @@ user programs.
 added: v8.0.0
 -->
 
-* `err` {Error} An error.
+* `err` {Error} A possible error.
 * `callback` {Function} A callback function that takes an optional error
-  argument which is invoked when the readable is destroyed.
+  argument.
+
+The `_destroy()` method is called by [`readable.destroy()`][readable-destroy].
+It can be overriden by child classes but it **must not** be called directly.
 
 #### readable.push(chunk[, encoding])
 <!-- YAML
@@ -2166,7 +2229,7 @@ object mode has an interesting side effect. Because it *is* a call to
 However, because the argument is an empty string, no data is added to the
 readable buffer so there is nothing for a user to consume.
 
-### `highWaterMark` discrepency after calling `readable.setEncoding()`
+### `highWaterMark` discrepancy after calling `readable.setEncoding()`
 
 The use of `readable.setEncoding()` will change the behavior of how the
 `highWaterMark` operates in non-object mode.
@@ -2217,8 +2280,7 @@ contain multi-byte characters.
 [fs write streams]: fs.html#fs_class_fs_writestream
 [http-incoming-message]: http.html#http_class_http_incomingmessage
 [zlib]: zlib.html
-[hwm-gotcha]: #stream_highwatermark_discrepency_after_calling_readable_setencoding
-[Readable]: #stream_class_stream_readable
+[hwm-gotcha]: #stream_highwatermark_discrepancy_after_calling_readable_setencoding
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
@@ -2232,4 +2294,6 @@ contain multi-byte characters.
 [stream-resume]: #stream_readable_resume
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [readable-_destroy]: #stream_readable_destroy_err_callback
+[readable-destroy]: #stream_readable_destroy_error
 [writable-_destroy]: #stream_writable_destroy_err_callback
+[writable-destroy]: #stream_writable_destroy_error

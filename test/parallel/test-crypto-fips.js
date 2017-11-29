@@ -10,7 +10,12 @@ const fixtures = require('../common/fixtures');
 
 const FIPS_ENABLED = 1;
 const FIPS_DISABLED = 0;
-const FIPS_ERROR_STRING = 'Error: Cannot set FIPS mode';
+const FIPS_ERROR_STRING =
+  'Error [ERR_CRYPTO_FIPS_UNAVAILABLE]: Cannot set FIPS mode in a ' +
+  'non-FIPS build.';
+const FIPS_ERROR_STRING2 =
+  'Error [ERR_CRYPTO_FIPS_FORCED]: Cannot set FIPS mode, it was forced with ' +
+  '--force-fips at startup.';
 const OPTION_ERROR_STRING = 'bad option';
 
 const CNF_FIPS_ON = fixtures.path('openssl_fips_enabled.cnf');
@@ -208,7 +213,7 @@ testHelper(
 testHelper(
   'stderr',
   ['--force-fips'],
-  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
+  compiledWithFips() ? FIPS_ERROR_STRING2 : OPTION_ERROR_STRING,
   'require("crypto").fips = false',
   process.env);
 
@@ -225,7 +230,7 @@ testHelper(
 testHelper(
   'stderr',
   ['--force-fips', '--enable-fips'],
-  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
+  compiledWithFips() ? FIPS_ERROR_STRING2 : OPTION_ERROR_STRING,
   'require("crypto").fips = false',
   process.env);
 
@@ -233,6 +238,6 @@ testHelper(
 testHelper(
   'stderr',
   ['--enable-fips', '--force-fips'],
-  compiledWithFips() ? FIPS_ERROR_STRING : OPTION_ERROR_STRING,
+  compiledWithFips() ? FIPS_ERROR_STRING2 : OPTION_ERROR_STRING,
   'require("crypto").fips = false',
   process.env);

@@ -31,10 +31,10 @@
 #include "src/arm64/assembler-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
-#include "src/arm64/frames-arm64.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/frame-constants.h"
 #include "src/register-configuration.h"
 
 namespace v8 {
@@ -176,33 +176,21 @@ bool RelocInfo::IsInConstantPool() {
   return instr->IsLdrLiteralX();
 }
 
-Address RelocInfo::wasm_memory_reference() {
-  DCHECK(IsWasmMemoryReference(rmode_));
+Address RelocInfo::embedded_address() const {
   return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
 }
 
-uint32_t RelocInfo::wasm_memory_size_reference() {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
+uint32_t RelocInfo::embedded_size() const {
   return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
 }
 
-Address RelocInfo::wasm_global_reference() {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
-}
-
-uint32_t RelocInfo::wasm_function_table_size_reference() {
-  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
-}
-
-void RelocInfo::unchecked_update_wasm_memory_reference(
-    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+                                     ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
-                                           ICacheFlushMode flush_mode) {
+void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
+                                  ICacheFlushMode flush_mode) {
   Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
   // No icache flushing needed, see comment in set_target_address_at.
 }
@@ -210,7 +198,7 @@ void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
                                               Register reg3, Register reg4) {
   CPURegList regs(reg1, reg2, reg3, reg4);
-  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
+  const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     Register candidate = Register::from_code(code);
@@ -236,10 +224,10 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].Bit();
+      unique_regs |= regs[i].bit();
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].Bit();
+      unique_fpregs |= regs[i].bit();
     } else {
       DCHECK(!regs[i].IsValid());
     }
@@ -341,7 +329,6 @@ bool ConstPool::AddSharedEntry(SharedEntryMap& entry_map, uint64_t data,
 bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
-         mode != RelocInfo::CODE_AGE_SEQUENCE &&
          mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
          mode != RelocInfo::DEOPT_INLINING_ID &&
          mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
@@ -4764,17 +4751,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   bool write_reloc_info = true;
 
-  if (((rmode >= RelocInfo::COMMENT) &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
+  if ((rmode == RelocInfo::COMMENT) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
       (rmode == RelocInfo::DEOPT_INLINING_ID) ||
       (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID)) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
-           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
-           RelocInfo::IsDeoptPosition(rmode) ||
+    DCHECK(RelocInfo::IsComment(rmode) || RelocInfo::IsDeoptReason(rmode) ||
+           RelocInfo::IsDeoptId(rmode) || RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.

@@ -1,5 +1,5 @@
 'use strict';
-module.exports = function generate_required(it, $keyword) {
+module.exports = function generate_required(it, $keyword, $ruleType) {
   var out = ' ';
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
@@ -9,7 +9,7 @@ module.exports = function generate_required(it, $keyword) {
   var $breakOnError = !it.opts.allErrors;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
-  var $isData = it.opts.v5 && $schema && $schema.$data,
+  var $isData = it.opts.$data && $schema && $schema.$data,
     $schemaValue;
   if ($isData) {
     out += ' var schema' + ($lvl) + ' = ' + (it.util.getData($schema.$data, $dataLvl, it.dataPathArr)) + '; ';
@@ -39,7 +39,8 @@ module.exports = function generate_required(it, $keyword) {
   }
   if ($isData || $required.length) {
     var $currentErrorPath = it.errorPath,
-      $loopRequired = $isData || $required.length >= it.opts.loopRequired;
+      $loopRequired = $isData || $required.length >= it.opts.loopRequired,
+      $ownProperties = it.opts.ownProperties;
     if ($breakOnError) {
       out += ' var missing' + ($lvl) + '; ';
       if ($loopRequired) {
@@ -56,7 +57,11 @@ module.exports = function generate_required(it, $keyword) {
         if ($isData) {
           out += ' if (schema' + ($lvl) + ' === undefined) ' + ($valid) + ' = true; else if (!Array.isArray(schema' + ($lvl) + ')) ' + ($valid) + ' = false; else {';
         }
-        out += ' for (var ' + ($i) + ' = 0; ' + ($i) + ' < ' + ($vSchema) + '.length; ' + ($i) + '++) { ' + ($valid) + ' = ' + ($data) + '[' + ($vSchema) + '[' + ($i) + ']] !== undefined; if (!' + ($valid) + ') break; } ';
+        out += ' for (var ' + ($i) + ' = 0; ' + ($i) + ' < ' + ($vSchema) + '.length; ' + ($i) + '++) { ' + ($valid) + ' = ' + ($data) + '[' + ($vSchema) + '[' + ($i) + ']] !== undefined ';
+        if ($ownProperties) {
+          out += ' &&   Object.prototype.hasOwnProperty.call(' + ($data) + ', ' + ($vSchema) + '[' + ($i) + ']) ';
+        }
+        out += '; if (!' + ($valid) + ') break; } ';
         if ($isData) {
           out += '  }  ';
         }
@@ -98,15 +103,20 @@ module.exports = function generate_required(it, $keyword) {
         out += ' if ( ';
         var arr2 = $required;
         if (arr2) {
-          var _$property, $i = -1,
+          var $propertyKey, $i = -1,
             l2 = arr2.length - 1;
           while ($i < l2) {
-            _$property = arr2[$i += 1];
+            $propertyKey = arr2[$i += 1];
             if ($i) {
               out += ' || ';
             }
-            var $prop = it.util.getProperty(_$property);
-            out += ' ( ' + ($data) + ($prop) + ' === undefined && (missing' + ($lvl) + ' = ' + (it.util.toQuotedString(it.opts.jsonPointers ? _$property : $prop)) + ') ) ';
+            var $prop = it.util.getProperty($propertyKey),
+              $useData = $data + $prop;
+            out += ' ( ( ' + ($useData) + ' === undefined ';
+            if ($ownProperties) {
+              out += ' || ! Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($propertyKey)) + '\') ';
+            }
+            out += ') && (missing' + ($lvl) + ' = ' + (it.util.toQuotedString(it.opts.jsonPointers ? $propertyKey : $prop)) + ') ) ';
           }
         }
         out += ') {  ';
@@ -182,7 +192,11 @@ module.exports = function generate_required(it, $keyword) {
           }
           out += ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; } else if (' + ($vSchema) + ' !== undefined) { ';
         }
-        out += ' for (var ' + ($i) + ' = 0; ' + ($i) + ' < ' + ($vSchema) + '.length; ' + ($i) + '++) { if (' + ($data) + '[' + ($vSchema) + '[' + ($i) + ']] === undefined) {  var err =   '; /* istanbul ignore else */
+        out += ' for (var ' + ($i) + ' = 0; ' + ($i) + ' < ' + ($vSchema) + '.length; ' + ($i) + '++) { if (' + ($data) + '[' + ($vSchema) + '[' + ($i) + ']] === undefined ';
+        if ($ownProperties) {
+          out += ' || ! Object.prototype.hasOwnProperty.call(' + ($data) + ', ' + ($vSchema) + '[' + ($i) + ']) ';
+        }
+        out += ') {  var err =   '; /* istanbul ignore else */
         if (it.createErrors !== false) {
           out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
           if (it.opts.messages !== false) {
@@ -208,16 +222,21 @@ module.exports = function generate_required(it, $keyword) {
       } else {
         var arr3 = $required;
         if (arr3) {
-          var $reqProperty, i3 = -1,
+          var $propertyKey, i3 = -1,
             l3 = arr3.length - 1;
           while (i3 < l3) {
-            $reqProperty = arr3[i3 += 1];
-            var $prop = it.util.getProperty($reqProperty),
-              $missingProperty = it.util.escapeQuotes($reqProperty);
+            $propertyKey = arr3[i3 += 1];
+            var $prop = it.util.getProperty($propertyKey),
+              $missingProperty = it.util.escapeQuotes($propertyKey),
+              $useData = $data + $prop;
             if (it.opts._errorDataPathProperty) {
-              it.errorPath = it.util.getPath($currentErrorPath, $reqProperty, it.opts.jsonPointers);
+              it.errorPath = it.util.getPath($currentErrorPath, $propertyKey, it.opts.jsonPointers);
             }
-            out += ' if (' + ($data) + ($prop) + ' === undefined) {  var err =   '; /* istanbul ignore else */
+            out += ' if ( ' + ($useData) + ' === undefined ';
+            if ($ownProperties) {
+              out += ' || ! Object.prototype.hasOwnProperty.call(' + ($data) + ', \'' + (it.util.escapeQuotes($propertyKey)) + '\') ';
+            }
+            out += ') {  var err =   '; /* istanbul ignore else */
             if (it.createErrors !== false) {
               out += ' { keyword: \'' + ('required') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { missingProperty: \'' + ($missingProperty) + '\' } ';
               if (it.opts.messages !== false) {

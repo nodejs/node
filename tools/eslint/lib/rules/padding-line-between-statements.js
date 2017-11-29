@@ -85,15 +85,17 @@ function isBlockLikeStatement(sourceCode, node) {
         return true;
     }
 
-    // IIFE is a block-like statement specially from
-    // JSCS#disallowPaddingNewLinesAfterBlocks.
+    /*
+     * IIFE is a block-like statement specially from
+     * JSCS#disallowPaddingNewLinesAfterBlocks.
+     */
     if (isIIFEStatement(node)) {
         return true;
     }
 
     // Checks the last token is a closing brace of blocks.
     const lastToken = sourceCode.getLastToken(node, astUtils.isNotSemicolonToken);
-    const belongingNode = astUtils.isClosingBraceToken(lastToken)
+    const belongingNode = lastToken && astUtils.isClosingBraceToken(lastToken)
         ? sourceCode.getNodeByRangeIndex(lastToken.range[0])
         : null;
 
@@ -205,14 +207,14 @@ function verifyForAny() {
  * blank lines automatically.
  *
  * @param {RuleContext} context The rule context to report.
- * @param {ASTNode} prevNode The previous node to check.
+ * @param {ASTNode} _ Unused. The previous node to check.
  * @param {ASTNode} nextNode The next node to check.
  * @param {Array<Token[]>} paddingLines The array of token pairs that blank
  * lines exist between the pair.
  * @returns {void}
  * @private
  */
-function verifyForNever(context, prevNode, nextNode, paddingLines) {
+function verifyForNever(context, _, nextNode, paddingLines) {
     if (paddingLines.length === 0) {
         return;
     }

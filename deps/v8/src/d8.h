@@ -14,7 +14,6 @@
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
-#include "src/list.h"
 #include "src/utils.h"
 
 #include "src/base/once.h"
@@ -305,7 +304,8 @@ class ShellOptions {
         trace_enabled(false),
         trace_config(NULL),
         lcov_file(NULL),
-        disable_in_process_stack_traces(false) {}
+        disable_in_process_stack_traces(false),
+        read_from_tcp_port(-1) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -337,6 +337,8 @@ class ShellOptions {
   const char* trace_config;
   const char* lcov_file;
   bool disable_in_process_stack_traces;
+  int read_from_tcp_port;
+  bool enable_os_system = false;
 };
 
 class Shell : public i::AllStatic {
@@ -445,7 +447,8 @@ class Shell : public i::AllStatic {
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static MaybeLocal<Promise> HostImportModuleDynamically(
-      Local<Context> context, Local<String> referrer, Local<String> specifier);
+      Local<Context> context, Local<ScriptOrModule> referrer,
+      Local<String> specifier);
 
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
@@ -460,6 +463,8 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
   static bool IsWaitUntilDone(Isolate* isolate);
+
+  static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
  private:
   static Global<Context> evaluation_context_;
@@ -476,7 +481,7 @@ class Shell : public i::AllStatic {
 
   static base::LazyMutex workers_mutex_;
   static bool allow_new_workers_;
-  static i::List<Worker*> workers_;
+  static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);

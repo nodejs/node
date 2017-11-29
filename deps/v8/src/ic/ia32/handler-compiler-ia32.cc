@@ -117,6 +117,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
                           kPointerSize));
   }
   // Write the receiver and arguments to stack frame.
+  __ push(accessor_holder);
   __ push(receiver);
   if (is_store) {
     DCHECK(!AreAliased(receiver, scratch, store_parameter));
@@ -303,8 +304,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (!validity_cell.is_null()) {
     DCHECK_EQ(Smi::FromInt(Map::kPrototypeChainValid), validity_cell->value());
-    // Operand::ForCell(...) points to the cell's payload!
-    __ cmp(Operand::ForCell(validity_cell),
+    __ mov(scratch1, validity_cell);
+    __ cmp(FieldOperand(scratch1, Cell::kValueOffset),
            Immediate(Smi::FromInt(Map::kPrototypeChainValid)));
     __ j(not_equal, miss);
   }

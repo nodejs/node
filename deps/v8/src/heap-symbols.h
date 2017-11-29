@@ -41,7 +41,6 @@
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
   V(column_string, "column")                                       \
-  V(compare_ic_string, "==")                                       \
   V(configurable_string, "configurable")                           \
   V(constructor_string, "constructor")                             \
   V(construct_string, "construct")                                 \
@@ -167,7 +166,6 @@
   V(stackTraceLimit_string, "stackTraceLimit")                     \
   V(star_default_star_string, "*default*")                         \
   V(sticky_string, "sticky")                                       \
-  V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
@@ -203,7 +201,8 @@
   V(will_handle_string, "willHandle")                              \
   V(writable_string, "writable")                                   \
   V(year_string, "year")                                           \
-  V(zero_string, "0")
+  V(zero_string, "0")                                              \
+  V(WasmExceptionTag_string, "WasmExceptionTag")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
   V(array_iteration_kind_symbol)            \
@@ -221,7 +220,7 @@
   V(error_script_symbol)                    \
   V(error_start_pos_symbol)                 \
   V(frozen_symbol)                          \
-  V(hash_code_symbol)                       \
+  V(generic_symbol)                         \
   V(home_object_symbol)                     \
   V(intl_initialized_marker_symbol)         \
   V(intl_pattern_symbol)                    \
@@ -265,5 +264,94 @@
   V(has_instance_symbol, Symbol.hasInstance)                \
   V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
   V(to_string_tag_symbol, Symbol.toStringTag)
+
+#define INCREMENTAL_SCOPES(F)                                      \
+  /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
+  F(MC_INCREMENTAL)                                                \
+  F(MC_INCREMENTAL_START)                                          \
+  F(MC_INCREMENTAL_SWEEPING)                                       \
+  F(MC_INCREMENTAL_WRAPPER_PROLOGUE)                               \
+  F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
+  F(MC_INCREMENTAL_FINALIZE)                                       \
+  F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
+  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
+  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
+
+#define TRACER_SCOPES(F)                             \
+  INCREMENTAL_SCOPES(F)                              \
+  F(HEAP_EPILOGUE)                                   \
+  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
+  F(HEAP_EXTERNAL_EPILOGUE)                          \
+  F(HEAP_EXTERNAL_PROLOGUE)                          \
+  F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
+  F(HEAP_PROLOGUE)                                   \
+  F(MC_CLEAR)                                        \
+  F(MC_CLEAR_DEPENDENT_CODE)                         \
+  F(MC_CLEAR_MAPS)                                   \
+  F(MC_CLEAR_SLOTS_BUFFER)                           \
+  F(MC_CLEAR_STORE_BUFFER)                           \
+  F(MC_CLEAR_STRING_TABLE)                           \
+  F(MC_CLEAR_WEAK_CELLS)                             \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                       \
+  F(MC_CLEAR_WEAK_LISTS)                             \
+  F(MC_EPILOGUE)                                     \
+  F(MC_EVACUATE)                                     \
+  F(MC_EVACUATE_CANDIDATES)                          \
+  F(MC_EVACUATE_CLEAN_UP)                            \
+  F(MC_EVACUATE_COPY)                                \
+  F(MC_EVACUATE_EPILOGUE)                            \
+  F(MC_EVACUATE_PROLOGUE)                            \
+  F(MC_EVACUATE_REBALANCE)                           \
+  F(MC_EVACUATE_UPDATE_POINTERS)                     \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
+  F(MC_FINISH)                                       \
+  F(MC_MARK)                                         \
+  F(MC_MARK_FINISH_INCREMENTAL)                      \
+  F(MC_MARK_ROOTS)                                   \
+  F(MC_MARK_WEAK_CLOSURE)                            \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                  \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)               \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)                 \
+  F(MC_MARK_WEAK_CLOSURE_HARMONY)                    \
+  F(MC_MARK_WRAPPER_EPILOGUE)                        \
+  F(MC_MARK_WRAPPER_PROLOGUE)                        \
+  F(MC_MARK_WRAPPER_TRACING)                         \
+  F(MC_PROLOGUE)                                     \
+  F(MC_SWEEP)                                        \
+  F(MC_SWEEP_CODE)                                   \
+  F(MC_SWEEP_MAP)                                    \
+  F(MC_SWEEP_OLD)                                    \
+  F(MINOR_MC)                                        \
+  F(MINOR_MC_CLEAR)                                  \
+  F(MINOR_MC_CLEAR_STRING_TABLE)                     \
+  F(MINOR_MC_CLEAR_WEAK_LISTS)                       \
+  F(MINOR_MC_EVACUATE)                               \
+  F(MINOR_MC_EVACUATE_CLEAN_UP)                      \
+  F(MINOR_MC_EVACUATE_COPY)                          \
+  F(MINOR_MC_EVACUATE_EPILOGUE)                      \
+  F(MINOR_MC_EVACUATE_PROLOGUE)                      \
+  F(MINOR_MC_EVACUATE_REBALANCE)                     \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)  \
+  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
+  F(MINOR_MC_MARK)                                   \
+  F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
+  F(MINOR_MC_MARK_SEED)                              \
+  F(MINOR_MC_MARK_ROOTS)                             \
+  F(MINOR_MC_MARK_WEAK)                              \
+  F(MINOR_MC_MARKING_DEQUE)                          \
+  F(MINOR_MC_RESET_LIVENESS)                         \
+  F(MINOR_MC_SWEEPING)                               \
+  F(SCAVENGER_FAST_PROMOTE)                          \
+  F(SCAVENGER_SCAVENGE)                              \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
+  F(SCAVENGER_SCAVENGE_PARALLEL)                     \
+  F(SCAVENGER_SCAVENGE_ROOTS)                        \
+  F(SCAVENGER_SCAVENGE_WEAK)
 
 #endif  // V8_HEAP_SYMBOLS_H_

@@ -1,15 +1,17 @@
+'use strict';
+
 // Load modules
 
-var Boom = require('boom');
-var Hoek = require('hoek');
-var Cryptiles = require('cryptiles');
-var Crypto = require('./crypto');
-var Utils = require('./utils');
+const Boom = require('boom');
+const Hoek = require('hoek');
+const Cryptiles = require('cryptiles');
+const Crypto = require('./crypto');
+const Utils = require('./utils');
 
 
 // Declare internals
 
-var internals = {};
+const internals = {};
 
 
 // Hawk authentication
@@ -17,7 +19,7 @@ var internals = {};
 /*
    req:                 node's HTTP request object or an object as follows:
 
-                        var request = {
+                        const request = {
                             method: 'GET',
                             url: '/resource/4?a=1&b=2',
                             host: 'example.com',
@@ -30,7 +32,7 @@ var internals = {};
                         needed by the application. This function is the equivalent of verifying the username and
                         password in Basic authentication.
 
-                        var credentialsFunc = function (id, callback) {
+                        const credentialsFunc = function (id, callback) {
 
                             // Lookup credentials in database
                             db.lookup(id, function (err, item) {
@@ -39,7 +41,7 @@ var internals = {};
                                     return callback(err);
                                 }
 
-                                var credentials = {
+                                const credentials = {
                                     // Required
                                     key: item.key,
                                     algorithm: item.algorithm,
@@ -93,25 +95,25 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
 
     // Application time
 
-    var now = Utils.now(options.localtimeOffsetMsec);                           // Measure now before any other processing
+    const now = Utils.now(options.localtimeOffsetMsec);                           // Measure now before any other processing
 
     // Convert node Http request object to a request configuration object
 
-    var request = Utils.parseRequest(req, options);
+    const request = Utils.parseRequest(req, options);
     if (request instanceof Error) {
         return callback(Boom.badRequest(request.message));
     }
 
     // Parse HTTP Authorization header
 
-    var attributes = Utils.parseAuthorizationHeader(request.authorization);
+    const attributes = Utils.parseAuthorizationHeader(request.authorization);
     if (attributes instanceof Error) {
         return callback(attributes);
     }
 
     // Construct artifacts container
 
-    var artifacts = {
+    const artifacts = {
         method: request.method,
         host: request.host,
         port: request.port,
@@ -138,14 +140,14 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
 
     // Fetch Hawk credentials
 
-    credentialsFunc(attributes.id, function (err, credentials) {
+    credentialsFunc(attributes.id, (err, credentials) => {
 
         if (err) {
             return callback(err, credentials || null, artifacts);
         }
 
         if (!credentials) {
-            return callback(Boom.unauthorized('Unknown credentials', 'Hawk'), null, artifacts);
+            return callback(Utils.unauthorized('Unknown credentials'), null, artifacts);
         }
 
         if (!credentials.key ||
@@ -160,9 +162,9 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
 
         // Calculate MAC
 
-        var mac = Crypto.calculateMac('header', credentials, artifacts);
+        const mac = Crypto.calculateMac('header', credentials, artifacts);
         if (!Cryptiles.fixedTimeComparison(mac, attributes.mac)) {
-            return callback(Boom.unauthorized('Bad mac', 'Hawk'), credentials, artifacts);
+            return callback(Utils.unauthorized('Bad mac'), credentials, artifacts);
         }
 
         // Check payload hash
@@ -171,28 +173,28 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
             options.payload === '') {
 
             if (!attributes.hash) {
-                return callback(Boom.unauthorized('Missing required payload hash', 'Hawk'), credentials, artifacts);
+                return callback(Utils.unauthorized('Missing required payload hash'), credentials, artifacts);
             }
 
-            var hash = Crypto.calculatePayloadHash(options.payload, credentials.algorithm, request.contentType);
+            const hash = Crypto.calculatePayloadHash(options.payload, credentials.algorithm, request.contentType);
             if (!Cryptiles.fixedTimeComparison(hash, attributes.hash)) {
-                return callback(Boom.unauthorized('Bad payload hash', 'Hawk'), credentials, artifacts);
+                return callback(Utils.unauthorized('Bad payload hash'), credentials, artifacts);
             }
         }
 
         // Check nonce
 
-        options.nonceFunc(credentials.key, attributes.nonce, attributes.ts, function (err) {
+        options.nonceFunc(credentials.key, attributes.nonce, attributes.ts, (err) => {
 
             if (err) {
-                return callback(Boom.unauthorized('Invalid nonce', 'Hawk'), credentials, artifacts);
+                return callback(Utils.unauthorized('Invalid nonce'), credentials, artifacts);
             }
 
             // Check timestamp staleness
 
             if (Math.abs((attributes.ts * 1000) - now) > (options.timestampSkewSec * 1000)) {
-                var tsm = Crypto.timestampMessage(credentials, options.localtimeOffsetMsec);
-                return callback(Boom.unauthorized('Stale timestamp', 'Hawk', tsm), credentials, artifacts);
+                const tsm = Crypto.timestampMessage(credentials, options.localtimeOffsetMsec);
+                return callback(Utils.unauthorized('Stale timestamp', tsm), credentials, artifacts);
             }
 
             // Successful authentication
@@ -214,7 +216,7 @@ exports.authenticate = function (req, credentialsFunc, options, callback) {
 
 exports.authenticatePayload = function (payload, credentials, artifacts, contentType) {
 
-    var calculatedHash = Crypto.calculatePayloadHash(payload, credentials.algorithm, contentType);
+    const calculatedHash = Crypto.calculatePayloadHash(payload, credentials.algorithm, contentType);
     return Cryptiles.fixedTimeComparison(calculatedHash, artifacts.hash);
 };
 
@@ -285,18 +287,18 @@ exports.header = function (credentials, artifacts, options) {
         artifacts.hash = Crypto.calculatePayloadHash(options.payload, credentials.algorithm, options.contentType);
     }
 
-    var mac = Crypto.calculateMac('response', credentials, artifacts);
+    const mac = Crypto.calculateMac('response', credentials, artifacts);
 
     // Construct header
 
-    var header = 'Hawk mac="' + mac + '"' +
+    let header = 'Hawk mac="' + mac + '"' +
                  (artifacts.hash ? ', hash="' + artifacts.hash + '"' : '');
 
     if (artifacts.ext !== null &&
         artifacts.ext !== undefined &&
         artifacts.ext !== '') {                       // Other falsey values allowed
 
-        header += ', ext="' + Hoek.escapeHeaderAttribute(artifacts.ext) + '"';
+        header = header + ', ext="' + Hoek.escapeHeaderAttribute(artifacts.ext) + '"';
     }
 
     return header;
@@ -319,11 +321,11 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
     // Application time
 
-    var now = Utils.now(options.localtimeOffsetMsec);
+    const now = Utils.now(options.localtimeOffsetMsec);
 
     // Convert node Http request object to a request configuration object
 
-    var request = Utils.parseRequest(req, options);
+    const request = Utils.parseRequest(req, options);
     if (request instanceof Error) {
         return callback(Boom.badRequest(request.message));
     }
@@ -334,15 +336,15 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
         return callback(Boom.badRequest('Resource path exceeds max length'));
     }
 
-    var resource = request.url.match(internals.bewitRegex);
+    const resource = request.url.match(internals.bewitRegex);
     if (!resource) {
-        return callback(Boom.unauthorized(null, 'Hawk'));
+        return callback(Utils.unauthorized());
     }
 
     // Bewit not empty
 
     if (!resource[3]) {
-        return callback(Boom.unauthorized('Empty bewit', 'Hawk'));
+        return callback(Utils.unauthorized('Empty bewit'));
     }
 
     // Verify method is GET
@@ -350,7 +352,7 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
     if (request.method !== 'GET' &&
         request.method !== 'HEAD') {
 
-        return callback(Boom.unauthorized('Invalid method', 'Hawk'));
+        return callback(Utils.unauthorized('Invalid method'));
     }
 
     // No other authentication
@@ -361,19 +363,19 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
     // Parse bewit
 
-    var bewitString = Hoek.base64urlDecode(resource[3]);
+    const bewitString = Hoek.base64urlDecode(resource[3]);
     if (bewitString instanceof Error) {
         return callback(Boom.badRequest('Invalid bewit encoding'));
     }
 
     // Bewit format: id\exp\mac\ext ('\' is used because it is a reserved header attribute character)
 
-    var bewitParts = bewitString.split('\\');
+    const bewitParts = bewitString.split('\\');
     if (bewitParts.length !== 4) {
         return callback(Boom.badRequest('Invalid bewit structure'));
     }
 
-    var bewit = {
+    const bewit = {
         id: bewitParts[0],
         exp: parseInt(bewitParts[1], 10),
         mac: bewitParts[2],
@@ -389,27 +391,27 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
     // Construct URL without bewit
 
-    var url = resource[1];
+    let url = resource[1];
     if (resource[4]) {
-        url += resource[2] + resource[4];
+        url = url + resource[2] + resource[4];
     }
 
     // Check expiration
 
     if (bewit.exp * 1000 <= now) {
-        return callback(Boom.unauthorized('Access expired', 'Hawk'), null, bewit);
+        return callback(Utils.unauthorized('Access expired'), null, bewit);
     }
 
     // Fetch Hawk credentials
 
-    credentialsFunc(bewit.id, function (err, credentials) {
+    credentialsFunc(bewit.id, (err, credentials) => {
 
         if (err) {
             return callback(err, credentials || null, bewit.ext);
         }
 
         if (!credentials) {
-            return callback(Boom.unauthorized('Unknown credentials', 'Hawk'), null, bewit);
+            return callback(Utils.unauthorized('Unknown credentials'), null, bewit);
         }
 
         if (!credentials.key ||
@@ -424,7 +426,7 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
         // Calculate MAC
 
-        var mac = Crypto.calculateMac('bewit', credentials, {
+        const mac = Crypto.calculateMac('bewit', credentials, {
             ts: bewit.exp,
             nonce: '',
             method: 'GET',
@@ -435,7 +437,7 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
         });
 
         if (!Cryptiles.fixedTimeComparison(mac, bewit.mac)) {
-            return callback(Boom.unauthorized('Bad mac', 'Hawk'), credentials, bewit);
+            return callback(Utils.unauthorized('Bad mac'), credentials, bewit);
         }
 
         // Successful authentication
@@ -461,7 +463,7 @@ exports.authenticateMessage = function (host, port, message, authorization, cred
 
     // Application time
 
-    var now = Utils.now(options.localtimeOffsetMsec);                       // Measure now before any other processing
+    const now = Utils.now(options.localtimeOffsetMsec);                       // Measure now before any other processing
 
     // Validate authorization
 
@@ -476,14 +478,14 @@ exports.authenticateMessage = function (host, port, message, authorization, cred
 
     // Fetch Hawk credentials
 
-    credentialsFunc(authorization.id, function (err, credentials) {
+    credentialsFunc(authorization.id, (err, credentials) => {
 
         if (err) {
             return callback(err, credentials || null);
         }
 
         if (!credentials) {
-            return callback(Boom.unauthorized('Unknown credentials', 'Hawk'));
+            return callback(Utils.unauthorized('Unknown credentials'));
         }
 
         if (!credentials.key ||
@@ -498,40 +500,40 @@ exports.authenticateMessage = function (host, port, message, authorization, cred
 
         // Construct artifacts container
 
-        var artifacts = {
+        const artifacts = {
             ts: authorization.ts,
             nonce: authorization.nonce,
-            host: host,
-            port: port,
+            host,
+            port,
             hash: authorization.hash
         };
 
         // Calculate MAC
 
-        var mac = Crypto.calculateMac('message', credentials, artifacts);
+        const mac = Crypto.calculateMac('message', credentials, artifacts);
         if (!Cryptiles.fixedTimeComparison(mac, authorization.mac)) {
-            return callback(Boom.unauthorized('Bad mac', 'Hawk'), credentials);
+            return callback(Utils.unauthorized('Bad mac'), credentials);
         }
 
         // Check payload hash
 
-        var hash = Crypto.calculatePayloadHash(message, credentials.algorithm);
+        const hash = Crypto.calculatePayloadHash(message, credentials.algorithm);
         if (!Cryptiles.fixedTimeComparison(hash, authorization.hash)) {
-            return callback(Boom.unauthorized('Bad message hash', 'Hawk'), credentials);
+            return callback(Utils.unauthorized('Bad message hash'), credentials);
         }
 
         // Check nonce
 
-        options.nonceFunc(credentials.key, authorization.nonce, authorization.ts, function (err) {
+        options.nonceFunc(credentials.key, authorization.nonce, authorization.ts, (err) => {
 
             if (err) {
-                return callback(Boom.unauthorized('Invalid nonce', 'Hawk'), credentials);
+                return callback(Utils.unauthorized('Invalid nonce'), credentials);
             }
 
             // Check timestamp staleness
 
             if (Math.abs((authorization.ts * 1000) - now) > (options.timestampSkewSec * 1000)) {
-                return callback(Boom.unauthorized('Stale timestamp'), credentials);
+                return callback(Utils.unauthorized('Stale timestamp'), credentials);
             }
 
             // Successful authentication

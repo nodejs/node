@@ -64,6 +64,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   void SetCurrentTimeMS(double time);
   void SetMemoryInfo(v8::Local<v8::Value> memory_info);
   void SetLogConsoleApiMessageCalls(bool log);
+  void SetLogMaxAsyncCallStackDepthChanged(bool log);
   void SetMaxAsyncTaskStacksForTest(int limit);
   void DumpAsyncTaskStacksStateForTest();
   void FireContextCreated(v8::Local<v8::Context> context, int context_group_id);
@@ -105,6 +106,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                          const v8_inspector::StringView& url,
                          unsigned lineNumber, unsigned columnNumber,
                          v8_inspector::V8StackTrace*) override;
+  bool isInspectableHeapObject(v8::Local<v8::Object>) override;
+  void maxAsyncCallStackDepthChanged(int depth) override;
 
   TaskRunner* task_runner_;
   SetupGlobalTasks setup_global_tasks_;
@@ -122,6 +125,8 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   bool current_time_set_ = false;
   double current_time_ = 0.0;
   bool log_console_api_message_calls_ = false;
+  bool log_max_async_call_stack_depth_changed_ = false;
+  v8::Global<v8::Private> not_inspectable_private_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };

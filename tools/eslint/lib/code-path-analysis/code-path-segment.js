@@ -16,43 +16,6 @@ const debug = require("./debug-helpers");
 //------------------------------------------------------------------------------
 
 /**
- * Replaces unused segments with the previous segments of each unused segment.
- *
- * @param {CodePathSegment[]} segments - An array of segments to replace.
- * @returns {CodePathSegment[]} The replaced array.
- */
-function flattenUnusedSegments(segments) {
-    const done = Object.create(null);
-    const retv = [];
-
-    for (let i = 0; i < segments.length; ++i) {
-        const segment = segments[i];
-
-        // Ignores duplicated.
-        if (done[segment.id]) {
-            continue;
-        }
-
-        // Use previous segments if unused.
-        if (!segment.internal.used) {
-            for (let j = 0; j < segment.allPrevSegments.length; ++j) {
-                const prevSegment = segment.allPrevSegments[j];
-
-                if (!done[prevSegment.id]) {
-                    done[prevSegment.id] = true;
-                    retv.push(prevSegment);
-                }
-            }
-        } else {
-            done[segment.id] = true;
-            retv.push(segment);
-        }
-    }
-
-    return retv;
-}
-
-/**
  * Checks whether or not a given segment is reachable.
  *
  * @param {CodePathSegment} segment - A segment to check.
@@ -163,8 +126,9 @@ class CodePathSegment {
     static newNext(id, allPrevSegments) {
         return new CodePathSegment(
             id,
-            flattenUnusedSegments(allPrevSegments),
-            allPrevSegments.some(isReachable));
+            CodePathSegment.flattenUnusedSegments(allPrevSegments),
+            allPrevSegments.some(isReachable)
+        );
     }
 
     /**
@@ -175,10 +139,12 @@ class CodePathSegment {
      * @returns {CodePathSegment} The created segment.
      */
     static newUnreachable(id, allPrevSegments) {
-        const segment = new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
+        const segment = new CodePathSegment(id, CodePathSegment.flattenUnusedSegments(allPrevSegments), false);
 
-        // In `if (a) return a; foo();` case, the unreachable segment preceded by
-        // the return statement is not used but must not be remove.
+        /*
+         * In `if (a) return a; foo();` case, the unreachable segment preceded by
+         * the return statement is not used but must not be remove.
+         */
         CodePathSegment.markUsed(segment);
 
         return segment;
@@ -236,6 +202,43 @@ class CodePathSegment {
      */
     static markPrevSegmentAsLooped(segment, prevSegment) {
         segment.internal.loopedPrevSegments.push(prevSegment);
+    }
+
+    /**
+     * Replaces unused segments with the previous segments of each unused segment.
+     *
+     * @param {CodePathSegment[]} segments - An array of segments to replace.
+     * @returns {CodePathSegment[]} The replaced array.
+     */
+    static flattenUnusedSegments(segments) {
+        const done = Object.create(null);
+        const retv = [];
+
+        for (let i = 0; i < segments.length; ++i) {
+            const segment = segments[i];
+
+            // Ignores duplicated.
+            if (done[segment.id]) {
+                continue;
+            }
+
+            // Use previous segments if unused.
+            if (!segment.internal.used) {
+                for (let j = 0; j < segment.allPrevSegments.length; ++j) {
+                    const prevSegment = segment.allPrevSegments[j];
+
+                    if (!done[prevSegment.id]) {
+                        done[prevSegment.id] = true;
+                        retv.push(prevSegment);
+                    }
+                }
+            } else {
+                done[segment.id] = true;
+                retv.push(segment);
+            }
+        }
+
+        return retv;
     }
 }
 

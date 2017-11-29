@@ -38,8 +38,7 @@ inline CPURegister::RegisterType CPURegister::type() const {
   return reg_type;
 }
 
-
-inline RegList CPURegister::Bit() const {
+inline RegList CPURegister::bit() const {
   DCHECK(static_cast<size_t>(reg_code) < (sizeof(RegList) * kBitsPerByte));
   return IsValid() ? 1UL << reg_code : 0;
 }
@@ -811,73 +810,6 @@ void RelocInfo::set_target_runtime_entry(Isolate* isolate, Address target,
   }
 }
 
-
-Handle<Cell> RelocInfo::target_cell_handle() {
-  UNIMPLEMENTED();
-  Cell *null_cell = NULL;
-  return Handle<Cell>(null_cell);
-}
-
-
-Cell* RelocInfo::target_cell() {
-  DCHECK(rmode_ == RelocInfo::CELL);
-  return Cell::FromValueAddress(Memory::Address_at(pc_));
-}
-
-
-void RelocInfo::set_target_cell(Cell* cell,
-                                WriteBarrierMode write_barrier_mode,
-                                ICacheFlushMode icache_flush_mode) {
-  UNIMPLEMENTED();
-}
-
-
-static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
-
-Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
-  UNREACHABLE();  // This should never be reached on ARM64.
-  return Handle<Code>();
-}
-
-
-Code* RelocInfo::code_age_stub() {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  // Read the stub entry point from the code age sequence.
-  Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
-  return Code::GetCodeFromTargetAddress(Memory::Address_at(stub_entry_address));
-}
-
-
-void RelocInfo::set_code_age_stub(Code* stub,
-                                  ICacheFlushMode icache_flush_mode) {
-  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  DCHECK(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
-  // Overwrite the stub entry point in the code age sequence. This is loaded as
-  // a literal so there is no need to call FlushICache here.
-  Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
-  Memory::Address_at(stub_entry_address) = stub->instruction_start();
-}
-
-
-Address RelocInfo::debug_call_address() {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  // For the above sequences the Relocinfo points to the load literal loading
-  // the call address.
-  STATIC_ASSERT(Assembler::kPatchDebugBreakSlotAddressOffset == 0);
-  return Assembler::target_address_at(pc_, host_);
-}
-
-void RelocInfo::set_debug_call_address(Isolate* isolate, Address target) {
-  DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  STATIC_ASSERT(Assembler::kPatchDebugBreakSlotAddressOffset == 0);
-  Assembler::set_target_address_at(isolate, pc_, host_, target);
-  if (host() != NULL) {
-    Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
-  }
-}
-
 void RelocInfo::WipeOut(Isolate* isolate) {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
@@ -896,42 +828,14 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
     visitor->VisitEmbeddedPointer(host(), this);
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::CELL) {
-    visitor->VisitCellPointer(host(), this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(host(), this);
   } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
     visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    visitor->VisitDebugTarget(host(), this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
   }
 }
-
-
-template<typename StaticVisitor>
-void RelocInfo::Visit(Heap* heap) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitEmbeddedPointer(heap, this);
-  } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(heap, this);
-  } else if (mode == RelocInfo::CELL) {
-    StaticVisitor::VisitCell(heap, this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    StaticVisitor::VisitExternalReference(this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    StaticVisitor::VisitInternalReference(this);
-  } else if (RelocInfo::IsDebugBreakSlot(mode) &&
-             IsPatchedDebugBreakSlotSequence()) {
-    StaticVisitor::VisitDebugTarget(heap, this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    StaticVisitor::VisitRuntimeEntry(this);
-  }
-}
-
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
   DCHECK(rt.IsValid());

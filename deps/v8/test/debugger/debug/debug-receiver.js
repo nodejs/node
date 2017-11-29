@@ -37,7 +37,7 @@ var end_test_count = 0;
 var break_count = 0;
 
 // Debug event listener which delegates. Exceptions have to be
-// explictly caught here and checked later because exception in the
+// explicitly caught here and checked later because exception in the
 // listener are not propagated to the surrounding JavaScript code.
 function listener(event, exec_state, event_data, data) {
   try {

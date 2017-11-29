@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_PLATFORM_PLATFORM_POSIX_TIME_H_
+#define V8_BASE_PLATFORM_PLATFORM_POSIX_TIME_H_
+
 #include "src/base/platform/platform-posix.h"
 
 namespace v8 {
@@ -17,3 +20,5 @@ class PosixDefaultTimezoneCache : public PosixTimezoneCache {
 
 }  // namespace base
 }  // namespace v8
+
+#endif  // V8_BASE_PLATFORM_PLATFORM_POSIX_TIME_H_

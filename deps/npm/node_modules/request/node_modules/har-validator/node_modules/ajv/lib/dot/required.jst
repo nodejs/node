@@ -22,6 +22,11 @@
 #}}
 
 
+{{## def.isRequiredOwnProperty:
+  Object.prototype.hasOwnProperty.call({{=$data}}, {{=$vSchema}}[{{=$i}}])
+#}}
+
+
 {{? !$isData }}
   {{? $schema.length < it.opts.loopRequired &&
       it.schema.properties && Object.keys(it.schema.properties).length }}
@@ -41,7 +46,8 @@
 {{? $isData || $required.length }}
   {{
     var $currentErrorPath = it.errorPath
-      , $loopRequired = $isData || $required.length >= it.opts.loopRequired;
+      , $loopRequired = $isData || $required.length >= it.opts.loopRequired
+      , $ownProperties = it.opts.ownProperties;
   }}
 
   {{? $breakOnError }}
@@ -53,7 +59,10 @@
       {{?$isData}}{{# def.check$dataIsArray }}{{?}}
 
       for (var {{=$i}} = 0; {{=$i}} < {{=$vSchema}}.length; {{=$i}}++) {
-        {{=$valid}} = {{=$data}}[{{=$vSchema}}[{{=$i}}]] !== undefined;
+        {{=$valid}} = {{=$data}}[{{=$vSchema}}[{{=$i}}]] !== undefined
+                      {{? $ownProperties }}
+                        && {{# def.isRequiredOwnProperty }}
+                      {{?}};
         if (!{{=$valid}}) break;
       }
 
@@ -76,14 +85,17 @@
       {{?}}
 
       for (var {{=$i}} = 0; {{=$i}} < {{=$vSchema}}.length; {{=$i}}++) {
-        if ({{=$data}}[{{=$vSchema}}[{{=$i}}]] === undefined) {
+        if ({{=$data}}[{{=$vSchema}}[{{=$i}}]] === undefined
+            {{? $ownProperties }}
+              || !{{# def.isRequiredOwnProperty }}
+            {{?}}) {
           {{# def.addError:'required' }}
         }
       }
 
       {{? $isData }}  }  {{?}}
     {{??}}
-      {{~ $required:$reqProperty }}
+      {{~ $required:$propertyKey }}
         {{# def.allErrorsMissingProperty:'required' }}
       {{~}}
     {{?}}

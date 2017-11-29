@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+openssl-version,
 version - print OpenSSL version information
 
 =head1 SYNOPSIS

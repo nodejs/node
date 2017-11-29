@@ -125,9 +125,7 @@ function toID(filename) {
  * opts: lexed, filename, template, nodeVersion.
  */
 function render(opts, cb) {
-  var lexed = opts.lexed;
-  var filename = opts.filename;
-  var template = opts.template;
+  var { lexed, filename, template } = opts;
   const nodeVersion = opts.nodeVersion || process.version;
 
   // get the section
@@ -211,7 +209,8 @@ function altDocs(filename) {
   }
 
   const versions = [
-    { num: '8.x' },
+    { num: '9.x' },
+    { num: '8.x', lts: true },
     { num: '7.x' },
     { num: '6.x', lts: true },
     { num: '5.x' },
@@ -223,7 +222,7 @@ function altDocs(filename) {
   const host = 'https://nodejs.org';
   const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
 
-  function li(v, i) {
+  function li(v) {
     let html = `<li><a href="${href(v)}">${v.num}`;
 
     if (v.lts)
@@ -471,6 +470,9 @@ function getSection(lexed) {
   return '';
 }
 
+function getMark(anchor) {
+  return `<span><a class="mark" href="#${anchor}" id="${anchor}">#</a></span>`;
+}
 
 function buildToc(lexed, filename, cb) {
   var toc = [];
@@ -498,12 +500,15 @@ function buildToc(lexed, filename, cb) {
 
     depth = tok.depth;
     const realFilename = path.basename(realFilenames[0], '.md');
-    const id = getId(realFilename + '_' + tok.text.trim());
+    const apiName = tok.text.trim();
+    const id = getId(`${realFilename}_${apiName}`);
     toc.push(new Array((depth - 1) * 2 + 1).join(' ') +
              `* <span class="stability_${tok.stability}">` +
              `<a href="#${id}">${tok.text}</a></span>`);
-    tok.text += '<span><a class="mark" href="#' + id + '" ' +
-                'id="' + id + '">#</a></span>';
+    tok.text += getMark(id);
+    if (realFilename === 'errors' && apiName.startsWith('ERR_')) {
+      tok.text += getMark(apiName);
+    }
   });
 
   toc = marked.parse(toc.join('\n'));
@@ -517,7 +522,7 @@ function getId(text) {
   text = text.replace(/^_+|_+$/, '');
   text = text.replace(/^([^a-z])/, '_$1');
   if (idCounters.hasOwnProperty(text)) {
-    text += '_' + (++idCounters[text]);
+    text += `_${++idCounters[text]}`;
   } else {
     idCounters[text] = 0;
   }
