@@ -1881,7 +1881,7 @@ Linux, and Windows, an error will be returned. On FreeBSD, a representation
 of the directory's contents will be returned.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFile('<directory>', (err, data) => {
   // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 });
@@ -1929,7 +1929,7 @@ string. Otherwise it returns a buffer.
 behavior of `fs.readFileSync()` is platform-specific.
 
 ```js
-// macOS, Linux and Windows
+// macOS, Linux, and Windows
 fs.readFileSync('<directory>');
 // => [Error: EISDIR: illegal operation on a directory, read <directory>]
 
@@ -3043,7 +3043,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXU</code></td>
-    <td>File mode indicating readable, writable and executable by owner.</td>
+    <td>File mode indicating readable, writable, and executable by owner.</td>
   </tr>
   <tr>
     <td><code>S_IRUSR</code></td>
@@ -3059,7 +3059,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXG</code></td>
-    <td>File mode indicating readable, writable and executable by group.</td>
+    <td>File mode indicating readable, writable, and executable by group.</td>
   </tr>
   <tr>
     <td><code>S_IRGRP</code></td>
@@ -3075,7 +3075,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
   <tr>
     <td><code>S_IRWXO</code></td>
-    <td>File mode indicating readable, writable and executable by others.</td>
+    <td>File mode indicating readable, writable, and executable by others.</td>
   </tr>
   <tr>
     <td><code>S_IROTH</code></td>
