@@ -115,7 +115,7 @@ extern int events_enabled;
   DWORD status = event_write(node_provider,                                   \
                              &eventDescriptor,                                \
                              0,                                               \
-                             NULL);                                           \
+                             NULL);  // NOLINT (readability/null_usage)       \
   CHECK_EQ(status, ERROR_SUCCESS);
 
 
