@@ -1264,7 +1264,7 @@ added: v8.4.0
 
 In `Http2Server`, there is no `'clientError'` event as there is in
 HTTP1. However, there are `'socketError'`, `'sessionError'`,  and
-`'streamError'`, for error happened on the socket, session or stream
+`'streamError'`, for error happened on the socket, session, or stream
 respectively.
 
 #### Event: 'socketError'
@@ -1857,7 +1857,7 @@ performance.
 There are several types of error conditions that may arise when using the
 `http2` module:
 
-Validation Errors occur when an incorrect argument, option or setting value is
+Validation Errors occur when an incorrect argument, option, or setting value is
 passed in. These will always be reported by a synchronous `throw`.
 
 State Errors occur when an action is attempted at an incorrect time (for
@@ -2229,7 +2229,7 @@ added: v8.4.0
 * {net.Socket|tls.TLSSocket}
 
 Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
-applies getters, setters and methods based on HTTP/2 logic.
+applies getters, setters, and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
 set on `request.stream`.
@@ -2601,7 +2601,7 @@ added: v8.4.0
 * {net.Socket|tls.TLSSocket}
 
 Returns a Proxy object that acts as a `net.Socket` (or `tls.TLSSocket`) but
-applies getters, setters and methods based on HTTP/2 logic.
+applies getters, setters, and methods based on HTTP/2 logic.
 
 `destroyed`, `readable`, and `writable` properties will be retrieved from and
 set on `response.stream`.

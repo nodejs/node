@@ -275,7 +275,7 @@ A process warning is similar to an error in that it describes exceptional
 conditions that are being brought to the user's attention. However, warnings
 are not part of the normal Node.js and JavaScript error handling flow.
 Node.js can emit warnings whenever it detects bad coding practices that could
-lead to sub-optimal application performance, bugs or security vulnerabilities.
+lead to sub-optimal application performance, bugs, or security vulnerabilities.
 
 The listener function is called with a single `warning` argument whose value is
 an `Error` object. There are three key properties that describe the warning:
@@ -1297,7 +1297,7 @@ objects managed by V8. `rss`, Resident Set Size, is the amount of space
 occupied in the main memory device (that is a subset of the total allocated
 memory) for the process, which includes the _heap_, _code segment_ and _stack_.
 
-The _heap_ is where objects, strings and closures are stored. Variables are
+The _heap_ is where objects, strings, and closures are stored. Variables are
 stored in the _stack_ and the actual JavaScript code resides in the
 _code segment_.
 
