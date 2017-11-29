@@ -27,10 +27,8 @@ Note: please run `npm dist-tag ls npm` and make sure this is the `latest` **dist
 
 ```console    
 $ cd /path/to/node
-$ git checkout master
 $ git remote update -p
-$ git reset --hard origin master
-$ git checkout -b npm-x.y.z
+$ git checkout -b npm-x.y.z origin/master
 $ cd deps
 $ rm -rf npm
 ```
