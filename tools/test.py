@@ -1562,18 +1562,15 @@ def ArgsToTestPaths(test_root, args, suites):
   return paths
 
 
-def get_env_type(vm, options_type):
+def get_env_type(vm, options_type, context):
   if options_type is not None:
     env_type = options_type
   else:
-    if "fips" in subprocess.check_output([vm, "-p",
-                                          "process.versions.openssl"]):
-      env_type = "fips"
-    # NOTE(nikhil): "simple" is the default value for var 'env_type' and should
-    # be set last if no if/elif matches. If you plan to add more values, use
-    # 'elif' above.
-    else:
-      env_type = "simple"
+    # 'simple' is the default value for 'env_type'.
+    env_type = 'simple'
+    ssl_ver = Execute([vm, '-p', 'process.versions.openssl'], context).stdout
+    if 'fips' in ssl_ver:
+      env_type = 'fips'
   return env_type
 
 
@@ -1659,7 +1656,7 @@ def Main():
           'mode': mode,
           'system': utils.GuessOS(),
           'arch': vmArch,
-          'type': get_env_type(vm, options.type),
+          'type': get_env_type(vm, options.type, context),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
