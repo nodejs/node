@@ -2257,7 +2257,7 @@ following forms:
 - Named: a simple UTF8-encoded string
 - Integer-Indexed: an index value represented by `uint32_t`
 - JavaScript value: these are represented in N-API by `napi_value`. This can
-be a `napi_value` representing a String, Number or Symbol.
+be a `napi_value` representing a String, Number, or Symbol.
 
 N-API values are represented by the type `napi_value`.
 Any N-API call that requires a JavaScript value takes in a `napi_value`.
@@ -3471,8 +3471,8 @@ napi_status napi_get_node_version(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This function fills the `version` struct with the major, minor and patch version
-of Node that is currently running, and the `release` field with the
+This function fills the `version` struct with the major, minor, and patch
+version of Node.js that is currently running, and the `release` field with the
 value of [`process.release.name`][`process.release`].
 
 The returned buffer is statically allocated and does not need to be freed.

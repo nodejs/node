@@ -33,7 +33,7 @@
     - [How is an LTS release cut?](#how-is-an-lts-release-cut)
 
 This document contains information for Collaborators of the Node.js
-project regarding maintaining the code, documentation and issues.
+project regarding maintaining the code, documentation, and issues.
 
 Collaborators should be familiar with the guidelines for new
 contributors in [CONTRIBUTING.md](./CONTRIBUTING.md) and also
