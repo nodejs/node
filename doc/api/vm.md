@@ -479,8 +479,17 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
+## Usage with `--abort-on-uncaught-exception`
+
+When Node.js is run with the `--abort-on-uncaught-exception` command line flag,
+exceptions thrown from within a VM context are treated as uncaught, and cause
+the process to abort accordingly.
+[`process.setUncaughtExceptionCaptureCallback()`][] can be used to prevent the
+process from aborting.
+
 [`Error`]: errors.html#errors_class_error
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
+[`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`script.runInContext()`]: #vm_script_runincontext_contextifiedsandbox_options
 [`script.runInThisContext()`]: #vm_script_runinthiscontext_options
 [`vm.createContext()`]: #vm_vm_createcontext_sandbox
