@@ -1471,6 +1471,8 @@ void AppendExceptionLine(Environment* env,
 static void ReportException(Environment* env,
                             Local<Value> er,
                             Local<Message> message) {
+  CHECK(!er.IsEmpty());
+  CHECK(!message.IsEmpty());
   HandleScope scope(env->isolate());
 
   AppendExceptionLine(env, er, message, FATAL_ERROR);
@@ -1540,6 +1542,10 @@ static void ReportException(Environment* env,
   }
 
   fflush(stderr);
+
+#if HAVE_INSPECTOR
+  env->inspector_agent()->FatalException(er, message);
+#endif
 }
 
 
@@ -2399,6 +2405,15 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 }
 
 
+FatalTryCatch::~FatalTryCatch() {
+  if (HasCaught()) {
+    HandleScope scope(env_->isolate());
+    ReportException(env_, *this);
+    exit(7);
+  }
+}
+
+
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
@@ -2441,9 +2456,6 @@ void FatalException(Isolate* isolate,
   }
 
   if (exit_code) {
-#if HAVE_INSPECTOR
-    env->inspector_agent()->FatalException(error, message);
-#endif
     exit(exit_code);
   }
 }
@@ -2461,25 +2473,6 @@ static void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
   // (thus `error` is always set).
   FatalException(Isolate::GetCurrent(), error, message);
-}
-
-
-void ClearFatalExceptionHandlers(Environment* env) {
-  Local<Object> process = env->process_object();
-  Local<Value> events =
-      process->Get(env->context(), env->events_string()).ToLocalChecked();
-
-  if (events->IsObject()) {
-    events.As<Object>()->Set(
-        env->context(),
-        OneByteString(env->isolate(), "uncaughtException"),
-        Undefined(env->isolate())).FromJust();
-  }
-
-  process->Set(
-      env->context(),
-      env->domain_string(),
-      Undefined(env->isolate())).FromJust();
 }
 
 // Call process.emitWarning(str), fmt is a snprintf() format string

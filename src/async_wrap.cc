@@ -140,7 +140,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 static void DestroyAsyncIdsCallback(Environment* env, void* data) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
-  TryCatch try_catch(env->isolate());
+  FatalTryCatch try_catch(env);
 
   do {
     std::vector<double> destroy_async_id_list;
@@ -153,11 +153,8 @@ static void DestroyAsyncIdsCallback(Environment* env, void* data) {
       MaybeLocal<Value> ret = fn->Call(
           env->context(), Undefined(env->isolate()), 1, &async_id_value);
 
-      if (ret.IsEmpty()) {
-        ClearFatalExceptionHandlers(env);
-        FatalException(env->isolate(), try_catch);
-        UNREACHABLE();
-      }
+      if (ret.IsEmpty())
+        return;
     }
   } while (!env->destroy_async_id_list()->empty());
 }
@@ -171,14 +168,8 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
 
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_promise_resolve_function();
-  TryCatch try_catch(env->isolate());
-  MaybeLocal<Value> ar = fn->Call(
-      env->context(), Undefined(env->isolate()), 1, &async_id_value);
-  if (ar.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(env->isolate(), try_catch);
-    UNREACHABLE();
-  }
+  FatalTryCatch try_catch(env);
+  USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
 }
 
 
@@ -205,14 +196,8 @@ void AsyncWrap::EmitBefore(Environment* env, double async_id) {
 
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_before_function();
-  TryCatch try_catch(env->isolate());
-  MaybeLocal<Value> ar = fn->Call(
-      env->context(), Undefined(env->isolate()), 1, &async_id_value);
-  if (ar.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(env->isolate(), try_catch);
-    UNREACHABLE();
-  }
+  FatalTryCatch try_catch(env);
+  USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
 }
 
 
@@ -241,14 +226,8 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
   // end of _fatalException().
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
   Local<Function> fn = env->async_hooks_after_function();
-  TryCatch try_catch(env->isolate());
-  MaybeLocal<Value> ar = fn->Call(
-      env->context(), Undefined(env->isolate()), 1, &async_id_value);
-  if (ar.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(env->isolate(), try_catch);
-    UNREACHABLE();
-  }
+  FatalTryCatch try_catch(env);
+  USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
 }
 
 class PromiseWrap : public AsyncWrap {
@@ -748,14 +727,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
     object,
   };
 
-  TryCatch try_catch(env->isolate());
-  MaybeLocal<Value> ret = init_fn->Call(
-      env->context(), object, arraysize(argv), argv);
-
-  if (ret.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(env->isolate(), try_catch);
-  }
+  FatalTryCatch try_catch(env);
+  USE(init_fn->Call(env->context(), object, arraysize(argv), argv));
 }
 
 

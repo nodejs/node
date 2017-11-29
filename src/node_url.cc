@@ -2172,19 +2172,16 @@ const Local<Value> URL::ToObject(Environment* env) const {
   };
   SetArgs(env, argv, &context_);
 
-  TryCatch try_catch(isolate);
+  MaybeLocal<Value> ret;
+  {
+    FatalTryCatch try_catch(env);
 
-  // The SetURLConstructor method must have been called already to
-  // set the constructor function used below. SetURLConstructor is
-  // called automatically when the internal/url.js module is loaded
-  // during the internal/bootstrap_node.js processing.
-  MaybeLocal<Value> ret =
-      env->url_constructor_function()
-          ->Call(env->context(), undef, 9, argv);
-
-  if (ret.IsEmpty()) {
-    ClearFatalExceptionHandlers(env);
-    FatalException(isolate, try_catch);
+    // The SetURLConstructor method must have been called already to
+    // set the constructor function used below. SetURLConstructor is
+    // called automatically when the internal/url.js module is loaded
+    // during the internal/bootstrap_node.js processing.
+    ret = env->url_constructor_function()
+        ->Call(env->context(), undef, arraysize(argv), argv);
   }
 
   return ret.ToLocalChecked();
