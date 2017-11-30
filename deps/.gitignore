@@ -16,9 +16,6 @@
 /openssl/openssl.targets
 /openssl/openssl.xml
 
-#openssl/openssl.target.mk
-#zlib/zlib.target.mk
-
 !/npm/node_modules**
 /npm/node_modules/node-gyp/gyp/**/*.pyc
 # not needed and causes issues for distro packagers

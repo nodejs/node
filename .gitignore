@@ -94,3 +94,5 @@ package-lock.json
 !/tools/eslint/node_modules**
 !/tools/doc/node_modules**
 !/test/fixtures/**
+
+# more patterns in /deps/.gitignore
