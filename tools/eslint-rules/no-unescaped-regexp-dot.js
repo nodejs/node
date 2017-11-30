@@ -19,7 +19,18 @@ module.exports = function(context) {
     context.report({
       node,
       loc: sourceCode.getLocFromIndex(indexOfDot),
-      message: 'Unescaped dot character in regular expression'
+      message: 'Unescaped dot character in regular expression',
+      fix: (fixer) => {
+        const expression = sourceCode.getText(node);
+        const dotOffset = expression.indexOf('.');
+        const correctedExpression = expression.slice(0, dotOffset) +
+                                    '\\' +
+                                    expression.slice(dotOffset);
+        return fixer.replaceText(
+          node,
+          correctedExpression
+        );
+      }
     });
   }
 
