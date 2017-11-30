@@ -263,7 +263,7 @@ function runTest(assertCleaned) {
   const before = opts.before;
   const deprecated = !!opts.deprecated;
 
-  const depMsg = /NODE_REPL_HISTORY_FILE is deprecated. Use the plaintext format instead./;
+  const depMsg = /NODE_REPL_HISTORY_FILE is deprecated\. Use the plaintext format instead\./;
 
   if (before) before();
 
