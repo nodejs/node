@@ -2366,8 +2366,18 @@ static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   modlist_addon = mp;
 
   Local<String> exports_string = env->exports_string();
+  MaybeLocal<Value> maybe_exports =
+      module->Get(env->context(), exports_string);
+
+  if (maybe_exports.IsEmpty() ||
+      maybe_exports.ToLocalChecked()->ToObject(env->context()).IsEmpty()) {
+    dlib.Close();
+    return;
+  }
+
   Local<Object> exports =
-      module->Get(env->context(), exports_string).ToLocalChecked().As<Object>();
+      maybe_exports.ToLocalChecked()->ToObject(env->context())
+          .FromMaybe(Local<Object>());
 
   if (mp->nm_context_register_func != nullptr) {
     mp->nm_context_register_func(exports, module, env->context(), mp->nm_priv);
