@@ -59,7 +59,6 @@ class NodeTestFixture : public ::testing::Test {
   static uv_loop_t* CurrentLoop() { return &current_loop; }
 
  protected:
-  v8::Isolate::CreateParams params_;
   v8::Isolate* isolate_;
 
   ~NodeTestFixture() {
@@ -71,6 +70,7 @@ class NodeTestFixture : public ::testing::Test {
     platform_ = new node::NodePlatform(8, &current_loop, nullptr);
     v8::V8::InitializePlatform(platform_);
     v8::V8::Initialize();
+    v8::Isolate::CreateParams params_;
     params_.array_buffer_allocator = allocator_.get();
     isolate_ = v8::Isolate::New(params_);
   }
