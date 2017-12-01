@@ -225,7 +225,6 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
-uint32_t GetProcessId();
 bool SafeGetenv(const char* key, std::string* text);
 
 std::string GetHumanReadableProcessName();

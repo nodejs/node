@@ -3492,7 +3492,7 @@ void SetupProcessObject(Environment* env,
   process->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "env"), process_env);
 
   READONLY_PROPERTY(process, "pid",
-                    Integer::New(env->isolate(), GetProcessId()));
+                    Integer::New(env->isolate(), uv_os_getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
 
   process->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "ppid"),

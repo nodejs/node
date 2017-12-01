@@ -119,7 +119,7 @@ void Environment::PrintSyncTrace() const {
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
   fprintf(stderr, "(node:%u) WARNING: Detected use of sync API\n",
-          GetProcessId());
+          uv_os_getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);

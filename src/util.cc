@@ -22,15 +22,8 @@
 #include "string_bytes.h"
 #include "node_buffer.h"
 #include "node_internals.h"
+#include "uv.h"
 #include <stdio.h>
-
-#ifdef __POSIX__
-#include <unistd.h>  // getpid()
-#endif
-
-#ifdef _MSC_VER
-#include <windows.h>  // GetCurrentProcessId()
-#endif
 
 namespace node {
 
@@ -122,15 +115,7 @@ std::string GetHumanReadableProcessName() {
 void GetHumanReadableProcessName(char (*name)[1024]) {
   char title[1024] = "Node.js";
   uv_get_process_title(title, sizeof(title));
-  snprintf(*name, sizeof(*name), "%s[%u]", title, GetProcessId());
-}
-
-uint32_t GetProcessId() {
-#ifdef _WIN32
-  return GetCurrentProcessId();
-#else
-  return getpid();
-#endif
+  snprintf(*name, sizeof(*name), "%s[%u]", title, uv_os_getpid());
 }
 
 }  // namespace node
