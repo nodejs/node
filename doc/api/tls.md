@@ -104,7 +104,7 @@ not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`] for more info.
 
-### ALPN, NPN and SNI
+### ALPN, NPN, and SNI
 
 <!-- type=misc -->
 

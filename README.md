@@ -116,7 +116,7 @@ documentation of the latest stable version.
 
 ### Verifying Binaries
 
-Current, LTS and Nightly download directories all contain a _SHASUMS256.txt_
+Current, LTS, and Nightly download directories all contain a _SHASUMS256.txt_
 file that lists the SHA checksums for each file available for
 download.
 

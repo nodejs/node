@@ -7,7 +7,7 @@
 * [4 spaces of indentation for statement continuations](#4-spaces-of-indentation-for-statement-continuations)
 * [Align function arguments vertically](#align-function-arguments-vertically)
 * [Initialization lists](#initialization-lists)
-* [CamelCase for methods, functions and classes](#camelcase-for-methods-functions-and-classes)
+* [CamelCase for methods, functions, and classes](#camelcase-for-methods-functions-and-classes)
 * [snake\_case for local variables and parameters](#snake_case-for-local-variables-and-parameters)
 * [snake\_case\_ for private class fields](#snake_case_-for-private-class-fields)
 * [Space after `template`](#space-after-template)
@@ -87,7 +87,7 @@ HandleWrap::HandleWrap(Environment* env,
       handle_(handle) {
 ```
 
-## CamelCase for methods, functions and classes
+## CamelCase for methods, functions, and classes
 
 Exceptions are simple getters/setters, which are named `property_name()` and
 `set_property_name()`, respectively.

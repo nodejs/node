@@ -154,7 +154,7 @@ changes:
 -->
 
 `Buffer` instances are commonly used to represent sequences of encoded characters
-such as UTF-8, UCS2, Base64 or even Hex-encoded data. It is possible to
+such as UTF-8, UCS2, Base64, or even Hex-encoded data. It is possible to
 convert back and forth between `Buffer` instances and ordinary JavaScript strings
 by using an explicit character encoding.
 

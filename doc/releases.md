@@ -214,7 +214,7 @@ If you have an error on Windows and need to start again, be aware that you'll ge
 
 ARMv7 takes the longest to compile. Unfortunately ccache isn't as effective on release builds, I think it's because of the additional macro settings that go in to a release build that nullify previous builds. Also most of the release build machines are separate to the test build machines so they don't get any benefit from ongoing compiles between releases. You can expect 1.5 hours for the ARMv7 builder to complete and you should normally wait for this to finish. It is possible to rush a release out if you want and add additional builds later but we normally provide ARMv7 from initial promotion.
 
-You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers and docs (both produced currently by an macOS worker). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
+You do not have to wait for the ARMv6 / Raspberry PI builds if they take longer than the others. It is only necessary to have the main Linux (x64 and x86), macOS .pkg and .tar.gz, Windows (x64 and x86) .msi and .exe, source, headers, and docs (both produced currently by an macOS worker). **If you promote builds _before_ ARM builds have finished, you must repeat the promotion step for the ARM builds when they are ready**.
 
 ### 9. Test the Build
 
