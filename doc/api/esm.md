@@ -33,14 +33,14 @@ node --experimental-modules my-app.mjs
 ### Supported
 
 Only the CLI argument for the main entry point to the program can be an entry
-point into an ESM graph. `import()` can also be used to create entry points
+point into an ESM graph. Dynamic import can also be used to create entry points
 into ESM graphs at run time.
 
 ### Unsupported
 
 | Feature | Reason |
 | --- | --- |
-| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use language standard `import()` |
+| `require('./foo.mjs')` | ES Modules have differing resolution and timing, use dynamic import |
 | `import.meta` | pending V8 implementation |
 
 ## Notable differences between `import` and `require`
