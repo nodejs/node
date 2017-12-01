@@ -722,6 +722,8 @@ changes:
     This can be a number, or a function that takes no arguments and returns a
     number. By default each worker gets its own port, incremented from the
     master's `process.debugPort`.
+  * `windowsHide` {boolean} Hide the forked processes console window that would
+    normally be created on Windows systems. **Default:** `false`
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
