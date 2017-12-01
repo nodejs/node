@@ -1069,8 +1069,12 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
                                            root_cert_store,
                                            extra_root_certs_file.c_str());
       if (err) {
+        // We do not call back into JS after this line anyway, so ignoring
+        // the return value of ProcessEmitWarning does not affect how a
+        // possible exception would be propagated.
         ProcessEmitWarning(sc->env(),
-                           "Ignoring extra certs from `%s`, load failed: %s\n",
+                           "Ignoring extra certs from `%s`, "
+                           "load failed: %s\n",
                            extra_root_certs_file.c_str(),
                            ERR_error_string(err, nullptr));
       }
@@ -3625,7 +3629,10 @@ void CipherBase::Init(const char* cipher_type,
   int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
-    ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
+    // Ignore the return value (i.e. possible exception) because we are
+    // not calling back into JS anyway.
+    ProcessEmitWarning(env(),
+                       "Use Cipheriv for counter mode of %s",
                        cipher_type);
   }
 
