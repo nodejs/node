@@ -29,6 +29,7 @@ TEST_IMPL(platform_output) {
   size_t rss;
   size_t size;
   double uptime;
+  uv_pid_t pid;
   uv_pid_t ppid;
   uv_rusage_t rusage;
   uv_cpu_info_t* cpus;
@@ -145,6 +146,9 @@ TEST_IMPL(platform_output) {
   printf("  shell: %s\n", pwd.shell);
   printf("  home directory: %s\n", pwd.homedir);
 
+  pid = uv_os_getpid();
+  ASSERT(pid > 0);
+  printf("uv_os_getpid: %d\n", (int) pid);
   ppid = uv_os_getppid();
   ASSERT(ppid > 0);
   printf("uv_os_getppid: %d\n", (int) ppid);

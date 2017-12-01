@@ -1261,8 +1261,9 @@ static void uv__read(uv_stream_t* stream) {
 
 
 int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
-  assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE) &&
-         "uv_shutdown (unix) only supports uv_handle_t right now");
+  assert(stream->type == UV_TCP ||
+         stream->type == UV_TTY ||
+         stream->type == UV_NAMED_PIPE);
 
   if (!(stream->flags & UV_STREAM_WRITABLE) ||
       stream->flags & UV_STREAM_SHUT ||

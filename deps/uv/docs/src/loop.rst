@@ -109,7 +109,8 @@ API
 
 .. c:function:: int uv_loop_alive(const uv_loop_t* loop)
 
-    Returns non-zero if there are active handles or request in the loop.
+    Returns non-zero if there are referenced active handles, active
+    requests or closing handles in the loop.
 
 .. c:function:: void uv_stop(uv_loop_t* loop)
 

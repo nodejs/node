@@ -419,6 +419,7 @@ int uv_spawn(uv_loop_t* loop,
   return -ENOSYS;
 #else
   int signal_pipe[2] = { -1, -1 };
+  int pipes_storage[8][2];
   int (*pipes)[2];
   int stdio_count;
   ssize_t r;
@@ -443,7 +444,10 @@ int uv_spawn(uv_loop_t* loop,
     stdio_count = 3;
 
   err = -ENOMEM;
-  pipes = uv__malloc(stdio_count * sizeof(*pipes));
+  pipes = pipes_storage;
+  if (stdio_count > (int) ARRAY_SIZE(pipes_storage))
+    pipes = uv__malloc(stdio_count * sizeof(*pipes));
+
   if (pipes == NULL)
     goto error;
 
@@ -548,7 +552,9 @@ int uv_spawn(uv_loop_t* loop,
   process->pid = pid;
   process->exit_cb = options->exit_cb;
 
-  uv__free(pipes);
+  if (pipes != pipes_storage)
+    uv__free(pipes);
+
   return exec_errorno;
 
 error:
@@ -562,7 +568,9 @@ error:
       if (pipes[i][1] != -1)
         uv__close_nocheckstdio(pipes[i][1]);
     }
-    uv__free(pipes);
+
+    if (pipes != pipes_storage)
+      uv__free(pipes);
   }
 
   return err;

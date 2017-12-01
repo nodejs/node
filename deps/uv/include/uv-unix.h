@@ -48,6 +48,8 @@
 # include "uv-linux.h"
 #elif defined (__MVS__)
 # include "uv-os390.h"
+#elif defined(_PASE)
+# include "uv-posix.h"
 #elif defined(_AIX)
 # include "uv-aix.h"
 #elif defined(__sun)

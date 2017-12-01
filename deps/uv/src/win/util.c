@@ -331,6 +331,11 @@ uint64_t uv_get_total_memory(void) {
 }
 
 
+uv_pid_t uv_os_getpid(void) {
+  return GetCurrentProcessId();
+}
+
+
 uv_pid_t uv_os_getppid(void) {
   int parent_pid = -1;
   HANDLE handle;
