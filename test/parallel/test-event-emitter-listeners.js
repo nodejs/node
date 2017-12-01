@@ -87,7 +87,7 @@ function listener2() {}
   const ee = new events.EventEmitter();
   ee.on('foo', listener);
   ee.once('foo', listener);
-  const wrappedListeners = ee.wrappedListeners('foo');
+  const wrappedListeners = ee.rawListeners('foo');
   assert.strictEqual(wrappedListeners.length, 2);
   assert.strictEqual(wrappedListeners[0], listener);
   assert.notStrictEqual(wrappedListeners[1], listener);

@@ -574,7 +574,7 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-### emitter.wrappedListeners(eventName)
+### emitter.rawListeners(eventName)
 <!-- YAML
 added: REPLACEME
 -->
