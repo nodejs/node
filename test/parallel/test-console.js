@@ -176,6 +176,14 @@ assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 
+// verify that console.time() coerces label values to strings as expected
+assert.ok(/^: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^\[object Object\]: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^null: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^default: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^NaN: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
 assert.strictEqual(errStrings.shift().split('\n').shift(),
                    'Trace: This is a {"formatted":"trace"} 10 foo');
 
