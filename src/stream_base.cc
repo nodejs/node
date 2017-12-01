@@ -127,7 +127,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
         // Buffer chunk, no additional storage required
 
       // String chunk
-      Local<String> string = chunk->ToString(env->isolate());
+      Local<String> string = chunk->ToString(env->context()).ToLocalChecked();
       enum encoding encoding = ParseEncoding(env->isolate(),
                                              chunks->Get(i * 2 + 1));
       size_t chunk_size;
@@ -179,7 +179,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       char* str_storage = req_wrap->Extra(offset);
       size_t str_size = storage_size - offset;
 
-      Local<String> string = chunk->ToString(env->isolate());
+      Local<String> string = chunk->ToString(env->context()).ToLocalChecked();
       enum encoding encoding = ParseEncoding(env->isolate(),
                                              chunks->Get(i * 2 + 1));
       str_size = StringBytes::Write(env->isolate(),

@@ -621,7 +621,8 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     TryCatch try_catch(env->isolate());
-    Local<String> code = args[0]->ToString(env->isolate());
+    Local<String> code =
+        args[0]->ToString(env->context()).FromMaybe(Local<String>());
 
     Local<Value> options = args[1];
     MaybeLocal<String> filename = GetFilenameArg(env, options);

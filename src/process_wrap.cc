@@ -143,7 +143,8 @@ class ProcessWrap : public HandleWrap {
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-    Local<Object> js_options = args[0]->ToObject(env->isolate());
+    Local<Object> js_options =
+        args[0]->ToObject(env->context()).ToLocalChecked();
 
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
