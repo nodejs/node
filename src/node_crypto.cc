@@ -5220,7 +5220,6 @@ EC_POINT* ECDH::BufferToPoint(char* data, size_t len) {
       len,
       nullptr);
   if (!r) {
-    env()->ThrowError("Failed to translate Buffer to a EC_POINT");
     goto fatal;
   }
 
@@ -5247,8 +5246,12 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 
   EC_POINT* pub = ecdh->BufferToPoint(Buffer::Data(args[0]),
                                       Buffer::Length(args[0]));
-  if (pub == nullptr)
+  if (pub == nullptr) {
+    args.GetReturnValue().Set(
+        FIXED_ONE_BYTE_STRING(env->isolate(),
+        "ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY"));
     return;
+  }
 
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
