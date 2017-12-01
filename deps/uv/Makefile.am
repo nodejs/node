@@ -329,7 +329,7 @@ libuv_la_CFLAGS += -D_ALL_SOURCE \
                    -D_THREAD_SAFE \
                    -DHAVE_SYS_AHAFS_EVPRODS_H
 include_HEADERS += include/uv-aix.h
-libuv_la_SOURCES += src/unix/aix.c
+libuv_la_SOURCES += src/unix/aix.c src/unix/aix-common.c
 endif
 
 if ANDROID
