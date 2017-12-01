@@ -1062,10 +1062,13 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
                                            root_cert_store,
                                            extra_root_certs_file.c_str());
       if (err) {
-        ProcessEmitWarning(sc->env(),
-                           "Ignoring extra certs from `%s`, load failed: %s\n",
-                           extra_root_certs_file.c_str(),
-                           ERR_error_string(err, nullptr));
+        if (ProcessEmitWarning(sc->env(),
+                               "Ignoring extra certs from `%s`, "
+                               "load failed: %s\n",
+                               extra_root_certs_file.c_str(),
+                               ERR_error_string(err, nullptr)).IsNothing()) {
+          return;
+        }
       }
     }
   }
@@ -3618,8 +3621,9 @@ void CipherBase::Init(const char* cipher_type,
   int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
-    ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
-                       cipher_type);
+    if (ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
+                           cipher_type).IsNothing())
+      return;
   }
 
   if (mode == EVP_CIPH_WRAP_MODE)
