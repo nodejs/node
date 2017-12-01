@@ -2459,9 +2459,9 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
   }
   if (type != nullptr) {
     if (!String::NewFromOneByte(env->isolate(),
-                              reinterpret_cast<const uint8_t*>(type),
-                              v8::NewStringType::kInternalized)
-                                  .ToLocal(&args[i++])) {
+                                reinterpret_cast<const uint8_t*>(type),
+                                v8::NewStringType::kInternalized)
+                                    .ToLocal(&args[i++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
