@@ -350,6 +350,24 @@ changes:
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
 certain aspects of the formatted string.
+`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make an
+identifiable tag for an inspected value.
+
+```js
+class Foo {
+  get [Symbol.toStringTag]() {
+    return 'bar';
+  }
+}
+
+class Bar {}
+
+const baz = Object.create(null, { [Symbol.toStringTag]: { value: 'foo' } });
+
+util.inspect(new Foo()); // 'Foo [bar] {}'
+util.inspect(new Bar()); // 'Bar {}'
+util.inspect(baz);       // '[foo] {}'
+```
 
 The following example inspects all properties of the `util` object:
 
