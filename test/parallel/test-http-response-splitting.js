@@ -5,6 +5,7 @@ const http = require('http');
 const net = require('net');
 const url = require('url');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 // Response splitting example, credit: Amit Klein, Safebreach
 const str = '/welcome?lang=bar%c4%8d%c4%8aContent­Length:%200%c4%8d%c4%8a%c' +
@@ -18,6 +19,7 @@ const x = 'fooഊSet-Cookie: foo=barഊഊ<script>alert("Hi!")</script>';
 const y = 'foo⠊Set-Cookie: foo=bar';
 
 let count = 0;
+const countdown = new Countdown(3, () => server.close());
 
 function test(res, code, key, value) {
   const header = { [key]: value };
@@ -46,8 +48,7 @@ const server = http.createServer((req, res) => {
     default:
       assert.fail('should not get to here.');
   }
-  if (count === 3)
-    server.close();
+  countdown.dec();
   res.end('ok');
 });
 server.listen(0, () => {
