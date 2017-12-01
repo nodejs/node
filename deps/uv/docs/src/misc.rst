@@ -227,6 +227,12 @@ API
         On Windows not all fields are set, the unsupported fields are filled with zeroes.
         See :c:type:`uv_rusage_t` for more details.
 
+.. c:function:: uv_pid_t uv_os_getpid(void)
+
+    Returns the current process ID.
+
+    .. versionadded:: 1.18.0
+
 .. c:function:: uv_pid_t uv_os_getppid(void)
 
     Returns the parent process ID.

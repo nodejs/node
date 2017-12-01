@@ -43,6 +43,7 @@ int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int stdio_over_pipes_helper(void);
 int spawn_stdin_stdout(void);
+int spawn_tcp_server_helper(void);
 
 static int maybe_run_test(int argc, char **argv);
 
@@ -109,6 +110,10 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper2") == 0) {
     printf("hello world\n");
     return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_tcp_server_helper") == 0) {
+    return spawn_tcp_server_helper();
   }
 
   if (strcmp(argv[1], "spawn_helper3") == 0) {

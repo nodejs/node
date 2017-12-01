@@ -31,8 +31,8 @@
 #include "stream-inl.h"
 #include "req-inl.h"
 
-#include <AclAPI.h>
-#include <AccCtrl.h>
+#include <aclapi.h>
+#include <accctrl.h>
 
 typedef struct uv__ipc_queue_item_s uv__ipc_queue_item_t;
 

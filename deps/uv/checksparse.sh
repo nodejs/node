@@ -177,7 +177,17 @@ case `uname -s` in
 AIX)
   SPARSE_FLAGS="$SPARSE_FLAGS -D_AIX=1"
   SOURCES="$SOURCES
+           src/unix/aix-common.c
            src/unix/aix.c"
+  ;;
+OS400)
+  SPARSE_FLAGS="$SPARSE_FLAGS -D_PASE=1"
+  SOURCES="$SOURCES
+           src/unix/aix-common.c
+           src/unix/ibmi.c
+           src/unix/posix-poll.c
+           src/unix/no-fsevents.c
+           src/unix/no-proctitle.c"
   ;;
 Darwin)
   SPARSE_FLAGS="$SPARSE_FLAGS -D__APPLE__=1"
