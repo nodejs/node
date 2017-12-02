@@ -127,11 +127,6 @@ Returns a new promise that will propagate `promise` resolution or rejection if
 that happens within the `timeoutMs` timespan, or rejects with `error` as
 a reason otherwise.
 
-### fixturesDir
-* [&lt;String>]
-
-Path to the 'fixtures' directory.
-
 ### getArrayBufferViews(buf)
 * `buf` [&lt;Buffer>]
 * return [&lt;ArrayBufferView&#91;&#93;>]
