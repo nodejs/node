@@ -15,6 +15,12 @@ const certPem = fixtures.readSync('test_cert.pem', 'ascii');
 const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const modSize = 1024;
 
+{
+  const Sign = crypto.Sign
+  const instance = Sign('SHA256')
+  assert.ok(instance instanceof Sign, 'call sign constructor without new')
+}
+
 // Test signing and verifying
 {
   const s1 = crypto.createSign('SHA1')
