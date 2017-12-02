@@ -24,7 +24,7 @@ const modSize = 1024;
 {
   const Verify = crypto.Verify;
   const instance = Verify('SHA256');
-  assert.ok(instance instanceof Verify, 'call sign constructor without new');
+  assert.ok(instance instanceof Verify, 'call verify constructor without new');
 }
 
 common.expectsError(
