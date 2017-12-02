@@ -993,3 +993,14 @@ assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
   const buf = Buffer.from('test');
   assert.strictEqual(buf.toLocaleString(), buf.toString());
 }
+
+{
+  // Ref: https://github.com/nodejs/node/issues/17423
+  const buf = Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
+  assert(buf.every((byte) => byte === 0), `Buffer was not zeroed out: ${buf}`);
+}
+
+{
+  const buf = Buffer.alloc(0x1000, 'c', 'hex');
+  assert(buf.every((byte) => byte === 0), `Buffer was not zeroed out: ${buf}`);
+}
