@@ -3621,9 +3621,11 @@ void CipherBase::Init(const char* cipher_type,
   int mode = EVP_CIPHER_CTX_mode(ctx_);
   if (encrypt && (mode == EVP_CIPH_CTR_MODE || mode == EVP_CIPH_GCM_MODE ||
       mode == EVP_CIPH_CCM_MODE)) {
-    if (ProcessEmitWarning(env(), "Use Cipheriv for counter mode of %s",
-                           cipher_type).IsNothing())
-      return;
+    // Ignore the return value (i.e. possible exception) because we are
+    // not calling back into JS anyway.
+    ProcessEmitWarning(env(),
+                       "Use Cipheriv for counter mode of %s",
+                       cipher_type);
   }
 
   if (mode == EVP_CIPH_WRAP_MODE)

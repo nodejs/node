@@ -2447,28 +2447,28 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 
   if (!emit_warning->IsFunction()) return Just(false);
 
-  int i = 0;
+  int argc = 0;
   Local<Value> args[3];  // warning, type, code
 
   // The caller has to be able to handle a failure anyway, so we might as well
   // do proper error checking for string creation.
   if (!String::NewFromUtf8(env->isolate(),
                            warning,
-                           v8::NewStringType::kNormal).ToLocal(&args[i++])) {
+                           v8::NewStringType::kNormal).ToLocal(&args[argc++])) {
     return Nothing<bool>();
   }
   if (type != nullptr) {
     if (!String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(type),
-                                v8::NewStringType::kInternalized)
-                                    .ToLocal(&args[i++])) {
+                                v8::NewStringType::kNormal)
+                                    .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
         !String::NewFromOneByte(env->isolate(),
                                 reinterpret_cast<const uint8_t*>(code),
-                                v8::NewStringType::kInternalized)
-                                    .ToLocal(&args[i++])) {
+                                v8::NewStringType::kNormal)
+                                    .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
   }
@@ -2477,7 +2477,7 @@ static Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
   // process.emit('warning', ...), but does so on the nextTick.
   if (emit_warning.As<Function>()->Call(env->context(),
                                         process,
-                                        i,
+                                        argc,
                                         args).IsEmpty()) {
     return Nothing<bool>();
   }
