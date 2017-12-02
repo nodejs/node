@@ -439,3 +439,9 @@ assert.strictEqual(
 assert.strictEqual(
   Buffer.allocUnsafeSlow(16).fill('Љ', 'utf8').toString('utf8'),
   'Љ'.repeat(8));
+
+{
+  const buf = Buffer.from('a'.repeat(1000));
+  buf.fill('This is not correctly encoded', 'hex');
+  assert.strictEqual(buf.toString(), 'a'.repeat(1000));
+}
