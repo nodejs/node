@@ -38,6 +38,17 @@ common.expectsError(
     message: 'The value "undefined" is invalid for option "padding"'
   })
 
+common.expectsError(
+  () => crypto.createVerify('SHA256').verify({
+    key: certPem,
+    saltLength: undefined,
+  }, ''),
+  {
+    code: 'ERR_INVALID_OPT_VALUE',
+    type: Error,
+    message: 'The value "undefined" is invalid for option "saltLength"'
+  })
+
 // Test signing and verifying
 {
   const s1 = crypto.createSign('SHA1')
