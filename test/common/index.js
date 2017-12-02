@@ -36,8 +36,6 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 const noop = () => {};
 
-exports.fixturesDir = fixturesDir;
-
 // Using a `.` prefixed name, which is the convention for "hidden" on POSIX,
 // gets tools to ignore it by default or by simple rules, especially eslint.
 let tmpDirName = '.tmp';
@@ -314,7 +312,7 @@ exports.childShouldThrowAndAbort = function() {
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
-    const p = path.resolve(exports.fixturesDir, 'create-file.js');
+    const p = path.resolve(fixturesDir, 'create-file.js');
     return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
   } else {
     return `dd if=/dev/zero of="${filename}" bs=1024 count=${kilobytes}`;
