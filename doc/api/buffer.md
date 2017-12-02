@@ -510,6 +510,11 @@ console.log(buf2.toString());
 ### Class Method: Buffer.alloc(size[, fill[, encoding]])
 <!-- YAML
 added: v5.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17428
+    description: Specifying an invalid string for `fill` now results in a
+                 zero-filled buffer.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
@@ -1253,7 +1258,7 @@ Example: Fill a `Buffer` with a two-byte character
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
-If `value` is contains invalid characters, it is truncated; if no valid
+If `value` contains invalid characters, it is truncated; if no valid
 fill data remains, no filling is performed:
 
 ```js
