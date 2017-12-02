@@ -21,6 +21,12 @@ const modSize = 1024;
   assert.ok(instance instanceof Sign, 'call sign constructor without new')
 }
 
+{
+  const Verify = crypto.Verify
+  const instance = Verify('SHA256')
+  assert.ok(instance instanceof Verify, 'call sign constructor without new')
+}
+
 // Test signing and verifying
 {
   const s1 = crypto.createSign('SHA1')
