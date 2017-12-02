@@ -16,15 +16,15 @@ const keyPem = fixtures.readSync('test_key.pem', 'ascii');
 const modSize = 1024;
 
 {
-  const Sign = crypto.Sign
-  const instance = Sign('SHA256')
-  assert.ok(instance instanceof Sign, 'call sign constructor without new')
+  const Sign = crypto.Sign;
+  const instance = Sign('SHA256');
+  assert.ok(instance instanceof Sign, 'call sign constructor without new');
 }
 
 {
-  const Verify = crypto.Verify
-  const instance = Verify('SHA256')
-  assert.ok(instance instanceof Verify, 'call sign constructor without new')
+  const Verify = crypto.Verify;
+  const instance = Verify('SHA256');
+  assert.ok(instance instanceof Verify, 'call sign constructor without new');
 }
 
 common.expectsError(
@@ -36,7 +36,7 @@ common.expectsError(
     code: 'ERR_INVALID_OPT_VALUE',
     type: Error,
     message: 'The value "undefined" is invalid for option "padding"'
-  })
+  });
 
 common.expectsError(
   () => crypto.createVerify('SHA256').verify({
@@ -47,7 +47,7 @@ common.expectsError(
     code: 'ERR_INVALID_OPT_VALUE',
     type: Error,
     message: 'The value "undefined" is invalid for option "saltLength"'
-  })
+  });
 
 // Test signing and verifying
 {
