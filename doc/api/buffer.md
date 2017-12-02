@@ -1259,7 +1259,7 @@ Example: Fill a `Buffer` with a two-byte character
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
-If `value` is contains invalid characters, it is truncated; if no valid
+If `value` contains invalid characters, it is truncated; if no valid
 fill data remains, no filling is performed:
 
 ```js
