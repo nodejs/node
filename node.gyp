@@ -107,6 +107,7 @@
       'lib/internal/loader/ModuleWrap.js',
       'lib/internal/loader/ModuleRequest.js',
       'lib/internal/loader/search.js',
+      'lib/internal/loader/fetch.js',
       'lib/internal/safe_globals.js',
       'lib/internal/net.js',
       'lib/internal/module.js',
