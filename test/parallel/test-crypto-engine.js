@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const crypto = require('crypto');
-const notExistsEngineName = 'xxx';
+const invalidEngineName = 'xxx';
 
 common.expectsError(
   () => crypto.setEngine(true),
@@ -24,18 +24,17 @@ common.expectsError(
   });
 
 common.expectsError(
-  () => crypto.setEngine(notExistsEngineName),
+  () => crypto.setEngine(invalidEngineName),
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     type: Error,
-    message: `Engine "${notExistsEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`
   });
 
 common.expectsError(
-  () => crypto.setEngine(notExistsEngineName,
-                         crypto.constants.ENGINE_METHOD_RSA),
+  () => crypto.setEngine(invalidEngineName, crypto.constants.ENGINE_METHOD_RSA),
   {
     code: 'ERR_CRYPTO_ENGINE_UNKNOWN',
     type: Error,
-    message: `Engine "${notExistsEngineName}" was not found`
+    message: `Engine "${invalidEngineName}" was not found`
   });
