@@ -515,6 +515,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/17428
     description: Specifying an invalid string for `fill` now results in a
                  zero-filled buffer.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `fill` triggers a thrown
+                 exception.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
@@ -1225,6 +1229,10 @@ changes:
   - version: v5.7.0
     pr-url: https://github.com/nodejs/node/pull/4935
     description: The `encoding` parameter is supported now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17427
+    description: Specifying an invalid string for `value` triggers a thrown
+                 exception.
 -->
 
 * `value` {string|Buffer|integer} The value to fill `buf` with.
@@ -1260,7 +1268,7 @@ console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
 If `value` contains invalid characters, it is truncated; if no valid
-fill data remains, no filling is performed:
+fill data remains, an exception is thrown:
 
 ```js
 const buf = Buffer.allocUnsafe(5);
@@ -1268,7 +1276,7 @@ const buf = Buffer.allocUnsafe(5);
 console.log(buf.fill('a'));
 // Prints: <Buffer aa aa aa aa aa>
 console.log(buf.fill('aazz', 'hex'));
-// Prints: <Buffer aa aa aa aa aa>
+// Throws a exception.
 console.log(buf.fill('zz', 'hex'));
 ```
 

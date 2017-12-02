@@ -643,11 +643,12 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
                                     enc,
                                     nullptr);
     // This check is also needed in case Write() returns that no bytes could
-    // be written.
-    // TODO(trevnorris): Should this throw? Because of the string length was
-    // greater than 0 but couldn't be written then the string was invalid.
+    // be written. If no bytes could be written, then return -1 because the
+    // string is invalid. This will trigger a throw in JavaScript. Silently
+    // failing should be avoided because it can lead to buffers with unexpected
+    // contents.
     if (str_length == 0)
-      return args.GetReturnValue().Set(0);
+      return args.GetReturnValue().Set(-1);
   }
 
  start_fill:

@@ -1006,13 +1006,16 @@ assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);
   assert.strictEqual(buf.toLocaleString(), buf.toString());
 }
 
-{
-  // Ref: https://github.com/nodejs/node/issues/17423
-  const buf = Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
-  assert(buf.every((byte) => byte === 0), `Buffer was not zeroed out: ${buf}`);
-}
+common.expectsError(() => {
+  Buffer.alloc(0x1000, 'This is not correctly encoded', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
 
-{
-  const buf = Buffer.alloc(0x1000, 'c', 'hex');
-  assert(buf.every((byte) => byte === 0), `Buffer was not zeroed out: ${buf}`);
-}
+common.expectsError(() => {
+  Buffer.alloc(0x1000, 'c', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});

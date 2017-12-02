@@ -134,20 +134,23 @@ testBufs('61c8b462c8b563c8b6', 4, -1, 'hex');
 testBufs('61c8b462c8b563c8b6', 4, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 
-{
+common.expectsError(() => {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    // Make sure this operation doesn't go on forever.
-    buf.fill('yKJh', 'hex');
-  });
-}
 
-{
+  buf.fill('yKJh', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
+
+common.expectsError(() => {
   const buf = Buffer.allocUnsafe(SIZE);
-  assert.doesNotThrow(() => {
-    buf.fill('\u0222', 'hex');
-  });
-}
+
+  buf.fill('\u0222', 'hex');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
 
 // BASE64
 testBufs('YWJj', 'ucs2');
@@ -469,8 +472,11 @@ assert.strictEqual(
   Buffer.allocUnsafeSlow(16).fill('Љ', 'utf8').toString('utf8'),
   'Љ'.repeat(8));
 
-{
+common.expectsError(() => {
   const buf = Buffer.from('a'.repeat(1000));
+
   buf.fill('This is not correctly encoded', 'hex');
-  assert.strictEqual(buf.toString(), 'a'.repeat(1000));
-}
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+  type: TypeError
+});
