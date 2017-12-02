@@ -18,15 +18,15 @@ const modSize = 1024;
 {
   const Sign = crypto.Sign;
   const instance = Sign('SHA256');
-  assert.ok(instance instanceof Sign, 'Sign is expected to return a new ' +
-                                      'instance when called without `new`');
+  assert(instance instanceof Sign, 'Sign is expected to return a new ' +
+                                   'instance when called without `new`');
 }
 
 {
   const Verify = crypto.Verify;
   const instance = Verify('SHA256');
-  assert.ok(instance instanceof Verify, 'Verify is expected to return a new ' +
-                                        'instance when called without `new`');
+  assert(instance instanceof Verify, 'Verify is expected to return a new ' +
+                                     'instance when called without `new`');
 }
 
 common.expectsError(
