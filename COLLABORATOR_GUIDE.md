@@ -183,7 +183,7 @@ breaking changes are made.
 ### Breaking Changes
 
 Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by collaborators and approval of at least two CTC members.
+sufficient review by collaborators and approval of at least two CTC members, partners, etc.
 
 Examples of breaking changes include, but are not necessarily limited to,
 removal or redefinition of existing API arguments, changing return values
