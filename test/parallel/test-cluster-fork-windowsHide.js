@@ -60,11 +60,12 @@ if (!process.argv[2]) {
     process.send({ type: 'workerOnline' });
 
     let output = '0';
-    if (process.platform === 'win32')
+    if (process.platform === 'win32') {
       output = child_process.execSync(
         'powershell -NoProfile -c ' +
         `"(Get-Process -Id ${worker.process.pid}).MainWindowHandle"`,
         { windowsHide: true, encoding: 'utf8' });
+    }
 
     process.send({ type: 'mainWindowHandle', value: output });
     worker.send('shutdown');
