@@ -1,30 +1,22 @@
 {
-  "_from": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-  "_id": "remark-preset-lint-node@1.0.2",
-  "_inBundle": false,
-  "_integrity": "sha1-UxsozHvbtJwHgKk6AYCqVPvpz8w=",
-  "_location": "/remark-preset-lint-node",
-  "_phantomChildren": {},
-  "_requested": {
-    "type": "git",
-    "raw": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "rawSpec": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "saveSpec": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "fetchSpec": null,
-    "gitCommittish": "859eab541e0f63839b33196f26e2bed4dfe2b194"
+  "name": "remark-preset-lint-node",
+  "version": "1.0.2",
+  "description": "remark preset to configure remark-lint with settings for nodejs/node",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "_requiredBy": [
-    "#USER",
-    "/"
-  ],
-  "_resolved": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-  "_spec": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-  "_where": "/Users/trott/io.js/tools",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/watilde/remark-preset-lint-node.git"
+  },
+  "keywords": [],
   "author": "",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/watilde/remark-preset-lint-node/issues"
   },
-  "bundleDependencies": false,
+  "homepage": "https://github.com/watilde/remark-preset-lint-node#readme",
   "dependencies": {
     "remark-lint": "^6.0.0",
     "remark-lint-blockquote-indentation": "^1.0.0",
@@ -60,20 +52,5 @@
     "remark-lint-strong-marker": "^1.0.0",
     "remark-lint-table-cell-padding": "^1.0.0",
     "remark-lint-table-pipes": "^1.0.0"
-  },
-  "deprecated": false,
-  "description": "remark preset to configure remark-lint with settings for nodejs/node",
-  "homepage": "https://github.com/watilde/remark-preset-lint-node#readme",
-  "keywords": [],
-  "license": "MIT",
-  "main": "index.js",
-  "name": "remark-preset-lint-node",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/watilde/remark-preset-lint-node.git"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "version": "1.0.2"
+  }
 }
