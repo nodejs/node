@@ -52,27 +52,30 @@ common.refreshTmpDir();
 // time, the callback should be invoked again with proper values in stat object
 let fileExists = false;
 
-fs.watchFile(enoentFile, { interval: 0 }, common.mustCall(function(curr, prev) {
-  if (!fileExists) {
-    // If the file does not exist, all the fields should be zero and the date
-    // fields should be UNIX EPOCH time
-    assert.deepStrictEqual(curr, expectedStatObject);
-    assert.deepStrictEqual(prev, expectedStatObject);
-    // Create the file now, so that the callback will be called back once the
-    // event loop notices it.
-    fs.closeSync(fs.openSync(enoentFile, 'w'));
-    fileExists = true;
-  } else {
-    // If the ino (inode) value is greater than zero, it means that the file is
-    // present in the filesystem and it has a valid inode number.
-    assert(curr.ino > 0);
-    // As the file just got created, previous ino value should be lesser than
-    // or equal to zero (non-existent file).
-    assert(prev.ino <= 0);
-    // Stop watching the file
-    fs.unwatchFile(enoentFile);
-  }
-}, 2));
+const watcher =
+  fs.watchFile(enoentFile, { interval: 0 }, common.mustCall((curr, prev) => {
+    if (!fileExists) {
+      // If the file does not exist, all the fields should be zero and the date
+      // fields should be UNIX EPOCH time
+      assert.deepStrictEqual(curr, expectedStatObject);
+      assert.deepStrictEqual(prev, expectedStatObject);
+      // Create the file now, so that the callback will be called back once the
+      // event loop notices it.
+      fs.closeSync(fs.openSync(enoentFile, 'w'));
+      fileExists = true;
+    } else {
+      // If the ino (inode) value is greater than zero, it means that the file
+      // is present in the filesystem and it has a valid inode number.
+      assert(curr.ino > 0);
+      // As the file just got created, previous ino value should be lesser than
+      // or equal to zero (non-existent file).
+      assert(prev.ino <= 0);
+      // Stop watching the file
+      fs.unwatchFile(enoentFile);
+    }
+  }, 2));
+
+watcher.start();  // should not crash
 
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
