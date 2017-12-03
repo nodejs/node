@@ -111,9 +111,15 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
 
-  if (!persistent)
+  if (uv_is_active(reinterpret_cast<uv_handle_t*>(wrap->watcher_)))
+    return;
+  // Safe, uv_ref/uv_unref are idempotent.
+  if (persistent)
+    uv_ref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
+  else
     uv_unref(reinterpret_cast<uv_handle_t*>(wrap->watcher_));
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
+
   wrap->ClearWeak();
 }
 
