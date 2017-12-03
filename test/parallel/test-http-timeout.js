@@ -23,23 +23,24 @@
 require('../common');
 
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const server = http.createServer(function(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
 });
 
+const MAX_COUNT = 11;
 const agent = new http.Agent({ maxSockets: 1 });
+const countdown = new Countdown(MAX_COUNT, () => server.close());
 
 server.listen(0, function() {
 
-  for (let i = 0; i < 11; ++i) {
+  for (let i = 0; i < MAX_COUNT; ++i) {
     createRequest().end();
   }
 
   function callback() {}
-
-  let count = 0;
 
   function createRequest() {
     const req = http.request(
@@ -48,11 +49,7 @@ server.listen(0, function() {
         req.clearTimeout(callback);
 
         res.on('end', function() {
-          count++;
-
-          if (count === 11) {
-            server.close();
-          }
+          countdown.dec();
         });
 
         res.resume();
