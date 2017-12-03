@@ -65,6 +65,8 @@ for (const testCase of cases) {
       assert.strictEqual(eventType, 'change');
     assert.strictEqual(argFilename, testCase.fileName);
 
+    watcher.start();  // should not crash
+
     // end of test case
     watcher.close();
   }));
