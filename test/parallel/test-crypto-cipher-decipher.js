@@ -101,6 +101,15 @@ testCipher2(Buffer.from('0123456789abcdef'));
       message: 'The "data" argument must be one of type string, Buffer, ' +
                'TypedArray, or DataView'
     });
+
+  common.expectsError(
+    () => new Cipher('aes-256-cbc', 'secret').setAuthTag(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "buffer" argument must be one of type Buffer, ' +
+               'TypedArray, or DataView'
+    });
 }
 
 {
