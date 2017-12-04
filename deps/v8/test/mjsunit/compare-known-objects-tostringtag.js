@@ -22,26 +22,26 @@ function gt(a, b) {
 
 function test(a, b) {
   // Check CompareIC for less than or equal of known objects.
-  assertThrows(function() {le(a, a)});
-  assertThrows(function() {le(a, b)});
-  assertThrows(function() {le(b, a)});
+  assertThrows(() => {le(a, a)});
+  assertThrows(() => {le(a, b)});
+  assertThrows(() => {le(b, a)});
   // Check CompareIC for less than of known objects.
-  assertThrows(function() {lt(a, a)});
-  assertThrows(function() {lt(a, b)});
-  assertThrows(function() {lt(b, a)});
+  assertThrows(() => {lt(a, a)});
+  assertThrows(() => {lt(a, b)});
+  assertThrows(() => {lt(b, a)});
   // Check CompareIC for greater than or equal of known objects.
-  assertThrows(function() {ge(a, a)});
-  assertThrows(function() {ge(a, b)});
-  assertThrows(function() {ge(b, a)});
+  assertThrows(() => {ge(a, a)});
+  assertThrows(() => {ge(a, b)});
+  assertThrows(() => {ge(b, a)});
   // Check CompareIC for greater than of known objects.
-  assertThrows(function() {gt(a, a)});
-  assertThrows(function() {gt(a, b)});
-  assertThrows(function() {gt(b, a)});
+  assertThrows(() => {gt(a, a)});
+  assertThrows(() => {gt(a, b)});
+  assertThrows(() => {gt(b, a)});
 }
 
 function O() { }
 Object.defineProperty(O.prototype, Symbol.toStringTag, {
-  get: function() { throw "@@toStringTag called!" }
+  get() { throw "@@toStringTag called!" }
 });
 
 var obj1 = new O;

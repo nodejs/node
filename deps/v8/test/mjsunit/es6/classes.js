@@ -711,7 +711,7 @@ function assertAccessorDescriptor(object, name) {
 
   var arr = new Array(100);
   var obj = {};
-  assertThrows(function() {Derived.apply(obj, arr);}, TypeError);
+  assertThrows(() => {Derived.apply(obj, arr);}, TypeError);
 })();
 
 

@@ -15,30 +15,30 @@ var workerScript =
 var worker = new Worker(workerScript);
 
 var value_obj = {
-  valueOf: function() {worker.postMessage({sab:sab}, [sta.buffer]);
+  valueOf() {worker.postMessage({sab:sab}, [sta.buffer]);
                        return 5}
 }
 var value = Object.create(value_obj);
 
-assertThrows(function() {Atomics.exchange(sta, 0, value)});
-assertThrows(function() {Atomics.compareExchange(sta, 0, 5, value)});
-assertThrows(function() {Atomics.compareExchange(sta, 0, value, 5)});
-assertThrows(function() {Atomics.add(sta, 0, value)});
-assertThrows(function() {Atomics.sub(sta, 0, value)});
-assertThrows(function() {Atomics.and(sta, 0, value)});
-assertThrows(function() {Atomics.or(sta, 0, value)});
-assertThrows(function() {Atomics.xor(sta, 0, value)});
+assertThrows(() => {Atomics.exchange(sta, 0, value)});
+assertThrows(() => {Atomics.compareExchange(sta, 0, 5, value)});
+assertThrows(() => {Atomics.compareExchange(sta, 0, value, 5)});
+assertThrows(() => {Atomics.add(sta, 0, value)});
+assertThrows(() => {Atomics.sub(sta, 0, value)});
+assertThrows(() => {Atomics.and(sta, 0, value)});
+assertThrows(() => {Atomics.or(sta, 0, value)});
+assertThrows(() => {Atomics.xor(sta, 0, value)});
 
 var index_obj = {
-  valueOf: function() {worker.postMessage({sab:sab}, [sta.buffer]);
+  valueOf() {worker.postMessage({sab:sab}, [sta.buffer]);
                        return 0}
 }
 var index = Object.create(index_obj);
 
-assertThrows(function() {Atomics.exchange(sta, index, 1)});
-assertThrows(function() {Atomics.compareExchange(sta, index, 5, 2)});
-assertThrows(function() {Atomics.add(sta, index, 3)});
-assertThrows(function() {Atomics.sub(sta, index, 4)});
-assertThrows(function() {Atomics.and(sta, index, 5)});
-assertThrows(function() {Atomics.or(sta, index, 6)});
-assertThrows(function() {Atomics.xor(sta, index, 7)});
+assertThrows(() => {Atomics.exchange(sta, index, 1)});
+assertThrows(() => {Atomics.compareExchange(sta, index, 5, 2)});
+assertThrows(() => {Atomics.add(sta, index, 3)});
+assertThrows(() => {Atomics.sub(sta, index, 4)});
+assertThrows(() => {Atomics.and(sta, index, 5)});
+assertThrows(() => {Atomics.or(sta, index, 6)});
+assertThrows(() => {Atomics.xor(sta, index, 7)});
