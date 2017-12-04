@@ -21,6 +21,15 @@ common.expectsError(
     message: 'The "hmac" argument must be of type string'
   });
 
+common.expectsError(
+  () => new crypto.Hmac('sha1', null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "key" argument must be one of type string, TypedArray, or ' +
+             'DataView'
+  });
+
 {
   // Test HMAC
   const actual = crypto.createHmac('sha1', 'Node')
