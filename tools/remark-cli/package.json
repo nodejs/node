@@ -1,32 +1,71 @@
 {
-  "name": "remark-cli",
-  "version": "4.0.0",
-  "description": "CLI to process markdown with remark using plugins",
-  "license": "MIT",
-  "keywords": [
-    "markdown",
-    "remark",
-    "cli",
-    "bin"
+  "_from": "remark-cli@latest",
+  "_id": "remark-cli@4.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-q5GMjGypUS4rTZb3WfMQcGpClSC38A9Ogg1h/HB2GLsqypDetmAfy0X+tuJ6JeyCPVOXXCDgsDCQq4QPqKmxBA==",
+  "_location": "/remark-cli",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "remark-cli@latest",
+    "name": "remark-cli",
+    "escapedName": "remark-cli",
+    "rawSpec": "latest",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/remark-cli/-/remark-cli-4.0.0.tgz",
+  "_shasum": "bb84c14ffeb6f5b658eff4dfbb77cdd7775bab73",
+  "_spec": "remark-cli@latest",
+  "_where": "/Users/mborins/code/node/master/tools/remark-cli-tmp",
+  "author": {
+    "name": "Titus Wormer",
+    "email": "tituswormer@gmail.com",
+    "url": "http://wooorm.com"
+  },
+  "bin": {
+    "remark": "cli.js"
+  },
+  "bugs": {
+    "url": "https://github.com/wooorm/remark/issues"
+  },
+  "bundleDependencies": false,
+  "contributors": [
+    {
+      "name": "Titus Wormer",
+      "email": "tituswormer@gmail.com",
+      "url": "http://wooorm.com"
+    }
   ],
   "dependencies": {
     "markdown-extensions": "^1.1.0",
     "remark": "^8.0.0",
     "unified-args": "^4.0.0"
   },
-  "homepage": "http://remark.js.org",
-  "repository": "https://github.com/wooorm/remark/tree/master/packages/remark-cli",
-  "bugs": "https://github.com/wooorm/remark/issues",
-  "author": "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)",
-  "contributors": [
-    "Titus Wormer <tituswormer@gmail.com> (http://wooorm.com)"
-  ],
-  "bin": {
-    "remark": "cli.js"
-  },
+  "deprecated": false,
+  "description": "CLI to process markdown with remark using plugins",
   "files": [
     "cli.js"
   ],
+  "homepage": "http://remark.js.org",
+  "keywords": [
+    "markdown",
+    "remark",
+    "cli",
+    "bin"
+  ],
+  "license": "MIT",
+  "name": "remark-cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wooorm/remark/tree/master/packages/remark-cli"
+  },
   "scripts": {},
+  "version": "4.0.0",
   "xo": false
 }
