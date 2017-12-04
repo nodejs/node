@@ -70,6 +70,13 @@ testCipher1(Buffer.from('MySecretKey123'));
 testCipher2('0123456789abcdef');
 testCipher2(Buffer.from('0123456789abcdef'));
 
+{
+  const Cipher = crypto.Cipher;
+  const instance = crypto.Cipher('aes-256-cbc', 'secret');
+  assert(instance instanceof Cipher, 'Cipher is expected to return a new ' +
+                                     'instance when called without `new`');
+}
+
 // Base64 padding regression test, see #4837.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
