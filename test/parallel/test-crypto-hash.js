@@ -154,3 +154,10 @@ common.expectsError(
     message: 'The "algorithm" argument must be of type string'
   }
 );
+
+{
+  const Hash = crypto.Hash;
+  const instance = crypto.Hash('sha256');
+  assert(instance instanceof Hash, 'Hash is expected to return a new instance' +
+                                   'when called without `new`');
+}
