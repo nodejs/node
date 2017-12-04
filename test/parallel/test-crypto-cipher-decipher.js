@@ -75,6 +75,14 @@ testCipher2(Buffer.from('0123456789abcdef'));
   const instance = crypto.Cipher('aes-256-cbc', 'secret');
   assert(instance instanceof Cipher, 'Cipher is expected to return a new ' +
                                      'instance when called without `new`');
+
+  common.expectsError(
+    () => new Cipher(null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "cipher" argument must be of type string'
+    });
 }
 
 {
