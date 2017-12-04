@@ -20,44 +20,39 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-let test = 1;
+const server = http.createServer();
 
-const server = http.createServer(function(req, res) {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  if (test === 1) {
-    // write should accept string
-    res.write('string');
-    // write should accept buffer
-    res.write(Buffer.from('asdf'));
-
-    // write should not accept an Array
-    assert.throws(function() {
-      res.write(['array']);
-    }, TypeError, 'first argument must be a string or Buffer');
-
-    // end should not accept an Array
-    assert.throws(function() {
-      res.end(['moo']);
-    }, TypeError, 'first argument must be a string or Buffer');
-
-    // end should accept string
-    res.end('string');
-  } else if (test === 2) {
-    // end should accept Buffer
+server.once('request', common.mustCall((req, res) => {
+  server.on('request', common.mustCall((req, res) => {
     res.end(Buffer.from('asdf'));
-  }
-});
+  }));
+  // write should accept string
+  res.write('string');
+  // write should accept buffer
+  res.write(Buffer.from('asdf'));
+
+  // write should not accept an Array
+  assert.throws(function() {
+    res.write(['array']);
+  }, TypeError, 'first argument must be a string or Buffer');
+
+  // end should not accept an Array
+  assert.throws(function() {
+    res.end(['moo']);
+  }, TypeError, 'first argument must be a string or Buffer');
+
+  // end should accept string
+  res.end('string');
+}));
 
 server.listen(0, function() {
   // just make a request, other tests handle responses
   http.get({ port: this.address().port }, function(res) {
     res.resume();
-    // lazy serial test, because we can only call end once per request
-    test += 1;
     // do it again to test .end(Buffer);
     http.get({ port: server.address().port }, function(res) {
       res.resume();
