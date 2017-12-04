@@ -13,6 +13,14 @@ const crypto = require('crypto');
                                    'when called without `new`');
 }
 
+common.expectsError(
+  () => new crypto.Hmac(null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "hmac" argument must be of type string'
+  });
+
 {
   // Test HMAC
   const actual = crypto.createHmac('sha1', 'Node')
