@@ -125,7 +125,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
   const Decipher = crypto.Decipher;
   const instance = crypto.Decipher('aes-256-cbc', 'secret');
   assert(instance instanceof Decipher, 'Decipher is expected to return a new ' +
-                                     'instance when called without `new`');
+                                       'instance when called without `new`');
 
   common.expectsError(
     () => new Decipher(null),
