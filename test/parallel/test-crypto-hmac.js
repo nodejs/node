@@ -7,6 +7,13 @@ const assert = require('assert');
 const crypto = require('crypto');
 
 {
+  const Hmac = crypto.Hmac;
+  const instance = crypto.Hmac('sha256');
+  assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
+                                   'when called without `new`');
+}
+
+{
   // Test HMAC
   const actual = crypto.createHmac('sha1', 'Node')
     .update('some data')
