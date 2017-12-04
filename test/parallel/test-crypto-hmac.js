@@ -7,6 +7,30 @@ const assert = require('assert');
 const crypto = require('crypto');
 
 {
+  const Hmac = crypto.Hmac;
+  const instance = crypto.Hmac('sha256', 'Node');
+  assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
+                                   ' when called without `new`');
+}
+
+common.expectsError(
+  () => crypto.createHmac(null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "hmac" argument must be of type string'
+  });
+
+common.expectsError(
+  () => crypto.createHmac('sha1', null),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "key" argument must be one of type string, TypedArray, or ' +
+             'DataView'
+  });
+
+{
   // Test HMAC
   const actual = crypto.createHmac('sha1', 'Node')
     .update('some data')
