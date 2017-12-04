@@ -77,6 +77,13 @@ testCipher2(Buffer.from('0123456789abcdef'));
                                      'instance when called without `new`');
 }
 
+{
+  const Decipher = crypto.Decipher;
+  const instance = crypto.Decipher('aes-256-cbc', 'secret');
+  assert(instance instanceof Decipher, 'Decipher is expected to return a new ' +
+                                     'instance when called without `new`');
+}
+
 // Base64 padding regression test, see #4837.
 {
   const c = crypto.createCipher('aes-256-cbc', 'secret');
