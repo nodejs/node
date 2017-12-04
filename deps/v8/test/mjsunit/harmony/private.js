@@ -83,9 +83,9 @@ TestConstructor()
 
 function TestToString() {
   for (var i in symbols) {
-    assertThrows(function() {new String(symbols[i]) }, TypeError)
+    assertThrows(() => {new String(symbols[i]) }, TypeError)
     assertEquals(symbols[i].toString(), String(symbols[i]))
-    assertThrows(function() { symbols[i] + "" }, TypeError)
+    assertThrows(() => { symbols[i] + "" }, TypeError)
     assertTrue(isValidSymbolString(symbols[i].toString()))
     assertTrue(isValidSymbolString(Object(symbols[i]).toString()))
     assertTrue(isValidSymbolString(Symbol.prototype.toString.call(symbols[i])))
@@ -115,8 +115,8 @@ TestToBoolean()
 
 function TestToNumber() {
   for (var i in symbols) {
-    assertThrows(function() { Number(symbols[i]); }, TypeError);
-    assertThrows(function() { symbols[i] + 0; }, TypeError);
+    assertThrows(() => { Number(symbols[i]); }, TypeError);
+    assertThrows(() => { symbols[i] + 0; }, TypeError);
   }
 }
 TestToNumber()
@@ -150,7 +150,7 @@ function TestEquality() {
   }
 
   // Symbols should not be equal to any other value (and the test terminates).
-  var values = [347, 1.275, NaN, "string", null, undefined, {}, function() {}]
+  var values = [347, 1.275, NaN, "string", null, undefined, {}, () => {}]
   for (var i in symbols) {
     for (var j in values) {
       assertFalse(symbols[i] === values[j])
@@ -295,7 +295,7 @@ function TestKeyDelete(obj) {
 }
 
 
-var objs = [{}, [], Object.create({}), Object(1), new Map, function(){}]
+var objs = [{}, [], Object.create({}), Object(1), new Map, () => {}]
 
 for (var i in objs) {
   var obj = objs[i]

@@ -23,8 +23,8 @@ function TestArrayBufferCreation() {
 
   TestByteLength(0, 0);
 
-  assertThrows(function() { new ArrayBuffer(-10); }, RangeError);
-  assertThrows(function() { new ArrayBuffer(-2.567); }, RangeError);
+  assertThrows(() => { new ArrayBuffer(-10); }, RangeError);
+  assertThrows(() => { new ArrayBuffer(-2.567); }, RangeError);
 
 /* TODO[dslomov]: Reenable the test
   assertThrows(function() {
@@ -44,7 +44,7 @@ function TestByteLengthNotWritable() {
   var ab = new ArrayBuffer(1024);
   assertSame(1024, ab.byteLength);
 
-  assertThrows(function() { "use strict"; ab.byteLength = 42; }, TypeError);
+  assertThrows(() => { "use strict"; ab.byteLength = 42; }, TypeError);
 }
 
 TestByteLengthNotWritable();
@@ -194,20 +194,20 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(0, aAtTheEnd.byteLength);
   assertSame(256*elementSize, aAtTheEnd.byteOffset);
 
-  assertThrows(function () { new constr(ab, 257*elementSize); }, RangeError);
+  assertThrows(() => { new constr(ab, 257*elementSize); }, RangeError);
   assertThrows(
-      function () { new constr(ab, 128*elementSize, 192); },
+      () => { new constr(ab, 128*elementSize, 192); },
       RangeError);
 
   if (elementSize !== 1) {
-    assertThrows(function() { new constr(ab, 128*elementSize - 1, 10); },
+    assertThrows(() => { new constr(ab, 128*elementSize - 1, 10); },
                  RangeError);
     var unalignedArrayBuffer = new ArrayBuffer(10*elementSize + 1);
     var goodArray = new constr(unalignedArrayBuffer, 0, 10);
     assertSame(10, goodArray.length);
     assertSame(10*elementSize, goodArray.byteLength);
-    assertThrows(function() { new constr(unalignedArrayBuffer)}, RangeError);
-    assertThrows(function() { new constr(unalignedArrayBuffer, 5*elementSize)},
+    assertThrows(() => { new constr(unalignedArrayBuffer)}, RangeError);
+    assertThrows(() => { new constr(unalignedArrayBuffer, 5*elementSize)},
                  RangeError);
   }
 
@@ -239,7 +239,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(0, aFromString.byteOffset);
   assertSame(30*elementSize, aFromString.buffer.byteLength);
 
-  assertThrows(function() { new constr(Symbol()); }, TypeError);
+  assertThrows(() => { new constr(Symbol()); }, TypeError);
 
   var jsArray = [];
   for (i = 0; i < 30; i++) {
@@ -309,7 +309,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   // is read only once.
   var iteratorReadCount = 0;
   Object.defineProperty(myObject, Symbol.iterator, {
-    get: function() { iteratorReadCount++; return gen; }
+    get() { iteratorReadCount++; return gen; }
   });
   genArr = new constr(myObject);
   assertEquals(10, genArr.length);
@@ -372,7 +372,7 @@ function TestSubArray(constructor, item) {
   var method = constructor.prototype.subarray;
   method.call(new constructor(100), 0, 100);
   var o = {};
-  assertThrows(function() { method.call(o, 0, 100); }, TypeError);
+  assertThrows(() => { method.call(o, 0, 100); }, TypeError);
 }
 
 TestSubArray(Uint8Array, 0xFF);
@@ -420,10 +420,10 @@ var typedArrayConstructors = [
 
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
-    assertThrows(function() { 'use strict'; new constructor(10)[name] = 0; })
+    assertThrows(() => { 'use strict'; new constructor(10)[name] = 0; })
     var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__, name);
     var o = {};
-    assertThrows(function() {d.get.call(o);}, TypeError);
+    assertThrows(() => {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = new ctor(10);
@@ -455,9 +455,9 @@ function TestTypedArraySet() {
   var a12 = new Uint16Array(15)
   a12.set(a11, 3)
   assertArrayPrefix([0, 0, 0, 1, 2, 3, 4, 0, 0xffff, 0, 0], a12)
-  assertThrows(function(){ a11.set(a12) })
+  assertThrows(() => { a11.set(a12) })
 
-  var a21 = [1, undefined, 10, NaN, 0, -1, {valueOf: function() {return 3}}]
+  var a21 = [1, undefined, 10, NaN, 0, -1, {valueOf: () => {return 3}}]
   var a22 = new Int32Array(12)
   a22.set(a21, 2)
   assertArrayPrefix([0, 0, 1, 0, 10, 0, 0, -1, 3, 0], a22)
@@ -527,11 +527,11 @@ function TestTypedArraySet() {
   }
   a.set({});
   assertArrayPrefix(expected, a);
-  assertThrows(function() { a.set.call({}) }, TypeError);
-  assertThrows(function() { a.set.call([]) }, TypeError);
+  assertThrows(() => { a.set.call({}) }, TypeError);
+  assertThrows(() => { a.set.call([]) }, TypeError);
 
-  assertThrows(function() { a.set(0); }, TypeError);
-  assertThrows(function() { a.set(0, 1); }, TypeError);
+  assertThrows(() => { a.set(0); }, TypeError);
+  assertThrows(() => { a.set(0, 1); }, TypeError);
 
   assertEquals(1, a.set.length);
 }
@@ -676,11 +676,11 @@ function TestDataViewConstructor() {
 
 
   // error cases
-  assertThrows(function() { new DataView(ab, -1); }, RangeError);
-  assertThrows(function() { new DataView(); }, TypeError);
-  assertThrows(function() { new DataView([]); }, TypeError);
-  assertThrows(function() { new DataView(ab, 257); }, RangeError);
-  assertThrows(function() { new DataView(ab, 1, 1024); }, RangeError);
+  assertThrows(() => { new DataView(ab, -1); }, RangeError);
+  assertThrows(() => { new DataView(); }, TypeError);
+  assertThrows(() => { new DataView([]); }, TypeError);
+  assertThrows(() => { new DataView(ab, 257); }, RangeError);
+  assertThrows(() => { new DataView(ab, 1, 1024); }, RangeError);
 }
 
 TestDataViewConstructor();
@@ -690,7 +690,7 @@ function TestDataViewPropertyTypeChecks() {
   function CheckProperty(name) {
     var d = Object.getOwnPropertyDescriptor(DataView.prototype, name);
     var o = {}
-    assertThrows(function() {d.get.call(o);}, TypeError);
+    assertThrows(() => {d.get.call(o);}, TypeError);
     d.get.call(a); // shouldn't throw
   }
 
@@ -767,8 +767,8 @@ TestArbitrary(new DataView(new ArrayBuffer(256)));
 
 
 // Test direct constructor call
-assertThrows(function() { ArrayBuffer(); }, TypeError);
-assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);
+assertThrows(() => { ArrayBuffer(); }, TypeError);
+assertThrows(() => { DataView(new ArrayBuffer()); }, TypeError);
 
 function TestNonConfigurableProperties(constructor) {
   var arr = new constructor([100])

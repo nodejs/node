@@ -44,8 +44,8 @@ function TestArrayBufferCreation() {
 
   TestByteLength(0, 0);
 
-  assertThrows(function() { new SharedArrayBuffer(-10); }, RangeError);
-  assertThrows(function() { new SharedArrayBuffer(-2.567); }, RangeError);
+  assertThrows(() => { new SharedArrayBuffer(-10); }, RangeError);
+  assertThrows(() => { new SharedArrayBuffer(-2.567); }, RangeError);
 
 /* TODO[dslomov]: Reenable the test
   assertThrows(function() {
@@ -65,7 +65,7 @@ function TestByteLengthNotWritable() {
   var sab = new SharedArrayBuffer(1024);
   assertSame(1024, sab.byteLength);
 
-  assertThrows(function() { "use strict"; sab.byteLength = 42; }, TypeError);
+  assertThrows(() => { "use strict"; sab.byteLength = 42; }, TypeError);
 }
 
 TestByteLengthNotWritable();
@@ -168,20 +168,20 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertSame(0, aAtTheEnd.byteLength);
   assertSame(256*elementSize, aAtTheEnd.byteOffset);
 
-  assertThrows(function () { new constr(sab, 257*elementSize); }, RangeError);
+  assertThrows(() => { new constr(sab, 257*elementSize); }, RangeError);
   assertThrows(
-      function () { new constr(sab, 128*elementSize, 192); },
+      () => { new constr(sab, 128*elementSize, 192); },
       RangeError);
 
   if (elementSize !== 1) {
-    assertThrows(function() { new constr(sab, 128*elementSize - 1, 10); },
+    assertThrows(() => { new constr(sab, 128*elementSize - 1, 10); },
                  RangeError);
     var unalignedArrayBuffer = new SharedArrayBuffer(10*elementSize + 1);
     var goodArray = new constr(unalignedArrayBuffer, 0, 10);
     assertSame(10, goodArray.length);
     assertSame(10*elementSize, goodArray.byteLength);
-    assertThrows(function() { new constr(unalignedArrayBuffer)}, RangeError);
-    assertThrows(function() { new constr(unalignedArrayBuffer, 5*elementSize)},
+    assertThrows(() => { new constr(unalignedArrayBuffer)}, RangeError);
+    assertThrows(() => { new constr(unalignedArrayBuffer, 5*elementSize)},
                  RangeError);
   }
 
@@ -306,7 +306,7 @@ function TestPropertyTypeChecks(constructor) {
     var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__,
                                             name);
     var o = {};
-    assertThrows(function() {d.get.call(o);}, TypeError);
+    assertThrows(() => {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = MakeSharedTypedArray(ctor, 10);
@@ -346,9 +346,9 @@ function TestTypedArraySet() {
   var a12 = MakeSharedTypedArray(Uint16Array, 15);
   a12.set(a11, 3)
   assertArrayPrefix([0, 0, 0, 1, 2, 3, 4, 0, 0xffff, 0, 0], a12)
-  assertThrows(function(){ a11.set(a12) })
+  assertThrows(() => { a11.set(a12) })
 
-  var a21 = [1, undefined, 10, NaN, 0, -1, {valueOf: function() {return 3}}]
+  var a21 = [1, undefined, 10, NaN, 0, -1, {valueOf() {return 3}}]
   var a22 = MakeSharedTypedArray(Int32Array, 12)
   a22.set(a21, 2)
   assertArrayPrefix([0, 0, 1, 0, 10, 0, 0, -1, 3, 0], a22)
@@ -418,11 +418,11 @@ function TestTypedArraySet() {
   }
   a.set({});
   assertArrayPrefix(expected, a);
-  assertThrows(function() { a.set.call({}) }, TypeError);
-  assertThrows(function() { a.set.call([]) }, TypeError);
+  assertThrows(() => { a.set.call({}) }, TypeError);
+  assertThrows(() => { a.set.call([]) }, TypeError);
 
-  assertThrows(function() { a.set(0); }, TypeError);
-  assertThrows(function() { a.set(0, 1); }, TypeError);
+  assertThrows(() => { a.set(0); }, TypeError);
+  assertThrows(() => { a.set(0, 1); }, TypeError);
 }
 
 TestTypedArraySet();
@@ -560,9 +560,9 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
 }
 
 // Test direct constructor call
-assertThrows(function() { SharedArrayBuffer(); }, TypeError);
+assertThrows(() => { SharedArrayBuffer(); }, TypeError);
 for(i = 0; i < typedArrayConstructors.length; i++) {
-  assertThrows(function(i) { typedArrayConstructors[i](); }.bind(this, i),
+  assertThrows((i) => { typedArrayConstructors[i](); }.bind(this, i),
                TypeError);
 }
 
@@ -576,13 +576,13 @@ assertEquals(42, s.byteLength);
 var desc = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength');
 s = new SharedArrayBuffer(10);
 Object.defineProperty(s, 'byteLength', desc);
-assertThrows(function() {s.byteLength}, TypeError);
+assertThrows(() => {s.byteLength}, TypeError);
 
 desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
   'byteLength');
 var a = new ArrayBuffer(10);
 Object.defineProperty(a, 'byteLength', desc);
-assertThrows(function() {a.byteLength}, TypeError);
+assertThrows(() => {a.byteLength}, TypeError);
 
 // test SharedArrayBuffer species getter
 assertSame(SharedArrayBuffer[Symbol.species], SharedArrayBuffer);

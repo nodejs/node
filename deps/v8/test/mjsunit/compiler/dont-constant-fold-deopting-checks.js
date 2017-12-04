@@ -7,4 +7,4 @@
 function bar(a) { a[0](true); }
 function foo(a) { return bar(1); }
 %OptimizeFunctionOnNextCall(foo);
-assertThrows(function() {bar([foo])}, TypeError);
+assertThrows(() => {bar([foo])}, TypeError);

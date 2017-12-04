@@ -18,7 +18,7 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(1, constructor.from.length);
 
   // TypedArray.from only callable on this subclassing %TypedArray%
-  assertThrows(function () {constructor.from.call(Array, [])}, TypeError);
+  assertThrows(() => {constructor.from.call(Array, [])}, TypeError);
 
   function assertArrayLikeEquals(value, expected, type) {
     assertEquals(value.__proto__, type.prototype);
@@ -42,10 +42,10 @@ for (var constructor of typedArrayConstructors) {
   constructor.from([1], strict_null, null);
 
   // TypedArray.from can only be called on TypedArray constructors
-  assertThrows(function() {constructor.from.call({}, [])}, TypeError);
-  assertThrows(function() {constructor.from.call([], [])}, TypeError);
-  assertThrows(function() {constructor.from.call(1, [])}, TypeError);
-  assertThrows(function() {constructor.from.call(undefined, [])}, TypeError);
+  assertThrows(() => {constructor.from.call({}, [])}, TypeError);
+  assertThrows(() => {constructor.from.call([], [])}, TypeError);
+  assertThrows(() => {constructor.from.call(1, [])}, TypeError);
+  assertThrows(() => {constructor.from.call(undefined, [])}, TypeError);
 
   // Converting from various other types, demonstrating that it can
   // operate on array-like objects as well as iterables.
@@ -72,10 +72,10 @@ for (var constructor of typedArrayConstructors) {
   assertArrayLikeEquals(constructor.from(generator()),
                         [4, 5, 6], constructor);
 
-  assertThrows(function() { constructor.from(null); }, TypeError);
-  assertThrows(function() { constructor.from(undefined); }, TypeError);
-  assertThrows(function() { constructor.from([], null); }, TypeError);
-  assertThrows(function() { constructor.from([], 'noncallable'); },
+  assertThrows(() => { constructor.from(null); }, TypeError);
+  assertThrows(() => { constructor.from(undefined); }, TypeError);
+  assertThrows(() => { constructor.from([], null); }, TypeError);
+  assertThrows(() => { constructor.from([], 'noncallable'); },
                TypeError);
 
   var nullIterator = {};
@@ -84,11 +84,11 @@ for (var constructor of typedArrayConstructors) {
                         constructor);
 
   var nonObjIterator = {};
-  nonObjIterator[Symbol.iterator] = function() { return 'nonObject'; };
-  assertThrows(function() { constructor.from(nonObjIterator); },
+  nonObjIterator[Symbol.iterator] = () => { return 'nonObject'; };
+  assertThrows(() => { constructor.from(nonObjIterator); },
                TypeError);
 
-  assertThrows(function() { constructor.from([], null); }, TypeError);
+  assertThrows(() => { constructor.from([], null); }, TypeError);
 
   // Ensure iterator is only accessed once, and only invoked once
   var called = 0;
@@ -104,11 +104,11 @@ for (var constructor of typedArrayConstructors) {
   }
   var getCalled = 0;
   Object.defineProperty(obj, Symbol.iterator, {
-    get: function() {
+    get() {
       getCalled++;
       return testIterator;
     },
-    set: function() {
+    set() {
       assertUnreachable('@@iterator should not be set');
     }
   });

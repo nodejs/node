@@ -21,8 +21,8 @@ function f(x) {
   return z;
 }
 assertEquals(2, f(1));
-assertThrows(function() {f(2)}, ReferenceError);
-assertThrows(function() {f(3)}, ReferenceError);
+assertThrows(() => {f(2)}, ReferenceError);
+assertThrows(() => {f(3)}, ReferenceError);
 
 // Ensure that hole checks are done even in subordinate scopes
 assertThrows(function() {
@@ -44,9 +44,9 @@ function g(x) {
     case 1:
       let z;
     case 2:
-      return function() { z = 1; }
+      return () => { z = 1; }
     case 3:
-      return function() { return z; }
+      return () => { return z; }
     case 4:
       return eval("z = 1");
     case 5:
@@ -57,8 +57,8 @@ function g(x) {
 assertEquals(undefined, g(1)());
 assertThrows(g(2), ReferenceError);
 assertThrows(g(3), ReferenceError);
-assertThrows(function () {g(4)}, ReferenceError);
-assertThrows(function () {g(5)}, ReferenceError);
+assertThrows(() => {g(4)}, ReferenceError);
+assertThrows(() => {g(5)}, ReferenceError);
 
 // Ensure the same in strict mode, with different eval and function semantics
 
@@ -68,9 +68,9 @@ function h(x) {
     case 1:
       let z;
     case 2:
-      return function() { z = 1; }
+      return () => { z = 1; }
     case 3:
-      return function() { return z; }
+      return () => { return z; }
     case 4:
       return eval("z = 1");
     case 5:
@@ -81,5 +81,5 @@ function h(x) {
 assertEquals(undefined, h(1)());
 assertThrows(h(2), ReferenceError);
 assertThrows(h(3), ReferenceError);
-assertThrows(function () {h(4)}, ReferenceError);
-assertThrows(function () {h(5)}, ReferenceError);
+assertThrows(() => {h(4)}, ReferenceError);
+assertThrows(() => {h(5)}, ReferenceError);
