@@ -28,6 +28,7 @@ const norepeat = [
   'age',
   'expires'
 ];
+const runCount = 2;
 
 const server = http.createServer(function(req, res) {
   const num = req.headers['x-num'];
@@ -48,7 +49,6 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(function() {
-  const runCount = 2;
   const countdown = new Countdown(runCount, () => server.close());
   for (let n = 1; n <= runCount; n++) {
     // this runs twice, the first time, the server will use
