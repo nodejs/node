@@ -159,5 +159,5 @@ common.expectsError(
   const Hash = crypto.Hash;
   const instance = crypto.Hash('sha256');
   assert(instance instanceof Hash, 'Hash is expected to return a new instance' +
-                                   'when called without `new`');
+                                   ' when called without `new`');
 }

@@ -10,7 +10,7 @@ const crypto = require('crypto');
   const Hmac = crypto.Hmac;
   const instance = crypto.Hmac('sha256', 'Node');
   assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
-                                   'when called without `new`');
+                                   ' when called without `new`');
 }
 
 common.expectsError(
