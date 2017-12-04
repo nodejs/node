@@ -134,6 +134,15 @@ testCipher2(Buffer.from('0123456789abcdef'));
       type: TypeError,
       message: 'The "cipher" argument must be of type string'
     });
+
+  common.expectsError(
+    () => new Decipher('aes-256-cbc', null),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError,
+      message: 'The "password" argument must be one of type string, Buffer, ' +
+               'TypedArray, or DataView'
+    });
 }
 
 // Base64 padding regression test, see #4837.
