@@ -841,6 +841,9 @@
             '<(OBJ_PATH)<(OBJ_SEPARATOR)node_crypto_clienthello.<(OBJ_SUFFIX)',
             '<(OBJ_PATH)<(OBJ_SEPARATOR)tls_wrap.<(OBJ_SUFFIX)',
           ],
+          'defines': [
+            'HAVE_OPENSSL=1',
+          ],
         }],
         ['v8_enable_inspector==1', {
           'sources': [
