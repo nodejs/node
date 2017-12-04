@@ -60,29 +60,26 @@ assert.throws(() => {
   test_error.throwTypeError();
 }, /^TypeError: type error$/);
 
-assert.throws(
+common.expectsError(
   () => test_error.throwErrorCode(),
-  common.expectsError({
+  {
     code: 'ERR_TEST_CODE',
     message: 'Error [error]'
-  })
-);
+  });
 
-assert.throws(
+common.expectsError(
   () => test_error.throwRangeErrorCode(),
-  common.expectsError({
+  {
     code: 'ERR_TEST_CODE',
     message: 'RangeError [range error]'
-  })
-);
+  });
 
-assert.throws(
+common.expectsError(
   () => test_error.throwTypeErrorCode(),
-  common.expectsError({
+  {
     code: 'ERR_TEST_CODE',
     message: 'TypeError [type error]'
-  })
-);
+  });
 
 let error = test_error.createError();
 assert.ok(error instanceof Error, 'expected error to be an instance of Error');
