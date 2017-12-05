@@ -77,7 +77,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
                                      'instance when called without `new`');
 
   common.expectsError(
-    () => new Cipher(null),
+    () => crypto.createCipher(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -85,7 +85,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => new Cipher('aes-256-cbc', null),
+    () => crypto.createCipher('aes-256-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -94,7 +94,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => new Cipher('aes-256-cbc', 'secret').update(null),
+    () => crypto.createCipher('aes-256-cbc', 'secret').update(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -103,7 +103,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => new Cipher('aes-256-cbc', 'secret').setAuthTag(null),
+    () => crypto.createCipher('aes-256-cbc', 'secret').setAuthTag(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -112,7 +112,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => new Cipher('aes-256-cbc', 'secret').setAAD(null),
+    () => crypto.createCipher('aes-256-cbc', 'secret').setAAD(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -128,7 +128,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
                                        'instance when called without `new`');
 
   common.expectsError(
-    () => new Decipher(null),
+    () => crypto.createDecipher(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -136,7 +136,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
     });
 
   common.expectsError(
-    () => new Decipher('aes-256-cbc', null),
+    () => crypto.createDecipher('aes-256-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
