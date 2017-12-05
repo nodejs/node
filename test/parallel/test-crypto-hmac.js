@@ -14,7 +14,7 @@ const crypto = require('crypto');
 }
 
 common.expectsError(
-  () => new crypto.Hmac(null),
+  () => crypto.createHmac(null),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
@@ -22,7 +22,7 @@ common.expectsError(
   });
 
 common.expectsError(
-  () => new crypto.Hmac('sha1', null),
+  () => crypto.createHmac('sha1', null),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
