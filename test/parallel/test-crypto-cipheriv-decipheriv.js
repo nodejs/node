@@ -88,7 +88,7 @@ function testCipher3(key, iv) {
                                        'instance when called without `new`');
 
   common.expectsError(
-    () => new Cipheriv(null),
+    () => crypto.createCipheriv(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -96,7 +96,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => new Cipheriv('des-ede3-cbc', null),
+    () => crypto.createCipheriv('des-ede3-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -105,7 +105,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => new Cipheriv('des-ede3-cbc', key, null),
+    () => crypto.createCipheriv('des-ede3-cbc', key, null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -124,7 +124,7 @@ function testCipher3(key, iv) {
                                          ' instance when called without `new`');
 
   common.expectsError(
-    () => new Decipheriv(null),
+    () => crypto.createDecipheriv(null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -132,7 +132,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => new Decipheriv('des-ede3-cbc', null),
+    () => crypto.createDecipheriv('des-ede3-cbc', null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
@@ -141,7 +141,7 @@ function testCipher3(key, iv) {
     });
 
   common.expectsError(
-    () => new Decipheriv('des-ede3-cbc', key, null),
+    () => crypto.createDecipheriv('des-ede3-cbc', key, null),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
