@@ -842,7 +842,6 @@ def configure_node(o):
     configure_mips(o)
 
   if flavor == 'aix':
-    o['variables']['node_core_target_name'] = 'node_base'
     o['variables']['node_target_type'] = 'static_library'
 
   if target_arch in ('x86', 'x64', 'ia32', 'x32'):
@@ -941,6 +940,13 @@ def configure_node(o):
     o['variables']['coverage'] = 'true'
   else:
     o['variables']['coverage'] = 'false'
+
+  if options.shared:
+    o['variables']['node_target_type'] = 'shared_library'
+  elif options.enable_static:
+    o['variables']['node_target_type'] = 'static_library'
+  else:
+    o['variables']['node_target_type'] = 'executable'
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
@@ -1437,6 +1443,7 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_XCODE': str(int(options.use_xcode or 0)),
   'PYTHON': sys.executable,
+  'NODE_TARGET_TYPE': variables['node_target_type'],
 }
 
 if options.prefix:
