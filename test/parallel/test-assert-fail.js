@@ -4,17 +4,16 @@ const common = require('../common');
 const assert = require('assert');
 
 // No args
-assert.throws(
-  () => { assert.fail(); },
-  common.expectsError({
-    code: 'ERR_ASSERTION',
-    type: assert.AssertionError,
-    message: 'Failed',
-    operator: undefined,
-    actual: undefined,
-    expected: undefined
-  })
-);
+common.expectsError(() => {
+  assert.fail();
+}, {
+  code: 'ERR_ASSERTION',
+  type: assert.AssertionError,
+  message: 'Failed',
+  operator: undefined,
+  actual: undefined,
+  expected: undefined
+});
 
 // One arg = message
 common.expectsError(() => {
