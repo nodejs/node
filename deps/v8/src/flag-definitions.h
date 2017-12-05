@@ -768,6 +768,8 @@ DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
 DEFINE_BOOL(enable_experimental_builtins, true,
             "enable new csa-based experimental builtins")
+DEFINE_BOOL(disallow_code_generation_from_strings, false,
+            "disallow eval and friends")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
