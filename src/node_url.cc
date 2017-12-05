@@ -650,7 +650,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
   for (unsigned n = 0; n < 8; n++)
     value_.ipv6[n] = 0;
   uint16_t* piece_pointer = &value_.ipv6[0];
-  uint16_t* last_piece = piece_pointer + 8;
+  uint16_t* const buffer_end = piece_pointer + 8;
   uint16_t* compress_pointer = nullptr;
   const char* pointer = input;
   const char* end = pointer + length;
@@ -665,7 +665,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
     compress_pointer = piece_pointer;
   }
   while (ch != kEOL) {
-    if (piece_pointer > last_piece)
+    if (piece_pointer >= buffer_end)
       return;
     if (ch == ':') {
       if (compress_pointer != nullptr)
@@ -690,7 +690,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
           return;
         pointer -= len;
         ch = pointer < end ? pointer[0] : kEOL;
-        if (piece_pointer > last_piece - 2)
+        if (piece_pointer > buffer_end - 2)
           return;
         numbers_seen = 0;
         while (ch != kEOL) {
@@ -744,7 +744,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
 
   if (compress_pointer != nullptr) {
     swaps = piece_pointer - compress_pointer;
-    piece_pointer = last_piece - 1;
+    piece_pointer = buffer_end - 1;
     while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
       uint16_t temp = *piece_pointer;
       uint16_t* swap_piece = compress_pointer + swaps - 1;
@@ -754,7 +754,7 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
        swaps--;
     }
   } else if (compress_pointer == nullptr &&
-             piece_pointer != last_piece) {
+             piece_pointer != buffer_end) {
     return;
   }
   type_ = HostType::H_IPV6;
