@@ -466,7 +466,7 @@ function _mustCallInner(fn, criteria, field) {
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
   const TCP = process.binding('tcp_wrap').TCP;
   const t = new TCP();
-  const ret = t.bind('127.0.0.2', exports.PORT);
+  const ret = t.bind('127.0.0.2', 0);
   t.close();
   return ret === 0;
 };
