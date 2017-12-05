@@ -91,7 +91,6 @@ class ModuleWrap;
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
   V(npn_buffer_private_symbol, "node:npnBuffer")                              \
-  V(processed_private_symbol, "node:processed")                               \
   V(selected_npn_buffer_private_symbol, "node:selectedNpnBuffer")             \
   V(domain_private_symbol, "node:domain")                                     \
 
@@ -700,6 +699,18 @@ class Environment {
   // This needs to be available for the JS-land setImmediate().
   void ActivateImmediateCheck();
 
+  class ShouldNotAbortOnUncaughtScope {
+   public:
+    explicit inline ShouldNotAbortOnUncaughtScope(Environment* env);
+    inline void Close();
+    inline ~ShouldNotAbortOnUncaughtScope();
+
+   private:
+    Environment* env_;
+  };
+
+  inline bool inside_should_not_abort_on_uncaught_scope() const;
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -724,6 +735,8 @@ class Environment {
 
   AliasedBuffer<uint32_t, v8::Uint32Array> scheduled_immediate_count_;
   AliasedBuffer<uint32_t, v8::Uint32Array> should_abort_on_uncaught_toggle_;
+
+  int should_not_abort_scope_counter_ = 0;
 
   performance::performance_state* performance_state_ = nullptr;
   std::map<std::string, uint64_t> performance_marks_;

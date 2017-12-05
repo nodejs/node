@@ -782,7 +782,8 @@ namespace {
 bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   HandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  return env->should_abort_on_uncaught_toggle()[0];
+  return env->should_abort_on_uncaught_toggle()[0] &&
+         !env->inside_should_not_abort_on_uncaught_scope();
 }
 
 
@@ -1301,16 +1302,6 @@ void AppendExceptionLine(Environment* env,
   Local<Object> err_obj;
   if (!er.IsEmpty() && er->IsObject()) {
     err_obj = er.As<Object>();
-
-    auto context = env->context();
-    auto processed_private_symbol = env->processed_private_symbol();
-    // Do it only once per message
-    if (err_obj->HasPrivate(context, processed_private_symbol).FromJust())
-      return;
-    err_obj->SetPrivate(
-        context,
-        processed_private_symbol,
-        True(env->isolate()));
   }
 
   // Print (filename):(line number): (message).
@@ -1321,6 +1312,8 @@ void AppendExceptionLine(Environment* env,
   // Print line of source code.
   node::Utf8Value sourceline(env->isolate(), message->GetSourceLine());
   const char* sourceline_string = *sourceline;
+  if (strstr(sourceline_string, "node-do-not-add-exception-line") != nullptr)
+    return;
 
   // Because of how node modules work, all scripts are wrapped with a
   // "function (module, exports, __filename, ...) {"
