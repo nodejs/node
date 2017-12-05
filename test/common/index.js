@@ -493,6 +493,8 @@ exports.mustCallAtLeast = function(fn, minimum) {
 };
 
 function _mustCallInner(fn, criteria = 1, field) {
+  if (process._exiting)
+    throw new Error('Cannot use common.mustCall*() in process exit handler');
   if (typeof fn === 'number') {
     criteria = fn;
     fn = noop;
