@@ -351,7 +351,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   }
 
   Handle<Object> x;
-  if (args.length() >= 1) {
+  if (args.length() >= 2) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
                                        Object::ToNumber(args.at(1)));
   } else {

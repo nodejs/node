@@ -32,11 +32,11 @@
 
 #include "src/base/hashmap.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
+namespace test_hashmap {
 
 typedef uint32_t (*IntKeyHash)(uint32_t key);
-
 
 class IntSet {
  public:
@@ -173,3 +173,7 @@ TEST(HashSet) {
   TestSet(Hash, 100);
   TestSet(CollisionHash, 50);
 }
+
+}  // namespace test_hashmap
+}  // namespace internal
+}  // namespace v8

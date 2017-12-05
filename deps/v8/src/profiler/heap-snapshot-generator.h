@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <unordered_map>
+#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
@@ -233,7 +234,7 @@ class HeapObjectsMap {
   void StopHeapObjectsTracking();
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream,
                                         int64_t* timestamp_us);
-  const List<TimeInterval>& samples() const { return time_intervals_; }
+  const std::vector<TimeInterval>& samples() const { return time_intervals_; }
 
   SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
 
@@ -260,7 +261,7 @@ class HeapObjectsMap {
   SnapshotObjectId next_id_;
   base::HashMap entries_map_;
   std::vector<EntryInfo> entries_;
-  List<TimeInterval> time_intervals_;
+  std::vector<TimeInterval> time_intervals_;
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
@@ -489,7 +490,8 @@ class NativeObjectsExplorer {
  private:
   void FillRetainedObjects();
   void FillEdges();
-  List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
+  std::vector<HeapObject*>* GetVectorMaybeDisposeInfo(
+      v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
   void SetWrapperNativeReferences(HeapObject* wrapper,
@@ -516,7 +518,7 @@ class NativeObjectsExplorer {
   StringsStorage* names_;
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
-  // RetainedObjectInfo* -> List<HeapObject*>*
+  // RetainedObjectInfo* -> std::vector<HeapObject*>*
   base::CustomMatcherHashMap objects_by_info_;
   base::CustomMatcherHashMap native_groups_;
   HeapEntriesAllocator* synthetic_entries_allocator_;

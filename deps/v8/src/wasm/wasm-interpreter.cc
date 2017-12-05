@@ -15,10 +15,11 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone-containers.h"
@@ -624,24 +625,11 @@ inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   Isolate* isolate = instance->GetIsolate();
   int32_t ret = WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
 
-#ifdef DEBUG
   // Ensure the effects of GrowMemory have been observed by the interpreter.
   // See {UpdateMemory}. In all cases, we are in agreement with the runtime
   // object's view.
-  uint32_t cached_size = mem_info->mem_size;
-  byte* cached_start = mem_info->mem_start;
-  uint32_t instance_size =
-      instance->compiled_module()->has_embedded_mem_size()
-          ? instance->compiled_module()->embedded_mem_size()
-          : 0;
-  byte* instance_start =
-      instance->compiled_module()->has_embedded_mem_start()
-          ? reinterpret_cast<byte*>(
-                instance->compiled_module()->embedded_mem_start())
-          : nullptr;
-  CHECK_EQ(cached_size, instance_size);
-  CHECK_EQ(cached_start, instance_start);
-#endif
+  DCHECK_EQ(mem_info->mem_size, instance->wasm_context()->mem_size);
+  DCHECK_EQ(mem_info->mem_start, instance->wasm_context()->mem_start);
   return ret;
 }
 
@@ -667,23 +655,24 @@ const char* OpcodeName(uint32_t val) {
 Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
                                          Handle<Code> js_wrapper) {
   DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, js_wrapper->kind());
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(*js_wrapper, mask); !it.done(); it.next()) {
-    HeapObject* obj = it.rinfo()->target_object();
-    if (!obj->IsCallable()) continue;
-#ifdef DEBUG
-    // There should only be this one reference to a callable object.
-    for (it.next(); !it.done(); it.next()) {
-      HeapObject* other = it.rinfo()->target_object();
-      DCHECK(!other->IsCallable());
-    }
-#endif
-    return handle(obj, isolate);
+  Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
+  DCHECK_EQ(2, deopt_data->length());
+  intptr_t js_imports_table_loc = static_cast<intptr_t>(
+      HeapNumber::cast(deopt_data->get(0))->value_as_bits());
+  Handle<FixedArray> js_imports_table(
+      reinterpret_cast<FixedArray**>(js_imports_table_loc));
+  int index = 0;
+  CHECK(deopt_data->get(1)->ToInt32(&index));
+  DCHECK_GT(js_imports_table->length(), index);
+  Handle<Object> obj(js_imports_table->get(index), isolate);
+  if (obj->IsCallable()) {
+    return Handle<HeapObject>::cast(obj);
+  } else {
+    // If we did not find a callable object, this is an illegal JS import and
+    // obj must be undefined.
+    DCHECK(obj->IsUndefined(isolate));
+    return Handle<HeapObject>::null();
   }
-  // If we did not find a callable object, then there must be a reference to
-  // the WasmThrowTypeError runtime function.
-  // TODO(clemensh): Check that this is the case.
-  return Handle<HeapObject>::null();
 }
 
 class SideTable;
@@ -1454,7 +1443,8 @@ class ThreadImpl {
   }
 
   template <typename ctype, typename mtype>
-  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len) {
+  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len,
+                   MachineRepresentation rep) {
     MemoryAccessOperand<false> operand(decoder, code->at(pc), sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
     if (!BoundsCheck<mtype>(cached_instance_info_->mem_size, operand.offset,
@@ -1467,12 +1457,20 @@ class ThreadImpl {
 
     Push(result);
     len = 1 + operand.length;
+
+    if (FLAG_wasm_trace_memory) {
+      tracing::TraceMemoryOperation(
+          tracing::kWasmInterpreted, false, rep, operand.offset + index,
+          code->function->func_index, static_cast<int>(pc),
+          cached_instance_info_->mem_start);
+    }
+
     return true;
   }
 
   template <typename ctype, typename mtype>
-  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
-                    int& len) {
+  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len,
+                    MachineRepresentation rep) {
     MemoryAccessOperand<false> operand(decoder, code->at(pc), sizeof(ctype));
     WasmValue val = Pop();
 
@@ -1491,6 +1489,14 @@ class ThreadImpl {
     } else if (std::is_same<double, ctype>::value) {
       possible_nondeterminism_ |= std::isnan(val.to<double>());
     }
+
+    if (FLAG_wasm_trace_memory) {
+      tracing::TraceMemoryOperation(
+          tracing::kWasmInterpreted, true, rep, operand.offset + index,
+          code->function->func_index, static_cast<int>(pc),
+          cached_instance_info_->mem_start);
+    }
+
     return true;
   }
 
@@ -1812,43 +1818,47 @@ class ThreadImpl {
           break;
         }
 
-#define LOAD_CASE(name, ctype, mtype)                                \
-  case kExpr##name: {                                                \
-    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len)) return; \
-    break;                                                           \
+#define LOAD_CASE(name, ctype, mtype, rep)                      \
+  case kExpr##name: {                                           \
+    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len,     \
+                                   MachineRepresentation::rep)) \
+      return;                                                   \
+    break;                                                      \
   }
 
-          LOAD_CASE(I32LoadMem8S, int32_t, int8_t);
-          LOAD_CASE(I32LoadMem8U, int32_t, uint8_t);
-          LOAD_CASE(I32LoadMem16S, int32_t, int16_t);
-          LOAD_CASE(I32LoadMem16U, int32_t, uint16_t);
-          LOAD_CASE(I64LoadMem8S, int64_t, int8_t);
-          LOAD_CASE(I64LoadMem8U, int64_t, uint8_t);
-          LOAD_CASE(I64LoadMem16S, int64_t, int16_t);
-          LOAD_CASE(I64LoadMem16U, int64_t, uint16_t);
-          LOAD_CASE(I64LoadMem32S, int64_t, int32_t);
-          LOAD_CASE(I64LoadMem32U, int64_t, uint32_t);
-          LOAD_CASE(I32LoadMem, int32_t, int32_t);
-          LOAD_CASE(I64LoadMem, int64_t, int64_t);
-          LOAD_CASE(F32LoadMem, float, float);
-          LOAD_CASE(F64LoadMem, double, double);
+          LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8);
+          LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8);
+          LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16);
+          LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16);
+          LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8);
+          LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16);
+          LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16);
+          LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16);
+          LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32);
+          LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32);
+          LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32);
+          LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64);
+          LOAD_CASE(F32LoadMem, float, float, kFloat32);
+          LOAD_CASE(F64LoadMem, double, double, kFloat64);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype)                                \
-  case kExpr##name: {                                                 \
-    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, len)) return; \
-    break;                                                            \
+#define STORE_CASE(name, ctype, mtype, rep)                      \
+  case kExpr##name: {                                            \
+    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, len,     \
+                                    MachineRepresentation::rep)) \
+      return;                                                    \
+    break;                                                       \
   }
 
-          STORE_CASE(I32StoreMem8, int32_t, int8_t);
-          STORE_CASE(I32StoreMem16, int32_t, int16_t);
-          STORE_CASE(I64StoreMem8, int64_t, int8_t);
-          STORE_CASE(I64StoreMem16, int64_t, int16_t);
-          STORE_CASE(I64StoreMem32, int64_t, int32_t);
-          STORE_CASE(I32StoreMem, int32_t, int32_t);
-          STORE_CASE(I64StoreMem, int64_t, int64_t);
-          STORE_CASE(F32StoreMem, float, float);
-          STORE_CASE(F64StoreMem, double, double);
+          STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8);
+          STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16);
+          STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8);
+          STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16);
+          STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32);
+          STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32);
+          STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64);
+          STORE_CASE(F32StoreMem, float, float, kFloat32);
+          STORE_CASE(F64StoreMem, double, double, kFloat64);
 #undef STORE_CASE
 
 #define ASMJS_LOAD_CASE(name, ctype, mtype, defval)                       \
@@ -2004,6 +2014,7 @@ class ThreadImpl {
           return;
         PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
+#undef PAUSE_IF_BREAK_FLAG
     }
 
     state_ = WasmInterpreter::PAUSED;
@@ -2701,6 +2712,11 @@ WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
 }
 
 #undef TRACE
+#undef FOREACH_INTERNAL_OPCODE
+#undef WASM_CTYPES
+#undef FOREACH_SIMPLE_BINOP
+#undef FOREACH_OTHER_BINOP
+#undef FOREACH_OTHER_UNOP
 
 }  // namespace wasm
 }  // namespace internal

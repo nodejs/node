@@ -48,6 +48,12 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
       std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*
           out_result) override;
 
+  Response startTypeProfile() override;
+  Response stopTypeProfile() override;
+  Response takeTypeProfile(
+      std::unique_ptr<protocol::Array<protocol::Profiler::ScriptTypeProfile>>*
+          out_result) override;
+
   void consoleProfile(const String16& title);
   void consoleProfileEnd(const String16& title);
 

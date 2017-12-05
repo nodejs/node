@@ -62,6 +62,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the 32-bit unsigned runtime id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandRuntimeId(int operand_index);
+  // Returns the 32-bit unsigned native context index immediate for bytecode
+  // operand |operand_index| in the current bytecode.
+  compiler::Node* BytecodeOperandNativeContextIndex(int operand_index);
   // Returns the 32-bit unsigned intrinsic id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandIntrinsicId(int operand_index);

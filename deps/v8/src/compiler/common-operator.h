@@ -315,10 +315,28 @@ SparseInputMask SparseInputMaskOf(Operator const*);
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
     WARN_UNUSED_RESULT;
 
-// The ArgumentsElementsState and ArgumentsLengthState can either describe an
-// unmapped arguments backing store or the backing store of the rest parameters.
-// IsRestOf(op) is true in the second case.
-bool IsRestOf(Operator const*);
+// The ArgumentsElementsState and ArgumentsLengthState can describe the layout
+// for backing stores of arguments objects of various types:
+//
+//                        +------------------------------------+
+//  - kUnmappedArguments: | arg0, ... argK-1, argK, ... argN-1 |  {length:N}
+//                        +------------------------------------+
+//                        +------------------------------------+
+//  - kMappedArguments:   | hole, ...   hole, argK, ... argN-1 |  {length:N}
+//                        +------------------------------------+
+//                                          +------------------+
+//  - kRestParameter:                       | argK, ... argN-1 |  {length:N-K}
+//                                          +------------------+
+//
+// Here {K} represents the number for formal parameters of the active function,
+// whereas {N} represents the actual number of arguments passed at runtime.
+// Note that {N < K} can happen and causes {K} to be capped accordingly.
+//
+// Also note that it is possible for an arguments object of {kMappedArguments}
+// type to carry a backing store of {kUnappedArguments} type when {K == 0}.
+typedef CreateArgumentsType ArgumentsStateType;
+
+ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
@@ -387,8 +405,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* StateValues(int arguments, SparseInputMask bitmask);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
-  const Operator* ArgumentsElementsState(bool is_rest);
-  const Operator* ArgumentsLengthState(bool is_rest);
+  const Operator* ArgumentsElementsState(ArgumentsStateType type);
+  const Operator* ArgumentsLengthState(ArgumentsStateType type);
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);

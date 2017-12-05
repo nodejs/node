@@ -34,12 +34,14 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #define __ masm.
 
@@ -84,7 +86,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (; reg_num < config->num_allocatable_general_registers(); ++reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
+    if (reg != destination_reg) {
       __ push(reg);
       source_reg_offset += kPointerSize;
     }
@@ -98,7 +100,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   if (inline_fastpath) {
     __ Ldc1(f12, MemOperand(source_reg));
     __ TryInlineTruncateDoubleToI(destination_reg, f12, &done);
-    if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
+    if (destination_reg == source_reg && source_reg != sp) {
       // Restore clobbered source_reg.
       __ Daddu(source_reg, sp, Operand(source_reg_offset));
     }
@@ -111,7 +113,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
+    if (reg != destination_reg) {
       __ Ld(at, MemOperand(sp, 0));
       __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
       __ Daddu(sp, sp, Operand(kPointerSize));
@@ -199,3 +201,6 @@ TEST(ConvertDToI) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -47,9 +47,11 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/conversions-inl.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"
@@ -226,19 +228,19 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
 
 Operand::Operand(Register base, int32_t disp, RelocInfo::Mode rmode) {
   // [base + disp/r]
-  if (disp == 0 && RelocInfo::IsNone(rmode) && !base.is(ebp)) {
+  if (disp == 0 && RelocInfo::IsNone(rmode) && base != ebp) {
     // [base]
     set_modrm(0, base);
-    if (base.is(esp)) set_sib(times_1, esp, base);
+    if (base == esp) set_sib(times_1, esp, base);
   } else if (is_int8(disp) && RelocInfo::IsNone(rmode)) {
     // [base + disp8]
     set_modrm(1, base);
-    if (base.is(esp)) set_sib(times_1, esp, base);
+    if (base == esp) set_sib(times_1, esp, base);
     set_disp8(disp);
   } else {
     // [base + disp/r]
     set_modrm(2, base);
-    if (base.is(esp)) set_sib(times_1, esp, base);
+    if (base == esp) set_sib(times_1, esp, base);
     set_dispr(disp, rmode);
   }
 }
@@ -249,9 +251,9 @@ Operand::Operand(Register base,
                  ScaleFactor scale,
                  int32_t disp,
                  RelocInfo::Mode rmode) {
-  DCHECK(!index.is(esp));  // illegal addressing mode
+  DCHECK(index != esp);  // illegal addressing mode
   // [base + index*scale + disp/r]
-  if (disp == 0 && RelocInfo::IsNone(rmode) && !base.is(ebp)) {
+  if (disp == 0 && RelocInfo::IsNone(rmode) && base != ebp) {
     // [base + index*scale]
     set_modrm(0, esp);
     set_sib(scale, index, base);
@@ -273,7 +275,7 @@ Operand::Operand(Register index,
                  ScaleFactor scale,
                  int32_t disp,
                  RelocInfo::Mode rmode) {
-  DCHECK(!index.is(esp));  // illegal addressing mode
+  DCHECK(index != esp);  // illegal addressing mode
   // [index*scale + disp/r]
   set_modrm(0, esp);
   set_sib(scale, index, ebp);
@@ -731,8 +733,8 @@ void Assembler::stos() {
 
 void Assembler::xchg(Register dst, Register src) {
   EnsureSpace ensure_space(this);
-  if (src.is(eax) || dst.is(eax)) {  // Single-byte encoding.
-    EMIT(0x90 | (src.is(eax) ? dst.code() : src.code()));
+  if (src == eax || dst == eax) {  // Single-byte encoding.
+    EMIT(0x90 | (src == eax ? dst.code() : src.code()));
   } else {
     EMIT(0x87);
     EMIT(0xC0 | src.code() << 3 | dst.code());
@@ -1293,7 +1295,7 @@ void Assembler::test(Register reg, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   // This is not using emit_arith because test doesn't support
   // sign-extension of 8-bit operands.
-  if (reg.is(eax)) {
+  if (reg == eax) {
     EMIT(0xA9);
   } else {
     EMIT(0xF7);
@@ -1337,7 +1339,7 @@ void Assembler::test_b(Register reg, Immediate imm8) {
   EnsureSpace ensure_space(this);
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
-  if (reg.is(eax)) {
+  if (reg == eax) {
     EMIT(0xA8);
     emit_b(imm8);
   } else if (reg.is_byte_register()) {
@@ -1364,7 +1366,7 @@ void Assembler::test_b(const Operand& op, Immediate imm8) {
 void Assembler::test_w(Register reg, Immediate imm16) {
   DCHECK(imm16.is_int16() || imm16.is_uint16());
   EnsureSpace ensure_space(this);
-  if (reg.is(eax)) {
+  if (reg == eax) {
     EMIT(0xA9);
     emit_w(imm16);
   } else {
@@ -2523,7 +2525,7 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
 void Assembler::movups(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
-  EMIT(0x11);
+  EMIT(0x10);
   emit_sse_operand(dst, src);
 }
 
@@ -2971,37 +2973,37 @@ void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, const Operand& src2,
 }
 
 void Assembler::vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {6};
+  XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
 void Assembler::vpslld(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {6};
+  XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
 void Assembler::vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {2};
+  XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
 void Assembler::vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {2};
+  XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
 void Assembler::vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {4};
+  XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
 void Assembler::vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8) {
-  XMMRegister iop = {4};
+  XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
@@ -3101,7 +3103,7 @@ void Assembler::bmi2(SIMDPrefix pp, byte op, Register reg, Register vreg,
 void Assembler::rorx(Register dst, const Operand& src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = {0};  // VEX.vvvv unused
+  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(vreg, kLZ, kF2, k0F3A, kW0);
   EMIT(0xF0);
@@ -3151,7 +3153,7 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
 }
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
-  Register ireg = { reg.code() };
+  Register ireg = Register::from_code(reg.code());
   emit_operand(ireg, adr);
 }
 
@@ -3187,7 +3189,7 @@ void Assembler::emit_vex_prefix(XMMRegister vreg, VectorLength l, SIMDPrefix pp,
 
 void Assembler::emit_vex_prefix(Register vreg, VectorLength l, SIMDPrefix pp,
                                 LeadingOpcode mm, VexW w) {
-  XMMRegister ivreg = {vreg.code()};
+  XMMRegister ivreg = XMMRegister::from_code(vreg.code());
   emit_vex_prefix(ivreg, l, pp, mm, w);
 }
 
@@ -3255,7 +3257,7 @@ void Assembler::emit_arith_b(int op1, int op2, Register dst, int imm8) {
 
 void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
   DCHECK((0 <= sel) && (sel <= 7));
-  Register ireg = { sel };
+  Register ireg = Register::from_code(sel);
   if (x.is_int8()) {
     EMIT(0x83);  // using a sign-extended 8-bit immediate.
     emit_operand(ireg, dst);

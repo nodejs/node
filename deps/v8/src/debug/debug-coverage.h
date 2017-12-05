@@ -51,17 +51,17 @@ class Coverage : public std::vector<CoverageScript> {
   // In case of kPreciseCount, an updated count since last collection is
   // returned. In case of kPreciseBinary, a count of 1 is returned if a
   // function has been executed for the first time since last collection.
-  static Coverage* CollectPrecise(Isolate* isolate);
+  static std::unique_ptr<Coverage> CollectPrecise(Isolate* isolate);
   // Collecting best effort coverage always works, but may be imprecise
   // depending on selected mode. The invocation count is not reset.
-  static Coverage* CollectBestEffort(Isolate* isolate);
+  static std::unique_ptr<Coverage> CollectBestEffort(Isolate* isolate);
 
   // Select code coverage mode.
   static void SelectMode(Isolate* isolate, debug::Coverage::Mode mode);
 
  private:
-  static Coverage* Collect(Isolate* isolate,
-                           v8::debug::Coverage::Mode collectionMode);
+  static std::unique_ptr<Coverage> Collect(
+      Isolate* isolate, v8::debug::Coverage::Mode collectionMode);
 
   Coverage() {}
 };

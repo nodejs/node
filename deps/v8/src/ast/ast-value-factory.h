@@ -209,18 +209,7 @@ class AstValue : public ZoneObject {
     return Smi::FromInt(smi_);
   }
 
-  bool ToUint32(uint32_t* value) const {
-    if (IsSmi()) {
-      int num = smi_;
-      if (num < 0) return false;
-      *value = static_cast<uint32_t>(num);
-      return true;
-    }
-    if (IsHeapNumber()) {
-      return DoubleToUint32IfEqualToSelf(number_, value);
-    }
-    return false;
-  }
+  bool ToUint32(uint32_t* value) const;
 
   bool EqualsString(const AstRawString* string) const {
     return type_ == STRING && string_ == string;
@@ -274,16 +263,7 @@ class AstValue : public ZoneObject {
     symbol_ = symbol;
   }
 
-  explicit AstValue(double n) : next_(nullptr) {
-    int int_value;
-    if (DoubleToSmiInteger(n, &int_value)) {
-      type_ = SMI;
-      smi_ = int_value;
-    } else {
-      type_ = NUMBER;
-      number_ = n;
-    }
-  }
+  explicit AstValue(double n);
 
   AstValue(Type t, int i) : type_(t), next_(nullptr) {
     DCHECK(type_ == SMI);
@@ -316,7 +296,7 @@ class AstValue : public ZoneObject {
 };
 
 // For generating constants.
-#define STRING_CONSTANTS(F)                     \
+#define AST_STRING_CONSTANTS(F)                 \
   F(anonymous_function, "(anonymous function)") \
   F(arguments, "arguments")                     \
   F(async, "async")                             \
@@ -361,34 +341,11 @@ class AstValue : public ZoneObject {
 
 class AstStringConstants final {
  public:
-  AstStringConstants(Isolate* isolate, uint32_t hash_seed)
-      : zone_(isolate->allocator(), ZONE_NAME),
-        string_table_(AstRawString::Compare),
-        hash_seed_(hash_seed) {
-    DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
-#define F(name, str)                                                       \
-  {                                                                        \
-    const char* data = str;                                                \
-    Vector<const uint8_t> literal(reinterpret_cast<const uint8_t*>(data),  \
-                                  static_cast<int>(strlen(data)));         \
-    uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(     \
-        literal.start(), literal.length(), hash_seed_);                    \
-    name##_string_ = new (&zone_) AstRawString(true, literal, hash_field); \
-    /* The Handle returned by the factory is located on the roots */       \
-    /* array, not on the temporary HandleScope, so this is safe.  */       \
-    name##_string_->set_string(isolate->factory()->name##_string());       \
-    base::HashMap::Entry* entry =                                          \
-        string_table_.InsertNew(name##_string_, name##_string_->Hash());   \
-    DCHECK_NULL(entry->value);                                             \
-    entry->value = reinterpret_cast<void*>(1);                             \
-  }
-    STRING_CONSTANTS(F)
-#undef F
-  }
+  AstStringConstants(Isolate* isolate, uint32_t hash_seed);
 
 #define F(name, str) \
   const AstRawString* name##_string() const { return name##_string_; }
-  STRING_CONSTANTS(F)
+  AST_STRING_CONSTANTS(F)
 #undef F
 
   uint32_t hash_seed() const { return hash_seed_; }
@@ -402,7 +359,7 @@ class AstStringConstants final {
   uint32_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
-  STRING_CONSTANTS(F)
+  AST_STRING_CONSTANTS(F)
 #undef F
 
   DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
@@ -464,7 +421,7 @@ class AstValueFactory {
   const AstRawString* name##_string() const {  \
     return string_constants_->name##_string(); \
   }
-  STRING_CONSTANTS(F)
+  AST_STRING_CONSTANTS(F)
 #undef F
   const AstConsString* empty_cons_string() const { return empty_cons_string_; }
 
@@ -544,7 +501,6 @@ class AstValueFactory {
 }  // namespace internal
 }  // namespace v8
 
-#undef STRING_CONSTANTS
 #undef OTHER_CONSTANTS
 
 #endif  // V8_AST_AST_VALUE_FACTORY_H_

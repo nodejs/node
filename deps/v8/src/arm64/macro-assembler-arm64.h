@@ -151,20 +151,12 @@ inline BranchType InvertBranchType(BranchType type) {
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
-enum PointersToHereCheck {
-  kPointersToHereMaybeInteresting,
-  kPointersToHereAreAlwaysInteresting
-};
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
 enum TargetAddressStorageMode {
   CAN_INLINE_TARGET_ADDRESS,
   NEVER_INLINE_TARGET_ADDRESS
 };
-enum UntagMode { kNotSpeculativeUntag, kSpeculativeUntag };
-enum ArrayHasHoles { kArrayCantHaveHoles, kArrayCanHaveHoles };
-enum CopyHint { kCopyUnknown, kCopyShort, kCopyLong };
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
-enum SeqStringSetCharCheckIndexType { kIndexIsSmi, kIndexIsInteger32 };
 
 // The macro assembler supports moving automatically pre-shifted immediates for
 // arithmetic and logical instructions, and then applying a post shift in the
@@ -184,21 +176,7 @@ enum PreShiftImmMode {
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : Assembler(isolate, buffer, buffer_size),
-        isolate_(isolate),
-#if DEBUG
-        allow_macro_instructions_(true),
-#endif
-        tmp_list_(DefaultTmpList()),
-        fptmp_list_(DefaultFPTmpList()),
-        sp_(jssp),
-        use_real_aborts_(true) {
-    if (create_code_object == CodeObjectRequired::kYes) {
-      code_object_ =
-          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
-    }
-  }
+                 CodeObjectRequired create_code_object);
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntryStub. If use_real_aborts is false, Abort will
@@ -702,6 +680,20 @@ class TurboAssembler : public Assembler {
   inline void Drop(int64_t count, uint64_t unit_size = kXRegSize);
   inline void Drop(const Register& count, uint64_t unit_size = kXRegSize);
 
+  // Drop arguments from stack without actually accessing memory.
+  // This will currently drop 'count' arguments of the given size from the
+  // stack.
+  // TODO(arm64): Update this to round up the number of bytes dropped to
+  // a multiple of 16, so that we can remove jssp.
+  inline void DropArguments(const Register& count,
+                            uint64_t unit_size = kXRegSize);
+
+  // Drop slots from stack without actually accessing memory.
+  // This will currently drop 'count' slots of the given size from the stack.
+  // TODO(arm64): Update this to round up the number of bytes dropped to
+  // a multiple of 16, so that we can remove jssp.
+  inline void DropSlots(int64_t count, uint64_t unit_size = kXRegSize);
+
   // Re-synchronizes the system stack pointer (csp) with the current stack
   // pointer (according to StackPointer()).
   //
@@ -787,6 +779,13 @@ class TurboAssembler : public Assembler {
   inline void push(Register src) { Push(src); }
   inline void pop(Register dst) { Pop(dst); }
 
+  void SaveRegisters(RegList registers);
+  void RestoreRegisters(RegList registers);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode);
+
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
   // registers are associated with higher memory addresses (as in the A32 push
@@ -800,12 +799,23 @@ class TurboAssembler : public Assembler {
   void PushCPURegList(CPURegList registers);
   void PopCPURegList(CPURegList registers);
 
-  void PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
-                       Register exclusion2 = no_reg,
-                       Register exclusion3 = no_reg);
-  void PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+  // Calculate how much stack space (in bytes) are required to store caller
+  // registers excluding those specified in the arguments.
+  int RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
+                                      Register exclusion1 = no_reg,
+                                      Register exclusion2 = no_reg,
+                                      Register exclusion3 = no_reg) const;
+
+  // Push caller saved registers on the stack, and return the number of bytes
+  // stack pointer is adjusted.
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
+  // Restore caller saved registers from the stack, and return the number of
+  // bytes stack pointer is adjusted.
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                     Register exclusion2 = no_reg,
+                     Register exclusion3 = no_reg);
 
   // Move an immediate into register dst, and return an Operand object for use
   // with a subsequent instruction that accepts a shift. The value moved into
@@ -1576,7 +1586,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Push the specified register 'count' times.
   void PushMultipleTimes(CPURegister src, Register count);
-  void PushMultipleTimes(CPURegister src, int count);
 
   // Sometimes callers need to push or pop multiple registers in a way that is
   // difficult to structure efficiently for fixed Push or Pop calls. This scope
@@ -1724,10 +1733,8 @@ class MacroAssembler : public TurboAssembler {
 
   inline void SmiTag(Register dst, Register src);
   inline void SmiTag(Register smi);
-  inline void SmiUntagToDouble(VRegister dst, Register src,
-                               UntagMode mode = kNotSpeculativeUntag);
-  inline void SmiUntagToFloat(VRegister dst, Register src,
-                              UntagMode mode = kNotSpeculativeUntag);
+  inline void SmiUntagToDouble(VRegister dst, Register src);
+  inline void SmiUntagToFloat(VRegister dst, Register src);
 
   // Tag and push in one step.
   inline void SmiTagAndPush(Register src);
@@ -1794,12 +1801,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---- String Utilities ----
 
-  // Checks if both instance types are sequential one-byte strings and jumps to
-  // label if either is not.
-  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
-      Register first_object_instance_type, Register second_object_instance_type,
-      Register scratch1, Register scratch2, Label* failure);
-
   void JumpIfNotUniqueNameInstanceType(Register type, Label* not_unique_name);
 
   // ---- Calling / Jumping helpers ----
@@ -1863,38 +1864,6 @@ class MacroAssembler : public TurboAssembler {
   // Frame restart support
   void MaybeDropFrames();
 
-  // Exception handling
-
-  // Push a new stack handler and link into stack handler chain.
-  void PushStackHandler();
-
-  // Unlink the stack handler on top of the stack from the stack handler chain.
-  // Must preserve the result register.
-  void PopStackHandler();
-
-
-  // ---------------------------------------------------------------------------
-  // Allocation support
-
-  // Allocate an object in new space or old space. The object_size is
-  // specified either in bytes or in words if the allocation flag SIZE_IN_WORDS
-  // is passed. The allocated object is returned in result.
-  //
-  // If the new space is exhausted control continues at the gc_required label.
-  // In this case, the result and scratch registers may still be clobbered.
-  void Allocate(int object_size,
-                Register result,
-                Register scratch1,
-                Register scratch2,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  // Allocate and initialize a JSValue wrapper with the specified {constructor}
-  // and {value}.
-  void AllocateJSValue(Register result, Register constructor, Register value,
-                       Register scratch1, Register scratch2,
-                       Label* gc_required);
-
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -1930,55 +1899,12 @@ class MacroAssembler : public TurboAssembler {
                         Label* if_cond_pass,
                         Condition cond = eq);
 
-  void JumpIfNotObjectType(Register object,
-                           Register map,
-                           Register type_reg,
-                           InstanceType type,
-                           Label* if_not_object);
-
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
-
-  // Compare an object's map with the specified map. Condition flags are set
-  // with result of map compare.
-  void CompareObjectMap(Register obj, Heap::RootListIndex index);
-
-  // Compare an object's map with the specified map. Condition flags are set
-  // with result of map compare.
-  void CompareObjectMap(Register obj, Register scratch, Handle<Map> map);
-
-  // As above, but the map of the object is already loaded into the register
-  // which is preserved by the code generated.
-  void CompareMap(Register obj_map,
-                  Handle<Map> map);
-
-  // Check if the map of an object is equal to a specified map and branch to
-  // label if not. Skip the smi check if not required (object is known to be a
-  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specified map.
-  void CheckMap(Register obj,
-                Register scratch,
-                Handle<Map> map,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
-
-  void CheckMap(Register obj,
-                Register scratch,
-                Heap::RootListIndex index,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
-  // As above, but the map of the object is already loaded into obj_map, and is
-  // preserved.
-  void CheckMap(Register obj_map,
-                Handle<Map> map,
-                Label* fail,
-                SmiCheckType smi_check_type);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1989,9 +1915,6 @@ class MacroAssembler : public TurboAssembler {
   // Load the elements kind field from a map, and return it in the result
   // register.
   void LoadElementsKindFromMap(Register result, Register map);
-
-  // Load the value from the root list and push it onto the stack.
-  void PushRoot(Heap::RootListIndex index);
 
   // Compare the object in a register to a value from the root list.
   void CompareRoot(const Register& obj, Heap::RootListIndex index);
@@ -2025,9 +1948,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Frames.
-
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
 
   // The stack pointer has to switch between csp and jssp when setting up and
   // destroying the exit frame. Hence preserving/restoring the registers is
@@ -2077,11 +1997,6 @@ class MacroAssembler : public TurboAssembler {
                       const Register& scratch,
                       bool restore_context);
 
-  // Load the global object from the current context.
-  void LoadGlobalObject(Register dst) {
-    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
-  }
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
@@ -2098,19 +2013,12 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Garbage collector support (GC).
 
-  enum RememberedSetFinalAction {
-    kReturnAtEnd,
-    kFallThroughAtEnd
-  };
-
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register. Only works if addr is not
   // in new space.
   void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr,
-                           Register scratch1,
-                           SaveFPRegsMode save_fp,
-                           RememberedSetFinalAction and_then);
+                           Register addr, Register scratch1,
+                           SaveFPRegsMode save_fp);
 
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
@@ -2138,61 +2046,19 @@ class MacroAssembler : public TurboAssembler {
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(
-      Register object,
-      int offset,
-      Register value,
-      Register scratch,
-      LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp,
+      Register object, int offset, Register value, Register scratch,
+      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
-
-  // As above, but the offset has the tag presubtracted. For use with
-  // MemOperand(reg, off).
-  inline void RecordWriteContextSlot(
-      Register context,
-      int offset,
-      Register value,
-      Register scratch,
-      LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting) {
-    RecordWriteField(context,
-                     offset + kHeapObjectTag,
-                     value,
-                     scratch,
-                     lr_status,
-                     save_fp,
-                     remembered_set_action,
-                     smi_check,
-                     pointers_to_here_check_for_value);
-  }
-
-  void RecordWriteForMap(
-      Register object,
-      Register map,
-      Register dst,
-      LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp);
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
   void RecordWrite(
-      Register object,
-      Register address,
-      Register value,
-      LinkRegisterStatus lr_status,
-      SaveFPRegsMode save_fp,
+      Register object, Register address, Register value,
+      LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
+      SmiCheck smi_check = INLINE_SMI_CHECK);
 
   // Checks the color of an object.  If the object is white we jump to the
   // incremental marker.
@@ -2240,12 +2106,6 @@ class MacroAssembler : public TurboAssembler {
 
   void LoadNativeContextSlot(int index, Register dst);
 
-  // Load the initial map from the global function. The registers function and
-  // map can be the same, function is then overwritten.
-  void LoadGlobalFunctionInitialMap(Register function,
-                                    Register map,
-                                    Register scratch);
-
   // Like printf, but print at run-time from generated code.
   //
   // The caller must ensure that arguments for floating-point placeholders
@@ -2280,11 +2140,6 @@ class MacroAssembler : public TurboAssembler {
                         const CPURegister& arg1 = NoCPUReg,
                         const CPURegister& arg2 = NoCPUReg,
                         const CPURegister& arg3 = NoCPUReg);
-
-  // Return true if the sequence is a young sequence geneated by
-  // EmitFrameSetupForCodeAgePatching. Otherwise, this method asserts that the
-  // sequence is a code age sequence (emitted by EmitCodeAgeSequence).
-  static bool IsYoungSequence(Isolate* isolate, byte* sequence);
 
  private:
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.

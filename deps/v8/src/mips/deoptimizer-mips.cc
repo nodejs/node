@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/register-configuration.h"
@@ -26,8 +27,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
-  const int kFloatRegsSize = kFloatSize * FloatRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
@@ -208,10 +209,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ lw(t2, MemOperand(a2, FrameDescription::state_offset()));
-  __ push(t2);
-
+  // Push pc and continuation from the last output frame.
   __ lw(t2, MemOperand(a2, FrameDescription::pc_offset()));
   __ push(t2);
   __ lw(t2, MemOperand(a2, FrameDescription::continuation_offset()));
@@ -313,6 +311,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   }
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

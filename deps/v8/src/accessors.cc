@@ -727,12 +727,11 @@ void Accessors::FunctionLengthGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result;
-  if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
-    result = handle(Smi::kZero, isolate);
+  int length = 0;
+  if (!JSFunction::GetLength(isolate, function).To(&length)) {
     isolate->OptionalRescheduleException(false);
   }
-
+  Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -851,7 +850,10 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
     }
 
     // Find the frame that holds the actual arguments passed to the function.
-    it.AdvanceToArgumentsFrame();
+    if (it.frame()->has_adapted_arguments()) {
+      it.AdvanceOneFrame();
+      DCHECK(it.frame()->is_arguments_adaptor());
+    }
     frame = it.frame();
 
     // Get the number of arguments and construct an arguments object
@@ -930,47 +932,99 @@ static inline bool AllowAccessToFunction(Context* current_context,
 class FrameFunctionIterator {
  public:
   explicit FrameFunctionIterator(Isolate* isolate)
-      : isolate_(isolate), frame_iterator_(isolate) {
+      : isolate_(isolate), frame_iterator_(isolate), inlined_frame_index_(-1) {
     GetFrames();
   }
+
+  // Iterate through functions until the first occurrence of 'function'.
+  // Returns true if one is found, and false if the iterator ends before.
+  bool Find(Handle<JSFunction> function) {
+    do {
+      if (!next().ToHandle(&function_)) return false;
+    } while (!function_.is_identical_to(function));
+    return true;
+  }
+
+  // Iterate through functions until the next non-toplevel one is found.
+  // Returns true if one is found, and false if the iterator ends before.
+  bool FindNextNonTopLevel() {
+    do {
+      if (!next().ToHandle(&function_)) return false;
+    } while (function_->shared()->is_toplevel());
+    return true;
+  }
+
+  // Iterate through function until the first native or user-provided function
+  // is found. Functions not defined in user-provided scripts are not visible
+  // unless directly exposed, in which case the native flag is set on them.
+  // Returns true if one is found, and false if the iterator ends before.
+  bool FindFirstNativeOrUserJavaScript() {
+    while (!function_->shared()->native() &&
+           !function_->shared()->IsUserJavaScript()) {
+      if (!next().ToHandle(&function_)) return false;
+    }
+    return true;
+  }
+
+  // In case of inlined frames the function could have been materialized from
+  // deoptimization information. If that is the case we need to make sure that
+  // subsequent call will see the same function, since we are about to hand out
+  // the value to JavaScript. Make sure to store the materialized value and
+  // trigger a deoptimization of the underlying frame.
+  Handle<JSFunction> MaterializeFunction() {
+    if (inlined_frame_index_ == 0) return function_;
+
+    JavaScriptFrame* frame = frame_iterator_.frame();
+    TranslatedState translated_values(frame);
+    translated_values.Prepare(frame->fp());
+
+    TranslatedFrame* translated_frame =
+        translated_values.GetFrameFromJSFrameIndex(inlined_frame_index_);
+    TranslatedFrame::iterator iter = translated_frame->begin();
+
+    // First value is the function.
+    bool should_deoptimize = iter->IsMaterializedObject();
+    Handle<Object> value = iter->GetValue();
+    if (should_deoptimize) {
+      translated_values.StoreMaterializedValuesAndDeopt(frame);
+    }
+
+    return Handle<JSFunction>::cast(value);
+  }
+
+ private:
   MaybeHandle<JSFunction> next() {
     while (true) {
-      if (frames_.empty()) return MaybeHandle<JSFunction>();
-      Handle<JSFunction> next_function =
-          frames_.back().AsJavaScript().function();
-      frames_.pop_back();
-      if (frames_.empty()) {
-        GetFrames();
+      inlined_frame_index_--;
+      if (inlined_frame_index_ == -1) {
+        if (!frame_iterator_.done()) {
+          frame_iterator_.Advance();
+          frames_.clear();
+          GetFrames();
+        }
+        if (inlined_frame_index_ == -1) return MaybeHandle<JSFunction>();
+        inlined_frame_index_--;
       }
+      Handle<JSFunction> next_function =
+          frames_[inlined_frame_index_].AsJavaScript().function();
       // Skip functions from other origins.
       if (!AllowAccessToFunction(isolate_->context(), *next_function)) continue;
       return next_function;
     }
   }
-
-  // Iterate through functions until the first occurrence of 'function'.
-  // Returns true if 'function' is found, and false if the iterator ends
-  // without finding it.
-  bool Find(Handle<JSFunction> function) {
-    Handle<JSFunction> next_function;
-    do {
-      if (!next().ToHandle(&next_function)) return false;
-    } while (!next_function.is_identical_to(function));
-    return true;
-  }
-
- private:
   void GetFrames() {
-    DCHECK(frames_.empty());
+    DCHECK_EQ(-1, inlined_frame_index_);
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
     frame->Summarize(&frames_);
-    DCHECK(!frames_.empty());
-    frame_iterator_.Advance();
+    inlined_frame_index_ = static_cast<int>(frames_.size());
+    DCHECK_LT(0, inlined_frame_index_);
   }
   Isolate* isolate_;
+  Handle<JSFunction> function_;
   JavaScriptFrameIterator frame_iterator_;
   std::vector<FrameSummary> frames_;
+  int inlined_frame_index_;
 };
 
 
@@ -980,28 +1034,27 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   if (function->shared()->native()) {
     return MaybeHandle<JSFunction>();
   }
-  // Find the function from the frames.
+  // Find the function from the frames. Return null in case no frame
+  // corresponding to the given function was found.
   if (!it.Find(function)) {
-    // No frame corresponding to the given function found. Return null.
     return MaybeHandle<JSFunction>();
   }
   // Find previously called non-toplevel function.
-  Handle<JSFunction> caller;
-  do {
-    if (!it.next().ToHandle(&caller)) return MaybeHandle<JSFunction>();
-  } while (caller->shared()->is_toplevel());
+  if (!it.FindNextNonTopLevel()) {
+    return MaybeHandle<JSFunction>();
+  }
+  // Find the first user-land JavaScript function (or the entry point into
+  // native JavaScript builtins in case such a builtin was the caller).
+  if (!it.FindFirstNativeOrUserJavaScript()) {
+    return MaybeHandle<JSFunction>();
+  }
 
-  // If caller is not user code and caller's caller is also not user code,
-  // use that instead.
-  MaybeHandle<JSFunction> potential_caller = caller;
-  while (!potential_caller.is_null() &&
-         !potential_caller.ToHandleChecked()->shared()->IsUserJavaScript()) {
-    caller = potential_caller.ToHandleChecked();
-    potential_caller = it.next();
-  }
-  if (!caller->shared()->native() && !potential_caller.is_null()) {
-    caller = potential_caller.ToHandleChecked();
-  }
+  // Materialize the function that the iterator is currently sitting on. Note
+  // that this might trigger deoptimization in case the function was actually
+  // materialized. Identity of the function must be preserved because we are
+  // going to return it to JavaScript after this point.
+  Handle<JSFunction> caller = it.MaterializeFunction();
+
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
@@ -1056,18 +1109,11 @@ void Accessors::BoundFunctionLengthGetter(
   Handle<JSBoundFunction> function =
       Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
 
-  Handle<Smi> target_length;
-  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
-                            isolate);
-  if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
-    target_length = handle(Smi::kZero, isolate);
+  int length = 0;
+  if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
     isolate->OptionalRescheduleException(false);
     return;
   }
-
-  int bound_length = function->bound_arguments()->length();
-  int length = Max(0, target_length->value() - bound_length);
-
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

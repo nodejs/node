@@ -20,11 +20,13 @@ class AccessCompilerData {
   bool IsInitialized() const { return load_calling_convention_ != nullptr; }
   void Initialize(int load_register_count, const Register* load_registers,
                   int store_register_count, const Register* store_registers) {
-    load_calling_convention_.reset(NewArray<Register>(load_register_count));
+    load_calling_convention_.reset(
+        NewArray<Register>(load_register_count, no_reg));
     for (int i = 0; i < load_register_count; ++i) {
       load_calling_convention_[i] = load_registers[i];
     }
-    store_calling_convention_.reset(NewArray<Register>(store_register_count));
+    store_calling_convention_.reset(
+        NewArray<Register>(store_register_count, no_reg));
     for (int i = 0; i < store_register_count; ++i) {
       store_calling_convention_[i] = store_registers[i];
     }

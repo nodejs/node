@@ -168,6 +168,30 @@ void AstConsString::Internalize(Isolate* isolate) {
   set_string(tmp);
 }
 
+AstValue::AstValue(double n) : next_(nullptr) {
+  int int_value;
+  if (DoubleToSmiInteger(n, &int_value)) {
+    type_ = SMI;
+    smi_ = int_value;
+  } else {
+    type_ = NUMBER;
+    number_ = n;
+  }
+}
+
+bool AstValue::ToUint32(uint32_t* value) const {
+  if (IsSmi()) {
+    int num = smi_;
+    if (num < 0) return false;
+    *value = static_cast<uint32_t>(num);
+    return true;
+  }
+  if (IsHeapNumber()) {
+    return DoubleToUint32IfEqualToSelf(number_, value);
+  }
+  return false;
+}
+
 bool AstValue::IsPropertyName() const {
   if (type_ == STRING) {
     uint32_t index;
@@ -240,6 +264,31 @@ void AstValue::Internalize(Isolate* isolate) {
       set_value(isolate->factory()->undefined_value());
       break;
   }
+}
+
+AstStringConstants::AstStringConstants(Isolate* isolate, uint32_t hash_seed)
+    : zone_(isolate->allocator(), ZONE_NAME),
+      string_table_(AstRawString::Compare),
+      hash_seed_(hash_seed) {
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+#define F(name, str)                                                       \
+  {                                                                        \
+    const char* data = str;                                                \
+    Vector<const uint8_t> literal(reinterpret_cast<const uint8_t*>(data),  \
+                                  static_cast<int>(strlen(data)));         \
+    uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(     \
+        literal.start(), literal.length(), hash_seed_);                    \
+    name##_string_ = new (&zone_) AstRawString(true, literal, hash_field); \
+    /* The Handle returned by the factory is located on the roots */       \
+    /* array, not on the temporary HandleScope, so this is safe.  */       \
+    name##_string_->set_string(isolate->factory()->name##_string());       \
+    base::HashMap::Entry* entry =                                          \
+        string_table_.InsertNew(name##_string_, name##_string_->Hash());   \
+    DCHECK_NULL(entry->value);                                             \
+    entry->value = reinterpret_cast<void*>(1);                             \
+  }
+  AST_STRING_CONSTANTS(F)
+#undef F
 }
 
 AstRawString* AstValueFactory::GetOneByteStringInternal(

@@ -187,6 +187,7 @@ namespace internal {
   C(OF, "of", 0)                                                     \
   C(TARGET, "target", 0)                                             \
   C(SENT, "sent", 0)                                                 \
+  C(META, "meta", 0)                                                 \
   C(AS, "as", 0)                                                     \
   C(FROM, "from", 0)                                                 \
   C(NAME, "name", 0)                                                 \

@@ -10,10 +10,9 @@
 #include "src/runtime/runtime.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
-// The contract  to the shared code is that the the CodeGenerator is a subclass
+// The contract to the shared code is that the the CodeGenerator is a subclass
 // of Visitor and that the following methods are available publicly:
 //   MakeCode
-//   MakeCodePrologue
 //   MakeCodeEpilogue
 //   masm
 //   frame
@@ -68,14 +67,9 @@ namespace internal {
 
 class CompilationInfo;
 class EhFrameWriter;
-class ParseInfo;
 
 class CodeGenerator {
  public:
-  // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(ParseInfo* parse_info, CompilationInfo* info,
-                               const char* kind);
-
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(TurboAssembler* tasm,
                                        EhFrameWriter* unwinding,

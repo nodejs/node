@@ -111,35 +111,6 @@ RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
 }
 
 
-RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
-  Handle<Object> cache_type;
-  if (!Enumerate(receiver).ToHandle(&cache_type)) {
-    return MakeTriple(isolate->heap()->exception(), nullptr, nullptr);
-  }
-  Handle<FixedArray> cache_array;
-  int cache_length;
-  if (cache_type->IsMap()) {
-    Handle<Map> cache_map = Handle<Map>::cast(cache_type);
-    Handle<DescriptorArray> descriptors(cache_map->instance_descriptors(),
-                                        isolate);
-    cache_length = cache_map->EnumLength();
-    if (cache_length && descriptors->HasEnumCache()) {
-      cache_array = handle(descriptors->GetEnumCache(), isolate);
-    } else {
-      cache_array = isolate->factory()->empty_fixed_array();
-      cache_length = 0;
-    }
-  } else {
-    cache_array = Handle<FixedArray>::cast(cache_type);
-    cache_length = cache_array->length();
-    cache_type = handle(Smi::FromInt(1), isolate);
-  }
-  return MakeTriple(*cache_type, *cache_array, Smi::FromInt(cache_length));
-}
-
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -149,15 +120,6 @@ RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));
   return isolate->heap()->ToBoolean(!result->IsUndefined(isolate));
-}
-
-RUNTIME_FUNCTION(Runtime_ForInFilter) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           HasEnumerableProperty(isolate, receiver, key));
 }
 
 }  // namespace internal

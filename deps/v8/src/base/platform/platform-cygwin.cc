@@ -26,6 +26,31 @@
 namespace v8 {
 namespace base {
 
+namespace {
+
+// The VirtualMemory implementation is taken from platform-win32.cc.
+// The mmap-based virtual memory implementation as it is used on most posix
+// platforms does not work well because Cygwin does not support MAP_FIXED.
+// This causes VirtualMemory::Commit to not always commit the memory region
+// specified.
+
+static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
+                                    void* hint) {
+  LPVOID base = NULL;
+
+  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
+    // For exectutable pages try and randomize the allocation address
+    base = VirtualAlloc(hint, size, action, protection);
+  }
+
+  // After three attempts give up and let the OS find an address to use.
+  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
+
+  return base;
+}
+
+}  // namespace
+
 class CygwinTimezoneCache : public PosixTimezoneCache {
   const char* LocalTimezone(double time) override;
 
@@ -65,6 +90,74 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   return mbase;
 }
 
+// static
+void* OS::ReserveRegion(size_t size, void* hint) {
+  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
+}
+
+// static
+void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                               size_t* allocated) {
+  hint = AlignedAddress(hint, alignment);
+  DCHECK((alignment % OS::AllocateAlignment()) == 0);
+  size_t request_size =
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* address = ReserveRegion(request_size, hint);
+  if (address == NULL) {
+    *allocated = 0;
+    return nullptr;
+  }
+  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
+  // Try reducing the size by freeing and then reallocating a specific area.
+  bool result = ReleaseRegion(address, request_size);
+  USE(result);
+  DCHECK(result);
+  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
+  if (address != nullptr) {
+    request_size = size;
+    DCHECK(base == static_cast<uint8_t*>(address));
+  } else {
+    // Resizing failed, just go with a bigger area.
+    address = ReserveRegion(request_size, hint);
+    if (address == nullptr) {
+      *allocated = 0;
+      return nullptr;
+    }
+  }
+
+  *allocated = request_size;
+  return static_cast<void*>(address);
+}
+
+// static
+bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
+  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
+    return false;
+  }
+  return true;
+}
+
+// static
+bool OS::UncommitRegion(void* address, size_t size) {
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+}
+
+// static
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+}
+
+// static
+bool OS::ReleasePartialRegion(void* address, size_t size) {
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+}
+
+// static
+bool OS::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
+  return false;
+}
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddresses> result;
@@ -126,128 +219,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-
-void OS::SignalCodeMovingGC() {
+void OS::SignalCodeMovingGC(void* hint) {
   // Nothing to do on Cygwin.
-}
-
-
-// The VirtualMemory implementation is taken from platform-win32.cc.
-// The mmap-based virtual memory implementation as it is used on most posix
-// platforms does not work well because Cygwin does not support MAP_FIXED.
-// This causes VirtualMemory::Commit to not always commit the memory region
-// specified.
-
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
-                                    void* hint) {
-  LPVOID base = NULL;
-
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
-    base = VirtualAlloc(hint, size, action, protection);
-  }
-
-  // After three attempts give up and let the OS find an address to use.
-  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
-
-  return base;
-}
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size, hint)), size_(size) {}
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
-    : address_(NULL), size_(0) {
-  hint = AlignedAddress(hint, alignment);
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* address = ReserveRegion(request_size, hint);
-  if (address == NULL) return;
-  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
-  // Try reducing the size by freeing and then reallocating a specific area.
-  bool result = ReleaseRegion(address, request_size);
-  USE(result);
-  DCHECK(result);
-  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
-  if (address != NULL) {
-    request_size = size;
-    DCHECK(base == static_cast<uint8_t*>(address));
-  } else {
-    // Resizing failed, just go with a bigger area.
-    address = ReserveRegion(request_size, hint);
-    if (address == NULL) return;
-  }
-  address_ = address;
-  size_ = request_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address_, size_);
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  DCHECK(IsReserved());
-  return UncommitRegion(address, size);
-}
-
-void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
-  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  if (NULL == VirtualAlloc(address,
-                           OS::CommitPageSize(),
-                           MEM_COMMIT,
-                           PAGE_NOACCESS)) {
-    return false;
-  }
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != 0;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return VirtualFree(base, 0, MEM_RELEASE) != 0;
-}
-
-
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
 }
 
 }  // namespace base

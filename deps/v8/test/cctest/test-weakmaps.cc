@@ -27,23 +27,16 @@
 
 #include <utility>
 
-#include "src/v8.h"
-
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/feedback-vector.h ->
-// src/feedback-vector-inl.h
-#include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
+namespace test_weakmaps {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -191,7 +184,7 @@ TEST(Regress2060a) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
       CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
-      int32_t hash = object->GetOrCreateHash(isolate)->value();
+      int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
     }
   }
@@ -263,5 +256,6 @@ TEST(Regress399527) {
   CcTest::CollectAllGarbage();
 }
 
+}  // namespace test_weakmaps
 }  // namespace internal
 }  // namespace v8

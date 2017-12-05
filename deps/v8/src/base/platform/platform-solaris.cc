@@ -58,49 +58,47 @@ double SolarisTimezoneCache::LocalTimeOffset() {
 
 TimezoneCache* OS::CreateTimezoneCache() { return new SolarisTimezoneCache(); }
 
+// Constants used for mmap.
+static const int kMmapFd = -1;
+static const int kMmapFdOffset = 0;
+
 void* OS::Allocate(const size_t requested, size_t* allocated,
                    OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* mbase =
+      mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
 
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
 }
 
+// static
+void* OS::ReserveRegion(size_t size, void* hint) {
+  void* result =
+      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+           kMmapFd, kMmapFdOffset);
 
-std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  return std::vector<SharedLibraryAddress>();
+  if (result == MAP_FAILED) return NULL;
+
+  return result;
 }
 
-
-void OS::SignalCodeMovingGC() {
-}
-
-
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
-
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size, hint)), size_(size) {}
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
-    : address_(NULL), size_(0) {
+// static
+void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                               size_t* allocated) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
   hint = AlignedAddress(hint, alignment);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation =
-      mmap(hint, request_size, PROT_NONE,
-           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
-  if (reservation == MAP_FAILED) return;
+  void* result = ReserveRegion(request_size, hint);
+  if (result == nullptr) {
+    *allocated = 0;
+    return nullptr;
+  }
 
-  uint8_t* base = static_cast<uint8_t*>(reservation);
+  uint8_t* base = static_cast<uint8_t*>(result);
   uint8_t* aligned_base = RoundUp(base, alignment);
   DCHECK_LE(base, aligned_base);
 
@@ -122,88 +120,49 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
 
   DCHECK(aligned_size == request_size);
 
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
+  *allocated = aligned_size;
+  return static_cast<void*>(aligned_base);
 }
 
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
-}
-
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  return CommitRegion(address, size, is_executable);
-}
-
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
-}
-
-
-bool VirtualMemory::Guard(void* address) {
-  OS::Guard(address, OS::CommitPageSize());
-  return true;
-}
-
-void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
-  void* result =
-      mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-           kMmapFd, kMmapFdOffset);
-
-  if (result == MAP_FAILED) return NULL;
-
-  return result;
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+// static
+bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(base,
-                         size,
-                         prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                         kMmapFd,
+  if (MAP_FAILED == mmap(address, size, prot,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
                          kMmapFdOffset)) {
     return false;
   }
   return true;
 }
 
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mmap(base,
-              size,
-              PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd,
+// static
+bool OS::UncommitRegion(void* address, size_t size) {
+  return mmap(address, size, PROT_NONE,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, kMmapFd,
               kMmapFdOffset) != MAP_FAILED;
 }
 
-bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
-                                         void* free_start, size_t free_size) {
-  return munmap(free_start, free_size) == 0;
+// static
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return munmap(address, size) == 0;
 }
 
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return munmap(base, size) == 0;
+// static
+bool OS::ReleasePartialRegion(void* address, size_t size) {
+  return munmap(address, size) == 0;
 }
 
-
-bool VirtualMemory::HasLazyCommits() {
+// static
+bool OS::HasLazyCommits() {
   // TODO(alph): implement for the platform.
   return false;
 }
+
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  return std::vector<SharedLibraryAddress>();
+}
+
+void OS::SignalCodeMovingGC(void* hint) {}
 
 }  // namespace base
 }  // namespace v8

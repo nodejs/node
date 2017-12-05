@@ -6,14 +6,15 @@
 
 #include "test/cctest/cctest.h"
 
-namespace {
+namespace v8 {
+namespace internal {
+namespace test_usecounters {
 
 int* global_use_counts = NULL;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
   ++global_use_counts[feature];
-}
 }
 
 TEST(DefineGetterSetterThrowUseCount) {
@@ -140,3 +141,7 @@ TEST(LabeledExpressionStatement) {
       "bat: do { } while (false);");
   CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
 }
+
+}  // namespace test_usecounters
+}  // namespace internal
+}  // namespace v8

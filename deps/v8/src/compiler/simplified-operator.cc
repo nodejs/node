@@ -240,29 +240,19 @@ CheckTaggedInputMode CheckTaggedInputModeOf(const Operator* op) {
   return OpParameter<CheckTaggedInputMode>(op);
 }
 
-std::ostream& operator<<(std::ostream& os, GrowFastElementsFlags flags) {
-  bool empty = true;
-  if (flags & GrowFastElementsFlag::kArrayObject) {
-    os << "ArrayObject";
-    empty = false;
+std::ostream& operator<<(std::ostream& os, GrowFastElementsMode mode) {
+  switch (mode) {
+    case GrowFastElementsMode::kDoubleElements:
+      return os << "DoubleElements";
+    case GrowFastElementsMode::kSmiOrObjectElements:
+      return os << "SmiOrObjectElements";
   }
-  if (flags & GrowFastElementsFlag::kDoubleElements) {
-    if (!empty) os << "|";
-    os << "DoubleElements";
-    empty = false;
-  }
-  if (flags & GrowFastElementsFlag::kHoleyElements) {
-    if (!empty) os << "|";
-    os << "HoleyElements";
-    empty = false;
-  }
-  if (empty) os << "None";
-  return os;
+  UNREACHABLE();
 }
 
-GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator* op) {
+GrowFastElementsMode GrowFastElementsModeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kMaybeGrowFastElements, op->opcode());
-  return OpParameter<GrowFastElementsFlags>(op);
+  return OpParameter<GrowFastElementsMode>(op);
 }
 
 bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
@@ -338,12 +328,12 @@ std::ostream& operator<<(std::ostream& os,
 }  // namespace
 
 Handle<Map> DoubleMapParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
   return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
 }
 
 Handle<Map> FastMapParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
   return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
 }
 
@@ -407,6 +397,10 @@ bool operator!=(AllocateParameters const& lhs, AllocateParameters const& rhs) {
 }
 
 PretenureFlag PretenureFlagOf(const Operator* op) {
+  if (op->opcode() == IrOpcode::kNewDoubleElements ||
+      op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
+    return OpParameter<PretenureFlag>(op);
+  }
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
   return OpParameter<AllocateParameters>(op).pretenure();
 }
@@ -417,8 +411,13 @@ Type* AllocateTypeOf(const Operator* op) {
 }
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kStringFromCodePoint);
+  DCHECK_EQ(IrOpcode::kStringFromCodePoint, op->opcode());
   return OpParameter<UnicodeEncoding>(op);
+}
+
+BailoutReason BailoutReasonOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kRuntimeAbort, op->opcode());
+  return OpParameter<BailoutReason>(op);
 }
 
 #define PURE_OP_LIST(V)                                          \
@@ -500,8 +499,11 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(TruncateTaggedPointerToBit, Operator::kNoProperties, 1, 0)   \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
+  V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
+  V(ObjectIsConstructor, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
+  V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
   V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \
@@ -588,19 +590,21 @@ struct SimplifiedOperatorGlobalCache final {
   };
   ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
 
-  struct LookupHashStorageIndexOperator final : public Operator {
-    LookupHashStorageIndexOperator()
-        : Operator(IrOpcode::kLookupHashStorageIndex, Operator::kEliminatable,
-                   "LookupHashStorageIndex", 2, 1, 1, 1, 1, 0) {}
+  struct FindOrderedHashMapEntryOperator final : public Operator {
+    FindOrderedHashMapEntryOperator()
+        : Operator(IrOpcode::kFindOrderedHashMapEntry, Operator::kEliminatable,
+                   "FindOrderedHashMapEntry", 2, 1, 1, 1, 1, 0) {}
   };
-  LookupHashStorageIndexOperator kLookupHashStorageIndex;
+  FindOrderedHashMapEntryOperator kFindOrderedHashMapEntry;
 
-  struct LoadHashMapValueOperator final : public Operator {
-    LoadHashMapValueOperator()
-        : Operator(IrOpcode::kLoadHashMapValue, Operator::kEliminatable,
-                   "LoadHashMapValue", 2, 1, 1, 1, 1, 0) {}
+  struct FindOrderedHashMapEntryForInt32KeyOperator final : public Operator {
+    FindOrderedHashMapEntryForInt32KeyOperator()
+        : Operator(IrOpcode::kFindOrderedHashMapEntryForInt32Key,
+                   Operator::kEliminatable,
+                   "FindOrderedHashMapEntryForInt32Key", 2, 1, 1, 1, 1, 0) {}
   };
-  LoadHashMapValueOperator kLoadHashMapValue;
+  FindOrderedHashMapEntryForInt32KeyOperator
+      kFindOrderedHashMapEntryForInt32Key;
 
   struct ArgumentsFrameOperator final : public Operator {
     ArgumentsFrameOperator()
@@ -608,14 +612,6 @@ struct SimplifiedOperatorGlobalCache final {
                    0, 0, 0, 1, 0, 0) {}
   };
   ArgumentsFrameOperator kArgumentsFrame;
-
-  struct NewUnmappedArgumentsElementsOperator final : public Operator {
-    NewUnmappedArgumentsElementsOperator()
-        : Operator(IrOpcode::kNewUnmappedArgumentsElements,
-                   Operator::kEliminatable, "NewUnmappedArgumentsElements", 2,
-                   1, 0, 1, 1, 0) {}
-  };
-  NewUnmappedArgumentsElementsOperator kNewUnmappedArgumentsElements;
 
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
@@ -700,16 +696,6 @@ struct SimplifiedOperatorGlobalCache final {
   CheckedTruncateTaggedToWord32Operator<CheckTaggedInputMode::kNumberOrOddball>
       kCheckedTruncateTaggedToWord32NumberOrOddballOperator;
 
-  struct CheckMapValueOperator final : public Operator {
-    CheckMapValueOperator()
-        : Operator(                                     // --
-              IrOpcode::kCheckMapValue,                 // opcode
-              Operator::kNoThrow | Operator::kNoWrite,  // flags
-              "CheckMapValue",                          // name
-              2, 1, 1, 0, 1, 0) {}                      // counts
-  };
-  CheckMapValueOperator kCheckMapValue;
-
   template <CheckFloat64HoleMode kMode>
   struct CheckFloat64HoleNaNOperator final
       : public Operator1<CheckFloat64HoleMode> {
@@ -733,6 +719,16 @@ struct SimplifiedOperatorGlobalCache final {
               2, 1, 1, 1, 1, 0) {}                      // counts
   };
   EnsureWritableFastElementsOperator kEnsureWritableFastElements;
+
+  struct LoadFieldByIndexOperator final : public Operator {
+    LoadFieldByIndexOperator()
+        : Operator(                         // --
+              IrOpcode::kLoadFieldByIndex,  // opcode
+              Operator::kEliminatable,      // flags,
+              "LoadFieldByIndex",           // name
+              2, 1, 1, 1, 1, 0) {}          // counts;
+  };
+  LoadFieldByIndexOperator kLoadFieldByIndex;
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
@@ -786,11 +782,19 @@ PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
-GET_FROM_CACHE(LookupHashStorageIndex)
-GET_FROM_CACHE(LoadHashMapValue)
-GET_FROM_CACHE(CheckMapValue)
-GET_FROM_CACHE(NewUnmappedArgumentsElements)
+GET_FROM_CACHE(FindOrderedHashMapEntry)
+GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
+GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::RuntimeAbort(BailoutReason reason) {
+  return new (zone()) Operator1<BailoutReason>(  // --
+      IrOpcode::kRuntimeAbort,                   // opcode
+      Operator::kNoThrow | Operator::kNoDeopt,   // flags
+      "RuntimeAbort",                            // name
+      0, 1, 1, 0, 1, 0,                          // counts
+      reason);                                   // parameter
+}
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
     CheckForMinusZeroMode mode) {
@@ -912,13 +916,13 @@ const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {
 }
 
 const Operator* SimplifiedOperatorBuilder::MaybeGrowFastElements(
-    GrowFastElementsFlags flags) {
-  return new (zone()) Operator1<GrowFastElementsFlags>(  // --
-      IrOpcode::kMaybeGrowFastElements,                  // opcode
-      Operator::kNoThrow,                                // flags
-      "MaybeGrowFastElements",                           // name
-      4, 1, 1, 1, 1, 0,                                  // counts
-      flags);                                            // parameter
+    GrowFastElementsMode mode) {
+  return new (zone()) Operator1<GrowFastElementsMode>(  // --
+      IrOpcode::kMaybeGrowFastElements,                 // opcode
+      Operator::kNoThrow,                               // flags
+      "MaybeGrowFastElements",                          // name
+      4, 1, 1, 1, 1, 0,                                 // counts
+      mode);                                            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
@@ -967,13 +971,43 @@ const Operator* SimplifiedOperatorBuilder::ArgumentsLength(
 }
 
 int FormalParameterCountOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsLength);
+  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
   return OpParameter<ArgumentsLengthParameters>(op).formal_parameter_count;
 }
 
 bool IsRestLengthOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsLength);
+  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
+}
+
+const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
+    PretenureFlag pretenure) {
+  return new (zone()) Operator1<PretenureFlag>(  // --
+      IrOpcode::kNewDoubleElements,              // opcode
+      Operator::kEliminatable,                   // flags
+      "NewDoubleElements",                       // name
+      1, 1, 1, 1, 1, 0,                          // counts
+      pretenure);                                // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
+    PretenureFlag pretenure) {
+  return new (zone()) Operator1<PretenureFlag>(  // --
+      IrOpcode::kNewSmiOrObjectElements,         // opcode
+      Operator::kEliminatable,                   // flags
+      "NewSmiOrObjectElements",                  // name
+      1, 1, 1, 1, 1, 0,                          // counts
+      pretenure);                                // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
+    int mapped_count) {
+  return new (zone()) Operator1<int>(   // --
+      IrOpcode::kNewArgumentsElements,  // opcode
+      Operator::kEliminatable,          // flags
+      "NewArgumentsElements",           // name
+      2, 1, 0, 1, 1, 0,                 // counts
+      mapped_count);                    // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
@@ -1042,6 +1076,12 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
       IrOpcode::kTransitionAndStoreElement,
       Operator::kNoDeopt | Operator::kNoThrow, "TransitionAndStoreElement", 3,
       1, 1, 0, 1, 0, parameters);
+}
+
+const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
+  return new (zone()) Operator(IrOpcode::kStoreSignedSmallElement,
+                               Operator::kNoDeopt | Operator::kNoThrow,
+                               "StoreSignedSmallElement", 3, 1, 1, 0, 1, 0);
 }
 
 }  // namespace compiler

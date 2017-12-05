@@ -54,36 +54,15 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
-  rm_ = no_reg;
-  value_.immediate = immediate;
-  rmode_ = rmode;
-}
-
-
-Operand::Operand(const ExternalReference& f)  {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<int32_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE32;
-}
-
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-}
-
-
 bool Operand::is_reg() const {
   return rm_.is_valid();
 }
 
+int32_t Operand::immediate() const {
+  DCHECK(!is_reg());
+  DCHECK(!IsHeapObjectRequest());
+  return value_.immediate;
+}
 
 // -----------------------------------------------------------------------------
 // RelocInfo.
@@ -160,6 +139,21 @@ Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
 }
 
+void Assembler::deserialization_set_special_target_at(
+    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    // On R6 the address location is shifted by one instruction
+    set_target_address_at(
+        isolate,
+        instruction_payload - (kInstructionsFor32BitConstant - 1) * kInstrSize,
+        code, target);
+  } else {
+    set_target_address_at(
+        isolate,
+        instruction_payload - kInstructionsFor32BitConstant * kInstrSize, code,
+        target);
+  }
+}
 
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
@@ -385,6 +379,7 @@ void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   EmitHelper(x, is_compact_branch);
 }
 
+EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 }  // namespace internal
 }  // namespace v8

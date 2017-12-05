@@ -8,7 +8,6 @@
 #include "src/base/platform/time.h"
 #include "src/flags.h"
 #include "src/isolate.h"
-#include "src/list-inl.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"
 
@@ -101,9 +100,9 @@ SaveFlags::SaveFlags() { non_default_flags_ = FlagList::argv(); }
 
 SaveFlags::~SaveFlags() {
   FlagList::ResetAllFlags();
-  int argc = non_default_flags_->length();
+  int argc = static_cast<int>(non_default_flags_->size());
   FlagList::SetFlagsFromCommandLine(
-      &argc, const_cast<char**>(non_default_flags_->begin()),
+      &argc, const_cast<char**>(non_default_flags_->data()),
       false /* remove_flags */);
   for (auto flag = non_default_flags_->begin();
        flag != non_default_flags_->end(); ++flag) {

@@ -44,9 +44,9 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ Push(cp, value());
 
     if (accessor_index >= 0) {
-      DCHECK(!holder.is(scratch));
-      DCHECK(!receiver.is(scratch));
-      DCHECK(!value().is(scratch));
+      DCHECK(holder != scratch);
+      DCHECK(receiver != scratch);
+      DCHECK(value() != scratch);
       // Call the JavaScript setter with receiver and value on the stack.
       if (map->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
@@ -103,7 +103,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
     Handle<Name> name, Register scratch0, Register scratch1) {
   DCHECK(name->IsUniqueName());
-  DCHECK(!receiver.is(scratch0));
+  DCHECK(receiver != scratch0);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
@@ -167,14 +167,14 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     Handle<Map> receiver_map, Register receiver, Register scratch_in,
     bool is_store, Register store_parameter, Register accessor_holder,
     int accessor_index) {
-  DCHECK(!accessor_holder.is(scratch_in));
-  DCHECK(!receiver.is(scratch_in));
+  DCHECK(accessor_holder != scratch_in);
+  DCHECK(receiver != scratch_in);
   __ push(accessor_holder);
   __ push(receiver);
   // Write the arguments to stack frame.
   if (is_store) {
-    DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch_in.is(store_parameter));
+    DCHECK(receiver != store_parameter);
+    DCHECK(scratch_in != store_parameter);
     __ push(store_parameter);
   }
   DCHECK(optimization.is_simple_api_call());
@@ -275,9 +275,9 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   Handle<Map> receiver_map = map();
 
   // Make sure there's no overlap between holder and object registers.
-  DCHECK(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
-  DCHECK(!scratch2.is(object_reg) && !scratch2.is(holder_reg) &&
-         !scratch2.is(scratch1));
+  DCHECK(scratch1 != object_reg && scratch1 != holder_reg);
+  DCHECK(scratch2 != object_reg && scratch2 != holder_reg &&
+         scratch2 != scratch1);
 
   Handle<Cell> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
@@ -352,9 +352,8 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ Branch(&success);
     __ bind(miss);
-    DCHECK(kind() == Code::LOAD_IC);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kLoadIC_Miss);
     __ bind(&success);
   }
 }
@@ -366,7 +365,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     __ Branch(&success);
     GenerateRestoreName(miss, name);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kStoreIC_Miss);
     __ bind(&success);
   }
 }
@@ -398,7 +397,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 

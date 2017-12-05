@@ -5,12 +5,14 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/api-arguments.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -43,8 +45,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ pushad();
   if (save_doubles()) {
-    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(Operand(esp, i * kDoubleSize), reg);
     }
@@ -59,11 +61,11 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
   if (save_doubles()) {
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(reg, Operand(esp, i * kDoubleSize));
     }
-    __ add(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    __ add(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
   }
   __ popad();
   __ ret(0);
@@ -108,31 +110,31 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   int double_offset = offset();
 
   // Account for return address and saved regs if input is esp.
-  if (input_reg.is(esp)) double_offset += 3 * kPointerSize;
+  if (input_reg == esp) double_offset += 3 * kPointerSize;
 
   MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
   MemOperand exponent_operand(MemOperand(input_reg,
                                          double_offset + kDoubleSize / 2));
 
-  Register scratch1;
+  Register scratch1 = no_reg;
   {
     Register scratch_candidates[3] = { ebx, edx, edi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+      if (final_result_reg != scratch1 && input_reg != scratch1) break;
     }
   }
   // Since we must use ecx for shifts below, use some other register (eax)
   // to calculate the result if ecx is the requested return register.
-  Register result_reg = final_result_reg.is(ecx) ? eax : final_result_reg;
+  Register result_reg = final_result_reg == ecx ? eax : final_result_reg;
   // Save ecx if it isn't the return register and therefore volatile, or if it
   // is the return register, then save the temp register we use in its stead for
   // the result.
-  Register save_reg = final_result_reg.is(ecx) ? eax : ecx;
+  Register save_reg = final_result_reg == ecx ? eax : ecx;
   __ push(scratch1);
   __ push(save_reg);
 
-  bool stash_exponent_copy = !input_reg.is(esp);
+  bool stash_exponent_copy = input_reg != esp;
   __ mov(scratch1, mantissa_operand);
   if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
@@ -212,8 +214,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ add(esp, Immediate(kDoubleSize / 2));
   }
   __ bind(&done_no_stash);
-  if (!final_result_reg.is(result_reg)) {
-    DCHECK(final_result_reg.is(ecx));
+  if (final_result_reg != result_reg) {
+    DCHECK(final_result_reg == ecx);
     __ mov(final_result_reg, result_reg);
   }
   __ pop(save_reg);
@@ -296,7 +298,7 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(eax));
+  DCHECK(exponent == eax);
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;
@@ -486,7 +488,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // result size is greater than can be returned in registers, also reserve
   // space for the hidden argument for the result location, and space for the
   // result itself.
-  int arg_stack_space = result_size() < 3 ? 3 : 4 + result_size();
+  int arg_stack_space = 3;
 
   // Enter the exit frame that transitions from JavaScript to C++.
   if (argv_in_register()) {
@@ -516,35 +518,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ CheckStackAlignment();
   }
   // Call C function.
-  if (result_size() <= 2) {
-    __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
-    __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
-    __ mov(Operand(esp, 2 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(isolate())));
-  } else {
-    DCHECK_EQ(3, result_size());
-    // Pass a pointer to the result location as the first argument.
-    __ lea(eax, Operand(esp, 4 * kPointerSize));
-    __ mov(Operand(esp, 0 * kPointerSize), eax);
-    __ mov(Operand(esp, 1 * kPointerSize), edi);  // argc.
-    __ mov(Operand(esp, 2 * kPointerSize), esi);  // argv.
-    __ mov(Operand(esp, 3 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(isolate())));
-  }
+  __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
+  __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
+  __ mov(Operand(esp, 2 * kPointerSize),
+         Immediate(ExternalReference::isolate_address(isolate())));
   __ call(ebx);
 
-  if (result_size() > 2) {
-    DCHECK_EQ(3, result_size());
-#ifndef _WIN32
-    // Restore the "hidden" argument on the stack which was popped by caller.
-    __ sub(esp, Immediate(kPointerSize));
-#endif
-    // Read result values stored on stack. Result is stored above the arguments.
-    __ mov(kReturnRegister0, Operand(esp, 4 * kPointerSize));
-    __ mov(kReturnRegister1, Operand(esp, 5 * kPointerSize));
-    __ mov(kReturnRegister2, Operand(esp, 6 * kPointerSize));
-  }
-  // Result is in eax, edx:eax or edi:edx:eax - do not destroy these registers!
+  // Result is in eax or edx:eax - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -671,9 +651,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
   __ PushStackHandler();
-
-  // Fake a receiver (NULL).
-  __ push(Immediate(0));  // receiver
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. Notice that we cannot store a
@@ -997,6 +974,46 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   stub2.GetCode();
 }
 
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  byte first_instruction = stub->instruction_start()[0];
+  byte second_instruction = stub->instruction_start()[2];
+
+  if (first_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL;
+  }
+
+  DCHECK(first_instruction == kTwoByteNopInstruction);
+
+  if (second_instruction == kFiveByteJumpInstruction) {
+    return INCREMENTAL_COMPACTION;
+  }
+
+  DCHECK(second_instruction == kFiveByteNopInstruction);
+
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kFiveByteNopInstruction;
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteJumpInstruction;
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kFiveByteJumpInstruction;
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
@@ -1014,8 +1031,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   __ jmp(&skip_to_incremental_compacting, Label::kFar);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1055,8 +1071,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
         mode);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
 
     __ bind(&dont_need_remembered_set);
   }
@@ -1088,6 +1103,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+}
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
@@ -1107,8 +1125,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1152,8 +1169,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1547,7 +1563,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference level_address =
       ExternalReference::handle_scope_level_address(isolate);
 
-  DCHECK(edx.is(function_address));
+  DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
   __ mov(ebx, Operand::StaticVariable(next_address));
   __ mov(edi, Operand::StaticVariable(limit_address));

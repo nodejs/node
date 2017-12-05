@@ -133,7 +133,7 @@ namespace {
 // There must be at least one non-NaN element.
 // Any -0 is converted to 0.
 double array_min(double a[], size_t n) {
-  DCHECK(n != 0);
+  DCHECK_NE(0, n);
   double x = +V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
@@ -148,7 +148,7 @@ double array_min(double a[], size_t n) {
 // There must be at least one non-NaN element.
 // Any -0 is converted to 0.
 double array_max(double a[], size_t n) {
-  DCHECK(n != 0);
+  DCHECK_NE(0, n);
   double x = -V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
@@ -599,6 +599,26 @@ Type* OperationTyper::NumberSubtract(Type* lhs, Type* rhs) {
   return type;
 }
 
+Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
+  Type* result = SpeculativeNumberAdd(lhs, rhs);
+  // If we have a Smi or Int32 feedback, the representation selection will
+  // either truncate or it will check the inputs (i.e., deopt if not int32).
+  // In either case the result will be in the safe integer range, so we
+  // can bake in the type here. This needs to be in sync with
+  // SimplifiedLowering::VisitSpeculativeAdditiveOp.
+  return Type::Intersect(result, cache_.kSafeInteger, zone());
+}
+
+Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {
+  Type* result = SpeculativeNumberSubtract(lhs, rhs);
+  // If we have a Smi or Int32 feedback, the representation selection will
+  // either truncate or it will check the inputs (i.e., deopt if not int32).
+  // In either case the result will be in the safe integer range, so we
+  // can bake in the type here. This needs to be in sync with
+  // SimplifiedLowering::VisitSpeculativeAdditiveOp.
+  return result = Type::Intersect(result, cache_.kSafeInteger, zone());
+}
+
 Type* OperationTyper::NumberMultiply(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
@@ -987,18 +1007,6 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRight)
 SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
-Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
-  lhs = SpeculativeToNumber(lhs);
-  rhs = SpeculativeToNumber(rhs);
-  return NumberAdd(lhs, rhs);
-}
-
-Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {
-  lhs = SpeculativeToNumber(lhs);
-  rhs = SpeculativeToNumber(rhs);
-  return NumberSubtract(lhs, rhs);
-}
-
 Type* OperationTyper::SpeculativeToNumber(Type* type) {
   return ToNumber(Type::Intersect(type, Type::NumberOrOddball(), zone()));
 }
@@ -1034,7 +1042,7 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
                                             : singleton_false();
   }
   // Type should be non empty, so we know it should be true.
-  DCHECK((outcome & kComparisonTrue) != 0);
+  DCHECK_NE(0, outcome & kComparisonTrue);
   return singleton_true();
 }
 

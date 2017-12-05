@@ -203,6 +203,7 @@ std::string AsmJsScanner::Name(token_t token) const {
     SPECIAL_TOKEN_LIST(V)
     default:
       break;
+#undef V
   }
   UNREACHABLE();
 }

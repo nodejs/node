@@ -35,8 +35,30 @@
 #include <map>
 #include <string>
 
-using namespace std;
-using namespace v8;
+using std::map;
+using std::pair;
+using std::string;
+
+using v8::Context;
+using v8::EscapableHandleScope;
+using v8::External;
+using v8::Function;
+using v8::FunctionTemplate;
+using v8::Global;
+using v8::HandleScope;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
+using v8::Name;
+using v8::NamedPropertyHandlerConfiguration;
+using v8::NewStringType;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::PropertyCallbackInfo;
+using v8::Script;
+using v8::String;
+using v8::TryCatch;
+using v8::Value;
 
 // These interfaces represent an existing request processing interface.
 // The idea is to imagine a real application that uses these interfaces

@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction Reduce(Node* node) final;
 
  private:
+  enum class ArrayIteratorKind { kArray, kTypedArray };
+
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceTypedArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIterator(Handle<Map> receiver_map, Node* node,
@@ -49,6 +51,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                         IterationKind kind);
   Reduction ReduceTypedArrayIteratorNext(Handle<Map> iterator_map, Node* node,
                                          IterationKind kind);
+  Reduction ReduceTypedArrayToStringTag(Node* node);
   Reduction ReduceArrayIsArray(Node* node);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
@@ -108,6 +111,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceObjectCreate(Node* node);
+  Reduction ReduceObjectIs(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringConcat(Node* node);
@@ -117,6 +121,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceStringIteratorNext(Node* node);
   Reduction ReduceStringToLowerCaseIntl(Node* node);
   Reduction ReduceStringToUpperCaseIntl(Node* node);
+  Reduction ReduceArrayBufferIsView(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);

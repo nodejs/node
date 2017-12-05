@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "src/heap/marking.h"
-#include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
 
@@ -60,14 +59,6 @@ class MarkingStateBase {
 
   V8_INLINE bool IsBlackOrGrey(HeapObject* obj) {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool BlackToGrey(HeapObject* obj) {
-    MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
-    MarkBit markbit = MarkBitFrom(p, obj->address());
-    if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, -obj->Size());
-    return true;
   }
 
   V8_INLINE bool WhiteToGrey(HeapObject* obj) {
@@ -274,8 +265,7 @@ class MarkCompactCollectorBase {
   // Marking operations for objects reachable from roots.
   virtual void MarkLiveObjects() = 0;
   // Mark objects reachable (transitively) from objects in the marking
-  // stack.
-  virtual void EmptyMarkingWorklist() = 0;
+  // work list.
   virtual void ProcessMarkingWorklist() = 0;
   // Clear non-live references held in side data structures.
   virtual void ClearNonLiveReferences() = 0;
@@ -401,7 +391,6 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void MarkLiveObjects() override;
   void MarkRootSetInParallel();
   void ProcessMarkingWorklist() override;
-  void EmptyMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;
@@ -487,6 +476,7 @@ struct WeakObjects {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
+  using AtomicMarkingState = MajorAtomicMarkingState;
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 
   static const int kMainThread = 0;
@@ -498,10 +488,16 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
 
-    bool Push(HeapObject* object) { return shared_.Push(kMainThread, object); }
+    void Push(HeapObject* object) {
+      bool success = shared_.Push(kMainThread, object);
+      USE(success);
+      DCHECK(success);
+    }
 
-    bool PushBailout(HeapObject* object) {
-      return bailout_.Push(kMainThread, object);
+    void PushBailout(HeapObject* object) {
+      bool success = bailout_.Push(kMainThread, object);
+      USE(success);
+      DCHECK(success);
     }
 
     HeapObject* Pop() {
@@ -510,25 +506,34 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
       if (shared_.Pop(kMainThread, &result)) return result;
+#ifdef V8_CONCURRENT_MARKING
+      // The expectation is that this work list is empty almost all the time
+      // and we can thus avoid the emptiness checks by putting it last.
+      if (on_hold_.Pop(kMainThread, &result)) return result;
+#endif
       return nullptr;
     }
 
     void Clear() {
       bailout_.Clear();
       shared_.Clear();
+      on_hold_.Clear();
     }
 
-    bool IsFull() { return false; }
+    bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
 
     bool IsEmpty() {
       return bailout_.IsLocalEmpty(kMainThread) &&
              shared_.IsLocalEmpty(kMainThread) &&
-             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty();
+             on_hold_.IsLocalEmpty(kMainThread) &&
+             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty() &&
+             on_hold_.IsGlobalPoolEmpty();
     }
 
     int Size() {
       return static_cast<int>(bailout_.LocalSize(kMainThread) +
-                              shared_.LocalSize(kMainThread));
+                              shared_.LocalSize(kMainThread) +
+                              on_hold_.LocalSize(kMainThread));
     }
 
     // Calls the specified callback on each element of the deques and replaces
@@ -539,24 +544,17 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     void Update(Callback callback) {
       bailout_.Update(callback);
       shared_.Update(callback);
+      on_hold_.Update(callback);
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
-
-    // These empty functions are needed to match the interface
-    // of the sequential marking deque.
-    void SetUp() {}
-    void TearDown() { Clear(); }
-    void StartUsing() {}
-    void StopUsing() {}
-    void ClearOverflowed() {}
-    void SetOverflowed() {}
-    bool overflowed() const { return false; }
+    ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
       PrintWorklist("bailout", &bailout_);
+      PrintWorklist("on_hold", &on_hold_);
     }
 
    private:
@@ -586,6 +584,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
+    ConcurrentMarkingWorklist on_hold_;
   };
 
   class RootMarkingVisitor;
@@ -672,6 +671,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kClearMarkbits,
   };
 
+  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
+
   NonAtomicMarkingState* non_atomic_marking_state() {
     return &non_atomic_marking_state_;
   }
@@ -688,6 +689,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   void Prepare();
+
+  void FinishConcurrentMarking();
 
   bool StartCompaction();
 
@@ -748,6 +751,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
 #endif
 
+  void VerifyMarking();
 #ifdef VERIFY_HEAP
   void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
@@ -774,9 +778,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
 
-  // Pushes a black object onto the marking work list.
-  V8_INLINE void PushBlack(HeapObject* obj);
-
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
@@ -796,8 +797,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // the string table are weak.
   void MarkStringTable(ObjectVisitor* visitor);
 
-  void ProcessMarkingWorklist() override;
-
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.  This respects references only considered in
   // the final atomic marking pause including the following:
@@ -814,22 +813,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Collects a list of dependent code from maps embedded in optimize code.
   DependentCode* DependentCodeListFromNonLiveMaps();
 
-  // This function empties the marking stack, but may leave overflowed objects
-  // in the heap, in which case the marking stack's overflow flag will be set.
-  void EmptyMarkingWorklist() override;
-
-  // Refill the marking stack with overflowed objects from the heap.  This
-  // function either leaves the marking stack full or clears the overflow
-  // flag on the marking stack.
-  void RefillMarkingWorklist();
-
-  // Helper methods for refilling the marking stack by discovering grey objects
-  // on various pages of the heap. Used by {RefillMarkingWorklist} only.
-  template <class T>
-  void DiscoverGreyObjectsWithIterator(T* it);
-  void DiscoverGreyObjectsOnPage(MemoryChunk* p);
-  void DiscoverGreyObjectsInSpace(PagedSpace* space);
-  void DiscoverGreyObjectsInNewSpace();
+  // Drains the main thread marking work list. Will mark all pending objects
+  // if no concurrent threads are running.
+  void ProcessMarkingWorklist() override;
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -943,6 +929,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   Sweeper sweeper_;
 
+  AtomicMarkingState atomic_marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class FullEvacuator;

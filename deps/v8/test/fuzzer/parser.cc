@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <cctype>
+#include <list>
+
 #include "include/v8.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -13,9 +16,6 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
 #include "test/fuzzer/fuzzer-support.h"
-
-#include <cctype>
-#include <list>
 
 bool IsValidInput(const uint8_t* data, size_t size) {
   std::list<char> parentheses;

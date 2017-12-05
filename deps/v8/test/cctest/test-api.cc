@@ -2536,10 +2536,9 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   LocalContext env;
   v8::Local<v8::Value> res = CompileRun("var a = []; a;");
   i::Handle<i::JSReceiver> a(v8::Utils::OpenHandle(v8::Object::Cast(*res)));
-  CHECK(a->map()->instance_descriptors()->IsFixedArray());
-  CHECK_GT(i::FixedArray::cast(a->map()->instance_descriptors())->length(), 0);
+  CHECK_EQ(1, a->map()->instance_descriptors()->number_of_descriptors());
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
-  CHECK_EQ(0, i::FixedArray::cast(a->map()->instance_descriptors())->length());
+  CHECK_EQ(0, a->map()->instance_descriptors()->number_of_descriptors());
   // But we should still have an AccessorInfo.
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
   i::LookupIterator it(a, name, i::LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -5781,23 +5780,55 @@ TEST(CustomErrorMessage) {
 
 static void check_custom_rethrowing_message(v8::Local<v8::Message> message,
                                             v8::Local<v8::Value> data) {
+  CHECK(data->IsExternal());
+  int* callcount = static_cast<int*>(data.As<v8::External>()->Value());
+  ++*callcount;
+
   const char* uncaught_error = "Uncaught exception";
   CHECK(message->Get()
             ->Equals(CcTest::isolate()->GetCurrentContext(),
                      v8_str(uncaught_error))
             .FromJust());
+  // Test that compiling code inside a message handler works.
+  CHECK(CompileRunChecked(CcTest::isolate(), "(function(a) { return a; })(42)")
+            ->Equals(CcTest::isolate()->GetCurrentContext(),
+                     v8::Integer::NewFromUnsigned(CcTest::isolate(), 42))
+            .FromJust());
 }
 
 
 TEST(CustomErrorRethrowsOnToString) {
+  int callcount = 0;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  context->GetIsolate()->AddMessageListener(check_custom_rethrowing_message);
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  context->GetIsolate()->AddMessageListener(
+      check_custom_rethrowing_message, v8::External::New(isolate, &callcount));
 
   CompileRun(
       "var e = { toString: function() { throw e; } };"
       "try { throw e; } finally {}");
 
+  CHECK_EQ(callcount, 1);
+  context->GetIsolate()->RemoveMessageListeners(
+      check_custom_rethrowing_message);
+}
+
+TEST(CustomErrorRethrowsOnToStringInsideVerboseTryCatch) {
+  int callcount = 0;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+  context->GetIsolate()->AddMessageListener(
+      check_custom_rethrowing_message, v8::External::New(isolate, &callcount));
+
+  CompileRun(
+      "var e = { toString: function() { throw e; } };"
+      "try { throw e; } finally {}");
+
+  CHECK_EQ(callcount, 1);
   context->GetIsolate()->RemoveMessageListeners(
       check_custom_rethrowing_message);
 }
@@ -7613,6 +7644,28 @@ TEST(ErrorReporting) {
   CHECK(last_location);
 }
 
+static size_t dcheck_count;
+void DcheckErrorCallback(const char* file, int line, const char* message) {
+  last_message = message;
+  ++dcheck_count;
+}
+
+TEST(DcheckErrorHandler) {
+  V8::SetDcheckErrorHandler(DcheckErrorCallback);
+
+  last_message = nullptr;
+  dcheck_count = 0;
+
+  DCHECK(false && "w00t");
+#ifdef DEBUG
+  CHECK_EQ(dcheck_count, 1);
+  CHECK(last_message);
+  CHECK(std::string(last_message).find("w00t") != std::string::npos);
+#else
+  // The DCHECK should be a noop in non-DEBUG builds.
+  CHECK_EQ(dcheck_count, 0);
+#endif
+}
 
 static void MissingScriptInfoMessageListener(v8::Local<v8::Message> message,
                                              v8::Local<Value> data) {
@@ -8490,6 +8543,66 @@ static void Utf16Helper(
   }
 }
 
+void TestUtf8DecodingAgainstReference(
+    const char* cases[],
+    const std::vector<std::vector<uint16_t>>& unicode_expected) {
+  for (size_t test_ix = 0; test_ix < unicode_expected.size(); ++test_ix) {
+    v8::Local<String> str = v8_str(cases[test_ix]);
+    CHECK_EQ(unicode_expected[test_ix].size(), str->Length());
+
+    std::unique_ptr<uint16_t[]> buffer(new uint16_t[str->Length()]);
+    str->Write(buffer.get(), 0, -1, String::NO_NULL_TERMINATION);
+
+    for (size_t i = 0; i < unicode_expected[test_ix].size(); ++i) {
+      CHECK_EQ(unicode_expected[test_ix][i], buffer[i]);
+    }
+  }
+}
+
+THREADED_TEST(OverlongSequencesAndSurrogates) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char* cases[] = {
+      // Overlong 2-byte sequence.
+      "X\xc0\xbfY\0",
+      // Another overlong 2-byte sequence.
+      "X\xc1\xbfY\0",
+      // Overlong 3-byte sequence.
+      "X\xe0\x9f\xbfY\0",
+      // Overlong 4-byte sequence.
+      "X\xf0\x89\xbf\xbfY\0",
+      // Invalid 3-byte sequence (reserved for surrogates).
+      "X\xed\xa0\x80Y\0",
+      // Invalid 4-bytes sequence (value out of range).
+      "X\xf4\x90\x80\x80Y\0",
+
+      // Start of an overlong 3-byte sequence but not enough continuation bytes.
+      "X\xe0\x9fY\0",
+      // Start of an overlong 4-byte sequence but not enough continuation bytes.
+      "X\xf0\x89\xbfY\0",
+      // Start of an invalid 3-byte sequence (reserved for surrogates) but not
+      // enough continuation bytes.
+      "X\xed\xa0Y\0",
+      // Start of an invalid 4-bytes sequence (value out of range) but not
+      // enough continuation bytes.
+      "X\xf4\x90\x80Y\0",
+  };
+  const std::vector<std::vector<uint16_t>> unicode_expected = {
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+  };
+  CHECK_EQ(unicode_expected.size(), arraysize(cases));
+  TestUtf8DecodingAgainstReference(cases, unicode_expected);
+}
 
 THREADED_TEST(Utf16) {
   LocalContext context;
@@ -17525,6 +17638,8 @@ int promise_reject_frame_count = -1;
 void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
   v8::Local<v8::Object> global = CcTest::global();
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  CHECK_EQ(v8::Promise::PromiseState::kRejected,
+           reject_message.GetPromise()->State());
   if (reject_message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
     promise_reject_counter++;
     global->Set(context, v8_str("rejected"), reject_message.GetPromise())
@@ -22227,21 +22342,19 @@ const char* kMegamorphicTestProgram =
     "}\n";
 
 void TestStubCache(bool primary) {
-  using namespace i;
-
-  FLAG_native_code_counters = true;
+  i::FLAG_native_code_counters = true;
   if (primary) {
-    FLAG_test_primary_stub_cache = true;
+    i::FLAG_test_primary_stub_cache = true;
   } else {
-    FLAG_test_secondary_stub_cache = true;
+    i::FLAG_test_secondary_stub_cache = true;
   }
-  FLAG_opt = false;
+  i::FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -23177,16 +23290,14 @@ TEST(AccessCheckThrows) {
 }
 
 TEST(AccessCheckInIC) {
-  using namespace i;
-
-  FLAG_native_code_counters = true;
-  FLAG_opt = false;
+  i::FLAG_native_code_counters = true;
+  i::FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -26948,20 +27059,19 @@ THREADED_TEST(GlobalAccessorInfo) {
 }
 
 UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
-  using namespace i;
   v8::Isolate::CreateParams create_params;
   create_params.constraints.set_max_old_space_size(16);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
     size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(16 * MB, limit_before);
+    CHECK_EQ(16 * i::MB, limit_before);
     CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     isolate->IncreaseHeapLimitForDebugging();
     CHECK(isolate->IsHeapLimitIncreasedForDebugging());
     size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(4 * 16 * MB, limit_after);
+    CHECK_EQ(4 * 16 * i::MB, limit_after);
     isolate->RestoreOriginalHeapLimit();
     CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
@@ -26995,12 +27105,11 @@ TEST(DeterministicRandomNumberGeneration) {
 }
 
 UNINITIALIZED_TEST(AllowAtomicsWait) {
-  using namespace i;
   v8::Isolate::CreateParams create_params;
   create_params.allow_atomics_wait = false;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
     CHECK_EQ(false, i_isolate->allow_atomics_wait());
     isolate->SetAllowAtomicsWait(true);

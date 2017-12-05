@@ -7,7 +7,7 @@
 #include "src/frames-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -15,9 +15,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-namespace debug = v8::debug;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 
@@ -422,3 +422,7 @@ TEST(WasmGetLocalsAndStack) {
   Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
   CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

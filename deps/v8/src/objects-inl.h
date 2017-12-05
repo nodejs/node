@@ -14,6 +14,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
+#include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
@@ -32,12 +33,14 @@
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/bigint-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/template-objects.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -96,7 +99,6 @@ TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
-TYPE_CHECKER(JSPromiseCapability, JS_PROMISE_CAPABILITY_TYPE)
 TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
@@ -114,6 +116,8 @@ TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
+TYPE_CHECKER(TemplateMap, HASH_TABLE_TYPE)
+TYPE_CHECKER(TemplateObjectDescription, TUPLE3_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(TypeFeedbackInfo, TUPLE3_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
@@ -314,6 +318,10 @@ bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
+bool HeapObject::IsPropertyDescriptorObject() const { return IsFixedArray(); }
+
+bool HeapObject::IsEnumCache() const { return IsTuple2(); }
+
 bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
 
 bool HeapObject::IsArrayList() const { return IsFixedArray(); }
@@ -443,8 +451,6 @@ bool HeapObject::IsNormalizedMapCache() const {
 
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
-bool HeapObject::IsCodeCacheHashTable() const { return IsHashTable(); }
-
 bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
@@ -540,6 +546,7 @@ CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(AsyncGeneratorRequest)
+CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(BytecodeArray)
@@ -551,6 +558,7 @@ CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
@@ -579,7 +587,6 @@ CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSPromise)
-CAST_ACCESSOR(JSPromiseCapability)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
@@ -601,6 +608,7 @@ CAST_ACCESSOR(ObjectTemplateInfo)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR(PromiseCapability)
 CAST_ACCESSOR(PromiseReactionJobInfo)
 CAST_ACCESSOR(PromiseResolveThenableJobInfo)
 CAST_ACCESSOR(PropertyArray)
@@ -619,6 +627,8 @@ CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateInfo)
 CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(TemplateMap)
+CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(TypeFeedbackInfo)
@@ -2024,23 +2034,16 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
   return HeapObject::RawField(this, OffsetOfElementAt(index));
 }
 
-bool DescriptorArray::IsEmpty() {
-  DCHECK(length() >= kFirstIndex ||
-         this == GetHeap()->empty_descriptor_array());
-  return length() < kFirstIndex;
-}
-
+ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
+ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() {
-  DCHECK(length() >= kFirstIndex || IsEmpty());
-  int len = length();
-  return len == 0 ? 0 : Smi::ToInt(get(kDescriptorLengthIndex));
+  return Smi::ToInt(get(kDescriptorLengthIndex));
 }
 
 
 int DescriptorArray::number_of_descriptors_storage() {
-  int len = length();
-  return len == 0 ? 0 : (len - kFirstIndex) / kEntrySize;
+  return (length() - kFirstIndex) / kEntrySize;
 }
 
 
@@ -2050,8 +2053,7 @@ int DescriptorArray::NumberOfSlackDescriptors() {
 
 
 void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
-  WRITE_FIELD(
-      this, kDescriptorLengthOffset, Smi::FromInt(number_of_descriptors));
+  set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
 }
 
 
@@ -2059,39 +2061,13 @@ inline int DescriptorArray::number_of_entries() {
   return number_of_descriptors();
 }
 
-
-bool DescriptorArray::HasEnumCache() {
-  return !IsEmpty() && !get(kEnumCacheBridgeIndex)->IsSmi();
-}
-
-
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
-  set(kEnumCacheBridgeIndex, array->get(kEnumCacheBridgeIndex));
+  set(kEnumCacheIndex, array->get(kEnumCacheIndex));
 }
 
-
-FixedArray* DescriptorArray::GetEnumCache() {
-  DCHECK(HasEnumCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
-  return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
+EnumCache* DescriptorArray::GetEnumCache() {
+  return EnumCache::cast(get(kEnumCacheIndex));
 }
-
-
-bool DescriptorArray::HasEnumIndicesCache() {
-  if (IsEmpty()) return false;
-  Object* object = get(kEnumCacheBridgeIndex);
-  if (object->IsSmi()) return false;
-  FixedArray* bridge = FixedArray::cast(object);
-  return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
-}
-
-
-FixedArray* DescriptorArray::GetEnumIndicesCache() {
-  DCHECK(HasEnumIndicesCache());
-  FixedArray* bridge = FixedArray::cast(get(kEnumCacheBridgeIndex));
-  return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
-}
-
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -2243,7 +2219,6 @@ int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
     DCHECK(length >= 0);
-    DCHECK(length == 0 || instance_descriptors()->HasEnumCache());
     DCHECK(length <= NumberOfOwnDescriptors());
   }
   set_bit_field3(EnumLengthBits::update(bit_field3(), length));
@@ -2679,33 +2654,31 @@ SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 int PropertyArray::length() const {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
-  return value & kLengthMask;
+  return LengthField::decode(value);
 }
 
 void PropertyArray::initialize_length(int len) {
   SLOW_DCHECK(len >= 0);
-  SLOW_DCHECK(len < kMaxLength);
+  SLOW_DCHECK(len < LengthField::kMax);
   WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(len));
 }
 
 int PropertyArray::synchronized_length() const {
   Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
-  return value & kLengthMask;
+  return LengthField::decode(value);
 }
 
 int PropertyArray::Hash() const {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
-  int hash = value & kHashMask;
-  return hash;
+  return HashField::decode(value);
 }
 
-void PropertyArray::SetHash(int masked_hash) {
-  DCHECK_EQ(masked_hash & JSReceiver::kHashMask, masked_hash);
+void PropertyArray::SetHash(int hash) {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
-  value = (value & kLengthMask) | masked_hash;
+  value = HashField::update(value, hash);
   WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(value));
 }
 
@@ -3027,20 +3000,33 @@ double Float64ArrayTraits::defaultValue() {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   DCHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
-  return ptr[index];
+  // The JavaScript memory model allows for racy reads and writes to a
+  // SharedArrayBuffer's backing store, which will always be a FixedTypedArray.
+  // ThreadSanitizer will catch these racy accesses and warn about them, so we
+  // disable TSAN for these reads and writes using annotations.
+  //
+  // We don't use relaxed atomics here, as it is not a requirement of the
+  // JavaScript memory model to have tear-free reads of overlapping accesses,
+  // and using relaxed atomics may introduce overhead.
+  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
+  TSAN_ANNOTATE_IGNORE_READS_BEGIN;
+  auto result = ptr[index];
+  TSAN_ANNOTATE_IGNORE_READS_END;
+  return result;
 }
 
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   CHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
+  // See the comment in FixedTypedArray<Traits>::get_scalar.
+  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
+  TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
   ptr[index] = value;
+  TSAN_ANNOTATE_IGNORE_WRITES_END;
 }
 
 template <class Traits>
@@ -3281,6 +3267,9 @@ int HeapObject::SizeFromMap(Map* map) const {
     return FeedbackVector::SizeFor(
         reinterpret_cast<const FeedbackVector*>(this)->length());
   }
+  if (instance_type == BIGINT_TYPE) {
+    return BigInt::SizeFor(reinterpret_cast<const BigInt*>(this)->length());
+  }
   DCHECK(instance_type == CODE_TYPE);
   return reinterpret_cast<const Code*>(this)->CodeSize();
 }
@@ -3498,11 +3487,6 @@ bool Map::is_dictionary_map() const {
   return DictionaryMap::decode(bit_field3());
 }
 
-Code::Flags Code::flags() const {
-  return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
-}
-
-
 void Map::set_owns_descriptors(bool owns_descriptors) {
   set_bit_field3(OwnsDescriptors::update(bit_field3(), owns_descriptors));
 }
@@ -3695,27 +3679,20 @@ void DependentCode::copy(int from, int to) {
   set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
+Code::Kind Code::kind() const {
+  return KindField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
+}
 
-void Code::set_flags(Code::Flags flags) {
+void Code::initialize_flags(Kind kind) {
+  WRITE_UINT32_FIELD(this, kFlagsOffset, KindField::encode(kind));
+}
+
+void Code::set_kind(Kind kind) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
-  WRITE_INT_FIELD(this, kFlagsOffset, flags);
+  uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
+  uint32_t updated_value = KindField::update(previous, kind);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
 }
-
-Code::Kind Code::kind() const { return ExtractKindFromFlags(flags()); }
-
-bool Code::IsCodeStubOrIC() const {
-  switch (kind()) {
-    case STUB:
-    case HANDLER:
-#define CASE_KIND(kind) case kind:
-      IC_KIND_LIST(CASE_KIND)
-#undef CASE_KIND
-      return true;
-    default:
-      return false;
-  }
-}
-
 
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
@@ -3729,17 +3706,23 @@ void Code::set_raw_kind_specific_flags2(int value) {
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this ==
-             builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
-         this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  bool is_interpreter_trampoline =
+      (this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
+       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
+       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch));
+  DCHECK_IMPLIES(is_interpreter_trampoline, !Builtins::IsLazy(builtin_index()));
+  return is_interpreter_trampoline;
 }
 
 inline bool Code::checks_optimization_marker() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kCompileLazy) ||
-         this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this == builtins->builtin(Builtins::kCheckOptimizationMarker);
+  bool checks_marker =
+      (this == builtins->builtin(Builtins::kCompileLazy) ||
+       this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
+       this == builtins->builtin(Builtins::kCheckOptimizationMarker));
+  DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
+  return checks_marker ||
+         (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
 }
 
 inline bool Code::has_unwinding_info() const {
@@ -3834,42 +3817,18 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   return HandlerTable::UNCAUGHT;
 }
 
-bool Code::has_reloc_info_for_serialization() const {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasRelocInfoForSerialization::decode(flags);
-}
-
-
-void Code::set_has_reloc_info_for_serialization(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasRelocInfoForSerialization::update(flags, value);
-  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
-}
-
-int Code::allow_osr_at_loop_nesting_level() const {
-  DCHECK_EQ(FUNCTION, kind());
-  int fields = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  return AllowOSRAtLoopNestingLevelField::decode(fields);
-}
-
-
-void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  DCHECK_EQ(FUNCTION, kind());
-  DCHECK(level >= 0 && level <= AbstractCode::kMaxLoopNestingMarker);
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = AllowOSRAtLoopNestingLevelField::update(previous, level);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
 int Code::builtin_index() const {
-  return READ_INT_FIELD(this, kBuiltinIndexOffset);
+  int index = READ_INT_FIELD(this, kBuiltinIndexOffset);
+  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
+  return index;
 }
 
 void Code::set_builtin_index(int index) {
+  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
   WRITE_INT_FIELD(this, kBuiltinIndexOffset, index);
 }
+
+bool Code::is_builtin() const { return builtin_index() != -1; }
 
 unsigned Code::stack_slots() const {
   DCHECK(is_turbofanned());
@@ -3902,27 +3861,6 @@ void Code::set_safepoint_table_offset(unsigned offset) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
-unsigned Code::back_edge_table_offset() const {
-  DCHECK_EQ(FUNCTION, kind());
-  return BackEdgeTableOffsetField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset)) << kPointerSizeLog2;
-}
-
-
-void Code::set_back_edge_table_offset(unsigned offset) {
-  DCHECK_EQ(FUNCTION, kind());
-  DCHECK(IsAligned(offset, static_cast<unsigned>(kPointerSize)));
-  offset = offset >> kPointerSizeLog2;
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = BackEdgeTableOffsetField::update(previous, offset);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
-bool Code::back_edges_patched_for_osr() const {
-  DCHECK_EQ(FUNCTION, kind());
-  return allow_osr_at_loop_nesting_level() > 0;
-}
-
 
 bool Code::marked_for_deoptimization() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
@@ -3953,17 +3891,6 @@ void Code::set_deopt_already_counted(bool flag) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
-bool Code::is_inline_cache_stub() const {
-  Kind kind = this->kind();
-  switch (kind) {
-#define CASE(name) case name: return true;
-    IC_KIND_LIST(CASE)
-#undef CASE
-    default: return false;
-  }
-}
-
-bool Code::is_handler() const { return kind() == HANDLER; }
 bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
@@ -3978,28 +3905,6 @@ Address Code::constant_pool() {
   }
   return constant_pool;
 }
-
-Code::Flags Code::ComputeFlags(Kind kind, ExtraICState extra_ic_state) {
-  // Compute the bit mask.
-  unsigned int bits =
-      KindField::encode(kind) | ExtraICStateField::encode(extra_ic_state);
-  return static_cast<Flags>(bits);
-}
-
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind) {
-  return ComputeFlags(Code::HANDLER, handler_kind);
-}
-
-
-Code::Kind Code::ExtractKindFromFlags(Flags flags) {
-  return KindField::decode(flags);
-}
-
-
-ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
-  return ExtraICStateField::decode(flags);
-}
-
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
@@ -4122,8 +4027,6 @@ bool AbstractCode::contains(byte* inner_pointer) {
 
 AbstractCode::Kind AbstractCode::kind() {
   if (IsCode()) {
-    STATIC_ASSERT(AbstractCode::FUNCTION ==
-                  static_cast<AbstractCode::Kind>(Code::FUNCTION));
     return static_cast<AbstractCode::Kind>(GetCode()->kind());
   } else {
     return INTERPRETED_FUNCTION;
@@ -4238,7 +4141,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
   PropertyDetails details = desc->GetDetails();
-  CHECK(details.location() != kField || !details.representation().IsDouble());
+  DCHECK(details.location() != kField || !details.representation().IsDouble());
 #endif
 }
 
@@ -4283,7 +4186,6 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   set_constructor_or_backpointer(value, mode);
 }
 
-ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
@@ -4332,7 +4234,6 @@ ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, feedback_vector_cell, Cell, kFeedbackVectorOffset)
-ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
@@ -4433,6 +4334,11 @@ ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
 bool ConstantElementsPair::is_empty() const {
   return constant_values()->length() == 0;
 }
+
+SMI_ACCESSORS(TemplateObjectDescription, hash, kHashOffset)
+ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
+ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
+          kCookedStringsOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -4598,13 +4504,21 @@ FeedbackVector* JSFunction::feedback_vector() const {
   return FeedbackVector::cast(feedback_vector_cell()->value());
 }
 
+// Code objects that are marked for deoptimization are not considered to be
+// optimized. This is because the JSFunction might have been already
+// deoptimized but its code() still needs to be unlinked, which will happen on
+// its next activation.
+// TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
+// or IsValidOptimizedCode.
 bool JSFunction::IsOptimized() {
-  return code()->kind() == Code::OPTIMIZED_FUNCTION;
+  return code()->kind() == Code::OPTIMIZED_FUNCTION &&
+         !code()->marked_for_deoptimization();
 }
 
 bool JSFunction::HasOptimizedCode() {
   return IsOptimized() ||
-         (has_feedback_vector() && feedback_vector()->has_optimized_code());
+         (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
+          !feedback_vector()->optimized_code()->marked_for_deoptimization());
 }
 
 bool JSFunction::HasOptimizationMarker() {
@@ -4705,22 +4619,6 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   DCHECK(!HasOptimizedCode());
 
   feedback_vector()->SetOptimizationMarker(marker);
-}
-
-void JSFunction::ReplaceCode(Code* code) {
-  bool was_optimized = this->code()->kind() == Code::OPTIMIZED_FUNCTION;
-  bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
-
-  set_code(code);
-
-  // Add/remove the function from the list of optimized functions for this
-  // context based on the state change.
-  if (!was_optimized && is_optimized) {
-    context()->native_context()->AddOptimizedFunction(this);
-  } else if (was_optimized && !is_optimized) {
-    // TODO(titzer): linear in the number of optimized functions; fix!
-    context()->native_context()->RemoveOptimizedFunction(this);
-  }
 }
 
 bool JSFunction::has_feedback_vector() const {
@@ -4907,7 +4805,6 @@ SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
-INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
@@ -4940,19 +4837,6 @@ void Code::clear_padding() {
   memset(data_end, 0, CodeSize() - (data_end - address()));
 }
 
-Object* Code::type_feedback_info() const {
-  DCHECK(kind() == FUNCTION);
-  return raw_type_feedback_info();
-}
-
-
-void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
-  DCHECK(kind() == FUNCTION);
-  set_raw_type_feedback_info(value, mode);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
-                            value, mode);
-}
-
 ByteArray* Code::SourcePositionTable() const {
   Object* maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
@@ -4962,14 +4846,14 @@ ByteArray* Code::SourcePositionTable() const {
 }
 
 uint32_t Code::stub_key() const {
-  DCHECK(IsCodeStubOrIC());
+  DCHECK(is_stub());
   Smi* smi_key = Smi::cast(raw_type_feedback_info());
   return static_cast<uint32_t>(smi_key->value());
 }
 
 
 void Code::set_stub_key(uint32_t key) {
-  DCHECK(IsCodeStubOrIC());
+  DCHECK(is_stub());
   set_raw_type_feedback_info(Smi::FromInt(key));
 }
 
@@ -5022,9 +4906,6 @@ int Code::SizeIncludingMetadata() const {
   size += relocation_info()->Size();
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
-  if (kind() == FUNCTION) {
-    size += SourcePositionTable()->Size();
-  }
   return size;
 }
 
@@ -5246,9 +5127,9 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 #endif
 
-ACCESSORS(JSPromiseCapability, promise, Object, kPromiseOffset)
-ACCESSORS(JSPromiseCapability, resolve, Object, kResolveOffset)
-ACCESSORS(JSPromiseCapability, reject, Object, kRejectOffset)
+ACCESSORS(PromiseCapability, promise, Object, kPromiseOffset)
+ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
+ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
 
 ACCESSORS(JSPromise, result, Object, kResultOffset)
 ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
@@ -5840,6 +5721,10 @@ void GlobalDictionary::SetEntry(int entry, Object* key, Object* value,
   DetailsAtPut(entry, details);
 }
 
+void GlobalDictionary::ValueAtPut(int entry, Object* value) {
+  set(EntryToIndex(entry), value);
+}
+
 bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
   DCHECK(other->IsNumber());
   return key == static_cast<uint32_t>(other->Number());
@@ -5978,15 +5863,6 @@ template <int entrysize>
 Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
                                                        Handle<Object> key) {
   return key;
-}
-
-
-void Map::ClearCodeCache(Heap* heap) {
-  // No write barrier is needed since empty_fixed_array is not in new space.
-  // Please note this function is used during marking:
-  //  - MarkCompactCollector::MarkUnmarkedObject
-  //  - IncrementalMarking::Step
-  WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
 }
 
 
@@ -6209,6 +6085,24 @@ ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
+
+bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+bool ScopeInfo::HasSimpleParameters() {
+  return HasSimpleParametersField::decode(Flags());
+}
+
+#define FIELD_ACCESSORS(name)                                                 \
+  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
+  int ScopeInfo::name() {                                                     \
+    if (length() > 0) {                                                       \
+      return Smi::ToInt(get(k##name));                                        \
+    } else {                                                                  \
+      return 0;                                                               \
+    }                                                                         \
+  }
+FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
+#undef FIELD_ACCESSORS
 
 }  // namespace internal
 }  // namespace v8

@@ -4,6 +4,7 @@
 
 #include "src/execution.h"
 
+#include "src/api.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
@@ -466,30 +467,71 @@ Object* StackGuard::HandleInterrupts() {
     isolate_->heap()->MonotonicallyIncreasingTimeInMs();
   }
 
+  bool any_interrupt_handled = false;
+  if (FLAG_trace_interrupts) {
+    PrintF("[Handling interrupts: ");
+  }
+
   if (CheckAndClearInterrupt(GC_REQUEST)) {
+    if (FLAG_trace_interrupts) {
+      PrintF("GC_REQUEST");
+      any_interrupt_handled = true;
+    }
     isolate_->heap()->HandleGCRequest();
   }
 
   if (CheckDebugBreak()) {
+    if (FLAG_trace_interrupts) {
+      if (any_interrupt_handled) PrintF(", ");
+      PrintF("DEBUG_BREAK");
+      any_interrupt_handled = true;
+    }
     isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
+    if (FLAG_trace_interrupts) {
+      if (any_interrupt_handled) PrintF(", ");
+      PrintF("TERMINATE_EXECUTION");
+      any_interrupt_handled = true;
+    }
     return isolate_->TerminateExecution();
   }
 
   if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES)) {
+    if (FLAG_trace_interrupts) {
+      if (any_interrupt_handled) PrintF(", ");
+      PrintF("DEOPT_MARKED_ALLOCATION_SITES");
+      any_interrupt_handled = true;
+    }
     isolate_->heap()->DeoptMarkedAllocationSites();
   }
 
   if (CheckAndClearInterrupt(INSTALL_CODE)) {
+    if (FLAG_trace_interrupts) {
+      if (any_interrupt_handled) PrintF(", ");
+      PrintF("INSTALL_CODE");
+      any_interrupt_handled = true;
+    }
     DCHECK(isolate_->concurrent_recompilation_enabled());
     isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   }
 
   if (CheckAndClearInterrupt(API_INTERRUPT)) {
+    if (FLAG_trace_interrupts) {
+      if (any_interrupt_handled) PrintF(", ");
+      PrintF("API_INTERRUPT");
+      any_interrupt_handled = true;
+    }
     // Callbacks must be invoked outside of ExecusionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
+  }
+
+  if (FLAG_trace_interrupts) {
+    if (!any_interrupt_handled) {
+      PrintF("No interrupt flags set");
+    }
+    PrintF("]\n");
   }
 
   isolate_->counters()->stack_interrupts()->Increment();

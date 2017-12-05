@@ -9,6 +9,8 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/factory-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/regexp/regexp-macro-assembler.h"
 
@@ -1704,7 +1706,7 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
     GotoIf(WordEqual(result, NullConstant()), &out);
 
     ThrowIfNotJSReceiver(context, result,
-                         MessageTemplate::kInvalidRegExpExecResult, "unused");
+                         MessageTemplate::kInvalidRegExpExecResult, "");
 
     Goto(&out);
   }
@@ -1904,7 +1906,7 @@ class GrowableFixedArray {
 
     Node* const result_length = a->SmiTag(length());
     Node* const result = a->AllocateUninitializedJSArrayWithoutElements(
-        kind, array_map, result_length, nullptr);
+        array_map, result_length, nullptr);
 
     // Note: We do not currently shrink the fixed array.
 
@@ -2206,9 +2208,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Ensure last index is 0.
   {
-    Label next(this);
-    GotoIf(SameValue(previous_last_index, smi_zero), &next);
+    Label next(this), slow(this, Label::kDeferred);
+    BranchIfSameValue(previous_last_index, smi_zero, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, smi_zero);
     Goto(&next);
     BIND(&next);
@@ -2219,14 +2222,14 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Reset last index if necessary.
   {
-    Label next(this);
+    Label next(this), slow(this, Label::kDeferred);
     Node* const current_last_index = SlowLoadLastIndex(context, regexp);
 
-    GotoIf(SameValue(current_last_index, previous_last_index), &next);
+    BranchIfSameValue(current_last_index, previous_last_index, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, previous_last_index);
     Goto(&next);
-
     BIND(&next);
   }
 

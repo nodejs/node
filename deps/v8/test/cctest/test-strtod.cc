@@ -38,6 +38,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_strtod {
 
 static Vector<const char> StringToVector(const char* str) {
   return Vector<const char>(str, StrLength(str));
@@ -480,5 +481,6 @@ TEST(RandomStrtod) {
   }
 }
 
+}  // namespace test_strtod
 }  // namespace internal
 }  // namespace v8

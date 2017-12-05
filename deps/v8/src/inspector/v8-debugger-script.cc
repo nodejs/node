@@ -229,6 +229,13 @@ class ActualScript : public V8DebuggerScript {
     return m_script.Get(m_isolate)->GetSourceLocation(offset);
   }
 
+  bool setBreakpoint(const String16& condition, v8::debug::Location* location,
+                     int* id) const override {
+    v8::HandleScope scope(m_isolate);
+    return script()->SetBreakpoint(toV8String(m_isolate, condition), location,
+                                   id);
+  }
+
  private:
   String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> name;
@@ -316,6 +323,22 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   v8::debug::Location location(int offset) const override {
     return v8::debug::Location();
+  }
+
+  bool setBreakpoint(const String16& condition, v8::debug::Location* location,
+                     int* id) const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
+    String16 v8ScriptId = String16::fromInteger(script->Id());
+
+    TranslateProtocolLocationToV8Location(m_wasmTranslation, location,
+                                          scriptId(), v8ScriptId);
+    if (location->IsEmpty()) return false;
+    if (!script->SetBreakpoint(toV8String(m_isolate, condition), location, id))
+      return false;
+    TranslateV8LocationToProtocolLocation(m_wasmTranslation, location,
+                                          v8ScriptId, scriptId());
+    return true;
   }
 
  private:

@@ -332,9 +332,10 @@ class ValueHelper {
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
 // Watch out, these macros aren't hygenic; they pollute your scope. Thanks STL.
-#define FOR_INPUTS(ctype, itype, var)                           \
-  std::vector<ctype> var##_vec = ValueHelper::itype##_vector(); \
-  for (std::vector<ctype>::iterator var = var##_vec.begin();    \
+#define FOR_INPUTS(ctype, itype, var)                          \
+  std::vector<ctype> var##_vec =                               \
+      ::v8::internal::compiler::ValueHelper::itype##_vector(); \
+  for (std::vector<ctype>::iterator var = var##_vec.begin();   \
        var != var##_vec.end(); ++var)
 
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
@@ -362,10 +363,10 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
   }
 }
 
-#define CHECK_FLOAT_EQ(lhs, rhs) \
-  do {                           \
-    volatile float tmp = lhs;    \
-    CheckFloatEq(tmp, rhs);      \
+#define CHECK_FLOAT_EQ(lhs, rhs)                      \
+  do {                                                \
+    volatile float tmp = lhs;                         \
+    ::v8::internal::compiler::CheckFloatEq(tmp, rhs); \
   } while (0)
 
 static inline void CheckDoubleEq(volatile double x, volatile double y) {
@@ -377,10 +378,10 @@ static inline void CheckDoubleEq(volatile double x, volatile double y) {
   }
 }
 
-#define CHECK_DOUBLE_EQ(lhs, rhs) \
-  do {                            \
-    volatile double tmp = lhs;    \
-    CheckDoubleEq(tmp, rhs);      \
+#define CHECK_DOUBLE_EQ(lhs, rhs)                      \
+  do {                                                 \
+    volatile double tmp = lhs;                         \
+    ::v8::internal::compiler::CheckDoubleEq(tmp, rhs); \
   } while (0)
 
 }  // namespace compiler

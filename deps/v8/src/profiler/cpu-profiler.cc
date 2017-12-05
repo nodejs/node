@@ -197,7 +197,7 @@ void ProfilerEventsProcessor::operator delete(void* ptr) {
 
 int CpuProfiler::GetProfilesCount() {
   // The count of profiles doesn't depend on a security token.
-  return profiles_->profiles()->length();
+  return static_cast<int>(profiles_->profiles()->size());
 }
 
 
@@ -215,7 +215,7 @@ void CpuProfiler::DeleteAllProfiles() {
 void CpuProfiler::DeleteProfile(CpuProfile* profile) {
   profiles_->RemoveProfile(profile);
   delete profile;
-  if (profiles_->profiles()->is_empty() && !is_profiling_) {
+  if (profiles_->profiles()->empty() && !is_profiling_) {
     // If this was the last profile, clean up all accessory data as well.
     ResetProfiles();
   }

@@ -312,7 +312,7 @@ TF_BUILTIN(ToInteger, CodeStubAssembler) {
 
 // ES6 section 7.1.13 ToObject (argument)
 TF_BUILTIN(ToObject, CodeStubAssembler) {
-  Label if_number(this, Label::kDeferred), if_notsmi(this), if_jsreceiver(this),
+  Label if_smi(this, Label::kDeferred), if_jsreceiver(this),
       if_noconstructor(this, Label::kDeferred), if_wrapjsvalue(this);
 
   Node* context = Parameter(Descriptor::kContext);
@@ -321,13 +321,9 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   VARIABLE(constructor_function_index_var,
            MachineType::PointerRepresentation());
 
-  Branch(TaggedIsSmi(object), &if_number, &if_notsmi);
+  GotoIf(TaggedIsSmi(object), &if_smi);
 
-  BIND(&if_notsmi);
   Node* map = LoadMap(object);
-
-  GotoIf(IsHeapNumberMap(map), &if_number);
-
   Node* instance_type = LoadMapInstanceType(map);
   GotoIf(IsJSReceiverInstanceType(instance_type), &if_jsreceiver);
 
@@ -338,7 +334,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   constructor_function_index_var.Bind(constructor_function_index);
   Goto(&if_wrapjsvalue);
 
-  BIND(&if_number);
+  BIND(&if_smi);
   constructor_function_index_var.Bind(
       IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
   Goto(&if_wrapjsvalue);

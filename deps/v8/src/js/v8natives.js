@@ -35,23 +35,6 @@ function GetMethod(obj, p) {
   throw %make_type_error(kCalledNonCallable, typeof func);
 }
 
-// ES6 19.1.1.1
-function ObjectConstructor(x) {
-  if (GlobalObject != new.target && !IS_UNDEFINED(new.target)) {
-    return this;
-  }
-  if (IS_NULL(x) || IS_UNDEFINED(x)) return {};
-  return TO_OBJECT(x);
-}
-
-
-// ----------------------------------------------------------------------------
-// Object
-
-%SetNativeFlag(GlobalObject);
-%SetCode(GlobalObject, ObjectConstructor);
-
-
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
 

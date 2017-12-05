@@ -5,6 +5,8 @@
 #ifndef V8_SPLAY_TREE_INL_H_
 #define V8_SPLAY_TREE_INL_H_
 
+#include <vector>
+
 #include "src/splay-tree.h"
 
 namespace v8 {
@@ -278,13 +280,13 @@ template <typename Config, class Allocator> template <class Callback>
 void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
   if (root_ == NULL) return;
   // Pre-allocate some space for tiny trees.
-  List<Node*, Allocator> nodes_to_visit(10, allocator_);
-  nodes_to_visit.Add(root_, allocator_);
-  int pos = 0;
-  while (pos < nodes_to_visit.length()) {
+  std::vector<Node*> nodes_to_visit;
+  nodes_to_visit.push_back(root_);
+  size_t pos = 0;
+  while (pos < nodes_to_visit.size()) {
     Node* node = nodes_to_visit[pos++];
-    if (node->left() != NULL) nodes_to_visit.Add(node->left(), allocator_);
-    if (node->right() != NULL) nodes_to_visit.Add(node->right(), allocator_);
+    if (node->left() != NULL) nodes_to_visit.push_back(node->left());
+    if (node->right() != NULL) nodes_to_visit.push_back(node->right());
     callback->Call(node);
   }
 }

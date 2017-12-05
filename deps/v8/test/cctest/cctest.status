@@ -198,6 +198,15 @@
 }],  # 'no_snap == True and system == windows'
 
 ##############################################################################
+['byteorder == big', {
+  # Skip WASM atomic tests on big-endian machines.
+  # There is no support to emulate atomic WASM operations on big-endian
+  # platforms, since this would require bit swapping as a part of atomic
+  # operations.
+  'test-run-wasm-atomics/*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
 ['system == windows', {
 
   # BUG(3331). Fails on windows.
@@ -338,6 +347,11 @@
   'test-run-wasm-atomics/*': [SKIP],
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  'test-heap-profiler/SamplingHeapProfiler': [SKIP],
+}],  # variant == stress_incremental_marking
 
 ##############################################################################
 ['variant == wasm_traps', {

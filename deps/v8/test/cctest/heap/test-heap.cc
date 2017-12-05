@@ -197,8 +197,8 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   Code* tmp = nullptr;
   heap->CopyCode(*code).To(&tmp);
@@ -219,8 +219,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   CHECK(code->IsCode());
 
   HeapObject* obj = HeapObject::cast(*code);
@@ -231,8 +231,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
     CHECK_EQ(*code, found);
   }
 
-  Handle<Code> copy = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> copy =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   HeapObject* obj_copy = HeapObject::cast(*copy);
   Object* not_right = isolate->FindCodeObject(obj_copy->address() +
                                               obj_copy->Size() / 2);
@@ -1367,22 +1367,6 @@ int CountNativeContexts() {
   return count;
 }
 
-
-// Count the number of user functions in the weak list of optimized
-// functions attached to a native context.
-static int CountOptimizedUserFunctions(v8::Local<v8::Context> context) {
-  int count = 0;
-  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
-  Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  while (object->IsJSFunction() &&
-         JSFunction::cast(object)->shared()->IsUserJavaScript()) {
-    count++;
-    object = JSFunction::cast(object)->next_function_link();
-  }
-  return count;
-}
-
-
 TEST(TestInternalWeakLists) {
   FLAG_always_opt = false;
   FLAG_allow_natives_syntax = true;
@@ -1420,17 +1404,11 @@ TEST(TestInternalWeakLists) {
     // Create a handle scope so no function objects get stuck in the outer
     // handle scope.
     HandleScope scope(isolate);
-    CHECK_EQ(0, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f1");
-    CHECK_EQ(1, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f2");
-    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f3");
-    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f4");
-    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f5");
-    CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
 
     // Remove function f1, and
     CompileRun("f1=null");
@@ -1438,29 +1416,23 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
     }
 
     // Mark compact handles the weak references.
     isolate->compilation_cache()->Clear();
     CcTest::CollectAllGarbage();
-    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::CollectAllGarbage();
-    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::CollectAllGarbage();
-    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
@@ -1488,94 +1460,6 @@ TEST(TestInternalWeakLists) {
   }
 
   CHECK_EQ(0, CountNativeContexts());
-}
-
-
-// Count the number of native contexts in the weak list of native contexts
-// causing a GC after the specified number of elements.
-static int CountNativeContextsWithGC(Isolate* isolate, int n) {
-  Heap* heap = isolate->heap();
-  int count = 0;
-  Handle<Object> object(heap->native_contexts_list(), isolate);
-  while (!object->IsUndefined(isolate)) {
-    count++;
-    if (count == n) CcTest::CollectAllGarbage();
-    object =
-        Handle<Object>(Context::cast(*object)->next_context_link(), isolate);
-  }
-  return count;
-}
-
-
-// Count the number of user functions in the weak list of optimized
-// functions attached to a native context causing a GC after the
-// specified number of elements.
-static int CountOptimizedUserFunctionsWithGC(v8::Local<v8::Context> context,
-                                             int n) {
-  int count = 0;
-  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
-  Isolate* isolate = icontext->GetIsolate();
-  Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-                        isolate);
-  while (object->IsJSFunction() &&
-         Handle<JSFunction>::cast(object)->shared()->IsUserJavaScript()) {
-    count++;
-    if (count == n)
-      isolate->heap()->CollectAllGarbage(
-          i::Heap::kFinalizeIncrementalMarkingMask,
-          i::GarbageCollectionReason::kTesting);
-    object = Handle<Object>(
-        Object::cast(JSFunction::cast(*object)->next_function_link()),
-        isolate);
-  }
-  return count;
-}
-
-
-TEST(TestInternalWeakListsTraverseWithGC) {
-  FLAG_always_opt = false;
-  FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
-
-  static const int kNumTestContexts = 10;
-
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  v8::Local<v8::Context> ctx[kNumTestContexts];
-  if (!isolate->use_optimizer()) return;
-
-  CHECK_EQ(0, CountNativeContexts());
-
-  // Create an number of contexts and check the length of the weak list both
-  // with and without GCs while iterating the list.
-  for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New(CcTest::isolate());
-    CHECK_EQ(i + 1, CountNativeContexts());
-    CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
-  }
-
-  ctx[0]->Enter();
-
-  // Compile a number of functions the length of the weak list of optimized
-  // functions both with and without GCs while iterating the list.
-  CHECK_EQ(0, CountOptimizedUserFunctions(ctx[0]));
-  OptimizeEmptyFunction("f1");
-  CHECK_EQ(1, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(1, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f2");
-  CHECK_EQ(2, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(2, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f3");
-  CHECK_EQ(3, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(3, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f4");
-  CHECK_EQ(4, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(4, CountOptimizedUserFunctionsWithGC(ctx[0], 2));
-  OptimizeEmptyFunction("f5");
-  CHECK_EQ(5, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(5, CountOptimizedUserFunctionsWithGC(ctx[0], 4));
-
-  ctx[0]->Exit();
 }
 
 
@@ -1825,11 +1709,8 @@ TEST(TestAlignedOverAllocation) {
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
-    // The object is aligned, and a filler object is created after.
+    // The object is aligned.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleAligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
@@ -1837,18 +1718,15 @@ TEST(TestAlignedOverAllocation) {
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
     CHECK(filler->IsFiller());
-    CHECK(filler->Size() == kPointerSize);
+    CHECK_EQ(kPointerSize, filler->Size());
     CHECK(obj != filler && filler->IsFiller() &&
           filler->Size() == kPointerSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    // The object is aligned, and a filler object is created after.
+    // The object is aligned.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
@@ -3493,7 +3371,7 @@ TEST(LargeObjectSlotRecording) {
 
   // Allocate a large object.
   int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
-  CHECK(size > kMaxRegularHeapObjectSize);
+  CHECK_LT(kMaxRegularHeapObjectSize, size);
   Handle<FixedArray> lo = isolate->factory()->NewFixedArray(size, TENURED);
   CHECK(heap->lo_space()->Contains(*lo));
 
@@ -3663,10 +3541,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
       dependency = dependency->next_link();
       dependency_group_count++;
     }
-
-    // TurboFan respects pretenuring feedback from allocation sites, Crankshaft
-    // does not. Either is fine for the purposes of this test.
-    CHECK(dependency_group_count == 1 || dependency_group_count == 2);
+    // Expect a dependent code object for transitioning and pretenuring.
+    CHECK_EQ(2, dependency_group_count);
   }
 
   // Now make sure that a gc should get rid of the function, even though we
@@ -4039,8 +3915,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   masm.Drop(1);
   masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), undefined);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::OPTIMIZED_FUNCTION, undefined);
   CHECK(code->IsCode());
   return code;
 }
@@ -4326,20 +4202,13 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
   return Handle<JSFunction>::cast(obj);
 }
 
-void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
+void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
-  CHECK(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   FeedbackVector* vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
-  if (kind == Code::LOAD_IC) {
-    LoadICNexus nexus(vector, slot);
-    CHECK_EQ(nexus.StateFromFeedback(), state);
-  } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadICNexus nexus(vector, slot);
-    CHECK_EQ(nexus.StateFromFeedback(), state);
-  }
+  LoadICNexus nexus(vector, slot);
+  CHECK_EQ(nexus.StateFromFeedback(), state);
 }
-
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (FLAG_always_opt) return;
@@ -4365,12 +4234,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, MONOMORPHIC);
 }
 
 
@@ -4401,12 +4270,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, POLYMORPHIC);
 }
 
 
@@ -4637,7 +4506,7 @@ TEST(Regress507979) {
 
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     // Let's not optimize the loop away.
-    CHECK(obj->address() != nullptr);
+    CHECK_NOT_NULL(obj->address());
   }
 }
 
@@ -5039,8 +4908,8 @@ TEST(Regress1878) {
 
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
-  CHECK(bytes >= FixedArray::kHeaderSize);
-  CHECK(bytes % kPointerSize == 0);
+  CHECK_LE(FixedArray::kHeaderSize, bytes);
+  CHECK_EQ(0, bytes % kPointerSize);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScope always_allocate(isolate);
@@ -5172,8 +5041,8 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
-  fun->ReplaceCode(*BUILTIN_CODE(isolate, CompileLazy));
-  fun->shared()->ReplaceCode(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->shared()->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   CcTest::CollectAllAvailableGarbage();
 }
 
@@ -5954,8 +5823,8 @@ Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   const bool kImmovable = true;
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>(), kImmovable);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>(), kImmovable);
   CHECK(code->IsCode());
 
   return code;
@@ -5994,7 +5863,7 @@ HEAP_TEST(Regress5831) {
 
   // Generate the code.
   Handle<Code> code = GenerateDummyImmovableCode(isolate);
-  CHECK(code->Size() <= i::kMaxRegularHeapObjectSize);
+  CHECK_GE(i::kMaxRegularHeapObjectSize, code->Size());
   CHECK(!heap->code_space()->FirstPage()->Contains(code->address()));
 
   // Ensure it's not in large object space.

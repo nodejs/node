@@ -207,7 +207,7 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants);
+  explicit Scanner(UnicodeCache* scanner_contants, int* use_counts_);
 
   void Initialize(Utf16CharacterStream* source, bool is_module);
 
@@ -735,6 +735,8 @@ class Scanner {
 
   bool is_module_;
 
+  bool IsLineTerminator(uc32 c);
+
   Token::Value ScanTemplateSpan();
 
   // Return the current source position.
@@ -798,6 +800,8 @@ class Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
+
+  int* use_counts_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

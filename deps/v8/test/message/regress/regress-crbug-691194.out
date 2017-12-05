@@ -6,5 +6,5 @@
 "foo".repeat(1 << 30)
       ^
 RangeError: Invalid string length
-    at String.repeat (native)
+    at String.repeat (<anonymous>)
     at *%(basename)s:5:7

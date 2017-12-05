@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-call-reducer.h"
 
+#include "src/api.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compilation-dependencies.h"
@@ -19,6 +20,62 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
+
+bool CanBePrimitive(Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateEmptyLiteralArray:
+    case IrOpcode::kJSCreateEmptyLiteralObject:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithArrayLike:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSToObject:
+      return false;
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> value = HeapObjectMatcher(node).Value();
+      return value->IsPrimitive();
+    }
+    default:
+      return true;
+  }
+}
+
+bool CanBeNullOrUndefined(Node* node) {
+  if (CanBePrimitive(node)) {
+    switch (node->opcode()) {
+      case IrOpcode::kJSToBoolean:
+      case IrOpcode::kJSToInteger:
+      case IrOpcode::kJSToLength:
+      case IrOpcode::kJSToName:
+      case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToString:
+        return false;
+      case IrOpcode::kHeapConstant: {
+        Handle<HeapObject> value = HeapObjectMatcher(node).Value();
+        Isolate* const isolate = value->GetIsolate();
+        return value->IsNullOrUndefined(isolate);
+      }
+      default:
+        return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
 
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -104,42 +161,29 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-namespace {
+// ES section #sec-object-constructor
+Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.arity() < 3) return NoChange();
+  Node* value = (p.arity() >= 3) ? NodeProperties::GetValueInput(node, 2)
+                                 : jsgraph()->UndefinedConstant();
 
-bool CanBeNullOrUndefined(Node* node) {
-  switch (node->opcode()) {
-    case IrOpcode::kJSCreate:
-    case IrOpcode::kJSCreateArguments:
-    case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateKeyValueArray:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConstruct:
-    case IrOpcode::kJSConstructForwardVarargs:
-    case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSConvertReceiver:
-    case IrOpcode::kJSToBoolean:
-    case IrOpcode::kJSToInteger:
-    case IrOpcode::kJSToLength:
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSToNumber:
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToString:
-      return false;
-    case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> value = HeapObjectMatcher(node).Value();
-      Isolate* const isolate = value->GetIsolate();
-      return value->IsNull(isolate) || value->IsUndefined(isolate);
+  // We can fold away the Object(x) call if |x| is definitely not a primitive.
+  if (CanBePrimitive(value)) {
+    if (!CanBeNullOrUndefined(value)) {
+      // Turn the {node} into a {JSToObject} call if we know that
+      // the {value} cannot be null or undefined.
+      NodeProperties::ReplaceValueInputs(node, value);
+      NodeProperties::ChangeOp(node, javascript()->ToObject());
+      return Changed(node);
     }
-    default:
-      return true;
+  } else {
+    ReplaceWithValue(node, value);
+    return Replace(node);
   }
+  return NoChange();
 }
-
-}  // namespace
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
@@ -411,55 +455,44 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   //  |    +-+
   //  |      |
   //  |   JSToObject
-  //  |    ^     ^
-  //  |    |     |
-  //  |    |     +--- JSForInPrepare
-  //  |    |                ^ ^
-  //  |    |                | |
-  //  |    |           +----+ +------+
-  //  |    |           |             |
-  //  |    |      Projection[0]  Projection[1]
-  //  |    |      (cache_type)   (cache_array)
-  //  |    |           ^             ^
-  //  |    |           |             |
-  //  |    |  +--------+             |
-  //  |    |  |                      |
-  //  |  CheckMapValue               |
-  //  |      ^                       |
-  //  |      :    +------------------+
-  //  |      :    |
-  //  |     LoadElement
-  //  |         ^
-  //  +----+    |
-  //       |    |
+  //  |      ^
+  //  |      |
+  //  |   JSForInNext
+  //  |      ^
+  //  +----+ |
+  //       | |
   //  JSCall[hasOwnProperty]
 
-  // We can constant-fold the {node} to True in this case, and insert a
-  // (potentially redundant) CheckMapValue to guard the fact that the
-  // {receiver} map didn't change since the initial CheckMapValue, which
-  // was inserted by the BytecodeGraphBuilder for the ForInNext bytecode.
+  // We can constant-fold the {node} to True in this case, and insert
+  // a (potentially redundant) map check to guard the fact that the
+  // {receiver} map didn't change since the dominating JSForInNext. This
+  // map check is only necessary when TurboFan cannot prove that there
+  // is no observable side effect between the {JSForInNext} and the
+  // {JSCall} to Object.prototype.hasOwnProperty.
   //
   // Also note that it's safe to look through the {JSToObject}, since the
   // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
   // these operations are not observable.
-  if (name->opcode() == IrOpcode::kLoadElement) {
-    Node* cache_array = NodeProperties::GetValueInput(name, 0);
-    Node* check_map = NodeProperties::GetEffectInput(name);
-    if (cache_array->opcode() == IrOpcode::kProjection &&
-        ProjectionIndexOf(cache_array->op()) == 1 &&
-        check_map->opcode() == IrOpcode::kCheckMapValue) {
-      Node* prepare = NodeProperties::GetValueInput(cache_array, 0);
-      Node* object = NodeProperties::GetValueInput(check_map, 0);
-      Node* cache_type = NodeProperties::GetValueInput(check_map, 1);
-      if (cache_type->opcode() == IrOpcode::kProjection &&
-          prepare->opcode() == IrOpcode::kJSForInPrepare &&
-          ProjectionIndexOf(cache_type->op()) == 0 &&
-          NodeProperties::GetValueInput(cache_type, 0) == prepare &&
-          (object == receiver ||
-           (object->opcode() == IrOpcode::kJSToObject &&
-            receiver == NodeProperties::GetValueInput(object, 0)))) {
-        effect = graph()->NewNode(check_map->op(), object, cache_type, effect,
-                                  control);
+  if (name->opcode() == IrOpcode::kJSForInNext) {
+    ForInMode const mode = ForInModeOf(name->op());
+    if (mode != ForInMode::kGeneric) {
+      Node* object = NodeProperties::GetValueInput(name, 0);
+      Node* cache_type = NodeProperties::GetValueInput(name, 2);
+      if (object->opcode() == IrOpcode::kJSToObject) {
+        object = NodeProperties::GetValueInput(object, 0);
+      }
+      if (object == receiver) {
+        // No need to repeat the map check if we can prove that there's no
+        // observable side effect between {effect} and {name].
+        if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
+          Node* receiver_map = effect =
+              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                               receiver, effect, control);
+          Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                         receiver_map, cache_type);
+          effect =
+              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        }
         Node* value = jsgraph()->TrueConstant();
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
@@ -592,13 +625,26 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   if (result != NodeProperties::kReliableReceiverMaps) {
     return NoChange();
   }
-  if (receiver_maps.size() != 1) return NoChange();
-  Handle<Map> receiver_map(receiver_maps[0]);
-  ElementsKind kind = receiver_map->elements_kind();
-  // TODO(danno): Handle double packed elements
-  if (!IsFastElementsKind(kind) || IsDoubleElementsKind(kind) ||
-      !CanInlineArrayIteratingBuiltin(receiver_map)) {
-    return NoChange();
+  if (receiver_maps.size() == 0) return NoChange();
+
+  ElementsKind kind = IsDoubleElementsKind(receiver_maps[0]->elements_kind())
+                          ? PACKED_DOUBLE_ELEMENTS
+                          : PACKED_ELEMENTS;
+  for (Handle<Map> receiver_map : receiver_maps) {
+    ElementsKind next_kind = receiver_map->elements_kind();
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
+      return NoChange();
+    }
+    if (!IsFastElementsKind(next_kind) ||
+        (IsDoubleElementsKind(next_kind) && IsHoleyElementsKind(next_kind))) {
+      return NoChange();
+    }
+    if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
+      return NoChange();
+    }
+    if (IsHoleyElementsKind(next_kind)) {
+      kind = HOLEY_ELEMENTS;
+    }
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -607,7 +653,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   Node* k = jsgraph()->ZeroConstant();
 
-  Node* original_length = graph()->NewNode(
+  Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
 
@@ -626,7 +672,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
       context, check_frame_state, effect, check_fail);
   control = graph()->NewNode(common()->IfTrue(), check_branch);
 
@@ -659,18 +706,13 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  Node* orig_map = jsgraph()->HeapConstant(receiver_map);
-  Node* array_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-  Node* check_map =
-      graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-  effect =
-      graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
-  Node* length = graph()->NewNode(
+  Node* length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
   k = effect =
@@ -679,12 +721,12 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Reload the elements pointer before calling the callback, since the previous
   // callback might have resized the array causing the elements buffer to be
   // re-allocated.
-  Node* elements = graph()->NewNode(
+  Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
 
-  Node* element = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+  Node* element = effect = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
   Node* next_k =
@@ -705,6 +747,12 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
     hole_false = graph()->NewNode(common()->IfFalse(), branch);
     control = hole_false;
+
+    // The contract is that we don't leak "the hole" into "user JavaScript",
+    // so we must rename the {element} here to explicitly exclude "the hole"
+    // from the type of {element}.
+    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                               element, control);
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
@@ -758,9 +806,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowCalledNonCallable runtime call is an unconditional
-  // throw, making it impossible to return a successful completion in this
-  // case. We simply connect the successful completion to the graph end.
+  // The above %ThrowTypeError runtime call is an unconditional throw, making
+  // it impossible to return a successful completion in this case. We simply
+  // connect the successful completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
@@ -793,48 +841,49 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   if (result != NodeProperties::kReliableReceiverMaps) {
     return NoChange();
   }
-  if (receiver_maps.size() != 1) return NoChange();
-  Handle<Map> receiver_map(receiver_maps[0]);
-  ElementsKind kind = receiver_map->elements_kind();
-  // TODO(danno): Handle holey Smi and Object fast elements kinds and double
-  // packed.
-  if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
+
+  // Ensure that any changes to the Array species constructor cause deopt.
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+
+  if (receiver_maps.size() == 0) return NoChange();
+
+  const ElementsKind kind = receiver_maps[0]->elements_kind();
+
+  // TODO(danno): Handle holey elements kinds.
+  if (!IsFastPackedElementsKind(kind)) {
     return NoChange();
   }
 
-  // We want the input to be a generic Array.
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
+      return NoChange();
+    }
+    // We can handle different maps, as long as their elements kind are the
+    // same.
+    if (receiver_map->elements_kind() != kind) {
+      return NoChange();
+    }
+  }
+
+  dependencies()->AssumePropertyCell(factory()->species_protector());
+
   Handle<JSFunction> handle_constructor(
       JSFunction::cast(
           native_context()->GetInitialJSArrayMap(kind)->GetConstructor()),
       isolate());
   Node* array_constructor = jsgraph()->HeapConstant(handle_constructor);
-  if (receiver_map->prototype() !=
-      native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
-    return NoChange();
-  }
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
-  dependencies()->AssumePropertyCell(factory()->species_protector());
 
   Node* k = jsgraph()->ZeroConstant();
-  Node* orig_map = jsgraph()->HeapConstant(receiver_map);
 
   // Make sure the map hasn't changed before we construct the output array.
-  {
-    Node* array_map = effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         receiver, effect, control);
-    Node* check_map =
-        graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-    effect =
-        graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
-  }
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
-  Node* original_length = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+  Node* original_length = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
 
   // This array should be HOLEY_SMI_ELEMENTS because of the non-zero length.
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
@@ -859,7 +908,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
       context, check_frame_state, effect, check_fail);
   control = graph()->NewNode(common()->IfTrue(), check_branch);
 
@@ -892,31 +942,27 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  Node* array_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-  Node* check_map =
-      graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-  effect =
-      graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
-  Node* length = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+  Node* length = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
   k = effect =
       graph()->NewNode(simplified()->CheckBounds(), k, length, effect, control);
 
   // Reload the elements pointer before calling the callback, since the previous
   // callback might have resized the array causing the elements buffer to be
   // re-allocated.
-  Node* elements = graph()->NewNode(
+  Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
 
-  Node* element = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+  Node* element = effect = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
   Node* next_k =
@@ -972,9 +1018,9 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowCalledNonCallable runtime call is an unconditional
-  // throw, making it impossible to return a successful completion in this
-  // case. We simply connect the successful completion to the graph end.
+  // The above %ThrowTypeError runtime call is an unconditional throw, making
+  // it impossible to return a successful completion in this case. We simply
+  // connect the successful completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
@@ -1187,12 +1233,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     // TODO(turbofan): Further relax this constraint.
     if (formal_parameter_count != 0) {
       Node* effect = NodeProperties::GetEffectInput(node);
-      while (effect != arguments_list) {
-        if (effect->op()->EffectInputCount() != 1 ||
-            !(effect->op()->properties() & Operator::kNoWrite)) {
-          return NoChange();
-        }
-        effect = NodeProperties::GetEffectInput(effect);
+      if (!NodeProperties::NoObservableSideEffectBetween(effect,
+                                                         arguments_list)) {
+        return NoChange();
       }
     }
   } else if (type == CreateArgumentsType::kRestParameter) {
@@ -1255,6 +1298,56 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   } else {
     NodeProperties::ChangeOp(
         node, javascript()->Construct(arity + 2, frequency, feedback));
+    Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    // Check whether the given new target value is a constructor function. The
+    // replacement {JSConstruct} operator only checks the passed target value
+    // but relies on the new target value to be implicitly valid.
+    Node* check =
+        graph()->NewNode(simplified()->ObjectIsConstructor(), new_target);
+    Node* check_branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+    Node* check_throw = check_fail =
+        graph()->NewNode(javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+                         jsgraph()->Constant(MessageTemplate::kNotConstructor),
+                         new_target, context, frame_state, effect, check_fail);
+    control = graph()->NewNode(common()->IfTrue(), check_branch);
+    NodeProperties::ReplaceControlInput(node, control);
+
+    // Rewire potential exception edges.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      // Create appropriate {IfException}  and {IfSuccess} nodes.
+      Node* if_exception =
+          graph()->NewNode(common()->IfException(), check_throw, check_fail);
+      check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
+
+      // Join the exception edges.
+      Node* merge =
+          graph()->NewNode(common()->Merge(2), if_exception, on_exception);
+      Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception,
+                                    on_exception, merge);
+      Node* phi =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           if_exception, on_exception, merge);
+      ReplaceWithValue(on_exception, phi, ephi, merge);
+      merge->ReplaceInput(1, on_exception);
+      ephi->ReplaceInput(1, on_exception);
+      phi->ReplaceInput(1, on_exception);
+    }
+
+    // The above %ThrowTypeError runtime call is an unconditional throw, making
+    // it impossible to return a successful completion in this case. We simply
+    // connect the successful completion to the graph end.
+    Node* terminate =
+        graph()->NewNode(common()->Throw(), check_throw, check_fail);
+    NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+
     Reduction const reduction = ReduceJSConstruct(node);
     return reduction.Changed() ? reduction : Changed(node);
   }
@@ -1326,6 +1419,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceFunctionPrototypeHasInstance(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
+        case Builtins::kObjectConstructor:
+          return ReduceObjectConstructor(node);
         case Builtins::kObjectGetPrototypeOf:
           return ReduceObjectGetPrototypeOf(node);
         case Builtins::kObjectPrototypeGetProto:
@@ -1561,6 +1656,27 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         NodeProperties::ReplaceValueInput(node, new_target, 1);
         NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
         return Changed(node);
+      }
+
+      // Check for the ObjectConstructor.
+      if (*function == function->native_context()->object_function()) {
+        // If no value is passed, we can immediately lower to a simple
+        // JSCreate and don't need to do any massaging of the {node}.
+        if (arity == 0) {
+          NodeProperties::ChangeOp(node, javascript()->Create());
+          return Changed(node);
+        }
+
+        // Otherwise we can only lower to JSCreate if we know that
+        // the value parameter is ignored, which is only the case if
+        // the {new_target} and {target} are definitely not identical.
+        HeapObjectMatcher mnew_target(new_target);
+        if (mnew_target.HasValue() && *mnew_target.Value() != *function) {
+          // Drop the value inputs.
+          for (int i = arity; i > 0; --i) node->RemoveInput(i);
+          NodeProperties::ChangeOp(node, javascript()->Create());
+          return Changed(node);
+        }
       }
     }
 

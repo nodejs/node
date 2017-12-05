@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
@@ -10,10 +11,10 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace test_wasm_trap_position {
 
 using v8::Local;
 using v8::Utils;
@@ -61,12 +62,15 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   }
 }
 
+#undef CHECK_CSTREQ
+
 }  // namespace
 
 // Trigger a trap for executing unreachable.
-TEST(Unreachable) {
+WASM_EXEC_TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<void> r(kExecuteCompiled, "main", true);
+  WasmRunner<void> r(execution_mode, "main",
+                     compiler::kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   BUILD(r, WASM_UNREACHABLE);
@@ -99,8 +103,9 @@ TEST(Unreachable) {
 }
 
 // Trigger a trap for loading from out-of-bounds.
-TEST(IllegalLoad) {
-  WasmRunner<void> r(kExecuteCompiled, "main", true);
+WASM_EXEC_TEST(IllegalLoad) {
+  WasmRunner<void> r(execution_mode, "main",
+                     compiler::kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   r.builder().AddMemory(0L);
@@ -141,3 +146,8 @@ TEST(IllegalLoad) {
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
 }
+
+}  // namespace test_wasm_trap_position
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

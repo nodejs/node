@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
@@ -40,6 +41,59 @@ std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(
   }
 
   return std::move(decoding_result.val);
+}
+
+bool InterpretWasmModuleForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
+                                   const char* name, size_t argc,
+                                   WasmValue* args) {
+  MaybeHandle<WasmExportedFunction> maybe_function =
+      GetExportedFunction(isolate, instance, "main");
+  Handle<WasmExportedFunction> function;
+  if (!maybe_function.ToHandle(&function)) {
+    return false;
+  }
+  int function_index = function->function_index();
+  FunctionSig* signature = instance->module()->functions[function_index].sig;
+  size_t param_count = signature->parameter_count();
+  std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
+
+  memcpy(arguments.get(), args, std::min(param_count, argc));
+
+  // Fill the parameters up with default values.
+  for (size_t i = argc; i < param_count; ++i) {
+    switch (signature->GetParam(i)) {
+      case MachineRepresentation::kWord32:
+        arguments[i] = WasmValue(int32_t{0});
+        break;
+      case MachineRepresentation::kWord64:
+        arguments[i] = WasmValue(int64_t{0});
+        break;
+      case MachineRepresentation::kFloat32:
+        arguments[i] = WasmValue(0.0f);
+        break;
+      case MachineRepresentation::kFloat64:
+        arguments[i] = WasmValue(0.0);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  // Don't execute more than 16k steps.
+  constexpr int kMaxNumSteps = 16 * 1024;
+
+  Zone zone(isolate->allocator(), ZONE_NAME);
+
+  WasmInterpreter* interpreter = WasmDebugInfo::SetupForTesting(instance);
+  WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
+  WasmInterpreter::Thread* thread = interpreter->GetThread(0);
+  thread->Reset();
+  thread->InitFrame(&instance->module()->functions[function_index],
+                    arguments.get());
+  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
+
+  return interpreter_result != WasmInterpreter::PAUSED;
 }
 
 int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
@@ -111,9 +165,9 @@ int32_t InterpretWasmModule(Isolate* isolate,
   }
 }
 
-int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                   ErrorThrower* thrower, const char* name,
-                                   int argc, Handle<Object> argv[]) {
+MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
+                                                      Handle<JSObject> instance,
+                                                      const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
   exports_object = Handle<JSObject>::cast(
@@ -123,9 +177,21 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
-  if (!property_found.FromMaybe(false)) return -1;
+  if (!property_found.FromMaybe(false)) return {};
+  if (!desc.value()->IsJSFunction()) return {};
 
-  Handle<JSFunction> main_export = Handle<JSFunction>::cast(desc.value());
+  return Handle<WasmExportedFunction>::cast(desc.value());
+}
+
+int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
+                                   ErrorThrower* thrower, const char* name,
+                                   int argc, Handle<Object> argv[]) {
+  MaybeHandle<WasmExportedFunction> maybe_export =
+      GetExportedFunction(isolate, instance, name);
+  Handle<WasmExportedFunction> main_export;
+  if (!maybe_export.ToHandle(&main_export)) {
+    return -1;
+  }
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
@@ -152,7 +218,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::Install(isolate);
+  WasmJs::Install(isolate, true);
 }
 
 }  // namespace testing

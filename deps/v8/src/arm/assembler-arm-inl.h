@@ -179,35 +179,22 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
-  rm_ = no_reg;
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) : rmode_(rmode) {
   value_.immediate = immediate;
-  rmode_ = rmode;
 }
 
 Operand Operand::Zero() { return Operand(static_cast<int32_t>(0)); }
 
-Operand::Operand(const ExternalReference& f)  {
-  rm_ = no_reg;
+Operand::Operand(const ExternalReference& f)
+    : rmode_(RelocInfo::EXTERNAL_REFERENCE) {
   value_.immediate = reinterpret_cast<int32_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
+Operand::Operand(Smi* value) : rmode_(RelocInfo::NONE32) {
   value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE32;
 }
 
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-  rs_ = no_reg;
-  shift_op_ = LSL;
-  shift_imm_ = 0;
-}
-
+Operand::Operand(Register rm) : rm_(rm), shift_op_(LSL), shift_imm_(0) {}
 
 void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {

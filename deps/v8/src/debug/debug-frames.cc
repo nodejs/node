@@ -4,9 +4,10 @@
 
 #include "src/debug/debug-frames.h"
 
+#include "src/accessors.h"
 #include "src/frames-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -37,7 +38,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
 
   // Calculate the deoptimized frame.
   if (is_optimized_) {
-    DCHECK(js_frame != nullptr);
+    DCHECK_NOT_NULL(js_frame);
     // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
     if (js_frame->LookupCode()->is_turbofanned() &&
         !js_frame->function()->shared()->HasBytecodeArray()) {
@@ -108,7 +109,8 @@ void FrameInspector::SetArgumentsFrame(StandardFrame* frame) {
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
 void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
-                                            Handle<ScopeInfo> scope_info) {
+                                            Handle<ScopeInfo> scope_info,
+                                            bool materialize_arguments_object) {
   HandleScope scope(isolate_);
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
@@ -139,18 +141,41 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
       value = isolate_->factory()->undefined_value();
     }
     if (value->IsOptimizedOut(isolate_)) {
+      if (materialize_arguments_object) {
+        Handle<String> arguments_str = isolate_->factory()->arguments_string();
+        if (String::Equals(name, arguments_str)) continue;
+      }
       value = isolate_->factory()->undefined_value();
     }
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
 }
 
-
 void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
-                                            Handle<JSFunction> function) {
+                                            Handle<JSFunction> function,
+                                            bool materialize_arguments_object) {
+  // Do not materialize the arguments object for eval or top-level code.
+  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
+
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
-  MaterializeStackLocals(target, scope_info);
+  MaterializeStackLocals(target, scope_info, materialize_arguments_object);
+
+  // Third materialize the arguments object.
+  if (materialize_arguments_object) {
+    // Skip if "arguments" is already taken and wasn't optimized out (which
+    // causes {MaterializeStackLocals} above to skip the local variable).
+    Handle<String> arguments_str = isolate_->factory()->arguments_string();
+    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
+    DCHECK(maybe.IsJust());
+    if (maybe.FromJust()) return;
+
+    // FunctionGetArguments can't throw an exception.
+    Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
+    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
+                                             NONE)
+        .Check();
+  }
 }
 
 

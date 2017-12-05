@@ -595,3 +595,29 @@ TEST(TerminateAndTryCall) {
   CHECK_EQ(4, result.FromJust());
   CHECK(!isolate->IsExecutionTerminating());
 }
+
+class ConsoleImpl : public v8::debug::ConsoleDelegate {
+ private:
+  void Log(const v8::debug::ConsoleCallArguments& args,
+           const v8::debug::ConsoleContext&) override {
+    CompileRun("1 + 1");
+  }
+};
+
+TEST(TerminateConsole) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  ConsoleImpl console;
+  v8::debug::SetConsoleDelegate(isolate, &console);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> global = CreateGlobalTemplate(
+      isolate, TerminateCurrentThread, DoLoopCancelTerminate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!isolate->IsExecutionTerminating());
+  v8::TryCatch try_catch(isolate);
+  CHECK(!isolate->IsExecutionTerminating());
+  CHECK(CompileRun("terminate(); console.log(); fail();").IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(!isolate->IsExecutionTerminating());
+}

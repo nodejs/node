@@ -33,6 +33,12 @@ namespace wasm {
 #define TRACE_IF(...)
 #endif
 
+// A {DecodeResult} only stores the failure / success status, but no data. Thus
+// we use {nullptr_t} as data value, such that the only valid data stored in
+// this type is a nullptr.
+// Storing {void} would require template specialization.
+using DecodeResult = Result<std::nullptr_t>;
+
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {
@@ -353,6 +359,27 @@ class Decoder {
     }
     return result;
   }
+};
+
+// Reference to a string in the wire bytes.
+class WireBytesRef {
+ public:
+  WireBytesRef() : WireBytesRef(0, 0) {}
+  WireBytesRef(uint32_t offset, uint32_t length)
+      : offset_(offset), length_(length) {
+    DCHECK_IMPLIES(offset_ == 0, length_ == 0);
+    DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
+  }
+
+  uint32_t offset() const { return offset_; }
+  uint32_t length() const { return length_; }
+  uint32_t end_offset() const { return offset_ + length_; }
+  bool is_empty() const { return length_ == 0; }
+  bool is_set() const { return offset_ != 0; }
+
+ private:
+  uint32_t offset_;
+  uint32_t length_;
 };
 
 #undef TRACE

@@ -108,6 +108,8 @@ DECLARE_ENCODE_DECODE_CHECKER(uint32_t, u32v)
 DECLARE_ENCODE_DECODE_CHECKER(int64_t, i64v)
 DECLARE_ENCODE_DECODE_CHECKER(uint64_t, u64v)
 
+#undef DECLARE_ENCODE_DECODE_CHECKER
+
 TEST_F(LEBHelperTest, WriteAndDecode_u32v) {
   CheckEncodeDecode_u32v(0);
   CheckEncodeDecode_u32v(1);

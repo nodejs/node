@@ -43,7 +43,7 @@ Address IC::raw_constant_pool() const {
 bool IC::IsHandler(Object* object) {
   return (object->IsSmi() && (object != nullptr)) || object->IsTuple2() ||
          object->IsTuple3() || object->IsFixedArray() || object->IsWeakCell() ||
-         (object->IsCode() && Code::cast(object)->is_handler());
+         object->IsCode();
 }
 
 bool IC::AddressIsDeoptimizedCode() const {

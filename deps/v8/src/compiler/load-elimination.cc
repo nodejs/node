@@ -330,13 +330,29 @@ bool MayAlias(MaybeHandle<Name> x, MaybeHandle<Name> y) {
 
 }  // namespace
 
+class LoadElimination::AliasStateInfo {
+ public:
+  AliasStateInfo(const AbstractState* state, Node* object, Handle<Map> map)
+      : state_(state), object_(object), map_(map) {}
+  AliasStateInfo(const AbstractState* state, Node* object)
+      : state_(state), object_(object) {}
+
+  bool MayAlias(Node* other) const;
+
+ private:
+  const AbstractState* state_;
+  Node* object_;
+  MaybeHandle<Map> map_;
+};
+
 LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
-    Node* object, MaybeHandle<Name> name, Zone* zone) const {
+    const AliasStateInfo& alias_info, MaybeHandle<Name> name,
+    Zone* zone) const {
   for (auto pair : this->info_for_node_) {
-    if (MayAlias(object, pair.first)) {
+    if (alias_info.MayAlias(pair.first)) {
       AbstractField* that = new (zone) AbstractField(zone);
       for (auto pair : this->info_for_node_) {
-        if (!MayAlias(object, pair.first) ||
+        if (!alias_info.MayAlias(pair.first) ||
             !MayAlias(name, pair.second.name)) {
           that->info_for_node_.insert(pair);
         }
@@ -367,12 +383,12 @@ bool LoadElimination::AbstractMaps::Lookup(
 }
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
-    Node* object, Zone* zone) const {
+    const AliasStateInfo& alias_info, Zone* zone) const {
   for (auto pair : this->info_for_node_) {
-    if (MayAlias(object, pair.first)) {
+    if (alias_info.MayAlias(pair.first)) {
       AbstractMaps* that = new (zone) AbstractMaps(zone);
       for (auto pair : this->info_for_node_) {
-        if (!MayAlias(object, pair.first)) that->info_for_node_.insert(pair);
+        if (!alias_info.MayAlias(pair.first)) that->info_for_node_.insert(pair);
       }
       return that;
     }
@@ -512,9 +528,9 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddMaps(
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
-    Node* object, Zone* zone) const {
+    const AliasStateInfo& alias_info, Zone* zone) const {
   if (this->maps_) {
-    AbstractMaps const* that_maps = this->maps_->Kill(object, zone);
+    AbstractMaps const* that_maps = this->maps_->Kill(alias_info, zone);
     if (this->maps_ != that_maps) {
       AbstractState* that = new (zone) AbstractState(*this);
       that->maps_ = that_maps;
@@ -522,6 +538,12 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
     }
   }
   return this;
+}
+
+LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
+    Node* object, Zone* zone) const {
+  AliasStateInfo alias_info(this, object);
+  return KillMaps(alias_info, zone);
 }
 
 Node* LoadElimination::AbstractState::LookupElement(
@@ -578,8 +600,15 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
     Node* object, size_t index, MaybeHandle<Name> name, Zone* zone) const {
+  AliasStateInfo alias_info(this, object);
+  return KillField(alias_info, index, name, zone);
+}
+
+LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
+    const AliasStateInfo& alias_info, size_t index, MaybeHandle<Name> name,
+    Zone* zone) const {
   if (AbstractField const* this_field = this->fields_[index]) {
-    this_field = this_field->Kill(object, name, zone);
+    this_field = this_field->Kill(alias_info, name, zone);
     if (this->fields_[index] != this_field) {
       AbstractState* that = new (zone) AbstractState(*this);
       that->fields_[index] = this_field;
@@ -592,16 +621,18 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
+  AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
     if (i == arraysize(fields_)) return this;
     if (AbstractField const* this_field = this->fields_[i]) {
-      AbstractField const* that_field = this_field->Kill(object, name, zone);
+      AbstractField const* that_field =
+          this_field->Kill(alias_info, name, zone);
       if (that_field != this_field) {
         AbstractState* that = new (zone) AbstractState(*this);
         that->fields_[i] = that_field;
         while (++i < arraysize(fields_)) {
           if (this->fields_[i] != nullptr) {
-            that->fields_[i] = this->fields_[i]->Kill(object, name, zone);
+            that->fields_[i] = this->fields_[i]->Kill(alias_info, name, zone);
           }
         }
         return that;
@@ -616,6 +647,22 @@ Node* LoadElimination::AbstractState::LookupField(Node* object,
     return this_field->Lookup(object);
   }
   return nullptr;
+}
+
+bool LoadElimination::AliasStateInfo::MayAlias(Node* other) const {
+  if (QueryAlias(object_, other) == kNoAlias) {
+    return false;
+  }
+  Handle<Map> map;
+  if (map_.ToHandle(&map)) {
+    ZoneHandleSet<Map> other_maps;
+    if (state_->LookupMaps(other, &other_maps) && other_maps.size() == 1) {
+      if (map.address() != other_maps.at(0).address()) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 void LoadElimination::AbstractState::Print() const {
@@ -741,12 +788,12 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
 }
 
 Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
-  GrowFastElementsFlags flags = GrowFastElementsFlagsOf(node->op());
+  GrowFastElementsMode mode = GrowFastElementsModeOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (flags & GrowFastElementsFlag::kDoubleElements) {
+  if (mode == GrowFastElementsMode::kDoubleElements) {
     // We know that the resulting elements have the fixed double array map.
     state = state->AddMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());
@@ -754,11 +801,6 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
     // We know that the resulting elements have the fixed array map.
     state = state->AddMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_array_map()), zone());
-  }
-  if (flags & GrowFastElementsFlag::kArrayObject) {
-    // Kill the previous Array::length on {object}.
-    state = state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
-                             factory()->length_string(), zone());
   }
   // Kill the previous elements on {object}.
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
@@ -777,6 +819,17 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
+  switch (transition.mode()) {
+    case ElementsTransition::kFastTransition:
+      break;
+    case ElementsTransition::kSlowTransition:
+      // Kill the elements as well.
+      AliasStateInfo alias_info(state, object, source_map);
+      state =
+          state->KillField(alias_info, FieldIndexOf(JSObject::kElementsOffset),
+                           MaybeHandle<Name>(), zone());
+      break;
+  }
   ZoneHandleSet<Map> object_maps;
   if (state->LookupMaps(object, &object_maps)) {
     if (ZoneHandleSet<Map>(target_map).contains(object_maps)) {
@@ -787,20 +840,13 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
     if (object_maps.contains(ZoneHandleSet<Map>(source_map))) {
       object_maps.remove(source_map, zone());
       object_maps.insert(target_map, zone());
-      state = state->KillMaps(object, zone());
+      AliasStateInfo alias_info(state, object, source_map);
+      state = state->KillMaps(alias_info, zone());
       state = state->AddMaps(object, object_maps, zone());
     }
   } else {
-    state = state->KillMaps(object, zone());
-  }
-  switch (transition.mode()) {
-    case ElementsTransition::kFastTransition:
-      break;
-    case ElementsTransition::kSlowTransition:
-      // Kill the elements as well.
-      state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
-                               MaybeHandle<Name>(), zone());
-      break;
+    AliasStateInfo alias_info(state, object, source_map);
+    state = state->KillMaps(alias_info, zone());
   }
   return UpdateState(node, state);
 }
@@ -1109,6 +1155,11 @@ Reduction LoadElimination::UpdateState(Node* node, AbstractState const* state) {
 LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   Node* const control = NodeProperties::GetControlInput(node);
+  struct TransitionElementsKindInfo {
+    ElementsTransition transition;
+    Node* object;
+  };
+  ZoneVector<TransitionElementsKindInfo> element_transitions_(zone());
   ZoneQueue<Node*> queue(zone());
   ZoneSet<Node*> visited(zone());
   visited.insert(node);
@@ -1130,17 +1181,10 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             break;
           }
           case IrOpcode::kMaybeGrowFastElements: {
-            GrowFastElementsFlags flags =
-                GrowFastElementsFlagsOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
             state = state->KillField(object,
                                      FieldIndexOf(JSObject::kElementsOffset),
                                      MaybeHandle<Name>(), zone());
-            if (flags & GrowFastElementsFlag::kArrayObject) {
-              state =
-                  state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
-                                   factory()->length_string(), zone());
-            }
             break;
           }
           case IrOpcode::kTransitionElementsKind: {
@@ -1150,17 +1194,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             if (!state->LookupMaps(object, &object_maps) ||
                 !ZoneHandleSet<Map>(transition.target())
                      .contains(object_maps)) {
-              state = state->KillMaps(object, zone());
-              switch (transition.mode()) {
-                case ElementsTransition::kFastTransition:
-                  break;
-                case ElementsTransition::kSlowTransition:
-                  // Kill the elements as well.
-                  state = state->KillField(
-                      object, FieldIndexOf(JSObject::kElementsOffset),
-                      MaybeHandle<Name>(), zone());
-                  break;
-              }
+              element_transitions_.push_back({transition, object});
             }
             break;
           }
@@ -1207,6 +1241,48 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
       }
       for (int i = 0; i < current->op()->EffectInputCount(); ++i) {
         queue.push(NodeProperties::GetEffectInput(current, i));
+      }
+    }
+  }
+
+  // Finally, we apply the element transitions. For each transition, we will try
+  // to only invalidate information about nodes that can have the transition's
+  // source map. The trouble is that an object can be transitioned by some other
+  // transition to the source map. In that case, the other transition will
+  // invalidate the information, so we are mostly fine.
+  //
+  // The only bad case is
+  //
+  //    mapA   ---fast--->   mapB   ---slow--->   mapC
+  //
+  // If we process the slow transition first on an object that has mapA, we will
+  // ignore the transition because the object does not have its source map
+  // (mapB). When we later process the fast transition, we invalidate the
+  // object's map, but we keep the information about the object's elements. This
+  // is wrong because the elements will be overwritten by the slow transition.
+  //
+  // Note that the slow-slow case is fine because either of the slow transition
+  // will invalidate the elements field, so the processing order does not
+  // matter.
+  //
+  // To handle the bad case properly, we first kill the maps using all
+  // transitions. We kill the the fields later when all the transitions are
+  // already reflected in the map information.
+
+  for (const TransitionElementsKindInfo& t : element_transitions_) {
+    AliasStateInfo alias_info(state, t.object, t.transition.source());
+    state = state->KillMaps(alias_info, zone());
+  }
+  for (const TransitionElementsKindInfo& t : element_transitions_) {
+    switch (t.transition.mode()) {
+      case ElementsTransition::kFastTransition:
+        break;
+      case ElementsTransition::kSlowTransition: {
+        AliasStateInfo alias_info(state, t.object, t.transition.source());
+        state = state->KillField(alias_info,
+                                 FieldIndexOf(JSObject::kElementsOffset),
+                                 MaybeHandle<Name>(), zone());
+        break;
       }
     }
   }

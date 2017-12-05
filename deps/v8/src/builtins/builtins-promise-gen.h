@@ -57,11 +57,11 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   // This is used by the Promise.prototype.finally builtin to store
   // onFinally callback and the Promise constructor.
-  // TODO(gsathya): Add extra slot for Promise constructor.
   // TODO(gsathya): For native promises we can create a variant of
   // this without extra space for the constructor to save memory.
   enum PromiseFinallyContextSlot {
     kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
+    kConstructorSlot,
 
     kPromiseFinallyContextLength,
   };
@@ -156,6 +156,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void InternalPromiseReject(Node* context, Node* promise, Node* value,
                              Node* debug_event);
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
+                                                        Node* constructor,
                                                         Node* native_context);
   Node* CreateValueThunkFunction(Node* value, Node* native_context);
 

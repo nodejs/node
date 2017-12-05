@@ -47,7 +47,10 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'regexp-lookbehind': '--harmony-regexp-lookbehind',
+  'Promise.prototype.finally': '--harmony-promise-finally',
 }
+
+SKIPPED_FEATURES = set(['BigInt', 'class-fields', 'optional-catch-binding'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
@@ -130,7 +133,6 @@ class Test262TestSuite(testsuite.TestSuite):
     self.ParseTestRecord = None
 
   def ListTests(self, context):
-    tests = []
     testnames = set()
     for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
                                                 os.walk(self.localtestroot)):
@@ -148,7 +150,10 @@ class Test262TestSuite(testsuite.TestSuite):
         fullpath = os.path.join(dirname, filename)
         relpath = re.match(TEST_262_RELPATH_REGEXP, fullpath).group(1)
         testnames.add(relpath.replace(os.path.sep, "/"))
-    return [testcase.TestCase(self, testname) for testname in testnames]
+    cases = [testcase.TestCase(self, testname) for testname in testnames]
+    return [case for case in cases if len(
+                SKIPPED_FEATURES.intersection(
+                    self.GetTestRecord(case).get("features", []))) == 0]
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +

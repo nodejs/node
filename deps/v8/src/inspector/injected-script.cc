@@ -272,8 +272,8 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   // The function is expected
   // to create and configure InjectedScript instance that is going to be used by
   // the inspector.
-  String16 injectedScriptSource(
-      reinterpret_cast<const char*>(InjectedScriptSource_js),
+  StringView injectedScriptSource(
+      reinterpret_cast<const uint8_t*>(InjectedScriptSource_js),
       sizeof(InjectedScriptSource_js));
   v8::Local<v8::Value> value;
   if (!inspectedContext->inspector()

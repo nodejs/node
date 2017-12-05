@@ -308,3 +308,101 @@ TestTrapReceiverArgument(strictReflectSet);
     }
   }
 })();
+
+
+function TestTargetProxy(mySet) {
+  var q = new Proxy({}, {});
+  var proxy = new Proxy(q, {
+    set: function(t, k, v) {
+      return Reflect.set(t, k, v);
+    }
+  });
+
+  for (var p of properties) {
+    assertTrueIf(mySet.returnsBool, mySet(proxy, p, 42));
+    assertSame(42, q[p]);
+  }
+};
+
+TestTargetProxy(sloppyDefaultSet);
+TestTargetProxy(sloppyReflectSet);
+TestTargetProxy(strictDefaultSet);
+TestTargetProxy(strictReflectSet);
+
+
+(function TestAccessorNoSet() {
+  var target = {
+  };
+  Object.defineProperty(target, 'prop', {
+    get: function() {
+      return 42;
+    },
+    configurable: false
+  })
+  var handler = {
+    set: function() { return true; }
+  }
+  var proxy = new Proxy(target, handler);
+  assertThrows(function() { proxy.prop = 0; }, TypeError);
+})();
+
+(function TestProxyInPrototype() {
+  var handler = {
+    set: function(t, k, v) {
+      Reflect.set(t, k, v);
+    }
+  };
+  var obj = {};
+  var proxy = new Proxy(obj, handler);
+  var o = Object.create(proxy);
+
+  for (var i = 0; i < 3; ++i) {
+    o.prop = 42 + i;
+    assertEquals(42 + i, obj.prop);
+  }
+})();
+
+(function TestProxyInPrototypeNoTrap() {
+  var handler = {
+  };
+  var obj = {};
+  var proxy = new Proxy(obj, handler);
+  var o = Object.create(proxy);
+
+  for (var i = 0; i < 3; ++i) {
+    o.prop = 42 + i;
+    assertEquals(42 + i, o.prop);
+    assertEquals(undefined, obj.prop);
+  }
+})();
+
+// Note: this case is currently handled by runtime.
+(function TestDifferentHolder() {
+  var obj = {
+    '1337': 100
+  };
+  var handler = {
+    set(target, name, value, receiver) {
+      if (name != '1337') return Reflect.set(target, name, value, receiver);
+
+      assertSame(target, obj);
+      assertSame(receiver, p);
+      return target[name] = value;
+    }
+  };
+  var p = new Proxy(obj, handler);
+  for (var i = 0; i < 3; ++i) {
+    assertEquals(42, p[1337] = 42);
+  }
+})();
+
+(function test32BitIndex() {
+  var index = (1 << 31) + 1;
+  var obj = {};
+  obj[index] = 42;
+  var p = new Proxy(obj, {});
+  for (var i = 0; i < 3; ++i) {
+    p[index] = 100;
+    assertEquals(100, obj[index]);
+  }
+})();

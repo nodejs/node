@@ -361,11 +361,10 @@ class RelocInfo {
     CODE_TARGET,
     EMBEDDED_OBJECT,
     // Wasm entries are to relocate pointers into the wasm memory embedded in
-    // wasm code. Everything after WASM_MEMORY_REFERENCE (inclusive) is not
+    // wasm code. Everything after WASM_CONTEXT_REFERENCE (inclusive) is not
     // GC'ed.
-    WASM_MEMORY_REFERENCE,
+    WASM_CONTEXT_REFERENCE,
     WASM_GLOBAL_REFERENCE,
-    WASM_MEMORY_SIZE_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     WASM_PROTECTED_INSTRUCTION_LANDING,
     WASM_GLOBAL_HANDLE,
@@ -395,8 +394,8 @@ class RelocInfo {
 
     // Pseudo-types
     NUMBER_OF_MODES,
-    NONE32,             // never recorded 32-bit value
-    NONE64,             // never recorded 64-bit value
+    NONE32,  // never recorded 32-bit value
+    NONE64,  // never recorded 64-bit value
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
@@ -458,11 +457,8 @@ class RelocInfo {
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;
   }
-  static inline bool IsWasmMemoryReference(Mode mode) {
-    return mode == WASM_MEMORY_REFERENCE;
-  }
-  static inline bool IsWasmMemorySizeReference(Mode mode) {
-    return mode == WASM_MEMORY_SIZE_REFERENCE;
+  static inline bool IsWasmContextReference(Mode mode) {
+    return mode == WASM_CONTEXT_REFERENCE;
   }
   static inline bool IsWasmGlobalReference(Mode mode) {
     return mode == WASM_GLOBAL_REFERENCE;
@@ -474,11 +470,10 @@ class RelocInfo {
     return IsWasmPtrReference(mode) || IsWasmSizeReference(mode);
   }
   static inline bool IsWasmSizeReference(Mode mode) {
-    return mode == WASM_MEMORY_SIZE_REFERENCE ||
-           mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+    return IsWasmFunctionTableSizeReference(mode);
   }
   static inline bool IsWasmPtrReference(Mode mode) {
-    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
+    return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
            mode == WASM_GLOBAL_HANDLE;
   }
   static inline bool IsWasmProtectedLanding(Mode mode) {
@@ -510,17 +505,14 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  Address wasm_memory_reference() const;
+  Address wasm_context_reference() const;
   Address wasm_global_reference() const;
   uint32_t wasm_function_table_size_reference() const;
   uint32_t wasm_memory_size_reference() const;
   Address global_handle() const;
 
-  void update_wasm_memory_reference(
-      Isolate* isolate, Address old_base, Address new_base,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  void update_wasm_memory_size(
-      Isolate* isolate, uint32_t old_size, uint32_t new_size,
+  void set_wasm_context_reference(
+      Isolate* isolate, Address address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_global_reference(
       Isolate* isolate, Address old_base, Address new_base,
@@ -767,10 +759,6 @@ class ExternalReference BASE_EMBEDDED {
     // ObjectPair f(v8::internal::Arguments).
     BUILTIN_CALL_PAIR,
 
-    // Builtin call that returns .
-    // ObjectTriple f(v8::internal::Arguments).
-    BUILTIN_CALL_TRIPLE,
-
     // Builtin that takes float arguments and returns an int.
     // int f(double, double).
     BUILTIN_COMPARE_CALL,
@@ -830,6 +818,9 @@ class ExternalReference BASE_EMBEDDED {
   // Isolate as an external reference.
   static ExternalReference isolate_address(Isolate* isolate);
 
+  // The builtins table as an external reference, used by lazy deserialization.
+  static ExternalReference builtins_address(Isolate* isolate);
+
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.
@@ -876,6 +867,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference wasm_word32_popcnt(Isolate* isolate);
   static ExternalReference wasm_word64_popcnt(Isolate* isolate);
   static ExternalReference wasm_float64_pow(Isolate* isolate);
+  static ExternalReference wasm_set_thread_in_wasm_flag(Isolate* isolate);
+  static ExternalReference wasm_clear_thread_in_wasm_flag(Isolate* isolate);
 
   static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
@@ -991,6 +984,11 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
 
   static ExternalReference get_or_create_hash_raw(Isolate* isolate);
+
+  static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
+      Isolate* isolate);
+  static ExternalReference copy_typed_array_elements_to_typed_array(
+      Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 
@@ -1249,6 +1247,57 @@ class HeapObjectRequest {
   } value_;
 
   int offset_;
+};
+
+// Base type for CPU Registers.
+//
+// 1) We would prefer to use an enum for registers, but enum values are
+// assignment-compatible with int, which has caused code-generation bugs.
+//
+// 2) By not using an enum, we are possibly preventing the compiler from
+// doing certain constant folds, which may significantly reduce the
+// code generated for some assembly instructions (because they boil down
+// to a few constants). If this is a problem, we could change the code
+// such that we use an enum in optimized mode, and the class in debug
+// mode. This way we get the compile-time error checking in debug mode
+// and best performance in optimized code.
+template <typename SubType, int kAfterLastRegister>
+class RegisterBase {
+ public:
+  static constexpr int kCode_no_reg = -1;
+  static constexpr int kNumRegisters = kAfterLastRegister;
+
+  static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
+
+  template <int code>
+  static constexpr SubType from_code() {
+    static_assert(code >= 0 && code < kNumRegisters, "must be valid reg code");
+    return SubType{code};
+  }
+
+  static SubType from_code(int code) {
+    DCHECK_LE(0, code);
+    DCHECK_GT(kNumRegisters, code);
+    return SubType{code};
+  }
+
+  bool is_valid() const { return reg_code_ != kCode_no_reg; }
+
+  int code() const {
+    DCHECK(is_valid());
+    return reg_code_;
+  }
+
+  int bit() const { return 1 << code(); }
+
+  inline bool operator==(SubType other) const {
+    return reg_code_ == other.reg_code_;
+  }
+  inline bool operator!=(SubType other) const { return !(*this == other); }
+
+ protected:
+  explicit constexpr RegisterBase(int code) : reg_code_(code) {}
+  int reg_code_;
 };
 
 }  // namespace internal

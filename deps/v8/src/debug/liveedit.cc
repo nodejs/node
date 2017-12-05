@@ -163,7 +163,7 @@ class Differencer {
 
   // Each cell keeps a value plus direction. Value is multiplied by 4.
   void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
-    DCHECK((value4 & kDirectionMask) == 0);
+    DCHECK_EQ(0, value4 & kDirectionMask);
     get_cell(i1, i2) = value4 | dir;
   }
 
@@ -806,41 +806,6 @@ class FeedbackVectorFixer {
 };
 
 
-// Marks code that shares the same shared function info or has inlined
-// code that shares the same function info.
-class DependentFunctionMarker: public OptimizedFunctionVisitor {
- public:
-  SharedFunctionInfo* shared_info_;
-  bool found_;
-
-  explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
-    : shared_info_(shared_info), found_(false) { }
-
-  virtual void VisitFunction(JSFunction* function) {
-    // It should be guaranteed by the iterator that everything is optimized.
-    DCHECK(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-    if (function->Inlines(shared_info_)) {
-      // Mark the code for deoptimization.
-      function->code()->set_marked_for_deoptimization(true);
-      found_ = true;
-    }
-  }
-};
-
-
-static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  DisallowHeapAllocation no_allocation;
-  DependentFunctionMarker marker(function_info);
-  // TODO(titzer): need to traverse all optimized code to find OSR code here.
-  Deoptimizer::VisitAllOptimizedFunctions(function_info->GetIsolate(), &marker);
-
-  if (marker.found_) {
-    // Only go through with the deoptimization if something was found.
-    Deoptimizer::DeoptimizeMarkedCode(function_info->GetIsolate());
-  }
-}
-
-
 void LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
     Handle<JSArray> shared_info_array) {
@@ -889,8 +854,7 @@ void LiveEdit::ReplaceFunctionCode(
   FeedbackVectorFixer::PatchFeedbackVector(&compile_info_wrapper, shared_info,
                                            isolate);
 
-  DeoptimizeDependentFunctions(*shared_info);
-  isolate->compilation_cache()->Remove(shared_info);
+  isolate->debug()->DeoptimizeFunction(shared_info);
 }
 
 void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
@@ -899,8 +863,7 @@ void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
   shared_info->set_function_literal_id(new_function_literal_id);
-  DeoptimizeDependentFunctions(*shared_info);
-  shared_info_array->GetIsolate()->compilation_cache()->Remove(shared_info);
+  shared_info_array->GetIsolate()->debug()->DeoptimizeFunction(shared_info);
 }
 
 void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
@@ -1022,11 +985,6 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
         Handle<AbstractCode>(AbstractCode::cast(info->bytecode_array())),
         position_change_array);
   }
-  if (info->code()->kind() == Code::FUNCTION) {
-    TranslateSourcePositionTable(
-        Handle<AbstractCode>(AbstractCode::cast(info->code())),
-        position_change_array);
-  }
   if (info->HasBreakInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.
     info->GetIsolate()->debug()->RemoveBreakInfoAndMaybeFree(
@@ -1126,7 +1084,9 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
     Handle<SharedFunctionInfo> shared =
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
 
-    if (function->Inlines(*shared)) {
+    if (function->shared() == *shared ||
+        (function->code()->is_optimized_code() &&
+         function->code()->Inlines(*shared))) {
       SetElementSloppy(result, i, Handle<Smi>(Smi::FromInt(status), isolate));
       return true;
     }

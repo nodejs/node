@@ -48,7 +48,12 @@ struct AsC1VCompilation {
   const CompilationInfo* info_;
 };
 
+struct AsScheduledGraph {
+  explicit AsScheduledGraph(const Schedule* schedule) : schedule(schedule) {}
+  const Schedule* schedule;
+};
 
+std::ostream& operator<<(std::ostream& os, const AsScheduledGraph& scheduled);
 struct AsC1V {
   AsC1V(const char* phase, const Schedule* schedule,
         const SourcePositionTable* positions = nullptr,

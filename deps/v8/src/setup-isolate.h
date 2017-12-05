@@ -10,6 +10,7 @@ namespace internal {
 
 class Builtins;
 class Code;
+class Heap;
 class Isolate;
 
 namespace interpreter {
@@ -31,19 +32,25 @@ class Interpreter;
 // linked in by the latter two Delegate implementations.
 class SetupIsolateDelegate {
  public:
-  SetupIsolateDelegate() {}
+  explicit SetupIsolateDelegate(bool create_heap_objects)
+      : create_heap_objects_(create_heap_objects) {}
   virtual ~SetupIsolateDelegate() {}
 
-  virtual void SetupBuiltins(Isolate* isolate, bool create_heap_objects);
+  virtual void SetupBuiltins(Isolate* isolate);
 
-  virtual void SetupInterpreter(interpreter::Interpreter* interpreter,
-                                bool create_heap_objects);
+  virtual void SetupInterpreter(interpreter::Interpreter* interpreter);
+
+  virtual bool SetupHeap(Heap* heap);
 
  protected:
   static void SetupBuiltinsInternal(Isolate* isolate);
   static void AddBuiltin(Builtins* builtins, int index, Code* code);
   static void PopulateWithPlaceholders(Isolate* isolate);
   static void ReplacePlaceholders(Isolate* isolate);
+
+  static bool SetupHeapInternal(Heap* heap);
+
+  const bool create_heap_objects_;
 };
 
 }  // namespace internal

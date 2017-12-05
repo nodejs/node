@@ -38,8 +38,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
+namespace test_code_stubs_x64 {
 
 #define __ assm.
 
@@ -54,8 +55,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
                       v8::internal::CodeObjectRequired::kYes);
-  int offset =
-    source_reg.is(rsp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
+  int offset = source_reg == rsp ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
   byte* start = stub.GetCode()->instruction_start();
 
@@ -66,7 +66,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ pushq(rdi);
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
-  if (!source_reg.is(rsp)) {
+  if (source_reg != rsp) {
     // The argument we pass to the stub is not a heap number, but instead
     // stack-allocated and offset-wise made to look like a heap number for
     // the stub.  We create that "heap number" after pushing all allocatable
@@ -82,7 +82,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (; reg_num < config->num_allocatable_general_registers(); ++reg_num) {
     Register reg =
         Register::from_code(config->GetAllocatableGeneralCode(reg_num));
-    if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
+    if (reg != rsp && reg != rbp && reg != destination_reg) {
       __ pushq(reg);
     }
   }
@@ -100,7 +100,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (--reg_num; reg_num >= 0; --reg_num) {
     Register reg =
         Register::from_code(config->GetAllocatableGeneralCode(reg_num));
-    if (!reg.is(rsp) && !reg.is(rbp) && !reg.is(destination_reg)) {
+    if (reg != rsp && reg != rbp && reg != destination_reg) {
       __ cmpq(reg, MemOperand(rsp, 0));
       __ Assert(equal, kRegisterWasClobbered);
       __ addq(rsp, Immediate(kPointerSize));
@@ -156,3 +156,7 @@ TEST(ConvertDToI) {
     }
   }
 }
+
+}  // namespace test_code_stubs_x64
+}  // namespace internal
+}  // namespace v8

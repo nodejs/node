@@ -272,7 +272,7 @@ void BranchElimination::ControlPathConditions::Merge(
   // Then we go through both lists in lock-step until we find
   // the common tail.
   while (head_ != other_condition) {
-    DCHECK(condition_count_ > 0);
+    DCHECK_LT(0, condition_count_);
     condition_count_--;
     other_condition = other_condition->next;
     head_ = head_->next;

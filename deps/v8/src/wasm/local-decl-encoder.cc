@@ -6,19 +6,9 @@
 
 #include "src/wasm/leb-helper.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 void LocalDeclEncoder::Prepend(Zone* zone, const byte** start,
                                const byte** end) const {
@@ -60,3 +50,7 @@ size_t LocalDeclEncoder::Size() const {
   for (auto p : local_decls) size += 1 + LEBHelper::sizeof_u32v(p.first);
   return size;
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

@@ -212,6 +212,12 @@ bool EqualNzcv(uint32_t expected, uint32_t result);
 
 bool EqualRegisters(const RegisterDump* a, const RegisterDump* b);
 
+// Create an array of type {RegType}, size {Size}, filled with {NoReg}.
+template <typename RegType, size_t Size>
+std::array<RegType, Size> CreateRegisterArray() {
+  return base::make_array<Size>([](size_t) { return RegType::no_reg(); });
+}
+
 // Populate the w, x and r arrays with registers from the 'allowed' mask. The
 // r array will be populated with <reg_size>-sized registers,
 //

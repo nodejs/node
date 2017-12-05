@@ -108,8 +108,25 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
+  int config = KindBits::encode(kStoreGlobalProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   int config = KindBits::encode(kStoreNormal);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
+  int config = KindBits::encode(kProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::EnableAccessCheckOnReceiver(Isolate* isolate,
+                                                      Handle<Smi> smi_handler) {
+  int config = smi_handler->value();
+  config = DoAccessCheckOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -177,19 +194,24 @@ Handle<Smi> StoreHandler::TransitionToConstant(Isolate* isolate,
 }
 
 // static
-WeakCell* StoreHandler::GetTuple3TransitionCell(Object* tuple3_handler) {
-  STATIC_ASSERT(kTransitionCellOffset == Tuple3::kValue1Offset);
-  WeakCell* cell = WeakCell::cast(Tuple3::cast(tuple3_handler)->value1());
+WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
+  if (handler->IsTuple3()) {
+    STATIC_ASSERT(kTransitionOrHolderCellOffset == Tuple3::kValue1Offset);
+    WeakCell* cell = WeakCell::cast(Tuple3::cast(handler)->value1());
+    DCHECK(!cell->cleared());
+    return cell;
+  }
+
+  DCHECK(handler->IsFixedArray());
+  WeakCell* cell = WeakCell::cast(
+      FixedArray::cast(handler)->get(kTransitionMapOrHolderCellIndex));
   DCHECK(!cell->cleared());
   return cell;
 }
 
 // static
-WeakCell* StoreHandler::GetArrayTransitionCell(Object* array_handler) {
-  WeakCell* cell = WeakCell::cast(
-      FixedArray::cast(array_handler)->get(kTransitionCellIndex));
-  DCHECK(!cell->cleared());
-  return cell;
+bool StoreHandler::IsHandler(Object* maybe_handler) {
+  return maybe_handler->IsFixedArray() || maybe_handler->IsTuple3();
 }
 
 }  // namespace internal

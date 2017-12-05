@@ -52,7 +52,7 @@ class V8_EXPORT_PRIVATE Node final {
   const Operator* op() const { return op_; }
 
   IrOpcode::Value opcode() const {
-    DCHECK(op_->opcode() <= IrOpcode::kLast);
+    DCHECK_GE(IrOpcode::kLast, op_->opcode());
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
 

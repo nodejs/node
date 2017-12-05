@@ -8,7 +8,8 @@
 assertEquals('_'.anchor('b'), '<a name="b">_</a>');
 assertEquals('<'.anchor('<'), '<a name="<"><</a>');
 assertEquals('_'.anchor(0x2A), '<a name="42">_</a>');
-assertEquals('_'.anchor('\x22'), '<a name="&quot;">_</a>');
+assertEquals('_'.anchor('\x22\x22'), '<a name="&quot;&quot;">_</a>');
+assertEquals('_'.anchor(), '<a name="undefined">_</a>');
 assertEquals(String.prototype.anchor.call(0x2A, 0x2A), '<a name="42">42</a>');
 assertThrows(function() {
   String.prototype.anchor.call(undefined);

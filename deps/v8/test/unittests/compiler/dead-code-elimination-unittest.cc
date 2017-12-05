@@ -14,6 +14,7 @@ using testing::StrictMock;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace dead_code_elimination_unittest {
 
 class DeadCodeEliminationTest : public GraphTest {
  public:
@@ -368,6 +369,7 @@ TEST_F(DeadCodeEliminationTest, TerminateWithDeadControlInput) {
   EXPECT_THAT(r.replacement(), IsDead());
 }
 
+}  // namespace dead_code_elimination_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

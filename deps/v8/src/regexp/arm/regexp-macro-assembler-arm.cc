@@ -139,8 +139,8 @@ void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerARM::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ ldr(r0, register_location(reg));
     __ add(r0, r0, Operand(by));
@@ -448,7 +448,7 @@ void RegExpMacroAssemblerARM::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ sub(r0, current_character(), Operand(minus));
   __ and_(r0, r0, Operand(mask));
   __ cmp(r0, Operand(c));
@@ -887,8 +887,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(
-      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1071,7 +1071,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   // Drop the return address from the stack.
   __ add(sp, sp, Operand(stack_alignment));
 
-  DCHECK(stack_alignment != 0);
+  DCHECK_NE(0, stack_alignment);
   __ ldr(sp, MemOperand(sp, 0));
 
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
@@ -1165,14 +1165,14 @@ void RegExpMacroAssemblerARM::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerARM::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ str(source,
          MemOperand(backtrack_stackpointer(), kPointerSize, NegPreIndex));
 }
 
 
 void RegExpMacroAssemblerARM::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ ldr(target,
          MemOperand(backtrack_stackpointer(), kPointerSize, PostIndex));
 }
@@ -1212,7 +1212,7 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
   // If unaligned load/stores are not supported then this function must only
   // be used to load a single character at a time.
   if (!CanReadUnaligned()) {
-    DCHECK(characters == 1);
+    DCHECK_EQ(1, characters);
   }
 
   if (mode_ == LATIN1) {
@@ -1221,7 +1221,7 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ ldrh(current_character(), MemOperand(end_of_input_address(), offset));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ ldrb(current_character(), MemOperand(end_of_input_address(), offset));
     }
   } else {
@@ -1229,7 +1229,7 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
     if (characters == 2) {
       __ ldr(current_character(), MemOperand(end_of_input_address(), offset));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ ldrh(current_character(), MemOperand(end_of_input_address(), offset));
     }
   }

@@ -23,6 +23,10 @@ Register JavaScriptFrame::constant_pool_pointer_register() {
   return kConstantPoolRegister;
 }
 
+int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+  return register_count;
+}
+
 }  // namespace internal
 }  // namespace v8
 

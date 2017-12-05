@@ -8,6 +8,7 @@
 
 namespace v8 {
 namespace base {
+namespace template_utils_unittest {
 
 ////////////////////////////
 // Test make_array.
@@ -80,5 +81,26 @@ TEST_PASS_VALUE_OR_REF0(false, const std::string&, const std::string&);
 TEST_PASS_VALUE_OR_REF0(false, int, const int);
 TEST_PASS_VALUE_OR_REF0(false, int, const int&);
 
+//////////////////////////////
+// Test has_output_operator.
+//////////////////////////////
+
+// Intrinsic types:
+static_assert(has_output_operator<int>::value, "int can be output");
+static_assert(has_output_operator<void*>::value, "void* can be output");
+static_assert(has_output_operator<uint64_t>::value, "int can be output");
+
+// Classes:
+class TestClass1 {};
+class TestClass2 {};
+extern std::ostream& operator<<(std::ostream& str, TestClass2&);
+static_assert(!has_output_operator<TestClass1>::value,
+              "TestClass1 can not be output");
+static_assert(has_output_operator<TestClass2>::value,
+              "non-const TestClass2 can be output");
+static_assert(!has_output_operator<const TestClass2>::value,
+              "const TestClass2 can not be output");
+
+}  // namespace template_utils_unittest
 }  // namespace base
 }  // namespace v8

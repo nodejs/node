@@ -487,7 +487,7 @@ struct MachineOperatorGlobalCache {
     ProtectedLoad##Type##Operator()                                           \
         : Operator1<LoadRepresentation>(                                      \
               IrOpcode::kProtectedLoad,                                       \
-              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 3, 1, \
+              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1, \
               1, 1, 1, 0, MachineType::Type()) {}                             \
   };                                                                          \
   Load##Type##Operator kLoad##Type;                                           \
@@ -562,7 +562,7 @@ struct MachineOperatorGlobalCache {
         : Operator1<StoreRepresentation>(                                      \
               IrOpcode::kProtectedStore,                                       \
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 4, 1, 1, 0, 1, 0,                                       \
+              "Store", 3, 1, 1, 0, 1, 0,                                       \
               StoreRepresentation(MachineRepresentation::Type,                 \
                                   kNoWriteBarrier)) {}                         \
   };                                                                           \

@@ -29,13 +29,6 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
 
-#define T(name, number_of_args, result_size)                         \
-  ObjectTriple Runtime_##name(int args_length, Object** args_object, \
-                              Isolate* isolate);
-FOR_EACH_INTRINSIC_RETURN_TRIPLE(T)
-#undef T
-
-
 #define F(name, number_of_args, result_size)                                  \
   {                                                                           \
     Runtime::k##name, Runtime::RUNTIME, #name, FUNCTION_ADDR(Runtime_##name), \

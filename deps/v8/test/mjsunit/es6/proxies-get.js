@@ -193,7 +193,6 @@
     'Error from proxy getOwnPropertyDescriptor trap');
 })();
 
-
 (function testGetPropertyDetailsBailout2() {
   var obj = {};
   Object.defineProperty(obj, 'prop', {
@@ -210,4 +209,14 @@
     "'get' on proxy: property 'prop' is a read-only and non-configurable data" +
     " property on the proxy target but the proxy did not return its actual" +
     " value (expected '53' but got '42')");
+})();
+
+(function test32BitIndex() {
+  var index = (1 << 31) + 1;
+  var obj = {};
+  obj[index] = 42;
+  var p = new Proxy(obj, {});
+  for (var i = 0; i < 3; ++i) {
+    assertEquals(42, p[index]);
+  }
 })();

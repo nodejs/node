@@ -9,7 +9,6 @@
 #include "src/compiler.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -136,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
-  target_shared->ReplaceCode(source_shared->code());
+  target_shared->set_code(source_shared->code());
   if (source_shared->HasBytecodeArray()) {
     target_shared->set_bytecode_array(source_shared->bytecode_array());
   }
@@ -162,8 +161,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
-  target->ReplaceCode(source_shared->code());
-  DCHECK(target->next_function_link()->IsUndefined(isolate));
+  target->set_code(source_shared->code());
 
   Handle<Context> context(source->context());
   target->set_context(*context);
@@ -204,18 +202,6 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, object, 0);
   return isolate->heap()->ToBoolean(object->IsConstructor());
-}
-
-RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-
-  if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
-    func->shared()->set_force_inline(true);
-  }
-  return isolate->heap()->undefined_value();
 }
 
 

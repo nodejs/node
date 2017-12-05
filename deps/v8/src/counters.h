@@ -752,86 +752,84 @@ class RuntimeCallTimer final {
   V(ValueDeserializer_ReadValue)                           \
   V(ValueSerializer_WriteValue)
 
-#define FOR_EACH_MANUAL_COUNTER(V)                  \
-  V(AccessorGetterCallback)                         \
-  V(AccessorNameGetterCallback)                     \
-  V(AccessorNameSetterCallback)                     \
-  V(ArrayLengthGetter)                              \
-  V(ArrayLengthSetter)                              \
-  V(BoundFunctionNameGetter)                        \
-  V(BoundFunctionLengthGetter)                      \
-  V(CompileCodeLazy)                                \
-  V(CompileDeserialize)                             \
-  V(CompileEval)                                    \
-  V(CompileFullCode)                                \
-  V(CompileAnalyse)                                 \
-  V(CompileBackgroundIgnition)                      \
-  V(CompileFunction)                                \
-  V(CompileGetFromOptimizedCodeMap)                 \
-  V(CompileIgnition)                                \
-  V(CompileIgnitionFinalization)                    \
-  V(CompileInnerFunction)                           \
-  V(CompileRenumber)                                \
-  V(CompileRewriteReturnResult)                     \
-  V(CompileScopeAnalysis)                           \
-  V(CompileScript)                                  \
-  V(CompileSerialize)                               \
-  V(CompileWaitForDispatcher)                       \
-  V(DeoptimizeCode)                                 \
-  V(FunctionCallback)                               \
-  V(FunctionPrototypeGetter)                        \
-  V(FunctionPrototypeSetter)                        \
-  V(GC_Custom_AllAvailableGarbage)                  \
-  V(GC_Custom_IncrementalMarkingObserver)           \
-  V(GC_Custom_SlowAllocateRaw)                      \
-  V(GCEpilogueCallback)                             \
-  V(GCPrologueCallback)                             \
-  V(GenericNamedPropertyDefinerCallback)            \
-  V(GenericNamedPropertyDeleterCallback)            \
-  V(GenericNamedPropertyDescriptorCallback)         \
-  V(GenericNamedPropertyQueryCallback)              \
-  V(GenericNamedPropertySetterCallback)             \
-  V(GetMoreDataCallback)                            \
-  V(IndexedPropertyDefinerCallback)                 \
-  V(IndexedPropertyDeleterCallback)                 \
-  V(IndexedPropertyDescriptorCallback)              \
-  V(IndexedPropertyGetterCallback)                  \
-  V(IndexedPropertyQueryCallback)                   \
-  V(IndexedPropertySetterCallback)                  \
-  V(InvokeApiInterruptCallbacks)                    \
-  V(InvokeFunctionCallback)                         \
-  V(JS_Execution)                                   \
-  V(Map_SetPrototype)                               \
-  V(Map_TransitionToAccessorProperty)               \
-  V(Map_TransitionToDataProperty)                   \
-  V(Object_DeleteProperty)                          \
-  V(OptimizeCode)                                   \
-  V(ParseArrowFunctionLiteral)                      \
-  V(ParseBackgroundArrowFunctionLiteral)            \
-  V(ParseBackgroundFunctionLiteral)                 \
-  V(ParseEval)                                      \
-  V(ParseFunction)                                  \
-  V(ParseFunctionLiteral)                           \
-  V(ParseProgram)                                   \
-  V(PreParseArrowFunctionLiteral)                   \
-  V(PreParseBackgroundArrowFunctionLiteral)         \
-  V(PreParseBackgroundNoVariableResolution)         \
-  V(PreParseBackgroundWithVariableResolution)       \
-  V(PreParseNoVariableResolution)                   \
-  V(PreParseWithVariableResolution)                 \
-  V(PropertyCallback)                               \
-  V(PrototypeMap_TransitionToAccessorProperty)      \
-  V(PrototypeMap_TransitionToDataProperty)          \
-  V(PrototypeObject_DeleteProperty)                 \
-  V(RecompileConcurrent)                            \
-  V(RecompileSynchronous)                           \
-  V(ReconfigureToDataProperty)                      \
-  V(StringLengthGetter)                             \
-  V(TestCounter1)                                   \
-  V(TestCounter2)                                   \
-  V(TestCounter3)                                   \
-  /* Dummy counter for the unexpected stub miss. */ \
-  V(UnexpectedStubMiss)
+#define FOR_EACH_MANUAL_COUNTER(V)             \
+  V(AccessorGetterCallback)                    \
+  V(AccessorNameGetterCallback)                \
+  V(AccessorNameSetterCallback)                \
+  V(ArrayLengthGetter)                         \
+  V(ArrayLengthSetter)                         \
+  V(BoundFunctionNameGetter)                   \
+  V(BoundFunctionLengthGetter)                 \
+  V(CompileCodeLazy)                           \
+  V(CompileDeserialize)                        \
+  V(CompileEval)                               \
+  V(CompileFullCode)                           \
+  V(CompileAnalyse)                            \
+  V(CompileBackgroundIgnition)                 \
+  V(CompileFunction)                           \
+  V(CompileGetFromOptimizedCodeMap)            \
+  V(CompileIgnition)                           \
+  V(CompileIgnitionFinalization)               \
+  V(CompileInnerFunction)                      \
+  V(CompileRenumber)                           \
+  V(CompileRewriteReturnResult)                \
+  V(CompileScopeAnalysis)                      \
+  V(CompileScript)                             \
+  V(CompileSerialize)                          \
+  V(CompileWaitForDispatcher)                  \
+  V(DeoptimizeCode)                            \
+  V(FunctionCallback)                          \
+  V(FunctionPrototypeGetter)                   \
+  V(FunctionPrototypeSetter)                   \
+  V(GC_Custom_AllAvailableGarbage)             \
+  V(GC_Custom_IncrementalMarkingObserver)      \
+  V(GC_Custom_SlowAllocateRaw)                 \
+  V(GCEpilogueCallback)                        \
+  V(GCPrologueCallback)                        \
+  V(GenericNamedPropertyDefinerCallback)       \
+  V(GenericNamedPropertyDeleterCallback)       \
+  V(GenericNamedPropertyDescriptorCallback)    \
+  V(GenericNamedPropertyQueryCallback)         \
+  V(GenericNamedPropertySetterCallback)        \
+  V(GetMoreDataCallback)                       \
+  V(IndexedPropertyDefinerCallback)            \
+  V(IndexedPropertyDeleterCallback)            \
+  V(IndexedPropertyDescriptorCallback)         \
+  V(IndexedPropertyGetterCallback)             \
+  V(IndexedPropertyQueryCallback)              \
+  V(IndexedPropertySetterCallback)             \
+  V(InvokeApiInterruptCallbacks)               \
+  V(InvokeFunctionCallback)                    \
+  V(JS_Execution)                              \
+  V(Map_SetPrototype)                          \
+  V(Map_TransitionToAccessorProperty)          \
+  V(Map_TransitionToDataProperty)              \
+  V(Object_DeleteProperty)                     \
+  V(OptimizeCode)                              \
+  V(ParseArrowFunctionLiteral)                 \
+  V(ParseBackgroundArrowFunctionLiteral)       \
+  V(ParseBackgroundFunctionLiteral)            \
+  V(ParseEval)                                 \
+  V(ParseFunction)                             \
+  V(ParseFunctionLiteral)                      \
+  V(ParseProgram)                              \
+  V(PreParseArrowFunctionLiteral)              \
+  V(PreParseBackgroundArrowFunctionLiteral)    \
+  V(PreParseBackgroundNoVariableResolution)    \
+  V(PreParseBackgroundWithVariableResolution)  \
+  V(PreParseNoVariableResolution)              \
+  V(PreParseWithVariableResolution)            \
+  V(PropertyCallback)                          \
+  V(PrototypeMap_TransitionToAccessorProperty) \
+  V(PrototypeMap_TransitionToDataProperty)     \
+  V(PrototypeObject_DeleteProperty)            \
+  V(RecompileConcurrent)                       \
+  V(RecompileSynchronous)                      \
+  V(ReconfigureToDataProperty)                 \
+  V(StringLengthGetter)                        \
+  V(TestCounter1)                              \
+  V(TestCounter2)                              \
+  V(TestCounter3)
 
 #define FOR_EACH_HANDLER_COUNTER(V)              \
   V(KeyedLoadIC_LoadIndexedStringStub)           \
@@ -869,7 +867,7 @@ class RuntimeCallTimer final {
   V(LoadIC_NonReceiver)                          \
   V(LoadIC_Premonomorphic)                       \
   V(LoadIC_SlowStub)                             \
-  V(LoadIC_StringLengthStub)                     \
+  V(LoadIC_StringLength)                         \
   V(StoreIC_HandlerCacheHit_Accessor)            \
   V(StoreIC_NonReceiver)                         \
   V(StoreIC_Premonomorphic)                      \
@@ -939,6 +937,7 @@ class RuntimeCallStats final : public ZoneObject {
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
+  bool IsCalledOnTheSameThread();
 
  private:
   // Top of a stack of active timers.
@@ -992,45 +991,48 @@ class RuntimeCallTimerScope {
   DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
-#define HISTOGRAM_RANGE_LIST(HR)                                              \
-  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */    \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
-  HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)      \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
-  /* Asm/Wasm. */                                                             \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
-     51)                                                                      \
-  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
-     100000, 51)                                                              \
-  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,   \
-     13)                                                                      \
-  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,  \
-     13)                                                                      \
-  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)    \
-  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)   \
-  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51) \
-  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)       \
-  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)     \
-  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,   \
-     51)                                                                      \
-  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16, \
-     51)                                                                      \
-  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16, \
-     51)                                                                      \
-  HR(wasm_decode_asm_module_peak_memory_bytes,                                \
-     V8.WasmDecodeModulePeakMemoryBytes.asm, 1, GB, 51)                       \
-  HR(wasm_decode_wasm_module_peak_memory_bytes,                               \
-     V8.WasmDecodeModulePeakMemoryBytes.wasm, 1, GB, 51)                      \
-  HR(asm_wasm_translation_peak_memory_bytes,                                  \
-     V8.AsmWasmTranslationPeakMemoryBytes, 1, GB, 51)                         \
-  HR(wasm_compile_function_peak_memory_bytes,                                 \
-     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)
+#define HISTOGRAM_RANGE_LIST(HR)                                               \
+  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
+  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)     \
+  HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                   \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
+  /* Asm/Wasm. */                                                              \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000,  \
+     51)                                                                       \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,        \
+     100000, 51)                                                               \
+  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,    \
+     13)                                                                       \
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
+     13)                                                                       \
+  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
+  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)    \
+  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51)  \
+  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
+  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
+  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
+     51)                                                                       \
+  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16,  \
+     51)                                                                       \
+  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16,  \
+     51)                                                                       \
+  HR(wasm_decode_asm_module_peak_memory_bytes,                                 \
+     V8.WasmDecodeModulePeakMemoryBytes.asm, 1, GB, 51)                        \
+  HR(wasm_decode_wasm_module_peak_memory_bytes,                                \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm, 1, GB, 51)                       \
+  HR(asm_wasm_translation_peak_memory_bytes,                                   \
+     V8.AsmWasmTranslationPeakMemoryBytes, 1, GB, 51)                          \
+  HR(wasm_compile_function_peak_memory_bytes,                                  \
+     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
+  HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
+  HR(asm_wasm_translation_throughput, V8.AsmWasmTranslationThroughput, 1, 100, \
+     20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -1100,13 +1102,7 @@ class RuntimeCallTimerScope {
   HP(external_fragmentation_code_space,                                        \
      V8.MemoryExternalFragmentationCodeSpace)                                  \
   HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)   \
-  /* Percentages of heap committed to each space. */                           \
-  HP(heap_fraction_new_space, V8.MemoryHeapFractionNewSpace)                   \
-  HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
-  HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
-  HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
-  HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)
+  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)
 
 // Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \

@@ -5,6 +5,7 @@
 #include "src/debug/debug-evaluate.h"
 
 #include "src/accessors.h"
+#include "src/assembler-inl.h"
 #include "src/compiler.h"
 #include "src/contexts.h"
 #include "src/debug/debug-frames.h"
@@ -157,8 +158,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       Handle<StringSet> non_locals = it.GetNonLocals();
       MaterializeReceiver(materialized, local_context, local_function,
                           non_locals);
-      frame_inspector.MaterializeStackLocals(materialized, local_function);
-      MaterializeArgumentsObject(materialized, local_function);
+      frame_inspector.MaterializeStackLocals(materialized, local_function,
+                                             true);
       ContextChainElement context_chain_element;
       context_chain_element.scope_info = it.CurrentScopeInfo();
       context_chain_element.materialized_object = materialized;
@@ -168,7 +169,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       if (it.HasContext()) {
         context_chain_element.wrapped_context = it.CurrentContext();
       }
-      context_chain_.Add(context_chain_element);
+      context_chain_.push_back(context_chain_element);
       evaluation_context_ = outer_context;
       break;
     } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
@@ -179,7 +180,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       if (!current_context->IsDebugEvaluateContext()) {
         context_chain_element.wrapped_context = current_context;
       }
-      context_chain_.Add(context_chain_element);
+      context_chain_.push_back(context_chain_element);
     } else if (scope_type == ScopeIterator::ScopeTypeBlock ||
                scope_type == ScopeIterator::ScopeTypeEval) {
       Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
@@ -191,28 +192,29 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       if (it.HasContext()) {
         context_chain_element.wrapped_context = it.CurrentContext();
       }
-      context_chain_.Add(context_chain_element);
+      context_chain_.push_back(context_chain_element);
     } else {
       break;
     }
   }
 
-  for (int i = context_chain_.length() - 1; i >= 0; i--) {
+  for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
+       rit++) {
+    ContextChainElement element = *rit;
     Handle<ScopeInfo> scope_info(ScopeInfo::CreateForWithScope(
         isolate, evaluation_context_->IsNativeContext()
                      ? Handle<ScopeInfo>::null()
                      : Handle<ScopeInfo>(evaluation_context_->scope_info())));
     scope_info->SetIsDebugEvaluateScope();
     evaluation_context_ = factory->NewDebugEvaluateContext(
-        evaluation_context_, scope_info, context_chain_[i].materialized_object,
-        context_chain_[i].wrapped_context, context_chain_[i].whitelist);
+        evaluation_context_, scope_info, element.materialized_object,
+        element.wrapped_context, element.whitelist);
   }
 }
 
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
-  for (int i = 0; i < context_chain_.length(); i++) {
-    ContextChainElement element = context_chain_[i];
+  for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
       // Write back potential changes to materialized stack locals to the stack.
       FrameInspector(frame_, inlined_jsframe_index_, isolate_)
@@ -222,24 +224,6 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   }
 }
 
-
-void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
-    Handle<JSObject> target, Handle<JSFunction> function) {
-  // Do not materialize the arguments object for eval or top-level code.
-  // Skip if "arguments" is already taken.
-  if (function->shared()->is_toplevel()) return;
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(
-      target, isolate_->factory()->arguments_string());
-  DCHECK(maybe.IsJust());
-  if (maybe.FromJust()) return;
-
-  // FunctionGetArguments can't throw an exception.
-  Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
-  Handle<String> arguments_str = isolate_->factory()->arguments_string();
-  JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                           NONE)
-      .Check();
-}
 
 void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     Handle<JSObject> target, Handle<Context> local_context,
@@ -268,6 +252,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                        \
   V(ToLength)                        \
   V(ToNumber)                        \
+  V(NumberToString)                  \
   /* Type checks */                  \
   V(IsJSReceiver)                    \
   V(IsSmi)                           \
@@ -298,12 +283,16 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(NewTypeError)                    \
   V(ThrowInvalidStringLength)        \
   /* Strings */                      \
-  V(StringCharCodeAt)                \
   V(StringIndexOf)                   \
   V(StringIncludes)                  \
   V(StringReplaceOneCharWithString)  \
+  V(StringToNumber)                  \
+  V(StringTrim)                      \
   V(SubString)                       \
   V(RegExpInternalReplace)           \
+  /* BigInts */                      \
+  V(BigIntEqual)                     \
+  V(BigIntToBoolean)                 \
   /* Literals */                     \
   V(CreateArrayLiteral)              \
   V(CreateObjectLiteral)             \
@@ -311,11 +300,13 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Collections */                  \
   V(GenericHash)                     \
   /* Called from builtins */         \
+  V(StringAdd)                       \
   V(StringParseFloat)                \
   V(StringParseInt)                  \
-  V(StringCharCodeAtRT)              \
+  V(StringCharCodeAt)                \
   V(StringIndexOfUnchecked)          \
   V(StringEqual)                     \
+  V(RegExpInitializeAndCompile)      \
   V(SymbolDescriptiveString)         \
   V(GenerateRandomNumbers)           \
   V(GlobalPrint)                     \
@@ -332,8 +323,10 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowIncompatibleMethodReceiver) \
   V(ThrowInvalidHint)                \
   V(ThrowNotDateError)               \
+  V(ThrowRangeError)                 \
+  V(ToName)                          \
+  V(GetOwnPropertyDescriptor)        \
   /* Misc. */                        \
-  V(ForInPrepare)                    \
   V(Call)                            \
   V(MaxSmi)                          \
   V(NewObject)                       \
@@ -385,8 +378,10 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kDivSmi:
     case Bytecode::kMod:
     case Bytecode::kModSmi:
+    case Bytecode::kNegate:
     case Bytecode::kBitwiseAnd:
     case Bytecode::kBitwiseAndSmi:
+    case Bytecode::kBitwiseNot:
     case Bytecode::kBitwiseOr:
     case Bytecode::kBitwiseOrSmi:
     case Bytecode::kBitwiseXor:
@@ -437,6 +432,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToNumber:
     case Bytecode::kToName:
     // Misc.
+    case Bytecode::kForInEnumerate:
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
     case Bytecode::kForInNext:
@@ -465,6 +461,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
     // Object builtins.
+    case Builtins::kObjectConstructor:
     case Builtins::kObjectCreate:
     case Builtins::kObjectEntries:
     case Builtins::kObjectGetOwnPropertyDescriptor:
@@ -531,7 +528,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDatePrototypeValueOf:
     // Map builtins.
     case Builtins::kMapConstructor:
-    case Builtins::kMapGet:
+    case Builtins::kMapPrototypeGet:
     case Builtins::kMapPrototypeEntries:
     case Builtins::kMapPrototypeGetSize:
     case Builtins::kMapPrototypeKeys:
@@ -594,18 +591,32 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:
     case Builtins::kStringConstructor:
+    case Builtins::kStringPrototypeAnchor:
+    case Builtins::kStringPrototypeBig:
+    case Builtins::kStringPrototypeBlink:
+    case Builtins::kStringPrototypeBold:
     case Builtins::kStringPrototypeCharAt:
     case Builtins::kStringPrototypeCharCodeAt:
     case Builtins::kStringPrototypeCodePointAt:
     case Builtins::kStringPrototypeConcat:
     case Builtins::kStringPrototypeEndsWith:
+    case Builtins::kStringPrototypeFixed:
+    case Builtins::kStringPrototypeFontcolor:
+    case Builtins::kStringPrototypeFontsize:
     case Builtins::kStringPrototypeIncludes:
     case Builtins::kStringPrototypeIndexOf:
+    case Builtins::kStringPrototypeItalics:
     case Builtins::kStringPrototypeLastIndexOf:
+    case Builtins::kStringPrototypeLink:
+    case Builtins::kStringPrototypeRepeat:
     case Builtins::kStringPrototypeSlice:
+    case Builtins::kStringPrototypeSmall:
     case Builtins::kStringPrototypeStartsWith:
+    case Builtins::kStringPrototypeStrike:
+    case Builtins::kStringPrototypeSub:
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:
+    case Builtins::kStringPrototypeSup:
     case Builtins::kStringPrototypeToString:
 #ifndef V8_INTL_SUPPORT
     case Builtins::kStringPrototypeToLowerCase:
@@ -615,6 +626,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
     case Builtins::kStringPrototypeValueOf:
+    case Builtins::kStringToNumber:
     // Symbol builtins.
     case Builtins::kSymbolConstructor:
     case Builtins::kSymbolKeyFor:
@@ -695,10 +707,16 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
     return true;
   } else {
     // Check built-ins against whitelist.
-    int builtin_index = info->code()->builtin_index();
+    int builtin_index = info->HasLazyDeserializationBuiltinId()
+                            ? info->lazy_deserialization_builtin_id()
+                            : info->code()->builtin_index();
+    DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (builtin_index >= 0 && builtin_index < Builtins::builtin_count &&
         BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {
 #ifdef DEBUG
+      if (info->code()->builtin_index() == Builtins::kDeserializeLazy) {
+        return true;  // Target builtin is not yet deserialized.
+      }
       // TODO(yangguo): Check builtin-to-builtin calls too.
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
@@ -712,7 +730,7 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
                  Builtins::name(builtin_index), function->name);
           failed = true;
         }
-        CHECK(!failed);
+        DCHECK(!failed);
       }
 #endif  // DEBUG
       return true;

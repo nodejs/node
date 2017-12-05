@@ -9,19 +9,8 @@
 #include "src/source-position-table.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-
-#if __clang__
-#pragma clang diagnostic pop
-#endif
 
 namespace v8 {
 namespace internal {
@@ -35,10 +24,6 @@ int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
   DCHECK_GE(kMaxInt, call_idx);
   return static_cast<int>(call_idx);
 }
-
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
 
 namespace {
 
@@ -88,16 +73,10 @@ CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
-void CodeSpecialization::RelocateMemoryReferences(Address old_start,
-                                                  uint32_t old_size,
-                                                  Address new_start,
-                                                  uint32_t new_size) {
-  DCHECK(old_mem_start == nullptr && old_mem_size == 0 &&
-         new_mem_start == nullptr && new_mem_size == 0);
-  old_mem_start = old_start;
-  old_mem_size = old_size;
-  new_mem_start = new_start;
-  new_mem_size = new_size;
+void CodeSpecialization::RelocateWasmContextReferences(Address new_context) {
+  DCHECK_NOT_NULL(new_context);
+  DCHECK_NULL(new_wasm_context_address);
+  new_wasm_context_address = new_context;
 }
 
 void CodeSpecialization::RelocateGlobals(Address old_start, Address new_start) {
@@ -146,37 +125,51 @@ bool CodeSpecialization::ApplyToWholeInstance(
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
-  // Patch all exported functions (if we shall relocate direct calls).
-  if (!relocate_direct_calls_instance.is_null()) {
-    // If we patch direct calls, the instance registered for that
-    // (relocate_direct_calls_instance) should match the instance we currently
-    // patch (instance).
-    int wrapper_index = 0;
-    DCHECK_EQ(instance, *relocate_direct_calls_instance);
-    for (auto exp : module->export_table) {
-      if (exp.kind != kExternalFunction) continue;
-      Code* export_wrapper =
-          Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
-      DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
-      // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
-      for (RelocIterator it(export_wrapper,
-                            RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
-           ; it.next()) {
-        DCHECK(!it.done());
-        // Ignore calls to other builtins like ToNumber.
-        if (!IsAtWasmDirectCallTarget(it)) continue;
-        Code* new_code = Code::cast(code_table->get(exp.index));
-        it.rinfo()->set_target_address(new_code->GetIsolate(),
-                                       new_code->instruction_start(),
-                                       UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-        break;
-      }
-      changed = true;
-      ++wrapper_index;
-    }
-    DCHECK_EQ(code_table->length(), func_index);
-    DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
+  // Patch all exported functions (JS_TO_WASM_FUNCTION).
+  int reloc_mode = 0;
+  // We need to patch WASM_CONTEXT_REFERENCE to put the correct address.
+  if (new_wasm_context_address) {
+    reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE);
   }
+  // Patch CODE_TARGET if we shall relocate direct calls. If we patch direct
+  // calls, the instance registered for that (relocate_direct_calls_instance)
+  // should match the instance we currently patch (instance).
+  if (!relocate_direct_calls_instance.is_null()) {
+    DCHECK_EQ(instance, *relocate_direct_calls_instance);
+    reloc_mode |= RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  }
+  if (!reloc_mode) return changed;
+  int wrapper_index = 0;
+  for (auto exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    Code* export_wrapper =
+        Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
+    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+    for (RelocIterator it(export_wrapper, reloc_mode); !it.done(); it.next()) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      switch (mode) {
+        case RelocInfo::WASM_CONTEXT_REFERENCE:
+          it.rinfo()->set_wasm_context_reference(export_wrapper->GetIsolate(),
+                                                 new_wasm_context_address,
+                                                 icache_flush_mode);
+          break;
+        case RelocInfo::CODE_TARGET: {
+          // Ignore calls to other builtins like ToNumber.
+          if (!IsAtWasmDirectCallTarget(it)) continue;
+          Code* new_code = Code::cast(code_table->get(exp.index));
+          it.rinfo()->set_target_address(
+              new_code->GetIsolate(), new_code->instruction_start(),
+              UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        } break;
+        default:
+          UNREACHABLE();
+      }
+    }
+    changed = true;
+    ++wrapper_index;
+  }
+  DCHECK_EQ(code_table->length(), func_index);
+  DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
   return changed;
 }
 
@@ -185,8 +178,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   DisallowHeapAllocation no_gc;
   DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
 
-  bool reloc_mem_addr = old_mem_start != new_mem_start;
-  bool reloc_mem_size = old_mem_size != new_mem_size;
   bool reloc_globals = old_globals_start || new_globals_start;
   bool patch_table_size = old_function_table_size || new_function_table_size;
   bool reloc_direct_calls = !relocate_direct_calls_instance.is_null();
@@ -196,8 +187,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
     if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
   };
-  add_mode(reloc_mem_addr, RelocInfo::WASM_MEMORY_REFERENCE);
-  add_mode(reloc_mem_size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   add_mode(reloc_globals, RelocInfo::WASM_GLOBAL_REFERENCE);
   add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
@@ -209,19 +198,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   for (RelocIterator it(code, reloc_mode); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::WASM_MEMORY_REFERENCE:
-        DCHECK(reloc_mem_addr);
-        it.rinfo()->update_wasm_memory_reference(code->GetIsolate(),
-                                                 old_mem_start, new_mem_start,
-                                                 icache_flush_mode);
-        changed = true;
-        break;
-      case RelocInfo::WASM_MEMORY_SIZE_REFERENCE:
-        DCHECK(reloc_mem_size);
-        it.rinfo()->update_wasm_memory_size(code->GetIsolate(), old_mem_size,
-                                            new_mem_size, icache_flush_mode);
-        changed = true;
-        break;
       case RelocInfo::WASM_GLOBAL_REFERENCE:
         DCHECK(reloc_globals);
         it.rinfo()->update_wasm_global_reference(
@@ -281,3 +257,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
 
   return changed;
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

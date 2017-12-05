@@ -4,16 +4,19 @@
 # found in the LICENSE file.
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
-headers=$(find "$v8_root/src" -name '*.h' -not -name '*-inl.h')
+directories="src test/cctest test/unittests"
 
-for header in $headers; do
-  inline_header_include=$(grep '#include ".*-inl.h"' "$header")
-  if [ -n "$inline_header_include" ]; then
-    echo "The following non-inline header seems to include an inline header:"
-    echo "  Header : $header"
-    echo "  Include: $inline_header_include"
-    echo
-  fi
+for directory in $directories; do
+  headers=$(find "$v8_root/$directory" -name '*.h' -not -name '*-inl.h')
+  for header in $headers; do
+    inline_header_include=$(grep '#include ".*-inl.h"' "$header")
+    if [ -n "$inline_header_include" ]; then
+      echo "The following non-inline header seems to include an inline header:"
+      echo "  Header : $header"
+      echo "  Include: $inline_header_include"
+      echo
+    fi
+  done
 done
 
 echo "Kthxbye."

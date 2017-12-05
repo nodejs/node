@@ -107,12 +107,9 @@ class TimezoneCache;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(int64_t random_seed,
-                         bool hard_abort,
-                         const char* const gc_fake_mmap);
+  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -191,11 +188,24 @@ class V8_BASE_EXPORT OS {
   // Make a region of memory readable and writable.
   static void Unprotect(void* address, const size_t size);
 
-  // Generate a random address to be used for hinting mmap().
-  static void* GetRandomMmapAddr();
-
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
+
+  static void* ReserveRegion(size_t size, void* hint);
+
+  static void* ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                                    size_t* allocated);
+
+  static bool CommitRegion(void* address, size_t size, bool is_executable);
+
+  static bool UncommitRegion(void* address, size_t size);
+
+  static bool ReleaseRegion(void* address, size_t size);
+
+  // Release part of a reserved address range.
+  static bool ReleasePartialRegion(void* address, size_t size);
+
+  static bool HasLazyCommits();
 
   // Sleep for a specified time interval.
   static void Sleep(TimeDelta interval);
@@ -221,8 +231,8 @@ class V8_BASE_EXPORT OS {
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
-    static MemoryMappedFile* open(const char* name);
-    static MemoryMappedFile* create(const char* name, size_t size,
+    static MemoryMappedFile* open(const char* name, void* hint);
+    static MemoryMappedFile* create(const char* name, void* hint, size_t size,
                                     void* initial);
   };
 
@@ -261,7 +271,7 @@ class V8_BASE_EXPORT OS {
   // process that a code moving garbage collection starts.  Can do
   // nothing, in which case the code objects must not move (e.g., by
   // using --never-compact) if accurate profiling is desired.
-  static void SignalCodeMovingGC();
+  static void SignalCodeMovingGC(void* hint);
 
   // Support runtime detection of whether the hard float option of the
   // EABI is used.
@@ -284,141 +294,6 @@ class V8_BASE_EXPORT OS {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
-
-// Represents and controls an area of reserved memory.
-// Control of the reserved memory can be assigned to another VirtualMemory
-// object by calling TakeControl. This removes the reserved memory from the
-// 'from' instance.
-class V8_BASE_EXPORT VirtualMemory {
- public:
-  // Empty VirtualMemory object, controlling no reserved memory.
-  VirtualMemory();
-
-  // Reserves virtual memory with size.
-  explicit VirtualMemory(size_t size, void* hint);
-
-  // Reserves virtual memory containing an area of the given size that
-  // is aligned per alignment. This may not be at the position returned
-  // by address().
-  VirtualMemory(size_t size, size_t alignment, void* hint);
-
-  // Construct a virtual memory by assigning it some already mapped address
-  // and size.
-  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
-
-  // Releases the reserved memory, if any, controlled by this VirtualMemory
-  // object.
-  ~VirtualMemory();
-
-  // Returns whether the memory has been reserved.
-  bool IsReserved() const { return address_ != nullptr; }
-
-  // Initialize or resets an embedded VirtualMemory object.
-  void Reset();
-
-  // Returns the start address of the reserved memory.
-  // If the memory was reserved with an alignment, this address is not
-  // necessarily aligned. The user might need to round it up to a multiple of
-  // the alignment to get the start of the aligned block.
-  void* address() const {
-    DCHECK(IsReserved());
-    return address_;
-  }
-
-  void* end() const {
-    DCHECK(IsReserved());
-    return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address_) +
-                                   size_);
-  }
-
-  // Returns the size of the reserved memory. The returned value is only
-  // meaningful when IsReserved() returns true.
-  // If the memory was reserved with an alignment, this size may be larger
-  // than the requested size.
-  size_t size() const { return size_; }
-
-  // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool is_executable);
-
-  // Uncommit real memory.  Returns whether the operation succeeded.
-  bool Uncommit(void* address, size_t size);
-
-  // Creates a single guard page at the given address.
-  bool Guard(void* address);
-
-  // Releases the memory after |free_start|. Returns the bytes released.
-  size_t ReleasePartial(void* free_start) {
-    DCHECK(IsReserved());
-    // Notice: Order is important here. The VirtualMemory object might live
-    // inside the allocated region.
-    const size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
-                                 reinterpret_cast<size_t>(address_));
-    CHECK(InVM(free_start, size));
-    DCHECK_LT(address_, free_start);
-    DCHECK_LT(free_start, reinterpret_cast<void*>(
-                              reinterpret_cast<size_t>(address_) + size_));
-    const bool result = ReleasePartialRegion(address_, size_, free_start, size);
-    USE(result);
-    DCHECK(result);
-    size_ -= size;
-    return size;
-  }
-
-  void Release() {
-    DCHECK(IsReserved());
-    // Notice: Order is important here. The VirtualMemory object might live
-    // inside the allocated region.
-    void* address = address_;
-    size_t size = size_;
-    CHECK(InVM(address, size));
-    Reset();
-    bool result = ReleaseRegion(address, size);
-    USE(result);
-    DCHECK(result);
-  }
-
-  // Assign control of the reserved region to a different VirtualMemory object.
-  // The old object is no longer functional (IsReserved() returns false).
-  void TakeControl(VirtualMemory* from) {
-    DCHECK(!IsReserved());
-    address_ = from->address_;
-    size_ = from->size_;
-    from->Reset();
-  }
-
-  static void* ReserveRegion(size_t size, void* hint);
-
-  static bool CommitRegion(void* base, size_t size, bool is_executable);
-
-  static bool UncommitRegion(void* base, size_t size);
-
-  // Must be called with a base pointer that has been returned by ReserveRegion
-  // and the same size it was reserved with.
-  static bool ReleaseRegion(void* base, size_t size);
-
-  // Must be called with a base pointer that has been returned by ReserveRegion
-  // and the same size it was reserved with.
-  // [free_start, free_start + free_size] is the memory that will be released.
-  static bool ReleasePartialRegion(void* base, size_t size, void* free_start,
-                                   size_t free_size);
-
-  // Returns true if OS performs lazy commits, i.e. the memory allocation call
-  // defers actual physical memory allocation till the first memory access.
-  // Otherwise returns false.
-  static bool HasLazyCommits();
-
- private:
-  bool InVM(void* address, size_t size) {
-    return (reinterpret_cast<uintptr_t>(address_) <=
-            reinterpret_cast<uintptr_t>(address)) &&
-           ((reinterpret_cast<uintptr_t>(address_) + size_) >=
-            (reinterpret_cast<uintptr_t>(address) + size));
-  }
-
-  void* address_;  // Start address of the virtual memory.
-  size_t size_;  // Size of the virtual memory.
-};
-
 
 // ----------------------------------------------------------------------------
 // Thread

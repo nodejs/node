@@ -121,16 +121,56 @@ class ConcurrentMarkingVisitor final
 
   int VisitJSApiObject(Map* map, JSObject* object) {
     if (marking_state_.IsGrey(object)) {
-      int size = JSObject::BodyDescriptor::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      // It is OK to iterate body of JS API object here because they do not have
-      // unboxed double fields.
-      DCHECK_IMPLIES(FLAG_unbox_double_fields, map->HasFastPointerLayout());
-      JSObject::BodyDescriptor::IterateBody(object, size, this);
       // The main thread will do wrapper tracing in Blink.
       bailout_.Push(object);
     }
     return 0;
+  }
+
+  // ===========================================================================
+  // Strings with pointers =====================================================
+  // ===========================================================================
+
+  int VisitConsString(Map* map, ConsString* object) {
+    int size = ConsString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  int VisitSlicedString(Map* map, SlicedString* object) {
+    int size = SlicedString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  int VisitThinString(Map* map, ThinString* object) {
+    int size = ThinString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  // ===========================================================================
+  // Strings without pointers ==================================================
+  // ===========================================================================
+
+  int VisitSeqOneByteString(Map* map, SeqOneByteString* object) {
+    int size = SeqOneByteString::SizeFor(object->synchronized_length());
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    return size;
+  }
+
+  int VisitSeqTwoByteString(Map* map, SeqTwoByteString* object) {
+    int size = SeqTwoByteString::SizeFor(object->synchronized_length());
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    return size;
   }
 
   // ===========================================================================
@@ -215,11 +255,12 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {
-    if (marking_state_.IsGrey(array)) {
-      // TODO(ulan): process transition arrays.
-      bailout_.Push(array);
-    }
-    return 0;
+    if (!ShouldVisit(array)) return 0;
+    VisitMapPointer(array, array->map_slot());
+    int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
+    TransitionArray::BodyDescriptor::IterateBody(array, size, this);
+    weak_objects_->transition_arrays.Push(task_id_, array);
+    return size;
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {
@@ -283,13 +324,14 @@ class ConcurrentMarkingVisitor final
     SlotSnapshot* slot_snapshot_;
   };
 
-  const SlotSnapshot& MakeSlotSnapshot(Map* map, HeapObject* object, int size) {
+  template <typename T>
+  const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
     // TODO(ulan): Iterate only the existing fields and skip slack at the end
     // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
-    JSObject::BodyDescriptor::IterateBody(object, size, &visitor);
+    T::BodyDescriptor::IterateBody(object, size, &visitor);
     return slot_snapshot_;
   }
   ConcurrentMarking::MarkingWorklist::View shared_;
@@ -325,17 +367,20 @@ class ConcurrentMarking::Task : public CancelableTask {
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                                      MarkingWorklist* bailout,
+                                     MarkingWorklist* on_hold,
                                      WeakObjects* weak_objects)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
+      on_hold_(on_hold),
       weak_objects_(weak_objects),
-      pending_task_count_(0) {
+      pending_task_count_(0),
+      task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
 #endif
-  for (int i = 0; i <= kTasks; i++) {
+  for (int i = 0; i <= kMaxTasks; i++) {
     is_pending_[i] = false;
   }
 }
@@ -351,7 +396,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   ConcurrentMarkingVisitor visitor(shared_, bailout_, live_bytes, weak_objects_,
                                    task_id);
   double time_ms;
-  size_t total_bytes_marked = 0;
+  size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Starting concurrent marking task %d\n", task_id);
@@ -361,9 +406,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     bool done = false;
     while (!done) {
       base::LockGuard<base::Mutex> guard(&task_state->lock);
-      size_t bytes_marked = 0;
+      size_t current_marked_bytes = 0;
       int objects_processed = 0;
-      while (bytes_marked < kBytesUntilInterruptCheck &&
+      while (current_marked_bytes < kBytesUntilInterruptCheck &&
              objects_processed < kObjectsUntilInterrupCheck) {
         HeapObject* object;
         if (!shared_->Pop(task_id, &object)) {
@@ -375,13 +420,15 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         Address new_space_limit = heap_->new_space()->original_limit();
         Address addr = object->address();
         if (new_space_top <= addr && addr < new_space_limit) {
-          bailout_->Push(task_id, object);
+          on_hold_->Push(task_id, object);
         } else {
           Map* map = object->synchronized_map();
-          bytes_marked += visitor.Visit(map, object);
+          current_marked_bytes += visitor.Visit(map, object);
         }
       }
-      total_bytes_marked += bytes_marked;
+      marked_bytes += current_marked_bytes;
+      base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
+                                                marked_bytes);
       if (task_state->interrupt_request.Value()) {
         task_state->interrupt_condition.Wait(&task_state->lock);
       }
@@ -391,9 +438,12 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       // young generation GC.
       base::LockGuard<base::Mutex> guard(&task_state->lock);
       bailout_->FlushToGlobal(task_id);
+      on_hold_->FlushToGlobal(task_id);
     }
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
+    total_marked_bytes_.Increment(marked_bytes);
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
@@ -404,28 +454,34 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Task %d concurrently marked %dKB in %.2fms\n", task_id,
-        static_cast<int>(total_bytes_marked / KB), time_ms);
+        static_cast<int>(marked_bytes / KB), time_ms);
   }
 }
 
 void ConcurrentMarking::ScheduleTasks() {
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
-  if (pending_task_count_ < kTasks) {
-    // Task id 0 is for the main thread.
-    for (int i = 1; i <= kTasks; i++) {
-      if (!is_pending_[i]) {
-        if (FLAG_trace_concurrent_marking) {
-          heap_->isolate()->PrintWithTimestamp(
-              "Scheduling concurrent marking task %d\n", i);
-        }
-        task_state_[i].interrupt_request.SetValue(false);
-        is_pending_[i] = true;
-        ++pending_task_count_;
-        V8::GetCurrentPlatform()->CallOnBackgroundThread(
-            new Task(heap_->isolate(), this, &task_state_[i], i),
-            v8::Platform::kShortRunningTask);
+  if (task_count_ == 0) {
+    // TODO(ulan): Increase the number of tasks for platforms that benefit
+    // from it.
+    task_count_ = static_cast<int>(
+        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() / 2);
+    task_count_ = Max(Min(task_count_, kMaxTasks), 1);
+  }
+  // Task id 0 is for the main thread.
+  for (int i = 1; i <= task_count_ && pending_task_count_ < task_count_; i++) {
+    if (!is_pending_[i]) {
+      if (FLAG_trace_concurrent_marking) {
+        heap_->isolate()->PrintWithTimestamp(
+            "Scheduling concurrent marking task %d\n", i);
       }
+      task_state_[i].interrupt_request.SetValue(false);
+      is_pending_[i] = true;
+      ++pending_task_count_;
+      Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
+      cancelable_id_[i] = task->id();
+      V8::GetCurrentPlatform()->CallOnBackgroundThread(
+          task, v8::Platform::kShortRunningTask);
     }
   }
 }
@@ -441,7 +497,7 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
   }
 }
 
-void ConcurrentMarking::EnsureCompleted() {
+void ConcurrentMarking::WaitForTasks() {
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   while (pending_task_count_ > 0) {
@@ -449,10 +505,32 @@ void ConcurrentMarking::EnsureCompleted() {
   }
 }
 
+void ConcurrentMarking::EnsureCompleted() {
+  if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  CancelableTaskManager* task_manager =
+      heap_->isolate()->cancelable_task_manager();
+  for (int i = 1; i <= task_count_; i++) {
+    if (is_pending_[i]) {
+      if (task_manager->TryAbort(cancelable_id_[i]) ==
+          CancelableTaskManager::kTaskAborted) {
+        is_pending_[i] = false;
+        --pending_task_count_;
+      }
+    }
+  }
+  while (pending_task_count_ > 0) {
+    pending_condition_.Wait(&pending_lock_);
+  }
+  for (int i = 1; i <= task_count_; i++) {
+    DCHECK(!is_pending_[i]);
+  }
+}
+
 void ConcurrentMarking::FlushLiveBytes(
     MajorNonAtomicMarkingState* marking_state) {
   DCHECK_EQ(pending_task_count_, 0);
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= task_count_; i++) {
     LiveBytesMap& live_bytes = task_state_[i].live_bytes;
     for (auto pair : live_bytes) {
       // ClearLiveness sets the live bytes to zero.
@@ -463,32 +541,43 @@ void ConcurrentMarking::FlushLiveBytes(
     }
     live_bytes.clear();
   }
+  total_marked_bytes_.SetValue(0);
 }
 
 void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= task_count_; i++) {
     if (task_state_[i].live_bytes.count(chunk)) {
       task_state_[i].live_bytes[chunk] = 0;
     }
   }
 }
 
+size_t ConcurrentMarking::TotalMarkedBytes() {
+  size_t result = 0;
+  for (int i = 1; i <= task_count_; i++) {
+    result +=
+        base::AsAtomicWord::Relaxed_Load<size_t>(&task_state_[i].marked_bytes);
+  }
+  result += total_marked_bytes_.Value();
+  return result;
+}
+
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking) {
   if (!FLAG_concurrent_marking) return;
   // Request task_state for all tasks.
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= kMaxTasks; i++) {
     concurrent_marking_->task_state_[i].interrupt_request.SetValue(true);
   }
   // Now take a lock to ensure that the tasks are waiting.
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= kMaxTasks; i++) {
     concurrent_marking_->task_state_[i].lock.Lock();
   }
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (!FLAG_concurrent_marking) return;
-  for (int i = kTasks; i >= 1; i--) {
+  for (int i = kMaxTasks; i >= 1; i--) {
     concurrent_marking_->task_state_[i].interrupt_request.SetValue(false);
     concurrent_marking_->task_state_[i].interrupt_condition.NotifyAll();
     concurrent_marking_->task_state_[i].lock.Unlock();

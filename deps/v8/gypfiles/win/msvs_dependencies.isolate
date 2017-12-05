@@ -25,8 +25,8 @@
         ],
       },
     }],
-    # VS2015 runtimes
-    ['OS=="win" and msvs_version==2015 and component=="shared_library" and (CONFIGURATION_NAME=="Debug" or CONFIGURATION_NAME=="Debug_x64")', {
+    # VS2015/2017 runtimes
+    ['OS=="win" and (msvs_version==2015 or msvs_version==2017) and component=="shared_library" and (CONFIGURATION_NAME=="Debug" or CONFIGURATION_NAME=="Debug_x64")', {
       'variables': {
         'files': [
           '<(PRODUCT_DIR)/msvcp140d.dll',
@@ -36,7 +36,7 @@
         ],
       },
     }],
-    ['OS=="win" and msvs_version==2015 and component=="shared_library" and (CONFIGURATION_NAME=="Release" or CONFIGURATION_NAME=="Release_x64")', {
+    ['OS=="win" and (msvs_version==2015 or msvs_version==2017) and component=="shared_library" and (CONFIGURATION_NAME=="Release" or CONFIGURATION_NAME=="Release_x64")', {
       'variables': {
         'files': [
           '<(PRODUCT_DIR)/msvcp140.dll',
@@ -46,7 +46,7 @@
         ],
       },
     }],
-    ['OS=="win" and msvs_version==2015 and component=="shared_library"', {
+    ['OS=="win" and (msvs_version==2015 or msvs_version==2017) and component=="shared_library"', {
       # Windows 10 Universal C Runtime binaries.
       'variables': {
         'files': [

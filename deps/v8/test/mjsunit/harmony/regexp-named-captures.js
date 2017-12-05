@@ -360,6 +360,7 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$3"));
   assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
   assertEquals("$<42a>cd", "abcd".replace(re, "$<42$1>"));
   assertEquals("$<fth>cd", "abcd".replace(re, "$<fth>"));
   assertEquals("$<a>cd", "abcd".replace(re, "$<$1>"));
@@ -371,10 +372,11 @@ function toSlowMode(re) {
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<snd$<snd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<snda$<sndc", "abcd".replace(re, "$<snd$1"));
+  assertEquals("", "abcd".replace(re, "$<42$1>"));
+  assertEquals("", "abcd".replace(re, "$<fth>"));
+  assertEquals("", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (non-global, named captures).
@@ -383,10 +385,11 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
+  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
+  assertEquals("cd", "abcd".replace(re, "$<fth>"));
+  assertEquals("cd", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (slow, global, named captures).
@@ -395,10 +398,11 @@ function toSlowMode(re) {
   assertEquals("badc", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("badc", "abcd".replace(re, "$2$1"));
   assertEquals("", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<snd$<snd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<snda$<sndc", "abcd".replace(re, "$<snd$1"));
+  assertEquals("", "abcd".replace(re, "$<42$1>"));
+  assertEquals("", "abcd".replace(re, "$<fth>"));
+  assertEquals("", "abcd".replace(re, "$<$1>"));
 }
 
 // @@replace with a string replacement argument (slow, non-global,
@@ -408,8 +412,9 @@ function toSlowMode(re) {
   assertEquals("bacd", "abcd".replace(re, "$<snd>$<fst>"));
   assertEquals("bacd", "abcd".replace(re, "$2$1"));
   assertEquals("cd", "abcd".replace(re, "$<thd>"));
-  assertThrows(() => "abcd".replace(re, "$<snd"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<42$1>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<fth>"), SyntaxError);
-  assertThrows(() => "abcd".replace(re, "$<$1>"), SyntaxError);
+  assertEquals("$<sndcd", "abcd".replace(re, "$<snd"));
+  assertEquals("$<sndacd", "abcd".replace(re, "$<snd$1"));
+  assertEquals("cd", "abcd".replace(re, "$<42$1>"));
+  assertEquals("cd", "abcd".replace(re, "$<fth>"));
+  assertEquals("cd", "abcd".replace(re, "$<$1>"));
 }

@@ -202,10 +202,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Ldr(reg, MemOperand(x1, src_offset));
   }
 
-  // Push state from the last output frame.
-  __ Ldr(x6, MemOperand(current_frame, FrameDescription::state_offset()));
-  __ Push(x6);
-
   // TODO(all): ARM copies a lot (if not all) of the last output frame onto the
   // stack, then pops it all into registers. Here, we try to load it directly
   // into the relevant registers. Is this correct? If so, we should improve the
@@ -276,6 +272,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ Push(entry_id);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return true; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

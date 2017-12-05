@@ -317,7 +317,6 @@ class Logger : public CodeEventListener {
   LowLevelLogger* ll_logger_;
   JitLogger* jit_logger_;
   std::unique_ptr<ProfilerListener> profiler_listener_;
-  List<CodeEventListener*> listeners_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 

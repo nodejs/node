@@ -9,18 +9,24 @@
 namespace v8 {
 namespace internal {
 
-void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate,
-                                                 bool create_heap_objects) {
-  if (create_heap_objects) {
+void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate) {
+  if (create_heap_objects_) {
     SetupBuiltinsInternal(isolate);
   }
 }
 
 void SetupIsolateDelegateForTests::SetupInterpreter(
-    interpreter::Interpreter* interpreter, bool create_heap_objects) {
-  if (create_heap_objects) {
+    interpreter::Interpreter* interpreter) {
+  if (create_heap_objects_) {
     interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
   }
+}
+
+bool SetupIsolateDelegateForTests::SetupHeap(Heap* heap) {
+  if (create_heap_objects_) {
+    return SetupHeapInternal(heap);
+  }
+  return true;
 }
 
 }  // namespace internal

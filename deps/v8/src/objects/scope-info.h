@@ -83,11 +83,9 @@ class ScopeInfo : public FixedArray {
   bool HasContext();
 
   // Return if this is a function scope with "use asm".
-  inline bool IsAsmModule() { return AsmModuleField::decode(Flags()); }
+  inline bool IsAsmModule();
 
-  inline bool HasSimpleParameters() {
-    return HasSimpleParametersField::decode(Flags());
-  }
+  inline bool HasSimpleParameters();
 
   // Return the function_name if present.
   String* FunctionName();
@@ -205,16 +203,9 @@ class ScopeInfo : public FixedArray {
   V(StackLocalCount)                         \
   V(ContextLocalCount)
 
-#define FIELD_ACCESSORS(name)                                             \
-  inline void Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  inline int name() {                                                     \
-    if (length() > 0) {                                                   \
-      return Smi::ToInt(get(k##name));                                    \
-    } else {                                                              \
-      return 0;                                                           \
-    }                                                                     \
-  }
-
+#define FIELD_ACCESSORS(name)       \
+  inline void Set##name(int value); \
+  inline int name();
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 

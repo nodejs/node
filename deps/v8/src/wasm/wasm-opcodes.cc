@@ -235,6 +235,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
+    CASE_U32_OP(AtomicLoad, "atomic_load")
+    CASE_U32_OP(AtomicStore, "atomic_store")
     CASE_U32_OP(AtomicAdd, "atomic_add")
     CASE_U32_OP(AtomicSub, "atomic_sub")
     CASE_U32_OP(AtomicAnd, "atomic_and")
@@ -247,6 +249,34 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // clang-format on
   }
 }
+
+#undef CASE_OP
+#undef CASE_I32_OP
+#undef CASE_I64_OP
+#undef CASE_F32_OP
+#undef CASE_F64_OP
+#undef CASE_F32x4_OP
+#undef CASE_I32x4_OP
+#undef CASE_I16x8_OP
+#undef CASE_I8x16_OP
+#undef CASE_S128_OP
+#undef CASE_S32x4_OP
+#undef CASE_S16x8_OP
+#undef CASE_S8x16_OP
+#undef CASE_S1x4_OP
+#undef CASE_S1x8_OP
+#undef CASE_S1x16_OP
+#undef CASE_INT_OP
+#undef CASE_FLOAT_OP
+#undef CASE_ALL_OP
+#undef CASE_SIMD_OP
+#undef CASE_SIMDI_OP
+#undef CASE_SIGN_OP
+#undef CASE_UNSIGNED_OP
+#undef CASE_ALL_SIGN_OP
+#undef CASE_CONVERT_OP
+#undef CASE_L32_OP
+#undef CASE_U32_OP
 
 bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
   switch (opcode) {
@@ -305,23 +335,23 @@ bool IsJSCompatibleSignature(const FunctionSig* sig) {
 namespace {
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,
-
 enum WasmOpcodeSig : byte {
   kSigEnum_None,
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
+#undef DECLARE_SIG_ENUM
 
 #define DECLARE_SIG(name, ...)                         \
   constexpr ValueType kTypes_##name[] = {__VA_ARGS__}; \
   constexpr FunctionSig kSig_##name(                   \
       1, static_cast<int>(arraysize(kTypes_##name)) - 1, kTypes_##name);
-
 FOREACH_SIGNATURE(DECLARE_SIG)
+#undef DECLARE_SIG
 
 #define DECLARE_SIG_ENTRY(name, ...) &kSig_##name,
-
 constexpr const FunctionSig* kSimpleExprSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
+#undef DECLARE_SIG_ENTRY
 
 // The following constexpr functions are used to initialize the constant arrays
 // defined below. They must have exactly one return statement, and no switch.
@@ -374,6 +404,8 @@ CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
     base::make_array<256>(GetSimdOpcodeSigIndex);
 CONSTEXPR_IF_NOT_GCC_4 std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
     base::make_array<256>(GetAtomicOpcodeSigIndex);
+
+#undef CONSTEXPR_IF_NOT_GCC_4
 
 }  // namespace
 

@@ -54,7 +54,7 @@ size_t GetHugeMemoryAmount() {
   static size_t huge_memory = 0;
   if (!huge_memory) {
     for (int i = 0; i < 100; i++) {
-      huge_memory |= bit_cast<size_t>(v8::base::OS::GetRandomMmapAddr());
+      huge_memory |= bit_cast<size_t>(v8::internal::GetRandomMmapAddr());
     }
     // Make it larger than the available address space.
     huge_memory *= 2;
@@ -130,7 +130,7 @@ TEST(AlignedAllocOOM) {
 TEST(AllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::base::VirtualMemory result;
+  v8::internal::VirtualMemory result;
   bool success =
       v8::internal::AllocVirtualMemory(GetHugeMemoryAmount(), nullptr, &result);
   // On a few systems, allocation somehow succeeds.
@@ -141,7 +141,7 @@ TEST(AllocVirtualMemoryOOM) {
 TEST(AlignedAllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::base::VirtualMemory result;
+  v8::internal::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
       GetHugeMemoryAmount(), v8::base::OS::AllocateAlignment(), nullptr,
       &result);

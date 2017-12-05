@@ -68,6 +68,8 @@ std::string InterpreterTester::function_name() {
   return std::string(kFunctionName);
 }
 
+const char InterpreterTester::kFunctionName[] = "f";
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

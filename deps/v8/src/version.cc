@@ -28,19 +28,12 @@ const char* Version::version_string_ = V8_VERSION_STRING;
 // Calculate the V8 version string.
 void Version::GetString(Vector<char> str) {
   const char* candidate = IsCandidate() ? " (candidate)" : "";
-#ifdef USE_SIMULATOR
-  const char* is_simulator = " SIMULATOR";
-#else
-  const char* is_simulator = "";
-#endif  // USE_SIMULATOR
   if (GetPatch() > 0) {
-    SNPrintF(str, "%d.%d.%d.%d%s%s%s",
-             GetMajor(), GetMinor(), GetBuild(), GetPatch(), GetEmbedder(),
-             candidate, is_simulator);
+    SNPrintF(str, "%d.%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
+             GetPatch(), GetEmbedder(), candidate);
   } else {
-    SNPrintF(str, "%d.%d.%d%s%s%s",
-             GetMajor(), GetMinor(), GetBuild(), GetEmbedder(), candidate,
-             is_simulator);
+    SNPrintF(str, "%d.%d.%d%s%s", GetMajor(), GetMinor(), GetBuild(),
+             GetEmbedder(), candidate);
   }
 }
 

@@ -6,6 +6,7 @@
 
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
@@ -149,8 +150,8 @@ void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerPPC::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ LoadP(r3, register_location(reg), r0);
     __ mov(r0, Operand(by));
@@ -466,7 +467,7 @@ void RegExpMacroAssemblerPPC::CheckNotCharacterAfterAnd(unsigned c,
 
 void RegExpMacroAssemblerPPC::CheckNotCharacterAfterMinusAnd(
     uc16 c, uc16 minus, uc16 mask, Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ subi(r3, current_character(), Operand(minus));
   __ mov(r0, Operand(mask));
   __ and_(r3, r3, r0);
@@ -933,8 +934,8 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(
-      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   PROFILE(masm_->isolate(),
           RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1231,13 +1232,13 @@ void RegExpMacroAssemblerPPC::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerPPC::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ StorePU(source, MemOperand(backtrack_stackpointer(), -kPointerSize));
 }
 
 
 void RegExpMacroAssemblerPPC::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ LoadP(target, MemOperand(backtrack_stackpointer()));
   __ addi(backtrack_stackpointer(), backtrack_stackpointer(),
           Operand(kPointerSize));
@@ -1286,7 +1287,7 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ lhz(current_character(), MemOperand(current_character()));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ lbz(current_character(), MemOperand(current_character()));
     }
   } else {
@@ -1294,7 +1295,7 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
     if (characters == 2) {
       __ lwz(current_character(), MemOperand(current_character()));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ lhz(current_character(), MemOperand(current_character()));
     }
   }
@@ -1305,7 +1306,7 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ lhbrx(current_character(), MemOperand(r0, current_character()));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ lbz(current_character(), MemOperand(current_character()));
     }
   } else {
@@ -1314,7 +1315,7 @@ void RegExpMacroAssemblerPPC::LoadCurrentCharacterUnchecked(int cp_offset,
       __ lwz(current_character(), MemOperand(current_character()));
       __ rlwinm(current_character(), current_character(), 16, 0, 31);
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ lhz(current_character(), MemOperand(current_character()));
     }
   }

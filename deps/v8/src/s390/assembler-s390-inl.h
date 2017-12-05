@@ -233,105 +233,24 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
 }
 
 // Operand constructors
-Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) {
-  rm_ = no_reg;
-  value_.immediate = immediate;
-  rmode_ = rmode;
-}
-
-Operand::Operand(const ExternalReference& f) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = kRelocInfo_NONEPTR;
-}
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-  rmode_ = kRelocInfo_NONEPTR;  // S390 -why doesn't ARM do this?
-}
-
-void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
-    GrowBuffer();
-  }
-}
+Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
 
 int32_t Assembler::emit_code_target(Handle<Code> target,
                                     RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   RecordRelocInfo(rmode);
 
-  int current = code_targets_.length();
+  size_t current = code_targets_.size();
   if (current > 0 && !target.is_null() &&
-      code_targets_.last().is_identical_to(target)) {
+      code_targets_.back().address() == target.address()) {
     // Optimization if we keep jumping to the same code target.
     current--;
   } else {
-    code_targets_.Add(target);
+    code_targets_.push_back(target);
   }
   return current;
 }
 
-// Helper to emit the binary encoding of a 2 byte instruction
-void Assembler::emit2bytes(uint16_t x) {
-  CheckBuffer();
-#if V8_TARGET_LITTLE_ENDIAN
-  // We need to emit instructions in big endian format as disassembler /
-  // simulator require the first byte of the instruction in order to decode
-  // the instruction length.  Swap the bytes.
-  x = ((x & 0x00FF) << 8) | ((x & 0xFF00) >> 8);
-#endif
-  *reinterpret_cast<uint16_t*>(pc_) = x;
-  pc_ += 2;
-}
-
-// Helper to emit the binary encoding of a 4 byte instruction
-void Assembler::emit4bytes(uint32_t x) {
-  CheckBuffer();
-#if V8_TARGET_LITTLE_ENDIAN
-  // We need to emit instructions in big endian format as disassembler /
-  // simulator require the first byte of the instruction in order to decode
-  // the instruction length.  Swap the bytes.
-  x = ((x & 0x000000FF) << 24) | ((x & 0x0000FF00) << 8) |
-      ((x & 0x00FF0000) >> 8) | ((x & 0xFF000000) >> 24);
-#endif
-  *reinterpret_cast<uint32_t*>(pc_) = x;
-  pc_ += 4;
-}
-
-// Helper to emit the binary encoding of a 6 byte instruction
-void Assembler::emit6bytes(uint64_t x) {
-  CheckBuffer();
-#if V8_TARGET_LITTLE_ENDIAN
-  // We need to emit instructions in big endian format as disassembler /
-  // simulator require the first byte of the instruction in order to decode
-  // the instruction length.  Swap the bytes.
-  x = (static_cast<uint64_t>(x & 0xFF) << 40) |
-      (static_cast<uint64_t>((x >> 8) & 0xFF) << 32) |
-      (static_cast<uint64_t>((x >> 16) & 0xFF) << 24) |
-      (static_cast<uint64_t>((x >> 24) & 0xFF) << 16) |
-      (static_cast<uint64_t>((x >> 32) & 0xFF) << 8) |
-      (static_cast<uint64_t>((x >> 40) & 0xFF));
-  x |= (*reinterpret_cast<uint64_t*>(pc_) >> 48) << 48;
-#else
-  // We need to pad two bytes of zeros in order to get the 6-bytes
-  // stored from low address.
-  x = x << 16;
-  x |= *reinterpret_cast<uint64_t*>(pc_) & 0xFFFF;
-#endif
-  // It is safe to store 8-bytes, as CheckBuffer() guarantees we have kGap
-  // space left over.
-  *reinterpret_cast<uint64_t*>(pc_) = x;
-  pc_ += 6;
-}
-
-bool Operand::is_reg() const { return rm_.is_valid(); }
 
 // Fetch the 32bit value from the FIXED_SEQUENCE IIHF / IILF
 Address Assembler::target_address_at(Address pc, Address constant_pool) {

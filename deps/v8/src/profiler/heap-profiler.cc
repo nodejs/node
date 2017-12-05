@@ -20,35 +20,34 @@ HeapProfiler::HeapProfiler(Heap* heap)
       is_tracking_object_moves_(false),
       get_retainer_infos_callback_(nullptr) {}
 
-static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
-  delete *snapshot_ptr;
+static void DeleteHeapSnapshot(HeapSnapshot* snapshot_ptr) {
+  delete snapshot_ptr;
 }
 
 
 HeapProfiler::~HeapProfiler() {
-  snapshots_.Iterate(DeleteHeapSnapshot);
-  snapshots_.Clear();
+  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
 }
 
 
 void HeapProfiler::DeleteAllSnapshots() {
-  snapshots_.Iterate(DeleteHeapSnapshot);
-  snapshots_.Clear();
+  std::for_each(snapshots_.begin(), snapshots_.end(), &DeleteHeapSnapshot);
+  snapshots_.clear();
   names_.reset(new StringsStorage(heap()));
 }
 
 
 void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
-  snapshots_.RemoveElement(snapshot);
+  snapshots_.erase(std::find(snapshots_.begin(), snapshots_.end(), snapshot));
 }
 
 
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
   DCHECK(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
-  if (wrapper_callbacks_.length() <= class_id) {
-    wrapper_callbacks_.AddBlock(
-        NULL, class_id - wrapper_callbacks_.length() + 1);
+  if (wrapper_callbacks_.size() <= class_id) {
+    wrapper_callbacks_.insert(wrapper_callbacks_.end(),
+                              class_id - wrapper_callbacks_.size() + 1, NULL);
   }
   wrapper_callbacks_[class_id] = callback;
 }
@@ -56,7 +55,7 @@ void HeapProfiler::DefineWrapperClass(
 
 v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
     uint16_t class_id, Object** wrapper) {
-  if (wrapper_callbacks_.length() <= class_id) return NULL;
+  if (wrapper_callbacks_.size() <= class_id) return NULL;
   return wrapper_callbacks_[class_id](
       class_id, Utils::ToLocal(Handle<Object>(wrapper)));
 }
@@ -85,7 +84,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       delete result;
       result = NULL;
     } else {
-      snapshots_.Add(result);
+      snapshots_.push_back(result);
     }
   }
   ids_->RemoveDeadEntries();
@@ -149,7 +148,7 @@ void HeapProfiler::StopHeapObjectsTracking() {
 }
 
 int HeapProfiler::GetSnapshotsCount() {
-  return snapshots_.length();
+  return static_cast<int>(snapshots_.size());
 }
 
 HeapSnapshot* HeapProfiler::GetSnapshot(int index) {

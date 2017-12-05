@@ -50,11 +50,6 @@ function force_to_fast_double_array(a) {
   assertTrue(%HasDoubleElements(a));
 }
 
-function make_object_like_array(size) {
-  obj = new Object();
-  obj.length = size;
-  return obj;
-}
 
 function testOneArrayType(allocator) {
   var large_array = new allocator(large_array_size);
@@ -349,11 +344,18 @@ function testOneArrayType(allocator) {
   assertTrue(%HasDoubleElements(large_array));
 }
 
+class ArraySubclass extends Array {
+  constructor(...args) {
+    super(...args);
+    this.marker = 42;
+  }
+}
+
 // Force gc here to start with a clean heap if we repeat this test multiple
 // times.
 gc();
-testOneArrayType(make_object_like_array);
 testOneArrayType(Array);
+testOneArrayType(ArraySubclass);
 
 var large_array = new Array(large_array_size);
 force_to_fast_double_array(large_array);

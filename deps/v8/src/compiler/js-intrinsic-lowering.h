@@ -68,7 +68,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceArrayBufferViewField(Node* node, FieldAccess const& access);
   Reduction ReduceArrayBufferViewWasNeutered(Node* node);
   Reduction ReduceMaxSmi(Node* node);
-  Reduction ReduceTypedArrayMaxSizeInHeap(Node* node);
 
   // TODO(turbofan): collection.js support; drop once Maps and Sets are
   // converted to proper CodeStubAssembler based builtins.

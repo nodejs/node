@@ -171,7 +171,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 #endif
 
   // Add return location(s).
-  CHECK(locations.return_count_ <= 2);
+  CHECK_GE(2, locations.return_count_);
 
   if (locations.return_count_ > 0) {
     locations.AddReturn(LinkageLocation::ForRegister(kReturnRegister0.code(),

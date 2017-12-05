@@ -464,7 +464,11 @@ class PreParserStatement {
   // and PreParser.
   PreParserStatement* operator->() { return this; }
 
+  // TODO(adamk): These should return something even lighter-weight than
+  // PreParserStatementList.
   PreParserStatementList statements() { return PreParserStatementList(); }
+  PreParserStatementList cases() { return PreParserStatementList(); }
+
   void set_scope(Scope* scope) {}
   void Initialize(const PreParserExpression& cond, PreParserStatement body,
                   const SourceRange& body_range = {}) {}
@@ -713,12 +717,13 @@ class PreParserFactory {
   }
 
   PreParserStatement NewSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                        const PreParserExpression& tag,
                                         int pos) {
     return PreParserStatement::Default();
   }
 
   PreParserStatement NewCaseClause(const PreParserExpression& label,
-                                   PreParserStatementList statements, int pos) {
+                                   PreParserStatementList statements) {
     return PreParserStatement::Default();
   }
 
@@ -996,9 +1001,8 @@ class PreParser : public ParserBase<PreParser> {
   RewriteReturn(const PreParserExpression& return_value, int pos) {
     return return_value;
   }
-  V8_INLINE PreParserStatement RewriteSwitchStatement(
-      const PreParserExpression& tag, PreParserStatement switch_statement,
-      PreParserStatementList cases, Scope* scope) {
+  V8_INLINE PreParserStatement
+  RewriteSwitchStatement(PreParserStatement switch_statement, Scope* scope) {
     return PreParserStatement::Default();
   }
 
@@ -1008,11 +1012,7 @@ class PreParser : public ParserBase<PreParser> {
       if (catch_name == nullptr) {
         catch_name = ast_value_factory()->dot_catch_string();
       }
-      // Unlike in the parser, we need to declare the catch variable as LET
-      // variable, so that it won't get hoisted out of the scope. (Parser uses
-      // DeclareLocal instead of DeclareVariable to prevent hoisting.) Another
-      // solution would've been to add DeclareLocalName just for this purpose.
-      catch_info->scope->DeclareVariableName(catch_name, LET);
+      catch_info->scope->DeclareCatchVariableName(catch_name);
 
       if (catch_info->pattern.variables_ != nullptr) {
         for (auto variable : *catch_info->pattern.variables_) {
@@ -1124,7 +1124,22 @@ class PreParser : public ParserBase<PreParser> {
                       ClassInfo* class_info, int pos, int end_pos, bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
-    if (has_default_constructor) GetNextFunctionLiteralId();
+    if (has_default_constructor) {
+      // Creating and disposing of a FunctionState makes tracking of
+      // next_function_is_likely_called match what Parser does. TODO(marja):
+      // Make the lazy function + next_function_is_likely_called + default ctor
+      // logic less surprising. Default ctors shouldn't affect the laziness of
+      // functions.
+      bool has_extends = class_info->extends.IsNull();
+      FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
+                                      : FunctionKind::kDefaultBaseConstructor;
+      DeclarationScope* function_scope = NewFunctionScope(kind);
+      SetLanguageMode(function_scope, STRICT);
+      function_scope->set_start_position(pos);
+      function_scope->set_end_position(pos);
+      FunctionState function_state(&function_state_, &scope_, function_scope);
+      GetNextFunctionLiteralId();
+    }
     return PreParserExpression::Default();
   }
 
@@ -1290,7 +1305,7 @@ class PreParser : public ParserBase<PreParser> {
       ForInfo* for_info, PreParserStatement* body_block,
       PreParserExpression* each_variable, bool* ok) {
     if (track_unresolved_variables_) {
-      DCHECK(for_info->parsing_result.declarations.length() == 1);
+      DCHECK_EQ(1, for_info->parsing_result.declarations.size());
       bool is_for_var_of =
           for_info->mode == ForEachStatement::ITERATE &&
           for_info->parsing_result.descriptor.mode == VariableMode::VAR;
@@ -1509,10 +1524,6 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
-    return PreParserStatementList();
-  }
-
-  PreParserStatementList NewCaseClauseList(int size) {
     return PreParserStatementList();
   }
 

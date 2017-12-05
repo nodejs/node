@@ -104,7 +104,7 @@
       'V8 Linux - predictable': 'gn_release_x86_predictable',
       'V8 Linux - full debug': 'gn_full_debug_x86',
       'V8 Linux - interpreted regexp': 'gn_release_x86_interpreted_regexp',
-      'V8 Random Deopt Fuzzer - debug': 'gn_debug_x86',
+      'V8 Random Deopt Fuzzer - debug': 'gn_debug_x64',
     },
     'client.v8.clusterfuzz': {
       'V8 Mac64 ASAN - release builder':

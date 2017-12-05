@@ -22,7 +22,6 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       extension_(nullptr),
       compile_options_(ScriptCompiler::kNoCompileOptions),
       script_scope_(nullptr),
-      asm_function_scope_(nullptr),
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
@@ -72,9 +71,10 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   // FeedbackMetadata, we can only collect type profile if the feedback vector
   // has the appropriate slots.
   set_collect_type_profile(
-      shared->feedback_metadata()->length() == 0
-          ? FLAG_type_profile && script->IsUserJavaScript()
-          : shared->feedback_metadata()->HasTypeProfileSlot());
+      isolate->is_collecting_type_profile() &&
+      (shared->feedback_metadata()->length() == 0
+           ? script->IsUserJavaScript()
+           : shared->feedback_metadata()->HasTypeProfileSlot()));
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
@@ -91,7 +91,8 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 
-  set_collect_type_profile(FLAG_type_profile && script->IsUserJavaScript());
+  set_collect_type_profile(script->GetIsolate()->is_collecting_type_profile() &&
+                           script->IsUserJavaScript());
   if (block_coverage_enabled() && script->IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
@@ -151,9 +152,8 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
   set_unicode_cache(isolate->unicode_cache());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_ast_string_constants(isolate->ast_string_constants());
-  if (FLAG_block_coverage && isolate->is_block_code_coverage()) {
-    set_block_coverage_enabled();
-  }
+  if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
+  if (isolate->is_collecting_type_profile()) set_collect_type_profile();
 }
 
 void ParseInfo::UpdateStatisticsAfterBackgroundParse(Isolate* isolate) {

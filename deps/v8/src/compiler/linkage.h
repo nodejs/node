@@ -47,12 +47,12 @@ class LinkageLocation {
 
   static LinkageLocation ForRegister(int32_t reg,
                                      MachineType type = MachineType::None()) {
-    DCHECK(reg >= 0);
+    DCHECK_LE(0, reg);
     return LinkageLocation(REGISTER, reg, type);
   }
 
   static LinkageLocation ForCallerFrameSlot(int32_t slot, MachineType type) {
-    DCHECK(slot < 0);
+    DCHECK_GT(0, slot);
     return LinkageLocation(STACK_SLOT, slot, type);
   }
 
@@ -101,25 +101,6 @@ class LinkageLocation {
     return caller_location;
   }
 
- private:
-  friend class CallDescriptor;
-  friend class OperandGenerator;
-
-  enum LocationType { REGISTER, STACK_SLOT };
-
-  class TypeField : public BitField<LocationType, 0, 1> {};
-  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
-
-  static const int32_t ANY_REGISTER = -1;
-  static const int32_t MAX_STACK_SLOT = 32767;
-
-  LinkageLocation(LocationType type, int32_t location,
-                  MachineType machine_type) {
-    bit_field_ = TypeField::encode(type) |
-                 ((location << LocationField::kShift) & LocationField::kMask);
-    machine_type_ = machine_type;
-  }
-
   MachineType GetType() const { return machine_type_; }
 
   int GetSize() const {
@@ -154,6 +135,22 @@ class LinkageLocation {
   int32_t AsCalleeFrameSlot() const {
     DCHECK(IsCalleeFrameSlot());
     return GetLocation();
+  }
+
+ private:
+  enum LocationType { REGISTER, STACK_SLOT };
+
+  class TypeField : public BitField<LocationType, 0, 1> {};
+  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+
+  static constexpr int32_t ANY_REGISTER = -1;
+  static constexpr int32_t MAX_STACK_SLOT = 32767;
+
+  LinkageLocation(LocationType type, int32_t location,
+                  MachineType machine_type) {
+    bit_field_ = TypeField::encode(type) |
+                 ((location << LocationField::kShift) & LocationField::kMask);
+    machine_type_ = machine_type;
   }
 
   int32_t bit_field_;
@@ -309,8 +306,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return allocatable_registers_ != 0;
   }
 
+  void set_save_fp_mode(SaveFPRegsMode mode) { save_fp_mode_ = mode; }
+
+  SaveFPRegsMode get_save_fp_mode() const { return save_fp_mode_; }
+
  private:
   friend class Linkage;
+  SaveFPRegsMode save_fp_mode_ = kSaveFPRegs;
 
   const Kind kind_;
   const MachineType target_type_;

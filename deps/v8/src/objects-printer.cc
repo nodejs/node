@@ -77,6 +77,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">\n";
       break;
+    case BIGINT_TYPE:
+      BigInt::cast(this)->BigIntPrint(os);
+      os << "\n";
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
@@ -128,7 +132,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
-    case JS_PROMISE_CAPABILITY_TYPE:
     case WASM_INSTANCE_TYPE:  // TODO(titzer): debug printing for wasm objects
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
@@ -353,7 +356,8 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   }
 }
 
-void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
+template <typename T>
+void PrintFixedArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
   Object* value = nullptr;
@@ -391,14 +395,14 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
                                  SloppyArgumentsElements* elements) {
   Isolate* isolate = elements->GetIsolate();
   FixedArray* arguments_store = elements->arguments();
-  os << "\n    0: context= " << Brief(elements->context())
-     << "\n    1: arguments_store= " << Brief(arguments_store)
+  os << "\n    0: context = " << Brief(elements->context())
+     << "\n    1: arguments_store = " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
   for (uint32_t i = 0; i < elements->parameter_map_length(); i++) {
     uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
     Object* mapped_entry = elements->get_mapped_entry(i);
     os << "\n    " << raw_index << ": param(" << i
-       << ")= " << Brief(mapped_entry);
+       << ") = " << Brief(mapped_entry);
     if (mapped_entry->IsTheHole(isolate)) {
       os << " in the arguments_store[" << i << "]";
     } else {
@@ -415,7 +419,6 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
     DCHECK_EQ(kind, SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
     PrintDictionaryElements(os, arguments_store);
   }
-  os << "\n }";
 }
 
 }  // namespace
@@ -423,7 +426,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
 void JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  os << " - elements= " << Brief(elements()) << " {";
+  os << " - elements = " << Brief(elements()) << " {";
   if (elements()->length() == 0) {
     os << " }\n";
     return;
@@ -492,7 +495,12 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
-  os << "\n - properties = " << Brief(obj->raw_properties_or_hash()) << " {";
+  os << "\n - properties = ";
+  Object* properties_or_hash = obj->raw_properties_or_hash();
+  if (!properties_or_hash->IsSmi()) {
+    os << Brief(properties_or_hash);
+  }
+  os << " {";
   if (obj->PrintProperties(os)) os << "\n ";
   os << "}\n";
   if (print_elements && obj->elements()->length() > 0) {
@@ -606,7 +614,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - prototype: " << Brief(prototype());
   os << "\n - constructor: " << Brief(GetConstructor());
-  os << "\n - code cache: " << Brief(code_cache());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - construction counter: " << construction_counter();
   os << "\n";
@@ -628,16 +635,12 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-// TODO(gsathya): Templatize PrintFixedArrayElements to print this as
-// well.
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n" << i << " : " << std::setw(8) << Brief(get(i));
-  }
-
+  os << "\n - hash: " << Hash();
+  PrintFixedArrayElements(os, this);
   os << "\n";
 }
 
@@ -788,6 +791,11 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
+      case FeedbackSlotKind::kForIn: {
+        ForInICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
       case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         StoreDataPropertyInLiteralICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
@@ -795,7 +803,6 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       }
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
-      case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kTypeProfile:
         break;
       case FeedbackSlotKind::kInvalid:
@@ -1262,6 +1269,13 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void PromiseCapability::PromiseCapabilityPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "PromiseCapability");
+  os << "\n - promise: " << Brief(promise());
+  os << "\n - resolve: " << Brief(resolve());
+  os << "\n - reject: " << Brief(reject());
+  os << "\n";
+}
 
 void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
     std::ostream& os) {  // NOLINT
@@ -1729,11 +1743,8 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
     case kFullTransitionArray:
       return transitions()->Print(os);

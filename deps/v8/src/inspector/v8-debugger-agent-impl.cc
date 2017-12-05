@@ -11,7 +11,6 @@
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/remote-object-id.h"
-#include "src/inspector/script-breakpoint.h"
 #include "src/inspector/search-util.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-script.h"
@@ -37,20 +36,16 @@ using protocol::Runtime::RemoteObject;
 using protocol::Debugger::Scope;
 
 namespace DebuggerAgentState {
-static const char javaScriptBreakpoints[] = "javaScriptBreakopints";
 static const char pauseOnExceptionsState[] = "pauseOnExceptionsState";
 static const char asyncCallStackDepth[] = "asyncCallStackDepth";
 static const char blackboxPattern[] = "blackboxPattern";
 static const char debuggerEnabled[] = "debuggerEnabled";
 static const char skipAllPauses[] = "skipAllPauses";
 
-// Breakpoint properties.
-static const char url[] = "url";
-static const char isRegex[] = "isRegex";
-static const char lineNumber[] = "lineNumber";
-static const char columnNumber[] = "columnNumber";
-static const char condition[] = "condition";
-static const char hint[] = "hint";
+static const char breakpointsByRegex[] = "breakpointsByRegex";
+static const char breakpointsByUrl[] = "breakpointsByUrl";
+static const char breakpointsByScriptHash[] = "breakpointsByScriptHash";
+static const char breakpointHints[] = "breakpointHints";
 
 }  // namespace DebuggerAgentState
 
@@ -64,47 +59,78 @@ static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
 
 namespace {
 
-void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
-                                      WasmTranslation* wasmTranslation) {
-  for (size_t i = 0, e = stackTrace->length(); i != e; ++i) {
-    protocol::Debugger::Location* location = stackTrace->get(i)->getLocation();
-    String16 scriptId = location->getScriptId();
-    int lineNumber = location->getLineNumber();
-    int columnNumber = location->getColumnNumber(-1);
-
-    if (!wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-            &scriptId, &lineNumber, &columnNumber)) {
-      continue;
-    }
-
+void TranslateLocation(protocol::Debugger::Location* location,
+                       WasmTranslation* wasmTranslation) {
+  String16 scriptId = location->getScriptId();
+  int lineNumber = location->getLineNumber();
+  int columnNumber = location->getColumnNumber(-1);
+  if (wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+          &scriptId, &lineNumber, &columnNumber)) {
     location->setScriptId(std::move(scriptId));
     location->setLineNumber(lineNumber);
     location->setColumnNumber(columnNumber);
   }
 }
 
-String16 breakpointIdSuffix(V8DebuggerAgentImpl::BreakpointSource source) {
-  switch (source) {
-    case V8DebuggerAgentImpl::UserBreakpointSource:
-      break;
-    case V8DebuggerAgentImpl::DebugCommandBreakpointSource:
-      return ":debug";
-    case V8DebuggerAgentImpl::MonitorCommandBreakpointSource:
-      return ":monitor";
-  }
-  return String16();
+enum class BreakpointType {
+  kByUrl = 1,
+  kByUrlRegex,
+  kByScriptHash,
+  kByScriptId,
+  kDebugCommand,
+  kMonitorCommand
+};
+
+String16 generateBreakpointId(BreakpointType type,
+                              const String16& scriptSelector, int lineNumber,
+                              int columnNumber) {
+  String16Builder builder;
+  builder.appendNumber(static_cast<int>(type));
+  builder.append(':');
+  builder.appendNumber(lineNumber);
+  builder.append(':');
+  builder.appendNumber(columnNumber);
+  builder.append(':');
+  builder.append(scriptSelector);
+  return builder.toString();
 }
 
-String16 generateBreakpointId(const ScriptBreakpoint& breakpoint,
-                              V8DebuggerAgentImpl::BreakpointSource source) {
-  String16Builder builder;
-  builder.append(breakpoint.script_id);
-  builder.append(':');
-  builder.appendNumber(breakpoint.line_number);
-  builder.append(':');
-  builder.appendNumber(breakpoint.column_number);
-  builder.append(breakpointIdSuffix(source));
-  return builder.toString();
+bool parseBreakpointId(const String16& breakpointId, BreakpointType* type,
+                       String16* scriptSelector = nullptr,
+                       int* lineNumber = nullptr, int* columnNumber = nullptr) {
+  size_t typeLineSeparator = breakpointId.find(':');
+  if (typeLineSeparator == String16::kNotFound) return false;
+  size_t lineColumnSeparator = breakpointId.find(':', typeLineSeparator + 1);
+  if (lineColumnSeparator == String16::kNotFound) return false;
+  size_t columnSelectorSeparator =
+      breakpointId.find(':', lineColumnSeparator + 1);
+  if (columnSelectorSeparator == String16::kNotFound) return false;
+
+  if (type) {
+    int rawType = breakpointId.substring(0, typeLineSeparator).toInteger();
+    if (rawType < static_cast<int>(BreakpointType::kByUrl) ||
+        rawType > static_cast<int>(BreakpointType::kMonitorCommand)) {
+      return false;
+    }
+    *type = static_cast<BreakpointType>(rawType);
+  }
+  if (scriptSelector) {
+    *scriptSelector = breakpointId.substring(columnSelectorSeparator + 1);
+  }
+  if (lineNumber) {
+    *lineNumber = breakpointId
+                      .substring(typeLineSeparator + 1,
+                                 lineColumnSeparator - typeLineSeparator - 1)
+                      .toInteger();
+  }
+  if (columnNumber) {
+    *columnNumber =
+        breakpointId
+            .substring(lineColumnSeparator + 1,
+                       columnSelectorSeparator - lineColumnSeparator - 1)
+            .toInteger();
+  }
+  return true;
 }
 
 bool positionComparator(const std::pair<int, int>& a,
@@ -113,18 +139,9 @@ bool positionComparator(const std::pair<int, int>& a,
   return a.second < b.second;
 }
 
-std::unique_ptr<protocol::Debugger::Location> buildProtocolLocation(
-    const String16& scriptId, int lineNumber, int columnNumber) {
-  return protocol::Debugger::Location::create()
-      .setScriptId(scriptId)
-      .setLineNumber(lineNumber)
-      .setColumnNumber(columnNumber)
-      .build();
-}
-
-String16 breakpointHint(const V8DebuggerScript& script,
-                        const ScriptBreakpoint& breakpoint) {
-  int offset = script.offset(breakpoint.line_number, breakpoint.column_number);
+String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
+                        int columnNumber) {
+  int offset = script.offset(lineNumber, columnNumber);
   if (offset == V8DebuggerScript::kNoOffset) return String16();
   const String16& source = script.source();
   String16 hint =
@@ -138,11 +155,12 @@ String16 breakpointHint(const V8DebuggerScript& script,
 }
 
 void adjustBreakpointLocation(const V8DebuggerScript& script,
-                              const String16& hint,
-                              ScriptBreakpoint* breakpoint) {
+                              const String16& hint, int* lineNumber,
+                              int* columnNumber) {
+  if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
+    return;
   if (hint.isEmpty()) return;
-  intptr_t sourceOffset =
-      script.offset(breakpoint->line_number, breakpoint->column_number);
+  intptr_t sourceOffset = script.offset(*lineNumber, *columnNumber);
   if (sourceOffset == V8DebuggerScript::kNoOffset) return;
 
   intptr_t searchRegionOffset = std::max(
@@ -168,8 +186,8 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
   v8::debug::Location hintPosition =
       script.location(static_cast<int>(bestMatch));
   if (hintPosition.IsEmpty()) return;
-  breakpoint->line_number = hintPosition.GetLineNumber();
-  breakpoint->column_number = hintPosition.GetColumnNumber();
+  *lineNumber = hintPosition.GetLineNumber();
+  *columnNumber = hintPosition.GetColumnNumber();
 }
 
 String16 breakLocationType(v8::debug::BreakLocationType type) {
@@ -308,6 +326,16 @@ bool liveEditExceptionToDetails(
   return true;
 }
 
+protocol::DictionaryValue* getOrCreateObject(protocol::DictionaryValue* object,
+                                             const String16& key) {
+  protocol::DictionaryValue* value = object->getObject(key);
+  if (value) return value;
+  std::unique_ptr<protocol::DictionaryValue> newDictionary =
+      protocol::DictionaryValue::create();
+  value = newDictionary.get();
+  object->setObject(key, std::move(newDictionary));
+  return value;
+}
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -355,8 +383,11 @@ Response V8DebuggerAgentImpl::enable() {
 Response V8DebuggerAgentImpl::disable() {
   if (!enabled()) return Response::OK();
 
-  m_state->setObject(DebuggerAgentState::javaScriptBreakpoints,
-                     protocol::DictionaryValue::create());
+  m_state->remove(DebuggerAgentState::breakpointsByRegex);
+  m_state->remove(DebuggerAgentState::breakpointsByUrl);
+  m_state->remove(DebuggerAgentState::breakpointsByScriptHash);
+  m_state->remove(DebuggerAgentState::breakpointHints);
+
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState,
                       v8::debug::NoBreakOnException);
   m_state->setInteger(DebuggerAgentState::asyncCallStackDepth, 0);
@@ -371,12 +402,11 @@ Response V8DebuggerAgentImpl::disable() {
   m_blackboxPattern.reset();
   resetBlackboxedStateCache();
   m_scripts.clear();
-  for (const auto& it : m_breakpointIdToDebuggerBreakpointIds) {
-    for (const auto& id : it.second) {
-      v8::debug::RemoveBreakpoint(m_isolate, id);
-    }
+  for (const auto& it : m_debuggerBreakpointIdToBreakpointId) {
+    v8::debug::RemoveBreakpoint(m_isolate, it.first);
   }
   m_breakpointIdToDebuggerBreakpointIds.clear();
+  m_debuggerBreakpointIdToBreakpointId.clear();
   m_debugger->setAsyncCallStackDepth(this, 0);
   clearBreakDetails();
   m_skipAllPauses = false;
@@ -433,83 +463,105 @@ Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   return Response::OK();
 }
 
-static std::unique_ptr<protocol::DictionaryValue>
-buildObjectForBreakpointCookie(const String16& url, int lineNumber,
-                               int columnNumber, const String16& condition,
-                               bool isRegex, const String16& hint) {
-  std::unique_ptr<protocol::DictionaryValue> breakpointObject =
-      protocol::DictionaryValue::create();
-  breakpointObject->setString(DebuggerAgentState::url, url);
-  breakpointObject->setInteger(DebuggerAgentState::lineNumber, lineNumber);
-  breakpointObject->setInteger(DebuggerAgentState::columnNumber, columnNumber);
-  breakpointObject->setString(DebuggerAgentState::condition, condition);
-  breakpointObject->setBoolean(DebuggerAgentState::isRegex, isRegex);
-  if (!hint.isEmpty()) {
-    breakpointObject->setString(DebuggerAgentState::hint, hint);
+static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
+                    BreakpointType type, const String16& selector) {
+  switch (type) {
+    case BreakpointType::kByUrl:
+      return script.sourceURL() == selector;
+    case BreakpointType::kByScriptHash:
+      return script.hash() == selector;
+    case BreakpointType::kByUrlRegex: {
+      V8Regex regex(inspector, selector, true);
+      return regex.match(script.sourceURL()) != -1;
+    }
+    default:
+      UNREACHABLE();
+      return false;
   }
-  return breakpointObject;
-}
-
-static bool matches(V8InspectorImpl* inspector, const String16& url,
-                    const String16& pattern, bool isRegex) {
-  if (isRegex) {
-    V8Regex regex(inspector, pattern, true);
-    return regex.match(url) != -1;
-  }
-  return url == pattern;
 }
 
 Response V8DebuggerAgentImpl::setBreakpointByUrl(
     int lineNumber, Maybe<String16> optionalURL,
-    Maybe<String16> optionalURLRegex, Maybe<int> optionalColumnNumber,
-    Maybe<String16> optionalCondition, String16* outBreakpointId,
+    Maybe<String16> optionalURLRegex, Maybe<String16> optionalScriptHash,
+    Maybe<int> optionalColumnNumber, Maybe<String16> optionalCondition,
+    String16* outBreakpointId,
     std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
   *locations = Array<protocol::Debugger::Location>::create();
-  if (optionalURL.isJust() == optionalURLRegex.isJust())
-    return Response::Error("Either url or urlRegex must be specified.");
 
-  String16 url = optionalURL.isJust() ? optionalURL.fromJust()
-                                      : optionalURLRegex.fromJust();
+  int specified = (optionalURL.isJust() ? 1 : 0) +
+                  (optionalURLRegex.isJust() ? 1 : 0) +
+                  (optionalScriptHash.isJust() ? 1 : 0);
+  if (specified != 1) {
+    return Response::Error(
+        "Either url or urlRegex or scriptHash must be specified.");
+  }
   int columnNumber = 0;
   if (optionalColumnNumber.isJust()) {
     columnNumber = optionalColumnNumber.fromJust();
     if (columnNumber < 0) return Response::Error("Incorrect column number");
   }
-  String16 condition = optionalCondition.fromMaybe("");
-  bool isRegex = optionalURLRegex.isJust();
 
-  String16 breakpointId = (isRegex ? "/" + url + "/" : url) + ":" +
-                          String16::fromInteger(lineNumber) + ":" +
-                          String16::fromInteger(columnNumber);
-  protocol::DictionaryValue* breakpointsCookie =
-      m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-  if (!breakpointsCookie) {
-    std::unique_ptr<protocol::DictionaryValue> newValue =
-        protocol::DictionaryValue::create();
-    breakpointsCookie = newValue.get();
-    m_state->setObject(DebuggerAgentState::javaScriptBreakpoints,
-                       std::move(newValue));
+  BreakpointType type = BreakpointType::kByUrl;
+  String16 selector;
+  if (optionalURLRegex.isJust()) {
+    selector = optionalURLRegex.fromJust();
+    type = BreakpointType::kByUrlRegex;
+  } else if (optionalURL.isJust()) {
+    selector = optionalURL.fromJust();
+    type = BreakpointType::kByUrl;
+  } else if (optionalScriptHash.isJust()) {
+    selector = optionalScriptHash.fromJust();
+    type = BreakpointType::kByScriptHash;
   }
-  if (breakpointsCookie->get(breakpointId))
+
+  String16 condition = optionalCondition.fromMaybe(String16());
+  String16 breakpointId =
+      generateBreakpointId(type, selector, lineNumber, columnNumber);
+  protocol::DictionaryValue* breakpoints;
+  switch (type) {
+    case BreakpointType::kByUrlRegex:
+      breakpoints =
+          getOrCreateObject(m_state, DebuggerAgentState::breakpointsByRegex);
+      break;
+    case BreakpointType::kByUrl:
+      breakpoints = getOrCreateObject(
+          getOrCreateObject(m_state, DebuggerAgentState::breakpointsByUrl),
+          selector);
+      break;
+    case BreakpointType::kByScriptHash:
+      breakpoints = getOrCreateObject(
+          getOrCreateObject(m_state,
+                            DebuggerAgentState::breakpointsByScriptHash),
+          selector);
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  if (breakpoints->get(breakpointId)) {
     return Response::Error("Breakpoint at specified location already exists.");
+  }
 
   String16 hint;
-  ScriptBreakpoint breakpoint(String16(), lineNumber, columnNumber, condition);
   for (const auto& script : m_scripts) {
-    if (!matches(m_inspector, script.second->sourceURL(), url, isRegex))
-      continue;
-    breakpoint.script_id = script.first;
-    std::unique_ptr<protocol::Debugger::Location> location =
-        resolveBreakpoint(breakpointId, breakpoint, UserBreakpointSource, hint);
-    if (!isRegex) hint = breakpointHint(*script.second, breakpoint);
+    if (!matches(m_inspector, *script.second, type, selector)) continue;
+    if (!hint.isEmpty()) {
+      adjustBreakpointLocation(*script.second, hint, &lineNumber,
+                               &columnNumber);
+    }
+    std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
+        breakpointId, script.first, condition, lineNumber, columnNumber);
+    if (type != BreakpointType::kByUrlRegex) {
+      hint = breakpointHint(*script.second, lineNumber, columnNumber);
+    }
     if (location) (*locations)->addItem(std::move(location));
   }
-
-  breakpointsCookie->setObject(
-      breakpointId,
-      buildObjectForBreakpointCookie(url, lineNumber, columnNumber, condition,
-                                     isRegex, hint));
-
+  breakpoints->setString(breakpointId, condition);
+  if (!hint.isEmpty()) {
+    protocol::DictionaryValue* breakpointHints =
+        getOrCreateObject(m_state, DebuggerAgentState::breakpointHints);
+    breakpointHints->setString(breakpointId, hint);
+  }
   *outBreakpointId = breakpointId;
   return Response::OK();
 }
@@ -518,18 +570,17 @@ Response V8DebuggerAgentImpl::setBreakpoint(
     std::unique_ptr<protocol::Debugger::Location> location,
     Maybe<String16> optionalCondition, String16* outBreakpointId,
     std::unique_ptr<protocol::Debugger::Location>* actualLocation) {
-  ScriptBreakpoint breakpoint(
-      location->getScriptId(), location->getLineNumber(),
-      location->getColumnNumber(0), optionalCondition.fromMaybe(String16()));
-
-  String16 breakpointId =
-      generateBreakpointId(breakpoint, UserBreakpointSource);
+  String16 breakpointId = generateBreakpointId(
+      BreakpointType::kByScriptId, location->getScriptId(),
+      location->getLineNumber(), location->getColumnNumber(0));
   if (m_breakpointIdToDebuggerBreakpointIds.find(breakpointId) !=
       m_breakpointIdToDebuggerBreakpointIds.end()) {
     return Response::Error("Breakpoint at specified location already exists.");
   }
-  *actualLocation = resolveBreakpoint(
-      breakpointId, breakpoint, UserBreakpointSource, /* hint */ String16());
+  *actualLocation = setBreakpointImpl(breakpointId, location->getScriptId(),
+                                      optionalCondition.fromMaybe(String16()),
+                                      location->getLineNumber(),
+                                      location->getColumnNumber(0));
   if (!*actualLocation) return Response::Error("Could not resolve breakpoint");
   *outBreakpointId = breakpointId;
   return Response::OK();
@@ -537,9 +588,37 @@ Response V8DebuggerAgentImpl::setBreakpoint(
 
 Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
-  protocol::DictionaryValue* breakpointsCookie =
-      m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-  if (breakpointsCookie) breakpointsCookie->remove(breakpointId);
+  BreakpointType type;
+  String16 selector;
+  if (!parseBreakpointId(breakpointId, &type, &selector)) {
+    return Response::OK();
+  }
+  protocol::DictionaryValue* breakpoints = nullptr;
+  switch (type) {
+    case BreakpointType::kByUrl: {
+      protocol::DictionaryValue* breakpointsByUrl =
+          m_state->getObject(DebuggerAgentState::breakpointsByUrl);
+      if (breakpointsByUrl) {
+        breakpoints = breakpointsByUrl->getObject(selector);
+      }
+    } break;
+    case BreakpointType::kByScriptHash: {
+      protocol::DictionaryValue* breakpointsByScriptHash =
+          m_state->getObject(DebuggerAgentState::breakpointsByScriptHash);
+      if (breakpointsByScriptHash) {
+        breakpoints = breakpointsByScriptHash->getObject(selector);
+      }
+    } break;
+    case BreakpointType::kByUrlRegex:
+      breakpoints = m_state->getObject(DebuggerAgentState::breakpointsByRegex);
+      break;
+    default:
+      break;
+  }
+  if (breakpoints) breakpoints->remove(breakpointId);
+  protocol::DictionaryValue* breakpointHints =
+      m_state->getObject(DebuggerAgentState::breakpointHints);
+  if (breakpointHints) breakpointHints->remove(breakpointId);
   removeBreakpointImpl(breakpointId);
   return Response::OK();
 }
@@ -555,7 +634,7 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
   }
   for (const auto& id : debuggerBreakpointIdsIterator->second) {
     v8::debug::RemoveBreakpoint(m_isolate, id);
-    m_serverBreakpoints.erase(id);
+    m_debuggerBreakpointIdToBreakpointId.erase(id);
   }
   m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
 }
@@ -675,58 +754,42 @@ bool V8DebuggerAgentImpl::acceptsPause(bool isOOMBreak) const {
 }
 
 std::unique_ptr<protocol::Debugger::Location>
-V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
-                                       const ScriptBreakpoint& breakpoint,
-                                       BreakpointSource source,
-                                       const String16& hint) {
+V8DebuggerAgentImpl::setBreakpointImpl(const String16& breakpointId,
+                                       const String16& scriptId,
+                                       const String16& condition,
+                                       int lineNumber, int columnNumber) {
   v8::HandleScope handles(m_isolate);
   DCHECK(enabled());
-  // FIXME: remove these checks once crbug.com/520702 is resolved.
-  CHECK(!breakpointId.isEmpty());
-  CHECK(!breakpoint.script_id.isEmpty());
-  ScriptsMap::iterator scriptIterator = m_scripts.find(breakpoint.script_id);
+
+  ScriptsMap::iterator scriptIterator = m_scripts.find(scriptId);
   if (scriptIterator == m_scripts.end()) return nullptr;
   V8DebuggerScript* script = scriptIterator->second.get();
-  if (breakpoint.line_number < script->startLine() ||
-      script->endLine() < breakpoint.line_number)
+  if (lineNumber < script->startLine() || script->endLine() < lineNumber) {
     return nullptr;
-
-  // Translate from protocol location to v8 location for the debugger.
-  ScriptBreakpoint translatedBreakpoint = breakpoint;
-  adjustBreakpointLocation(*script, hint, &translatedBreakpoint);
-  m_debugger->wasmTranslation()->TranslateProtocolLocationToWasmScriptLocation(
-      &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
-      &translatedBreakpoint.column_number);
+  }
 
   v8::debug::BreakpointId debuggerBreakpointId;
-  v8::debug::Location location(translatedBreakpoint.line_number,
-                               translatedBreakpoint.column_number);
+  v8::debug::Location location(lineNumber, columnNumber);
   int contextId = script->executionContextId();
   InspectedContext* inspected = m_inspector->getContext(contextId);
   if (!inspected) return nullptr;
 
   {
     v8::Context::Scope contextScope(inspected->context());
-    if (!script->setBreakpoint(translatedBreakpoint.condition, &location,
-                               &debuggerBreakpointId)) {
+    if (!script->setBreakpoint(condition, &location, &debuggerBreakpointId)) {
       return nullptr;
     }
   }
-  int actualLineNumber = location.GetLineNumber();
-  int actualColumnNumber = location.GetColumnNumber();
 
-  // Translate back from v8 location to protocol location for the return value.
-  m_debugger->wasmTranslation()->TranslateWasmScriptLocationToProtocolLocation(
-      &translatedBreakpoint.script_id, &actualLineNumber, &actualColumnNumber);
-
-  m_serverBreakpoints[debuggerBreakpointId] =
-      std::make_pair(breakpointId, source);
-  CHECK(!breakpointId.isEmpty());
-
+  m_debuggerBreakpointIdToBreakpointId[debuggerBreakpointId] = breakpointId;
   m_breakpointIdToDebuggerBreakpointIds[breakpointId].push_back(
       debuggerBreakpointId);
-  return buildProtocolLocation(translatedBreakpoint.script_id, actualLineNumber,
-                               actualColumnNumber);
+
+  return protocol::Debugger::Location::create()
+      .setScriptId(scriptId)
+      .setLineNumber(location.GetLineNumber())
+      .setColumnNumber(location.GetColumnNumber())
+      .build();
 }
 
 Response V8DebuggerAgentImpl::searchInContent(
@@ -1107,8 +1170,6 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     String16 callFrameId =
         RemoteCallFrameId::serialize(contextId, frameOrdinal);
 
-    v8::Local<v8::debug::Script> script = iterator->GetScript();
-    DCHECK(!script.IsEmpty());
     v8::debug::Location loc = iterator->GetSourceLocation();
 
     std::unique_ptr<Array<Scope>> scopes;
@@ -1128,15 +1189,29 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                      .build();
     }
 
+    v8::Local<v8::debug::Script> script = iterator->GetScript();
+    DCHECK(!script.IsEmpty());
+    std::unique_ptr<protocol::Debugger::Location> location =
+        protocol::Debugger::Location::create()
+            .setScriptId(String16::fromInteger(script->Id()))
+            .setLineNumber(loc.GetLineNumber())
+            .setColumnNumber(loc.GetColumnNumber())
+            .build();
+    TranslateLocation(location.get(), m_debugger->wasmTranslation());
+    String16 scriptId = String16::fromInteger(script->Id());
+    ScriptsMap::iterator scriptIterator =
+        m_scripts.find(location->getScriptId());
+    String16 url;
+    if (scriptIterator != m_scripts.end()) {
+      url = scriptIterator->second->sourceURL();
+    }
+
     auto frame =
         CallFrame::create()
             .setCallFrameId(callFrameId)
             .setFunctionName(toProtocolString(iterator->GetFunctionName()))
-            .setLocation(protocol::Debugger::Location::create()
-                             .setScriptId(String16::fromInteger(script->Id()))
-                             .setLineNumber(loc.GetLineNumber())
-                             .setColumnNumber(loc.GetColumnNumber())
-                             .build())
+            .setLocation(std::move(location))
+            .setUrl(url)
             .setScopeChain(std::move(scopes))
             .setThis(std::move(receiver))
             .build();
@@ -1161,8 +1236,6 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     }
     (*result)->addItem(std::move(frame));
   }
-  TranslateWasmStackTraceLocations(result->get(),
-                                   m_debugger->wasmTranslation());
   return Response::OK();
 }
 
@@ -1243,40 +1316,54 @@ void V8DebuggerAgentImpl::didParseSource(
         static_cast<int>(scriptRef->source().length()), std::move(stackTrace));
   }
 
-  if (scriptURL.isEmpty() || !success) return;
+  if (!success) return;
 
-  protocol::DictionaryValue* breakpointsCookie =
-      m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-  if (!breakpointsCookie) return;
-
-  for (size_t i = 0; i < breakpointsCookie->size(); ++i) {
-    auto cookie = breakpointsCookie->at(i);
-    protocol::DictionaryValue* breakpointObject =
-        protocol::DictionaryValue::cast(cookie.second);
-    bool isRegex;
-    breakpointObject->getBoolean(DebuggerAgentState::isRegex, &isRegex);
-    String16 url;
-    breakpointObject->getString(DebuggerAgentState::url, &url);
-    if (!matches(m_inspector, scriptURL, url, isRegex)) continue;
-    ScriptBreakpoint breakpoint;
-    breakpoint.script_id = scriptId;
-    breakpointObject->getInteger(DebuggerAgentState::lineNumber,
-                                 &breakpoint.line_number);
-    breakpointObject->getInteger(DebuggerAgentState::columnNumber,
-                                 &breakpoint.column_number);
-    breakpointObject->getString(DebuggerAgentState::condition,
-                                &breakpoint.condition);
-    String16 hint;
-    bool hasHint = breakpointObject->getString(DebuggerAgentState::hint, &hint);
-    std::unique_ptr<protocol::Debugger::Location> location =
-        resolveBreakpoint(cookie.first, breakpoint, UserBreakpointSource, hint);
-    if (!hasHint) {
-      hint = breakpointHint(*scriptRef, breakpoint);
-      if (!hint.isEmpty())
-        breakpointObject->setString(DebuggerAgentState::hint, hint);
+  std::vector<protocol::DictionaryValue*> potentialBreakpoints;
+  if (!scriptURL.isEmpty()) {
+    protocol::DictionaryValue* breakpointsByUrl =
+        m_state->getObject(DebuggerAgentState::breakpointsByUrl);
+    if (breakpointsByUrl) {
+      potentialBreakpoints.push_back(breakpointsByUrl->getObject(scriptURL));
     }
-    if (location)
-      m_frontend.breakpointResolved(cookie.first, std::move(location));
+    potentialBreakpoints.push_back(
+        m_state->getObject(DebuggerAgentState::breakpointsByRegex));
+  }
+  protocol::DictionaryValue* breakpointsByScriptHash =
+      m_state->getObject(DebuggerAgentState::breakpointsByScriptHash);
+  if (breakpointsByScriptHash) {
+    potentialBreakpoints.push_back(
+        breakpointsByScriptHash->getObject(scriptRef->hash()));
+  }
+  protocol::DictionaryValue* breakpointHints =
+      m_state->getObject(DebuggerAgentState::breakpointHints);
+  for (auto breakpoints : potentialBreakpoints) {
+    if (!breakpoints) continue;
+    for (size_t i = 0; i < breakpoints->size(); ++i) {
+      auto breakpointWithCondition = breakpoints->at(i);
+      String16 breakpointId = breakpointWithCondition.first;
+
+      BreakpointType type;
+      String16 selector;
+      int lineNumber = 0;
+      int columnNumber = 0;
+      parseBreakpointId(breakpointId, &type, &selector, &lineNumber,
+                        &columnNumber);
+
+      if (!matches(m_inspector, *scriptRef, type, selector)) continue;
+      String16 condition;
+      breakpointWithCondition.second->asString(&condition);
+      String16 hint;
+      bool hasHint =
+          breakpointHints && breakpointHints->getString(breakpointId, &hint);
+      if (hasHint) {
+        adjustBreakpointLocation(*scriptRef, hint, &lineNumber, &columnNumber);
+      }
+      std::unique_ptr<protocol::Debugger::Location> location =
+          setBreakpointImpl(breakpointId, scriptId, condition, lineNumber,
+                            columnNumber);
+      if (location)
+        m_frontend.breakpointResolved(breakpointId, std::move(location));
+    }
   }
 }
 
@@ -1319,22 +1406,18 @@ void V8DebuggerAgentImpl::didPause(
 
   std::unique_ptr<Array<String16>> hitBreakpointIds = Array<String16>::create();
 
-  bool hasDebugCommandBreakpointReason = false;
   for (const auto& id : hitBreakpoints) {
-    DebugServerBreakpointToBreakpointIdAndSourceMap::iterator
-        breakpointIterator = m_serverBreakpoints.find(id);
-    if (breakpointIterator != m_serverBreakpoints.end()) {
-      const String16& localId = breakpointIterator->second.first;
-      hitBreakpointIds->addItem(localId);
-
-      BreakpointSource source = breakpointIterator->second.second;
-      if (!hasDebugCommandBreakpointReason &&
-          source == DebugCommandBreakpointSource) {
-        hasDebugCommandBreakpointReason = true;
-        hitReasons.push_back(std::make_pair(
-            protocol::Debugger::Paused::ReasonEnum::DebugCommand, nullptr));
-      }
+    auto breakpointIterator = m_debuggerBreakpointIdToBreakpointId.find(id);
+    if (breakpointIterator == m_debuggerBreakpointIdToBreakpointId.end()) {
+      continue;
     }
+    const String16& breakpointId = breakpointIterator->second;
+    hitBreakpointIds->addItem(breakpointId);
+    BreakpointType type;
+    parseBreakpointId(breakpointId, &type);
+    if (type != BreakpointType::kDebugCommand) continue;
+    hitReasons.push_back(std::make_pair(
+        protocol::Debugger::Paused::ReasonEnum::DebugCommand, nullptr));
   }
 
   for (size_t i = 0; i < m_breakReason.size(); ++i) {
@@ -1403,17 +1486,26 @@ void V8DebuggerAgentImpl::setBreakpointAt(const String16& scriptId,
                                           int lineNumber, int columnNumber,
                                           BreakpointSource source,
                                           const String16& condition) {
-  ScriptBreakpoint breakpoint(scriptId, lineNumber, columnNumber, condition);
-  String16 breakpointId = generateBreakpointId(breakpoint, source);
-  resolveBreakpoint(breakpointId, breakpoint, source, /* hint */ String16());
+  String16 breakpointId = generateBreakpointId(
+      source == DebugCommandBreakpointSource ? BreakpointType::kDebugCommand
+                                             : BreakpointType::kMonitorCommand,
+      scriptId, lineNumber, columnNumber);
+  if (m_breakpointIdToDebuggerBreakpointIds.find(breakpointId) !=
+      m_breakpointIdToDebuggerBreakpointIds.end()) {
+    return;
+  }
+  setBreakpointImpl(breakpointId, scriptId, condition, lineNumber,
+                    columnNumber);
 }
 
 void V8DebuggerAgentImpl::removeBreakpointAt(const String16& scriptId,
                                              int lineNumber, int columnNumber,
                                              BreakpointSource source) {
-  removeBreakpointImpl(generateBreakpointId(
-      ScriptBreakpoint(scriptId, lineNumber, columnNumber, String16()),
-      source));
+  String16 breakpointId = generateBreakpointId(
+      source == DebugCommandBreakpointSource ? BreakpointType::kDebugCommand
+                                             : BreakpointType::kMonitorCommand,
+      scriptId, lineNumber, columnNumber);
+  removeBreakpointImpl(breakpointId);
 }
 
 void V8DebuggerAgentImpl::reset() {

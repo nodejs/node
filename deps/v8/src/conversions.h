@@ -13,34 +13,14 @@
 namespace v8 {
 namespace internal {
 
+class BigInt;
 template <typename T>
 class Handle;
 class UnicodeCache;
 
-// Maximum number of significant digits in decimal representation.
-// The longest possible double in decimal representation is
-// (2^53 - 1) * 2 ^ -1074 that is (2 ^ 53 - 1) * 5 ^ 1074 / 10 ^ 1074
-// (768 digits). If we parse a number whose first digits are equal to a
-// mean of 2 adjacent doubles (that could have up to 769 digits) the result
-// must be rounded to the bigger one unless the tail consists of zeros, so
-// we don't need to preserve all the digits.
-const int kMaxSignificantDigits = 772;
-
 // The limit for the the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.
 const int kMaxFractionDigits = 100;
-
-inline bool isDigit(int x, int radix) {
-  return (x >= '0' && x <= '9' && x < '0' + radix)
-      || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
-      || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
-}
-
-
-inline bool isBinaryDigit(int x) {
-  return x == '0' || x == '1';
-}
-
 
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
 // rounding towards zero.
@@ -123,15 +103,10 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       int flags,
                       double empty_string_val = 0);
 
-// Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache,
-                   Vector<const uint8_t> vector,
-                   int radix);
+double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 
-
-double StringToInt(UnicodeCache* unicode_cache,
-                   Vector<const uc16> vector,
-                   int radix);
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
+                                   int radix);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

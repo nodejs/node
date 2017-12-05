@@ -132,6 +132,7 @@ int MaskToBit(uint64_t mask) {
   return CountTrailingZeros(mask, 64);
 }
 
+#undef __
 
 }  // namespace internal
 }  // namespace v8

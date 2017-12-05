@@ -119,49 +119,9 @@ class RecordWriteStub: public PlatformCodeStub {
   static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.
   static const byte kTwoByteJumpInstruction = 0xeb;  // Jmp #imm8.
 
-  static const byte kFiveByteNopInstruction = 0x3d;  // Cmpl eax, #imm32.
-  static const byte kFiveByteJumpInstruction = 0xe9;  // Jmp #imm32.
+  static Mode GetMode(Code* stub);
 
-  static Mode GetMode(Code* stub) {
-    byte first_instruction = stub->instruction_start()[0];
-    byte second_instruction = stub->instruction_start()[2];
-
-    if (first_instruction == kTwoByteJumpInstruction) {
-      return INCREMENTAL;
-    }
-
-    DCHECK(first_instruction == kTwoByteNopInstruction);
-
-    if (second_instruction == kFiveByteJumpInstruction) {
-      return INCREMENTAL_COMPACTION;
-    }
-
-    DCHECK(second_instruction == kFiveByteNopInstruction);
-
-    return STORE_BUFFER_ONLY;
-  }
-
-  static void Patch(Code* stub, Mode mode) {
-    switch (mode) {
-      case STORE_BUFFER_ONLY:
-        DCHECK(GetMode(stub) == INCREMENTAL ||
-               GetMode(stub) == INCREMENTAL_COMPACTION);
-        stub->instruction_start()[0] = kTwoByteNopInstruction;
-        stub->instruction_start()[2] = kFiveByteNopInstruction;
-        break;
-      case INCREMENTAL:
-        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-        stub->instruction_start()[0] = kTwoByteJumpInstruction;
-        break;
-      case INCREMENTAL_COMPACTION:
-        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-        stub->instruction_start()[0] = kTwoByteNopInstruction;
-        stub->instruction_start()[2] = kFiveByteJumpInstruction;
-        break;
-    }
-    DCHECK(GetMode(stub) == mode);
-    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
-  }
+  static void Patch(Code* stub, Mode mode);
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
 
@@ -171,50 +131,48 @@ class RecordWriteStub: public PlatformCodeStub {
   // that must be preserved and one scratch register provided by the caller.
   class RegisterAllocation {
    public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch0)
+    RegisterAllocation(Register object, Register address, Register scratch0)
         : object_orig_(object),
           address_orig_(address),
           scratch0_orig_(scratch0),
           object_(object),
           address_(address),
-          scratch0_(scratch0) {
+          scratch0_(scratch0),
+          scratch1_(no_reg) {
       DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegThatIsNotRcxOr(object_, address_, scratch0_);
-      if (scratch0.is(rcx)) {
+      if (scratch0 == rcx) {
         scratch0_ = GetRegThatIsNotRcxOr(object_, address_, scratch1_);
       }
-      if (object.is(rcx)) {
+      if (object == rcx) {
         object_ = GetRegThatIsNotRcxOr(address_, scratch0_, scratch1_);
       }
-      if (address.is(rcx)) {
+      if (address == rcx) {
         address_ = GetRegThatIsNotRcxOr(object_, scratch0_, scratch1_);
       }
       DCHECK(!AreAliased(scratch0_, object_, address_, rcx));
     }
 
     void Save(MacroAssembler* masm) {
-      DCHECK(!address_orig_.is(object_));
-      DCHECK(object_.is(object_orig_) || address_.is(address_orig_));
+      DCHECK(address_orig_ != object_);
+      DCHECK(object_ == object_orig_ || address_ == address_orig_);
       DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
       DCHECK(!AreAliased(object_orig_, address_, scratch1_, scratch0_));
       DCHECK(!AreAliased(object_, address_orig_, scratch1_, scratch0_));
       // We don't have to save scratch0_orig_ because it was given to us as
       // a scratch register.  But if we had to switch to a different reg then
       // we should save the new scratch0_.
-      if (!scratch0_.is(scratch0_orig_)) masm->Push(scratch0_);
-      if (!rcx.is(scratch0_orig_) &&
-          !rcx.is(object_orig_) &&
-          !rcx.is(address_orig_)) {
+      if (scratch0_ != scratch0_orig_) masm->Push(scratch0_);
+      if (rcx != scratch0_orig_ && rcx != object_orig_ &&
+          rcx != address_orig_) {
         masm->Push(rcx);
       }
       masm->Push(scratch1_);
-      if (!address_.is(address_orig_)) {
+      if (address_ != address_orig_) {
         masm->Push(address_);
         masm->movp(address_, address_orig_);
       }
-      if (!object_.is(object_orig_)) {
+      if (object_ != object_orig_) {
         masm->Push(object_);
         masm->movp(object_, object_orig_);
       }
@@ -224,21 +182,20 @@ class RecordWriteStub: public PlatformCodeStub {
       // These will have been preserved the entire time, so we just need to move
       // them back.  Only in one case is the orig_ reg different from the plain
       // one, since only one of them can alias with rcx.
-      if (!object_.is(object_orig_)) {
+      if (object_ != object_orig_) {
         masm->movp(object_orig_, object_);
         masm->Pop(object_);
       }
-      if (!address_.is(address_orig_)) {
+      if (address_ != address_orig_) {
         masm->movp(address_orig_, address_);
         masm->Pop(address_);
       }
       masm->Pop(scratch1_);
-      if (!rcx.is(scratch0_orig_) &&
-          !rcx.is(object_orig_) &&
-          !rcx.is(address_orig_)) {
+      if (rcx != scratch0_orig_ && rcx != object_orig_ &&
+          rcx != address_orig_) {
         masm->Pop(rcx);
       }
-      if (!scratch0_.is(scratch0_orig_)) masm->Pop(scratch0_);
+      if (scratch0_ != scratch0_orig_) masm->Pop(scratch0_);
     }
 
     // If we have to call into C then we need to save and restore all caller-
@@ -277,11 +234,10 @@ class RecordWriteStub: public PlatformCodeStub {
       for (int i = 0; i < Register::kNumRegisters; i++) {
         if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(i)) {
           Register candidate = Register::from_code(i);
-          if (candidate.is(rcx)) continue;
-          if (candidate.is(r1)) continue;
-          if (candidate.is(r2)) continue;
-          if (candidate.is(r3)) continue;
-          return candidate;
+          if (candidate != rcx && candidate != r1 && candidate != r2 &&
+              candidate != r3) {
+            return candidate;
+          }
         }
       }
       UNREACHABLE();
@@ -297,11 +253,10 @@ class RecordWriteStub: public PlatformCodeStub {
   Major MajorKey() const final { return RecordWrite; }
 
   void Generate(MacroAssembler* masm) override;
-  void GenerateIncremental(MacroAssembler* masm, Mode mode);
+  void GenerateIncremental(MacroAssembler* masm, Label* second_instr);
   void CheckNeedsToInformIncrementalMarker(
-      MacroAssembler* masm,
-      OnNoNeedToInformIncrementalMarker on_no_need,
-      Mode mode);
+      MacroAssembler* masm, OnNoNeedToInformIncrementalMarker on_no_need,
+      Label* second_instr);
   void InformIncrementalMarker(MacroAssembler* masm);
 
   void Activate(Code* code) override;

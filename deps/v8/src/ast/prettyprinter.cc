@@ -126,16 +126,10 @@ void CallPrinter::VisitWithStatement(WithStatement* node) {
 
 void CallPrinter::VisitSwitchStatement(SwitchStatement* node) {
   Find(node->tag());
-  ZoneList<CaseClause*>* cases = node->cases();
-  for (int i = 0; i < cases->length(); i++) Find(cases->at(i));
-}
-
-
-void CallPrinter::VisitCaseClause(CaseClause* clause) {
-  if (!clause->is_default()) {
-    Find(clause->label());
+  for (CaseClause* clause : *node->cases()) {
+    if (!clause->is_default()) Find(clause->label());
+    FindStatements(clause->statements());
   }
-  FindStatements(clause->statements());
 }
 
 
@@ -422,6 +416,8 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
     found_ = false;
   }
 }
+
+void CallPrinter::VisitGetTemplateObject(GetTemplateObject* node) {}
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
@@ -837,20 +833,15 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
   IndentedScope indent(this, "SWITCH", node->position());
   PrintLabelsIndented(node->labels());
   PrintIndentedVisit("TAG", node->tag());
-  for (int i = 0; i < node->cases()->length(); i++) {
-    Visit(node->cases()->at(i));
-  }
-}
-
-
-void AstPrinter::VisitCaseClause(CaseClause* clause) {
-  if (clause->is_default()) {
-    IndentedScope indent(this, "DEFAULT", clause->position());
-    PrintStatements(clause->statements());
-  } else {
-    IndentedScope indent(this, "CASE", clause->position());
-    Visit(clause->label());
-    PrintStatements(clause->statements());
+  for (CaseClause* clause : *node->cases()) {
+    if (clause->is_default()) {
+      IndentedScope indent(this, "DEFAULT");
+      PrintStatements(clause->statements());
+    } else {
+      IndentedScope indent(this, "CASE");
+      Visit(clause->label());
+      PrintStatements(clause->statements());
+    }
   }
 }
 
@@ -1259,6 +1250,10 @@ void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
 void AstPrinter::VisitGetIterator(GetIterator* node) {
   IndentedScope indent(this, "GET-ITERATOR", node->position());
   Visit(node->iterable());
+}
+
+void AstPrinter::VisitGetTemplateObject(GetTemplateObject* node) {
+  IndentedScope indent(this, "GET-TEMPLATE-OBJECT", node->position());
 }
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {

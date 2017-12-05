@@ -545,10 +545,10 @@ class MachineRepresentationChecker {
                   CheckValueInputForInt32Op(node, input_index);
                   break;
                 default:
-                  CheckValueInputRepresentationIs(
-                      node, 2, inferrer_->GetRepresentation(node));
+                  CheckValueInputRepresentationIs(node, input_index,
+                                                  type.representation());
+                  break;
               }
-              break;
             }
             break;
           }

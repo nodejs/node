@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+#define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+
 #include "src/compiler/code-assembler.h"
 #include "src/handles.h"
 #include "src/interface-descriptors.h"
@@ -18,23 +21,21 @@ class CodeAssemblerTester {
   explicit CodeAssemblerTester(Isolate* isolate)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor(isolate),
-               Code::ComputeFlags(Code::STUB), "test") {}
+        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, "test") {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
                       Code::Kind kind = Code::BUILTIN)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, parameter_count, Code::ComputeFlags(kind),
-               "test") {}
+        state_(isolate, &zone_, parameter_count, kind, "test") {}
 
   // This constructor is intended to be used for creating code objects with
   // specific flags.
-  CodeAssemblerTester(Isolate* isolate, Code::Flags flags)
+  CodeAssemblerTester(Isolate* isolate, Code::Kind kind)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, 0, flags, "test") {}
+        state_(isolate, &zone_, 0, kind, "test") {}
 
   CodeAssemblerState* state() { return &state_; }
 
@@ -54,3 +55,5 @@ class CodeAssemblerTester {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_

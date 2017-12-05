@@ -20,12 +20,12 @@ namespace {
 void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
   if (restore_function_code) {
     Handle<JSFunction> function = job->compilation_info()->closure();
-    function->ReplaceCode(function->shared()->code());
+    function->set_code(function->shared()->code());
     if (function->IsInOptimizationQueue()) {
       function->ClearOptimizationMarker();
     }
-    // TODO(mvstanton): We can't call ensureliterals here due to allocation,
-    // but we probably shouldn't call ReplaceCode either, as this
+    // TODO(mvstanton): We can't call EnsureLiterals here due to allocation,
+    // but we probably shouldn't call set_code either, as this
     // sometimes runs on the worker thread!
     // JSFunction::EnsureLiterals(function);
   }

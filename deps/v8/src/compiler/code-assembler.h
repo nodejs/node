@@ -108,16 +108,18 @@ enum class ObjectType {
 #undef ENUM_STRUCT_ELEMENT
 
 class AccessCheckNeeded;
-class CodeCacheHashTable;
 class CompilationCacheTable;
 class Constructor;
 class Filler;
 class InternalizedString;
+class JSArgumentsObject;
 class JSContextExtensionObject;
 class JSError;
+class JSSloppyArgumentsObject;
 class MapCache;
 class MutableHeapNumber;
 class NativeContext;
+class SloppyArgumentsElements;
 class StringWrapper;
 class Undetectable;
 class UniqueName;
@@ -188,7 +190,7 @@ class TNode {
   TNode() : node_(nullptr) {}
 
   TNode operator=(TNode other) {
-    DCHECK(node_ == nullptr);
+    DCHECK_NULL(node_);
     node_ = other.node_;
     return *this;
   }
@@ -268,7 +270,6 @@ class SloppyTNode : public TNode<A> {
   V(Float64InsertHighWord32, Float64T, Float64T, Word32T) \
   V(IntPtrAddWithOverflow, IntPtrT, IntPtrT, IntPtrT)     \
   V(IntPtrSubWithOverflow, IntPtrT, IntPtrT, IntPtrT)     \
-  V(IntPtrMul, IntPtrT, IntPtrT, IntPtrT)                 \
   V(Int32Add, Word32T, Word32T, Word32T)                  \
   V(Int32AddWithOverflow, Int32T, Int32T, Int32T)         \
   V(Int32Sub, Word32T, Word32T, Word32T)                  \
@@ -276,25 +277,8 @@ class SloppyTNode : public TNode<A> {
   V(Int32MulWithOverflow, Int32T, Int32T, Int32T)         \
   V(Int32Div, Int32T, Int32T, Int32T)                     \
   V(Int32Mod, Int32T, Int32T, Int32T)                     \
-  V(WordOr, WordT, WordT, WordT)                          \
-  V(WordAnd, WordT, WordT, WordT)                         \
-  V(WordXor, WordT, WordT, WordT)                         \
-  V(WordShl, WordT, WordT, IntegralT)                     \
-  V(WordShr, WordT, WordT, IntegralT)                     \
-  V(WordSar, WordT, WordT, IntegralT)                     \
   V(WordRor, WordT, WordT, IntegralT)                     \
-  V(Word32Or, Word32T, Word32T, Word32T)                  \
-  V(Word32And, Word32T, Word32T, Word32T)                 \
-  V(Word32Xor, Word32T, Word32T, Word32T)                 \
-  V(Word32Shl, Word32T, Word32T, Word32T)                 \
-  V(Word32Shr, Word32T, Word32T, Word32T)                 \
-  V(Word32Sar, Word32T, Word32T, Word32T)                 \
   V(Word32Ror, Word32T, Word32T, Word32T)                 \
-  V(Word64Or, Word64T, Word64T, Word64T)                  \
-  V(Word64And, Word64T, Word64T, Word64T)                 \
-  V(Word64Xor, Word64T, Word64T, Word64T)                 \
-  V(Word64Shr, Word64T, Word64T, Word64T)                 \
-  V(Word64Sar, Word64T, Word64T, Word64T)                 \
   V(Word64Ror, Word64T, Word64T, Word64T)
 
 TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
@@ -625,6 +609,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<IntPtrT> IntPtrAdd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(
         IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
@@ -633,6 +618,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Signed(
         IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<IntPtrT> IntPtrMul(TNode<IntPtrT> left, TNode<IntPtrT> right) {
+    return Signed(
+        IntPtrMul(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
@@ -640,6 +629,37 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
   }
   TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
+
+  TNode<WordT> WordOr(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordAnd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordXor(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordShl(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<WordT> WordShr(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<WordT> WordSar(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<Word32T> Word32Or(SloppyTNode<Word32T> left,
+                          SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32And(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Xor(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Shl(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Shr(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Sar(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word64T> Word64Or(SloppyTNode<Word64T> left,
+                          SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64And(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Xor(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Shl(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Shr(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Sar(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
@@ -765,7 +785,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // registers except the register used for return value.
   Node* CallCFunction1WithCallerSavedRegisters(MachineType return_type,
                                                MachineType arg0_type,
-                                               Node* function, Node* arg0);
+                                               Node* function, Node* arg0,
+                                               SaveFPRegsMode mode);
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
@@ -779,12 +800,23 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function with three arguments, while saving/restoring caller
   // registers except the register used for return value.
-  Node* CallCFunction3WithCallerSavedRegisters(MachineType return_type,
-                                               MachineType arg0_type,
-                                               MachineType arg1_type,
-                                               MachineType arg2_type,
-                                               Node* function, Node* arg0,
-                                               Node* arg1, Node* arg2);
+  Node* CallCFunction3WithCallerSavedRegisters(
+      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+      MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+      SaveFPRegsMode mode);
+
+  // Call to a C function with four arguments.
+  Node* CallCFunction4(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, Node* function, Node* arg0,
+                       Node* arg1, Node* arg2, Node* arg3);
+
+  // Call to a C function with five arguments.
+  Node* CallCFunction5(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       MachineType arg3_type, MachineType arg4_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2,
+                       Node* arg3, Node* arg4);
 
   // Call to a C function with six arguments.
   Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
@@ -969,13 +1001,12 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // |result_size| specifies the number of results returned by the stub.
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     const CallInterfaceDescriptor& descriptor,
-                     Code::Flags flags, const char* name,
-                     size_t result_size = 1);
+                     const CallInterfaceDescriptor& descriptor, Code::Kind kind,
+                     const char* name, size_t result_size = 1);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
-                     Code::Flags flags, const char* name);
+                     Code::Kind kind, const char* name);
 
   ~CodeAssemblerState();
 
@@ -993,11 +1024,11 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerVariable;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     CallDescriptor* call_descriptor, Code::Flags flags,
+                     CallDescriptor* call_descriptor, Code::Kind kind,
                      const char* name);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
-  Code::Flags flags_;
+  Code::Kind kind_;
   const char* name_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*> variables_;

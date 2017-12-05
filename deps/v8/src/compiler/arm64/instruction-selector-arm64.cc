@@ -67,7 +67,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
     if (node->opcode() == IrOpcode::kInt32Constant) {
       return OpParameter<int32_t>(node);
     }
-    DCHECK(node->opcode() == IrOpcode::kInt64Constant);
+    DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
     return OpParameter<int64_t>(node);
   }
 

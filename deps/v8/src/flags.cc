@@ -12,7 +12,6 @@
 #include "src/assembler.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
-#include "src/list-inl.h"
 #include "src/ostreams.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-limits.h"
@@ -249,8 +248,8 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {  // NOLINT
 
 
 // static
-List<const char*>* FlagList::argv() {
-  List<const char*>* args = new List<const char*>(8);
+std::vector<const char*>* FlagList::argv() {
+  std::vector<const char*>* args = new std::vector<const char*>(8);
   Flag* args_flag = NULL;
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
@@ -264,22 +263,22 @@ List<const char*>* FlagList::argv() {
         bool disabled = f->type() == Flag::TYPE_BOOL && !*f->bool_variable();
         std::ostringstream os;
         os << (disabled ? "--no" : "--") << f->name();
-        args->Add(StrDup(os.str().c_str()));
+        args->push_back(StrDup(os.str().c_str()));
       }
       if (f->type() != Flag::TYPE_BOOL) {
         std::ostringstream os;
         os << *f;
-        args->Add(StrDup(os.str().c_str()));
+        args->push_back(StrDup(os.str().c_str()));
       }
     }
   }
   if (args_flag != NULL) {
     std::ostringstream os;
     os << "--" << args_flag->name();
-    args->Add(StrDup(os.str().c_str()));
+    args->push_back(StrDup(os.str().c_str()));
     JSArguments jsargs = *args_flag->args_variable();
     for (int j = 0; j < jsargs.argc; j++) {
-      args->Add(StrDup(jsargs[j]));
+      args->push_back(StrDup(jsargs[j]));
     }
   }
   return args;

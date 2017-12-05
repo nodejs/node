@@ -60,6 +60,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       inlined_function_count_(0),
       translations_(zone()),
       last_lazy_deopt_pc_(0),
+      caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_helper_(osr_helper),
@@ -130,8 +131,16 @@ void CodeGenerator::AssembleCode() {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     ProfileEntryHookStub::MaybeCallEntryHookDelayed(tasm(), zone());
   }
-  // Architecture-specific, linkage-specific prologue.
-  info->set_prologue_offset(tasm()->pc_offset());
+
+  // TODO(jupvfranco): This should be the first thing in the code,
+  // or otherwise MaybeCallEntryHookDelayed may happen twice (for
+  // optimized and deoptimized code).
+  // We want to bailout only from JS functions, which are the only ones
+  // that are optimized.
+  if (info->IsOptimizing()) {
+    DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+    BailoutIfDeoptimized();
+  }
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
@@ -316,7 +325,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
       int index = LocationOperand::cast(operand).index();
-      DCHECK(index >= 0);
+      DCHECK_LE(0, index);
       // We might index values in the fixed part of the frame (i.e. the
       // closure pointer or the context pointer); these are not spill slots
       // and therefore don't work with the SafepointTable currently, but
@@ -495,7 +504,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.false_label = &continue_label;
       branch.fallthru = true;
       // Assemble architecture-specific branch.
-      AssembleArchBranch(instr, &branch);
+      AssembleArchDeoptBranch(instr, &branch);
       tasm()->bind(&continue_label);
       break;
     }
@@ -622,7 +631,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   data->SetInliningPositions(*inl_pos);
 
   if (info->is_osr()) {
-    DCHECK(osr_pc_offset_ >= 0);
+    DCHECK_LE(0, osr_pc_offset_);
     data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_offset().ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {
@@ -729,11 +738,11 @@ void CodeGenerator::TranslateStateValueDescriptor(
     }
   } else if (desc->IsArgumentsElements()) {
     if (translation != nullptr) {
-      translation->ArgumentsElements(desc->is_rest());
+      translation->ArgumentsElements(desc->arguments_type());
     }
   } else if (desc->IsArgumentsLength()) {
     if (translation != nullptr) {
-      translation->ArgumentsLength(desc->is_rest());
+      translation->ArgumentsLength(desc->arguments_type());
     }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {
@@ -1025,6 +1034,10 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 }
 
 OutOfLineCode::~OutOfLineCode() {}
+
+Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
+}
 
 }  // namespace compiler
 }  // namespace internal

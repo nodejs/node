@@ -20,12 +20,12 @@ Setting breakpoints in 2
 Evaluating common breakpoint in 1
 Paused in 1:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Paused in 2:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Resuming in 1
@@ -48,7 +48,7 @@ Resumed in 2
 Evaluating exclusive breakpoint in 1
 Paused in 1:
   reason: other
-  hit breakpoints: test.js:14:0
+  hit breakpoints: 1:14:0:test.js
   location: baz@14
   data: null
 Paused in 2:
@@ -62,12 +62,12 @@ Resumed in 2
 Evaluating common breakpoint in 2
 Paused in 1:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Paused in 2:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Resuming in 2
@@ -90,7 +90,7 @@ Resumed in 2
 Evaluating exclusive breakpoint in 2
 Paused in 1:
   reason: other
-  hit breakpoints: test.js:14:0
+  hit breakpoints: 1:14:0:test.js
   location: baz@14
   data: null
 Paused in 2:
@@ -197,7 +197,7 @@ Skipping pauses in 1
 Evaluating common breakpoint in 1
 Paused in 2:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Resuming in 2
@@ -210,7 +210,7 @@ Deactivating breakpoints in 1
 Evaluating common breakpoint in 1
 Paused in 2:
   reason: other
-  hit breakpoints: test.js:11:0
+  hit breakpoints: 1:11:0:test.js
   location: foo@11
   data: null
 Resuming in 2

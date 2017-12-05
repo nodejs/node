@@ -196,6 +196,13 @@ typename std::make_unsigned<T>::type Abs(T a) {
   return (x ^ y) - y;
 }
 
+// Returns the negative absolute value of its argument.
+template <typename T,
+          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+T Nabs(T a) {
+  return a < 0 ? a : -a;
+}
+
 // Floor(-0.0) == 0.0
 inline double Floor(double x) {
 #if V8_CC_MSVC
@@ -233,6 +240,47 @@ inline double Pow(double x, double y) {
   return std::pow(x, y);
 }
 
+template <typename T>
+T SaturateAdd(T a, T b) {
+  if (std::is_signed<T>::value) {
+    if (a > 0 && b > 0) {
+      if (a > std::numeric_limits<T>::max() - b) {
+        return std::numeric_limits<T>::max();
+      }
+    } else if (a < 0 && b < 0) {
+      if (a < std::numeric_limits<T>::min() - b) {
+        return std::numeric_limits<T>::min();
+      }
+    }
+  } else {
+    CHECK(std::is_unsigned<T>::value);
+    if (a > std::numeric_limits<T>::max() - b) {
+      return std::numeric_limits<T>::max();
+    }
+  }
+  return a + b;
+}
+
+template <typename T>
+T SaturateSub(T a, T b) {
+  if (std::is_signed<T>::value) {
+    if (a > 0 && b < 0) {
+      if (a > std::numeric_limits<T>::max() + b) {
+        return std::numeric_limits<T>::max();
+      }
+    } else if (a < 0 && b > 0) {
+      if (a < std::numeric_limits<T>::min() + b) {
+        return std::numeric_limits<T>::min();
+      }
+    }
+  } else {
+    CHECK(std::is_unsigned<T>::value);
+    if (a < b) {
+      return static_cast<T>(0);
+    }
+  }
+  return a - b;
+}
 
 // ----------------------------------------------------------------------------
 // BitField is a help template for encoding and decode bitfield with

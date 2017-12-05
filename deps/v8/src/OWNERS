@@ -4,4 +4,4 @@ per-file intl.*=jshin@chromium.org
 per-file typing-asm.*=aseemgarg@chromium.org
 per-file typing-asm.*=bradnelson@chromium.org
 
-# COMPONENT: Blink>JavaScript>Runtime
+# COMPONENT: Blink>JavaScript

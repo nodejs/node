@@ -67,9 +67,7 @@ class DeoptimizationLiteral {
            bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_);
   }
 
-  Handle<Object> Reify(Isolate* isolate) const {
-    return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
-  }
+  Handle<Object> Reify(Isolate* isolate) const;
 
  private:
   Handle<Object> object_;
@@ -157,15 +155,23 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
-  CodeGenResult FinalizeAssembleDeoptimizerCall(Address deoptimization_entry);
-
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
+
+  // Generates special branch for deoptimization condition.
+  void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
+
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
+
+  // When entering a code that is marked for deoptimization, rather continuing
+  // with its execution, we jump to a lazy compiled code. We need to do this
+  // because this code has already been deoptimized and needs to be unlinked
+  // from the JS functions referring it.
+  void BailoutIfDeoptimized();
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
@@ -328,6 +334,19 @@ class CodeGenerator final : public GapResolver::Assembler {
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
+
+  // kArchCallCFunction could be reached either:
+  //   kArchCallCFunction;
+  // or:
+  //   kArchSaveCallerRegisters;
+  //   kArchCallCFunction;
+  //   kArchRestoreCallerRegisters;
+  // The boolean is used to distinguish the two cases. In the latter case, we
+  // also need to decide if FP registers need to be saved, which is controlled
+  // by fp_mode_.
+  bool caller_registers_saved_;
+  SaveFPRegsMode fp_mode_;
+
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;

@@ -42,7 +42,6 @@
 #include "src/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/sequential-marking-deque.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
@@ -51,30 +50,6 @@
 namespace v8 {
 namespace internal {
 namespace heap {
-
-TEST(SequentialMarkingDeque) {
-  CcTest::InitializeVM();
-  SequentialMarkingDeque s(CcTest::i_isolate()->heap());
-  s.SetUp();
-  s.StartUsing();
-  Address original_address = reinterpret_cast<Address>(&s);
-  Address current_address = original_address;
-  while (!s.IsFull()) {
-    s.Push(HeapObject::FromAddress(current_address));
-    current_address += kPointerSize;
-  }
-
-  while (!s.IsEmpty()) {
-    Address value = s.Pop()->address();
-    current_address -= kPointerSize;
-    CHECK_EQ(current_address, value);
-  }
-
-  CHECK_EQ(original_address, current_address);
-  s.StopUsing();
-  CcTest::i_isolate()->cancelable_task_manager()->CancelAndWait();
-  s.TearDown();
-}
 
 TEST(Promotion) {
   CcTest::InitializeVM();

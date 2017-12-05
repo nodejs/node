@@ -12,6 +12,7 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/objects/template-objects.h"
 
 namespace v8 {
 namespace internal {

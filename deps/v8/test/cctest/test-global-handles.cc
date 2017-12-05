@@ -185,5 +185,42 @@ TEST(PhatomHandlesWithoutCallbacks) {
   CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }
 
+namespace {
+
+void ResurrectingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+}
+
+}  // namespace
+
+TEST(Regress772299) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::Global<v8::Object> g1, g2;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> o1 =
+        v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+    v8::Local<v8::Object> o2 =
+        v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+    o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
+    g1.Reset(isolate, o1);
+    g2.Reset(isolate, o2);
+    // g1 will be finalized but resurrected.
+    g1.SetWeak(&g1, ResurrectingFinalizer, v8::WeakCallbackType::kFinalizer);
+    // g2 will be a phantom handle that should not be reset as g1 transitively
+    // keeps it alive.
+    g2.SetWeak();
+  }
+
+  CcTest::CollectAllAvailableGarbage();
+  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
+  // object that transitively keeps the other one alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -16,6 +16,10 @@ contextGroup.addScript(
    new Promise(function promiseUncaught() { throw new Error(); });
  }
  function throwInMapConstructor() { new Map('a'); }
+ function throwInAsyncIterator() {
+   let it = (async function*() {})();
+   it.next.call({});
+ }
  function schedule(f) { setTimeout(f, 0); }
 `);
 
@@ -37,4 +41,6 @@ Protocol.Runtime.evaluate({ "expression": "schedule(throwCaught);" })
       { "expression": "schedule(throwInPromiseUncaught);"}))
   .then(() => Protocol.Runtime.evaluate(
       { "expression": "schedule(throwInMapConstructor);"}))
+  .then(() => Protocol.Runtime.evaluate(
+      { "expression": "schedule(throwInAsyncIterator);"}))
  .then(() => InspectorTest.completeTest());

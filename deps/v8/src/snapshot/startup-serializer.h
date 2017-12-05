@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class StartupSerializer : public Serializer {
+class StartupSerializer : public Serializer<> {
  public:
   StartupSerializer(
       Isolate* isolate,
@@ -30,6 +30,10 @@ class StartupSerializer : public Serializer {
   int PartialSnapshotCacheIndex(HeapObject* o);
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
+  bool clear_function_code() const { return clear_function_code_; }
+  bool root_has_been_serialized(int root_index) const {
+    return root_has_been_serialized_.test(root_index);
+  }
 
  private:
   class PartialCacheIndexMap {
@@ -73,7 +77,7 @@ class StartupSerializer : public Serializer {
 
   void CheckRehashability(HeapObject* hashtable);
 
-  bool clear_function_code_;
+  const bool clear_function_code_;
   bool serializing_builtins_;
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;

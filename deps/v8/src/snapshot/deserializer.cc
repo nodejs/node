@@ -13,7 +13,9 @@
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/startup-deserializer.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
 
@@ -41,7 +43,7 @@ void Deserializer::RegisterDeserializedObjectsForBlackAllocation() {
 bool Deserializer::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    CHECK(reservations_[i].size() > 0);
+    DCHECK(reservations_[i].size() > 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.empty());
@@ -49,6 +51,82 @@ bool Deserializer::ReserveSpace() {
     return false;
   for (int i = 0; i < kNumberOfPreallocatedSpaces; i++) {
     high_water_[i] = reservations_[i][0].start;
+  }
+  return true;
+}
+
+// static
+bool Deserializer::ReserveSpace(StartupDeserializer* startup_deserializer,
+                                BuiltinDeserializer* builtin_deserializer) {
+  const int first_space = NEW_SPACE;
+  const int last_space = SerializerDeserializer::kNumberOfSpaces;
+  Isolate* isolate = startup_deserializer->isolate();
+
+  // Create a set of merged reservations to reserve space in one go.
+  // The BuiltinDeserializer's reservations are ignored, since our actual
+  // requirements vary based on whether lazy deserialization is enabled.
+  // Instead, we manually determine the required code-space.
+
+  DCHECK(builtin_deserializer->ReservesOnlyCodeSpace());
+  Heap::Reservation merged_reservations[kNumberOfSpaces];
+  for (int i = first_space; i < last_space; i++) {
+    merged_reservations[i] = startup_deserializer->reservations_[i];
+  }
+
+  Heap::Reservation builtin_reservations =
+      builtin_deserializer->CreateReservationsForEagerBuiltins();
+  DCHECK(!builtin_reservations.empty());
+
+  for (const auto& c : builtin_reservations) {
+    merged_reservations[CODE_SPACE].push_back(c);
+  }
+
+  if (!isolate->heap()->ReserveSpace(merged_reservations,
+                                     &startup_deserializer->allocated_maps_)) {
+    return false;
+  }
+
+  DisallowHeapAllocation no_allocation;
+
+  // Distribute the successful allocations between both deserializers.
+  // There's nothing to be done here except for code space.
+
+  {
+    const int num_builtin_reservations =
+        static_cast<int>(builtin_reservations.size());
+    for (int i = num_builtin_reservations - 1; i >= 0; i--) {
+      const auto& c = merged_reservations[CODE_SPACE].back();
+      DCHECK_EQ(c.size, builtin_reservations[i].size);
+      DCHECK_EQ(c.size, c.end - c.start);
+      builtin_reservations[i].start = c.start;
+      builtin_reservations[i].end = c.end;
+      merged_reservations[CODE_SPACE].pop_back();
+    }
+
+    builtin_deserializer->InitializeBuiltinsTable(builtin_reservations);
+  }
+
+  // Write back startup reservations.
+
+  for (int i = first_space; i < last_space; i++) {
+    startup_deserializer->reservations_[i].swap(merged_reservations[i]);
+  }
+
+  for (int i = first_space; i < kNumberOfPreallocatedSpaces; i++) {
+    startup_deserializer->high_water_[i] =
+        startup_deserializer->reservations_[i][0].start;
+    builtin_deserializer->high_water_[i] = nullptr;
+  }
+
+  return true;
+}
+
+bool Deserializer::ReservesOnlyCodeSpace() const {
+  for (int space = NEW_SPACE; space < kNumberOfSpaces; space++) {
+    if (space == CODE_SPACE) continue;
+    const auto& r = reservations_[space];
+    for (const Heap::Chunk& c : r)
+      if (c.size != 0) return false;
   }
   return true;
 }
@@ -81,18 +159,22 @@ void Deserializer::SortMapDescriptors() {
   }
 }
 
+bool Deserializer::IsLazyDeserializationEnabled() const {
+  return FLAG_lazy_deserialization && !isolate()->serializer_enabled();
+}
+
 Deserializer::~Deserializer() {
 #ifdef DEBUG
   // Do not perform checks if we aborted deserialization.
   if (source_.position() == 0) return;
   // Check that we only have padding bytes remaining.
-  while (source_.HasMore()) CHECK_EQ(kNop, source_.Get());
+  while (source_.HasMore()) DCHECK_EQ(kNop, source_.Get());
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
-    CHECK_EQ(reservations_[space].size(), chunk_index + 1);
-    CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
+    DCHECK_EQ(reservations_[space].size(), chunk_index + 1);
+    DCHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
-  CHECK_EQ(allocated_maps_.size(), next_map_index_);
+  DCHECK_EQ(allocated_maps_.size(), next_map_index_);
 #endif  // DEBUG
 }
 
@@ -107,6 +189,7 @@ void Deserializer::VisitRootPointers(Root root, Object** start, Object** end) {
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   static const byte expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
+  deserializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
 }
 
 void Deserializer::DeserializeDeferredObjects() {
@@ -251,6 +334,14 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   return obj;
 }
 
+int Deserializer::MaybeReplaceWithDeserializeLazy(int builtin_id) {
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return (IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id) &&
+          !deserializing_builtins_)
+             ? Builtins::kDeserializeLazy
+             : builtin_id;
+}
+
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
   HeapObject* obj;
   SerializerReference back_reference =
@@ -364,11 +455,23 @@ Address Deserializer::Allocate(int space_index, int size) {
     // Assert that the current reserved chunk is still big enough.
     const Heap::Reservation& reservation = reservations_[space_index];
     int chunk_index = current_chunk_[space_index];
-    CHECK_LE(high_water_[space_index], reservation[chunk_index].end);
+    DCHECK_LE(high_water_[space_index], reservation[chunk_index].end);
 #endif
     if (space_index == CODE_SPACE) SkipList::Update(address, size);
     return address;
   }
+}
+
+Object* Deserializer::ReadDataSingle() {
+  Object* o;
+  Object** start = &o;
+  Object** end = start + 1;
+  int source_space = NEW_SPACE;
+  Address current_object = nullptr;
+
+  CHECK(ReadData(start, end, source_space, current_object));
+
+  return o;
 }
 
 bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
@@ -462,6 +565,8 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // Find an object in the partial snapshots cache and write a pointer to it
       // to the current object.
       SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
+      SINGLE_CASE(kPartialSnapshotCache, kFromCode, kStartOfObject, 0)
+      SINGLE_CASE(kPartialSnapshotCache, kFromCode, kInnerPointer, 0)
       // Find an external reference and write a pointer to it to the current
       // object.
       SINGLE_CASE(kExternalReference, kPlain, kStartOfObject, 0)
@@ -475,6 +580,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
       SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
       // Find a builtin and write a pointer to it to the current object.
       SINGLE_CASE(kBuiltin, kPlain, kStartOfObject, 0)
+      SINGLE_CASE(kBuiltin, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kBuiltin, kFromCode, kInnerPointer, 0)
 
 #undef CASE_STATEMENT
@@ -547,6 +653,17 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int size_in_bytes = source_.GetInt();
         byte* raw_data_out = reinterpret_cast<byte*>(current);
         source_.CopyRaw(raw_data_out, size_in_bytes);
+        current = reinterpret_cast<Object**>(
+            reinterpret_cast<intptr_t>(current) + size_in_bytes);
+        break;
+      }
+
+      // Deserialize raw code directly into the body of the code object.
+      // Do not move current.
+      case kVariableRawCode: {
+        int size_in_bytes = source_.GetInt();
+        source_.CopyRaw(current_object_address + Code::kDataStart,
+                        size_in_bytes);
         break;
       }
 
@@ -713,20 +830,20 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
       DCHECK(where == kBuiltin);
-      DCHECK(deserializing_user_code());
-      int builtin_id = source_.GetInt();
-      DCHECK_LE(0, builtin_id);
-      DCHECK_LT(builtin_id, Builtins::builtin_count);
-      Builtins::Name name = static_cast<Builtins::Name>(builtin_id);
-      new_object = isolate->builtins()->builtin(name);
+      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
+      new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }
     if (within == kInnerPointer) {
       DCHECK(how == kFromCode);
-      if (new_object->IsCode()) {
-        Code* new_code_object = Code::cast(new_object);
-        new_object =
-            reinterpret_cast<Object*>(new_code_object->instruction_start());
+      if (where == kBuiltin) {
+        // At this point, new_object may still be uninitialized, thus the
+        // unchecked Code cast.
+        new_object = reinterpret_cast<Object*>(
+            reinterpret_cast<Code*>(new_object)->instruction_start());
+      } else if (new_object->IsCode()) {
+        new_object = reinterpret_cast<Object*>(
+            Code::cast(new_object)->instruction_start());
       } else {
         Cell* cell = Cell::cast(new_object);
         new_object = reinterpret_cast<Object*>(cell->ValueAddress());

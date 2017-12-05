@@ -30,13 +30,16 @@ namespace trap_handler {
 
 struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
-  intptr_t instr_offset;
+  // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
+  uint32_t instr_offset;
 
   // The offset of the landing pad from the start of its code object.
   //
   // TODO(eholk): Using a single landing pad and store parameters here.
-  intptr_t landing_offset;
+  uint32_t landing_offset;
 };
+
+const int kInvalidIndex = -1;
 
 /// Adjusts the base code pointer.
 void UpdateHandlerDataCodePointer(int index, void* base);
@@ -88,6 +91,8 @@ bool RegisterDefaultSignalHandler();
 #if V8_OS_LINUX
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);
 #endif  // V8_OS_LINUX
+
+size_t GetRecoveredTrapCount();
 
 }  // namespace trap_handler
 }  // namespace internal

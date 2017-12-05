@@ -45,8 +45,6 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
     MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                         CaptureState* state) override {
       UNREACHABLE();
-      *state = INVALID;
-      return MaybeHandle<String>();
     }
 
    private:
@@ -135,6 +133,15 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
   // In case of empty handle and no pending exception we have stack overflow.
   return isolate->StackOverflow();
+}
+
+RUNTIME_FUNCTION(Runtime_StringTrim) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<String> string = args.at<String>(0);
+  CONVERT_SMI_ARG_CHECKED(mode, 1);
+  String::TrimMode trim_mode = static_cast<String::TrimMode>(mode);
+  return *String::Trim(string, trim_mode);
 }
 
 // ES6 #sec-string.prototype.includes
@@ -258,7 +265,7 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
   return *isolate->factory()->InternalizeString(string);
 }
 
-RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
+RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -769,15 +776,6 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
   return isolate->heap()->empty_string();
-}
-
-RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  if (!args[0]->IsString()) return isolate->heap()->undefined_value();
-  if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
-  if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();
-  return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_StringMaxLength) {

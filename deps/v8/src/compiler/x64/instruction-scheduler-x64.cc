@@ -216,7 +216,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Movsxwq:
     case kX64Movzxwq:
     case kX64Movsxlq:
-      DCHECK(instr->InputCount() >= 1);
+      DCHECK_LE(1, instr->InputCount());
       return instr->InputAt(0)->IsRegister() ? kNoOpcodeFlags
                                              : kIsLoadOperation;
 
@@ -226,7 +226,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64Movl:
       if (instr->HasOutput()) {
-        DCHECK(instr->InputCount() >= 1);
+        DCHECK_LE(1, instr->InputCount());
         return instr->InputAt(0)->IsRegister() ? kNoOpcodeFlags
                                                : kIsLoadOperation;
       } else {

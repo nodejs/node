@@ -109,11 +109,6 @@
   'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduce/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/set/array-arg-targetbuffer-detached-on-get-src-value-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/array-arg-targetbuffer-detached-on-tointeger-offset-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/array-arg-targetbuffer-detached-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-srcbuffer-detached-during-tointeger-offset-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/typedarray-arg-targetbuffer-detached-during-tointeger-offset-throws': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-other-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-same-targettype': [FAIL],
   'built-ins/TypedArray/prototype/slice/detached-buffer-get-ctor': [FAIL],
@@ -203,6 +198,7 @@
   'language/statements/for-of/dstr-array-rest-iter-thrw-close': [FAIL],
   'language/statements/for-of/dstr-array-rest-iter-thrw-close-err': [FAIL],
   'language/statements/for-of/dstr-array-rest-lref-err': [FAIL],
+  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-iter-rtrn-close-null': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=896
   'built-ins/RegExp/property-escapes/binary-properties-with-value': [FAIL],
@@ -364,11 +360,6 @@
   'language/expressions/object/method-definition/name-param-redecl': [FAIL],
   'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
 
-  # Module-related tests
-  # https://github.com/tc39/ecma262/pull/858
-  'language/module-code/namespace/internals/set': [FAIL],
-  'language/module-code/namespace/internals/define-own-property': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5601
   'intl402/PluralRules/*': ['--harmony-plural-rules'],
 
@@ -458,6 +449,13 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4743#c28
   'built-ins/RegExp/property-escapes/generated/Emoji_Component': [FAIL],
 
+  # ICU 59 uses Unicode 9 data; property escape tests were generated for Unicode 10
+  'built-ins/RegExp/property-escapes/generated/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6776
+  'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
+  'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -467,15 +465,12 @@
   'intl402/6.2.3': [FAIL],
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
-  'intl402/Collator/prototype/10.3_a': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
-  'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],
-  'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
@@ -513,13 +508,13 @@
   'language/statements/for-await-of/escaped-of': [FAIL],
   'language/statements/for-of/escaped-of': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6542
-  'built-ins/Array/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
-  'built-ins/TypedArray/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6543
   'language/statements/labeled/value-await-non-module-escaped': [FAIL],
   'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6912
+  'built-ins/RegExp/named-groups/string-replace-missing': [FAIL],
+  'built-ins/RegExp/named-groups/string-replace-unclosed': [FAIL],
 
   ############################ INVALID TESTS #############################
 
@@ -539,81 +534,9 @@
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
-  # https://github.com/tc39/test262/issues/1085
-  'language/directive-prologue/10.1.1-5gs': [PASS, FAIL_SLOPPY],
-  'language/directive-prologue/10.1.1-2gs': [PASS, FAIL_SLOPPY],
-  'language/directive-prologue/14.1-4gs': [PASS, FAIL_SLOPPY],
-  'language/directive-prologue/10.1.1-8gs': [PASS, FAIL_SLOPPY],
-  'language/directive-prologue/14.1-5gs': [PASS, FAIL_SLOPPY],
-
   # Test against internals of harness; we plug in differently
   'harness/detachArrayBuffer': [SKIP],
-  'harness/detachArrayBuffer-$262.detachArrayBuffer': [SKIP],
-
-  # Invalid {Assignment,Binding}RestPattern
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6500
-  'language/expressions/assignment/dstr-obj-rest-obj-own-property': [FAIL],
-  'language/statements/for-of/dstr-obj-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-obj-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/expressions/assignment/dstr-obj-rest-nested-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/expressions/assignment/dstr-obj-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-of/dstr-obj-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-obj-rest-nested-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-obj-rest-nested-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-obj-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-obj-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-obj-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-async-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-var-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-of/dstr-obj-rest-nested-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-obj-ptrn-rest-obj-nested-rest': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-let-async-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-var-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-let-async-obj-ptrn-rest-obj-own-property': [FAIL],
-  'language/statements/for-await-of/async-gen-dstr-const-obj-ptrn-rest-nested-obj': [FAIL],
-  'language/statements/for-await-of/async-func-dstr-const-obj-ptrn-rest-obj-own-property': [FAIL],
-
-  # Async Iteration https://github.com/tc39/test262/issues/1154
-  'language/statements/for-await-of/async-func-decl-dstr-array-elem-init-let': [FAIL],
-  'language/statements/for-await-of/async-func-decl-dstr-array-elem-put-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-init-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-put-let': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-elision-iter-abpt': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-get-err': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-nrml-close-null': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-err': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close-null': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-null': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-list-rtrn-close': [FAIL],
-  'language/statements/for-await-of/async-gen-decl-dstr-array-elem-trlg-iter-rest-rtrn-close-err': [PASS, FAIL],
+  'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
   ############################ SKIPPED TESTS #############################
 

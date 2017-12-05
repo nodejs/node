@@ -29,13 +29,13 @@ int main(int argc, char* argv[]) {
   }
 
   fseek(input, 0, SEEK_END);
-  long size = ftell(input);
+  size_t size = ftell(input);
   fseek(input, 0, SEEK_SET);
 
   uint8_t* data = reinterpret_cast<uint8_t*>(malloc(size));
   if (!data) {
     fclose(input);
-    fprintf(stderr, "Failed to allocate %ld bytes\n", size);
+    fprintf(stderr, "Failed to allocate %zu bytes\n", size);
     return 1;
   }
 

@@ -621,6 +621,8 @@ TimeTicks TimeTicks::HighResolutionNow() {
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
+#else
+#error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX
   // Make sure we never return 0 here.
   return TimeTicks(ticks + 1);

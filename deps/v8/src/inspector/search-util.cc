@@ -15,7 +15,7 @@ namespace {
 
 String16 findMagicComment(const String16& content, const String16& name,
                           bool multiline) {
-  DCHECK(name.find("=") == String16::kNotFound);
+  DCHECK_EQ(String16::kNotFound, name.find("="));
   size_t length = content.length();
   size_t nameLength = name.length();
 

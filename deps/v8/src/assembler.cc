@@ -52,6 +52,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -300,14 +301,10 @@ const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
-void RelocInfo::update_wasm_memory_reference(
-    Isolate* isolate, Address old_base, Address new_base,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_));
-  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
-  // The reference is not checked here but at runtime. Validity of references
-  // may change over time.
-  set_embedded_address(isolate, updated_reference, icache_flush_mode);
+void RelocInfo::set_wasm_context_reference(Isolate* isolate, Address address,
+                                           ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmContextReference(rmode_));
+  set_embedded_address(isolate, address, icache_flush_mode);
 }
 
 void RelocInfo::set_global_handle(Isolate* isolate, Address address,
@@ -319,16 +316,6 @@ void RelocInfo::set_global_handle(Isolate* isolate, Address address,
 Address RelocInfo::global_handle() const {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
   return embedded_address();
-}
-
-void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
-                                        uint32_t new_size,
-                                        ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
-  uint32_t current_size_reference = wasm_memory_size_reference();
-  uint32_t updated_size_reference =
-      new_size + (current_size_reference - old_size);
-  set_embedded_size(isolate, updated_size_reference, icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_global_reference(
@@ -352,13 +339,8 @@ uint32_t RelocInfo::wasm_function_table_size_reference() const {
   return embedded_size();
 }
 
-uint32_t RelocInfo::wasm_memory_size_reference() const {
-  DCHECK(IsWasmMemorySizeReference(rmode_));
-  return embedded_size();
-}
-
-Address RelocInfo::wasm_memory_reference() const {
-  DCHECK(IsWasmMemoryReference(rmode_));
+Address RelocInfo::wasm_context_reference() const {
+  DCHECK(IsWasmContextReference(rmode_));
   return embedded_address();
 }
 
@@ -659,10 +641,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "constant pool";
     case VENEER_POOL:
       return "veneer pool";
-    case WASM_MEMORY_REFERENCE:
-      return "wasm memory reference";
-    case WASM_MEMORY_SIZE_REFERENCE:
-      return "wasm memory size reference";
+    case WASM_CONTEXT_REFERENCE:
+      return "wasm context reference";
     case WASM_GLOBAL_REFERENCE:
       return "wasm global value reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
@@ -750,8 +730,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEOPT_ID:
     case CONST_POOL:
     case VENEER_POOL:
-    case WASM_MEMORY_REFERENCE:
-    case WASM_MEMORY_SIZE_REFERENCE:
+    case WASM_CONTEXT_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
@@ -776,8 +755,6 @@ static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
       return ExternalReference::BUILTIN_CALL;
     case 2:
       return ExternalReference::BUILTIN_CALL_PAIR;
-    case 3:
-      return ExternalReference::BUILTIN_CALL_TRIPLE;
   }
   UNREACHABLE();
 }
@@ -811,6 +788,10 @@ ExternalReference::ExternalReference(const Runtime::Function* f,
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
+}
+
+ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
+  return ExternalReference(isolate->builtins()->builtins_table_address());
 }
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
@@ -1031,6 +1012,18 @@ ExternalReference ExternalReference::f64_asin_wrapper_function(
 ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
   return ExternalReference(
       Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_set_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
+}
+
+ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
 }
 
 static void f64_mod_wrapper(double* param0, double* param1) {
@@ -1420,6 +1413,19 @@ ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference
+ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
+}
+
+ExternalReference ExternalReference::copy_typed_array_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
 }
 
 ExternalReference ExternalReference::try_internalize_string_function(

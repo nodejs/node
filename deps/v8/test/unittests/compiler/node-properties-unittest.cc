@@ -14,6 +14,7 @@ using testing::IsNull;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node_properties_unittest {
 
 class NodePropertiesTest : public TestWithZone {
  public:
@@ -118,6 +119,7 @@ TEST_F(NodePropertiesTest, CollectControlProjections_Switch) {
   EXPECT_EQ(if_default, result[2]);
 }
 
+}  // namespace node_properties_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

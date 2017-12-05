@@ -197,27 +197,27 @@ static inline uint8_t NonASCIISequenceLength(byte first) {
   // clang-format off
   static const uint8_t lengths[256] = {
       // The first 128 entries correspond to ASCII characters.
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* OO - Of */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 10 - 1f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 20 - 2f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 30 - 3f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 40 - 4f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 50 - 5f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 60 - 6f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 70 - 7f */
       // The following 64 entries correspond to continuation bytes.
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 80 - 8f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 90 - 9f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* a0 - af */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* b0 - bf */
       // The next are two invalid overlong encodings and 30 two-byte sequences.
-      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* c0-c1 + c2-cf */
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* d0-df */
       // 16 three-byte sequences.
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,  /* e0-ef */
       // 5 four-byte sequences, followed by sequences that could only encode
       // code points outside of the unicode range.
-      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* f0-f4 + f5-ff */
   // clang-format on
   return lengths[first];
 }
@@ -227,9 +227,11 @@ static inline bool IsContinuationCharacter(byte chr) {
   return chr >= 0x80 && chr <= 0xBF;
 }
 
-
-// This method decodes an UTF-8 value according to RFC 3629.
+// This method decodes an UTF-8 value according to RFC 3629 and
+// https://encoding.spec.whatwg.org/#utf-8-decoder .
 uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
+  DCHECK_GT(str[0], kMaxOneByteChar);
+
   size_t length = NonASCIISequenceLength(str[0]);
 
   // Check continuation characters.
@@ -238,34 +240,46 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   while (count < max_count && IsContinuationCharacter(str[count])) {
     count++;
   }
-  *cursor += count;
 
-  // There must be enough continuation characters.
-  if (count != length) return kBadChar;
+  if (length >= 3 && count < 2) {
+    // Not enough continuation bytes to check overlong sequences.
+    *cursor += 1;
+    return kBadChar;
+  }
 
   // Check overly long sequences & other conditions.
   if (length == 3) {
     if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
-      // Overlong three-byte sequence?
+      // Overlong three-byte sequence? The first byte generates a kBadChar.
+      *cursor += 1;
       return kBadChar;
     } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
-      // High and low surrogate halves?
+      // High and low surrogate halves? The first byte generates a kBadChar.
+      *cursor += 1;
       return kBadChar;
     }
   } else if (length == 4) {
     if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
-      // Overlong four-byte sequence.
+      // Overlong four-byte sequence. The first byte generates a kBadChar.
+      *cursor += 1;
       return kBadChar;
     } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
-      // Code points outside of the unicode range.
+      // Code points outside of the unicode range. The first byte generates a
+      // kBadChar.
+      *cursor += 1;
       return kBadChar;
     }
   }
 
+  *cursor += count;
+
+  if (count != length) {
+    // Not enough continuation characters.
+    return kBadChar;
+  }
+
   // All errors have been handled, so we only have to assemble the result.
   switch (length) {
-    case 1:
-      return str[0];
     case 2:
       return ((str[0] << 6) + str[1]) - 0x00003080;
     case 3:
@@ -278,6 +292,25 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   UNREACHABLE();
 }
 
+/*
+Overlong sequence detection: Since Blink's TextCodecUTF8 rejects multi-byte
+characters which could be expressed with less bytes, we must too.
+
+Each continuation byte (10xxxxxx) carries 6 bits of payload. The lead bytes of
+1, 2, 3 and 4-byte characters are 0xxxxxxx, 110xxxxx, 1110xxxx and 11110xxx, and
+carry 7, 5, 4, and 3 bits of payload, respectively.
+
+Thus, a two-byte character can contain 11 bits of payload, a three-byte
+character 16, and a four-byte character 21.
+
+If we encounter a two-byte character which contains 7 bits or less, a three-byte
+character which contains 11 bits or less, or a four-byte character which
+contains 16 bits or less, we reject the character and generate a kBadChar for
+each of the bytes. This is because Blink handles overlong sequences by rejecting
+the first byte of the character (returning kBadChar); thus the rest are lonely
+continuation bytes and generate a kBadChar each.
+*/
+
 uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
   DCHECK_NOT_NULL(buffer);
 
@@ -289,7 +322,8 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
   if (*buffer == 0) {
     // We're at the start of a new character.
     uint32_t kind = NonASCIISequenceLength(next);
-    if (kind >= 2 && kind <= 4) {
+    CHECK_LE(kind, 4);
+    if (kind >= 2) {
       // Start of 2..4 byte character, and no buffer.
 
       // The mask for the lower bits depends on the kind, and is
@@ -300,11 +334,14 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
       // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
       // intended as a counter about how many bytes are still needed.
-      *buffer = kind << 28 | (kind - 1) << 24 | (next & mask);
+      uint32_t character_info = kind << 28 | (kind - 1) << 24;
+      DCHECK_EQ(character_info & mask, 0);
+      *buffer = character_info | (next & mask);
       return kIncomplete;
     } else {
       // No buffer, and not the start of a 1-byte char (handled at the
-      // beginning), and not the start of a 2..4 byte char? Bad char.
+      // beginning), and not the start of a 2..4 byte char (or the start of an
+      // overlong / invalid sequence)? Bad char.
       *buffer = 0;
       return kBadChar;
     }
@@ -331,6 +368,47 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
     // How many bytes (excluding this one) do we still expect?
     uint8_t bytes_expected = *buffer >> 28;
     uint8_t bytes_left = (*buffer >> 24) & 0x0f;
+
+    // Two-byte overlong sequence detection is handled by
+    // NonASCIISequenceLength, so we don't need to check anything here.
+    if (bytes_expected == 3 && bytes_left == 2) {
+      // Check that there are at least 12 bytes of payload.
+      uint8_t lead_payload = *buffer & (0x7f >> bytes_expected);
+      DCHECK_LE(lead_payload, 0xf);
+      if (lead_payload == 0 && next < 0xa0) {
+        // 0xa0 = 0b10100000 (payload: 100000). Overlong sequence: 0 bits from
+        // the first byte, at most 5 from the second byte, and at most 6 from
+        // the third -> in total at most 11.
+
+        *buffer = next;
+        return kBadChar;
+      } else if (lead_payload == 0xd && next > 0x9f) {
+        // The resulting code point would be on a range which is reserved for
+        // UTF-16 surrogate halves.
+        *buffer = next;
+        return kBadChar;
+      }
+    } else if (bytes_expected == 4 && bytes_left == 3) {
+      // Check that there are at least 17 bytes of payload.
+      uint8_t lead_payload = *buffer & (0x7f >> bytes_expected);
+
+      // If the lead byte was bigger than 0xf4 (payload: 4), it's not a start of
+      // any valid character, and this is detected by NonASCIISequenceLength.
+      DCHECK_LE(lead_payload, 0x4);
+      if (lead_payload == 0 && next < 0x90) {
+        // 0x90 = 10010000 (payload 10000). Overlong sequence: 0 bits from the
+        // first byte, at most 4 from the second byte, at most 12 from the third
+        // and fourth bytes -> in total at most 16.
+        *buffer = next;
+        return kBadChar;
+      } else if (lead_payload == 4 && next > 0x8f) {
+        // Invalid code point; value greater than 0b100001111000000000000
+        // (0x10ffff).
+        *buffer = next;
+        return kBadChar;
+      }
+    }
+
     bytes_left--;
     // Update the value.
     uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
@@ -338,10 +416,15 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       *buffer = (bytes_expected << 28 | bytes_left << 24 | value);
       return kIncomplete;
     } else {
-      *buffer = 0;
+#ifdef DEBUG
+      // Check that overlong sequences were already detected.
       bool sequence_was_too_long = (bytes_expected == 2 && value < 0x80) ||
-                                   (bytes_expected == 3 && value < 0x800);
-      return sequence_was_too_long ? kBadChar : value;
+                                   (bytes_expected == 3 && value < 0x800) ||
+                                   (bytes_expected == 4 && value < 0x8000);
+      DCHECK(!sequence_was_too_long);
+#endif
+      *buffer = 0;
+      return value;
     }
   } else {
     // Within a character, but not a continuation character? Then the
@@ -1162,14 +1245,6 @@ bool WhiteSpace::Is(uchar c) {
   }
 }
 #endif  // !V8_INTL_SUPPORT
-
-// LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
-// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
-
-bool LineTerminator::Is(uchar c) {
-  return c == 0xA || c == 0xD || c == 0x2028 || c == 0x2029;
-}
 
 #ifndef V8_INTL_SUPPORT
 static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT

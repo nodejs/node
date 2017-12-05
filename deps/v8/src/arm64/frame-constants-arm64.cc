@@ -19,6 +19,11 @@ Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
+int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+  // Round up to a multiple of two, to make the frame a multiple of 16 bytes.
+  return RoundUp(register_count, 2);
+}
+
 }  // namespace internal
 }  // namespace v8
 

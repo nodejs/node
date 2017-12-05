@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <queue>
+#include <vector>
 
 #include "include/v8-debug.h"
 #include "src/allocation.h"
@@ -25,8 +26,6 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
-
-class TestIsolate;
 
 namespace v8 {
 
@@ -449,6 +448,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(bool, needs_side_effect_check, false)                                     \
   /* Current code coverage mode */                                            \
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
+  V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
   V(int, last_console_context_id, 0)                                          \
   ISOLATE_INIT_SIMULATOR_LIST(V)
@@ -608,8 +608,8 @@ class Isolate {
   inline void clear_pending_exception();
 
   // Interface to wasm caught exception.
-  inline Object* get_wasm_caught_exception() const;
-  inline void set_wasm_caught_exception(Object* exception_obj);
+  inline Object* get_wasm_caught_exception();
+  inline void set_wasm_caught_exception(Object* exception);
   inline void clear_wasm_caught_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
@@ -646,7 +646,7 @@ class Isolate {
   bool IsExternalHandlerOnTop(Object* exception);
 
   inline bool is_catchable_by_javascript(Object* exception);
-  inline bool is_catchable_by_wasm(Object* exception);
+  bool is_catchable_by_wasm(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -1005,6 +1005,9 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+  void set_serializer_enabled_for_test(bool serializer_enabled) {
+    serializer_enabled_ = serializer_enabled;
+  }
   bool snapshot_available() const {
     return snapshot_blob_ != NULL && snapshot_blob_->raw_size != 0;
   }
@@ -1042,6 +1045,10 @@ class Isolate {
     return is_block_count_code_coverage() || is_block_binary_code_coverage();
   }
 
+  bool is_collecting_type_profile() const {
+    return type_profile_mode() == debug::TypeProfile::kCollect;
+  }
+
   void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {
@@ -1062,7 +1069,14 @@ class Isolate {
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 
+  inline bool IsArrayConstructorIntact();
+
+  // The version with an explicit context parameter can be used when
+  // Isolate::context is not set up, e.g. when calling directly into C++ from
+  // CSA.
+  bool IsFastArrayConstructorPrototypeChainIntact(Context* context);
   bool IsFastArrayConstructorPrototypeChainIntact();
+
   inline bool IsArraySpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
@@ -1089,6 +1103,7 @@ class Isolate {
   void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateArrayProtectorOnSetElement(object);
   }
+  void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
@@ -1163,10 +1178,10 @@ class Isolate {
 
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
-  void FireMicrotasksCompletedCallback();
+  inline void FireMicrotasksCompletedCallback();
 
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
-  void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
+  void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
   void PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
@@ -1567,14 +1582,14 @@ class Isolate {
   int next_unique_sfi_id_;
 #endif
 
-  // List of callbacks before a Call starts execution.
-  List<BeforeCallEnteredCallback> before_call_entered_callbacks_;
+  // Vector of callbacks before a Call starts execution.
+  std::vector<BeforeCallEnteredCallback> before_call_entered_callbacks_;
 
-  // List of callbacks when a Call completes.
-  List<CallCompletedCallback> call_completed_callbacks_;
+  // Vector of callbacks when a Call completes.
+  std::vector<CallCompletedCallback> call_completed_callbacks_;
 
-  // List of callbacks after microtasks were run.
-  List<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
+  // Vector of callbacks after microtasks were run.
+  std::vector<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
   bool is_running_microtasks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
@@ -1620,12 +1635,12 @@ class Isolate {
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;
+  friend class TestIsolate;
   friend class ThreadId;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
   friend class v8::SnapshotCreator;
-  friend class ::TestIsolate;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
   friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
                                                         const char*);

@@ -124,8 +124,7 @@ class TransitionsAccessor {
     kPrototypeInfo,
     kUninitialized,
     kWeakCell,
-    kTuple3Handler,
-    kFixedArrayHandler,
+    kHandler,
     kFullTransitionArray,
   };
 

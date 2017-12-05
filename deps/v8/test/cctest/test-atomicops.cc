@@ -30,9 +30,8 @@
 #include "src/base/atomicops.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-
+namespace v8 {
+namespace base {
 
 #define CHECK_EQU(v1, v2) \
   CHECK_EQ(static_cast<int64_t>(v1), static_cast<int64_t>(v2))
@@ -287,3 +286,6 @@ TEST(Load) {
   TestLoad<Atomic32>();
   TestLoad<AtomicWord>();
 }
+
+}  // namespace base
+}  // namespace v8

@@ -297,6 +297,10 @@
   # This section is for tests that fail in both V8 and JSC.  Thus they
   # have been determined to be incompatible between Mozilla and V8/JSC.
 
+  # d8 does not implement a window object.
+  'js1_5/Regress/regress-317476': [FAIL],
+  'js1_5/Regress/regress-314401': [FAIL],
+
   # Any local 'arguments' variable should not be allowed to shadow the value
   # returned via the indirect 'arguments' property accessor.
   'js1_4/Functions/function-001': [FAIL_OK],

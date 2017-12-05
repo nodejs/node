@@ -29,6 +29,7 @@
 
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/base/template-utils.h"
 #include "src/macro-assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -226,7 +227,6 @@ bool EqualRegisters(const RegisterDump* a, const RegisterDump* b) {
 
   return true;
 }
-
 
 RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
                               int reg_size, int reg_count, RegList allowed) {

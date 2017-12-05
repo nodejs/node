@@ -410,11 +410,5 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,
   return result.value();
 }
 
-TF_BUILTIN(FastNewSloppyArguments, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(FastNewArgumentsDescriptor::kFunction);
-  Node* context = Parameter(FastNewArgumentsDescriptor::kContext);
-  Return(EmitFastNewSloppyArguments(context, function));
-}
-
 }  // namespace internal
 }  // namespace v8

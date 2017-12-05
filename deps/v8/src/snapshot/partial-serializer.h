@@ -13,7 +13,7 @@ namespace internal {
 
 class StartupSerializer;
 
-class PartialSerializer : public Serializer {
+class PartialSerializer : public Serializer<> {
  public:
   PartialSerializer(Isolate* isolate, StartupSerializer* startup_serializer,
                     v8::SerializeEmbedderFieldsCallback callback);

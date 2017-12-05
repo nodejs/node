@@ -31,6 +31,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(EmptyPropertyDictionary, empty_property_dictionary,                  \
     EmptyPropertyDictionary)                                             \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,           \
+    EmptySlowElementDictionary)                                          \
   V(empty_string, empty_string, EmptyString)                             \
   V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
   V(FalseValue, false_value, False)                                      \
@@ -176,6 +178,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
   bool IsIntPtrOrSmiConstantZero(Node* test);
+  bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value);
 
   // Round the 32bits payload of the provided word up to the next power of two.
   Node* IntPtrRoundUpToPowerOfTwo32(Node* value);
@@ -192,6 +195,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Float64T> Float64Round(SloppyTNode<Float64T> x);
   TNode<Float64T> Float64RoundToEven(SloppyTNode<Float64T> x);
   TNode<Float64T> Float64Trunc(SloppyTNode<Float64T> x);
+  // Select the minimum of the two provided Number values.
+  TNode<Object> NumberMax(SloppyTNode<Object> left, SloppyTNode<Object> right);
+  // Select the minimum of the two provided Number values.
+  TNode<Object> NumberMin(SloppyTNode<Object> left, SloppyTNode<Object> right);
 
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
@@ -272,6 +279,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Smi | HeapNumber operations.
   Node* NumberInc(Node* value);
   Node* NumberDec(Node* value);
+  Node* NumberAdd(Node* a, Node* b);
+  Node* NumberSub(Node* a, Node* b);
   void GotoIfNotNumber(Node* value, Label* is_not_number);
   void GotoIfNumber(Node* value, Label* is_number);
 
@@ -362,6 +371,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> WordIsWordAligned(SloppyTNode<WordT> word);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
 
+  Node* IsNotTheHole(Node* value) { return Word32BinaryNot(IsTheHole(value)); }
+
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #else
@@ -392,10 +403,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
   void BranchIfJSObject(Node* object, Label* if_true, Label* if_false);
 
-  enum class FastJSArrayAccessMode { INBOUNDS_READ, ANY_ACCESS };
-  void BranchIfFastJSArray(Node* object, Node* context,
-                           FastJSArrayAccessMode mode, Label* if_true,
+  void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
                            Label* if_false);
+  void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
+                                  Label* if_false);
 
   // Load value from current frame by given offset in bytes.
   Node* LoadFromFrame(int offset, MachineType rep = MachineType::AnyTagged());
@@ -486,6 +497,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> LoadMapConstructorFunctionIndex(SloppyTNode<Map> map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   TNode<Object> LoadMapConstructor(SloppyTNode<Map> map);
+  // Load the EnumLength of a Map.
+  Node* LoadMapEnumLength(SloppyTNode<Map> map);
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
@@ -684,6 +697,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateNameDictionaryWithCapacity(Node* capacity);
   Node* CopyNameDictionary(Node* dictionary, Label* large_object_fallback);
 
+  Node* AllocateStruct(Node* map, AllocationFlags flags = kNone);
+  void InitializeStructBody(Node* object, Node* map, Node* size,
+                            int start_offset = Struct::kHeaderSize);
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,
                                 Node* elements = nullptr,
                                 AllocationFlags flags = kNone);
@@ -696,8 +712,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               int start_offset = JSObject::kHeaderSize);
 
   // Allocate a JSArray without elements and initialize the header fields.
-  Node* AllocateUninitializedJSArrayWithoutElements(ElementsKind kind,
-                                                    Node* array_map,
+  Node* AllocateUninitializedJSArrayWithoutElements(Node* array_map,
                                                     Node* length,
                                                     Node* allocation_site);
   // Allocate and return a JSArray with initialized header fields and its
@@ -852,6 +867,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ThrowIfNotInstanceType(Node* context, Node* value,
                                InstanceType instance_type,
                                char const* method_name);
+
+  void ThrowRangeError(Node* context, MessageTemplate::Template message,
+                       Node* arg0 = nullptr, Node* arg1 = nullptr,
+                       Node* arg2 = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,
@@ -928,10 +947,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsString(Node* object);
   Node* IsSymbolInstanceType(Node* instance_type);
   Node* IsSymbol(Node* object);
+  Node* IsBigIntInstanceType(Node* instance_type);
+  Node* IsBigInt(Node* object);
   Node* IsUnseededNumberDictionary(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsUndetectableMap(Node* map);
   Node* IsArrayProtectorCellInvalid();
+  Node* IsSpeciesProtectorCellInvalid();
+  Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
@@ -940,6 +963,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // within Smi range.
   Node* IsNumberNormalized(Node* number);
   Node* IsNumberPositive(Node* number);
+  // True iff {number} is a positive number and a valid array index in the range
+  // [0, 2^32-1).
+  Node* IsNumberArrayIndex(Node* number);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
@@ -1411,8 +1437,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFeedbackVector(Node* closure);
 
   // Update the type feedback vector.
-  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id,
-                      Node* function);
+  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
   // Combine the new feedback with the existing_feedback.
   void CombineFeedback(Variable* existing_feedback, Node* feedback);
@@ -1558,7 +1583,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                            Node* lhs, Node* rhs, Label* if_true,
                                            Label* if_false);
 
-  void GotoUnlessNumberLessThan(Node* lhs, Node* rhs, Label* if_false);
+  void GotoIfNumberGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
 
   Node* Equal(Node* lhs, Node* rhs, Node* context,
               Variable* var_type_feedback = nullptr);
@@ -1569,9 +1594,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
-  // Unlike Equal and StrictEqual, returns a value suitable for use in Branch
-  // instructions, e.g. Branch(SameValue(...), &label).
-  Node* SameValue(Node* lhs, Node* rhs);
+  void BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true, Label* if_false);
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
@@ -1611,6 +1634,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                           StackFrame::Type frame_type);
   Node* MarkerIsNotFrameType(Node* marker_or_function,
                              StackFrame::Type frame_type);
+
+  // for..in helpers
+  void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,
+                               Label* if_fast, Label* if_slow);
+  Node* CheckEnumCache(Node* receiver, Label* if_empty, Label* if_runtime);
 
   // Support for printf-style debugging
   void Print(const char* s);
@@ -1671,8 +1699,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                     Node* top_address, Node* limit_address);
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.
-  Node* AllocateUninitializedJSArray(ElementsKind kind, Node* array_map,
-                                     Node* length, Node* allocation_site,
+  Node* AllocateUninitializedJSArray(Node* array_map, Node* length,
+                                     Node* allocation_site,
                                      Node* size_in_bytes);
 
   Node* SmiShiftBitsConstant();

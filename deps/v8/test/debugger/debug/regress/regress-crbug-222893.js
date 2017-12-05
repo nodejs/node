@@ -31,12 +31,12 @@ Debug = debug.Debug
 
 var error = null;
 var array = ["a", "b", "c"];
+var result = null;
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      assertArrayEquals(array,
-                        exec_state.frame(0).evaluate('arguments').value());
+      result = exec_state.frame(0).evaluate('arguments').value();
     }
   } catch (e) {
     error = e;
@@ -51,13 +51,35 @@ function f(a, b) {
   debugger;  // Arguments object is already materialized.
 }
 
+result = null;
 f.apply(this, array);
+assertArrayEquals(array, result);
+result = null;
 f("a", "b", "c");
+assertArrayEquals(array, result);
 assertNull(error);
 
 function g(a, b) {
   debugger;  // Arguments object is not yet materialized.
 }
+
+result = null;
 g.apply(this, array);
+assertArrayEquals(array, result);
+result = null;
 g("a", "b", "c");
+assertArrayEquals(array, result);
+assertNull(error);
+
+function h(a, b) {
+  var arguments = undefined;
+  debugger;  // Arguments already used as local variable.
+}
+
+result = null;
+h.apply(this, array);
+assertEquals(undefined, result);
+result = null;
+h("a", "b", "c");
+assertEquals(undefined, result);
 assertNull(error);

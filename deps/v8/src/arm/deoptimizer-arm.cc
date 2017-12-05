@@ -27,8 +27,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Everything but pc, lr and ip which will be saved but not restored.
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
-  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
-  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * SwVfpRegister::kNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
   DCHECK(kDoubleRegZero.code() == 13);
@@ -115,7 +115,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy VFP registers to
-  // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
+  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -128,7 +128,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy VFP registers to
-  // float_registers_[FloatRegister::kMaxNumAllocatableRegisters]
+  // float_registers_[FloatRegister::kNumAllocatableRegisters]
   int float_regs_offset = FrameDescription::float_registers_offset();
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
     int code = config->GetAllocatableFloatCode(i);
@@ -210,9 +210,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ vldr(reg, r1, src_offset);
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ ldr(r6, MemOperand(r2, FrameDescription::state_offset()));
-  __ push(r6);
+  // Push pc and continuation from the last output frame.
   __ ldr(r6, MemOperand(r2, FrameDescription::pc_offset()));
   __ push(r6);
   __ ldr(r6, MemOperand(r2, FrameDescription::continuation_offset()));
@@ -295,6 +293,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ push(scratch);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

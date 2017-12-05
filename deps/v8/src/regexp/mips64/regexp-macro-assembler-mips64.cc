@@ -6,9 +6,11 @@
 
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -180,8 +182,8 @@ void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerMIPS::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ Ld(a0, register_location(reg));
     __ Daddu(a0, a0, Operand(by));
@@ -484,7 +486,7 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Dsubu(a0, current_character(), Operand(minus));
   __ And(a0, a0, Operand(mask));
   BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
@@ -937,8 +939,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
-  Handle<Code> code = isolate()->factory()->NewCode(
-      code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
+  Handle<Code> code = isolate()->factory()->NewCode(code_desc, Code::REGEXP,
+                                                    masm_->CodeObject());
   LOG(masm_->isolate(),
       RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
@@ -1269,7 +1271,7 @@ void RegExpMacroAssemblerMIPS::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerMIPS::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ Daddu(backtrack_stackpointer(),
           backtrack_stackpointer(),
           Operand(-kIntSize));
@@ -1278,7 +1280,7 @@ void RegExpMacroAssemblerMIPS::Push(Register source) {
 
 
 void RegExpMacroAssemblerMIPS::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ Lw(target, MemOperand(backtrack_stackpointer()));
   __ Daddu(backtrack_stackpointer(), backtrack_stackpointer(), kIntSize);
 }
@@ -1314,7 +1316,7 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
   }
   // We assume that we cannot do unaligned loads on MIPS, so this function
   // must only be used to load a single character at a time.
-  DCHECK(characters == 1);
+  DCHECK_EQ(1, characters);
   __ Daddu(t1, end_of_input_address(), Operand(offset));
   if (mode_ == LATIN1) {
     __ Lbu(current_character(), MemOperand(t1, 0));

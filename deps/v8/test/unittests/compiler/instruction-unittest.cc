@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace instruction_unittest {
 
 namespace {
 
@@ -170,6 +171,7 @@ TEST_F(InstructionTest, PrepareInsertAfter) {
   }
 }
 
+}  // namespace instruction_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

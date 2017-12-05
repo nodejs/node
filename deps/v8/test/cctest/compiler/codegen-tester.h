@@ -69,7 +69,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::ComputeFlags(Code::STUB));
+                           Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
                                                schedule);
     }
@@ -100,7 +100,7 @@ class BufferedRawMachineAssemblerTester
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 
@@ -260,7 +260,7 @@ class BufferedRawMachineAssemblerTester<void>
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 

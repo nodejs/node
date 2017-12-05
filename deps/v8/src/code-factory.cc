@@ -63,42 +63,17 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                   LoadGlobalWithVectorDescriptor(isolate));
 }
 
-// static
-Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, StoreICStrictTrampoline)
-                      : BUILTIN_CODE(isolate, StoreICTrampoline),
-                  StoreDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
-                                             LanguageMode language_mode) {
-  return Callable(language_mode == STRICT ? BUILTIN_CODE(isolate, StoreICStrict)
-                                          : BUILTIN_CODE(isolate, StoreIC),
-                  StoreWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StoreIC_Uninitialized(Isolate* isolate,
-                                            LanguageMode language_mode) {
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, StoreICStrict_Uninitialized)
-                      : BUILTIN_CODE(isolate, StoreIC_Uninitialized),
-                  StoreWithVectorDescriptor(isolate));
-}
-
 Callable CodeFactory::StoreOwnIC(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Callable(BUILTIN_CODE(isolate, StoreICStrictTrampoline),
+  return Callable(BUILTIN_CODE(isolate, StoreICTrampoline),
                   StoreDescriptor(isolate));
 }
 
 Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
   // TODO(ishell): Currently we use StoreOwnIC only for storing properties that
   // already exist in the boilerplate therefore we can use StoreIC.
-  return Callable(BUILTIN_CODE(isolate, StoreICStrict),
+  return Callable(BUILTIN_CODE(isolate, StoreIC),
                   StoreWithVectorDescriptor(isolate));
 }
 
@@ -106,9 +81,7 @@ Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
 Callable CodeFactory::StoreGlobalIC(Isolate* isolate,
                                     LanguageMode language_mode) {
   // TODO(ishell): Use StoreGlobalIC[Strict]Trampoline when it's ready.
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, StoreICStrictTrampoline)
-                      : BUILTIN_CODE(isolate, StoreICTrampoline),
+  return Callable(BUILTIN_CODE(isolate, StoreICTrampoline),
                   StoreDescriptor(isolate));
 }
 
@@ -116,35 +89,7 @@ Callable CodeFactory::StoreGlobalIC(Isolate* isolate,
 Callable CodeFactory::StoreGlobalICInOptimizedCode(Isolate* isolate,
                                                    LanguageMode language_mode) {
   // TODO(ishell): Use StoreGlobalIC[Strict] when it's ready.
-  return Callable(language_mode == STRICT ? BUILTIN_CODE(isolate, StoreICStrict)
-                                          : BUILTIN_CODE(isolate, StoreIC),
-                  StoreWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
-                                   LanguageMode language_mode) {
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, KeyedStoreICStrictTrampoline)
-                      : BUILTIN_CODE(isolate, KeyedStoreICTrampoline),
-                  StoreDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
-                                                  LanguageMode language_mode) {
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, KeyedStoreICStrict)
-                      : BUILTIN_CODE(isolate, KeyedStoreIC),
-                  StoreWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedStoreIC_Megamorphic(Isolate* isolate,
-                                               LanguageMode language_mode) {
-  return Callable(language_mode == STRICT
-                      ? BUILTIN_CODE(isolate, KeyedStoreIC_Megamorphic_Strict)
-                      : BUILTIN_CODE(isolate, KeyedStoreIC_Megamorphic),
+  return Callable(BUILTIN_CODE(isolate, StoreIC),
                   StoreWithVectorDescriptor(isolate));
 }
 
@@ -258,23 +203,10 @@ Callable CodeFactory::HandleDebuggerStatement(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::FastCloneShallowArray(
-    Isolate* isolate, AllocationSiteMode allocation_mode) {
-  return Callable(isolate->builtins()->NewCloneShallowArray(allocation_mode),
-                  FastCloneShallowArrayDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
                                              ScopeType scope_type) {
   return Callable(isolate->builtins()->NewFunctionContext(scope_type),
                   FastNewFunctionContextDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
-  AllocateHeapNumberStub stub(isolate);
-  return make_callable(stub);
 }
 
 // static

@@ -34,6 +34,6 @@ class FuzzerSupport {
   v8::Global<v8::Context> context_;
 };
 
-}  // namespace
+}  // namespace v8_fuzzer
 
 #endif  //  TEST_FUZZER_FUZZER_SUPPORT_H_

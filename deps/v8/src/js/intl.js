@@ -31,7 +31,7 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var IntlFallbackSymbol = utils.ImportNow("intl_fallback_symbol");
 var InternalArray = utils.InternalArray;
-var MaxSimple;
+var MathMax = global.Math.max;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectKeys = global.Object.keys;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
@@ -42,7 +42,6 @@ var StringSubstring = GlobalString.prototype.substring;
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   ArrayPush = from.ArrayPush;
-  MaxSimple = from.MaxSimple;
 });
 
 // Utilities for definitions
@@ -1221,7 +1220,7 @@ function SetNumberFormatDigitOptions(internalOptions, options,
                              mnfdDefault);
   defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
 
-  var mxfdActualDefault = MaxSimple(mnfd, mxfdDefault);
+  var mxfdActualDefault = MathMax(mnfd, mxfdDefault);
 
   var mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20,
                              mxfdActualDefault);

@@ -43,7 +43,6 @@ enum ContextLookupFlags {
     async_function_promise_release)                                         \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                                 \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)           \
-  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)       \
   V(MAKE_ERROR_INDEX, JSFunction, make_error)                               \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                   \
   V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                 \
@@ -52,7 +51,6 @@ enum ContextLookupFlags {
   V(OBJECT_CREATE, JSFunction, object_create)                               \
   V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)         \
   V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)             \
-  V(OBJECT_FREEZE, JSFunction, object_freeze)                               \
   V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)           \
   V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)                 \
   V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                         \
@@ -226,6 +224,7 @@ enum ContextLookupFlags {
   V(ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN, SharedFunctionInfo,       \
     async_generator_return_closed_reject_shared_fun)                           \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
+  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \
@@ -402,6 +401,7 @@ enum ContextLookupFlags {
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
+  V(TEMPLATE_MAP_INDEX, HeapObject, template_map)                              \
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
@@ -541,14 +541,13 @@ class Context: public FixedArray {
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
-    OPTIMIZED_FUNCTIONS_LIST,  // Weak.
-    OPTIMIZED_CODE_LIST,       // Weak.
-    DEOPTIMIZED_CODE_LIST,     // Weak.
-    NEXT_CONTEXT_LINK,         // Weak.
+    OPTIMIZED_CODE_LIST,    // Weak.
+    DEOPTIMIZED_CODE_LIST,  // Weak.
+    NEXT_CONTEXT_LINK,      // Weak.
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
-    FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST,
+    FIRST_WEAK_SLOT = OPTIMIZED_CODE_LIST,
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
@@ -626,12 +625,6 @@ class Context: public FixedArray {
   inline bool IsScriptContext() const;
 
   inline bool HasSameSecurityTokenAs(Context* that) const;
-
-  // A native context holds a list of all functions with optimized code.
-  void AddOptimizedFunction(JSFunction* function);
-  void RemoveOptimizedFunction(JSFunction* function);
-  void SetOptimizedFunctionsListHead(Object* head);
-  Object* OptimizedFunctionsListHead();
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.

@@ -9,7 +9,6 @@
 #include "src/conversions-inl.h"
 #include "src/conversions.h"
 #include "src/globals.h"
-#include "src/list.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
@@ -207,7 +206,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     }
   }
 
-  if (!IsArrowFunction(kind) && track_unresolved_variables_) {
+  if (!IsArrowFunction(kind) && track_unresolved_variables_ &&
+      result == kLazyParsingComplete) {
     CreateFunctionNameAssignment(function_name, function_type, function_scope);
 
     // Declare arguments after parsing the function since lexical 'arguments'
@@ -375,8 +375,8 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (FLAG_preparser_scope_analysis &&
-      scope()->AsDeclarationScope()->calls_sloppy_eval()) {
-    DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+      scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+      produced_preparsed_scope_data_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.

@@ -60,7 +60,6 @@ from testrunner.local import utils
 LINT_RULES = """
 -build/header_guard
 -build/include_what_you_use
--build/namespaces
 -readability/check
 -readability/fn_size
 +readability/streams
@@ -228,8 +227,9 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests'), join('test', 'inspector')]
+    dirs = ['include', 'samples', 'src']
+    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -366,7 +366,6 @@ class SourceProcessor(SourceFileProcessor):
                        'regexp-pcre.js',
                        'resources-123.js',
                        'rjsmin.py',
-                       'script-breakpoint.h',
                        'sqlite.js',
                        'sqlite-change-heap.js',
                        'sqlite-pointer-masking.js',

@@ -6902,16 +6902,17 @@ TEST(Regression6640) {
 
   int32_t old_value = 0;
   int32_t new_value = 1;
-  Node* c = m.RelocatableInt32Constant(old_value,
-                                       RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  Node* c = m.RelocatableInt32Constant(
+      old_value, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   m.Return(m.Word32Equal(c, c));
 
   // Patch the code.
   Handle<Code> code = m.GetCode();
-  for (RelocIterator it(*code, 1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  for (RelocIterator it(*code,
+                        1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
        !it.done(); it.next()) {
-    it.rinfo()->update_wasm_memory_size(code->GetIsolate(), old_value,
-                                        new_value, FLUSH_ICACHE_IF_NEEDED);
+    it.rinfo()->update_wasm_function_table_size_reference(
+        code->GetIsolate(), old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
   }
 
   CHECK(m.Call());

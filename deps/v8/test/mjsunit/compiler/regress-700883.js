@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --stress-inline
 
 function add(x) {
  return x + x;
@@ -10,7 +10,6 @@ function add(x) {
 
 add(0);
 add(1);
-%SetForceInlineFlag(add);
 
 var min = Math.min;
 function foo(x) {
@@ -19,5 +18,6 @@ function foo(x) {
  return min(y, x);
 }
 
+foo();
 %OptimizeFunctionOnNextCall(foo);
 foo();

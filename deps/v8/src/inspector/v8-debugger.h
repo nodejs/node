@@ -21,7 +21,6 @@
 namespace v8_inspector {
 
 class AsyncStackTrace;
-struct ScriptBreakpoint;
 class StackFrame;
 class V8Debugger;
 class V8DebuggerAgentImpl;

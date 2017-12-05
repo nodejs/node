@@ -12,6 +12,35 @@
 namespace v8 {
 namespace internal {
 
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
+  int slot = This()->slots();
+  int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
+  This()->append(kind);
+  for (int i = 1; i < entries_per_slot; i++) {
+    This()->append(FeedbackSlotKind::kInvalid);
+  }
+  return FeedbackSlot(slot);
+}
+
+template FeedbackSlot FeedbackVectorSpecBase<FeedbackVectorSpec>::AddSlot(
+    FeedbackSlotKind kind);
+template FeedbackSlot FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddSlot(
+    FeedbackSlotKind kind);
+
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
+  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
+  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
+           FeedbackVector::GetIndex(slot));
+  return slot;
+}
+
+template FeedbackSlot
+FeedbackVectorSpecBase<FeedbackVectorSpec>::AddTypeProfileSlot();
+template FeedbackSlot
+FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddTypeProfileSlot();
+
 bool FeedbackVectorSpec::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
@@ -162,8 +191,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "Literal";
     case FeedbackSlotKind::kTypeProfile:
       return "TypeProfile";
-    case FeedbackSlotKind::kGeneral:
-      return "General";
+    case FeedbackSlotKind::kForIn:
+      return "ForIn";
     case FeedbackSlotKind::kKindsNumber:
       break;
   }
@@ -173,7 +202,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
 bool FeedbackMetadata::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
+  return slot.ToInt() < this->length() &&
+         GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -224,6 +254,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         vector->set(index, isolate->heap()->empty_weak_cell(),
                     SKIP_WRITE_BARRIER);
         break;
+      case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
         vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
@@ -250,7 +281,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kTypeProfile:
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
@@ -258,7 +288,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
     }
     for (int j = 1; j < entry_size; j++) {
@@ -341,9 +370,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   }
 }
 
-void FeedbackVector::ClearSlots(JSFunction* host_function) {
-  Isolate* isolate = GetIsolate();
-
+bool FeedbackVector::ClearSlots(Isolate* isolate) {
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
 
@@ -410,6 +437,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           }
           break;
         }
+        case FeedbackSlotKind::kForIn:
         case FeedbackSlotKind::kBinaryOp:
         case FeedbackSlotKind::kCompareOp: {
           DCHECK(Get(slot)->IsSmi());
@@ -420,20 +448,6 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
         case FeedbackSlotKind::kCreateClosure: {
           case FeedbackSlotKind::kTypeProfile:
             break;
-        }
-        case FeedbackSlotKind::kGeneral: {
-          if (obj->IsHeapObject()) {
-            InstanceType instance_type =
-                HeapObject::cast(obj)->map()->instance_type();
-            // AllocationSites are exempt from clearing. They don't store Maps
-            // or Code pointers which can cause memory leaks if not cleared
-            // regularly.
-            if (instance_type != ALLOCATION_SITE_TYPE) {
-              Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
-              feedback_updated = true;
-            }
-          }
-          break;
         }
         case FeedbackSlotKind::kLiteral: {
           Set(slot, Smi::kZero, SKIP_WRITE_BARRIER);
@@ -455,9 +469,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
       }
     }
   }
-  if (feedback_updated) {
-    IC::OnFeedbackChanged(isolate, this, host_function);
-  }
+  return feedback_updated;
 }
 
 Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
@@ -691,7 +703,7 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
 
 void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
                                          MapHandles const& maps,
-                                         List<Handle<Object>>* handlers) {
+                                         ObjectHandles* handlers) {
   int receiver_count = static_cast<int>(maps.size());
   DCHECK(receiver_count > 1);
   Handle<FixedArray> array;
@@ -782,8 +794,7 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
   return MaybeHandle<Code>();
 }
 
-bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
-                                 int length) const {
+bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
   Object* feedback = GetFeedback();
   Isolate* isolate = GetIsolate();
   int count = 0;
@@ -801,7 +812,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
       if (!cell->cleared()) {
         Object* code = array->get(i + increment - 1);
         DCHECK(IC::IsHandler(code));
-        code_list->Add(handle(code, isolate));
+        code_list->push_back(handle(code, isolate));
         count++;
       }
     }
@@ -810,7 +821,7 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
     if (!cell->cleared()) {
       Object* code = GetFeedbackExtra();
       DCHECK(IC::IsHandler(code));
-      code_list->Add(handle(code, isolate));
+      code_list->push_back(handle(code, isolate));
       count++;
     }
   }
@@ -836,15 +847,14 @@ Name* KeyedStoreICNexus::FindFirstName() const {
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandles maps;
-  List<Handle<Object>> handlers;
+  ObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
   ExtractMaps(&maps);
   FindHandlers(&handlers, static_cast<int>(maps.size()));
-  for (int i = 0; i < handlers.length(); i++) {
+  for (const Handle<Object>& maybe_code_handler : handlers) {
     // The first handler that isn't the slow handler will have the bits we need.
-    Handle<Object> maybe_code_handler = handlers.at(i);
     Handle<Code> handler;
     if (maybe_code_handler->IsTuple3()) {
       // Elements transition.
@@ -854,9 +864,14 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
       // Element store with prototype chain check.
       Handle<Tuple2> data_handler = Handle<Tuple2>::cast(maybe_code_handler);
       handler = handle(Code::cast(data_handler->value2()));
+    } else if (maybe_code_handler->IsSmi()) {
+      // Skip proxy handlers.
+      DCHECK_EQ(*maybe_code_handler, *StoreHandler::StoreProxy(GetIsolate()));
+      continue;
     } else {
       // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler);
+      if (handler->is_builtin()) continue;
     }
     CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
     uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
@@ -923,13 +938,18 @@ CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
 }
 
 InlineCacheState ForInICNexus::StateFromFeedback() const {
-  Object* feedback = GetFeedback();
-  if (feedback == *FeedbackVector::UninitializedSentinel(GetIsolate())) {
+  ForInHint hint = GetForInFeedback();
+  if (hint == ForInHint::kNone) {
     return UNINITIALIZED;
-  } else if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
-    return MEGAMORPHIC;
+  } else if (hint == ForInHint::kAny) {
+    return GENERIC;
   }
-  return GENERIC;
+  return MONOMORPHIC;
+}
+
+ForInHint ForInICNexus::GetForInFeedback() const {
+  int feedback = Smi::ToInt(GetFeedback());
+  return ForInHintFromFeedback(feedback);
 }
 
 InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {
@@ -964,6 +984,19 @@ InlineCacheState CollectTypeProfileNexus::StateFromFeedback() const {
   return MONOMORPHIC;
 }
 
+namespace {
+
+bool InList(Handle<ArrayList> types, Handle<String> type) {
+  for (int i = 0; i < types->Length(); i++) {
+    Object* obj = types->Get(i);
+    if (String::cast(obj)->Equals(*type)) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // anonymous namespace
+
 void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   DCHECK_GE(position, 0);
   Isolate* isolate = GetIsolate();
@@ -984,14 +1017,74 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   int entry = types->FindEntry(position);
   if (entry == UnseededNumberDictionary::kNotFound) {
     position_specific_types = ArrayList::New(isolate, 1);
+    types = UnseededNumberDictionary::Set(
+        types, position, ArrayList::Add(position_specific_types, type));
   } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
     position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
+    if (!InList(position_specific_types, type)) {  // Add type
+      types = UnseededNumberDictionary::Set(
+          types, position, ArrayList::Add(position_specific_types, type));
+    }
+  }
+  SetFeedback(*types);
+}
+
+void CollectTypeProfileNexus::Clear() {
+  SetFeedback(*FeedbackVector::UninitializedSentinel(GetIsolate()));
+}
+
+std::vector<int> CollectTypeProfileNexus::GetSourcePositions() const {
+  std::vector<int> source_positions;
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return source_positions;
   }
 
-  types = UnseededNumberDictionary::Set(
-      types, position, ArrayList::Add(position_specific_types, type));
-  SetFeedback(*types);
+  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
+      UnseededNumberDictionary::cast(feedback), isolate);
+
+  for (int index = UnseededNumberDictionary::kElementsStartIndex;
+       index < types->length(); index += UnseededNumberDictionary::kEntrySize) {
+    int key_index = index + UnseededNumberDictionary::kEntryKeyIndex;
+    Object* key = types->get(key_index);
+    if (key->IsSmi()) {
+      int position = Smi::cast(key)->value();
+      source_positions.push_back(position);
+    }
+  }
+  return source_positions;
+}
+
+std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
+    uint32_t position) const {
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+  std::vector<Handle<String>> types_for_position;
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return types_for_position;
+  }
+
+  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
+      UnseededNumberDictionary::cast(feedback), isolate);
+
+  int entry = types->FindEntry(position);
+  if (entry == UnseededNumberDictionary::kNotFound) {
+    return types_for_position;
+  }
+  DCHECK(types->ValueAt(entry)->IsArrayList());
+  Handle<ArrayList> position_specific_types =
+      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)));
+  for (int i = 0; i < position_specific_types->Length(); i++) {
+    Object* t = position_specific_types->Get(i);
+    types_for_position.push_back(Handle<String>(String::cast(t), isolate));
+  }
+
+  return types_for_position;
 }
 
 namespace {

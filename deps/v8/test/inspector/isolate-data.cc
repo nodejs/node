@@ -359,7 +359,7 @@ void IsolateData::SetCurrentTimeMS(double time) {
 
 double IsolateData::currentTimeMS() {
   if (current_time_set_) return current_time_;
-  return v8::base::OS::TimeCurrentMillis();
+  return v8::internal::V8::GetCurrentPlatform()->CurrentClockTimeMillis();
 }
 
 void IsolateData::SetMemoryInfo(v8::Local<v8::Value> memory_info) {

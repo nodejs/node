@@ -3,7 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-async-gen.h"
+
 #include "src/builtins/builtins-utils-gen.h"
+#include "src/factory-inl.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
@@ -195,8 +198,6 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   Node* const code =
       LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
-  StoreObjectFieldRoot(function, JSFunction::kNextFunctionLinkOffset,
-                       Heap::kUndefinedValueRootIndex);
 }
 
 Node* AsyncBuiltinsAssembler::CreateUnwrapClosure(Node* native_context,

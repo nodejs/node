@@ -16,33 +16,41 @@ void PropertyAccessCompiler::TailCallBuiltin(MacroAssembler* masm,
 }
 
 Register* PropertyAccessCompiler::GetCallingConvention(Isolate* isolate,
-                                                       Code::Kind kind) {
+                                                       Type type) {
   AccessCompilerData* data = isolate->access_compiler_data();
   if (!data->IsInitialized()) {
     InitializePlatformSpecific(data);
   }
-  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
-    return data->load_calling_convention();
+  switch (type) {
+    case LOAD:
+      return data->load_calling_convention();
+    case STORE:
+      return data->store_calling_convention();
   }
-  DCHECK(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
+  UNREACHABLE();
   return data->store_calling_convention();
 }
 
 
 Register PropertyAccessCompiler::slot() const {
-  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
-    return LoadDescriptor::SlotRegister();
+  switch (type_) {
+    case LOAD:
+      return LoadDescriptor::SlotRegister();
+    case STORE:
+      return StoreWithVectorDescriptor::SlotRegister();
   }
-  DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
+  UNREACHABLE();
   return StoreWithVectorDescriptor::SlotRegister();
 }
 
-
 Register PropertyAccessCompiler::vector() const {
-  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
-    return LoadWithVectorDescriptor::VectorRegister();
+  switch (type_) {
+    case LOAD:
+      return LoadWithVectorDescriptor::VectorRegister();
+    case STORE:
+      return StoreWithVectorDescriptor::VectorRegister();
   }
-  DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
+  UNREACHABLE();
   return StoreWithVectorDescriptor::VectorRegister();
 }
 }  // namespace internal

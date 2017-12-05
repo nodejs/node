@@ -159,6 +159,14 @@ Runtime::FunctionId BytecodeArrayAccessor::GetRuntimeIdOperand(
   return static_cast<Runtime::FunctionId>(raw_id);
 }
 
+uint32_t BytecodeArrayAccessor::GetNativeContextIndexOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK(operand_type == OperandType::kNativeContextIndex);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
 Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
     int operand_index) const {
   OperandType operand_type =

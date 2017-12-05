@@ -98,8 +98,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
     case Runtime::kInlineTypedArrayGetLength:
       return ReduceArrayBufferViewField(node,
                                         AccessBuilder::ForJSTypedArrayLength());
-    case Runtime::kInlineTypedArrayMaxSizeInHeap:
-      return ReduceTypedArrayMaxSizeInHeap(node);
     case Runtime::kInlineTheHole:
       return ReduceTheHole(node);
     case Runtime::kInlineClassOf:
@@ -379,12 +377,6 @@ Reduction JSIntrinsicLowering::ReduceArrayBufferViewWasNeutered(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceMaxSmi(Node* node) {
   Node* value = jsgraph()->Constant(Smi::kMaxValue);
-  ReplaceWithValue(node, value);
-  return Replace(value);
-}
-
-Reduction JSIntrinsicLowering::ReduceTypedArrayMaxSizeInHeap(Node* node) {
-  Node* value = jsgraph()->Constant(FLAG_typed_array_max_size_in_heap);
   ReplaceWithValue(node, value);
   return Replace(value);
 }

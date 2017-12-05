@@ -22,7 +22,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
-#include "src/list.h"
 #include "src/objects.h"
 #include "src/objects/map.h"
 #include "src/utils.h"
@@ -355,7 +354,7 @@ class MemoryChunk {
       + kUIntptrSize      // uintptr_t flags_
       + kPointerSize      // Address area_start_
       + kPointerSize      // Address area_end_
-      + 2 * kPointerSize  // base::VirtualMemory reservation_
+      + 2 * kPointerSize  // VirtualMemory reservation_
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
@@ -632,12 +631,12 @@ class MemoryChunk {
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
                                  Executability executable, Space* owner,
-                                 base::VirtualMemory* reservation);
+                                 VirtualMemory* reservation);
 
   // Should be called when memory chunk is about to be freed.
   void ReleaseAllocatedMemory();
 
-  base::VirtualMemory* reserved_memory() { return &reservation_; }
+  VirtualMemory* reserved_memory() { return &reservation_; }
 
   size_t size_;
   uintptr_t flags_;
@@ -647,7 +646,7 @@ class MemoryChunk {
   Address area_end_;
 
   // If the chunk needs to remember its memory reservation, it is stored here.
-  base::VirtualMemory reservation_;
+  VirtualMemory reservation_;
 
   // The identity of the owning space.  This is tagged as a failure pointer, but
   // no failure can be in an object, so this can be distinguished from any entry
@@ -904,17 +903,17 @@ class Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
-  V8_EXPORT_PRIVATE virtual void AddAllocationObserver(
-      AllocationObserver* observer);
+  void AddAllocationObserver(AllocationObserver* observer);
 
-  V8_EXPORT_PRIVATE virtual void RemoveAllocationObserver(
-      AllocationObserver* observer);
+  void RemoveAllocationObserver(AllocationObserver* observer);
 
   V8_EXPORT_PRIVATE virtual void PauseAllocationObservers();
 
   V8_EXPORT_PRIVATE virtual void ResumeAllocationObservers();
 
-  void AllocationStep(Address soon_object, int size);
+  V8_EXPORT_PRIVATE virtual void StartNextInlineAllocationStep() {}
+
+  void AllocationStep(int bytes_since_last, Address soon_object, int size);
 
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
@@ -1004,7 +1003,9 @@ class MemoryChunkValidator {
 class CodeRange {
  public:
   explicit CodeRange(Isolate* isolate);
-  ~CodeRange() { TearDown(); }
+  ~CodeRange() {
+    if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  }
 
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
@@ -1055,25 +1056,21 @@ class CodeRange {
     size_t size;
   };
 
-  // Frees the range of virtual memory, and frees the data structures used to
-  // manage it.
-  void TearDown();
-
   // Finds a block on the allocation list that contains at least the
   // requested amount of memory.  If none is found, sorts and merges
   // the existing free memory blocks, and searches again.
   // If none can be found, returns false.
   bool GetNextAllocationBlock(size_t requested);
   // Compares the start addresses of two free blocks.
-  static int CompareFreeBlockAddress(const FreeBlock* left,
-                                     const FreeBlock* right);
+  static bool CompareFreeBlockAddress(const FreeBlock& left,
+                                      const FreeBlock& right);
   bool ReserveBlock(const size_t requested_size, FreeBlock* block);
   void ReleaseBlock(const FreeBlock* block);
 
   Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.
-  base::VirtualMemory virtual_memory_;
+  VirtualMemory virtual_memory_;
 
   // The global mutex guards free_list_ and allocation_list_ as GC threads may
   // access both lists concurrently to the main thread.
@@ -1082,12 +1079,12 @@ class CodeRange {
   // Freed blocks of memory are added to the free list.  When the allocation
   // list is exhausted, the free list is sorted and merged to make the new
   // allocation list.
-  List<FreeBlock> free_list_;
+  std::vector<FreeBlock> free_list_;
 
   // Memory is allocated from the free blocks on the allocation list.
   // The block at current_allocation_block_index_ is the current block.
-  List<FreeBlock> allocation_list_;
-  int current_allocation_block_index_;
+  std::vector<FreeBlock> allocation_list_;
+  size_t current_allocation_block_index_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };
@@ -1348,14 +1345,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                              Executability executable, Space* space);
 
   Address ReserveAlignedMemory(size_t requested, size_t alignment, void* hint,
-                               base::VirtualMemory* controller);
+                               VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
                                 size_t alignment, Executability executable,
-                                void* hint, base::VirtualMemory* controller);
+                                void* hint, VirtualMemory* controller);
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
-  void FreeMemory(base::VirtualMemory* reservation, Executability executable);
+  void FreeMemory(VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
@@ -1381,8 +1378,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // filling it up with a recognizable non-NULL bit pattern.
   void ZapBlock(Address start, size_t size);
 
-  MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
-                                              Address start, size_t commit_size,
+  MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm, Address start,
+                                              size_t commit_size,
                                               size_t reserved_size);
 
   CodeRange* code_range() { return code_range_; }
@@ -1445,7 +1442,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   base::AtomicValue<void*> lowest_ever_allocated_;
   base::AtomicValue<void*> highest_ever_allocated_;
 
-  base::VirtualMemory last_chunk_;
+  VirtualMemory last_chunk_;
   Unmapper unmapper_;
 
   friend class heap::TestCodeRangeScope;
@@ -1758,10 +1755,10 @@ class V8_EXPORT_PRIVATE FreeList {
   // and the size should be a non-zero multiple of the word size.
   size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
-  // Allocate a block of size {size_in_bytes} from the free list. The block is
-  // unitialized. A failure is returned if no block is available. The size
-  // should be a non-zero multiple of the word size.
-  MUST_USE_RESULT HeapObject* Allocate(size_t size_in_bytes);
+  // Finds a node of size at least size_in_bytes and sets up a linear allocation
+  // area using this node. Returns false if there is no such node and the caller
+  // has to retry allocation after collecting garbage.
+  MUST_USE_RESULT bool Allocate(size_t size_in_bytes);
 
   // Clear the free list.
   void Reset();
@@ -2081,15 +2078,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   void ResetFreeList() { free_list_.Reset(); }
 
-  // Set space allocation info.
-  void SetTopAndLimit(Address top, Address limit) {
-    DCHECK(top == limit ||
-           Page::FromAddress(top) == Page::FromAddress(limit - 1));
-    MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-    allocation_info_.Reset(top, limit);
-  }
-
-  void SetAllocationInfo(Address top, Address limit);
+  void PauseAllocationObservers() override;
+  void ResumeAllocationObservers() override;
 
   // Empty space allocation info, returning unused area to free list.
   void EmptyAllocationInfo();
@@ -2194,6 +2184,21 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // multiple tasks hold locks on pages while trying to sweep each others pages.
   void AnnounceLockedPage(Page* page) { locked_page_ = page; }
 
+  Address ComputeLimit(Address start, Address end, size_t size_in_bytes);
+  void SetAllocationInfo(Address top, Address limit);
+
+ private:
+  // Set space allocation info.
+  void SetTopAndLimit(Address top, Address limit) {
+    DCHECK(top == limit ||
+           Page::FromAddress(top) == Page::FromAddress(limit - 1));
+    MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+    allocation_info_.Reset(top, limit);
+  }
+  void DecreaseLimit(Address new_limit);
+  void StartNextInlineAllocationStep() override;
+  bool SupportsInlineAllocation() { return identity() == OLD_SPACE; }
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2210,26 +2215,33 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // size limit has been hit.
   bool Expand();
 
-  // Generic fast case allocation function that tries linear allocation at the
-  // address denoted by top in allocation_info_.
+  // Sets up a linear allocation area that fits the given number of bytes.
+  // Returns false if there is not enough space and the caller has to retry
+  // after collecting garbage.
+  inline bool EnsureLinearAllocationArea(int size_in_bytes);
+  // Allocates an object from the linear allocation area. Assumes that the
+  // linear allocation area is large enought to fit the object.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
-
-  // Generic fast case allocation function that tries aligned linear allocation
-  // at the address denoted by top in allocation_info_. Writes the aligned
-  // allocation size, which includes the filler size, to size_in_bytes.
-  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
-                                             AllocationAlignment alignment);
-
+  // Tries to allocate an aligned object from the linear allocation area.
+  // Returns nullptr if the linear allocation area does not fit the object.
+  // Otherwise, returns the object pointer and writes the allocation size
+  // (object size + alignment filler size) to the size_in_bytes.
+  inline HeapObject* TryAllocateLinearlyAligned(int* size_in_bytes,
+                                                AllocationAlignment alignment);
   // If sweeping is still in progress try to sweep unswept pages. If that is
-  // not successful, wait for the sweeper threads and re-try free-list
-  // allocation.
-  MUST_USE_RESULT virtual HeapObject* SweepAndRetryAllocation(
-      int size_in_bytes);
+  // not successful, wait for the sweeper threads and retry free-list
+  // allocation. Returns false if there is not enough space and the caller
+  // has to retry after collecting garbage.
+  MUST_USE_RESULT virtual bool SweepAndRetryAllocation(int size_in_bytes);
 
-  // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+  // Slow path of AllocateRaw. This function is space-dependent. Returns false
+  // if there is not enough space and the caller has to retry after
+  // collecting garbage.
+  MUST_USE_RESULT virtual bool SlowAllocateRaw(int size_in_bytes);
 
-  MUST_USE_RESULT HeapObject* RawSlowAllocateRaw(int size_in_bytes);
+  // Implementation of SlowAllocateRaw. Returns false if there is not enough
+  // space and the caller has to retry after collecting garbage.
+  MUST_USE_RESULT bool RawSlowAllocateRaw(int size_in_bytes);
 
   size_t area_size_;
 
@@ -2249,6 +2261,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   base::Mutex space_mutex_;
 
   Page* locked_page_;
+  Address top_on_previous_step_;
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
@@ -2603,8 +2616,13 @@ class NewSpace : public Space {
     return allocation_info_.limit();
   }
 
-  Address original_top() { return original_top_.Value(); }
+  void ResetOriginalTop() {
+    DCHECK_GE(top(), original_top());
+    DCHECK_LE(top(), original_limit());
+    original_top_.SetValue(top());
+  }
 
+  Address original_top() { return original_top_.Value(); }
   Address original_limit() { return original_limit_.Value(); }
 
   // Return the address of the first object in the active semispace.
@@ -2649,14 +2667,6 @@ class NewSpace : public Space {
     top_on_previous_step_ = 0;
     UpdateInlineAllocationLimit(0);
   }
-
-  // Allows observation of inline allocation. The observer->Step() method gets
-  // called after every step_size bytes have been allocated (approximately).
-  // This works by adjusting the allocation limit to a lower value and adjusting
-  // it after each step.
-  void AddAllocationObserver(AllocationObserver* observer) override;
-
-  void RemoveAllocationObserver(AllocationObserver* observer) override;
 
   // Get the extent of the inactive semispace (for use as a marking stack,
   // or to zap it). Notice: space-addresses are not necessarily on the
@@ -2749,8 +2759,7 @@ class NewSpace : public Space {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
-  base::VirtualMemory reservation_;
-
+  VirtualMemory reservation_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
@@ -2765,7 +2774,7 @@ class NewSpace : public Space {
   // different when we cross a page boundary or reset the space.
   void InlineAllocationStep(Address top, Address new_top, Address soon_object,
                             size_t size);
-  void StartNextInlineAllocationStep();
+  void StartNextInlineAllocationStep() override;
 
   friend class SemiSpaceIterator;
 };
@@ -2794,10 +2803,9 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
   // The space is temporary and not included in any snapshots.
   bool snapshotable() override { return false; }
 
-  MUST_USE_RESULT HeapObject* SweepAndRetryAllocation(
-      int size_in_bytes) override;
+  MUST_USE_RESULT bool SweepAndRetryAllocation(int size_in_bytes) override;
 
-  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes) override;
+  MUST_USE_RESULT bool SlowAllocateRaw(int size_in_bytes) override;
 };
 
 

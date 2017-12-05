@@ -281,7 +281,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
       CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::ComputeFlags(Code::STUB));
+                           Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {

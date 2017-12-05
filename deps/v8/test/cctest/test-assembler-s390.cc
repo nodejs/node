@@ -34,7 +34,8 @@
 #include "src/s390/simulator-s390.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
@@ -60,8 +61,8 @@ TEST(0) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -100,8 +101,8 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -152,8 +153,8 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -208,8 +209,8 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -250,7 +251,7 @@ TEST(4) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -278,7 +279,7 @@ TEST(5) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -312,7 +313,7 @@ TEST(6) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -344,7 +345,7 @@ TEST(7) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -375,7 +376,7 @@ TEST(8) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -402,7 +403,7 @@ TEST(9) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+      desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -486,8 +487,8 @@ TEST(10) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   code->Print();
 #endif
@@ -499,3 +500,6 @@ TEST(10) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

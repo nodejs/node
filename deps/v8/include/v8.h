@@ -150,6 +150,10 @@ template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
+
+namespace wasm {
+class StreamingDecoder;
+}  // namespace wasm
 }  // namespace internal
 
 namespace debug {
@@ -986,7 +990,7 @@ class V8_EXPORT Data {
  * A container type that holds relevant metadata for module loading.
  *
  * This is passed back to the embedder as part of
- * HostImportDynamicallyCallback for module loading.
+ * HostImportModuleDynamicallyCallback for module loading.
  */
 class V8_EXPORT ScriptOrModule {
  public:
@@ -1011,7 +1015,7 @@ class V8_EXPORT ScriptOrModule {
  * pass host defined options to the ScriptOptions during compilation.
  *
  * This is passed back to the embedder as part of
- * HostImportDynamicallyCallback for module loading.
+ * HostImportModuleDynamicallyCallback for module loading.
  *
  */
 class V8_EXPORT PrimitiveArray {
@@ -1432,6 +1436,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceParserCache,
     kConsumeParserCache,
     kProduceCodeCache,
+    kProduceFullCodeCache,
     kConsumeCodeCache
   };
 
@@ -1829,7 +1834,7 @@ class V8_EXPORT JSON {
    * \return The corresponding string if successfully stringified.
    */
   static V8_WARN_UNUSED_RESULT MaybeLocal<String> Stringify(
-      Local<Context> context, Local<Object> json_object,
+      Local<Context> context, Local<Value> json_object,
       Local<String> gap = Local<String>());
 };
 
@@ -4264,6 +4269,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
 #endif
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
+  std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 
 class V8_EXPORT WasmModuleObjectBuilder final {
@@ -5176,6 +5182,8 @@ typedef void (*NamedPropertyDeleterCallback)(
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
+ *
+ * Note: The values in the array must be of type v8::Name.
  */
 typedef void (*NamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
@@ -5299,6 +5307,8 @@ typedef void (*GenericNamedPropertyDeleterCallback)(
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
+ *
+ * Note: The values in the array must be of type v8::Name.
  */
 typedef void (*GenericNamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
@@ -5379,7 +5389,10 @@ typedef void (*IndexedPropertyDeleterCallback)(
     const PropertyCallbackInfo<Boolean>& info);
 
 /**
- * See `v8::GenericNamedPropertyEnumeratorCallback`.
+ * Returns an array containing the indices of the properties the indexed
+ * property getter intercepts.
+ *
+ * Note: The values in the array must be uint32_t.
  */
 typedef void (*IndexedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
@@ -6182,6 +6195,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*OOMErrorCallback)(const char* location, bool is_heap_oom);
 
+typedef void (*DcheckErrorCallback)(const char* file, int line,
+                                    const char* message);
+
 typedef void (*MessageCallback)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
@@ -6252,7 +6268,7 @@ typedef void (*CallCompletedCallback)(Isolate*);
 typedef void (*DeprecatedCallCompletedCallback)();
 
 /**
- * HostImportDynamicallyCallback is called when we require the
+ * HostImportModuleDynamicallyCallback is called when we require the
  * embedder to load a module. This is used as part of the dynamic
  * import syntax.
  *
@@ -7032,6 +7048,7 @@ class V8_EXPORT Isolate {
     kPromiseConstructorReturnedUndefined = 38,
     kConstructorNonUndefinedPrimitiveReturn = 39,
     kLabeledExpressionStatement = 40,
+    kLineOrParagraphSeparatorAsLineTerminator = 41,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
@@ -7887,6 +7904,9 @@ class V8_EXPORT V8 {
   static StartupData WarmUpSnapshotDataBlob(StartupData cold_startup_blob,
                                             const char* warmup_source);
 
+  /** Set the callback to invoke in case of Dcheck failures. */
+  static void SetDcheckErrorHandler(DcheckErrorCallback that);
+
   /**
    * Adds a message listener.
    *
@@ -7956,9 +7976,8 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void RemoveGCPrologueCallback(GCCallback callback));
+  static V8_DEPRECATED("Use isolate version",
+                       void RemoveGCPrologueCallback(GCCallback callback));
 
   /**
    * Enables the host application to receive a notification after a
@@ -7979,9 +7998,8 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void RemoveGCEpilogueCallback(GCCallback callback));
+  static V8_DEPRECATED("Use isolate version",
+                       void RemoveGCEpilogueCallback(GCCallback callback));
 
   /**
    * Initializes V8. This function needs to be called before the first Isolate
@@ -9069,11 +9087,11 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbd;
-  static const int kJSObjectType = 0xbe;
   static const int kFirstNonstringType = 0x80;
-  static const int kOddballType = 0x82;
-  static const int kForeignType = 0x86;
+  static const int kOddballType = 0x83;
+  static const int kForeignType = 0x87;
+  static const int kJSApiObjectType = 0xbf;
+  static const int kJSObjectType = 0xc0;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -10363,19 +10381,6 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
 void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->SetFatalErrorHandler(callback);
-}
-
-void V8::RemoveGCPrologueCallback(GCCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->RemoveGCPrologueCallback(
-      reinterpret_cast<Isolate::GCCallback>(callback));
-}
-
-
-void V8::RemoveGCEpilogueCallback(GCCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->RemoveGCEpilogueCallback(
-      reinterpret_cast<Isolate::GCCallback>(callback));
 }
 
 void V8::TerminateExecution(Isolate* isolate) { isolate->TerminateExecution(); }
