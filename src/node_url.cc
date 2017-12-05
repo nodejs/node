@@ -506,12 +506,11 @@ static inline unsigned hex2bin(const T ch) {
   return static_cast<unsigned>(-1);
 }
 
-static inline void PercentDecode(const char* input,
-                                 size_t len,
-                                 std::string* dest) {
+inline std::string PercentDecode(const char* input, size_t len) {
+  std::string dest;
   if (len == 0)
-    return;
-  dest->reserve(len);
+    return dest;
+  dest.reserve(len);
   const char* pointer = input;
   const char* end = input + len;
 
@@ -522,17 +521,18 @@ static inline void PercentDecode(const char* input,
         (ch == '%' &&
          (!IsASCIIHexDigit(pointer[1]) ||
           !IsASCIIHexDigit(pointer[2])))) {
-      *dest += ch;
+      dest += ch;
       pointer++;
       continue;
     } else {
       unsigned a = hex2bin(pointer[1]);
       unsigned b = hex2bin(pointer[2]);
       char c = static_cast<char>(a * 16 + b);
-      *dest += c;
+      dest += c;
       pointer += 3;
     }
   }
+  return dest;
 }
 
 #define SPECIALS(XX)                                                          \
@@ -860,7 +860,7 @@ static url_host_type ParseHost(url_host* host,
     return ParseOpaqueHost(host, input, length);
 
   // First, we have to percent decode
-  PercentDecode(input, length, &decoded);
+  decoded = PercentDecode(input, length);
 
   // Then we have to punycode toASCII
   if (!ToASCII(decoded, &decoded))
@@ -894,13 +894,13 @@ static url_host_type ParseHost(url_host* host,
 
 // Locates the longest sequence of 0 segments in an IPv6 address
 // in order to use the :: compression when serializing
-static inline uint16_t* FindLongestZeroSequence(uint16_t* values,
-                                                size_t len) {
-  uint16_t* start = values;
-  uint16_t* end = start + len;
-  uint16_t* result = nullptr;
+template<typename T>
+static inline T* FindLongestZeroSequence(T* values, size_t len) {
+  T* start = values;
+  T* end = start + len;
+  T* result = nullptr;
 
-  uint16_t* current = nullptr;
+  T* current = nullptr;
   unsigned counter = 0, longest = 1;
 
   while (start < end) {
@@ -923,7 +923,7 @@ static inline uint16_t* FindLongestZeroSequence(uint16_t* values,
   return result;
 }
 
-static url_host_type WriteHost(url_host* host, std::string* dest) {
+static url_host_type WriteHost(const url_host* host, std::string* dest) {
   dest->clear();
   switch (host->type) {
     case HOST_TYPE_DOMAIN:
@@ -934,8 +934,7 @@ static url_host_type WriteHost(url_host* host, std::string* dest) {
       uint32_t value = host->value.ipv4;
       for (int n = 0; n < 4; n++) {
         char buf[4];
-        char* buffer = buf;
-        snprintf(buffer, sizeof(buf), "%d", value % 256);
+        snprintf(buf, sizeof(buf), "%d", value % 256);
         dest->insert(0, buf);
         if (n < 3)
           dest->insert(0, 1, '.');
@@ -946,12 +945,12 @@ static url_host_type WriteHost(url_host* host, std::string* dest) {
     case HOST_TYPE_IPV6: {
       dest->reserve(41);
       *dest+= '[';
-      uint16_t* start = &host->value.ipv6[0];
-      uint16_t* compress_pointer =
+      const uint16_t* start = &host->value.ipv6[0];
+      const uint16_t* compress_pointer =
           FindLongestZeroSequence(start, 8);
       bool ignore0 = false;
       for (int n = 0; n <= 7; n++) {
-        uint16_t* piece = &host->value.ipv6[n];
+        const uint16_t* piece = &host->value.ipv6[n];
         if (ignore0 && *piece == 0)
           continue;
         else if (ignore0)
@@ -962,8 +961,7 @@ static url_host_type WriteHost(url_host* host, std::string* dest) {
           continue;
         }
         char buf[5];
-        char* buffer = buf;
-        snprintf(buffer, sizeof(buf), "%x", *piece);
+        snprintf(buf, sizeof(buf), "%x", *piece);
         *dest += buf;
         if (n < 7)
           *dest += ':';
@@ -980,16 +978,16 @@ static url_host_type WriteHost(url_host* host, std::string* dest) {
   return host->type;
 }
 
-static bool ParseHost(std::string* input,
+static bool ParseHost(const std::string& input,
                       std::string* output,
                       bool is_special,
                       bool unicode = false) {
-  if (input->length() == 0) {
+  if (input.length() == 0) {
     output->clear();
     return true;
   }
   url_host host{{""}, HOST_TYPE_DOMAIN};
-  ParseHost(&host, input->c_str(), input->length(), is_special, unicode);
+  ParseHost(&host, input.c_str(), input.length(), is_special, unicode);
   if (host.type == HOST_TYPE_FAILED)
     return false;
   WriteHost(&host, output);
@@ -1092,7 +1090,7 @@ static inline void HarvestContext(Environment* env,
 }
 
 // Single dot segment can be ".", "%2e", or "%2E"
-static inline bool IsSingleDotSegment(std::string str) {
+static inline bool IsSingleDotSegment(const std::string& str) {
   switch (str.size()) {
     case 1:
       return str == ".";
@@ -1108,7 +1106,7 @@ static inline bool IsSingleDotSegment(std::string str) {
 // Double dot segment can be:
 //   "..", ".%2e", ".%2E", "%2e.", "%2E.",
 //   "%2e%2e", "%2E%2E", "%2e%2E", or "%2E%2e"
-static inline bool IsDoubleDotSegment(std::string str) {
+static inline bool IsDoubleDotSegment(const std::string& str) {
   switch (str.size()) {
     case 2:
       return str == "..";
@@ -1542,7 +1540,7 @@ void URL::Parse(const char* input,
             return;
           }
           url->flags |= URL_FLAGS_HAS_HOST;
-          if (!ParseHost(&buffer, &url->host, special)) {
+          if (!ParseHost(buffer, &url->host, special)) {
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
@@ -1569,7 +1567,7 @@ void URL::Parse(const char* input,
             return;
           }
           url->flags |= URL_FLAGS_HAS_HOST;
-          if (!ParseHost(&buffer, &url->host, special)) {
+          if (!ParseHost(buffer, &url->host, special)) {
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
@@ -1741,7 +1739,7 @@ void URL::Parse(const char* input,
             state = kPathStart;
           } else {
             std::string host;
-            if (!ParseHost(&buffer, &host, special)) {
+            if (!ParseHost(buffer, &host, special)) {
               url->flags |= URL_FLAGS_FAILED;
               return;
             }
@@ -2104,8 +2102,7 @@ std::string URL::ToFilePath() const {
 #endif
   std::string decoded_path;
   for (const std::string& part : context_.path) {
-    std::string decoded;
-    PercentDecode(part.c_str(), part.length(), &decoded);
+    std::string decoded = PercentDecode(part.c_str(), part.length());
     for (char& ch : decoded) {
       if (is_slash(ch)) {
         return "";
