@@ -3,6 +3,7 @@
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const Countdown = require('../common/countdown');
 
 const MAX_COUNT = 2;
 
@@ -24,7 +25,7 @@ const server = http.createServer((req, res) => {
   res.end('ok');
 });
 
-let count = 0;
+const countdown = new Countdown(MAX_COUNT, () => server.close());
 
 server.listen(0, common.mustCall(() => {
   for (let n = 1; n <= MAX_COUNT; n++) {
@@ -40,13 +41,7 @@ server.listen(0, common.mustCall(() => {
     ).on('error', common.mustCall((err) => {
       assert(/^Parse Error/.test(err.message));
       assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
-      count++;
-      if (count === MAX_COUNT)
-        server.close();
+      countdown.dec();
     }));
   }
 }));
-
-process.on('exit', () => {
-  assert.strictEqual(count, MAX_COUNT);
-});
