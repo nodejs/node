@@ -753,8 +753,8 @@ added: v0.8.4
 
 Verifies the certificate `cert` is issued to host `host`.
 
-Returns {Error} object, populating it with the reason, host and cert on failure.
-On success, returns {undefined}.
+Returns {Error} object, populating it with the reason, host, and cert on
+failure. On success, returns {undefined}.
 
 *Note*: This function can be overwritten by providing alternative function
 as part of the `options.checkServerIdentity` option passed to `tls.connect()`.
