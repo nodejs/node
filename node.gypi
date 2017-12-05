@@ -1,4 +1,29 @@
 {
+  # 'force_load' means to include the static libs into the shared lib or
+  # executable. Therefore, it is enabled when building:
+  # 1. The executable and it uses static lib (cctest and node)
+  # 2. The shared lib
+  # Linker optimizes out functions that are not used. When force_load=true,
+  # --whole-archive,force_load and /WHOLEARCHIVE are used to include
+  # all obj files in static libs into the executable or shared lib.
+  'variables': {
+    'variables': {
+      'variables': {
+        'force_load%': 'true',
+        'current_type%': '<(_type)',
+      },
+      'force_load%': '<(force_load)',
+      'conditions': [
+        ['current_type=="static_library"', {
+          'force_load': 'false',
+        }],
+        [ 'current_type=="executable" and node_target_type=="shared_library"', {
+          'force_load': 'false',
+        }]
+      ],
+    },
+    'force_load%': '<(force_load)',
+  },
   'conditions': [
     [ 'node_shared=="false"', {
       'msvs_settings': {
@@ -36,12 +61,6 @@
     [ 'node_v8_options!=""', {
       'defines': [ 'NODE_V8_OPTIONS="<(node_v8_options)"'],
     }],
-    # No node_main.cc for anything except executable
-    [ 'node_target_type!="executable"', {
-      'sources!': [
-        'src/node_main.cc',
-      ],
-    }],
     [ 'node_release_urlbase!=""', {
       'defines': [
         'NODE_RELEASE_URLBASE="<(node_release_urlbase)"',
@@ -70,37 +89,6 @@
         'deps/v8/src/third_party/vtune/v8vtune.gyp:v8_vtune'
       ],
     }],
-    [ 'node_use_lttng=="true"', {
-      'defines': [ 'HAVE_LTTNG=1' ],
-      'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-      'libraries': [ '-llttng-ust' ],
-      'sources': [
-        'src/node_lttng.cc'
-      ],
-    } ],
-    [ 'node_use_etw=="true" and node_target_type!="static_library"', {
-      'defines': [ 'HAVE_ETW=1' ],
-      'dependencies': [ 'node_etw' ],
-      'sources': [
-        'src/node_win32_etw_provider.h',
-        'src/node_win32_etw_provider-inl.h',
-        'src/node_win32_etw_provider.cc',
-        'src/node_dtrace.cc',
-        'tools/msvs/genfiles/node_etw_provider.h',
-        'tools/msvs/genfiles/node_etw_provider.rc',
-      ]
-    } ],
-    [ 'node_use_perfctr=="true" and node_target_type!="static_library"', {
-      'defines': [ 'HAVE_PERFCTR=1' ],
-      'dependencies': [ 'node_perfctr' ],
-      'sources': [
-        'src/node_win32_perfctr_provider.h',
-        'src/node_win32_perfctr_provider.cc',
-        'src/node_counters.cc',
-        'src/node_counters.h',
-        'tools/msvs/genfiles/node_perfctr_provider.rc',
-      ]
-    } ],
     [ 'node_no_browser_globals=="true"', {
       'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
     } ],
@@ -108,7 +96,7 @@
       'dependencies': [ 'deps/v8/src/v8.gyp:postmortem-metadata' ],
       'conditions': [
         # -force_load is not applicable for the static library
-        [ 'node_target_type!="static_library"', {
+        [ 'force_load=="true"', {
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(V8_BASE)',
@@ -159,6 +147,27 @@
       'defines': [
         '_LINUX_SOURCE_COMPAT',
       ],
+      'conditions': [
+        [ 'force_load=="true"', {
+
+          'actions': [
+            {
+              'action_name': 'expfile',
+              'inputs': [
+                '<(OBJ_DIR)'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/node.exp'
+              ],
+              'action': [
+                'sh', 'tools/create_expfile.sh',
+                      '<@(_inputs)', '<@(_outputs)'
+              ],
+            }
+          ],
+          'ldflags': ['-Wl,-bE:<(PRODUCT_DIR)/node.exp', '-Wl,-brtl'],
+        }],
+      ],
     }],
     [ 'OS=="solaris"', {
       'libraries': [
@@ -174,12 +183,14 @@
         'NODE_PLATFORM="sunos"',
       ],
     }],
-    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false" and coverage=="false"', {
+    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
+        ' and coverage=="false" and force_load=="true"', {
       'ldflags': [ '-Wl,-z,noexecstack',
                    '-Wl,--whole-archive <(V8_BASE)',
                    '-Wl,--no-whole-archive' ]
     }],
-    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false" and coverage=="true"', {
+    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
+        ' and coverage=="true" and force_load=="true"', {
       'ldflags': [ '-Wl,-z,noexecstack',
                    '-Wl,--whole-archive <(V8_BASE)',
                    '-Wl,--no-whole-archive',
@@ -206,5 +217,54 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
+
+    [ 'node_use_openssl=="true"', {
+      'defines': [ 'HAVE_OPENSSL=1' ],
+      'conditions': [
+        ['openssl_fips != ""', {
+          'defines': [ 'NODE_FIPS_MODE' ],
+        }],
+        [ 'node_shared_openssl=="false"', {
+          'dependencies': [
+            './deps/openssl/openssl.gyp:openssl',
+
+            # For tests
+            './deps/openssl/openssl.gyp:openssl-cli',
+          ],
+          'conditions': [
+            # -force_load or --whole-archive are not applicable for
+            # the static library
+            [ 'force_load=="true"', {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-force_load,<(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
+                ],
+              },
+              'conditions': [
+                ['OS in "linux freebsd" and node_shared=="false"', {
+                  'ldflags': [
+                    '-Wl,--whole-archive,'
+                        '<(OBJ_DIR)/deps/openssl/'
+                        '<(OPENSSL_PRODUCT)',
+                    '-Wl,--no-whole-archive',
+                  ],
+                }],
+                # openssl.def is based on zlib.def, zlib symbols
+                # are always exported.
+                ['use_openssl_def==1', {
+                  'sources': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+                }],
+                ['OS=="win" and use_openssl_def==0', {
+                  'sources': ['deps/zlib/win32/zlib.def'],
+                }],
+              ],
+            }],
+          ],
+        }]]
+
+    }, {
+      'defines': [ 'HAVE_OPENSSL=0' ]
+    }],
+
   ],
 }
