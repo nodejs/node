@@ -55,26 +55,70 @@ const char kEOL = -1;
 const char16_t kUnicodeReplacementCharacter = 0xFFFD;
 
 // https://url.spec.whatwg.org/#concept-host
-union url_host_value {
-  std::string domain;
-  uint32_t ipv4;
-  uint16_t ipv6[8];
-  std::string opaque;
-  ~url_host_value() {}
+class URLHost {
+ public:
+  ~URLHost();
+
+  void ParseIPv4Host(const char* input, size_t length, bool* is_ipv4);
+  void ParseIPv6Host(const char* input, size_t length);
+  void ParseOpaqueHost(const char* input, size_t length);
+  void ParseHost(const char* input,
+                 size_t length,
+                 bool is_special,
+                 bool unicode = false);
+
+  inline bool ParsingFailed() const { return type_ == HostType::H_FAILED; }
+  std::string ToString() const;
+
+ private:
+  enum class HostType {
+    H_FAILED,
+    H_DOMAIN,
+    H_IPV4,
+    H_IPV6,
+    H_OPAQUE,
+  };
+
+  union Value {
+    std::string domain;
+    uint32_t ipv4;
+    uint16_t ipv6[8];
+    std::string opaque;
+
+    ~Value() {}
+    Value() : ipv4(0) {}
+  };
+
+  Value value_;
+  HostType type_ = HostType::H_FAILED;
+
+  // Setting the string members of the union with = is brittle because
+  // it relies on them being initialized to a state that requires no
+  // destruction of old data.
+  // For a long time, that worked well enough because ParseIPv6Host() happens
+  // to zero-fill `value_`, but that really is relying on standard library
+  // internals too much.
+  // These helpers are the easiest solution but we might want to consider
+  // just not forcing strings into an union.
+  inline void SetOpaque(std::string&& string) {
+    type_ = HostType::H_OPAQUE;
+    new(&value_.opaque) std::string(std::move(string));
+  }
+
+  inline void SetDomain(std::string&& string) {
+    type_ = HostType::H_DOMAIN;
+    new(&value_.domain) std::string(std::move(string));
+  }
 };
 
-enum url_host_type {
-  HOST_TYPE_FAILED = -1,
-  HOST_TYPE_DOMAIN = 0,
-  HOST_TYPE_IPV4 = 1,
-  HOST_TYPE_IPV6 = 2,
-  HOST_TYPE_OPAQUE = 3,
-};
-
-struct url_host {
-  url_host_value value;
-  enum url_host_type type;
-};
+URLHost::~URLHost() {
+  using string = std::string;
+  switch (type_) {
+    case HostType::H_DOMAIN: value_.domain.~string(); break;
+    case HostType::H_OPAQUE: value_.opaque.~string(); break;
+    default: break;
+  }
+}
 
 #define ARGS(XX)                                                              \
   XX(ARG_FLAGS)                                                               \
@@ -601,11 +645,11 @@ inline bool ToASCII(const std::string& input, std::string* output) {
 }
 #endif
 
-url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
-  url_host_type type = HOST_TYPE_FAILED;
+void URLHost::ParseIPv6Host(const char* input, size_t length) {
+  CHECK_EQ(type_, HostType::H_FAILED);
   for (unsigned n = 0; n < 8; n++)
-    host->value.ipv6[n] = 0;
-  uint16_t* piece_pointer = &host->value.ipv6[0];
+    value_.ipv6[n] = 0;
+  uint16_t* piece_pointer = &value_.ipv6[0];
   uint16_t* last_piece = piece_pointer + 8;
   uint16_t* compress_pointer = nullptr;
   const char* pointer = input;
@@ -614,7 +658,7 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
   char ch = pointer < end ? pointer[0] : kEOL;
   if (ch == ':') {
     if (length < 2 || pointer[1] != ':')
-      goto end;
+      return;
     pointer += 2;
     ch = pointer < end ? pointer[0] : kEOL;
     piece_pointer++;
@@ -622,10 +666,10 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
   }
   while (ch != kEOL) {
     if (piece_pointer > last_piece)
-      goto end;
+      return;
     if (ch == ':') {
       if (compress_pointer != nullptr)
-        goto end;
+        return;
       pointer++;
       ch = pointer < end ? pointer[0] : kEOL;
       piece_pointer++;
@@ -643,11 +687,11 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
     switch (ch) {
       case '.':
         if (len == 0)
-          goto end;
+          return;
         pointer -= len;
         ch = pointer < end ? pointer[0] : kEOL;
         if (piece_pointer > last_piece - 2)
-          goto end;
+          return;
         numbers_seen = 0;
         while (ch != kEOL) {
           value = 0xffffffff;
@@ -656,22 +700,22 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
               pointer++;
               ch = pointer < end ? pointer[0] : kEOL;
             } else {
-              goto end;
+              return;
             }
           }
           if (!IsASCIIDigit(ch))
-            goto end;
+            return;
           while (IsASCIIDigit(ch)) {
             unsigned number = ch - '0';
             if (value == 0xffffffff) {
               value = number;
             } else if (value == 0) {
-              goto end;
+              return;
             } else {
               value = value * 10 + number;
             }
             if (value > 255)
-              goto end;
+              return;
             pointer++;
             ch = pointer < end ? pointer[0] : kEOL;
           }
@@ -681,18 +725,18 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
             piece_pointer++;
         }
         if (numbers_seen != 4)
-          goto end;
+          return;
         continue;
       case ':':
         pointer++;
         ch = pointer < end ? pointer[0] : kEOL;
         if (ch == kEOL)
-          goto end;
+          return;
         break;
       case kEOL:
         break;
       default:
-        goto end;
+        return;
     }
     *piece_pointer = value;
     piece_pointer++;
@@ -701,7 +745,7 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
   if (compress_pointer != nullptr) {
     swaps = piece_pointer - compress_pointer;
     piece_pointer = last_piece - 1;
-    while (piece_pointer != &host->value.ipv6[0] && swaps > 0) {
+    while (piece_pointer != &value_.ipv6[0] && swaps > 0) {
       uint16_t temp = *piece_pointer;
       uint16_t* swap_piece = compress_pointer + swaps - 1;
       *piece_pointer = *swap_piece;
@@ -711,12 +755,9 @@ url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
     }
   } else if (compress_pointer == nullptr &&
              piece_pointer != last_piece) {
-    goto end;
+    return;
   }
-  type = HOST_TYPE_IPV6;
- end:
-  host->type = type;
-  return type;
+  type_ = HostType::H_IPV6;
 }
 
 inline int64_t ParseNumber(const char* start, const char* end) {
@@ -754,8 +795,9 @@ inline int64_t ParseNumber(const char* start, const char* end) {
   return strtoll(start, NULL, R);
 }
 
-url_host_type ParseIPv4Host(url_host* host, const char* input, size_t length) {
-  url_host_type type = HOST_TYPE_DOMAIN;
+void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
+  CHECK_EQ(type_, HostType::H_FAILED);
+  *is_ipv4 = false;
   const char* pointer = input;
   const char* mark = input;
   const char* end = pointer + length;
@@ -764,19 +806,19 @@ url_host_type ParseIPv4Host(url_host* host, const char* input, size_t length) {
   uint64_t numbers[4];
   int tooBigNumbers = 0;
   if (length == 0)
-    goto end;
+    return;
 
   while (pointer <= end) {
     const char ch = pointer < end ? pointer[0] : kEOL;
     const int remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
       if (++parts > 4)
-        goto end;
+        return;
       if (pointer == mark)
-        goto end;
+        return;
       int64_t n = ParseNumber(mark, pointer);
       if (n < 0)
-        goto end;
+        return;
 
       if (n > 255) {
         tooBigNumbers++;
@@ -789,6 +831,7 @@ url_host_type ParseIPv4Host(url_host* host, const char* input, size_t length) {
     pointer++;
   }
   CHECK_GT(parts, 0);
+  *is_ipv4 = true;
 
   // If any but the last item in numbers is greater than 255, return failure.
   // If the last item in numbers is greater than or equal to
@@ -796,97 +839,81 @@ url_host_type ParseIPv4Host(url_host* host, const char* input, size_t length) {
   if (tooBigNumbers > 1 ||
       (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
       numbers[parts - 1] >= pow(256, static_cast<double>(5 - parts))) {
-    type = HOST_TYPE_FAILED;
-    goto end;
+    return;
   }
 
-  type = HOST_TYPE_IPV4;
+  type_ = HostType::H_IPV4;
   val = numbers[parts - 1];
   for (int n = 0; n < parts - 1; n++) {
     double b = 3 - n;
     val += numbers[n] * pow(256, b);
   }
 
-  host->value.ipv4 = val;
- end:
-  host->type = type;
-  return type;
+  value_.ipv4 = val;
 }
 
-url_host_type ParseOpaqueHost(url_host* host,
-                              const char* input,
-                              size_t length) {
-  url_host_type type = HOST_TYPE_OPAQUE;
+void URLHost::ParseOpaqueHost(const char* input, size_t length) {
+  CHECK_EQ(type_, HostType::H_FAILED);
   std::string output;
   output.reserve(length * 3);
   for (size_t i = 0; i < length; i++) {
     const char ch = input[i];
     if (ch != '%' && IsForbiddenHostCodePoint(ch)) {
-      type = HOST_TYPE_FAILED;
-      goto end;
+      return;
     } else {
       AppendOrEscape(&output, ch, C0_CONTROL_ENCODE_SET);
     }
   }
 
-  host->value.opaque = output;
- end:
-  host->type = type;
-  return type;
+  SetOpaque(std::move(output));
 }
 
-url_host_type ParseHost(url_host* host,
-                        const char* input,
+void URLHost::ParseHost(const char* input,
                         size_t length,
                         bool is_special,
-                        bool unicode = false) {
-  url_host_type type = HOST_TYPE_FAILED;
+                        bool unicode) {
+  CHECK_EQ(type_, HostType::H_FAILED);
   const char* pointer = input;
-  std::string decoded;
 
   if (length == 0)
-    goto end;
+    return;
 
   if (pointer[0] == '[') {
     if (pointer[length - 1] != ']')
-      goto end;
-    return ParseIPv6Host(host, ++pointer, length - 2);
+      return;
+    return ParseIPv6Host(++pointer, length - 2);
   }
 
   if (!is_special)
-    return ParseOpaqueHost(host, input, length);
+    return ParseOpaqueHost(input, length);
 
   // First, we have to percent decode
-  decoded = PercentDecode(input, length);
+  std::string decoded = PercentDecode(input, length);
 
   // Then we have to punycode toASCII
   if (!ToASCII(decoded, &decoded))
-    goto end;
+    return;
 
   // If any of the following characters are still present, we have to fail
   for (size_t n = 0; n < decoded.size(); n++) {
     const char ch = decoded[n];
     if (IsForbiddenHostCodePoint(ch)) {
-      goto end;
+      return;
     }
   }
 
   // Check to see if it's an IPv4 IP address
-  type = ParseIPv4Host(host, decoded.c_str(), decoded.length());
-  if (type == HOST_TYPE_IPV4 || type == HOST_TYPE_FAILED)
-    goto end;
+  bool is_ipv4;
+  ParseIPv4Host(decoded.c_str(), decoded.length(), &is_ipv4);
+  if (is_ipv4)
+    return;
 
   // If the unicode flag is set, run the result through punycode ToUnicode
   if (unicode && !ToUnicode(decoded, &decoded))
-    goto end;
+    return;
 
   // It's not an IPv4 or IPv6 address, it must be a domain
-  type = HOST_TYPE_DOMAIN;
-  host->value.domain = decoded;
-
- end:
-  host->type = type;
-  return type;
+  SetDomain(std::move(decoded));
 }
 
 // Locates the longest sequence of 0 segments in an IPv6 address
@@ -920,59 +947,59 @@ inline T* FindLongestZeroSequence(T* values, size_t len) {
   return result;
 }
 
-url_host_type WriteHost(const url_host* host, std::string* dest) {
-  dest->clear();
-  switch (host->type) {
-    case HOST_TYPE_DOMAIN:
-      *dest = host->value.domain;
+std::string URLHost::ToString() const {
+  std::string dest;
+  switch (type_) {
+    case HostType::H_DOMAIN:
+      return value_.domain;
       break;
-    case HOST_TYPE_IPV4: {
-      dest->reserve(15);
-      uint32_t value = host->value.ipv4;
+    case HostType::H_OPAQUE:
+      return value_.opaque;
+      break;
+    case HostType::H_IPV4: {
+      dest.reserve(15);
+      uint32_t value = value_.ipv4;
       for (int n = 0; n < 4; n++) {
         char buf[4];
         snprintf(buf, sizeof(buf), "%d", value % 256);
-        dest->insert(0, buf);
+        dest.insert(0, buf);
         if (n < 3)
-          dest->insert(0, 1, '.');
+          dest.insert(0, 1, '.');
         value /= 256;
       }
       break;
     }
-    case HOST_TYPE_IPV6: {
-      dest->reserve(41);
-      *dest+= '[';
-      const uint16_t* start = &host->value.ipv6[0];
+    case HostType::H_IPV6: {
+      dest.reserve(41);
+      dest += '[';
+      const uint16_t* start = &value_.ipv6[0];
       const uint16_t* compress_pointer =
           FindLongestZeroSequence(start, 8);
       bool ignore0 = false;
       for (int n = 0; n <= 7; n++) {
-        const uint16_t* piece = &host->value.ipv6[n];
+        const uint16_t* piece = &value_.ipv6[n];
         if (ignore0 && *piece == 0)
           continue;
         else if (ignore0)
           ignore0 = false;
         if (compress_pointer == piece) {
-          *dest += n == 0 ? "::" : ":";
+          dest += n == 0 ? "::" : ":";
           ignore0 = true;
           continue;
         }
         char buf[5];
         snprintf(buf, sizeof(buf), "%x", *piece);
-        *dest += buf;
+        dest += buf;
         if (n < 7)
-          *dest += ':';
+          dest += ':';
       }
-      *dest += ']';
+      dest += ']';
       break;
     }
-    case HOST_TYPE_OPAQUE:
-      *dest = host->value.opaque;
-      break;
-    case HOST_TYPE_FAILED:
+    case HostType::H_FAILED:
       break;
   }
-  return host->type;
+  return dest;
 }
 
 bool ParseHost(const std::string& input,
@@ -983,11 +1010,11 @@ bool ParseHost(const std::string& input,
     output->clear();
     return true;
   }
-  url_host host{{""}, HOST_TYPE_DOMAIN};
-  ParseHost(&host, input.c_str(), input.length(), is_special, unicode);
-  if (host.type == HOST_TYPE_FAILED)
+  URLHost host;
+  host.ParseHost(input.c_str(), input.length(), is_special, unicode);
+  if (host.ParsingFailed())
     return false;
-  WriteHost(&host, output);
+  *output = host.ToString();
   return true;
 }
 
@@ -2043,15 +2070,14 @@ static void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value value(env->isolate(), args[0]);
 
-  url_host host{{""}, HOST_TYPE_DOMAIN};
+  URLHost host;
   // Assuming the host is used for a special scheme.
-  ParseHost(&host, *value, value.length(), true);
-  if (host.type == HOST_TYPE_FAILED) {
+  host.ParseHost(*value, value.length(), true);
+  if (host.ParsingFailed()) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
     return;
   }
-  std::string out;
-  WriteHost(&host, &out);
+  std::string out = host.ToString();
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           out.c_str(),
@@ -2064,15 +2090,14 @@ static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value value(env->isolate(), args[0]);
 
-  url_host host{{""}, HOST_TYPE_DOMAIN};
+  URLHost host;
   // Assuming the host is used for a special scheme.
-  ParseHost(&host, *value, value.length(), true, true);
-  if (host.type == HOST_TYPE_FAILED) {
+  host.ParseHost(*value, value.length(), true, true);
+  if (host.ParsingFailed()) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(env->isolate(), ""));
     return;
   }
-  std::string out;
-  WriteHost(&host, &out);
+  std::string out = host.ToString();
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
                           out.c_str(),
