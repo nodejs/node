@@ -1713,10 +1713,6 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0, int32_t arg1,
                                         int32_t arg6, int32_t arg7,
                                         int32_t arg8);
 
-typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int32_t arg0, int32_t arg1,
-                                                   int32_t arg2, int32_t arg3,
-                                                   int32_t arg4);
-
 // These prototypes handle the four types of FP calls.
 typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
 typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
@@ -1907,34 +1903,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
                 external);
         target(arg0, arg1, Redirection::ReverseRedirection(arg2));
-      } else if (redirection->type() ==
-                 ExternalReference::BUILTIN_CALL_TRIPLE) {
-        // builtin call returning ObjectTriple.
-        SimulatorRuntimeTripleCall target =
-            reinterpret_cast<SimulatorRuntimeTripleCall>(external);
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
-          PrintF(
-              "Call to host triple returning runtime function %p "
-              "args %08x, %08x, %08x, %08x, %08x",
-              static_cast<void*>(FUNCTION_ADDR(target)), arg1, arg2, arg3, arg4,
-              arg5);
-          if (!stack_aligned) {
-            PrintF(" with unaligned stack %08x\n", get_register(sp));
-          }
-          PrintF("\n");
-        }
-        CHECK(stack_aligned);
-        // arg0 is a hidden argument pointing to the return location, so don't
-        // pass it to the target function.
-        ObjectTriple result = target(arg1, arg2, arg3, arg4, arg5);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned { %p, %p, %p }\n", static_cast<void*>(result.x),
-                 static_cast<void*>(result.y), static_cast<void*>(result.z));
-        }
-        // Return is passed back in address pointed to by hidden first argument.
-        ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(arg0);
-        *sim_result = result;
-        set_register(r0, arg0);
       } else {
         // builtin call.
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
@@ -2208,6 +2176,8 @@ void Simulator::DecodeType01(Instruction* instr) {
             int rd = instr->RdValue();
             int rt = instr->RmValue();
             int rn = instr->RnValue();
+            DCHECK_NE(rd, rn);
+            DCHECK_NE(rd, rt);
             int32_t addr = get_register(rn);
             switch (instr->Bits(22, 21)) {
               case 0: {

@@ -17,6 +17,7 @@ namespace internal {
 
 #define VISITOR_ID_LIST(V) \
   V(AllocationSite)        \
+  V(BigInt)                \
   V(ByteArray)             \
   V(BytecodeArray)         \
   V(Cell)                  \
@@ -76,6 +77,82 @@ typedef std::vector<Handle<Map>> MapHandles;
 //  A Map contains information about:
 //  - Size information about the object
 //  - How to iterate over an object (for garbage collection)
+//
+// Map layout:
+// +---------------+---------------------------------------------+
+// |   _ Type _    | _ Description _                             |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | map - Always a pointer to the MetaMap root  |
+// +---------------+---------------------------------------------+
+// | Int           | instance_sizes (the first int field)        |
+//  `---+----------+---------------------------------------------+
+//      | Byte     | [instance_size]                             |
+//      +----------+---------------------------------------------+
+//      | Byte     | If Map for a primitive type:                |
+//      |          |   native context index for constructor fn   |
+//      |          | If Map for an Object type:                  |
+//      |          |   number of in-object properties            |
+//      +----------+---------------------------------------------+
+//      | Byte     | unused                                      |
+//      +----------+---------------------------------------------+
+//      | Byte     | [visitor_id]                                |
+// +----+----------+---------------------------------------------+
+// | Int           | instance_attributes (second int field)      |
+//  `---+----------+---------------------------------------------+
+//      | Word16   | [instance_type] in low byte                 |
+//      |          | [bit_field] in high byte                    |
+//      |          |   - has_non_instance_prototype (bit 0)      |
+//      |          |   - is_callable (bit 1)                     |
+//      |          |   - has_named_interceptor (bit 2)           |
+//      |          |   - has_indexed_interceptor (bit 3)         |
+//      |          |   - is_undetectable (bit 4)                 |
+//      |          |   - is_access_check_needed (bit 5)          |
+//      |          |   - is_constructor (bit 6)                  |
+//      |          |   - unused (bit 7)                          |
+//      +----------+---------------------------------------------+
+//      | Byte     | [bit_field2]                                |
+//      |          |   - is_extensible (bit 0)                   |
+//      |          |   - is_prototype_map (bit 2)                |
+//      |          |   - elements_kind (bits 3..7)               |
+//      +----------+---------------------------------------------+
+//      | Byte     | [unused_property_fields] number of unused   |
+//      |          | property fields in JSObject (for fast-mode) |
+// +----+----------+---------------------------------------------+
+// | Word          | [bit_field3]                                |
+// |               |   - number_of_own_descriptors (bit 0..19)   |
+// |               |   - is_dictionary_map (bit 20)              |
+// |               |   - owns_descriptors (bit 21)               |
+// |               |   - has_hidden_prototype (bit 22)           |
+// |               |   - is_deprecated (bit 23)                  |
+// |               |   - is_unstable (bit 24)                    |
+// |               |   - is_migration_target (bit 25)            |
+// |               |   - is_immutable_proto (bit 26)             |
+// |               |   - new_target_is_base (bit 27)             |
+// |               |   - may_have_interesting_symbols (bit 28)   |
+// |               |   - construction_counter (bit 29..31)       |
+// |               |                                             |
+// |               | On systems with 64bit pointer types, there  |
+// |               | is an unused 32bits after bit_field3        |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [prototype]                                 |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [constructor_or_backpointer]                |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | If Map is a prototype map:                  |
+// |               |   [prototype_info]                          |
+// |               | Else:                                       |
+// |               |   [raw_transitions]                         |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [instance_descriptors]                      |
+// +*************************************************************+
+// ! TaggedPointer ! [layout_descriptors]                        !
+// !               ! Field is only present on 64 bit arch        !
+// +*************************************************************+
+// | TaggedPointer | [dependent_code]                            |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [weak_cell_cache]                           |
+// +---------------+---------------------------------------------+
+
 class Map : public HeapObject {
  public:
   // Instance size.
@@ -329,6 +406,8 @@ class Map : public HeapObject {
 
   int NumberOfFields() const;
 
+  bool HasOutOfObjectProperties() const;
+
   // Returns true if transition to the given map requires special
   // synchronization with the concurrent marker.
   bool TransitionRequiresSynchronizationWithGC(Map* target) const;
@@ -358,6 +437,18 @@ class Map : public HeapObject {
   static inline bool IsInplaceGeneralizableField(PropertyConstness constness,
                                                  Representation representation,
                                                  FieldType* field_type);
+
+  // Generalizes constness, representation and field_type if objects with given
+  // instance type can have fast elements that can be transitioned by stubs or
+  // optimized code to more general elements kind.
+  // This generalization is necessary in order to ensure that elements kind
+  // transitions performed by stubs / optimized code don't silently transition
+  // kMutable fields back to kConst state or fields with HeapObject
+  // representation and "Any" type back to "Class" type.
+  static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
+      Isolate* isolate, InstanceType instance_type,
+      PropertyConstness* constness, Representation* representation,
+      Handle<FieldType>* field_type);
 
   static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
                                          PropertyKind new_kind,
@@ -429,9 +520,6 @@ class Map : public HeapObject {
                                 LayoutDescriptor* layout_descriptor);
   inline void InitializeDescriptors(DescriptorArray* descriptors,
                                     LayoutDescriptor* layout_descriptor);
-
-  // [stub cache]: contains stubs compiled for this map.
-  DECL_ACCESSORS(code_cache, FixedArray)
 
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
@@ -561,15 +649,6 @@ class Map : public HeapObject {
 
   DECL_CAST(Map)
 
-  // Code cache operations.
-
-  // Clears the code cache.
-  inline void ClearCodeCache(Heap* heap);
-
-  // Update code cache.
-  static void UpdateCodeCache(Handle<Map> map, Handle<Name> name,
-                              Handle<Code> code);
-
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
   static void AppendCallbackDescriptors(Handle<Map> map,
@@ -578,8 +657,6 @@ class Map : public HeapObject {
   static inline int SlackForArraySize(int old_size, int size_limit);
 
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
-
-  Code* LookupInCodeCache(Name* name, Code::Flags code);
 
   static Handle<Map> GetObjectCreateMap(Handle<HeapObject> prototype);
 
@@ -652,12 +729,12 @@ class Map : public HeapObject {
       kTransitionsOrPrototypeInfoOffset + kPointerSize;
 #if V8_DOUBLE_FIELDS_UNBOXING
   static const int kLayoutDescriptorOffset = kDescriptorsOffset + kPointerSize;
-  static const int kCodeCacheOffset = kLayoutDescriptorOffset + kPointerSize;
+  static const int kDependentCodeOffset =
+      kLayoutDescriptorOffset + kPointerSize;
 #else
   static const int kLayoutDescriptorOffset = 1;  // Must not be ever accessed.
-  static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
+  static const int kDependentCodeOffset = kDescriptorsOffset + kPointerSize;
 #endif
-  static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
   static const int kWeakCellCacheOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakCellCacheOffset + kPointerSize;
 
@@ -759,6 +836,16 @@ class Map : public HeapObject {
   inline void NotifyLeafMapLayoutChange();
 
   static VisitorId GetVisitorId(Map* map);
+
+  // Returns true if objects with given instance type are allowed to have
+  // fast transitionable elements kinds. This predicate is used to ensure
+  // that objects that can have transitionable fast elements kind will not
+  // get in-place generalizable fields because the elements kind transition
+  // performed by stubs or optimized code can't properly generalize such
+  // fields.
+  static inline bool CanHaveFastTransitionableElementsKind(
+      InstanceType instance_type);
+  inline bool CanHaveFastTransitionableElementsKind() const;
 
  private:
   // Returns the map that this (root) map transitions to if its elements_kind

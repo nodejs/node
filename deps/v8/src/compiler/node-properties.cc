@@ -12,7 +12,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
 #include "src/handles-inl.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -454,6 +453,20 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
     DCHECK_EQ(1, effect->op()->EffectInputCount());
     effect = NodeProperties::GetEffectInput(effect);
   }
+}
+
+// static
+bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
+                                                   Node* dominator) {
+  while (effect != dominator) {
+    if (effect->op()->EffectInputCount() == 1 &&
+        effect->op()->properties() & Operator::kNoWrite) {
+      effect = NodeProperties::GetEffectInput(effect);
+    } else {
+      return false;
+    }
+  }
+  return true;
 }
 
 // static

@@ -28,15 +28,13 @@ void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                 StoreWithVectorDescriptor::kVector);
   STATIC_ASSERT(StoreTransitionDescriptor::kSlot <
                 StoreTransitionDescriptor::kVector);
-  __ Push(slot);
-  __ Push(vector);
+  __ Push(slot, vector);
 }
 
 
 void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
   MacroAssembler* masm = this->masm();
-  __ Pop(vector);
-  __ Pop(slot);
+  __ Pop(vector, slot);
 }
 
 
@@ -64,8 +62,8 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   Register map = scratch1;
   __ Ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Ldrb(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ Tst(scratch0, kInterceptorOrAccessCheckNeededMask);
-  __ B(ne, miss_label);
+  __ TestAndBranchIfAnySet(scratch0, kInterceptorOrAccessCheckNeededMask,
+                           miss_label);
 
   // Check that receiver is a JSObject.
   __ Ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
@@ -193,10 +191,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save context register
-    __ Push(cp);
-    // Save value register, so we can restore it later.
-    __ Push(value());
+    // Save context and value registers, so we can restore them later.
+    __ Push(cp, value());
 
     if (accessor_index >= 0) {
       DCHECK(!AreAliased(holder, scratch));
@@ -222,10 +218,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     }
 
     // We have to return the passed value, not the return value of the setter.
-    __ Pop(x0);
-
-    // Restore context register.
-    __ Pop(cp);
+    // Also, restore the context register.
+    __ Pop(x0, cp);
   }
   __ Ret();
 }
@@ -282,7 +276,7 @@ void PropertyHandlerCompiler::GenerateAccessCheck(
   }
   __ B(ne, miss);
 
-  __ bind(&done);
+  __ Bind(&done);
 }
 
 Register PropertyHandlerCompiler::CheckPrototypes(
@@ -369,9 +363,8 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     __ B(&success);
 
     __ Bind(miss);
-    DCHECK(kind() == Code::LOAD_IC);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kLoadIC_Miss);
 
     __ Bind(&success);
   }
@@ -385,7 +378,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 
     GenerateRestoreName(miss, name);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kStoreIC_Miss);
 
     __ Bind(&success);
   }
@@ -416,14 +409,18 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     __ Mov(scratch1(), Operand(cell));
   }
   __ Mov(scratch2(), Operand(name));
-  __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
-  __ Push(Smi::FromInt(language_mode));
+  {
+    UseScratchRegisterScope temps(this->masm());
+    Register temp = temps.AcquireX();
+    __ Mov(temp, Smi::FromInt(language_mode));
+    __ Push(receiver(), holder_reg, scratch1(), scratch2(), value(), temp);
+  }
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 
@@ -431,4 +428,4 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_ARM64

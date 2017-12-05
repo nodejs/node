@@ -13,6 +13,13 @@
 namespace v8 {
 namespace internal {
 
+TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
+  Node* value = Parameter(Descriptor::kReceiver);
+  Node* string = LoadJSValueValue(value);
+  Node* result = LoadStringLength(string);
+  Return(result);
+}
+
 TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* index = Parameter(Descriptor::kName);
@@ -56,22 +63,12 @@ TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
 
 void Builtins::Generate_KeyedStoreIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericGenerator::Generate(state, SLOPPY);
-}
-
-void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
-    compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericGenerator::Generate(state, STRICT);
+  KeyedStoreGenericGenerator::Generate(state);
 }
 
 void Builtins::Generate_StoreIC_Uninitialized(
     compiler::CodeAssemblerState* state) {
-  StoreICUninitializedGenerator::Generate(state, SLOPPY);
-}
-
-void Builtins::Generate_StoreICStrict_Uninitialized(
-    compiler::CodeAssemblerState* state) {
-  StoreICUninitializedGenerator::Generate(state, STRICT);
+  StoreICUninitializedGenerator::Generate(state);
 }
 
 TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {

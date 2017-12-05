@@ -28,16 +28,14 @@ namespace internal {
     "Insufficient type feedback for construct")                                \
   V(FastPathFailed, "Falling off the fast path")                               \
   V(InsufficientTypeFeedbackForForIn, "Insufficient type feedback for for-in") \
-  V(InsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                  \
-    "Insufficient type feedback for combined type of binary operation")        \
+  V(InsufficientTypeFeedbackForBinaryOperation,                                \
+    "Insufficient type feedback for binary operation")                         \
+  V(InsufficientTypeFeedbackForCompareOperation,                               \
+    "Insufficient type feedback for compare operation")                        \
   V(InsufficientTypeFeedbackForGenericNamedAccess,                             \
     "Insufficient type feedback for generic named access")                     \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
-  V(InsufficientTypeFeedbackForLHSOfBinaryOperation,                           \
-    "Insufficient type feedback for LHS of binary operation")                  \
-  V(InsufficientTypeFeedbackForRHSOfBinaryOperation,                           \
-    "Insufficient type feedback for RHS of binary operation")                  \
   V(KeyIsNegative, "key is negative")                                          \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
@@ -68,7 +66,6 @@ namespace internal {
   V(UnexpectedCellContentsInGlobalStore,                                       \
     "Unexpected cell contents in global store")                                \
   V(UnexpectedObject, "unexpected object")                                     \
-  V(UnexpectedRHSOfBinaryOperation, "Unexpected RHS of binary operation")      \
   V(UnknownMapInPolymorphicAccess, "Unknown map in polymorphic access")        \
   V(UnknownMapInPolymorphicCall, "Unknown map in polymorphic call")            \
   V(UnknownMapInPolymorphicElementAccess,                                      \

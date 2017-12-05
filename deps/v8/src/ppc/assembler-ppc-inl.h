@@ -254,47 +254,7 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) {
-  rm_ = no_reg;
-  value_.immediate = immediate;
-  rmode_ = rmode;
-}
-
-Operand::Operand(const ExternalReference& f) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
-  value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = kRelocInfo_NONEPTR;
-}
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-  rmode_ = kRelocInfo_NONEPTR;  // PPC -why doesn't ARM do this?
-}
-
-void Assembler::CheckBuffer() {
-  if (buffer_space() <= kGap) {
-    GrowBuffer();
-  }
-}
-
-void Assembler::TrackBranch() {
-  DCHECK(!trampoline_emitted_);
-  int count = tracked_branch_count_++;
-  if (count == 0) {
-    // We leave space (kMaxBlockTrampolineSectionSize)
-    // for BlockTrampolinePoolScope buffer.
-    next_trampoline_check_ =
-        pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
-  } else {
-    next_trampoline_check_ -= kTrampolineSlotsSize;
-  }
-}
+Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
 
 void Assembler::UntrackBranch() {
   DCHECK(!trampoline_emitted_);
@@ -307,22 +267,6 @@ void Assembler::UntrackBranch() {
     next_trampoline_check_ += kTrampolineSlotsSize;
   }
 }
-
-void Assembler::CheckTrampolinePoolQuick() {
-  if (pc_offset() >= next_trampoline_check_) {
-    CheckTrampolinePool();
-  }
-}
-
-void Assembler::emit(Instr x) {
-  CheckBuffer();
-  *reinterpret_cast<Instr*>(pc_) = x;
-  pc_ += kInstrSize;
-  CheckTrampolinePoolQuick();
-}
-
-bool Operand::is_reg() const { return rm_.is_valid(); }
-
 
 // Fetch the 32bit value from the FIXED_SEQUENCE lis/ori
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
@@ -374,7 +318,7 @@ bool Assembler::IsConstantPoolLoadStart(Address pc,
                                         ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
   uint32_t opcode = instr & kOpcodeMask;
-  if (!GetRA(instr).is(kConstantPoolRegister)) return false;
+  if (GetRA(instr) != kConstantPoolRegister) return false;
   bool overflowed = (opcode == ADDIS);
 #ifdef DEBUG
   if (overflowed) {
@@ -396,10 +340,10 @@ bool Assembler::IsConstantPoolLoadEnd(Address pc,
   uint32_t opcode = instr & kOpcodeMask;
   bool overflowed = false;
   if (!(opcode == kLoadIntptrOpcode || opcode == LFD)) return false;
-  if (!GetRA(instr).is(kConstantPoolRegister)) {
+  if (GetRA(instr) != kConstantPoolRegister) {
     instr = instr_at(pc - kInstrSize);
     opcode = instr & kOpcodeMask;
-    if ((opcode != ADDIS) || !GetRA(instr).is(kConstantPoolRegister)) {
+    if ((opcode != ADDIS) || GetRA(instr) != kConstantPoolRegister) {
       return false;
     }
     overflowed = true;

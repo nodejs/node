@@ -10,7 +10,7 @@ function benchy(name, test, testSetup) {
 }
 
 benchy('SmiJoin', SmiJoin, SmiJoinSetup);
-benchy('SmiJoin', SmiJoin, SmiJoinSetup);
+benchy('StringJoin', StringJoin, StringJoinSetup);
 benchy('SparseSmiJoin', SparseSmiJoin, SparseSmiJoinSetup);
 benchy('SparseStringJoin', SparseStringJoin, SparseStringJoinSetup);
 

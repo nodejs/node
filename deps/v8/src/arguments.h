@@ -107,8 +107,6 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
     RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
-#define RUNTIME_FUNCTION_RETURN_TRIPLE(Name) \
-    RUNTIME_FUNCTION_RETURNS_TYPE(ObjectTriple, Name)
 
 }  // namespace internal
 }  // namespace v8

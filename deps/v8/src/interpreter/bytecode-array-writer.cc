@@ -153,6 +153,7 @@ void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
     case Bytecode::kReturn:
     case Bytecode::kThrow:
     case Bytecode::kReThrow:
+    case Bytecode::kAbort:
     case Bytecode::kJump:
     case Bytecode::kJumpConstant:
       exit_seen_in_block_ = true;

@@ -387,7 +387,10 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 
     return param_data;
   } else {
-    it.AdvanceToArgumentsFrame();
+    if (it.frame()->has_adapted_arguments()) {
+      it.AdvanceOneFrame();
+      DCHECK(it.frame()->is_arguments_adaptor());
+    }
     frame = it.frame();
     int args_count = frame->ComputeParametersCount();
 
@@ -607,15 +610,20 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   Object** frame = reinterpret_cast<Object**>(args[0]);
   CONVERT_SMI_ARG_CHECKED(length, 1);
+  CONVERT_SMI_ARG_CHECKED(mapped_count, 2);
   Handle<FixedArray> result =
       isolate->factory()->NewUninitializedFixedArray(length);
   int const offset = length + 1;
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  for (int index = 0; index < length; ++index) {
+  int number_of_holes = Min(mapped_count, length);
+  for (int index = 0; index < number_of_holes; ++index) {
+    result->set_the_hole(isolate, index);
+  }
+  for (int index = number_of_holes; index < length; ++index) {
     result->set(index, frame[offset - index], mode);
   }
   return *result;

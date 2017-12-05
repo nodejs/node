@@ -14,16 +14,11 @@ void WriteToFile(FILE* file, Isolate* isolate,
     HandleScope handle_scope(isolate);
     if (i != 0) fprintf(file, " ");
 
-    // Explicitly catch potential exceptions in toString().
-    v8::TryCatch try_catch(isolate);
     Local<Value> arg = args[i];
     Local<String> str_obj;
 
     if (arg->IsSymbol()) arg = Local<Symbol>::Cast(arg)->Name();
-    if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) {
-      Shell::ReportException(isolate, &try_catch);
-      return;
-    }
+    if (!arg->ToString(isolate->GetCurrentContext()).ToLocal(&str_obj)) return;
 
     v8::String::Utf8Value str(isolate, str_obj);
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
@@ -73,10 +68,7 @@ void D8Console::Time(const debug::ConsoleCallArguments& args,
     Local<Value> arg = args[0];
     Local<String> label;
     v8::TryCatch try_catch(isolate_);
-    if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) {
-      Shell::ReportException(isolate_, &try_catch);
-      return;
-    }
+    if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) return;
     v8::String::Utf8Value utf8(isolate_, label);
     std::string string(*utf8);
     auto find = timers_.find(string);
@@ -100,10 +92,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
     Local<Value> arg = args[0];
     Local<String> label;
     v8::TryCatch try_catch(isolate_);
-    if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) {
-      Shell::ReportException(isolate_, &try_catch);
-      return;
-    }
+    if (!arg->ToString(isolate_->GetCurrentContext()).ToLocal(&label)) return;
     v8::String::Utf8Value utf8(isolate_, label);
     std::string string(*utf8);
     auto find = timers_.find(string);

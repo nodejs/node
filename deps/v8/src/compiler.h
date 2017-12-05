@@ -107,13 +107,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       ParseRestriction restriction, int parameters_end_pos);
 
   // Create a shared function info object for a String source within a context.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
-      Handle<String> source, Handle<Object> script_name, int line_offset,
-      int column_offset, ScriptOriginOptions resource_options,
-      Handle<Object> source_map_url, Handle<Context> context,
+  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
+      Handle<String> source, MaybeHandle<Object> maybe_script_name,
+      int line_offset, int column_offset, ScriptOriginOptions resource_options,
+      MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code, Handle<FixedArray> host_defined_options);
+      NativesFlag is_natives_code,
+      MaybeHandle<FixedArray> maybe_host_defined_options);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.

@@ -35,6 +35,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_bignum {
 
 static const int kBufferSize = 1024;
 
@@ -1541,5 +1542,6 @@ TEST(AssignPowerUInt16) {
                   buffer));
 }
 
+}  // namespace test_bignum
 }  // namespace internal
 }  // namespace v8

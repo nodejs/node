@@ -406,8 +406,8 @@ class QuickCheckDetails {
   int characters() { return characters_; }
   void set_characters(int characters) { characters_ = characters; }
   Position* positions(int index) {
-    DCHECK(index >= 0);
-    DCHECK(index < characters_);
+    DCHECK_LE(0, index);
+    DCHECK_GT(characters_, index);
     return positions_ + index;
   }
   uint32_t mask() { return mask_; }

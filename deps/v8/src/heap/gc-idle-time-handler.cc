@@ -47,7 +47,7 @@ void GCIdleTimeHeapState::Print() {
 
 size_t GCIdleTimeHandler::EstimateMarkingStepSize(
     double idle_time_in_ms, double marking_speed_in_bytes_per_ms) {
-  DCHECK(idle_time_in_ms > 0);
+  DCHECK_LT(0, idle_time_in_ms);
 
   if (marking_speed_in_bytes_per_ms == 0) {
     marking_speed_in_bytes_per_ms = kInitialConservativeMarkingSpeed;

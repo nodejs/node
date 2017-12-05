@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace js_operator_unittest {
 
 // -----------------------------------------------------------------------------
 // Shared operators.
@@ -112,6 +113,7 @@ TEST_P(JSSharedOperatorTest, Properties) {
 INSTANTIATE_TEST_CASE_P(JSOperatorTest, JSSharedOperatorTest,
                         ::testing::ValuesIn(kSharedOperators));
 
+}  // namespace js_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

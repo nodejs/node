@@ -55,7 +55,7 @@ class Pipeline : public AllStatic {
   static Handle<Code> GenerateCodeForCodeStub(Isolate* isolate,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph, Schedule* schedule,
-                                              Code::Flags flags,
+                                              Code::Kind kind,
                                               const char* debug_name,
                                               JumpOptimizationInfo* jump_opt);
 

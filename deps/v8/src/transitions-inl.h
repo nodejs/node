@@ -18,10 +18,8 @@ WeakCell* TransitionsAccessor::GetTargetCell() {
   if (target_cell_ != nullptr) return target_cell_;
   if (enc == kWeakCell) {
     target_cell_ = WeakCell::cast(raw_transitions_);
-  } else if (enc == kTuple3Handler) {
-    target_cell_ = StoreHandler::GetTuple3TransitionCell(raw_transitions_);
-  } else if (enc == kFixedArrayHandler) {
-    target_cell_ = StoreHandler::GetArrayTransitionCell(raw_transitions_);
+  } else if (enc == kHandler) {
+    target_cell_ = StoreHandler::GetTransitionCell(raw_transitions_);
   } else {
     UNREACHABLE();
   }
@@ -84,11 +82,8 @@ Name* TransitionsAccessor::GetKey(int transition_number) {
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
     case kFullTransitionArray:
       return transitions()->GetKey(transition_number);
@@ -119,13 +114,8 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 
 // static
 Map* TransitionsAccessor::GetTargetFromRaw(Object* raw) {
-  if (raw->IsMap()) return Map::cast(raw);
-  if (raw->IsTuple3()) {
-    return Map::cast(StoreHandler::GetTuple3TransitionCell(raw)->value());
-  } else {
-    DCHECK(raw->IsFixedArray());
-    return Map::cast(StoreHandler::GetArrayTransitionCell(raw)->value());
-  }
+  if (raw->IsWeakCell()) return Map::cast(WeakCell::cast(raw)->value());
+  return Map::cast(StoreHandler::GetTransitionCell(raw)->value());
 }
 
 Object* TransitionArray::GetRawTarget(int transition_number) {
@@ -148,11 +138,8 @@ Map* TransitionsAccessor::GetTarget(int transition_number) {
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
     case kFullTransitionArray:
       return transitions()->GetTarget(transition_number);
@@ -162,6 +149,7 @@ Map* TransitionsAccessor::GetTarget(int transition_number) {
 }
 
 void TransitionArray::SetTarget(int transition_number, Object* value) {
+  DCHECK(!value->IsMap());
   DCHECK(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }

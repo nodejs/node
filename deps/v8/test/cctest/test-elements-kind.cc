@@ -18,6 +18,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_elements_kind {
 
 //
 // Helper functions.
@@ -479,5 +480,6 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
   CHECK_EQ(array->map(), *previous_map);
 }
 
+}  // namespace test_elements_kind
 }  // namespace internal
 }  // namespace v8

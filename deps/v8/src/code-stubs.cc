@@ -28,11 +28,6 @@ namespace internal {
 
 using compiler::CodeAssemblerState;
 
-RUNTIME_FUNCTION(UnexpectedStubMiss) {
-  FATAL("Unexpected deopt of a stub");
-  return Smi::kZero;
-}
-
 CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
     : isolate_(stub->isolate()),
       call_descriptor_(stub->GetCallInterfaceDescriptor()),
@@ -100,23 +95,6 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
 }
 
 
-Code::Kind CodeStub::GetCodeKind() const {
-  return Code::STUB;
-}
-
-
-Code::Flags CodeStub::GetCodeFlags() const {
-  return Code::ComputeFlags(GetCodeKind(), GetExtraICState());
-}
-
-Handle<Code> CodeStub::GetCodeCopy(const FindAndReplacePattern& pattern) {
-  Handle<Code> ic = GetCode();
-  ic = isolate()->factory()->CopyCode(ic);
-  ic->FindAndReplace(pattern);
-  RecordCodeGeneration(ic);
-  return ic;
-}
-
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
   Handle<UnseededNumberDictionary> dict(heap->code_stubs());
@@ -147,9 +125,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(GetCodeKind(), GetExtraICState());
   Handle<Code> new_object = factory->NewCode(
-      desc, flags, masm.CodeObject(), NeedsImmovableCode());
+      desc, Code::STUB, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
 }
 
@@ -157,10 +134,9 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
   Code* code;
-  if (UseSpecialCache() ? FindCodeInSpecialCache(&code)
-                        : FindCodeInCache(&code)) {
-    DCHECK(GetCodeKind() == code->kind());
-    return Handle<Code>(code);
+  if (FindCodeInCache(&code)) {
+    DCHECK(code->is_stub());
+    return handle(code);
   }
 
   {
@@ -185,14 +161,10 @@ Handle<Code> CodeStub::GetCode() {
     }
 #endif
 
-    if (UseSpecialCache()) {
-      AddToSpecialCache(new_object);
-    } else {
-      // Update the dictionary and the root in Heap.
-      Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
-          handle(heap->code_stubs()), GetKey(), new_object);
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Update the dictionary and the root in Heap.
+    Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
+        handle(heap->code_stubs()), GetKey(), new_object);
+    heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }
 
@@ -202,6 +174,9 @@ Handle<Code> CodeStub::GetCode() {
   return Handle<Code>(code, isolate());
 }
 
+CodeStub::Major CodeStub::GetMajorKey(Code* code_stub) {
+  return MajorKeyFromKey(code_stub->stub_key());
+}
 
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
@@ -266,8 +241,7 @@ void CodeStub::InitializeDescriptor(Isolate* isolate, uint32_t key,
 
 void CodeStub::GetCodeDispatchCall(CodeStub* stub, void** value_out) {
   Handle<Code>* code_out = reinterpret_cast<Handle<Code>*>(value_out);
-  // Code stubs with special cache cannot be recreated from stub key.
-  *code_out = stub->UseSpecialCache() ? Handle<Code>() : stub->GetCode();
+  *code_out = stub->GetCode();
 }
 
 
@@ -321,8 +295,8 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
-                                     GetCodeFlags(), name);
+  compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
+                                     name);
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }
@@ -362,20 +336,6 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss, context,
                     receiver, key, value, map, slot, vector);
   }
-}
-
-// TODO(ishell): move to builtins.
-TF_STUB(AllocateHeapNumberStub, CodeStubAssembler) {
-  Node* result = AllocateHeapNumber();
-  Return(result);
-}
-
-// TODO(ishell): move to builtins-handler-gen.
-TF_STUB(StringLengthStub, CodeStubAssembler) {
-  Node* value = Parameter(Descriptor::kReceiver);
-  Node* string = LoadJSValueValue(value);
-  Node* result = LoadStringLength(string);
-  Return(result);
 }
 
 TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
@@ -514,13 +474,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
       code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
   code->set_handler_table(*handler_table);
-}
-
-
-void AllocateHeapNumberStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kAllocateHeapNumber)->entry);
 }
 
 
@@ -790,6 +743,19 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
+
+CommonArrayConstructorStub::CommonArrayConstructorStub(
+    Isolate* isolate, ElementsKind kind,
+    AllocationSiteOverrideMode override_mode)
+    : TurboFanCodeStub(isolate) {
+  // It only makes sense to override local allocation site behavior
+  // if there is a difference between the global allocation site policy
+  // for an ElementsKind and the desired usage of the stub.
+  DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
+         AllocationSite::ShouldTrack(kind));
+  set_sub_minor_key(ElementsKindBits::encode(kind) |
+                    AllocationSiteOverrideModeBits::encode(override_mode));
+}
 
 }  // namespace internal
 }  // namespace v8

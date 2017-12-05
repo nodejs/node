@@ -42,7 +42,8 @@
 #include "src/arm64/macro-assembler-arm64.h"
 #include "src/arm64/utils-arm64.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #define TEST_(name)  TEST(DISASM_##name)
 
@@ -4958,3 +4959,6 @@ TEST(neon_shift_immediate) {
 
   CLEANUP();
 }
+
+}  // namespace internal
+}  // namespace v8

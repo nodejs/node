@@ -5,7 +5,9 @@
 #include "src/gdb-jit.h"
 
 #include <memory>
+#include <vector>
 
+#include "src/api.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -923,8 +925,6 @@ class ELFSymbolTable : public ELFSection {
 
 class LineInfo : public Malloced {
  public:
-  LineInfo() : pc_info_(10) {}
-
   void SetPosition(intptr_t pc, int pos, bool is_statement) {
     AddPCInfo(PCInfo(pc, pos, is_statement));
   }
@@ -938,12 +938,12 @@ class LineInfo : public Malloced {
     bool is_statement_;
   };
 
-  List<PCInfo>* pc_info() { return &pc_info_; }
+  std::vector<PCInfo>* pc_info() { return &pc_info_; }
 
  private:
-  void AddPCInfo(const PCInfo& pc_info) { pc_info_.Add(pc_info); }
+  void AddPCInfo(const PCInfo& pc_info) { pc_info_.push_back(pc_info); }
 
-  List<PCInfo> pc_info_;
+  std::vector<PCInfo> pc_info_;
 };
 
 
@@ -970,7 +970,7 @@ class CodeDescription BASE_EMBEDDED {
 
   bool is_function() const {
     Code::Kind kind = code_->kind();
-    return kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION;
+    return kind == Code::OPTIMIZED_FUNCTION;
   }
 
   bool has_scope_info() const { return shared_info_ != NULL; }
@@ -1512,11 +1512,10 @@ class DebugLineSection : public DebugSection {
     intptr_t line = 1;
     bool is_statement = true;
 
-    List<LineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
-    pc_info->Sort(&ComparePCInfo);
+    std::vector<LineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
+    std::sort(pc_info->begin(), pc_info->end(), &ComparePCInfo);
 
-    int pc_info_length = pc_info->length();
-    for (int i = 0; i < pc_info_length; i++) {
+    for (size_t i = 0; i < pc_info->size(); i++) {
       LineInfo::PCInfo* info = &pc_info->at(i);
       DCHECK(info->pc_ >= pc);
 
@@ -1531,7 +1530,7 @@ class DebugLineSection : public DebugSection {
       // the last pc address in the function as a statement (e.g. "}"), so that
       // a user can see the result of the last line executed in the function,
       // should control reach the end.
-      if ((i+1) == pc_info_length) {
+      if ((i + 1) == pc_info->size()) {
         if (!is_statement) {
           w->Write<uint8_t>(DW_LNS_NEGATE_STMT);
         }
@@ -1588,18 +1587,15 @@ class DebugLineSection : public DebugSection {
     w->Write<uint8_t>(op);
   }
 
-  static int ComparePCInfo(const LineInfo::PCInfo* a,
-                           const LineInfo::PCInfo* b) {
-    if (a->pc_ == b->pc_) {
-      if (a->is_statement_ != b->is_statement_) {
-        return b->is_statement_ ? +1 : -1;
+  static bool ComparePCInfo(const LineInfo::PCInfo& a,
+                            const LineInfo::PCInfo& b) {
+    if (a.pc_ == b.pc_) {
+      if (a.is_statement_ != b.is_statement_) {
+        return !b.is_statement_;
       }
-      return 0;
-    } else if (a->pc_ > b->pc_) {
-      return +1;
-    } else {
-      return -1;
+      return false;
     }
+    return a.pc_ < b.pc_;
   }
 
   CodeDescription* desc_;

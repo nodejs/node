@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/feedback-vector.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
@@ -22,9 +23,9 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
       : AccessorAssembler(state) {}
 
-  void KeyedStoreGeneric(LanguageMode language_mode);
+  void KeyedStoreGeneric();
 
-  void StoreIC_Uninitialized(LanguageMode language_mode);
+  void StoreIC_Uninitialized();
 
  private:
   enum UpdateLength {
@@ -41,7 +42,6 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
                                 const StoreICParameters* p, Label* slow,
-                                LanguageMode language_mode,
                                 UseStubCache use_stub_cache = kUseStubCache);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
@@ -86,16 +86,15 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                      Node* value, Label* slow);
 };
 
-void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
-                                          LanguageMode language_mode) {
+void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state);
-  assembler.KeyedStoreGeneric(language_mode);
+  assembler.KeyedStoreGeneric();
 }
 
 void StoreICUninitializedGenerator::Generate(
-    compiler::CodeAssemblerState* state, LanguageMode language_mode) {
+    compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state);
-  assembler.StoreIC_Uninitialized(language_mode);
+  assembler.StoreIC_Uninitialized();
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -746,7 +745,7 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
 
 void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
-    LanguageMode language_mode, UseStubCache use_stub_cache) {
+    UseStubCache use_stub_cache) {
   VARIABLE(var_accessor_pair, MachineRepresentation::kTagged);
   VARIABLE(var_accessor_holder, MachineRepresentation::kTagged);
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
@@ -812,14 +811,14 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&tuple3);
       {
         var_transition_cell.Bind(LoadObjectField(
-            maybe_handler, StoreHandler::kTransitionCellOffset));
+            maybe_handler, StoreHandler::kTransitionOrHolderCellOffset));
         Goto(&check_key);
       }
 
       BIND(&fixedarray);
       {
         var_transition_cell.Bind(LoadFixedArrayElement(
-            maybe_handler, StoreHandler::kTransitionCellIndex));
+            maybe_handler, StoreHandler::kTransitionMapOrHolderCellIndex));
         Goto(&check_key);
       }
 
@@ -915,27 +914,31 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&not_callable);
     {
-      if (language_mode == STRICT) {
+      Label strict(this);
+      BranchIfStrictMode(p->vector, p->slot, &strict);
+      Return(p->value);
+
+      BIND(&strict);
+      {
         Node* message = SmiConstant(MessageTemplate::kNoSetterInCallback);
         TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
                         var_accessor_holder.value());
-      } else {
-        DCHECK_EQ(SLOPPY, language_mode);
-        Return(p->value);
       }
     }
   }
 
   BIND(&readonly);
   {
-    if (language_mode == STRICT) {
+    Label strict(this);
+    BranchIfStrictMode(p->vector, p->slot, &strict);
+    Return(p->value);
+
+    BIND(&strict);
+    {
       Node* message = SmiConstant(MessageTemplate::kStrictReadOnlyProperty);
       Node* type = Typeof(p->receiver);
       TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
                       type, p->receiver);
-    } else {
-      DCHECK_EQ(SLOPPY, language_mode);
-      Return(p->value);
     }
   }
 
@@ -960,7 +963,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   }
 }
 
-void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -998,19 +1001,25 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
     Comment("key is unique name");
     StoreICParameters p(context, receiver, var_unique.value(), value, slot,
                         vector);
-    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow, language_mode);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow);
   }
 
   BIND(&slow);
   {
     Comment("KeyedStoreGeneric_slow");
+    VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
+             SmiConstant(STRICT));
+    Label call_runtime(this);
+    BranchIfStrictMode(vector, slot, &call_runtime);
+    var_language_mode.Bind(SmiConstant(SLOPPY));
+    Goto(&call_runtime);
+    BIND(&call_runtime);
     TailCallRuntime(Runtime::kSetProperty, context, receiver, name, value,
-                    SmiConstant(language_mode));
+                    var_language_mode.value());
   }
 }
 
-void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
-    LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -1037,7 +1046,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
-  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss, language_mode,
+  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss,
                            kDontUseStubCache);
 
   BIND(&miss);

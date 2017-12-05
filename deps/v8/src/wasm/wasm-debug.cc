@@ -17,20 +17,12 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/zone/accounting-allocator.h"
 
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-
-#if __clang__
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 
@@ -98,10 +90,6 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   return handle(String::cast(func_locals_names->get(local_index)));
 }
 
-// Forward declaration.
-class InterpreterHandle;
-InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
-
 class InterpreterHandle {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(InterpreterHandle);
   Isolate* isolate_;
@@ -150,20 +138,16 @@ class InterpreterHandle {
 
   static uint32_t GetMemSize(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    WasmCompiledModule* compiled_module =
-        debug_info->wasm_instance()->compiled_module();
-    return compiled_module->has_embedded_mem_size()
-               ? compiled_module->embedded_mem_size()
+    return debug_info->wasm_instance()->has_memory_object()
+               ? debug_info->wasm_instance()->wasm_context()->mem_size
                : 0;
   }
 
   static byte* GetMemStart(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    WasmCompiledModule* compiled_module =
-        debug_info->wasm_instance()->compiled_module();
-    return reinterpret_cast<byte*>(compiled_module->has_embedded_mem_start()
-                                       ? compiled_module->embedded_mem_start()
-                                       : 0);
+    return debug_info->wasm_instance()->has_memory_object()
+               ? debug_info->wasm_instance()->wasm_context()->mem_start
+               : nullptr;
   }
 
   static byte* GetGlobalsStart(WasmDebugInfo* debug_info) {
@@ -326,7 +310,12 @@ class InterpreterHandle {
     WasmInterpreterEntryFrame* frame =
         WasmInterpreterEntryFrame::cast(it.frame());
     Handle<WasmInstanceObject> instance_obj(frame->wasm_instance(), isolate_);
-    DCHECK_EQ(this, GetInterpreterHandle(instance_obj->debug_info()));
+    // Check that this is indeed the instance which is connected to this
+    // interpreter.
+    DCHECK_EQ(this, Managed<wasm::InterpreterHandle>::cast(
+                        instance_obj->debug_info()->get(
+                            WasmDebugInfo::kInterpreterHandleIndex))
+                        ->get());
     return instance_obj;
   }
 
@@ -565,29 +554,35 @@ class InterpreterHandle {
   }
 };
 
-InterpreterHandle* GetOrCreateInterpreterHandle(
+}  // namespace
+
+}  // namespace wasm
+
+namespace {
+
+wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
   Handle<Object> handle(debug_info->get(WasmDebugInfo::kInterpreterHandleIndex),
                         isolate);
   if (handle->IsUndefined(isolate)) {
-    InterpreterHandle* cpp_handle = new InterpreterHandle(isolate, *debug_info);
-    handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
+    handle = Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate,
+                                                        *debug_info);
     debug_info->set(WasmDebugInfo::kInterpreterHandleIndex, *handle);
   }
 
-  return Handle<Managed<InterpreterHandle>>::cast(handle)->get();
+  return Handle<Managed<wasm::InterpreterHandle>>::cast(handle)->get();
 }
 
-InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
+wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandleIndex);
   DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
-  return Managed<InterpreterHandle>::cast(handle_obj)->get();
+  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->get();
 }
 
-InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
+wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandleIndex);
   if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
-  return Managed<InterpreterHandle>::cast(handle_obj)->get();
+  return Managed<wasm::InterpreterHandle>::cast(handle_obj)->get();
 }
 
 int GetNumFunctions(WasmInstanceObject* instance) {
@@ -657,14 +652,14 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   return debug_info;
 }
 
-WasmInterpreter* WasmDebugInfo::SetupForTesting(
+wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
     Handle<WasmInstanceObject> instance_obj) {
   Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
   Isolate* isolate = instance_obj->GetIsolate();
-  InterpreterHandle* cpp_handle = new InterpreterHandle(isolate, *debug_info);
-  Handle<Object> handle = Managed<InterpreterHandle>::New(isolate, cpp_handle);
-  debug_info->set(kInterpreterHandleIndex, *handle);
-  return cpp_handle->interpreter();
+  auto interp_handle =
+      Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
+  debug_info->set(kInterpreterHandleIndex, *interp_handle);
+  return interp_handle->get()->interpreter();
 }
 
 bool WasmDebugInfo::IsWasmDebugInfo(Object* object) {
@@ -691,9 +686,9 @@ WasmInstanceObject* WasmDebugInfo::wasm_instance() {
 void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
                                   int func_index, int offset) {
   Isolate* isolate = debug_info->GetIsolate();
-  InterpreterHandle* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
+  auto* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
   RedirectToInterpreter(debug_info, Vector<int>(&func_index, 1));
-  const WasmFunction* func = &handle->module()->functions[func_index];
+  const wasm::WasmFunction* func = &handle->module()->functions[func_index];
   handle->interpreter()->SetBreakpoint(func, offset, true);
 }
 
@@ -753,12 +748,12 @@ void WasmDebugInfo::Unwind(Address frame_pointer) {
 }
 
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
-  auto handle = GetInterpreterHandleOrNull(this);
+  auto* handle = GetInterpreterHandleOrNull(this);
   return handle ? handle->NumInterpretedCalls() : 0;
 }
 
 void WasmDebugInfo::UpdateMemory(JSArrayBuffer* new_memory) {
-  InterpreterHandle* interp_handle = GetInterpreterHandleOrNull(this);
+  auto* interp_handle = GetInterpreterHandleOrNull(this);
   if (!interp_handle) return;
   interp_handle->UpdateMemory(new_memory);
 }
@@ -766,14 +761,14 @@ void WasmDebugInfo::UpdateMemory(JSArrayBuffer* new_memory) {
 // static
 Handle<JSObject> WasmDebugInfo::GetScopeDetails(
     Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  auto* interp_handle = GetInterpreterHandle(*debug_info);
   return interp_handle->GetScopeDetails(frame_pointer, frame_index, debug_info);
 }
 
 // static
 Handle<JSObject> WasmDebugInfo::GetGlobalScopeObject(
     Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  auto* interp_handle = GetInterpreterHandle(*debug_info);
   auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
   return interp_handle->GetGlobalScopeObject(frame.get(), debug_info);
 }
@@ -781,22 +776,21 @@ Handle<JSObject> WasmDebugInfo::GetGlobalScopeObject(
 // static
 Handle<JSObject> WasmDebugInfo::GetLocalScopeObject(
     Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  InterpreterHandle* interp_handle = GetInterpreterHandle(*debug_info);
+  auto* interp_handle = GetInterpreterHandle(*debug_info);
   auto frame = interp_handle->GetInterpretedFrame(frame_pointer, frame_index);
   return interp_handle->GetLocalScopeObject(frame.get(), debug_info);
 }
 
 // static
 Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
-    Handle<WasmDebugInfo> debug_info, FunctionSig* sig) {
+    Handle<WasmDebugInfo> debug_info, wasm::FunctionSig* sig) {
   Isolate* isolate = debug_info->GetIsolate();
   DCHECK_EQ(debug_info->has_c_wasm_entries(),
             debug_info->has_c_wasm_entry_map());
   if (!debug_info->has_c_wasm_entries()) {
     auto entries = isolate->factory()->NewFixedArray(4, TENURED);
     debug_info->set_c_wasm_entries(*entries);
-    auto managed_map =
-        Managed<wasm::SignatureMap>::New(isolate, new wasm::SignatureMap());
+    auto managed_map = Managed<wasm::SignatureMap>::Allocate(isolate);
     debug_info->set_c_wasm_entry_map(*managed_map);
   }
   Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);
@@ -810,7 +804,12 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
-    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
+    Address context_address = reinterpret_cast<Address>(
+        debug_info->wasm_instance()->has_memory_object()
+            ? debug_info->wasm_instance()->wasm_context()
+            : nullptr);
+    Handle<Code> new_entry_code =
+        compiler::CompileCWasmEntry(isolate, sig, context_address);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));
     Handle<SharedFunctionInfo> shared =
@@ -826,3 +825,6 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
   }
   return handle(JSFunction::cast(entries->get(index)));
 }
+
+}  // namespace internal
+}  // namespace v8

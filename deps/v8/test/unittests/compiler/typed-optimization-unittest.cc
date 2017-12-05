@@ -22,6 +22,7 @@ using testing::IsNaN;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace typed_optimization_unittest {
 
 namespace {
 
@@ -219,6 +220,7 @@ TEST_F(TypedOptimizationTest, JSToBooleanWithNonZeroPlainNumber) {
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
 
+}  // namespace typed_optimization_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

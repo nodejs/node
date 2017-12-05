@@ -29,7 +29,7 @@ class BlockCoverageBuilder final : public ZoneObject {
 
   static constexpr int kNoCoverageArraySlot = -1;
 
-  int AllocateBlockCoverageSlot(AstNode* node, SourceRangeKind kind) {
+  int AllocateBlockCoverageSlot(ZoneObject* node, SourceRangeKind kind) {
     AstNodeSourceRanges* ranges = source_range_map_->Find(node);
     if (ranges == nullptr) return kNoCoverageArraySlot;
 
@@ -46,7 +46,7 @@ class BlockCoverageBuilder final : public ZoneObject {
     builder_->IncBlockCounter(coverage_array_slot);
   }
 
-  void IncrementBlockCounter(AstNode* node, SourceRangeKind kind) {
+  void IncrementBlockCounter(ZoneObject* node, SourceRangeKind kind) {
     int slot = AllocateBlockCoverageSlot(node, kind);
     IncrementBlockCounter(slot);
   }

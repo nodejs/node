@@ -439,6 +439,36 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.OneInputIs(Type::String())) {
+    // We know that (at least) one input is already a String,
+    // so try to strength-reduce the non-String input.
+    if (r.LeftInputIs(Type::String())) {
+      Reduction const reduction = ReduceJSToStringInput(r.right());
+      if (reduction.Changed()) {
+        NodeProperties::ReplaceValueInput(node, reduction.replacement(), 1);
+      }
+    } else if (r.RightInputIs(Type::String())) {
+      Reduction const reduction = ReduceJSToStringInput(r.left());
+      if (reduction.Changed()) {
+        NodeProperties::ReplaceValueInput(node, reduction.replacement(), 0);
+      }
+    }
+    // We might be able to constant-fold the String concatenation now.
+    if (r.BothInputsAre(Type::String())) {
+      HeapObjectBinopMatcher m(node);
+      if (m.IsFoldable()) {
+        Handle<String> left = Handle<String>::cast(m.left().Value());
+        Handle<String> right = Handle<String>::cast(m.right().Value());
+        if (left->length() + right->length() > String::kMaxLength) {
+          // No point in trying to optimize this, as it will just throw.
+          return NoChange();
+        }
+        Node* value = jsgraph()->HeapConstant(
+            factory()->NewConsString(left, right).ToHandleChecked());
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+    }
+    // We might know for sure that we're creating a ConsString here.
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
     }
@@ -638,6 +668,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
 
   // Morph the {node} into a {FinishRegion}.
   ReplaceWithValue(node, node, node, control);
+  NodeProperties::SetType(value, NodeProperties::GetType(node));
   node->ReplaceInput(0, value);
   node->ReplaceInput(1, effect);
   node->TrimInputCount(2);
@@ -1029,6 +1060,16 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   }
   if (input_type->Is(Type::Null())) {
     return Replace(jsgraph()->HeapConstant(factory()->null_string()));
+  }
+  if (input_type->Is(Type::NaN())) {
+    return Replace(jsgraph()->HeapConstant(factory()->NaN_string()));
+  }
+  if (input_type->Is(Type::OrderedNumber()) &&
+      input_type->Min() == input_type->Max()) {
+    // Note that we can use Type::OrderedNumber(), since
+    // both 0 and -0 map to the String "0" in JavaScript.
+    return Replace(jsgraph()->HeapConstant(
+        factory()->NumberToString(factory()->NewNumber(input_type->Min()))));
   }
   // TODO(turbofan): js-typed-lowering of ToString(x:number)
   return NoChange();
@@ -1894,9 +1935,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   return NoChange();
 }
 
-
 Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSForInNext, node->opcode());
+  ForInMode const mode = ForInModeOf(node->op());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* cache_array = NodeProperties::GetValueInput(node, 1);
   Node* cache_type = NodeProperties::GetValueInput(node, 2);
@@ -1906,70 +1947,227 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Load the next {key} from the {cache_array}.
-  Node* key = effect = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
-      cache_array, index, effect, control);
-
   // Load the map of the {receiver}.
   Node* receiver_map = effect =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                        receiver, effect, control);
 
-  // Check if the expected map still matches that of the {receiver}.
-  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                  cache_type);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+  switch (mode) {
+    case ForInMode::kUseEnumCacheKeys:
+    case ForInMode::kUseEnumCacheKeysAndIndices: {
+      // Ensure that the expected map still matches that of the {receiver}.
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                     receiver_map, cache_type);
+      effect =
+          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0;
-  Node* vtrue0;
-  {
-    // Don't need filtering since expected map still matches that of the
-    // {receiver}.
-    etrue0 = effect;
-    vtrue0 = key;
-  }
+      ReplaceWithValue(node, node, effect, control);
 
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* efalse0;
-  Node* vfalse0;
-  {
-    // Filter the {key} to check if it's still a valid property of the
-    // {receiver} (does the ToName conversion implicitly).
-    Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kForInFilter);
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNeedsFrameState);
-    vfalse0 = efalse0 = if_false0 = graph()->NewNode(
-        common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
-        receiver, context, frame_state, effect, if_false0);
+      // Morph the {node} into a LoadElement.
+      node->ReplaceInput(0, cache_array);
+      node->ReplaceInput(1, index);
+      node->ReplaceInput(2, effect);
+      node->ReplaceInput(3, control);
+      node->TrimInputCount(4);
+      NodeProperties::ChangeOp(
+          node,
+          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()));
+      NodeProperties::SetType(node, Type::InternalizedString());
+      break;
+    }
+    case ForInMode::kGeneric: {
+      // Load the next {key} from the {cache_array}.
+      Node* key = effect = graph()->NewNode(
+          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+          cache_array, index, effect, control);
 
-    // Update potential {IfException} uses of {node} to point to the above
-    // ForInFilter stub call node instead.
-    Node* if_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
-      if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
-      NodeProperties::ReplaceControlInput(if_exception, vfalse0);
-      NodeProperties::ReplaceEffectInput(if_exception, efalse0);
-      Revisit(if_exception);
+      // Check if the expected map still matches that of the {receiver}.
+      Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                     receiver_map, cache_type);
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue;
+      Node* vtrue;
+      {
+        // Don't need filtering since expected map still matches that of the
+        // {receiver}.
+        etrue = effect;
+        vtrue = key;
+      }
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* efalse;
+      Node* vfalse;
+      {
+        // Filter the {key} to check if it's still a valid property of the
+        // {receiver} (does the ToName conversion implicitly).
+        Callable const callable =
+            Builtins::CallableFor(isolate(), Builtins::kForInFilter);
+        CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+            isolate(), graph()->zone(), callable.descriptor(), 0,
+            CallDescriptor::kNeedsFrameState);
+        vfalse = efalse = if_false = graph()->NewNode(
+            common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
+            receiver, context, frame_state, effect, if_false);
+
+        // Update potential {IfException} uses of {node} to point to the above
+        // ForInFilter stub call node instead.
+        Node* if_exception = nullptr;
+        if (NodeProperties::IsExceptionalCall(node, &if_exception)) {
+          if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
+          NodeProperties::ReplaceControlInput(if_exception, vfalse);
+          NodeProperties::ReplaceEffectInput(if_exception, efalse);
+          Revisit(if_exception);
+        }
+      }
+
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      ReplaceWithValue(node, node, effect, control);
+
+      // Morph the {node} into a Phi.
+      node->ReplaceInput(0, vtrue);
+      node->ReplaceInput(1, vfalse);
+      node->ReplaceInput(2, control);
+      node->TrimInputCount(3);
+      NodeProperties::ChangeOp(
+          node, common()->Phi(MachineRepresentation::kTagged, 2));
     }
   }
 
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
-  ReplaceWithValue(node, node, effect, control);
-
-  // Morph the {node} into a Phi.
-  node->ReplaceInput(0, vtrue0);
-  node->ReplaceInput(1, vfalse0);
-  node->ReplaceInput(2, control);
-  node->TrimInputCount(3);
-  NodeProperties::ChangeOp(node,
-                           common()->Phi(MachineRepresentation::kTagged, 2));
   return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSForInPrepare, node->opcode());
+  ForInMode const mode = ForInModeOf(node->op());
+  Node* enumerator = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* cache_type = enumerator;
+  Node* cache_array = nullptr;
+  Node* cache_length = nullptr;
+
+  switch (mode) {
+    case ForInMode::kUseEnumCacheKeys:
+    case ForInMode::kUseEnumCacheKeysAndIndices: {
+      // Check that the {enumerator} is a Map.
+      effect = graph()->NewNode(
+          simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                  ZoneHandleSet<Map>(factory()->meta_map())),
+          enumerator, effect, control);
+
+      // Load the enum cache from the {enumerator} map.
+      Node* descriptor_array = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
+          enumerator, effect, control);
+      Node* enum_cache = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
+          descriptor_array, effect, control);
+      cache_array = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForEnumCacheKeys()),
+          enum_cache, effect, control);
+
+      // Load the enum length of the {enumerator} map.
+      Node* bit_field3 = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapBitField3()), enumerator,
+          effect, control);
+      STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+      cache_length =
+          graph()->NewNode(simplified()->NumberBitwiseAnd(), bit_field3,
+                           jsgraph()->Constant(Map::EnumLengthBits::kMask));
+      break;
+    }
+    case ForInMode::kGeneric: {
+      // Check if the {enumerator} is a Map or a FixedArray.
+      Node* check = graph()->NewNode(
+          simplified()->CompareMaps(ZoneHandleSet<Map>(factory()->meta_map())),
+          enumerator, effect, control);
+      Node* branch =
+          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* etrue = effect;
+      Node* cache_array_true;
+      Node* cache_length_true;
+      {
+        // Load the enum cache from the {enumerator} map.
+        Node* descriptor_array = etrue = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
+            enumerator, etrue, if_true);
+        Node* enum_cache = etrue =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForDescriptorArrayEnumCache()),
+                             descriptor_array, etrue, if_true);
+        cache_array_true = etrue = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForEnumCacheKeys()),
+            enum_cache, etrue, if_true);
+
+        // Load the enum length of the {enumerator} map.
+        Node* bit_field3 = etrue = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForMapBitField3()),
+            enumerator, etrue, if_true);
+        STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+        cache_length_true =
+            graph()->NewNode(simplified()->NumberBitwiseAnd(), bit_field3,
+                             jsgraph()->Constant(Map::EnumLengthBits::kMask));
+      }
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* efalse = effect;
+      Node* cache_array_false;
+      Node* cache_length_false;
+      {
+        // The {enumerator} is the FixedArray with the keys to iterate.
+        cache_array_false = enumerator;
+        cache_length_false = efalse = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+            cache_array_false, efalse, if_false);
+      }
+
+      // Rewrite the uses of the {node}.
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      cache_array =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           cache_array_true, cache_array_false, control);
+      cache_length =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           cache_length_true, cache_length_false, control);
+      break;
+    }
+  }
+
+  // Update the uses of {node}.
+  for (Edge edge : node->use_edges()) {
+    Node* const user = edge.from();
+    if (NodeProperties::IsEffectEdge(edge)) {
+      edge.UpdateTo(effect);
+      Revisit(user);
+    } else if (NodeProperties::IsControlEdge(edge)) {
+      edge.UpdateTo(control);
+      Revisit(user);
+    } else {
+      DCHECK(NodeProperties::IsValueEdge(edge));
+      switch (ProjectionIndexOf(user->op())) {
+        case 0:
+          Replace(user, cache_type);
+          break;
+        case 1:
+          Replace(user, cache_array);
+          break;
+        case 2:
+          Replace(user, cache_length);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
+  node->Kill();
+  return Replace(effect);
 }
 
 Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
@@ -2140,6 +2338,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCallForwardVarargs(node);
     case IrOpcode::kJSCall:
       return ReduceJSCall(node);
+    case IrOpcode::kJSForInPrepare:
+      return ReduceJSForInPrepare(node);
     case IrOpcode::kJSForInNext:
       return ReduceJSForInNext(node);
     case IrOpcode::kJSLoadMessage:

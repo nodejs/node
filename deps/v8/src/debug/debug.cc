@@ -24,13 +24,11 @@
 #include "src/globals.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
-#include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/snapshot/natives.h"
-#include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "include/v8-debug.h"
 
@@ -64,9 +62,9 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   return it.GetBreakLocation();
 }
 
-void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
-                                          JavaScriptFrame* frame,
-                                          List<BreakLocation>* result_out) {
+void BreakLocation::AllAtCurrentStatement(
+    Handle<DebugInfo> debug_info, JavaScriptFrame* frame,
+    std::vector<BreakLocation>* result_out) {
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
@@ -79,7 +77,7 @@ void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
   }
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     if (it.statement_position() == statement_position) {
-      result_out->Add(it.GetBreakLocation());
+      result_out->push_back(it.GetBreakLocation());
     }
   }
 }
@@ -170,8 +168,8 @@ void BreakIterator::Next() {
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }
-    DCHECK(position_ >= 0);
-    DCHECK(statement_position_ >= 0);
+    DCHECK_LE(0, position_);
+    DCHECK_LE(0, statement_position_);
 
     DebugBreakType type = GetDebugBreakType();
     if (type != NOT_DEBUG_BREAK) break;
@@ -338,7 +336,7 @@ bool Debug::Load() {
 void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
-  if (FLAG_block_coverage) RemoveAllCoverageInfos();
+  RemoveAllCoverageInfos();
   RemoveDebugDelegate();
 
   // Return debugger is not loaded.
@@ -469,10 +467,10 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   // Enter the debugger.
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return false;
-  List<BreakLocation> break_locations;
+  std::vector<BreakLocation> break_locations;
   BreakLocation::AllAtCurrentStatement(debug_info, frame, &break_locations);
   bool has_break_points_at_all = false;
-  for (int i = 0; i < break_locations.length(); i++) {
+  for (size_t i = 0; i < break_locations.size(); i++) {
     bool has_break_points;
     MaybeHandle<FixedArray> check_result =
         CheckBreakPoints(debug_info, &break_locations[i], &has_break_points);
@@ -557,16 +555,16 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureBreakInfo(shared)) return true;
-  CHECK(PrepareFunctionForBreakPoints(shared));
+  PrepareFunctionForBreakPoints(shared);
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
-  DCHECK(*source_position >= 0);
+  DCHECK_LE(0, *source_position);
 
   // Find the break point and change it.
   *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
-  DCHECK(debug_info->GetBreakPointCount() > 0);
+  DCHECK_LT(0, debug_info->GetBreakPointCount());
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
@@ -595,7 +593,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   // Make sure the function has set up the debug info.
   Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(result);
   if (!EnsureBreakInfo(shared)) return false;
-  CHECK(PrepareFunctionForBreakPoints(shared));
+  PrepareFunctionForBreakPoints(shared);
 
   // Find position within function. The script position might be before the
   // source position of the first function.
@@ -609,7 +607,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
-  DCHECK(debug_info->GetBreakPointCount() > 0);
+  DCHECK_LT(0, debug_info->GetBreakPointCount());
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
@@ -700,7 +698,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
   if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureBreakInfo(shared)) return;
-  CHECK(PrepareFunctionForBreakPoints(shared));
+  PrepareFunctionForBreakPoints(shared);
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Flood the function with break points.
   DCHECK(debug_info->HasDebugBytecodeArray());
@@ -1041,10 +1039,8 @@ class RedirectActiveFunctions : public ThreadVisitor {
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
       JSFunction* function = frame->function();
-      if (frame->is_optimized()) continue;
-      if (!function->Inlines(shared_)) continue;
-
-      DCHECK(frame->is_interpreted());
+      if (!frame->is_interpreted()) continue;
+      if (function->shared() != shared_) continue;
       InterpretedFrame* interpreted_frame =
           reinterpret_cast<InterpretedFrame*>(frame);
       BytecodeArray* debug_copy = shared_->GetDebugInfo()->DebugBytecodeArray();
@@ -1057,17 +1053,9 @@ class RedirectActiveFunctions : public ThreadVisitor {
   DisallowHeapAllocation no_gc_;
 };
 
-
-bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
-  // To prepare bytecode for debugging, we already need to have the debug
-  // info (containing the debug copy) upfront, but since we do not recompile,
-  // preparing for break points cannot fail.
-  DCHECK(shared->is_compiled());
-  DCHECK(shared->HasDebugInfo());
-  DCHECK(shared->HasBreakInfo());
-  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
-  if (debug_info->IsPreparedForBreakpoints()) return true;
-
+void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
+  // Deoptimize all code compiled from this shared function info including
+  // inlining.
   if (isolate_->concurrent_recompilation_enabled()) {
     isolate_->optimizing_compile_dispatcher()->Flush(
         OptimizingCompileDispatcher::BlockingBehavior::kBlock);
@@ -1077,28 +1065,32 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       GarbageCollectionReason::kDebugger);
 
-  DCHECK(shared->is_compiled());
-  {
-    // TODO(yangguo): with bytecode, we still walk the heap to find all
-    // optimized code for the function to deoptimize. We can probably be
-    // smarter here and avoid the heap walk.
-    HeapIterator iterator(isolate_->heap());
-    HeapObject* obj;
-
-    while ((obj = iterator.next()) != nullptr) {
-      if (obj->IsJSFunction()) {
-        JSFunction* function = JSFunction::cast(obj);
-        if (!function->Inlines(*shared)) continue;
-        if (function->has_feedback_vector()) {
-          function->ClearOptimizedCodeSlot("Prepare for breakpoints");
-        }
-        if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
-          Deoptimizer::DeoptimizeFunction(function);
-        }
-      }
+  bool found_something = false;
+  Code::OptimizedCodeIterator iterator(isolate_);
+  while (Code* code = iterator.Next()) {
+    if (code->Inlines(*shared)) {
+      code->set_marked_for_deoptimization(true);
+      found_something = true;
     }
   }
 
+  if (found_something) {
+    // Only go through with the deoptimization if something was found.
+    Deoptimizer::DeoptimizeMarkedCode(isolate_);
+  }
+}
+
+void Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
+  // To prepare bytecode for debugging, we already need to have the debug
+  // info (containing the debug copy) upfront, but since we do not recompile,
+  // preparing for break points cannot fail.
+  DCHECK(shared->is_compiled());
+  DCHECK(shared->HasDebugInfo());
+  DCHECK(shared->HasBreakInfo());
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
+  if (debug_info->IsPreparedForBreakpoints()) return;
+
+  DeoptimizeFunction(shared);
   // Update PCs on the stack to point to recompiled code.
   RedirectActiveFunctions redirect_visitor(*shared);
   redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
@@ -1106,7 +1098,6 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
   debug_info->set_flags(debug_info->flags() |
                         DebugInfo::kPreparedForBreakpoints);
-  return true;
 }
 
 namespace {
@@ -1353,7 +1344,6 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
 
 void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
                                 Handle<CoverageInfo> coverage_info) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(!coverage_info.is_null());
 
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
@@ -1365,7 +1355,6 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 }
 
 void Debug::RemoveAllCoverageInfos() {
-  DCHECK(FLAG_block_coverage);
   ClearAllDebugInfos(
       [=](Handle<DebugInfo> info) { return info->ClearCoverageInfo(); });
 }

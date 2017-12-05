@@ -65,6 +65,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void setter(bool val) { SetFlag(flag, val); }
 
   FLAG_ACCESSOR(kToplevel, is_toplevel, set_toplevel)
+  FLAG_ACCESSOR(kEager, is_eager, set_eager)
   FLAG_ACCESSOR(kEval, is_eval, set_eval)
   FLAG_ACCESSOR(kStrictMode, is_strict_mode, set_strict_mode)
   FLAG_ACCESSOR(kNative, is_native, set_native)
@@ -72,7 +73,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
   FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
@@ -118,11 +118,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   DeclarationScope* script_scope() const { return script_scope_; }
   void set_script_scope(DeclarationScope* script_scope) {
     script_scope_ = script_scope;
-  }
-
-  DeclarationScope* asm_function_scope() const { return asm_function_scope_; }
-  void set_asm_function_scope(DeclarationScope* scope) {
-    asm_function_scope_ = scope;
   }
 
   AstValueFactory* ast_value_factory() const {
@@ -241,7 +236,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   enum Flag {
     // ---------- Input flags ---------------------------
     kToplevel = 1 << 0,
-    kLazy = 1 << 1,
+    kEager = 1 << 1,
     kEval = 1 << 2,
     kStrictMode = 1 << 3,
     kNative = 1 << 4,
@@ -249,12 +244,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kDebug = 1 << 9,
-    kSerializing = 1 << 10,
-    kLazyCompile = 1 << 11,
-    kCollectTypeProfile = 1 << 12,
-    kBlockCoverageEnabled = 1 << 13,
-    kIsAsmWasmBroken = 1 << 14,
+    kSerializing = 1 << 9,
+    kLazyCompile = 1 << 10,
+    kCollectTypeProfile = 1 << 11,
+    kBlockCoverageEnabled = 1 << 12,
+    kIsAsmWasmBroken = 1 << 13,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
@@ -263,7 +257,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension_;
   ScriptCompiler::CompileOptions compile_options_;
   DeclarationScope* script_scope_;
-  DeclarationScope* asm_function_scope_;
   UnicodeCache* unicode_cache_;
   uintptr_t stack_limit_;
   uint32_t hash_seed_;

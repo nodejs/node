@@ -83,25 +83,6 @@ static void ClearWeakList(Heap* heap, Object* list) {
   }
 }
 
-
-template <>
-struct WeakListVisitor<JSFunction> {
-  static void SetWeakNext(JSFunction* function, Object* next) {
-    function->set_next_function_link(next, UPDATE_WEAK_WRITE_BARRIER);
-  }
-
-  static Object* WeakNext(JSFunction* function) {
-    return function->next_function_link();
-  }
-
-  static int WeakNextOffset() { return JSFunction::kNextFunctionLinkOffset; }
-
-  static void VisitLiveObject(Heap*, JSFunction*, WeakObjectRetainer*) {}
-
-  static void VisitPhantomObject(Heap*, JSFunction*) {}
-};
-
-
 template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code* code, Object* next) {
@@ -134,10 +115,6 @@ struct WeakListVisitor<Context> {
 
   static void VisitLiveObject(Heap* heap, Context* context,
                               WeakObjectRetainer* retainer) {
-    // Process the three weak lists linked off the context.
-    DoWeakList<JSFunction>(heap, context, retainer,
-                           Context::OPTIMIZED_FUNCTIONS_LIST);
-
     if (heap->gc_state() == Heap::MARK_COMPACT) {
       // Record the slots of the weak entries in the native context.
       for (int idx = Context::FIRST_WEAK_SLOT;
@@ -146,8 +123,7 @@ struct WeakListVisitor<Context> {
         MarkCompactCollector::RecordSlot(context, slot, *slot);
       }
       // Code objects are always allocated in Code space, we do not have to
-      // visit
-      // them during scavenges.
+      // visit them during scavenges.
       DoWeakList<Code>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
       DoWeakList<Code>(heap, context, retainer, Context::DEOPTIMIZED_CODE_LIST);
     }
@@ -171,8 +147,6 @@ struct WeakListVisitor<Context> {
   }
 
   static void VisitPhantomObject(Heap* heap, Context* context) {
-    ClearWeakList<JSFunction>(heap,
-                              context->get(Context::OPTIMIZED_FUNCTIONS_LIST));
     ClearWeakList<Code>(heap, context->get(Context::OPTIMIZED_CODE_LIST));
     ClearWeakList<Code>(heap, context->get(Context::DEOPTIMIZED_CODE_LIST));
   }

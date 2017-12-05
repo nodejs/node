@@ -257,7 +257,9 @@ class Simulator {
   void set_fcsr_bit(uint32_t cc, bool value);
   bool test_fcsr_bit(uint32_t cc);
   void set_fcsr_rounding_mode(FPURoundingMode mode);
+  void set_msacsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();
+  unsigned int get_msacsr_rounding_mode();
   bool set_fcsr_round_error(double original, double rounded);
   bool set_fcsr_round_error(float original, float rounded);
   bool set_fcsr_round64_error(double original, double rounded);
@@ -266,6 +268,8 @@ class Simulator {
                                int32_t& rounded_int, double fs);
   void round_according_to_fcsr(float toRound, float& rounded,
                                int32_t& rounded_int, float fs);
+  template <typename Tfp, typename Tint>
+  void round_according_to_msacsr(Tfp toRound, Tfp& rounded, Tint& rounded_int);
   void round64_according_to_fcsr(double toRound, double& rounded,
                                  int64_t& rounded_int, double fs);
   void round64_according_to_fcsr(float toRound, float& rounded,
@@ -436,6 +440,8 @@ class Simulator {
   T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
   template <typename T>
   T MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m);
+  template <typename T>
+  T Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt);
 
   inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int32_t rs() const { return get_register(rs_reg()); }
@@ -573,6 +579,8 @@ class Simulator {
   int64_t FPUregisters_[kNumFPURegisters * 2];
   // FPU control register.
   uint32_t FCSR_;
+  // MSA control register.
+  uint32_t MSACSR_;
 
   // Simulator support.
   // Allocate 1MB for stack.

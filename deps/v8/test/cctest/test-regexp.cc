@@ -32,6 +32,7 @@
 #include "include/v8.h"
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
@@ -42,6 +43,8 @@
 #include "src/regexp/regexp-parser.h"
 #include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
+#include "src/unicode-inl.h"
+
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/regexp/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
@@ -91,6 +94,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_regexp {
 
 static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
@@ -2033,5 +2037,6 @@ TEST(UncachedExternalString) {
   ExpectString("external.substring(1).match(re)[1]", "z");
 }
 
+}  // namespace test_regexp
 }  // namespace internal
 }  // namespace v8

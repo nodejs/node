@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace module_decoder_unittest {
 
 #define WASM_INIT_EXPR_I32V_1(val) WASM_I32V_1(val), kExprEnd
 #define WASM_INIT_EXPR_I32V_2(val) WASM_I32V_2(val), kExprEnd
@@ -1649,6 +1650,8 @@ TEST_F(WasmModuleVerifyTest, InitExpr_f64) {
   EXPECT_INIT_EXPR(F64, f64, 77999.1, WASM_F64(77999.1));
 }
 
+#undef EXPECT_INIT_EXPR
+
 #define EXPECT_INIT_EXPR_FAIL(...)                               \
   {                                                              \
     static const byte data[] = {__VA_ARGS__, kExprEnd};          \
@@ -1664,6 +1667,8 @@ TEST_F(WasmModuleVerifyTest, InitExpr_illegal) {
   EXPECT_INIT_EXPR_FAIL(WASM_I32_ADD(WASM_I32V_1(0), WASM_I32V_1(0)));
   EXPECT_INIT_EXPR_FAIL(WASM_IF_ELSE(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
+
+#undef EXPECT_INIT_EXPR_FAIL
 
 TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
   static const byte data[] = {
@@ -1760,6 +1765,55 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
+#undef WASM_INIT_EXPR_I32V_1
+#undef WASM_INIT_EXPR_I32V_2
+#undef WASM_INIT_EXPR_I32V_3
+#undef WASM_INIT_EXPR_I32V_4
+#undef WASM_INIT_EXPR_I32V_5
+#undef WASM_INIT_EXPR_F32
+#undef WASM_INIT_EXPR_I64
+#undef WASM_INIT_EXPR_F64
+#undef WASM_INIT_EXPR_GLOBAL
+#undef SIZEOF_EMPTY_FUNCTION
+#undef EMPTY_BODY
+#undef SIZEOF_EMPTY_BODY
+#undef NOP_BODY
+#undef SIZEOF_NOP_BODY
+#undef SIG_ENTRY_i_i
+#undef UNKNOWN_SECTION
+#undef SECTION
+#undef SIGNATURES_SECTION
+#undef FUNCTION_SIGNATURES_SECTION
+#undef FOO_STRING
+#undef NO_LOCAL_NAMES
+#undef EMPTY_SIGNATURES_SECTION
+#undef EMPTY_FUNCTION_SIGNATURES_SECTION
+#undef EMPTY_FUNCTION_BODIES_SECTION
+#undef SECTION_NAMES
+#undef SECTION_EXCEPTIONS
+#undef EMPTY_NAMES_SECTION
+#undef FAIL_IF_NO_EXPERIMENTAL_EH
+#undef X1
+#undef X2
+#undef X3
+#undef X4
+#undef ONE_EMPTY_FUNCTION
+#undef TWO_EMPTY_FUNCTIONS
+#undef THREE_EMPTY_FUNCTIONS
+#undef FOUR_EMPTY_FUNCTIONS
+#undef ONE_EMPTY_BODY
+#undef TWO_EMPTY_BODIES
+#undef THREE_EMPTY_BODIES
+#undef FOUR_EMPTY_BODIES
+#undef SIGNATURES_SECTION_VOID_VOID
+#undef LINEAR_MEMORY_INDEX_0
+#undef EXPECT_VERIFIES
+#undef EXPECT_FAILURE_LEN
+#undef EXPECT_FAILURE
+#undef EXPECT_OFF_END_FAILURE
+#undef EXPECT_OK
+
+}  // namespace module_decoder_unittest
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

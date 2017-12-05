@@ -4,6 +4,8 @@
 
 #include "src/regexp/regexp-parser.h"
 
+#include <vector>
+
 #include "src/char-predicates-inl.h"
 #include "src/factory.h"
 #include "src/isolate.h"
@@ -830,7 +832,7 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
   }
 
   RegExpCapture* capture = GetCapture(index);
-  DCHECK(capture->name() == nullptr);
+  DCHECK_NULL(capture->name());
 
   capture->set_name(name);
   named_captures_->Add(capture, zone());
@@ -1276,30 +1278,30 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
   //   and 'value' is interpreted as one of the available property value names.
   // - Aliases in PropertyAlias.txt and PropertyValueAlias.txt can be used.
   // - Loose matching is not applied.
-  List<char> first_part;
-  List<char> second_part;
+  std::vector<char> first_part;
+  std::vector<char> second_part;
   if (current() == '{') {
     // Parse \p{[PropertyName=]PropertyNameValue}
     for (Advance(); current() != '}' && current() != '='; Advance()) {
       if (!has_next()) return false;
-      first_part.Add(static_cast<char>(current()));
+      first_part.push_back(static_cast<char>(current()));
     }
     if (current() == '=') {
       for (Advance(); current() != '}'; Advance()) {
         if (!has_next()) return false;
-        second_part.Add(static_cast<char>(current()));
+        second_part.push_back(static_cast<char>(current()));
       }
-      second_part.Add(0);  // null-terminate string.
+      second_part.push_back(0);  // null-terminate string.
     }
   } else {
     return false;
   }
   Advance();
-  first_part.Add(0);  // null-terminate string.
+  first_part.push_back(0);  // null-terminate string.
 
-  if (second_part.is_empty()) {
+  if (second_part.empty()) {
     // First attempt to interpret as general category property value name.
-    const char* name = first_part.ToConstVector().start();
+    const char* name = first_part.data();
     if (LookupPropertyValueName(UCHAR_GENERAL_CATEGORY_MASK, name, negate,
                                 result, zone())) {
       return true;
@@ -1317,8 +1319,8 @@ bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result,
   } else {
     // Both property name and value name are specified. Attempt to interpret
     // the property name as enumerated property.
-    const char* property_name = first_part.ToConstVector().start();
-    const char* value_name = second_part.ToConstVector().start();
+    const char* property_name = first_part.data();
+    const char* value_name = second_part.data();
     UProperty property = u_getPropertyEnum(property_name);
     if (!IsExactPropertyAlias(property_name, property)) return false;
     if (property == UCHAR_GENERAL_CATEGORY) {
@@ -1362,7 +1364,7 @@ bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
 
 
 uc32 RegExpParser::ParseClassCharacterEscape() {
-  DCHECK(current() == '\\');
+  DCHECK_EQ('\\', current());
   DCHECK(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
   switch (current()) {

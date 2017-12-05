@@ -716,21 +716,20 @@ bool define_was_called_in_order = false;
 void GetterCallbackOrder(Local<Name> property,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called_in_order = true;
-  CHECK(!define_was_called_in_order);
+  CHECK(define_was_called_in_order);
   info.GetReturnValue().Set(property);
 }
 
 void DefinerCallbackOrder(Local<Name> property,
                           const v8::PropertyDescriptor& desc,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
-  // Get called before DefineProperty because we query the descriptor first.
-  CHECK(get_was_called_in_order);
+  CHECK(!get_was_called_in_order);  // Define called before get.
   define_was_called_in_order = true;
 }
 
 }  // namespace
 
-// Check that getter callback is called before definer callback.
+// Check that definer callback is called before getter callback.
 THREADED_TEST(DefinerCallbackGetAndDefine) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::FunctionTemplate> templ =
@@ -3327,12 +3326,18 @@ static void NamedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 3);
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  result->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_str("foo"))
-      .FromJust();
-  result->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_str("bar"))
-      .FromJust();
-  result->Set(context, v8::Integer::New(info.GetIsolate(), 2), v8_str("baz"))
-      .FromJust();
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_str("foo"))
+          .FromJust());
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_str("bar"))
+          .FromJust());
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 2), v8_str("baz"))
+          .FromJust());
   info.GetReturnValue().Set(result);
 }
 
@@ -3341,10 +3346,12 @@ static void IndexedEnum(const v8::PropertyCallbackInfo<v8::Array>& info) {
   ApiTestFuzzer::Fuzz();
   v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 2);
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-  result->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_str("0"))
-      .FromJust();
-  result->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_str("1"))
-      .FromJust();
+  CHECK(
+      result->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_str("0"))
+          .FromJust());
+  CHECK(
+      result->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_str("1"))
+          .FromJust());
   info.GetReturnValue().Set(result);
 }
 
@@ -4965,6 +4972,262 @@ THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   ExpectInt32("f(outer)", 4);
 }
 
+namespace {
+
+void ConcatNamedPropertyGetter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(
+      // Return the property name concatenated with itself.
+      String::Concat(name.As<String>(), name.As<String>()));
+}
+
+void ConcatIndexedPropertyGetter(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(
+      // Return the double value of the index.
+      v8_num(index + index));
+}
+
+void EnumCallbackWithNames(const v8::PropertyCallbackInfo<v8::Array>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 4);
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_str("foo"))
+          .FromJust());
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_str("bar"))
+          .FromJust());
+  CHECK(
+      result
+          ->Set(context, v8::Integer::New(info.GetIsolate(), 2), v8_str("baz"))
+          .FromJust());
+  CHECK(
+      result->Set(context, v8::Integer::New(info.GetIsolate(), 3), v8_str("10"))
+          .FromJust());
+
+  //  Create a holey array.
+  CHECK(result->Delete(context, v8::Integer::New(info.GetIsolate(), 1))
+            .FromJust());
+  info.GetReturnValue().Set(result);
+}
+
+void EnumCallbackWithIndices(const v8::PropertyCallbackInfo<v8::Array>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Local<v8::Array> result = v8::Array::New(info.GetIsolate(), 4);
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+
+  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 0), v8_num(10))
+            .FromJust());
+  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 1), v8_num(11))
+            .FromJust());
+  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 2), v8_num(12))
+            .FromJust());
+  CHECK(result->Set(context, v8::Integer::New(info.GetIsolate(), 3), v8_num(14))
+            .FromJust());
+
+  //  Create a holey array.
+  CHECK(result->Delete(context, v8::Integer::New(info.GetIsolate(), 1))
+            .FromJust());
+  info.GetReturnValue().Set(result);
+}
+
+void RestrictiveNamedQuery(Local<Name> property,
+                           const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  // Only "foo" is enumerable.
+  if (v8_str("foo")
+          ->Equals(info.GetIsolate()->GetCurrentContext(), property)
+          .FromJust()) {
+    info.GetReturnValue().Set(v8::PropertyAttribute::None);
+    return;
+  }
+  info.GetReturnValue().Set(v8::PropertyAttribute::DontEnum);
+}
+
+void RestrictiveIndexedQuery(
+    uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  // Only index 2 and 12 are enumerable.
+  if (index == 2 || index == 12) {
+    info.GetReturnValue().Set(v8::PropertyAttribute::None);
+    return;
+  }
+  info.GetReturnValue().Set(v8::PropertyAttribute::DontEnum);
+}
+}  // namespace
+
+// Regression test for V8 bug 6627.
+// Object.keys() must return enumerable keys only.
+THREADED_TEST(EnumeratorsAndUnenumerableNamedProperties) {
+  // The enumerator interceptor returns a list
+  // of items which are filtered according to the
+  // properties defined in the query interceptor.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL,
+      EnumCallbackWithNames));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "foo");
+  ExpectString("Object.getOwnPropertyNames(obj)[1]", "baz");
+  ExpectString("Object.getOwnPropertyNames(obj)[2]", "10");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
+  ExpectFalse("Object.getOwnPropertyDescriptor(obj, 'baz').enumerable");
+
+  ExpectInt32("Object.entries(obj).length", 1);
+  ExpectString("Object.entries(obj)[0][0]", "foo");
+  ExpectString("Object.entries(obj)[0][1]", "foofoo");
+
+  ExpectInt32("Object.keys(obj).length", 1);
+  ExpectString("Object.keys(obj)[0]", "foo");
+
+  ExpectInt32("Object.values(obj).length", 1);
+  ExpectString("Object.values(obj)[0]", "foofoo");
+}
+
+namespace {
+void QueryInterceptorForFoo(Local<Name> property,
+                            const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  // Don't intercept anything except "foo."
+  if (!v8_str("foo")
+           ->Equals(info.GetIsolate()->GetCurrentContext(), property)
+           .FromJust()) {
+    return;
+  }
+  // "foo" is enumerable.
+  info.GetReturnValue().Set(v8::PropertyAttribute::None);
+}
+}  // namespace
+
+// Test that calls to the query interceptor are independent of each
+// other.
+THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
+  // The enumerator interceptor returns a list
+  // of items which are filtered according to the
+  // properties defined in the query interceptor.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      ConcatNamedPropertyGetter, NULL, QueryInterceptorForFoo, NULL,
+      EnumCallbackWithNames));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "foo");
+  ExpectString("Object.getOwnPropertyNames(obj)[1]", "baz");
+  ExpectString("Object.getOwnPropertyNames(obj)[2]", "10");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
+  ExpectInt32("Object.keys(obj).length", 1);
+}
+
+THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      SloppyArgsIndexedPropertyEnumerator));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 4);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "0");
+  ExpectString("Object.getOwnPropertyNames(obj)[1]", "1");
+  ExpectString("Object.getOwnPropertyNames(obj)[2]", "2");
+  ExpectString("Object.getOwnPropertyNames(obj)[3]", "3");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, '2').enumerable");
+
+  ExpectInt32("Object.entries(obj).length", 1);
+  ExpectString("Object.entries(obj)[0][0]", "2");
+  ExpectInt32("Object.entries(obj)[0][1]", 4);
+
+  ExpectInt32("Object.keys(obj).length", 1);
+  ExpectString("Object.keys(obj)[0]", "2");
+
+  ExpectInt32("Object.values(obj).length", 1);
+  ExpectInt32("Object.values(obj)[0]", 4);
+}
+
+THREADED_TEST(EnumeratorsAndUnenumerableIndexedProperties) {
+  // The enumerator interceptor returns a list
+  // of items which are filtered according to the
+  // properties defined in the query interceptor.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+      ConcatIndexedPropertyGetter, NULL, RestrictiveIndexedQuery, NULL,
+      EnumCallbackWithIndices));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "10");
+  ExpectString("Object.getOwnPropertyNames(obj)[1]", "12");
+  ExpectString("Object.getOwnPropertyNames(obj)[2]", "14");
+
+  ExpectFalse("Object.getOwnPropertyDescriptor(obj, '10').enumerable");
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, '12').enumerable");
+
+  ExpectInt32("Object.entries(obj).length", 1);
+  ExpectString("Object.entries(obj)[0][0]", "12");
+  ExpectInt32("Object.entries(obj)[0][1]", 24);
+
+  ExpectInt32("Object.keys(obj).length", 1);
+  ExpectString("Object.keys(obj)[0]", "12");
+
+  ExpectInt32("Object.values(obj).length", 1);
+  ExpectInt32("Object.values(obj)[0]", 24);
+}
+
+THREADED_TEST(EnumeratorsAndForIn) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      ConcatNamedPropertyGetter, NULL, RestrictiveNamedQuery, NULL, NamedEnum));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "foo");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
+
+  CompileRun(
+      "let concat = '';"
+      "for(var prop in obj) {"
+      "  concat += `key:${prop}:value:${obj[prop]}`;"
+      "}");
+
+  // Check that for...in only iterates over enumerable properties.
+  ExpectString("concat", "key:foo:value:foofoo");
+}
 
 namespace {
 

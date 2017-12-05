@@ -443,7 +443,9 @@ size_t Utf8ExternalStreamingStream::FillBuffer(size_t position) {
 
   SearchPosition(position);
   bool out_of_data = current_.chunk_no != chunks_.size() &&
-                     chunks_[current_.chunk_no].length == 0;
+                     chunks_[current_.chunk_no].length == 0 &&
+                     current_.pos.incomplete_char == 0;
+
   if (out_of_data) return 0;
 
   // Fill the buffer, until we have at least one char (or are out of data).

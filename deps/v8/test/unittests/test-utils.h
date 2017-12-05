@@ -5,10 +5,11 @@
 #ifndef V8_UNITTESTS_TEST_UTILS_H_
 #define V8_UNITTESTS_TEST_UTILS_H_
 
+#include <vector>
+
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/list.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "testing/gtest-support.h"
@@ -142,7 +143,7 @@ class SaveFlags {
   ~SaveFlags();
 
  private:
-  List<const char*>* non_default_flags_;
+  std::vector<const char*>* non_default_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };

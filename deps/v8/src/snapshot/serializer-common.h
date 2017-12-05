@@ -186,21 +186,24 @@ class SerializerDeserializer : public RootVisitor {
   // Repeats of variable length.
   static const int kVariableRepeat = 0x19;
   // Raw data of variable length.
-  static const int kVariableRawData = 0x1a;
-  // Internal reference encoded as offsets of pc and target from code entry.
-  static const int kInternalReference = 0x1b;
-  static const int kInternalReferenceEncoded = 0x1c;
+  static const int kVariableRawCode = 0x1a;
+  static const int kVariableRawData = 0x1b;
+
+  // Used for embedder-allocated backing stores for TypedArrays.
+  static const int kOffHeapBackingStore = 0x1c;
+
   // Used to encode deoptimizer entry code.
   static const int kDeoptimizerEntryPlain = 0x1d;
   static const int kDeoptimizerEntryFromCode = 0x1e;
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
-  // Used for embedder-allocated backing stores for TypedArrays.
-  static const int kOffHeapBackingStore = 0x35;
+  // Internal reference encoded as offsets of pc and target from code entry.
+  static const int kInternalReference = 0x35;
+  static const int kInternalReferenceEncoded = 0x36;
 
   // Used to encode external referenced provided through the API.
-  static const int kApiReference = 0x36;
+  static const int kApiReference = 0x37;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
@@ -211,7 +214,7 @@ class SerializerDeserializer : public RootVisitor {
   static const int kHotObjectWithSkip = 0x58;
   static const int kHotObjectMask = 0x07;
 
-  // 0x37, 0x55..0x57, 0x75..0x7f unused.
+  // 0x55..0x57, 0x75..0x7f unused.
 
   // ---------- byte code range 0x80..0xff ----------
   // First 32 root array items.
@@ -272,7 +275,7 @@ class SerializedData {
     other.owns_data_ = false;
   }
 
-  ~SerializedData() {
+  virtual ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
   }
 
@@ -287,7 +290,6 @@ class SerializedData {
   }
 
   static const uint32_t kMagicNumberOffset = 0;
-  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {

@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 
+#include "src/api.h"
 #include "src/debug/interface-types.h"
 #include "src/objects-inl.h"
 
@@ -61,14 +62,13 @@ void ConsoleCall(
   (isolate->console_delegate()->*func)(
       wrapper,
       v8::debug::ConsoleContext(context_id, Utils::ToLocal(context_name)));
-  CHECK(!isolate->has_pending_exception());
-  CHECK(!isolate->has_scheduled_exception());
 }
 }  // namespace
 
 #define CONSOLE_BUILTIN_IMPLEMENTATION(call, name)             \
   BUILTIN(Console##call) {                                     \
     ConsoleCall(isolate, args, &debug::ConsoleDelegate::call); \
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);            \
     return isolate->heap()->undefined_value();                 \
   }
 CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)

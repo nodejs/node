@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_H_
 #define V8_DEBUG_DEBUG_H_
 
+#include <vector>
+
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/base/atomicops.h"
@@ -70,7 +72,7 @@ class BreakLocation {
 
   static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                     JavaScriptFrame* frame,
-                                    List<BreakLocation>* result_out);
+                                    std::vector<BreakLocation>* result_out);
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
@@ -250,7 +252,8 @@ class Debug {
   void ClearStepping();
   void ClearStepOut();
 
-  bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+  void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
+  void PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);

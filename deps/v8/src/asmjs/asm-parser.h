@@ -183,7 +183,6 @@ class AsmJsParser {
   // Types used for stdlib function and their set up.
   AsmType* stdlib_dq2d_;
   AsmType* stdlib_dqdq2d_;
-  AsmType* stdlib_fq2f_;
   AsmType* stdlib_i2s_;
   AsmType* stdlib_ii2s_;
   AsmType* stdlib_minmax_;

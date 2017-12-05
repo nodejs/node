@@ -26,7 +26,7 @@ void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
 
   // Report only if we don't actually have a handler.
   if (!promise->has_handler()) {
-    isolate->ReportPromiseReject(Handle<JSObject>::cast(promise), value,
+    isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
 }
@@ -58,8 +58,7 @@ RUNTIME_FUNCTION(Runtime_ReportPromiseReject) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  isolate->ReportPromiseReject(Handle<JSObject>::cast(promise), value,
-                               v8::kPromiseRejectWithNoHandler);
+  isolate->ReportPromiseReject(promise, value, v8::kPromiseRejectWithNoHandler);
   return isolate->heap()->undefined_value();
 }
 

@@ -160,10 +160,10 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
   DCHECK(index >= 0);
   int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
-  int displacement_to_last_argument = base_reg_.is(rsp) ?
-      kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
+  int displacement_to_last_argument =
+      base_reg_ == rsp ? kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
   displacement_to_last_argument += extra_displacement_to_last_argument_;
-  if (argument_count_reg_.is(no_reg)) {
+  if (argument_count_reg_ == no_reg) {
     // argument[0] is at base_reg_ + displacement_to_last_argument +
     // (argument_count_immediate_ + receiver - 1) * kPointerSize.
     DCHECK(argument_count_immediate_ + receiver > 0);

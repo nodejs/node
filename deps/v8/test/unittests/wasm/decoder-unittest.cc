@@ -676,6 +676,11 @@ TEST_F(DecoderTest, FailOnNullData) {
   EXPECT_FALSE(decoder.toResult(nullptr).ok());
 }
 
+#undef CHECK_UINT32V_INLINE
+#undef CHECK_INT32V_INLINE
+#undef CHECK_UINT64V_INLINE
+#undef CHECK_INT64V_INLINE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

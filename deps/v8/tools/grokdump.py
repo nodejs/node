@@ -35,6 +35,7 @@ import codecs
 import ctypes
 import datetime
 import disasm
+import inspect
 import mmap
 import optparse
 import os
@@ -1965,7 +1966,9 @@ class InspectionPadawan(object):
     # Frame markers only occur directly after a frame pointer and only on the
     # stack.
     if not self.reader.IsExceptionStackAddress(slot): return False
-    next_address = self.reader.ReadUIntPtr(slot + self.reader.PointerSize())
+    next_slot = slot + self.reader.PointerSize()
+    if not self.reader.IsValidAddress(next_slot): return False
+    next_address = self.reader.ReadUIntPtr(next_slot)
     return self.reader.IsExceptionStackAddress(next_address)
 
   def FormatSmi(self, address):
@@ -2057,10 +2060,12 @@ class InspectionPadawan(object):
     ptr_size = self.reader.PointerSize()
     if start is None:
       start = self.reader.ExceptionSP()
-    end = start + ptr_size * 1024
+    if not self.reader.IsValidAddress(start): return start
+    end = start + ptr_size * 1024 * 4
     message_start = 0
     magic1 = None
     for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot + ptr_size): break
       magic1 = self.reader.ReadUIntPtr(slot)
       magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
       pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
@@ -2073,7 +2078,9 @@ class InspectionPadawan(object):
       On Mac we don't always get proper magic markers, so just try printing
       the first long ascii string found on the stack.
       """
-      message_start, message = self.FindFirstAsciiString(start)
+      magic1 = None
+      magic2 = None
+      message_start, message = self.FindFirstAsciiString(start, end, 128)
       if message_start is None: return start
     else:
       message = self.reader.ReadAsciiString(message_start)
@@ -3323,6 +3330,23 @@ class InspectionShell(cmd.Cmd):
           expr, result , e))
     return address
 
+  def do_help(self, cmd=None):
+    if len(cmd) == 0:
+      print "Available commands"
+      print "=" * 79
+      prefix = "do_"
+      methods = inspect.getmembers(InspectionShell, predicate=inspect.ismethod)
+      for name,method in methods:
+        if not name.startswith(prefix): continue
+        doc = inspect.getdoc(method)
+        if not doc: continue
+        name = prefix.join(name.split(prefix)[1:])
+        description = doc.splitlines()[0]
+        print (name + ": ").ljust(16) + description
+      print "=" * 79
+    else:
+      return super(InspectionShell, self).do_help(cmd)
+
   def do_p(self, cmd):
     """ see print """
     return self.do_print(cmd)
@@ -3371,9 +3395,11 @@ class InspectionShell(cmd.Cmd):
   def do_dd(self, args):
     """
      Interpret memory in the given region [address, address + num * word_size)
+
      (if available) as a sequence of words. Automatic alignment is not performed.
      If the num is not specified, a default value of 16 words is usif not self.Is
      If no address is given, dd continues printing at the next word.
+
      Synopsis: dd 0x<address>|$register [0x<num>]
     """
     if len(args) != 0:
@@ -3393,9 +3419,10 @@ class InspectionShell(cmd.Cmd):
 
   def do_display_object(self, address):
     """
-     Interpret memory at the given address as a V8 object. Automatic
-     alignment makes sure that you can pass tagged as well as un-tagged
-     addresses.
+     Interpret memory at the given address as a V8 object.
+
+     Automatic alignment makes sure that you can pass tagged as well as
+     un-tagged addresses.
     """
     address = self.ParseAddressExpr(address)
     if self.reader.IsAlignedAddress(address):
@@ -3415,8 +3442,11 @@ class InspectionShell(cmd.Cmd):
 
   def do_display_stack_objects(self, args):
     """
+    Find and Print object pointers in the given range.
+
     Print all possible object pointers that are on the stack or in the given
     address range.
+
     Usage: dso [START_ADDR,[END_ADDR]]
     """
     start = self.reader.StackTop()
@@ -3443,7 +3473,7 @@ class InspectionShell(cmd.Cmd):
 
   def do_do_map(self, address):
     """
-      Print a descriptor array in a readable format.
+      Print a Map in a readable format.
     """
     start = self.ParseAddressExpr(address)
     if ((start & 1) == 1): start = start - 1
@@ -3463,6 +3493,8 @@ class InspectionShell(cmd.Cmd):
 
   def do_display_page(self, address):
     """
+     Prints details about the V8 heap page of the given address.
+
      Interpret memory at the given address as being on a V8 heap page
      and print information about the page header (if available).
     """
@@ -3476,9 +3508,10 @@ class InspectionShell(cmd.Cmd):
 
   def do_k(self, arguments):
     """
-     Teach V8 heap layout information to the inspector. This increases
-     the amount of annotations the inspector can produce while dumping
-     data. The first page of each heap space is of particular interest
+     Teach V8 heap layout information to the inspector.
+
+     This increases the amount of annotations the inspector can produce while
+     dumping data. The first page of each heap space is of particular interest
      because it contains known objects that do not move.
     """
     self.padawan.PrintKnowledge()
@@ -3489,8 +3522,9 @@ class InspectionShell(cmd.Cmd):
 
   def do_known_oldspace(self, address):
     """
-     Teach V8 heap layout information to the inspector. Set the first
-     old space page by passing any pointer into that page.
+     Teach V8 heap layout information to the inspector.
+
+     Set the first old space page by passing any pointer into that page.
     """
     address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
@@ -3502,8 +3536,9 @@ class InspectionShell(cmd.Cmd):
 
   def do_known_map(self, address):
     """
-     Teach V8 heap layout information to the inspector. Set the first
-     map-space page by passing any pointer into that page.
+     Teach V8 heap layout information to the inspector.
+
+     Set the first map-space page by passing any pointer into that page.
     """
     address = self.ParseAddressExpr(address)
     page_address = address & ~self.heap.PageAlignmentMask()
@@ -3526,9 +3561,10 @@ class InspectionShell(cmd.Cmd):
 
   def do_list_modules(self, arg):
     """
-     List details for all loaded modules in the minidump. An argument can
-     be passed to limit the output to only those modules that contain the
-     argument as a substring (case insensitive match).
+     List details for all loaded modules in the minidump.
+
+     An argument can be passed to limit the output to only those modules that
+     contain the argument as a substring (case insensitive match).
     """
     for module in self.reader.module_list.modules:
       if arg:
@@ -3545,9 +3581,10 @@ class InspectionShell(cmd.Cmd):
 
   def do_search(self, word):
     """
-     Search for a given word in available memory regions. The given word
-     is expanded to full pointer size and searched at aligned as well as
-     un-aligned memory locations. Use 'sa' to search aligned locations
+     Search for a given word in available memory regions.
+
+     The given word is expanded to full pointer size and searched at aligned
+     as well as un-aligned memory locations. Use 'sa' to search aligned locations
      only.
     """
     try:
@@ -3560,8 +3597,9 @@ class InspectionShell(cmd.Cmd):
 
   def do_sh(self, none):
     """
-     Search for the V8 Heap object in all available memory regions. You
-     might get lucky and find this rare treasure full of invaluable
+     Search for the V8 Heap object in all available memory regions.
+
+     You might get lucky and find this rare treasure full of invaluable
      information.
     """
     print "**** Not Implemented"
@@ -3572,8 +3610,9 @@ class InspectionShell(cmd.Cmd):
 
   def do_disassemble(self, args):
     """
-     Unassemble memory in the region [address, address + size). If the
-     size is not specified, a default value of 32 bytes is used.
+     Unassemble memory in the region [address, address + size).
+
+     If the size is not specified, a default value of 32 bytes is used.
      Synopsis: u 0x<address> 0x<size>
     """
     if len(args) != 0:
@@ -3590,6 +3629,12 @@ class InspectionShell(cmd.Cmd):
           self.reader.FormatIntPtr(self.u_start))
       return
     lines = self.reader.GetDisasmLines(self.u_start, self.u_size)
+    if len(lines) == 0:
+      print "Address %s could not be disassembled!" % (
+          self.reader.FormatIntPtr(self.u_start))
+      print "    Could not disassemble using %s." % OBJDUMP_BIN
+      print "    Pass path to architecture specific objdump via --objdump?"
+      return
     for line in lines:
       if skip:
         skip = False

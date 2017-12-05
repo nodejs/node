@@ -150,6 +150,11 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static InferReceiverMapsResult InferReceiverMaps(
       Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return);
 
+  // Walks up the {effect} chain to check that there's no observable side-effect
+  // between the {effect} and it's {dominator}. Aborts the walk if there's join
+  // in the effect chain.
+  static bool NoObservableSideEffectBetween(Node* effect, Node* dominator);
+
   // ---------------------------------------------------------------------------
   // Context.
 

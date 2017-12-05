@@ -15,24 +15,14 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
-                                           Handle<Map> stub_holder,
-                                           Code::Kind kind) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind);
-  Code* code = stub_holder->LookupInCodeCache(*name, flags);
-  if (code == nullptr) return Handle<Code>();
-  return handle(code);
-}
-
-Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
-                                              Handle<Name> name) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind);
-
+Handle<Code> PropertyHandlerCompiler::GetCode(Handle<Name> name) {
   // Create code object in the heap.
   CodeDesc desc;
   masm()->GetCode(isolate(), &desc);
-  Handle<Code> code = factory()->NewCode(desc, flags, masm()->CodeObject());
-  if (code->IsCodeStubOrIC()) code->set_stub_key(CodeStub::NoCacheKey());
+  Handle<Code> code =
+      factory()->NewCode(desc, Code::STUB, masm()->CodeObject());
+  DCHECK(code->is_stub());
+  code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
     char* raw_name = !name.is_null() && name->IsString()
@@ -94,18 +84,26 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                          miss);
 }
 
+// The ICs that don't pass slot and vector through the stack have to
+// save/restore them in the dispatcher.
+bool PropertyHandlerCompiler::ShouldPushPopSlotAndVector() {
+  switch (type()) {
+    case LOAD:
+      return true;
+    case STORE:
+      return !StoreWithVectorDescriptor::kPassLastArgsOnStack;
+  }
+  UNREACHABLE();
+  return false;
+}
 
 Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   Label miss;
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    PushVectorAndSlot();
-  }
+  if (ShouldPushPopSlotAndVector()) PushVectorAndSlot();
   Register reg = FrontendHeader(receiver(), name, &miss);
   FrontendFooter(name, &miss);
   // The footer consumes the vector and slot from the stack if miss occurs.
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    DiscardVectorAndSlot();
-  }
+  if (ShouldPushPopSlotAndVector()) DiscardVectorAndSlot();
   return reg;
 }
 
@@ -119,7 +117,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
@@ -129,7 +127,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
                          expected_arguments, scratch2());
 
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
@@ -146,7 +144,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 

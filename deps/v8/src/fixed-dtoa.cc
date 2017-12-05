@@ -168,8 +168,7 @@ static void FillDigits64(uint64_t number, Vector<char> buffer, int* length) {
   }
 }
 
-
-static void RoundUp(Vector<char> buffer, int* length, int* decimal_point) {
+static void DtoaRoundUp(Vector<char> buffer, int* length, int* decimal_point) {
   // An empty buffer represents 0.
   if (*length == 0) {
     buffer[0] = '1';
@@ -242,7 +241,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
     }
     // If the first bit after the point is set we have to round up.
     if (((fractionals >> (point - 1)) & 1) == 1) {
-      RoundUp(buffer, length, decimal_point);
+      DtoaRoundUp(buffer, length, decimal_point);
     }
   } else {  // We need 128 bits.
     DCHECK(64 < -exponent && -exponent <= 128);
@@ -261,7 +260,7 @@ static void FillFractionals(uint64_t fractionals, int exponent,
       (*length)++;
     }
     if (fractionals128.BitAt(point - 1) == 1) {
-      RoundUp(buffer, length, decimal_point);
+      DtoaRoundUp(buffer, length, decimal_point);
     }
   }
 }

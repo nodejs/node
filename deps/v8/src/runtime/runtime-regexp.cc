@@ -53,11 +53,9 @@ class CompiledReplacement {
   explicit CompiledReplacement(Zone* zone)
       : parts_(1, zone), replacement_substrings_(0, zone), zone_(zone) {}
 
-  // Return whether the replacement is simple. Can also fail and return Nothing
-  // if the given replacement string is invalid (and requires throwing a
-  // SyntaxError).
-  Maybe<bool> Compile(Handle<JSRegExp> regexp, Handle<String> replacement,
-                      int capture_count, int subject_length);
+  // Return whether the replacement is simple.
+  bool Compile(Handle<JSRegExp> regexp, Handle<String> replacement,
+               int capture_count, int subject_length);
 
   // Use Apply only if Compile returned false.
   void Apply(ReplacementStringBuilder* builder, int match_from, int match_to,
@@ -75,6 +73,7 @@ class CompiledReplacement {
     SUBJECT_CAPTURE,
     REPLACEMENT_SUBSTRING,
     REPLACEMENT_STRING,
+    EMPTY_REPLACEMENT,
     NUMBER_OF_PART_TYPES
   };
 
@@ -94,9 +93,12 @@ class CompiledReplacement {
     static inline ReplacementPart ReplacementString() {
       return ReplacementPart(REPLACEMENT_STRING, 0);
     }
+    static inline ReplacementPart EmptyReplacement() {
+      return ReplacementPart(EMPTY_REPLACEMENT, 0);
+    }
     static inline ReplacementPart ReplacementSubString(int from, int to) {
-      DCHECK(from >= 0);
-      DCHECK(to > from);
+      DCHECK_LE(0, from);
+      DCHECK_GT(to, from);
       return ReplacementPart(-from, to);
     }
 
@@ -116,6 +118,7 @@ class CompiledReplacement {
     // tag == REPLACEMENT_SUBSTRING ||
     // tag == REPLACEMENT_STRING:    data is index into array of substrings
     //                               of the replacement string.
+    // tag == EMPTY_REPLACEMENT: data is unused.
     // tag <= 0: Temporary representation of the substring of the replacement
     //           string ranging over -tag .. data.
     //           Is replaced by REPLACEMENT_{SUB,}STRING when we create the
@@ -124,11 +127,10 @@ class CompiledReplacement {
   };
 
   template <typename Char>
-  Maybe<bool> ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
-                                      Vector<Char> characters,
-                                      FixedArray* capture_name_map,
-                                      int capture_count, int subject_length,
-                                      Zone* zone) {
+  bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                               Vector<Char> characters,
+                               FixedArray* capture_name_map, int capture_count,
+                               int subject_length, Zone* zone) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
     // repeated parsing when used repeatedly.
@@ -228,8 +230,8 @@ class CompiledReplacement {
               break;
             }
 
-            // Scan until the next '>', throwing a SyntaxError exception if one
-            // is not found, and let the enclosed substring be groupName.
+            // Scan until the next '>', and let the enclosed substring be the
+            // groupName.
 
             const int name_start_index = next_index + 1;
             int closing_bracket_index = -1;
@@ -240,8 +242,12 @@ class CompiledReplacement {
               }
             }
 
-            // Throw a SyntaxError for invalid replacement strings.
-            if (closing_bracket_index == -1) return Nothing<bool>();
+            // If no closing bracket is found, '$<' is treated as a string
+            // literal.
+            if (closing_bracket_index == -1) {
+              i = next_index;
+              break;
+            }
 
             Vector<Char> requested_name =
                 characters.SubVector(name_start_index, closing_bracket_index);
@@ -254,21 +260,21 @@ class CompiledReplacement {
                 },
                 capture_name_map);
 
-            // If ? HasProperty(_namedCaptures_, _groupName_) is *false*, throw
-            // a *SyntaxError* exception.
-            if (capture_index == -1) return Nothing<bool>();
-
-            // If capture is undefined, replace the text through the following
-            // '>' with the empty string.
+            // If capture is undefined or does not exist, replace the text
+            // through the following '>' with the empty string.
             // Otherwise, replace the text through the following '>' with
             // ? ToString(capture).
 
-            DCHECK(1 <= capture_index && capture_index <= capture_count);
+            DCHECK(capture_index == -1 ||
+                   (1 <= capture_index && capture_index <= capture_count));
 
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
             }
-            parts->Add(ReplacementPart::SubjectCapture(capture_index), zone);
+            parts->Add((capture_index == -1)
+                           ? ReplacementPart::EmptyReplacement()
+                           : ReplacementPart::SubjectCapture(capture_index),
+                       zone);
             last = closing_bracket_index + 1;
             i = closing_bracket_index;
             break;
@@ -282,12 +288,12 @@ class CompiledReplacement {
     if (length > last) {
       if (last == 0) {
         // Replacement is simple.  Do not use Apply to do the replacement.
-        return Just(true);
+        return true;
       } else {
         parts->Add(ReplacementPart::ReplacementSubString(last, length), zone);
       }
     }
-    return Just(false);
+    return false;
   }
 
   ZoneList<ReplacementPart> parts_;
@@ -295,10 +301,9 @@ class CompiledReplacement {
   Zone* zone_;
 };
 
-Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
-                                         Handle<String> replacement,
-                                         int capture_count,
-                                         int subject_length) {
+bool CompiledReplacement::Compile(Handle<JSRegExp> regexp,
+                                  Handle<String> replacement, int capture_count,
+                                  int subject_length) {
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent content = replacement->GetFlatContent();
@@ -314,7 +319,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
       }
     }
 
-    Maybe<bool> simple = Nothing<bool>();
+    bool simple;
     if (content.IsOneByte()) {
       simple = ParseReplacementPattern(&parts_, content.ToOneByteVector(),
                                        capture_name_map, capture_count,
@@ -325,7 +330,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
                                        capture_name_map, capture_count,
                                        subject_length, zone());
     }
-    if (simple.IsNothing() || simple.FromJust()) return simple;
+    if (simple) return true;
   }
 
   Isolate* isolate = replacement->GetIsolate();
@@ -347,7 +352,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
       substring_index++;
     }
   }
-  return Just(false);
+  return false;
 }
 
 
@@ -380,6 +385,8 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       case REPLACEMENT_STRING:
         builder->AddString(replacement_substrings_[part.data]);
         break;
+      case EMPTY_REPLACEMENT:
+        break;
       default:
         UNREACHABLE();
     }
@@ -388,7 +395,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 
 void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
                               std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
   const uint8_t* subject_start = subject.start();
@@ -406,7 +413,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
 
 void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
                               std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   const uc16* subject_start = subject.start();
   const uc16* subject_end = subject_start + subject.length();
   for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
@@ -421,7 +428,7 @@ template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
                        Vector<const PatternChar> pattern,
                        std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
   int pattern_length = pattern.length();
@@ -608,15 +615,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   // CompiledReplacement uses zone allocation.
   Zone zone(isolate->allocator(), ZONE_NAME);
   CompiledReplacement compiled_replacement(&zone);
-  Maybe<bool> maybe_simple_replace = compiled_replacement.Compile(
+  const bool simple_replace = compiled_replacement.Compile(
       regexp, replacement, capture_count, subject_length);
-  if (maybe_simple_replace.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
-                                replacement));
-  }
-
-  const bool simple_replace = maybe_simple_replace.FromJust();
 
   // Shortcut for simple non-regexp global replacements
   if (typeTag == JSRegExp::ATOM && simple_replace) {
@@ -827,11 +827,11 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 1);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[2]);
-  CHECK(limit > 0);
+  CHECK_LT(0, limit);
 
   int subject_length = subject->length();
   int pattern_length = pattern->length();
-  CHECK(pattern_length > 0);
+  CHECK_LT(0, pattern_length);
 
   if (limit == 0xffffffffu) {
     FixedArray* last_match_cache_unused;
@@ -938,8 +938,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CHECK(index >= 0);
-  CHECK(index <= subject->length());
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(
       isolate, RegExpImpl::Exec(regexp, subject, index, last_match_info));
@@ -1262,7 +1262,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
                 isolate->factory()->NewSubString(subject, start, end);
             elements->set(cursor++, *substring);
           } else {
-            DCHECK(current_match[i * 2 + 1] < 0);
+            DCHECK_GT(0, current_match[i * 2 + 1]);
             elements->set(cursor++, isolate->heap()->undefined_value());
           }
         }

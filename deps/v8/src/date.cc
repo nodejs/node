@@ -310,7 +310,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
   }
 
   // Binary search for daylight savings offset change point,
-  // but give up if we don't find it in four iterations.
+  // but give up if we don't find it in five iterations.
   for (int i = 4; i >= 0; --i) {
     int delta = after_->start_sec - before_->end_sec;
     int middle_sec = (i == 0) ? time_sec : before_->end_sec + delta / 2;
@@ -332,7 +332,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
       }
     }
   }
-  UNREACHABLE();
+  return 0;
 }
 
 

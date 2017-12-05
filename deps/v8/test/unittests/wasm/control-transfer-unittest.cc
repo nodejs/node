@@ -20,13 +20,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define B1(a) kExprBlock, a, kExprEnd
-#define B2(a, b) kExprBlock, a, b, kExprEnd
-#define B3(a, b, c) kExprBlock, a, b, c, kExprEnd
-
-#define TRANSFER_VOID 0
-#define TRANSFER_ONE 1
-
 struct ExpectedControlTransfer {
   pc_t pc;
   pcdiff_t pc_diff;

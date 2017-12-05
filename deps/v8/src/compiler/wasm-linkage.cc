@@ -5,7 +5,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/lazy-instance.h"
 #include "src/macro-assembler.h"
-#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 
 #include "src/compiler/linkage.h"
@@ -47,7 +46,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi
+#define GP_PARAM_REGISTERS esi, eax, edx, ecx, ebx
 #define GP_RETURN_REGISTERS eax, edx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
@@ -56,7 +55,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == x64 ====================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS rax, rdx, rcx, rbx, rsi, rdi
+#define GP_PARAM_REGISTERS rsi, rax, rdx, rcx, rbx, rdi
 #define GP_RETURN_REGISTERS rax, rdx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
@@ -65,7 +64,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == arm ====================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS r0, r1, r2, r3
+#define GP_PARAM_REGISTERS r3, r0, r1, r2
 #define GP_RETURN_REGISTERS r0, r1
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTERS d0, d1
@@ -74,7 +73,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == arm64 ====================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
+#define GP_PARAM_REGISTERS x7, x0, x1, x2, x3, x4, x5, x6
 #define GP_RETURN_REGISTERS x0, x1
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTERS d0, d1
@@ -101,7 +100,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == ppc & ppc64 ============================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
+#define GP_PARAM_REGISTERS r10, r3, r4, r5, r6, r7, r8, r9
 #define GP_RETURN_REGISTERS r3, r4
 #define FP_PARAM_REGISTERS d1, d2, d3, d4, d5, d6, d7, d8
 #define FP_RETURN_REGISTERS d1, d2
@@ -110,7 +109,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == s390x ==================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS r2, r3, r4, r5, r6
+#define GP_PARAM_REGISTERS r6, r2, r3, r4, r5
 #define GP_RETURN_REGISTERS r2, r3
 #define FP_PARAM_REGISTERS d0, d2, d4, d6
 #define FP_RETURN_REGISTERS d0, d2, d4, d6
@@ -119,7 +118,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // ===========================================================================
 // == s390 ===================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS r2, r3, r4, r5, r6
+#define GP_PARAM_REGISTERS r6, r2, r3, r4, r5
 #define GP_RETURN_REGISTERS r2, r3
 #define FP_PARAM_REGISTERS d0, d2
 #define FP_RETURN_REGISTERS d0, d2
@@ -170,7 +169,7 @@ struct Allocator {
         // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
         if (type == wasm::kWasmF32) {
           int float_reg_code = reg.code() * 2;
-          DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
+          DCHECK_GT(RegisterConfiguration::kMaxFPRegisters, float_reg_code);
           return LinkageLocation::ForRegister(
               DoubleRegister::from_code(float_reg_code).code(),
               MachineTypeFor(type));
@@ -223,8 +222,9 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 
 // General code uses the above configuration data.
 CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
+  // The '+ 1' here is to accomodate the wasm_context as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
-                                       fsig->parameter_count());
+                                       fsig->parameter_count() + 1);
 
   Allocator rets = return_registers;
 
@@ -236,6 +236,9 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   }
 
   Allocator params = parameter_registers;
+
+  // Add parameter for the wasm_context.
+  locations.AddParam(params.Next(MachineType::PointerRepresentation()));
 
   // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
@@ -338,6 +341,11 @@ CallDescriptor* GetI32WasmCallDescriptorForSimd(Zone* zone,
                                          MachineType::Simd128(),
                                          MachineRepresentation::kWord32);
 }
+
+#undef GP_PARAM_REGISTERS
+#undef GP_RETURN_REGISTERS
+#undef FP_PARAM_REGISTERS
+#undef FP_RETURN_REGISTERS
 
 }  // namespace compiler
 }  // namespace internal

@@ -5,11 +5,12 @@
 #include "src/eh-frame.h"
 #include "test/unittests/test-utils.h"
 
+namespace v8 {
+namespace internal {
+
 // Test enabled only on supported architectures.
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) || \
     defined(V8_TARGET_ARCH_ARM64)
-
-using namespace v8::internal;
 
 namespace {
 
@@ -467,3 +468,6 @@ TEST_F(EhFrameWriterTest, EhFrameHdrLayout) {
 }
 
 #endif
+
+}  // namespace internal
+}  // namespace v8

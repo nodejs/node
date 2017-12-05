@@ -84,74 +84,96 @@ const int kNumSafepointRegisters = 32;
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
 #define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
 #define kNumSafepointSavedRegisters \
-  CPURegList::GetSafepointSavedRegisters().Count();
+  CPURegList::GetSafepointSavedRegisters().Count()
 
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
-struct Register;
-struct VRegister;
+class Register;
+class VRegister;
 
-struct CPURegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kRegAfterLast
+};
 
+class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
+ public:
   enum RegisterType {
-    // The kInvalid value is used to detect uninitialized static instances,
-    // which are always zero-initialized before any constructors are called.
-    kInvalid = 0,
     kRegister,
     kVRegister,
     kNoRegister
   };
 
-  constexpr CPURegister() : CPURegister(0, 0, CPURegister::kNoRegister) {}
-
-  constexpr CPURegister(int reg_code, int reg_size, RegisterType reg_type,
-                        int lane_count = 1)
-      : reg_code(reg_code),
-        reg_size(reg_size),
-        reg_type(reg_type),
-        lane_count(lane_count) {}
-
-  static CPURegister Create(int reg_code, int reg_size, RegisterType reg_type,
-                            int lane_count = 1) {
-    CPURegister r = {reg_code, reg_size, reg_type, lane_count};
-    return r;
+  static constexpr CPURegister no_reg() {
+    return CPURegister{0, 0, kNoRegister};
   }
 
-  int code() const;
-  RegisterType type() const;
-  RegList bit() const;
-  int SizeInBits() const;
-  int SizeInBytes() const;
-  bool Is8Bits() const;
-  bool Is16Bits() const;
-  bool Is32Bits() const;
-  bool Is64Bits() const;
-  bool Is128Bits() const;
-  bool IsValid() const;
-  bool IsValidOrNone() const;
-  bool IsValidRegister() const;
-  bool IsValidVRegister() const;
-  bool IsNone() const;
-  bool Is(const CPURegister& other) const;
-  bool Aliases(const CPURegister& other) const;
+  template <int code, int size, RegisterType type>
+  static constexpr CPURegister Create() {
+    static_assert(IsValid(code, size, type), "Cannot create invalid registers");
+    return CPURegister{code, size, type};
+  }
+
+  static CPURegister Create(int code, int size, RegisterType type) {
+    DCHECK(IsValid(code, size, type));
+    return CPURegister{code, size, type};
+  }
+
+  RegisterType type() const { return reg_type_; }
+  RegList bit() const {
+    DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
+    return IsValid() ? 1UL << reg_code_ : 0;
+  }
+  int SizeInBits() const {
+    DCHECK(IsValid());
+    return reg_size_;
+  }
+  int SizeInBytes() const {
+    DCHECK(IsValid());
+    DCHECK(SizeInBits() % 8 == 0);
+    return reg_size_ / 8;
+  }
+  bool Is8Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 8;
+  }
+  bool Is16Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 16;
+  }
+  bool Is32Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 32;
+  }
+  bool Is64Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 64;
+  }
+  bool Is128Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 128;
+  }
+  bool IsValid() const { return reg_type_ != kNoRegister; }
+  bool IsNone() const { return reg_type_ == kNoRegister; }
+  bool Is(const CPURegister& other) const {
+    return Aliases(other) && (reg_size_ == other.reg_size_);
+  }
+  bool Aliases(const CPURegister& other) const {
+    return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
+  }
 
   bool IsZero() const;
   bool IsSP() const;
 
-  bool IsRegister() const;
-  bool IsVRegister() const;
+  bool IsRegister() const { return reg_type_ == kRegister; }
+  bool IsVRegister() const { return reg_type_ == kVRegister; }
 
   bool IsFPRegister() const { return IsS() || IsD(); }
 
-  bool IsW() const { return IsValidRegister() && Is32Bits(); }
-  bool IsX() const { return IsValidRegister() && Is64Bits(); }
+  bool IsW() const { return IsRegister() && Is32Bits(); }
+  bool IsX() const { return IsRegister() && Is64Bits(); }
 
   // These assertions ensure that the size and type of the register are as
   // described. They do not consider the number of lanes that make up a vector.
@@ -165,6 +187,9 @@ struct CPURegister {
   bool IsS() const { return IsV() && Is32Bits(); }
   bool IsD() const { return IsV() && Is64Bits(); }
   bool IsQ() const { return IsV() && Is128Bits(); }
+
+  Register Reg() const;
+  VRegister VReg() const;
 
   Register X() const;
   Register W() const;
@@ -181,25 +206,51 @@ struct CPURegister {
   bool is(const CPURegister& other) const { return Is(other); }
   bool is_valid() const { return IsValid(); }
 
-  int reg_code;
-  int reg_size;
-  RegisterType reg_type;
-  int lane_count;
-};
+ protected:
+  int reg_size_;
+  RegisterType reg_type_;
 
+  friend class RegisterBase;
 
-struct Register : public CPURegister {
-  static Register Create(int code, int size) {
-    return Register(CPURegister::Create(code, size, CPURegister::kRegister));
+  constexpr CPURegister(int code, int size, RegisterType type)
+      : RegisterBase(code), reg_size_(size), reg_type_(type) {}
+
+  static constexpr bool IsValidRegister(int code, int size) {
+    return (size == kWRegSizeInBits || size == kXRegSizeInBits) &&
+           (code < kNumberOfRegisters || code == kSPRegInternalCode);
   }
 
-  constexpr Register() : CPURegister() {}
+  static constexpr bool IsValidVRegister(int code, int size) {
+    return (size == kBRegSizeInBits || size == kHRegSizeInBits ||
+            size == kSRegSizeInBits || size == kDRegSizeInBits ||
+            size == kQRegSizeInBits) &&
+           code < kNumberOfVRegisters;
+  }
 
-  constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
+  static constexpr bool IsValid(int code, int size, RegisterType type) {
+    return (type == kRegister && IsValidRegister(code, size)) ||
+           (type == kVRegister && IsValidVRegister(code, size));
+  }
 
-  bool IsValid() const {
-    DCHECK(IsRegister() || IsNone());
-    return IsValidRegister();
+  static constexpr bool IsNone(int code, int size, RegisterType type) {
+    return type == kNoRegister && code == 0 && size == 0;
+  }
+};
+
+static_assert(IS_TRIVIALLY_COPYABLE(CPURegister),
+              "CPURegister can efficiently be passed by value");
+
+class Register : public CPURegister {
+ public:
+  static constexpr Register no_reg() { return Register(CPURegister::no_reg()); }
+
+  template <int code, int size>
+  static constexpr Register Create() {
+    return Register(CPURegister::Create<code, size, CPURegister::kRegister>());
+  }
+
+  static Register Create(int code, int size) {
+    return Register(CPURegister::Create(code, size, CPURegister::kRegister));
   }
 
   static Register XRegFromCode(unsigned code);
@@ -208,10 +259,6 @@ struct Register : public CPURegister {
   // Start of V8 compatibility section ---------------------
   // These memebers are necessary for compilation.
   // A few of them may be unused for now.
-
-  static constexpr int kNumRegisters = kNumberOfRegisters;
-  STATIC_ASSERT(kNumRegisters == Code::kAfterLast);
-  static int NumRegisters() { return kNumRegisters; }
 
   // We allow crankshaft to use the following registers:
   //   - x0 to x15
@@ -234,41 +281,46 @@ struct Register : public CPURegister {
   }
 
   // End of V8 compatibility section -----------------------
+  //
+ private:
+  constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
 };
+
+static_assert(IS_TRIVIALLY_COPYABLE(Register),
+              "Register can efficiently be passed by value");
 
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-struct VRegister : public CPURegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kDoubleAfterLast
+};
 
-  static VRegister Create(int reg_code, int reg_size, int lane_count = 1) {
-    DCHECK(base::bits::IsPowerOfTwo(lane_count) && (lane_count <= 16));
-    VRegister v(CPURegister::Create(reg_code, reg_size, CPURegister::kVRegister,
-                                    lane_count));
-    DCHECK(v.IsValidVRegister());
-    return v;
+class VRegister : public CPURegister {
+ public:
+  static constexpr VRegister no_reg() {
+    return VRegister(CPURegister::no_reg(), 0);
+  }
+
+  template <int code, int size, int lane_count = 1>
+  static constexpr VRegister Create() {
+    static_assert(IsValidLaneCount(lane_count), "Invalid lane count");
+    return VRegister(CPURegister::Create<code, size, kVRegister>(), lane_count);
+  }
+
+  static VRegister Create(int code, int size, int lane_count = 1) {
+    DCHECK(IsValidLaneCount(lane_count));
+    return VRegister(CPURegister::Create(code, size, CPURegister::kVRegister),
+                     lane_count);
   }
 
   static VRegister Create(int reg_code, VectorFormat format) {
     int reg_size = RegisterSizeInBitsFromFormat(format);
     int reg_count = IsVectorFormat(format) ? LaneCountFromFormat(format) : 1;
     return VRegister::Create(reg_code, reg_size, reg_count);
-  }
-
-  constexpr VRegister() : CPURegister() {}
-
-  constexpr explicit VRegister(const CPURegister& r) : CPURegister(r) {}
-
-  bool IsValid() const {
-    DCHECK(IsVRegister() || IsNone());
-    return IsValidVRegister();
   }
 
   static VRegister BRegFromCode(unsigned code);
@@ -303,14 +355,14 @@ struct VRegister : public CPURegister {
     return VRegister::Create(code(), kDRegSizeInBits, 1);
   }
 
-  bool Is8B() const { return (Is64Bits() && (lane_count == 8)); }
-  bool Is16B() const { return (Is128Bits() && (lane_count == 16)); }
-  bool Is4H() const { return (Is64Bits() && (lane_count == 4)); }
-  bool Is8H() const { return (Is128Bits() && (lane_count == 8)); }
-  bool Is2S() const { return (Is64Bits() && (lane_count == 2)); }
-  bool Is4S() const { return (Is128Bits() && (lane_count == 4)); }
-  bool Is1D() const { return (Is64Bits() && (lane_count == 1)); }
-  bool Is2D() const { return (Is128Bits() && (lane_count == 2)); }
+  bool Is8B() const { return (Is64Bits() && (lane_count_ == 8)); }
+  bool Is16B() const { return (Is128Bits() && (lane_count_ == 16)); }
+  bool Is4H() const { return (Is64Bits() && (lane_count_ == 4)); }
+  bool Is8H() const { return (Is128Bits() && (lane_count_ == 8)); }
+  bool Is2S() const { return (Is64Bits() && (lane_count_ == 2)); }
+  bool Is4S() const { return (Is128Bits() && (lane_count_ == 4)); }
+  bool Is1D() const { return (Is64Bits() && (lane_count_ == 1)); }
+  bool Is2D() const { return (Is128Bits() && (lane_count_ == 2)); }
 
   // For consistency, we assert the number of lanes of these scalar registers,
   // even though there are no vectors of equivalent total size with which they
@@ -333,22 +385,22 @@ struct VRegister : public CPURegister {
   bool IsLaneSizeS() const { return LaneSizeInBits() == kSRegSizeInBits; }
   bool IsLaneSizeD() const { return LaneSizeInBits() == kDRegSizeInBits; }
 
-  bool IsScalar() const { return lane_count == 1; }
-  bool IsVector() const { return lane_count > 1; }
+  bool IsScalar() const { return lane_count_ == 1; }
+  bool IsVector() const { return lane_count_ > 1; }
 
   bool IsSameFormat(const VRegister& other) const {
-    return (reg_size == other.reg_size) && (lane_count == other.lane_count);
+    return (reg_size_ == other.reg_size_) && (lane_count_ == other.lane_count_);
   }
 
-  int LaneCount() const { return lane_count; }
+  int LaneCount() const { return lane_count_; }
 
-  unsigned LaneSizeInBytes() const { return SizeInBytes() / lane_count; }
+  unsigned LaneSizeInBytes() const { return SizeInBytes() / lane_count_; }
 
   unsigned LaneSizeInBits() const { return LaneSizeInBytes() * 8; }
 
   // Start of V8 compatibility section ---------------------
   static constexpr int kMaxNumRegisters = kNumberOfVRegisters;
-  STATIC_ASSERT(kMaxNumRegisters == Code::kAfterLast);
+  STATIC_ASSERT(kMaxNumRegisters == kDoubleAfterLast);
 
   // Crankshaft can use all the V registers except:
   //   - d15 which is used to keep the 0 double value
@@ -359,51 +411,52 @@ struct VRegister : public CPURegister {
     return VRegister::Create(code, kDRegSizeInBits);
   }
   // End of V8 compatibility section -----------------------
+
+ private:
+  int lane_count_;
+
+  constexpr explicit VRegister(const CPURegister& r, int lane_count)
+      : CPURegister(r), lane_count_(lane_count) {}
+
+  static constexpr bool IsValidLaneCount(int lane_count) {
+    return base::bits::IsPowerOfTwo(lane_count) && lane_count <= 16;
+  }
 };
 
-static_assert(sizeof(CPURegister) == sizeof(Register),
-              "CPURegister must be same size as Register");
-static_assert(sizeof(CPURegister) == sizeof(VRegister),
-              "CPURegister must be same size as VRegister");
-
-#define DEFINE_REGISTER(register_class, name, code, size, type) \
-  constexpr register_class name { CPURegister(code, size, type) }
-#define ALIAS_REGISTER(register_class, alias, name) \
-  constexpr register_class alias = name
+static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
+              "VRegister can efficiently be passed by value");
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and VRegister
 // variants are provided for convenience.
-DEFINE_REGISTER(Register, NoReg, 0, 0, CPURegister::kNoRegister);
-DEFINE_REGISTER(VRegister, NoVReg, 0, 0, CPURegister::kNoRegister);
-DEFINE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
+constexpr Register NoReg = Register::no_reg();
+constexpr VRegister NoVReg = VRegister::no_reg();
+constexpr CPURegister NoCPUReg = CPURegister::no_reg();
 
 // v8 compatibility.
-DEFINE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
+constexpr Register no_reg = NoReg;
 
-#define DEFINE_REGISTERS(N)                                                    \
-  DEFINE_REGISTER(Register, w##N, N, kWRegSizeInBits, CPURegister::kRegister); \
-  DEFINE_REGISTER(Register, x##N, N, kXRegSizeInBits, CPURegister::kRegister);
+#define DEFINE_REGISTER(register_class, name, ...) \
+  constexpr register_class name = register_class::Create<__VA_ARGS__>()
+#define ALIAS_REGISTER(register_class, alias, name) \
+  constexpr register_class alias = name
+
+#define DEFINE_REGISTERS(N)                            \
+  DEFINE_REGISTER(Register, w##N, N, kWRegSizeInBits); \
+  DEFINE_REGISTER(Register, x##N, N, kXRegSizeInBits);
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
-                CPURegister::kRegister);
-DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
-                CPURegister::kRegister);
+DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits);
+DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits);
 
-#define DEFINE_VREGISTERS(N)                           \
-  DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits, \
-                  CPURegister::kVRegister);            \
-  DEFINE_REGISTER(VRegister, h##N, N, kHRegSizeInBits, \
-                  CPURegister::kVRegister);            \
-  DEFINE_REGISTER(VRegister, s##N, N, kSRegSizeInBits, \
-                  CPURegister::kVRegister);            \
-  DEFINE_REGISTER(VRegister, d##N, N, kDRegSizeInBits, \
-                  CPURegister::kVRegister);            \
-  DEFINE_REGISTER(VRegister, q##N, N, kQRegSizeInBits, \
-                  CPURegister::kVRegister);            \
-  DEFINE_REGISTER(VRegister, v##N, N, kQRegSizeInBits, CPURegister::kVRegister);
+#define DEFINE_VREGISTERS(N)                            \
+  DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits); \
+  DEFINE_REGISTER(VRegister, h##N, N, kHRegSizeInBits); \
+  DEFINE_REGISTER(VRegister, s##N, N, kSRegSizeInBits); \
+  DEFINE_REGISTER(VRegister, d##N, N, kDRegSizeInBits); \
+  DEFINE_REGISTER(VRegister, q##N, N, kQRegSizeInBits); \
+  DEFINE_REGISTER(VRegister, v##N, N, kQRegSizeInBits);
 GENERAL_REGISTER_CODE_LIST(DEFINE_VREGISTERS)
 #undef DEFINE_VREGISTERS
 
@@ -431,6 +484,9 @@ ALIAS_REGISTER(Register, fp, x29);
 ALIAS_REGISTER(Register, lr, x30);
 ALIAS_REGISTER(Register, xzr, x31);
 ALIAS_REGISTER(Register, wzr, w31);
+
+// Register used for padding stack slots.
+ALIAS_REGISTER(Register, padreg, x31);
 
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);

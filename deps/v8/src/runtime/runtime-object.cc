@@ -9,6 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/property-descriptor.h"
 #include "src/runtime/runtime.h"
 
@@ -162,16 +163,23 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   if (details.location() == kField) {
     isolate->heap()->NotifyObjectLayoutChange(*receiver, map->instance_size(),
                                               no_allocation);
-    Object* filler = isolate->heap()->one_pointer_filler_map();
     FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
-    JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
-    // We must clear any recorded slot for the deleted property, because
-    // subsequent object modifications might put a raw double there.
-    // Slot clearing is the reason why this entire function cannot currently
-    // be implemented in the DeleteProperty stub.
-    if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
-      isolate->heap()->ClearRecordedSlot(
-          *receiver, HeapObject::RawField(*receiver, index.offset()));
+    // Special case deleting the last out-of object property.
+    if (!index.is_inobject() && index.outobject_array_index() == 0) {
+      DCHECK(!Map::cast(backpointer)->HasOutOfObjectProperties());
+      // Clear out the properties backing store.
+      receiver->SetProperties(isolate->heap()->empty_fixed_array());
+    } else {
+      Object* filler = isolate->heap()->one_pointer_filler_map();
+      JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
+      // We must clear any recorded slot for the deleted property, because
+      // subsequent object modifications might put a raw double there.
+      // Slot clearing is the reason why this entire function cannot currently
+      // be implemented in the DeleteProperty stub.
+      if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
+        isolate->heap()->ClearRecordedSlot(
+            *receiver, HeapObject::RawField(*receiver, index.offset()));
+      }
     }
   }
   // If the map was marked stable before, then there could be optimized code
@@ -181,6 +189,10 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   map->NotifyLeafMapLayoutChange();
   // Finally, perform the map rollback.
   receiver->synchronized_set_map(Map::cast(backpointer));
+#if VERIFY_HEAP
+  receiver->HeapObjectVerify();
+  receiver->property_array()->PropertyArrayVerify();
+#endif
   return true;
 }
 
@@ -467,7 +479,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  CHECK(!it.IsFound());
+  DCHECK(!it.IsFound());
 #endif
 
   RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -493,11 +505,11 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  CHECK(!it.IsFound());
+  DCHECK(!it.IsFound());
 
   if (object->IsJSArray()) {
     Handle<JSArray> array = Handle<JSArray>::cast(object);
-    CHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
+    DCHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
   }
 #endif
 
@@ -811,12 +823,14 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
 
-  DCHECK(FLAG_type_profile);
-
   Handle<String> type = Object::TypeOf(isolate, value);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     type = JSReceiver::GetConstructorName(object);
+  } else if (value->IsNull(isolate)) {
+    // typeof(null) is object. But it's more user-friendly to annotate
+    // null as type "null".
+    type = Handle<String>(isolate->heap()->null_string());
   }
 
   DCHECK(vector->metadata()->HasTypeProfileSlot());
@@ -1196,6 +1210,22 @@ RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
   if (!IsFastNumberElementsKind(kind)) return isolate->heap()->ToBoolean(false);
 
   return isolate->heap()->ToBoolean(!obj->IterationHasObservableEffects());
+}
+
+RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+
+  PropertyDescriptor desc;
+  Maybe<bool> found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, object, name, &desc);
+  MAYBE_RETURN(found, isolate->heap()->exception());
+
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
+  return *desc.ToPropertyDescriptorObject(isolate);
 }
 
 }  // namespace internal

@@ -37,6 +37,7 @@
 #if V8_OS_LINUX
 #include <fcntl.h>
 #include <sys/mman.h>
+#undef MAP_TYPE  // jumbo: conflicts with v8::internal::InstanceType::MAP_TYPE
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
@@ -196,8 +197,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
                                       SharedFunctionInfo* shared,
                                       const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (abstract_code->kind() != AbstractCode::FUNCTION &&
-       abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
+      (abstract_code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
        abstract_code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
     return;
   }
@@ -398,7 +398,8 @@ void PerfJitLogger::LogWriteHeader() {
   header.reserved_ = 0xdeadbeef;
   header.process_id_ = base::OS::GetCurrentProcessId();
   header.time_stamp_ =
-      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
+      static_cast<uint64_t>(V8::GetCurrentPlatform()->CurrentClockTimeMillis() *
+                            base::Time::kMicrosecondsPerMillisecond);
   header.flags_ = 0;
 
   LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));

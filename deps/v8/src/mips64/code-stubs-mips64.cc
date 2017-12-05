@@ -10,6 +10,7 @@
 #include "src/codegen.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -43,7 +44,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   int double_offset = offset();
   // Account for saved regs if input is sp.
-  if (input_reg.is(sp)) double_offset += 3 * kPointerSize;
+  if (input_reg == sp) double_offset += 3 * kPointerSize;
 
   Register scratch =
       GetRegisterThatIsNotOneOf(input_reg, result_reg);
@@ -220,7 +221,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(a2));
+  DCHECK(exponent == a2);
   const DoubleRegister double_base = f2;
   const DoubleRegister double_exponent = f4;
   const DoubleRegister double_result = f0;
@@ -423,28 +424,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   __ AssertStackIsAligned();
 
-  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
-  int frame_alignment_mask = frame_alignment - 1;
-  int result_stack_size;
-  if (result_size() <= 2) {
-    // a0 = argc, a1 = argv, a2 = isolate
-    __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
-    __ mov(a1, s1);
-    result_stack_size = 0;
-  } else {
-    DCHECK_EQ(3, result_size());
-    // Allocate additional space for the result.
-    result_stack_size =
-        ((result_size() * kPointerSize) + frame_alignment_mask) &
-        ~frame_alignment_mask;
-    __ Dsubu(sp, sp, Operand(result_stack_size));
-
-    // a0 = hidden result argument, a1 = argc, a2 = argv, a3 = isolate.
-    __ li(a3, Operand(ExternalReference::isolate_address(isolate())));
-    __ mov(a2, s1);
-    __ mov(a1, a0);
-    __ mov(a0, sp);
-  }
+  // a0 = argc, a1 = argv, a2 = isolate
+  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
+  __ mov(a1, s1);
 
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
@@ -467,7 +449,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ bind(&find_ra);
 
     // This spot was reserved in EnterExitFrame.
-    __ Sd(ra, MemOperand(sp, result_stack_size));
+    __ Sd(ra, MemOperand(sp));
     // Stack space reservation moved to the branch delay slot below.
     // Stack is still aligned.
 
@@ -480,14 +462,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     DCHECK_EQ(kNumInstructionsToJump,
               masm->InstructionsGeneratedSince(&find_ra));
   }
-  if (result_size() > 2) {
-    DCHECK_EQ(3, result_size());
-    // Read result values stored on stack.
-    __ Ld(a0, MemOperand(v0, 2 * kPointerSize));
-    __ Ld(v1, MemOperand(v0, 1 * kPointerSize));
-    __ Ld(v0, MemOperand(v0, 0 * kPointerSize));
-  }
-  // Result returned in v0, v1:v0 or a0:v1:v0 - do not destroy these registers!
+
+  // Result returned in v0 or v1:v0 - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -513,14 +489,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // v0:v1: result
   // sp: stack pointer
   // fp: frame pointer
-  Register argc;
-  if (argv_in_register()) {
-    // We don't want to pop arguments so set argc to no_reg.
-    argc = no_reg;
-  } else {
-    // s0: still holds argc (callee-saved).
-    argc = s0;
-  }
+  Register argc = argv_in_register()
+                      // We don't want to pop arguments so set argc to no_reg.
+                      ? no_reg
+                      // s0: still holds argc (callee-saved).
+                      : s0;
   __ LeaveExitFrame(save_doubles(), argc, true, EMIT_RETURN);
 
   // Handling of exception.
@@ -906,7 +879,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Dlsa(tmp, properties, index, kPointerSizeLog2);
     __ Ld(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
-    DCHECK(!tmp.is(entity_name));
+    DCHECK(tmp != entity_name);
     __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
     __ Branch(done, eq, entity_name, Operand(tmp));
 
@@ -1045,6 +1018,49 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   stub2.GetCode();
 }
 
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  Instr first_instruction = Assembler::instr_at(stub->instruction_start());
+  Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
+                                                 2 * Assembler::kInstrSize);
+
+  if (Assembler::IsBeq(first_instruction)) {
+    return INCREMENTAL;
+  }
+
+  DCHECK(Assembler::IsBne(first_instruction));
+
+  if (Assembler::IsBeq(second_instruction)) {
+    return INCREMENTAL_COMPACTION;
+  }
+
+  DCHECK(Assembler::IsBne(second_instruction));
+
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
+                      stub->instruction_size(), CodeObjectRequired::kNo);
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+      PatchBranchIntoNop(&masm, 0);
+      PatchBranchIntoNop(&masm, 2 * Assembler::kInstrSize);
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      PatchNopIntoBranch(&masm, 0);
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      PatchNopIntoBranch(&masm, 2 * Assembler::kInstrSize);
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
+                         4 * Assembler::kInstrSize);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
@@ -1066,11 +1082,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   __ nop();
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(),
-                           address(),
-                           value(),
-                           save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   }
   __ Ret();
 
@@ -1108,11 +1120,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
         masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object(),
-                           address(),
-                           value(),
-                           save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
 
     __ bind(&dont_need_remembered_set);
   }
@@ -1129,10 +1137,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
-  Register address =
-      a0.is(regs_.address()) ? regs_.scratch0() : regs_.address();
-  DCHECK(!address.is(regs_.object()));
-  DCHECK(!address.is(a0));
+  Register address = a0 == regs_.address() ? regs_.scratch0() : regs_.address();
+  DCHECK(address != regs_.object());
+  DCHECK(address != a0);
   __ Move(address, regs_.address());
   __ Move(a0, regs_.object());
   __ Move(a1, address);
@@ -1145,6 +1152,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+}
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,
@@ -1161,11 +1171,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(),
-                           address(),
-                           value(),
-                           save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ Ret();
   }
@@ -1206,11 +1212,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(),
-                           address(),
-                           value(),
-                           save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ Ret();
   }
@@ -1600,7 +1602,7 @@ static void CallApiFunctionAndReturn(
   const int kLevelOffset = AddressOffset(
       ExternalReference::handle_scope_level_address(isolate), next_address);
 
-  DCHECK(function_address.is(a1) || function_address.is(a2));
+  DCHECK(function_address == a1 || function_address == a2);
 
   Label profiler_disabled;
   Label end_profiler_check;
@@ -1801,7 +1803,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  DCHECK(!api_function_address.is(a0) && !scratch.is(a0));
+  DCHECK(api_function_address != a0 && scratch != a0);
   // a0 = FunctionCallbackInfo&
   // Arguments is after the return address.
   __ Daddu(a0, sp, Operand(1 * kPointerSize));

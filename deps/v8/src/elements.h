@@ -50,6 +50,10 @@ class ElementsAccessor {
     return HasElement(holder, index, holder->elements(), filter);
   }
 
+  // Note: this is currently not implemented for string wrapper and
+  // typed array elements.
+  virtual bool HasEntry(JSObject* holder, uint32_t entry) = 0;
+
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
   virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
@@ -188,10 +192,12 @@ class ElementsAccessor {
                             Handle<FixedArrayBase> destination, int size) = 0;
 
   virtual Object* CopyElements(Handle<JSReceiver> source,
-                               Handle<JSObject> destination, size_t length) = 0;
+                               Handle<JSObject> destination, size_t length,
+                               uint32_t offset = 0) = 0;
 
-  virtual Handle<FixedArray> CreateListFromArray(Isolate* isolate,
-                                                 Handle<JSArray> array) = 0;
+  virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
+                                                     Handle<JSObject> object,
+                                                     uint32_t length) = 0;
 
  protected:
   friend class LookupIterator;
@@ -230,6 +236,17 @@ void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
 MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array,
     Arguments* args);
+
+// Called directly from CSA.
+class JSTypedArray;
+void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+                                               JSArray* source,
+                                               JSTypedArray* destination,
+                                               uintptr_t length,
+                                               uintptr_t offset);
+void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
+                                        JSTypedArray* destination,
+                                        uintptr_t length, uintptr_t offset);
 
 }  // namespace internal
 }  // namespace v8

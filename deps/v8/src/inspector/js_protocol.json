@@ -242,14 +242,16 @@
             {
                 "name": "callFunctionOn",
                 "parameters": [
-                    { "name": "objectId", "$ref": "RemoteObjectId", "description": "Identifier of the object to call function on." },
                     { "name": "functionDeclaration", "type": "string", "description": "Declaration of the function to call." },
+                    { "name": "objectId", "$ref": "RemoteObjectId", "optional": true, "description": "Identifier of the object to call function on. Either objectId or executionContextId should be specified." },
                     { "name": "arguments", "type": "array", "items": { "$ref": "CallArgument", "description": "Call argument." }, "optional": true, "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target object." },
                     { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
                     { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
-                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." },
+                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies execution context which global object will be used to call function on. Either executionContextId or objectId should be specified." },
+                    { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not specified and objectId is, objectGroup will be inherited from object." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Call result." },
@@ -387,7 +389,7 @@
                 "description": "Issued when unhandled exception was revoked.",
                 "parameters": [
                     { "name": "reason", "type": "string", "description": "Reason describing why exception was revoked." },
-                    { "name": "exceptionId", "type": "integer", "description": "The id of revoked exception, as reported in <code>exceptionUnhandled</code>." }
+                    { "name": "exceptionId", "type": "integer", "description": "The id of revoked exception, as reported in <code>exceptionThrown</code>." }
                 ]
             },
             {
@@ -455,6 +457,7 @@
                     { "name": "functionName", "type": "string", "description": "Name of the JavaScript function called on this call frame." },
                     { "name": "functionLocation", "$ref": "Location", "optional": true, "experimental": true, "description": "Location in the source code." },
                     { "name": "location", "$ref": "Location", "description": "Location in the source code." },
+                    { "name": "url", "type": "string", "description": "JavaScript script name or url." },
                     { "name": "scopeChain", "type": "array", "items": { "$ref": "Scope" }, "description": "Scope chain for this call frame." },
                     { "name": "this", "$ref": "Runtime.RemoteObject", "description": "<code>this</code> object for this call frame." },
                     { "name": "returnValue", "$ref": "Runtime.RemoteObject", "optional": true, "description": "The value being returned, if the function is at return point." }
@@ -524,6 +527,7 @@
                     { "name": "lineNumber", "type": "integer", "description": "Line number to set breakpoint at." },
                     { "name": "url", "type": "string", "optional": true, "description": "URL of the resources to set breakpoint on." },
                     { "name": "urlRegex", "type": "string", "optional": true, "description": "Regex pattern for the URLs of the resources to set breakpoints on. Either <code>url</code> or <code>urlRegex</code> must be specified." },
+                    { "name": "scriptHash", "type": "string", "optional": true, "experimental": true, "description": "Script hash of the resources to set breakpoint on." },
                     { "name": "columnNumber", "type": "integer", "optional": true, "description": "Offset in the line to set breakpoint at." },
                     { "name": "condition", "type": "string", "optional": true, "description": "Expression to use as a breakpoint condition. When specified, debugger will only stop on the breakpoint if this expression evaluates to true." }
                 ],
@@ -888,6 +892,34 @@
                     { "name": "functions", "type": "array", "items": { "$ref": "FunctionCoverage" }, "description": "Functions contained in the script that has coverage data." }
                 ],
                 "experimental": true
+            },
+            {   "id": "TypeObject",
+                "type": "object",
+                "description": "Describes a type collected during runtime.",
+                "properties": [
+                    { "name": "name", "type": "string", "description": "Name of a type collected with type profiling." }
+                ],
+                "experimental": true
+            },
+            {   "id": "TypeProfileEntry",
+                "type": "object",
+                "description": "Source offset and types for a parameter or return value.",
+                "properties": [
+                    { "name": "offset", "type": "integer", "description": "Source offset of the parameter or end of function for return values." },
+                    { "name": "types", "type": "array", "items": {"$ref": "TypeObject"}, "description": "The types for this parameter or return value."}
+                ],
+                "experimental": true
+            },
+            {
+                "id": "ScriptTypeProfile",
+                "type": "object",
+                "description": "Type profile data collected during runtime for a JavaScript script.",
+                "properties": [
+                    { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "JavaScript script id." },
+                    { "name": "url", "type": "string", "description": "JavaScript script name or url." },
+                    { "name": "entries", "type": "array", "items": { "$ref": "TypeProfileEntry" }, "description": "Type profile entries for parameters and return values of the functions in the script." }
+                ],
+                "experimental": true
             }
         ],
         "commands": [
@@ -941,6 +973,24 @@
                     { "name": "result", "type": "array", "items": { "$ref": "ScriptCoverage" }, "description": "Coverage data for the current isolate." }
                 ],
                 "description": "Collect coverage data for the current isolate. The coverage data may be incomplete due to garbage collection.",
+                "experimental": true
+            },
+            {
+                "name": "startTypeProfile",
+                "description": "Enable type profile.",
+                "experimental": true
+            },
+            {
+                "name": "stopTypeProfile",
+                "description": "Disable type profile. Disabling releases type profile data collected so far.",
+                "experimental": true
+            },
+            {
+                "name": "takeTypeProfile",
+                "returns": [
+                    { "name": "result", "type":  "array", "items": { "$ref": "ScriptTypeProfile" }, "description": "Type profile for all scripts since startTypeProfile() was turned on." }
+                ],
+                "description": "Collect type profile.",
                 "experimental": true
             }
         ],

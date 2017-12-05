@@ -33,6 +33,7 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/ast/ast-numbering.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
@@ -56,6 +57,21 @@
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
 
+namespace v8 {
+namespace internal {
+namespace test_parsing {
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+
+}  // namespace
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
@@ -77,7 +93,7 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, global_use_counts);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -85,7 +101,7 @@ TEST(ScanKeywords) {
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, global_use_counts);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -96,7 +112,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, global_use_counts);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -106,7 +122,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
-      i::Scanner scanner(&unicode_cache);
+      i::Scanner scanner(&unicode_cache, global_use_counts);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -172,7 +188,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
     scanner.Initialize(stream.get(), false);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
@@ -191,7 +207,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
     scanner.Initialize(stream.get(), false);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
@@ -216,7 +232,7 @@ TEST(ScanHtmlComments) {
   // Disallow HTML comments.
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache);
+    i::Scanner scanner(&unicode_cache, global_use_counts);
     scanner.Initialize(stream.get(), true);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
@@ -225,7 +241,7 @@ TEST(ScanHtmlComments) {
   // Skip HTML comments:
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache);
+    i::Scanner scanner(&unicode_cache, global_use_counts);
     scanner.Initialize(stream.get(), false);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -384,7 +400,7 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
     scanner.Initialize(stream.get(), false);
 
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -420,7 +436,7 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(isolate->unicode_cache());
+    i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
     scanner.Initialize(stream.get(), false);
 
     // Preparser defaults to disallowing natives syntax.
@@ -490,7 +506,7 @@ TEST(RegressChromium62639) {
   // failed in debug mode, and sometimes crashed in release mode.
 
   auto stream = i::ScannerStream::ForTesting(program);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
   scanner.Initialize(stream.get(), false);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
@@ -565,7 +581,7 @@ TEST(PreParseOverflow) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(isolate->unicode_cache());
+  i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
   scanner.Initialize(stream.get(), false);
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -585,7 +601,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
   scanner.Initialize(stream, false);
 
   int i = 0;
@@ -663,7 +679,7 @@ TEST(StreamScanner) {
 void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
   scanner.Initialize(stream.get(), false);
 
   i::Token::Value start = scanner.peek();
@@ -853,8 +869,14 @@ TEST(ScopeUsesArgumentsSuperThis) {
           !scope->AsDeclarationScope()->is_arrow_scope()) {
         CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
       }
-      CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
-               scope->AsDeclarationScope()->uses_super_property());
+      if (IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0 ||
+                     (source_data[i].expected & EVAL) != 0,
+                 scope->AsDeclarationScope()->NeedsHomeObject());
+      } else {
+        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
+                 scope->AsDeclarationScope()->NeedsHomeObject());
+      }
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.
@@ -1275,6 +1297,7 @@ enum ParserFlag {
   kAllowHarmonyDynamicImport,
   kAllowHarmonyAsyncIteration,
   kAllowHarmonyTemplateEscapes,
+  kAllowHarmonyImportMeta,
 };
 
 enum ParserSyncTestResult {
@@ -1292,6 +1315,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
+  i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
   i::FLAG_harmony_template_escapes =
       flags.Contains(kAllowHarmonyTemplateEscapes);
@@ -1309,6 +1333,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyObjectRestSpread));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
+  parser->set_allow_harmony_import_meta(
+      flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_async_iteration(
       flags.Contains(kAllowHarmonyAsyncIteration));
   parser->set_allow_harmony_template_escapes(
@@ -1328,7 +1354,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
-    i::Scanner scanner(isolate->unicode_cache());
+    i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
     std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(source));
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -3958,16 +3984,6 @@ TEST(AsmModuleFlag) {
   CHECK(s->IsAsmModule() && s->AsDeclarationScope()->asm_module());
 }
 
-namespace {
-
-int* global_use_counts = NULL;
-
-void MockUseCounterCallback(v8::Isolate* isolate,
-                            v8::Isolate::UseCounterFeature feature) {
-  ++global_use_counts[feature];
-}
-
-}  // namespace
 
 TEST(UseAsmUseCount) {
   i::Isolate* isolate = CcTest::i_isolate();
@@ -4027,6 +4043,34 @@ TEST(BothModesUseCount) {
   CHECK_LT(0, use_counts[v8::Isolate::kStrictMode]);
 }
 
+TEST(LineOrParagraphSeparatorAsLineTerminator) {
+  // Tests that both preparsing and parsing accept U+2028 LINE SEPARATOR and
+  // U+2029 PARAGRAPH SEPARATOR as LineTerminator symbols.
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // "1<U+2028>2"
+                                  "\x31\xE2\x80\xA9\x32",  // "1<U+2029>2"
+                                  nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(LineOrParagraphSeparatorAsLineTerminatorUseCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("");
+  CHECK_EQ(0, use_counts[v8::Isolate::UseCounterFeature::
+                             kLineOrParagraphSeparatorAsLineTerminator]);
+  CompileRun("// Foo\xE2\x80\xA8");  // "// Foo<U+2028>"
+  CHECK_LT(0, use_counts[v8::Isolate::UseCounterFeature::
+                             kLineOrParagraphSeparatorAsLineTerminator]);
+  CompileRun("// Foo\xE2\x80\xA9");  // "// Foo<U+2029>"
+  CHECK_LT(1, use_counts[v8::Isolate::UseCounterFeature::
+                             kLineOrParagraphSeparatorAsLineTerminator]);
+}
 
 TEST(ErrorsArrowFormalParameters) {
   const char* context_data[][2] = {
@@ -7873,6 +7917,9 @@ TEST(DestructuringAssignmentNegativeTests) {
     "{ new.target }",
     "{ x: new.target }",
     "{ x: new.target = 1 }",
+    "{ import.meta }",
+    "{ x: import.meta }",
+    "{ x: import.meta = 1 }",
     "[x--]",
     "[--x = 1]",
     "[x()]",
@@ -7880,6 +7927,8 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[this = 1]",
     "[new.target]",
     "[new.target = 1]",
+    "[import.meta]",
+    "[import.meta = 1]",
     "[super]",
     "[super = 1]",
     "[function f() {}]",
@@ -8280,6 +8329,106 @@ TEST(NewTarget) {
   RunParserSyncTest(bad_context_data, data, kError);
 }
 
+TEST(ImportMetaSuccess) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {NULL}
+  };
+
+  const char* data[] = {
+    "import.meta",
+    "() => { import.meta }",
+    "() => import.meta",
+    "if (1) { import.meta }",
+    "if (1) {} else { import.meta }",
+    "while (0) { import.meta }",
+    "do { import.meta } while (0)",
+    "import.meta.url",
+    "import.meta[0]",
+    "import.meta.couldBeMutable = true",
+    "import.meta()",
+    "new import.meta.MagicClass",
+    "new import.meta",
+    "t = [...import.meta]",
+    "f = {...import.meta}",
+    "delete import.meta",
+    NULL
+  };
+
+  // clang-format on
+
+  // Making sure the same *wouldn't* parse without the flags
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
+                          true, true);
+
+  static const ParserFlag flags[] = {
+      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
+      kAllowHarmonyObjectRestSpread,
+  };
+  // 2.1.1 Static Semantics: Early Errors
+  // ImportMeta
+  // * It is an early Syntax Error if Module is not the syntactic goal symbol.
+  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                    arraysize(flags));
+  // Making sure the same wouldn't parse without the flags either
+  RunParserSyncTest(context_data, data, kError);
+
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                          arraysize(flags));
+}
+
+TEST(ImportMetaFailure) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"var ", ""},
+    {"let ", ""},
+    {"const ", ""},
+    {"var [", "] = [1]"},
+    {"([", "] = [1])"},
+    {"({", "} = {1})"},
+    {"var {", " = 1} = 1"},
+    {"for (var ", " of [1]) {}"},
+    {NULL}
+  };
+
+  const char* data[] = {
+    "import.meta",
+    NULL
+  };
+
+  // clang-format on
+
+  static const ParserFlag flags[] = {
+      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
+      kAllowHarmonyObjectRestSpread,
+  };
+
+  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                    arraysize(flags));
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                          arraysize(flags));
+
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
+                          true, true);
+  RunParserSyncTest(context_data, data, kError);
+}
 
 TEST(ConstSloppy) {
   // clang-format off
@@ -10404,3 +10553,7 @@ TEST(LexicalLoopVariable) {
     });
   }
 }
+
+}  // namespace test_parsing
+}  // namespace internal
+}  // namespace v8

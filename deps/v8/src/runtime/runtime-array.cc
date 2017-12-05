@@ -354,15 +354,12 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
                              ALL_PROPERTIES);
   for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
-        PrototypeIterator::GetCurrent<JSObject>(iter)
-            ->HasIndexedInterceptor()) {
-      // Bail out if we find a proxy or interceptor, likely not worth
-      // collecting keys in that case.
+    Handle<JSReceiver> current(PrototypeIterator::GetCurrent<JSReceiver>(iter));
+    if (current->HasComplexElements()) {
       return *isolate->factory()->NewNumberFromUint(length);
     }
-    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    accumulator.CollectOwnElementIndices(array, current);
+    accumulator.CollectOwnElementIndices(array,
+                                         Handle<JSObject>::cast(current));
   }
   // Erase any keys >= length.
   Handle<FixedArray> keys =
@@ -463,13 +460,25 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   ElementsKind old_kind = array->GetElementsKind();
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               ArrayConstructInitializeElements(array, &argv));
-  if (!site.is_null() &&
-      (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
-       !can_inline_array_constructor)) {
-    // The arguments passed in caused a transition. This kind of complexity
-    // can't be dealt with in the inlined hydrogen array constructor case.
-    // We must mark the allocationsite as un-inlinable.
-    site->SetDoNotInlineCall();
+  if (!site.is_null()) {
+    if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
+         !can_inline_array_constructor)) {
+      // The arguments passed in caused a transition. This kind of complexity
+      // can't be dealt with in the inlined hydrogen array constructor case.
+      // We must mark the allocationsite as un-inlinable.
+      site->SetDoNotInlineCall();
+    }
+  } else {
+    if (old_kind != array->GetElementsKind() || !can_inline_array_constructor) {
+      // We don't have an AllocationSite for this Array constructor invocation,
+      // i.e. it might a call from Array#map or from an Array subclass, so we
+      // just flip the bit on the global protector cell instead.
+      // TODO(bmeurer): Find a better way to mark this. Global protectors
+      // tend to back-fire over time...
+      if (isolate->IsArrayConstructorIntact()) {
+        isolate->InvalidateArrayConstructorProtector();
+      }
+    }
   }
 
   return *array;
@@ -517,15 +526,7 @@ RUNTIME_FUNCTION(Runtime_HasComplexElements) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   for (PrototypeIterator iter(isolate, array, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      return isolate->heap()->true_value();
-    }
-    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    if (current->HasIndexedInterceptor()) {
-      return isolate->heap()->true_value();
-    }
-    if (!current->HasDictionaryElements()) continue;
-    if (current->element_dictionary()->HasComplexElements()) {
+    if (PrototypeIterator::GetCurrent<JSReceiver>(iter)->HasComplexElements()) {
       return isolate->heap()->true_value();
     }
   }

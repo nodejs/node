@@ -12,7 +12,7 @@ namespace v8_inspector {
 
 v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
              v8::NewStringType::kNormal, static_cast<int>(string.length()))
@@ -22,7 +22,7 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
                                              const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
              v8::NewStringType::kInternalized,
@@ -39,7 +39,7 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
 v8::Local<v8::String> toV8String(v8::Isolate* isolate,
                                  const StringView& string) {
   if (!string.length()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   if (string.is8Bit())
     return v8::String::NewFromOneByte(
                isolate, reinterpret_cast<const uint8_t*>(string.characters8()),

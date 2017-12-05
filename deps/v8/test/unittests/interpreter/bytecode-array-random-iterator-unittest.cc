@@ -57,7 +57,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -111,7 +111,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -165,7 +165,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -224,7 +224,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -284,7 +284,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -472,7 +472,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -680,9 +680,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
-  EXPECT_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 3);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
+  EXPECT_EQ(iterator.GetIndexOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kForInPrepare, OperandScale::kSingle);
   ++iterator;
@@ -764,7 +763,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(reg_0, triple)
+      .ForInPrepare(triple, feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -822,9 +821,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 1);
-  EXPECT_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
-  EXPECT_EQ(iterator.GetRegisterOperandRange(1), 3);
+  EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
+  EXPECT_EQ(iterator.GetIndexOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 

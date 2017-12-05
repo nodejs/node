@@ -175,6 +175,7 @@
   V(JSCallWithSpread)               \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
+  V(JSForInEnumerate)               \
   V(JSForInNext)                    \
   V(JSForInPrepare)                 \
   V(JSLoadMessage)                  \
@@ -314,62 +315,69 @@
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(V) V(SpeculativeToNumber)
 
-#define SIMPLIFIED_OTHER_OP_LIST(V) \
-  V(PlainPrimitiveToNumber)         \
-  V(PlainPrimitiveToWord32)         \
-  V(PlainPrimitiveToFloat64)        \
-  V(BooleanNot)                     \
-  V(StringCharAt)                   \
-  V(StringCharCodeAt)               \
-  V(SeqStringCharCodeAt)            \
-  V(StringFromCharCode)             \
-  V(StringFromCodePoint)            \
-  V(StringIndexOf)                  \
-  V(StringToLowerCaseIntl)          \
-  V(StringToUpperCaseIntl)          \
-  V(CheckBounds)                    \
-  V(CheckIf)                        \
-  V(CheckMaps)                      \
-  V(CheckMapValue)                  \
-  V(CheckNumber)                    \
-  V(CheckInternalizedString)        \
-  V(CheckReceiver)                  \
-  V(CheckString)                    \
-  V(CheckSeqString)                 \
-  V(CheckSymbol)                    \
-  V(CheckSmi)                       \
-  V(CheckHeapObject)                \
-  V(CheckFloat64Hole)               \
-  V(CheckNotTaggedHole)             \
-  V(CompareMaps)                    \
-  V(ConvertTaggedHoleToUndefined)   \
-  V(Allocate)                       \
-  V(LoadField)                      \
-  V(LoadElement)                    \
-  V(LoadTypedElement)               \
-  V(StoreField)                     \
-  V(StoreElement)                   \
-  V(StoreTypedElement)              \
-  V(TransitionAndStoreElement)      \
-  V(ObjectIsCallable)               \
-  V(ObjectIsDetectableCallable)     \
-  V(ObjectIsNaN)                    \
-  V(ObjectIsNonCallable)            \
-  V(ObjectIsNumber)                 \
-  V(ObjectIsReceiver)               \
-  V(ObjectIsSmi)                    \
-  V(ObjectIsString)                 \
-  V(ObjectIsSymbol)                 \
-  V(ObjectIsUndetectable)           \
-  V(ArgumentsFrame)                 \
-  V(ArgumentsLength)                \
-  V(NewUnmappedArgumentsElements)   \
-  V(ArrayBufferWasNeutered)         \
-  V(EnsureWritableFastElements)     \
-  V(MaybeGrowFastElements)          \
-  V(TransitionElementsKind)         \
-  V(LookupHashStorageIndex)         \
-  V(LoadHashMapValue)
+#define SIMPLIFIED_OTHER_OP_LIST(V)     \
+  V(PlainPrimitiveToNumber)             \
+  V(PlainPrimitiveToWord32)             \
+  V(PlainPrimitiveToFloat64)            \
+  V(BooleanNot)                         \
+  V(StringCharAt)                       \
+  V(StringCharCodeAt)                   \
+  V(SeqStringCharCodeAt)                \
+  V(StringFromCharCode)                 \
+  V(StringFromCodePoint)                \
+  V(StringIndexOf)                      \
+  V(StringToLowerCaseIntl)              \
+  V(StringToUpperCaseIntl)              \
+  V(CheckBounds)                        \
+  V(CheckIf)                            \
+  V(CheckMaps)                          \
+  V(CheckNumber)                        \
+  V(CheckInternalizedString)            \
+  V(CheckReceiver)                      \
+  V(CheckString)                        \
+  V(CheckSeqString)                     \
+  V(CheckSymbol)                        \
+  V(CheckSmi)                           \
+  V(CheckHeapObject)                    \
+  V(CheckFloat64Hole)                   \
+  V(CheckNotTaggedHole)                 \
+  V(CompareMaps)                        \
+  V(ConvertTaggedHoleToUndefined)       \
+  V(Allocate)                           \
+  V(LoadFieldByIndex)                   \
+  V(LoadField)                          \
+  V(LoadElement)                        \
+  V(LoadTypedElement)                   \
+  V(StoreField)                         \
+  V(StoreElement)                       \
+  V(StoreTypedElement)                  \
+  V(StoreSignedSmallElement)            \
+  V(TransitionAndStoreElement)          \
+  V(ObjectIsArrayBufferView)            \
+  V(ObjectIsCallable)                   \
+  V(ObjectIsConstructor)                \
+  V(ObjectIsDetectableCallable)         \
+  V(ObjectIsMinusZero)                  \
+  V(ObjectIsNaN)                        \
+  V(ObjectIsNonCallable)                \
+  V(ObjectIsNumber)                     \
+  V(ObjectIsReceiver)                   \
+  V(ObjectIsSmi)                        \
+  V(ObjectIsString)                     \
+  V(ObjectIsSymbol)                     \
+  V(ObjectIsUndetectable)               \
+  V(ArgumentsFrame)                     \
+  V(ArgumentsLength)                    \
+  V(NewDoubleElements)                  \
+  V(NewSmiOrObjectElements)             \
+  V(NewArgumentsElements)               \
+  V(ArrayBufferWasNeutered)             \
+  V(EnsureWritableFastElements)         \
+  V(MaybeGrowFastElements)              \
+  V(TransitionElementsKind)             \
+  V(FindOrderedHashMapEntry)            \
+  V(FindOrderedHashMapEntryForInt32Key) \
+  V(RuntimeAbort)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

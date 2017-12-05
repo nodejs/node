@@ -13,6 +13,7 @@ using testing::StrictMock;
 
 namespace v8 {
 namespace platform {
+namespace task_queue_unittest {
 
 namespace {
 
@@ -56,5 +57,6 @@ TEST(TaskQueueTest, TerminateMultipleReaders) {
   thread2.Join();
 }
 
+}  // namespace task_queue_unittest
 }  // namespace platform
 }  // namespace v8

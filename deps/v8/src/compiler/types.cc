@@ -236,7 +236,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case JS_PROMISE_CAPABILITY_TYPE:
+    case PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
@@ -276,6 +276,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
+    case BIGINT_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -580,7 +581,7 @@ bool UnionType::Wellformed() {
   // 5. No element (except the bitset) is a subtype of any other.
   // 6. If there is a range, then the bitset type does not contain
   //    plain number bits.
-  DCHECK(this->Length() >= 2);       // (1)
+  DCHECK_LE(2, this->Length());      // (1)
   DCHECK(this->Get(0)->IsBitset());  // (2a)
 
   for (int i = 0; i < this->Length(); ++i) {
@@ -890,7 +891,7 @@ int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
 
 Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   UnionType* unioned = union_type->AsUnion();
-  DCHECK(size >= 1);
+  DCHECK_LE(1, size);
   DCHECK(unioned->Get(0)->IsBitset());
   // If the union has just one element, return it.
   if (size == 1) {
@@ -970,7 +971,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
       bits -= subset;
     }
   }
-  DCHECK(bits == 0);
+  DCHECK_EQ(0, bits);
   os << ")";
 }
 

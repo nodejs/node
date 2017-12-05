@@ -14,10 +14,13 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/bigint-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/scope-info.h"
+#include "src/unicode-cache.h"
+#include "src/unicode-decoder.h"
 
 namespace v8 {
 namespace internal {
@@ -94,7 +97,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
-      Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
+      Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE, TENURED));
   result->set_prototype_users(WeakFixedArray::Empty());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_validity_cell(Smi::kZero);
@@ -102,17 +105,25 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return result;
 }
 
-Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1,
-                                  Handle<Object> value2) {
-  Handle<Tuple2> result = Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE));
+Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
+                                        Handle<FixedArray> indices) {
+  return Handle<EnumCache>::cast(NewTuple2(keys, indices, TENURED));
+}
+
+Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
+                                  PretenureFlag pretenure) {
+  Handle<Tuple2> result =
+      Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE, pretenure));
   result->set_value1(*value1);
   result->set_value2(*value2);
   return result;
 }
 
 Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                                  Handle<Object> value3) {
-  Handle<Tuple3> result = Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE));
+                                  Handle<Object> value3,
+                                  PretenureFlag pretenure) {
+  Handle<Tuple3> result =
+      Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE, pretenure));
   result->set_value1(*value1);
   result->set_value2(*value2);
   result->set_value3(*value3);
@@ -121,8 +132,8 @@ Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
 
 Handle<ContextExtension> Factory::NewContextExtension(
     Handle<ScopeInfo> scope_info, Handle<Object> extension) {
-  Handle<ContextExtension> result =
-      Handle<ContextExtension>::cast(NewStruct(CONTEXT_EXTENSION_TYPE));
+  Handle<ContextExtension> result = Handle<ContextExtension>::cast(
+      NewStruct(CONTEXT_EXTENSION_TYPE, TENURED));
   result->set_scope_info(*scope_info);
   result->set_extension(*extension);
   return result;
@@ -131,9 +142,22 @@ Handle<ContextExtension> Factory::NewContextExtension(
 Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
   Handle<ConstantElementsPair> result =
-      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   result->set_elements_kind(elements_kind);
   result->set_constant_values(*constant_values);
+  return result;
+}
+
+Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
+    int hash, Handle<FixedArray> raw_strings,
+    Handle<FixedArray> cooked_strings) {
+  DCHECK_EQ(raw_strings->length(), cooked_strings->length());
+  DCHECK_LT(0, raw_strings->length());
+  Handle<TemplateObjectDescription> result =
+      Handle<TemplateObjectDescription>::cast(NewStruct(TUPLE3_TYPE, TENURED));
+  result->set_hash(hash);
+  result->set_raw_strings(*raw_strings);
+  result->set_cooked_strings(*cooked_strings);
   return result;
 }
 
@@ -157,6 +181,7 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 Handle<PropertyArray> Factory::NewPropertyArray(int size,
                                                 PretenureFlag pretenure) {
   DCHECK_LE(0, size);
+  if (size == 0) return empty_property_array();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocatePropertyArray(size, pretenure),
                      PropertyArray);
@@ -288,7 +313,7 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
-      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
+      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE, TENURED));
   accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
   accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
   return accessors;
@@ -297,7 +322,7 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
   Handle<TypeFeedbackInfo> info =
-      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE));
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE, TENURED));
   info->initialize_storage();
   return info;
 }
@@ -811,7 +836,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     return MakeOrFindTwoCharacterString(isolate(), c1, c2);
   }
 
-  if (!FLAG_string_slices || length < SlicedString::kMinLength) {
+  if (length < SlicedString::kMinLength) {
     if (str->IsOneByteRepresentation()) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();
@@ -1104,17 +1129,15 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   return context;
 }
 
-Handle<Struct> Factory::NewStruct(InstanceType type) {
+Handle<Struct> Factory::NewStruct(InstanceType type, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateStruct(type),
-      Struct);
+      isolate(), isolate()->heap()->AllocateStruct(type, pretenure), Struct);
 }
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
   Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
-      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE, NOT_TENURED));
   entry->set_aliased_context_slot(aliased_context_slot);
   return entry;
 }
@@ -1122,7 +1145,7 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
   Handle<AccessorInfo> info =
-      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE));
+      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE, TENURED));
   info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
   info->set_is_sloppy(true);
   return info;
@@ -1132,7 +1155,7 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 Handle<Script> Factory::NewScript(Handle<String> source) {
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
-  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
+  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, TENURED));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
   script->set_id(isolate()->heap()->NextScriptId());
@@ -1309,6 +1332,7 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
 
 Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
     Handle<PropertyArray> array, int grow_by, PretenureFlag pretenure) {
+  DCHECK_LE(0, grow_by);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->CopyArrayAndGrow(*array, grow_by, pretenure),
@@ -1387,6 +1411,34 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateHeapNumber(mode, pretenure),
                      HeapNumber);
+}
+
+Handle<BigInt> Factory::NewBigInt(int length, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateBigInt(length, true, pretenure),
+                     BigInt);
+}
+
+Handle<BigInt> Factory::NewBigIntRaw(int length, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateBigInt(length, false, pretenure),
+      BigInt);
+}
+
+Handle<BigInt> Factory::NewBigIntFromInt(int value, PretenureFlag pretenure) {
+  if (value == 0) return NewBigInt(0);
+  Handle<BigInt> result = NewBigIntRaw(1);
+  if (value > 0) {
+    result->set_digit(0, value);
+  } else if (value == kMinInt) {
+    STATIC_ASSERT(kMinInt == -kMaxInt - 1);
+    result->set_digit(0, static_cast<BigInt::digit_t>(kMaxInt) + 1);
+    result->set_sign(true);
+  } else {
+    result->set_digit(0, -value);
+    result->set_sign(true);
+  }
+  return result;
 }
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
@@ -1482,7 +1534,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_feedback_vector_cell(*undefined_cell());
-  function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
 }
@@ -1572,7 +1623,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
       NewFunction(name, code, prototype, language_mode, prototype_mutability);
 
   ElementsKind elements_kind =
-      type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : HOLEY_SMI_ELEMENTS;
+      type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : TERMINAL_FAST_ELEMENTS_KIND;
   Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
@@ -1709,8 +1760,8 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   Handle<PreParsedScopeData> result =
-      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE));
-  result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
+      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE, TENURED));
+  result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
   result->set_child_data(*empty_fixed_array());
   return result;
 }
@@ -1729,9 +1780,8 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
                      Code);
 }
 
-Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
-                              Handle<Object> self_ref, bool immovable,
-                              int prologue_offset) {
+Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
+                              Handle<Object> self_ref, bool immovable) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
@@ -1758,7 +1808,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
   DisallowHeapAllocation no_gc;
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
-  code->set_flags(flags);
+  code->initialize_flags(kind);
   code->set_has_unwinding_info(has_unwinding_info);
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
@@ -1768,7 +1818,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_source_position_table(*empty_byte_array(), SKIP_WRITE_BARRIER);
-  code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
   code->set_trap_handler_index(Smi::FromInt(-1));
@@ -1804,6 +1853,10 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
   return code;
 }
 
+Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
+  const bool kNotImmovable = false;
+  return NewCodeRaw(size, kNotImmovable);
+}
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -2031,7 +2084,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
-  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
+  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE, TENURED));
   module->set_code(*code);
   module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);
@@ -2516,11 +2569,15 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_raw_name(has_shared_name
                           ? *shared_name
                           : SharedFunctionInfo::kNoSharedNameSentinel);
-  share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     code = BUILTIN_CODE(isolate(), Illegal);
   }
+  Object* function_data =
+      (code->is_builtin() && Builtins::IsLazy(code->builtin_index()))
+          ? Smi::FromInt(code->builtin_index())
+          : Object::cast(*undefined_value());
+  share->set_function_data(function_data, SKIP_WRITE_BARRIER);
   share->set_code(*code);
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
@@ -2640,7 +2697,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Heap* heap = isolate()->heap();
 
   Handle<DebugInfo> debug_info =
-      Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
+      Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE, TENURED));
   debug_info->set_flags(DebugInfo::kNone);
   debug_info->set_shared(*shared);
   debug_info->set_debugger_hints(shared->debugger_hints());
@@ -2671,7 +2728,7 @@ Handle<CoverageInfo> Factory::NewCoverageInfo(
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info =
-      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   new_break_point_info->set_source_position(source_position);
   new_break_point_info->set_break_point_objects(*undefined_value());
   return new_break_point_info;
@@ -2679,15 +2736,15 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
 
 Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   Handle<BreakPoint> new_break_point =
-      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   new_break_point->set_id(id);
   new_break_point->set_condition(*condition);
   return new_break_point;
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
-  Handle<StackFrameInfo> stack_frame_info =
-      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  Handle<StackFrameInfo> stack_frame_info = Handle<StackFrameInfo>::cast(
+      NewStruct(STACK_FRAME_INFO_TYPE, NOT_TENURED));
   stack_frame_info->set_line_number(0);
   stack_frame_info->set_column_number(0);
   stack_frame_info->set_script_id(0);
@@ -2705,7 +2762,7 @@ Factory::NewSourcePositionTableWithFrameCache(
   Handle<SourcePositionTableWithFrameCache>
       source_position_table_with_frame_cache =
           Handle<SourcePositionTableWithFrameCache>::cast(
-              NewStruct(TUPLE2_TYPE));
+              NewStruct(TUPLE2_TYPE, TENURED));
   source_position_table_with_frame_cache->set_source_position_table(
       *source_position_table);
   source_position_table_with_frame_cache->set_stack_frame_cache(

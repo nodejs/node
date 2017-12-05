@@ -827,7 +827,7 @@ Handle<ModuleInfoEntry> ModuleInfoEntry::New(Isolate* isolate,
                                              int module_request, int cell_index,
                                              int beg_pos, int end_pos) {
   Handle<ModuleInfoEntry> result = Handle<ModuleInfoEntry>::cast(
-      isolate->factory()->NewStruct(MODULE_INFO_ENTRY_TYPE));
+      isolate->factory()->NewStruct(MODULE_INFO_ENTRY_TYPE, TENURED));
   result->set_export_name(*export_name);
   result->set_local_name(*local_name);
   result->set_import_name(*import_name);

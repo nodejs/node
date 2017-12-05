@@ -14,6 +14,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// Binary encoding of the module header.
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x01;
+
 // Binary encoding of local types.
 enum ValueTypeCode {
   kLocalVoid = 0x40,
@@ -415,6 +419,12 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(S128StoreMem, 0xfd81, s_is)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
+  V(I32AtomicLoad, 0xfe10, i_i)                \
+  V(I32AtomicLoad8U, 0xfe12, i_i)              \
+  V(I32AtomicLoad16U, 0xfe13, i_i)             \
+  V(I32AtomicStore, 0xfe17, i_ii)              \
+  V(I32AtomicStore8U, 0xfe19, i_ii)            \
+  V(I32AtomicStore16U, 0xfe1a, i_ii)           \
   V(I32AtomicAdd, 0xfe1e, i_ii)                \
   V(I32AtomicAdd8U, 0xfe20, i_ii)              \
   V(I32AtomicAdd16U, 0xfe21, i_ii)             \
@@ -646,6 +656,36 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     }
   }
 };
+
+// Representation of an initializer expression.
+struct WasmInitExpr {
+  enum WasmInitKind {
+    kNone,
+    kGlobalIndex,
+    kI32Const,
+    kI64Const,
+    kF32Const,
+    kF64Const
+  } kind;
+
+  union {
+    int32_t i32_const;
+    int64_t i64_const;
+    float f32_const;
+    double f64_const;
+    uint32_t global_index;
+  } val;
+
+  WasmInitExpr() : kind(kNone) {}
+  explicit WasmInitExpr(int32_t v) : kind(kI32Const) { val.i32_const = v; }
+  explicit WasmInitExpr(int64_t v) : kind(kI64Const) { val.i64_const = v; }
+  explicit WasmInitExpr(float v) : kind(kF32Const) { val.f32_const = v; }
+  explicit WasmInitExpr(double v) : kind(kF64Const) { val.f64_const = v; }
+  WasmInitExpr(WasmInitKind kind, uint32_t global_index) : kind(kGlobalIndex) {
+    val.global_index = global_index;
+  }
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

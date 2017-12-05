@@ -160,6 +160,10 @@ class MockPlatform : public v8::Platform {
     return time_;
   }
 
+  double CurrentClockTimeMillis() override {
+    return time_ * base::Time::kMillisecondsPerSecond;
+  }
+
   v8::TracingController* GetTracingController() override {
     return tracing_controller_;
   }

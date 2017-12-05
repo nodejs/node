@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/base/hashmap.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate.h"
@@ -60,15 +61,14 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 
 bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
-  DCHECK(a.start != kNoSourcePosition);
-  DCHECK(b.start != kNoSourcePosition);
+  DCHECK_NE(kNoSourcePosition, a.start);
+  DCHECK_NE(kNoSourcePosition, b.start);
   if (a.start == b.start) return a.end > b.end;
   return a.start < b.start;
 }
 
 std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
                                               SharedFunctionInfo* shared) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -82,7 +82,7 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
     const int until_pos = coverage_info->EndSourcePosition(i);
     const int count = coverage_info->BlockCount(i);
 
-    DCHECK(start_pos != kNoSourcePosition);
+    DCHECK_NE(kNoSourcePosition, start_pos);
     result.emplace_back(start_pos, until_pos, count);
   }
 
@@ -324,7 +324,6 @@ void ClampToBinary(CoverageFunction* function) {
 }
 
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -348,7 +347,6 @@ bool IsBlockMode(debug::Coverage::Mode mode) {
 void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
                           SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(IsBlockMode(mode));
 
   function->has_block_coverage = true;
@@ -380,9 +378,10 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
 }
 }  // anonymous namespace
 
-Coverage* Coverage::CollectPrecise(Isolate* isolate) {
+std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
   DCHECK(!isolate->is_best_effort_code_coverage());
-  Coverage* result = Collect(isolate, isolate->code_coverage_mode());
+  std::unique_ptr<Coverage> result =
+      Collect(isolate, isolate->code_coverage_mode());
   if (isolate->is_precise_binary_code_coverage() ||
       isolate->is_block_binary_code_coverage()) {
     // We do not have to hold onto feedback vectors for invocations we already
@@ -392,12 +391,12 @@ Coverage* Coverage::CollectPrecise(Isolate* isolate) {
   return result;
 }
 
-Coverage* Coverage::CollectBestEffort(Isolate* isolate) {
+std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
   return Collect(isolate, v8::debug::Coverage::kBestEffort);
 }
 
-Coverage* Coverage::Collect(Isolate* isolate,
-                            v8::debug::Coverage::Mode collectionMode) {
+std::unique_ptr<Coverage> Coverage::Collect(
+    Isolate* isolate, v8::debug::Coverage::Mode collectionMode) {
   SharedToCounterMap counter_map;
 
   const bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
@@ -439,7 +438,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
-  Coverage* result = new Coverage();
+  std::unique_ptr<Coverage> result(new Coverage());
   Script::Iterator scripts(isolate);
   while (Script* script = scripts.Next()) {
     if (!script->IsUserJavaScript()) continue;
@@ -491,8 +490,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
       Handle<String> name(info->DebugName(), isolate);
       CoverageFunction function(start, end, count, name);
 
-      if (FLAG_block_coverage && IsBlockMode(collectionMode) &&
-          info->HasCoverageInfo()) {
+      if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {
         CollectBlockCoverage(isolate, &function, info, collectionMode);
       }
 
@@ -521,7 +519,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       // recording is stopped. Since we delete coverage infos at that point, any
       // following coverage recording (without reloads) will be at function
       // granularity.
-      if (FLAG_block_coverage) isolate->debug()->RemoveAllCoverageInfos();
+      isolate->debug()->RemoveAllCoverageInfos();
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
     case debug::Coverage::kBlockBinary:
@@ -546,6 +544,9 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
             if (!shared->IsSubjectToDebugging()) continue;
             vector->clear_invocation_count();
             vectors.emplace_back(vector, isolate);
+          } else if (current_obj->IsJSFunction()) {
+            JSFunction* function = JSFunction::cast(current_obj);
+            function->set_code(function->shared()->code());
           }
         }
       }

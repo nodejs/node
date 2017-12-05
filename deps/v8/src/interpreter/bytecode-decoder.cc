@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/contexts.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
 
@@ -69,6 +70,7 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(const uint8_t* operand_start,
 }
 
 namespace {
+
 const char* NameForRuntimeId(uint32_t idx) {
   switch (idx) {
 #define CASE(name, nargs, ressize) \
@@ -82,6 +84,19 @@ const char* NameForRuntimeId(uint32_t idx) {
       UNREACHABLE();
   }
 }
+
+const char* NameForNativeContextIndex(uint32_t idx) {
+  switch (idx) {
+#define CASE(index_name, type, name) \
+  case Context::index_name:          \
+    return #name;
+    NATIVE_CONTEXT_FIELDS(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // anonymous namespace
 
 // static
@@ -137,6 +152,11 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
         auto id = static_cast<IntrinsicsHelper::IntrinsicId>(
             DecodeUnsignedOperand(operand_start, op_type, operand_scale));
         os << "[" << NameForRuntimeId(IntrinsicsHelper::ToRuntimeId(id)) << "]";
+        break;
+      }
+      case interpreter::OperandType::kNativeContextIndex: {
+        auto id = DecodeUnsignedOperand(operand_start, op_type, operand_scale);
+        os << "[" << NameForNativeContextIndex(id) << "]";
         break;
       }
       case interpreter::OperandType::kRuntimeId:

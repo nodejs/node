@@ -96,8 +96,8 @@ StackFrame::StackFrame(v8::Local<v8::StackFrame> v8Frame)
       m_sourceURL(toProtocolString(v8Frame->GetScriptNameOrSourceURL())),
       m_lineNumber(v8Frame->GetLineNumber() - 1),
       m_columnNumber(v8Frame->GetColumn() - 1) {
-  DCHECK(m_lineNumber + 1 != v8::Message::kNoLineNumberInfo);
-  DCHECK(m_columnNumber + 1 != v8::Message::kNoColumnInfo);
+  DCHECK_NE(v8::Message::kNoLineNumberInfo, m_lineNumber + 1);
+  DCHECK_NE(v8::Message::kNoColumnInfo, m_columnNumber + 1);
 }
 
 void StackFrame::translate(WasmTranslation* wasmTranslation) {

@@ -25,8 +25,8 @@ var InnerArrayJoin;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
-var MaxSimple;
-var MinSimple;
+var MathMax = global.Math.max;
+var MathMin = global.Math.min;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -59,8 +59,6 @@ utils.Import(function(from) {
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
-  MaxSimple = from.MaxSimple;
-  MinSimple = from.MinSimple;
 });
 
 // ES2015 7.3.20
@@ -208,15 +206,15 @@ function NAMESubArray(begin, end) {
   }
 
   if (beginInt < 0) {
-    beginInt = MaxSimple(0, srcLength + beginInt);
+    beginInt = MathMax(0, srcLength + beginInt);
   } else {
-    beginInt = MinSimple(beginInt, srcLength);
+    beginInt = MathMin(beginInt, srcLength);
   }
 
   if (endInt < 0) {
-    endInt = MaxSimple(0, srcLength + endInt);
+    endInt = MathMax(0, srcLength + endInt);
   } else {
-    endInt = MinSimple(endInt, srcLength);
+    endInt = MathMin(endInt, srcLength);
   }
 
   if (endInt < beginInt) {
@@ -247,67 +245,7 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
                         "get %TypedArray%.prototype.subarray", this);
   }
 );
-%SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
-
-DEFINE_METHOD_LEN(
-  GlobalTypedArray.prototype,
-  set(obj, offset) {
-    var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-    if (intOffset < 0) throw %make_range_error(kTypedArraySetNegativeOffset);
-
-    if (intOffset > %_MaxSmi()) {
-      throw %make_range_error(kTypedArraySetSourceTooLarge);
-    }
-
-    switch (%TypedArraySetFastCases(this, obj, intOffset)) {
-      // These numbers should be synchronized with runtime-typedarray.cc.
-      case 0: // TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE
-        return;
-      case 1: // TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING
-        %_TypedArraySetFromOverlapping(this, obj, intOffset);
-        return;
-      case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
-        if (intOffset === 0) {
-          %TypedArrayCopyElements(this, obj, %_TypedArrayGetLength(obj));
-        } else {
-          %_TypedArraySetFromArrayLike(
-              this, obj, %_TypedArrayGetLength(obj), intOffset);
-        }
-        return;
-      case 3: // TYPED_ARRAY_SET_NON_TYPED_ARRAY
-        var l = obj.length;
-        if (IS_UNDEFINED(l)) {
-          if (IS_NUMBER(obj)) {
-              // For number as a first argument, throw TypeError
-              // instead of silently ignoring the call, so that
-              // users know they did something wrong.
-              // (Consistent with Firefox and Blink/WebKit)
-              throw %make_type_error(kInvalidArgument);
-          }
-          return;
-        }
-        l = TO_LENGTH(l);
-        if (intOffset + l > %_TypedArrayGetLength(this)) {
-          throw %make_range_error(kTypedArraySetSourceTooLarge);
-        }
-        %_TypedArraySetFromArrayLike(this, obj, l, intOffset);
-        return;
-    }
-  },
-  1  /* Set function length. */
-);
-
-
-DEFINE_METHOD(
-  GlobalTypedArray.prototype,
-  get [toStringTagSymbol]() {
-    if (!IS_TYPEDARRAY(this)) return;
-    var name = %_ClassOf(this);
-    if (IS_UNDEFINED(name)) return;
-    return name;
-  }
-);
 
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
@@ -381,6 +319,10 @@ DEFINE_METHOD(
   GlobalTypedArray.prototype,
   sort(comparefn) {
     ValidateTypedArray(this, "%TypedArray%.prototype.sort");
+
+    if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
+      throw %make_type_error(kBadSortComparisonFunction, comparefn);
+    }
 
     var length = %_TypedArrayGetLength(this);
 

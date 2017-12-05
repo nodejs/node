@@ -556,7 +556,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
-      HOLEY_SMI_ELEMENTS);
+      TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
   object_map->set_may_have_interesting_symbols(true);
@@ -689,12 +689,11 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       break;
     default:
       UNREACHABLE();
-      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
       break;
   }
 
-  Handle<Map> map =
-      isolate->factory()->NewMap(type, instance_size, HOLEY_SMI_ELEMENTS);
+  Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
+                                               TERMINAL_FAST_ELEMENTS_KIND);
   JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.

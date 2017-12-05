@@ -3,5 +3,5 @@
 // found in the LICENSE file.
 
 TypeError.prototype.__defineGetter__("name", () => { throw 42; });
-console.log({ toString: () => { throw new TypeError() }});
+try { console.log({ toString: () => { throw new TypeError() }}); } catch (e) {}
 try { new WebAssembly.Table({}); } catch (e) {}

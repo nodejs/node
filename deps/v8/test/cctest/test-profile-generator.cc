@@ -36,17 +36,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 
-using i::CodeEntry;
-using i::CodeMap;
-using i::CpuProfile;
-using i::CpuProfiler;
-using i::CpuProfilesCollection;
-using i::ProfileNode;
-using i::ProfileTree;
-using i::ProfileGenerator;
-using i::TickSample;
-using i::Vector;
-
+namespace v8 {
+namespace internal {
+namespace test_profile_generator {
 
 TEST(ProfileNodeFindOrAddChild) {
   CcTest::InitializeVM();
@@ -733,3 +725,7 @@ TEST(BailoutReason) {
   CHECK(const_cast<v8::CpuProfileNode*>(current));
   CHECK(!strcmp("Optimization disabled for test", current->GetBailoutReason()));
 }
+
+}  // namespace test_profile_generator
+}  // namespace internal
+}  // namespace v8

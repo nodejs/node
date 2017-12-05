@@ -31,16 +31,16 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
-  void GenerateStoreIC(LanguageMode language_mode);
-  void GenerateStoreICTrampoline(LanguageMode language_mode);
+  void GenerateStoreIC();
+  void GenerateStoreICTrampoline();
 
   void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
 
-  void GenerateKeyedStoreIC(LanguageMode language_mode);
-  void GenerateKeyedStoreICTrampoline(LanguageMode language_mode);
+  void GenerateKeyedStoreIC();
+  void GenerateKeyedStoreICTrampoline();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
                          Label* if_handler, Variable* var_handler,
@@ -96,6 +96,8 @@ class AccessorAssembler : public CodeStubAssembler {
       ElementSupport support_elements = kOnlyProperties);
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
+  void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
+
  private:
   // Stub generation entry points.
 
@@ -112,8 +114,10 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
-  void StoreIC(const StoreICParameters* p, LanguageMode language_mode);
-  void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
+  void StoreIC(const StoreICParameters* p);
+  void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
+                                      ExitPoint* exit_point, Label* miss);
+  void KeyedStoreIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
 
@@ -148,6 +152,9 @@ class AccessorAssembler : public CodeStubAssembler {
                        Variable* var_double_value, Label* rebox_double,
                        ExitPoint* exit_point);
 
+  void EmitAccessCheck(Node* expected_native_context, Node* context,
+                       Node* receiver, Label* can_access, Label* miss);
+
   Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
                                   Node* handler_length, Node* handler_flags,
                                   Label* miss);
@@ -174,6 +181,9 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreFieldAndReturn(Node* handler_word, Node* holder,
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
+
+  void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
+                          ElementSupport support_elements);
 
   // KeyedLoadIC_Generic implementation.
 

@@ -451,10 +451,9 @@ Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
 
 template <typename Boilerplate>
 MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
-                                    Handle<JSFunction> closure,
+                                    Handle<FeedbackVector> vector,
                                     int literals_index,
                                     Handle<HeapObject> description, int flags) {
-  Handle<FeedbackVector> vector(closure->feedback_vector(), isolate);
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
   Handle<Object> literal_site(vector->Get(literals_slot), isolate);
@@ -521,36 +520,35 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(BoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   RETURN_RESULT_OR_FAILURE(
-      isolate, CreateLiteral<ObjectBoilerplate>(
-                   isolate, closure, literals_index, description, flags));
+      isolate, CreateLiteral<ObjectBoilerplate>(isolate, vector, literals_index,
+                                                description, flags));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   RETURN_RESULT_OR_FAILURE(
-      isolate, CreateLiteral<ArrayBoilerplate>(isolate, closure, literals_index,
+      isolate, CreateLiteral<ArrayBoilerplate>(isolate, vector, literals_index,
                                                elements, flags));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
-  Handle<FeedbackVector> vector(closure->feedback_vector(), isolate);
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
 
   // Check if boilerplate exists. If not, create it first.

@@ -108,13 +108,8 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-// Iterates the function object according to the visiting policy.
-template <JSFunction::BodyVisitingPolicy body_visiting_policy>
-class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
+class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kNonWeakFieldsEndOffset == kNextFunctionLinkOffset);
-  STATIC_ASSERT(kNextFunctionLinkOffset + kPointerSize == kSize);
-
   static bool IsValidSlot(HeapObject* obj, int offset) {
     if (offset < kSize) return true;
     return IsValidSlotImpl(obj, offset);
@@ -123,10 +118,7 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, kNonWeakFieldsEndOffset, v);
-    if (body_visiting_policy == kIgnoreWeakness) {
-      IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
-    }
+    IteratePointers(obj, kPropertiesOrHashOffset, kSize, v);
     IterateBodyImpl(obj, kSize, object_size, v);
   }
 
@@ -219,6 +211,19 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map* map, HeapObject* obj) {
     return BytecodeArray::SizeFor(
         BytecodeArray::cast(obj)->synchronized_length());
+  }
+};
+
+class BigInt::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return BigInt::SizeFor(BigInt::cast(obj)->length());
   }
 };
 
@@ -368,6 +373,9 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitNextCodeLink(Code::cast(obj),
                          HeapObject::RawField(obj, kNextCodeLinkOffset));
 
+    // GC does not visit data/code in the header and in the body directly.
+    STATIC_ASSERT(Code::kNextCodeLinkOffset + kPointerSize == kDataStart);
+
     RelocIterator it(Code::cast(obj), mode_mask);
     Isolate* isolate = obj->GetIsolate();
     for (; !it.done(); it.next()) {
@@ -455,7 +463,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
@@ -531,6 +538,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
+    case BIGINT_TYPE:
       return ReturnType();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \

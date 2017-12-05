@@ -208,7 +208,7 @@ class StoreBuffer {
   // IN_GC mode.
   StoreBufferMode mode_;
 
-  base::VirtualMemory virtual_memory_;
+  VirtualMemory virtual_memory_;
 
   // Callbacks are more efficient than reading out the gc state for every
   // store buffer operation.

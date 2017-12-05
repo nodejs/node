@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PARSER_BASE_H
 #define V8_PARSING_PARSER_BASE_H
 
+#include <vector>
+
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -275,6 +277,7 @@ class ParserBase {
         allow_harmony_class_fields_(false),
         allow_harmony_object_rest_spread_(false),
         allow_harmony_dynamic_import_(false),
+        allow_harmony_import_meta_(false),
         allow_harmony_async_iteration_(false),
         allow_harmony_template_escapes_(false) {}
 
@@ -289,6 +292,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_class_fields);
   ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
+  ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_async_iteration);
   ALLOW_ACCESSORS(harmony_template_escapes);
 
@@ -507,12 +511,11 @@ class ParserBase {
     };
 
     DeclarationParsingResult()
-        : declarations(4),
-          first_initializer_loc(Scanner::Location::invalid()),
+        : first_initializer_loc(Scanner::Location::invalid()),
           bindings_loc(Scanner::Location::invalid()) {}
 
     DeclarationDescriptor descriptor;
-    List<Declaration> declarations;
+    std::vector<Declaration> declarations;
     Scanner::Location first_initializer_loc;
     Scanner::Location bindings_loc;
   };
@@ -550,7 +553,7 @@ class ParserBase {
   struct ClassInfo {
    public:
     explicit ClassInfo(ParserBase* parser)
-        : proxy(nullptr),
+        : variable(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
@@ -558,7 +561,7 @@ class ParserBase {
           has_name_static_property(false),
           has_static_computed_names(false),
           is_anonymous(false) {}
-    VariableProxy* proxy;
+    Variable* variable;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
     FunctionLiteralT constructor;
@@ -1087,10 +1090,11 @@ class ParserBase {
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
-                                 bool maybe_arrow, bool* ok);
+                                 bool maybe_arrow,
+                                 bool* is_simple_parameter_list, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool* ok) {
-    return ParseArguments(first_spread_pos, false, ok);
+    return ParseArguments(first_spread_pos, false, nullptr, ok);
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -1123,7 +1127,7 @@ class ParserBase {
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged,
                                    bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
-  ExpressionT ParseDynamicImportExpression(bool* ok);
+  ExpressionT ParseImportExpressions(bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
   void ParseFormalParameter(FormalParametersT* parameters, bool* ok);
@@ -1180,8 +1184,6 @@ class ParserBase {
   StatementT ParseStatement(ZoneList<const AstRawString*>* labels,
                             AllowLabelledFunctionStatement allow_function,
                             bool* ok);
-  StatementT ParseStatementAsUnlabelled(ZoneList<const AstRawString*>* labels,
-                                        bool* ok);
   BlockT ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
 
   // Parse a SubStatement in strict mode, or with an extra block scope in
@@ -1500,6 +1502,7 @@ class ParserBase {
   bool allow_harmony_class_fields_;
   bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
+  bool allow_harmony_import_meta_;
   bool allow_harmony_async_iteration_;
   bool allow_harmony_template_escapes_;
 
@@ -2666,7 +2669,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
-    Scanner::Location* first_spread_arg_loc, bool maybe_arrow, bool* ok) {
+    Scanner::Location* first_spread_arg_loc, bool maybe_arrow,
+    bool* is_simple_parameter_list, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
@@ -2681,10 +2685,17 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
 
     ExpressionT argument =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
+    if (!impl()->IsIdentifier(argument) &&
+        is_simple_parameter_list != nullptr) {
+      *is_simple_parameter_list = false;
+    }
     if (!maybe_arrow) {
       impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
     }
     if (is_spread) {
+      if (is_simple_parameter_list != nullptr) {
+        *is_simple_parameter_list = false;
+      }
       if (!spread_arg.IsValid()) {
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
@@ -3244,7 +3255,9 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         ExpressionListT args;
         if (V8_UNLIKELY(is_async && impl()->IsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
-          args = ParseArguments(&spread_pos, true, CHECK_OK);
+          bool is_simple_parameter_list = true;
+          args = ParseArguments(&spread_pos, true, &is_simple_parameter_list,
+                                CHECK_OK);
           if (peek() == Token::ARROW) {
             if (fni_) {
               fni_->RemoveAsyncKeywordFromEnd();
@@ -3259,6 +3272,9 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
             }
             if (args->length()) {
               // async ( Arguments ) => ...
+              if (!is_simple_parameter_list) {
+                async_classifier.previous()->RecordNonSimpleParameter();
+              }
               return impl()->ExpressionListToExpression(args);
             }
             // async () => ...
@@ -3267,7 +3283,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
             AccumulateFormalParameterContainmentErrors();
           }
         } else {
-          args = ParseArguments(&spread_pos, false, CHECK_OK);
+          args = ParseArguments(&spread_pos, CHECK_OK);
         }
 
         ArrowFormalParametersUnexpectedToken();
@@ -3365,7 +3381,8 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
     if (peek() == Token::SUPER) {
       const bool is_new = true;
       result = ParseSuperExpression(is_new, CHECK_OK);
-    } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
+    } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT &&
+               (!allow_harmony_import_meta() || PeekAhead() == Token::LPAREN)) {
       impl()->ReportMessageAt(scanner()->peek_location(),
                               MessageTemplate::kImportCallNotNewExpression);
       *ok = false;
@@ -3473,7 +3490,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     const bool is_new = false;
     result = ParseSuperExpression(is_new, CHECK_OK);
   } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
-    result = ParseDynamicImportExpression(CHECK_OK);
+    result = ParseImportExpressions(CHECK_OK);
   } else {
     result = ParsePrimaryExpression(is_async, CHECK_OK);
   }
@@ -3483,11 +3500,26 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseDynamicImportExpression(bool* ok) {
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseImportExpressions(
+    bool* ok) {
   DCHECK(allow_harmony_dynamic_import());
   Consume(Token::IMPORT);
   int pos = position();
+  if (allow_harmony_import_meta() && peek() == Token::PERIOD) {
+    classifier()->RecordPatternError(
+        Scanner::Location(pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidDestructuringTarget);
+    ArrowFormalParametersUnexpectedToken();
+    ExpectMetaProperty(Token::META, "import.meta", pos, CHECK_OK);
+    if (!parsing_module_) {
+      impl()->ReportMessageAt(scanner()->location(),
+                              MessageTemplate::kImportMetaOutsideModule);
+      *ok = false;
+      return impl()->NullExpression();
+    }
+
+    return impl()->ExpressionFromLiteral(Token::NULL_LITERAL, pos);
+  }
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT arg = ParseAssignmentExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
@@ -3838,7 +3870,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     decl.value_beg_position = value_beg_position;
     if (var_context == kForStatement) {
       // Save the declaration for further handling in ParseForStatement.
-      parsing_result->declarations.Add(decl);
+      parsing_result->declarations.push_back(decl);
     } else {
       // Immediately declare the variable otherwise. This avoids O(N^2)
       // behavior (where N is the number of variables in a single
@@ -4871,23 +4903,25 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       }
       return ParseForStatement(labels, ok);
     case Token::CONTINUE:
+      return ParseContinueStatement(ok);
     case Token::BREAK:
+      return ParseBreakStatement(labels, ok);
     case Token::RETURN:
+      return ParseReturnStatement(ok);
     case Token::THROW:
+      return ParseThrowStatement(ok);
     case Token::TRY: {
-      // These statements must have their labels preserved in an enclosing
-      // block, as the corresponding AST nodes do not currently store their
-      // labels.
-      // TODO(nikolaos, marja): Consider adding the labels to the AST nodes.
-      if (labels == nullptr) {
-        return ParseStatementAsUnlabelled(labels, ok);
-      } else {
-        BlockT result = factory()->NewBlock(1, false, labels);
-        typename Types::Target target(this, result);
-        StatementT statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
-        result->statements()->Add(statement, zone());
-        return result;
-      }
+      // It is somewhat complicated to have labels on try-statements.
+      // When breaking out of a try-finally statement, one must take
+      // great care not to treat it as a fall-through. It is much easier
+      // just to wrap the entire try-statement in a statement block and
+      // put the labels there.
+      if (labels == nullptr) return ParseTryStatement(ok);
+      BlockT result = factory()->NewBlock(1, false, labels);
+      typename Types::Target target(this, result);
+      StatementT statement = ParseTryStatement(CHECK_OK);
+      result->statements()->Add(statement, zone());
+      return result;
     }
     case Token::WITH:
       return ParseWithStatement(labels, ok);
@@ -4921,29 +4955,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     // Falls through
     default:
       return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
-  }
-}
-
-// This method parses a subset of statements (break, continue, return, throw,
-// try) which are to be grouped because they all require their labeles to be
-// preserved in an enclosing block.
-template <typename Impl>
-typename ParserBase<Impl>::StatementT
-ParserBase<Impl>::ParseStatementAsUnlabelled(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
-  switch (peek()) {
-    case Token::CONTINUE:
-      return ParseContinueStatement(ok);
-    case Token::BREAK:
-      return ParseBreakStatement(labels, ok);
-    case Token::RETURN:
-      return ParseReturnStatement(ok);
-    case Token::THROW:
-      return ParseThrowStatement(ok);
-    case Token::TRY:
-      return ParseTryStatement(ok);
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -5396,7 +5407,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
   ExpressionT tag = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  auto switch_statement = factory()->NewSwitchStatement(labels, switch_pos);
+  auto switch_statement =
+      factory()->NewSwitchStatement(labels, tag, switch_pos);
 
   {
     BlockState cases_block_state(zone(), &scope_);
@@ -5405,7 +5417,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     typename Types::Target target(this, switch_statement);
 
     bool default_seen = false;
-    auto cases = impl()->NewCaseClauseList(4);
     Expect(Token::LBRACE, CHECK_OK);
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
@@ -5424,24 +5435,26 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
         default_seen = true;
       }
       Expect(Token::COLON, CHECK_OK);
-      int clause_pos = position();
       StatementListT statements = impl()->NewStatementList(5);
       while (peek() != Token::CASE && peek() != Token::DEFAULT &&
              peek() != Token::RBRACE) {
         StatementT stat = ParseStatementListItem(CHECK_OK);
         statements->Add(stat, zone());
       }
-      auto clause = factory()->NewCaseClause(label, statements, clause_pos);
+      auto clause = factory()->NewCaseClause(label, statements);
       impl()->RecordCaseClauseSourceRange(clause, range_scope.Finalize());
-      cases->Add(clause, zone());
+      switch_statement->cases()->Add(clause, zone());
     }
     Expect(Token::RBRACE, CHECK_OK);
 
     int end_position = scanner()->location().end_pos;
     scope()->set_end_position(end_position);
     impl()->RecordSwitchStatementSourceRange(switch_statement, end_position);
-    return impl()->RewriteSwitchStatement(tag, switch_statement, cases,
-                                          scope()->FinalizeBlockScope());
+    Scope* switch_scope = scope()->FinalizeBlockScope();
+    if (switch_scope != nullptr) {
+      return impl()->RewriteSwitchStatement(switch_statement, switch_scope);
+    }
+    return switch_statement;
   }
 }
 
@@ -5648,7 +5661,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
     Scope* inner_block_scope, bool* ok) {
   // Just one declaration followed by in/of.
-  if (for_info->parsing_result.declarations.length() != 1) {
+  if (for_info->parsing_result.declarations.size() != 1) {
     impl()->ReportMessageAt(for_info->parsing_result.bindings_loc,
                             MessageTemplate::kForInOfLoopMultiBindings,
                             ForEachStatement::VisitModeString(for_info->mode));
@@ -5916,7 +5929,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     for_info.position = scanner()->location().beg_pos;
 
     // Only a single declaration is allowed in for-await-of loops
-    if (for_info.parsing_result.declarations.length() != 1) {
+    if (for_info.parsing_result.declarations.size() != 1) {
       impl()->ReportMessageAt(for_info.parsing_result.bindings_loc,
                               MessageTemplate::kForInOfLoopMultiBindings,
                               "for-await-of");

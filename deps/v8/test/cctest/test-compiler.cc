@@ -63,11 +63,13 @@ static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> source_code = isolate->factory()->NewStringFromUtf8(
       CStrVector(source)).ToHandleChecked();
-  Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
-      source_code, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
-      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL, NULL,
-      v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
-      Handle<FixedArray>());
+  Handle<SharedFunctionInfo> shared =
+      Compiler::GetSharedFunctionInfoForScript(
+          source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
+          MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
+          NULL, NULL, v8::ScriptCompiler::kNoCompileOptions, NOT_NATIVES_CODE,
+          MaybeHandle<FixedArray>())
+          .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, isolate->native_context());
 }
@@ -631,63 +633,6 @@ TEST(CompileFunctionInContextHarmonyFunctionToString) {
 
 #undef CHECK_NOT_CAUGHT
 }
-
-#ifdef ENABLE_DISASSEMBLER
-static Handle<JSFunction> GetJSFunction(v8::Local<v8::Object> obj,
-                                        const char* property_name) {
-  v8::Local<v8::Function> fun = v8::Local<v8::Function>::Cast(
-      obj->Get(CcTest::isolate()->GetCurrentContext(), v8_str(property_name))
-          .ToLocalChecked());
-  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-}
-
-
-static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
-  // Create a disassembler with default name lookup.
-  disasm::NameConverter name_converter;
-  disasm::Disassembler d(name_converter);
-
-  if (f->code()->kind() == Code::FUNCTION) {
-    Address pc = f->code()->instruction_start();
-    int decode_size =
-        Min(f->code()->instruction_size(),
-            static_cast<int>(f->code()->back_edge_table_offset()));
-    if (FLAG_enable_embedded_constant_pool) {
-      decode_size = Min(decode_size, f->code()->constant_pool_offset());
-    }
-    Address end = pc + decode_size;
-
-    v8::internal::EmbeddedVector<char, 128> decode_buffer;
-    v8::internal::EmbeddedVector<char, 128> smi_hex_buffer;
-    Smi* smi = Smi::FromInt(12345678);
-    SNPrintF(smi_hex_buffer, "0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(smi));
-    while (pc < end) {
-      int num_const = d.ConstantPoolSizeAt(pc);
-      if (num_const >= 0) {
-        pc += (num_const + 1) * kPointerSize;
-      } else {
-        pc += d.InstructionDecode(decode_buffer, pc);
-        CHECK(strstr(decode_buffer.start(), smi_hex_buffer.start()) == NULL);
-      }
-    }
-  }
-}
-
-
-TEST(SplitConstantsInFullCompiler) {
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
-
-  CompileRun("function f() { a = 12345678 }; f();");
-  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
-  CompileRun("function f(x) { a = 12345678 + x}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
-  CompileRun("function f(x) { var arguments = 1; x += 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
-  CompileRun("function f(x) { var arguments = 1; x = 12345678}; f(1);");
-  CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
-}
-#endif
 
 TEST(InvocationCount) {
   FLAG_allow_natives_syntax = true;

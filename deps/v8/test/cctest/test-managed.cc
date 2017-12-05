@@ -38,7 +38,7 @@ TEST(ManagedCollect) {
   isolate->RegisterForReleaseAtTeardown(&finalizer);
   {
     HandleScope scope(isolate);
-    auto handle = Managed<DeleteRecorder>::New(isolate, d1);
+    auto handle = Managed<DeleteRecorder>::From(isolate, d1);
     USE(handle);
   }
 
@@ -65,7 +65,7 @@ TEST(DisposeCollect) {
   DeleteRecorder* d2 = new DeleteRecorder(&deleted2);
   {
     HandleScope scope(i_isolate);
-    auto handle = Managed<DeleteRecorder>::New(i_isolate, d1);
+    auto handle = Managed<DeleteRecorder>::From(i_isolate, d1);
     USE(handle);
   }
   Isolate::ManagedObjectFinalizer finalizer(d2, DeleteRecorder::Deleter);

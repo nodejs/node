@@ -4,6 +4,8 @@
 
 #include "src/builtins/builtins-iterator-gen.h"
 
+#include "src/factory-inl.h"
+
 namespace v8 {
 namespace internal {
 

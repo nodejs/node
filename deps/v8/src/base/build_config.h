@@ -201,8 +201,8 @@
 #define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK 0
 #endif
 
-// Number of bits to represent the page size for paged spaces. The value of 20
-// gives 1Mb bytes per page.
+// Number of bits to represent the page size for paged spaces. The value of 19
+// gives 512Kb bytes per page.
 const int kPageSizeBits = 19;
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

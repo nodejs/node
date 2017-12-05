@@ -113,6 +113,7 @@ VARIANTS = ["default"]
 
 MORE_VARIANTS = [
   "stress",
+  "stress_incremental_marking",
   "nooptimization",
   "stress_asm_wasm",
   "wasm_traps",
@@ -276,10 +277,11 @@ def BuildOptions():
   result.add_option("--no-i18n", "--noi18n",
                     help="Skip internationalization tests",
                     default=False, action="store_true")
+  result.add_option("--network", help="Distribute tests on the network",
+                    default=False, dest="network", action="store_true")
   result.add_option("--no-network", "--nonetwork",
                     help="Don't distribute tests on the network",
-                    default=(utils.GuessOS() != "linux"),
-                    dest="no_network", action="store_true")
+                    dest="network", action="store_false")
   result.add_option("--no-presubmit", "--nopresubmit",
                     help='Skip presubmit checks (deprecated)',
                     default=False, dest="no_presubmit", action="store_true")
@@ -563,11 +565,11 @@ def ProcessOptions(options):
   # Special processing of other options, sorted alphabetically.
 
   if options.buildbot:
-    options.no_network = True
-  if options.command_prefix:
+    options.network = False
+  if options.command_prefix and options.network:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
-    options.no_network = True
+    options.network = False
   options.command_prefix = shlex.split(options.command_prefix)
   options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
@@ -641,7 +643,7 @@ def ProcessOptions(options):
       options.shell_dir = os.path.dirname(options.shell)
   if options.valgrind:
     run_valgrind = os.path.join("tools", "run-valgrind.py")
-    # This is OK for distributed running, so we don't need to set no_network.
+    # This is OK for distributed running, so we don't need to disable network.
     options.command_prefix = (["python", "-u", run_valgrind] +
                               options.command_prefix)
   def CheckTestMode(name, option):
@@ -912,7 +914,7 @@ def Execute(arch, mode, args, options, suites):
     progress_indicator.Register(progress.FlakinessTestProgressIndicator(
         options.flakiness_results))
 
-  run_networked = not options.no_network
+  run_networked = options.network
   if not run_networked:
     if options.verbose:
       print("Network distribution disabled, running tests locally.")

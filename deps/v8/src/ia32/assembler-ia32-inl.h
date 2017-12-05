@@ -177,45 +177,6 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-Immediate::Immediate(int x)  {
-  value_.immediate = x;
-  rmode_ = RelocInfo::NONE32;
-}
-
-Immediate::Immediate(Address x, RelocInfo::Mode rmode) {
-  value_.immediate = reinterpret_cast<int32_t>(x);
-  rmode_ = rmode;
-}
-
-Immediate::Immediate(const ExternalReference& ext) {
-  value_.immediate = reinterpret_cast<int32_t>(ext.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-}
-
-
-Immediate::Immediate(Label* internal_offset) {
-  value_.immediate = reinterpret_cast<int32_t>(internal_offset);
-  rmode_ = RelocInfo::INTERNAL_REFERENCE;
-}
-
-Immediate::Immediate(Handle<HeapObject> handle) {
-  value_.immediate = reinterpret_cast<intptr_t>(handle.address());
-  rmode_ = RelocInfo::EMBEDDED_OBJECT;
-}
-
-
-Immediate::Immediate(Smi* value) {
-  value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE32;
-}
-
-
-Immediate::Immediate(Address addr) {
-  value_.immediate = reinterpret_cast<int32_t>(addr);
-  rmode_ = RelocInfo::NONE32;
-}
-
-
 void Assembler::emit(uint32_t x) {
   *reinterpret_cast<uint32_t*>(pc_) = x;
   pc_ += sizeof(uint32_t);
@@ -316,6 +277,10 @@ Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
 }
 
+void Assembler::deserialization_set_special_target_at(
+    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+  set_target_address_at(isolate, instruction_payload, code, target);
+}
 
 Displacement Assembler::disp_at(Label* L) {
   return Displacement(long_at(L->pos()));
@@ -352,18 +317,11 @@ void Assembler::deserialization_set_target_internal_reference_at(
 }
 
 
-void Operand::set_modrm(int mod, Register rm) {
-  DCHECK((mod & -4) == 0);
-  buf_[0] = mod << 6 | rm.code();
-  len_ = 1;
-}
-
-
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   DCHECK(len_ == 1);
   DCHECK((scale & -4) == 0);
   // Use SIB with no index register only for base esp.
-  DCHECK(!index.is(esp) || base.is(esp));
+  DCHECK(index != esp || base == esp);
   buf_[1] = scale << 6 | index.code() << 3 | base.code();
   len_ = 2;
 }
@@ -372,33 +330,6 @@ void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
 void Operand::set_disp8(int8_t disp) {
   DCHECK(len_ == 1 || len_ == 2);
   *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
-}
-
-
-void Operand::set_dispr(int32_t disp, RelocInfo::Mode rmode) {
-  DCHECK(len_ == 1 || len_ == 2);
-  int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
-  *p = disp;
-  len_ += sizeof(int32_t);
-  rmode_ = rmode;
-}
-
-Operand::Operand(Register reg) {
-  // reg
-  set_modrm(3, reg);
-}
-
-
-Operand::Operand(XMMRegister xmm_reg) {
-  Register reg = { xmm_reg.code() };
-  set_modrm(3, reg);
-}
-
-
-Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
-  // [disp/r]
-  set_modrm(0, ebp);
-  set_dispr(disp, rmode);
 }
 
 

@@ -13,7 +13,7 @@ benchy('NaiveFilterReplacement', NaiveFilter, NaiveFilterSetup);
 benchy('DoubleFilter', DoubleFilter, DoubleFilterSetup);
 benchy('SmiFilter', SmiFilter, SmiFilterSetup);
 benchy('FastFilter', FastFilter, FastFilterSetup);
-benchy('ObjectFilter', GenericFilter, ObjectFilterSetup);
+benchy('GenericFilter', GenericFilter, ObjectFilterSetup);
 benchy('OptFastFilter', OptFastFilter, FastFilterSetup);
 
 var array;

@@ -16,14 +16,10 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
-
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_interpreter {
 
 TEST(Run_WasmInt8Const_i) {
   WasmRunner<int32_t> r(kExecuteInterpreted);
@@ -428,6 +424,7 @@ TEST(InterpreterLoadWithoutMemory) {
   CHECK_TRAP32(r.Call(0));
 }
 
+}  // namespace test_run_wasm_interpreter
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

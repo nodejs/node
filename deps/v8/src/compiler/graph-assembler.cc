@@ -6,7 +6,6 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/linkage.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

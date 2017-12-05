@@ -387,6 +387,7 @@ const int kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
 const int kMsaMI10Mask = (15U << 2);
 const int kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
 const int kMsaELMMask = (15U << 22);
+const int kMsaLongerELMMask = kMsaELMMask | (63U << 16);
 const int kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
 const int kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
 const int kMsaVECMask = (23U << 21);
@@ -1602,7 +1603,8 @@ class InstructionGetters : public T {
   }
 
   inline int32_t MsaElmDf() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
     int32_t df_n = this->Bits(21, 16);
     if (((df_n >> 4) & 3U) == 0) {
       return 0;
@@ -1618,7 +1620,8 @@ class InstructionGetters : public T {
   }
 
   inline int32_t MsaElmNValue() const {
-    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
     return this->Bits(16 + 4 - this->MsaElmDf(), 16);
   }
 
@@ -1783,6 +1786,15 @@ InstructionBase::Type InstructionBase::InstructionType() const {
         case kMsaMinor2R:
         case kMsaMinor2RF:
           return kRegisterType;
+        case kMsaMinorELM:
+          switch (InstructionBits() & kMsaLongerELMMask) {
+            case CFCMSA:
+            case CTCMSA:
+            case MOVE_V:
+              return kRegisterType;
+            default:
+              return kImmediateType;
+          }
         default:
           return kImmediateType;
       }

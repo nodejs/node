@@ -328,6 +328,7 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
+  'wasm/atomics': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
 }],  # 'arch == arm64'
 
@@ -655,5 +656,11 @@
     # included in the snapshot
     'mjsunit-assertion-error' : [SKIP],
 }], # no_harness
+
+##############################################################################
+['arch != x64 or deopt_fuzzer', {
+    # Skip stress-deopt-count tests since it's in x64 only
+    'compiler/stress-deopt-count-*': [SKIP],
+}], # arch != x64 or deopt_fuzzer
 
 ]

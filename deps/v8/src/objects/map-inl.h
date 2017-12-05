@@ -42,6 +42,39 @@ bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
   return false;
 }
 
+bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
+  return instance_type == JS_ARRAY_TYPE || instance_type == JS_VALUE_TYPE ||
+         instance_type == JS_ARGUMENTS_TYPE;
+}
+
+bool Map::CanHaveFastTransitionableElementsKind() const {
+  return CanHaveFastTransitionableElementsKind(instance_type());
+}
+
+// static
+void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
+    Isolate* isolate, InstanceType instance_type, PropertyConstness* constness,
+    Representation* representation, Handle<FieldType>* field_type) {
+  if (CanHaveFastTransitionableElementsKind(instance_type)) {
+    // We don't support propagation of field generalization through elements
+    // kind transitions because they are inserted into the transition tree
+    // before field transitions. In order to avoid complexity of handling
+    // such a case we ensure that all maps with transitionable elements kinds
+    // do not have fields that can be generalized in-place (without creation
+    // of a new map).
+    if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
+      // The constness is either already kMutable or should become kMutable if
+      // it was kConst.
+      *constness = kMutable;
+    }
+    if (representation->IsHeapObject()) {
+      // The field type is either already Any or should become Any if it was
+      // something else.
+      *field_type = FieldType::Any(isolate);
+    }
+  }
+}
+
 int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }

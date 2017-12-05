@@ -221,7 +221,7 @@ class S390OperandGenerator final : public OperandGenerator {
     DCHECK(m.matches());
     if ((m.displacement() == nullptr ||
          CanBeImmediate(m.displacement(), immediate_mode))) {
-      DCHECK(m.scale() == 0);
+      DCHECK_EQ(0, m.scale());
       return GenerateMemoryOperandInputs(m.index(), m.base(), m.displacement(),
                                          m.displacement_mode(), inputs,
                                          input_count);

@@ -29,18 +29,19 @@
 #include "test/cctest/cctest.h"
 
 #include "src/arm/simulator-arm.h"
+#include "src/assembler-inl.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+
+namespace v8 {
+namespace internal {
 
 #if defined(USE_SIMULATOR)
 
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error Expected ARM to be little-endian
 #endif
-
-using namespace v8::base;
-using namespace v8::internal;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
@@ -195,8 +196,8 @@ static void TestInvalidateExclusiveAccess(
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
   TestData t = initial_data;
 
@@ -263,8 +264,8 @@ static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
   return reinterpret_cast<int>(
@@ -278,30 +279,33 @@ class MemoryAccessThread : public v8::base::Thread {
         test_data_(NULL),
         is_finished_(false),
         has_request_(false),
-        did_request_(false) {}
+        did_request_(false),
+        isolate_(nullptr) {}
 
   virtual void Run() {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-    v8::Isolate* isolate = v8::Isolate::New(create_params);
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-    v8::Isolate::Scope scope(isolate);
+    isolate_ = v8::Isolate::New(create_params);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
+    {
+      v8::Isolate::Scope scope(isolate_);
+      v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+      while (!is_finished_) {
+        while (!(has_request_ || is_finished_)) {
+          has_request_cv_.Wait(&mutex_);
+        }
 
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
-    while (!is_finished_) {
-      while (!(has_request_ || is_finished_)) {
-        has_request_cv_.Wait(&mutex_);
+        if (is_finished_) {
+          break;
+        }
+
+        ExecuteMemoryAccess(i_isolate, test_data_, access_);
+        has_request_ = false;
+        did_request_ = true;
+        did_request_cv_.NotifyOne();
       }
-
-      if (is_finished_) {
-        break;
-      }
-
-      ExecuteMemoryAccess(i_isolate, test_data_, access_);
-      has_request_ = false;
-      did_request_ = true;
-      did_request_cv_.NotifyOne();
     }
+    isolate_->Dispose();
   }
 
   void NextAndWait(TestData* test_data, MemoryAccess access) {
@@ -332,6 +336,7 @@ class MemoryAccessThread : public v8::base::Thread {
   v8::base::Mutex mutex_;
   v8::base::ConditionVariable has_request_cv_;
   v8::base::ConditionVariable did_request_cv_;
+  v8::Isolate* isolate_;
 };
 
 TEST(simulator_invalidate_exclusive_access_threaded) {
@@ -385,3 +390,6 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
 #undef __
 
 #endif  // USE_SIMULATOR
+
+}  // namespace internal
+}  // namespace v8

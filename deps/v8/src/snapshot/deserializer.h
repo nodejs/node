@@ -25,7 +25,9 @@ namespace internal {
 #define V8_CODE_EMBEDS_OBJECT_POINTER 0
 #endif
 
+class BuiltinDeserializer;
 class Heap;
+class StartupDeserializer;
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
 class Deserializer : public SerializerDeserializer {
@@ -59,10 +61,22 @@ class Deserializer : public SerializerDeserializer {
     off_heap_backing_stores_.push_back(nullptr);
   }
 
-  void Initialize(Isolate* isolate);
   bool ReserveSpace();
+
+  // Atomically reserves space for the two given deserializers. Guarantees
+  // reservation for both without garbage collection in-between.
+  static bool ReserveSpace(StartupDeserializer* startup_deserializer,
+                           BuiltinDeserializer* builtin_deserializer);
+  bool ReservesOnlyCodeSpace() const;
+
+  void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
   void RegisterDeserializedObjectsForBlackAllocation();
+
+  virtual Address Allocate(int space_index, int size);
+
+  // Deserializes into a single pointer and returns the resulting object.
+  Object* ReadDataSingle();
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
@@ -90,6 +104,8 @@ class Deserializer : public SerializerDeserializer {
   }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
+
+  bool IsLazyDeserializationEnabled() const;
 
  private:
   void VisitRootPointers(Root root, Object** start, Object** end) override;
@@ -126,10 +142,13 @@ class Deserializer : public SerializerDeserializer {
                                bool write_barrier_needed);
 
   void ReadObject(int space_number, Object** write_back);
-  Address Allocate(int space_index, int size);
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
+
+  // May replace the given builtin_id with the DeserializeLazy builtin for lazy
+  // deserialization.
+  int MaybeReplaceWithDeserializeLazy(int builtin_id);
 
   // Cached current isolate.
   Isolate* isolate_;
@@ -161,6 +180,10 @@ class Deserializer : public SerializerDeserializer {
   std::vector<byte*> off_heap_backing_stores_;
 
   const bool deserializing_user_code_;
+
+  // TODO(jgruber): This workaround will no longer be necessary once builtin
+  // reference patching has been removed (through advance allocation).
+  bool deserializing_builtins_ = false;
 
   AllocationAlignment next_alignment_;
 

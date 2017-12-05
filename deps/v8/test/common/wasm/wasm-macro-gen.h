@@ -583,4 +583,21 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_BR_TABLEV(val, key, count, ...) \
   val, key, kExprBrTable, U32V_1(count), __VA_ARGS__
 
+//------------------------------------------------------------------------------
+// Atomic Operations.
+//------------------------------------------------------------------------------
+#define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<byte>(op)
+#define WASM_ATOMICS_BINOP(op, x, y, representation) \
+  x, y, WASM_ATOMICS_OP(op),                         \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+#define WASM_ATOMICS_TERNARY_OP(op, x, y, z, representation) \
+  x, y, z, WASM_ATOMICS_OP(op),                              \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+#define WASM_ATOMICS_LOAD_OP(op, x, representation) \
+  x, WASM_ATOMICS_OP(op),                           \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+#define WASM_ATOMICS_STORE_OP(op, x, y, representation) \
+  x, y, WASM_ATOMICS_OP(op),                            \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+
 #endif  // V8_WASM_MACRO_GEN_H_

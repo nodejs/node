@@ -48,6 +48,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> key,
                                                  bool* success,
                                                  Configuration configuration) {
+  // TODO(mslekova): come up with better way to avoid duplication
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     *success = true;
@@ -93,21 +94,9 @@ LookupIterator LookupIterator::ForTransitionHandler(
                     has_property);
 
   if (!transition_map->is_dictionary_map()) {
-    PropertyConstness new_constness = kConst;
-    if (FLAG_track_constant_fields) {
-      if (it.constness() == kConst) {
-        DCHECK_EQ(kData, it.property_details_.kind());
-        // Check that current value matches new value otherwise we should make
-        // the property mutable.
-        if (!it.IsConstFieldValueEqualTo(*value)) new_constness = kMutable;
-      }
-    } else {
-      new_constness = kMutable;
-    }
-
     int descriptor_number = transition_map->LastAdded();
     Handle<Map> new_map = Map::PrepareForDataProperty(
-        transition_map, descriptor_number, new_constness, value);
+        transition_map, descriptor_number, kConst, value);
     // Reload information; this is no-op if nothing changed.
     it.property_details_ =
         new_map->instance_descriptors()->GetDetails(descriptor_number);

@@ -115,10 +115,6 @@ class Script : public Struct {
 
   Object* GetNameOrSourceURL();
 
-  // Set eval origin for stack trace formatting.
-  static void SetEvalOrigin(Handle<Script> script,
-                            Handle<SharedFunctionInfo> outer,
-                            int eval_position);
   // Retrieve source position from where eval was called.
   int GetEvalPosition();
 

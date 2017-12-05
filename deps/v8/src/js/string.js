@@ -17,11 +17,6 @@ var searchSymbol = utils.ImportNow("search_symbol");
 
 //-------------------------------------------------------------------
 
-// ES#sec-createhtml
-function HtmlEscape(str) {
-  return %RegExpInternalReplace(/"/g, TO_STRING(str), "&quot;");
-}
-
 // Set up the non-enumerable functions on the String prototype object.
 DEFINE_METHODS(
   GlobalString.prototype,
@@ -60,112 +55,6 @@ DEFINE_METHODS(
       // Equivalent to RegExpCreate (ES#sec-regexpcreate)
       var regexp = %RegExpCreate(pattern);
       return %_Call(regexp[searchSymbol], regexp, subject);
-    }
-
-    /* ES#sec-string.prototype.anchor */
-    anchor(name) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.anchor");
-      return "<a name=\"" + HtmlEscape(name) + "\">" + TO_STRING(this) +
-             "</a>";
-    }
-
-    /* ES#sec-string.prototype.big */
-    big() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.big");
-      return "<big>" + TO_STRING(this) + "</big>";
-    }
-
-    /* ES#sec-string.prototype.blink */
-    blink() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.blink");
-      return "<blink>" + TO_STRING(this) + "</blink>";
-    }
-
-    /* ES#sec-string.prototype.bold */
-    bold() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.bold");
-      return "<b>" + TO_STRING(this) + "</b>";
-    }
-
-    /* ES#sec-string.prototype.fixed */
-    fixed() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.fixed");
-      return "<tt>" + TO_STRING(this) + "</tt>";
-    }
-
-    /* ES#sec-string.prototype.fontcolor */
-    fontcolor(color) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontcolor");
-      return "<font color=\"" + HtmlEscape(color) + "\">" + TO_STRING(this) +
-             "</font>";
-    }
-
-    /* ES#sec-string.prototype.fontsize */
-    fontsize(size) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.fontsize");
-      return "<font size=\"" + HtmlEscape(size) + "\">" + TO_STRING(this) +
-             "</font>";
-    }
-
-    /* ES#sec-string.prototype.italics */
-    italics() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.italics");
-      return "<i>" + TO_STRING(this) + "</i>";
-    }
-
-    /* ES#sec-string.prototype.link */
-    link(s) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.link");
-      return "<a href=\"" + HtmlEscape(s) + "\">" + TO_STRING(this) + "</a>";
-    }
-
-    /* ES#sec-string.prototype.small */
-    small() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.small");
-      return "<small>" + TO_STRING(this) + "</small>";
-    }
-
-    /* ES#sec-string.prototype.strike */
-    strike() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.strike");
-      return "<strike>" + TO_STRING(this) + "</strike>";
-    }
-
-    /* ES#sec-string.prototype.sub */
-    sub() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.sub");
-      return "<sub>" + TO_STRING(this) + "</sub>";
-    }
-
-    /* ES#sec-string.prototype.sup */
-    sup() {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.sup");
-      return "<sup>" + TO_STRING(this) + "</sup>";
-    }
-
-    /* ES#sec-string.prototype.repeat */
-    repeat(count) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
-
-      var s = TO_STRING(this);
-      var n = TO_INTEGER(count);
-
-      if (n < 0 || n === INFINITY) throw %make_range_error(kInvalidCountValue);
-
-      // Early return to allow an arbitrarily-large repeat of the empty string.
-      if (s.length === 0) return "";
-
-      // The maximum string length is stored in a smi, so a longer repeat
-      // must result in a range error.
-      if (n > %_StringMaxLength()) %ThrowInvalidStringLength();
-
-      var r = "";
-      while (true) {
-        if (n & 1) r += s;
-        n >>= 1;
-        if (n === 0) return r;
-        s += s;
-      }
     }
   }
 );

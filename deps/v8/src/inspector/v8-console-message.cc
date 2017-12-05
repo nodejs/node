@@ -204,7 +204,7 @@ void V8ConsoleMessage::setLocation(const String16& url, unsigned lineNumber,
 
 void V8ConsoleMessage::reportToFrontend(
     protocol::Console::Frontend* frontend) const {
-  DCHECK(m_origin == V8MessageOrigin::kConsole);
+  DCHECK_EQ(V8MessageOrigin::kConsole, m_origin);
   String16 level = protocol::Console::ConsoleMessage::LevelEnum::Log;
   if (m_type == ConsoleAPIType::kDebug || m_type == ConsoleAPIType::kCount ||
       m_type == ConsoleAPIType::kTimeEnd)

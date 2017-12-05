@@ -12,7 +12,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
-#include "src/objects-inl.h"
+#include "src/conversions-inl.h"
 
 namespace v8 {
 namespace internal {

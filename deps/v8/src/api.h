@@ -8,9 +8,9 @@
 #include "include/v8-testing.h"
 #include "src/contexts.h"
 #include "src/debug/debug-interface.h"
+#include "src/detachable-vector.h"
 #include "src/factory.h"
 #include "src/isolate.h"
-#include "src/list.h"
 
 namespace v8 {
 
@@ -379,7 +379,7 @@ class V8_EXPORT_PRIVATE DeferredHandles {
 
   void Iterate(RootVisitor* v);
 
-  List<Object**> blocks_;
+  std::vector<Object**> blocks_;
   DeferredHandles* next_;
   DeferredHandles* previous_;
   Object** first_block_limit_;
@@ -403,9 +403,6 @@ class HandleScopeImplementer {
  public:
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
-        blocks_(0),
-        entered_contexts_(0),
-        saved_contexts_(0),
         microtask_context_(nullptr),
         spare_(NULL),
         call_depth_(0),
@@ -416,7 +413,8 @@ class HandleScopeImplementer {
         debug_microtasks_depth_(0),
 #endif
         microtasks_policy_(v8::MicrotasksPolicy::kAuto),
-        last_handle_before_deferred_block_(NULL) { }
+        last_handle_before_deferred_block_(NULL) {
+  }
 
   ~HandleScopeImplementer() {
     DeleteArray(spare_);
@@ -478,15 +476,14 @@ class HandleScopeImplementer {
   inline Handle<Context> MicrotaskContext();
   inline bool MicrotaskContextIsLastEnteredContext() const {
     return microtask_context_ &&
-           entered_context_count_during_microtasks_ ==
-               entered_contexts_.length();
+           entered_context_count_during_microtasks_ == entered_contexts_.size();
   }
 
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
   inline bool HasSavedContexts();
 
-  inline List<internal::Object**>* blocks() { return &blocks_; }
+  inline DetachableVector<Object**>* blocks() { return &blocks_; }
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
@@ -497,9 +494,9 @@ class HandleScopeImplementer {
 
  private:
   void ResetAfterArchive() {
-    blocks_.Initialize(0);
-    entered_contexts_.Initialize(0);
-    saved_contexts_.Initialize(0);
+    blocks_.detach();
+    entered_contexts_.detach();
+    saved_contexts_.detach();
     microtask_context_ = nullptr;
     entered_context_count_during_microtasks_ = 0;
     spare_ = NULL;
@@ -508,13 +505,14 @@ class HandleScopeImplementer {
   }
 
   void Free() {
-    DCHECK(blocks_.length() == 0);
-    DCHECK(entered_contexts_.length() == 0);
-    DCHECK(saved_contexts_.length() == 0);
+    DCHECK(blocks_.empty());
+    DCHECK(entered_contexts_.empty());
+    DCHECK(saved_contexts_.empty());
     DCHECK(!microtask_context_);
-    blocks_.Free();
-    entered_contexts_.Free();
-    saved_contexts_.Free();
+
+    blocks_.free();
+    entered_contexts_.free();
+    saved_contexts_.free();
     if (spare_ != NULL) {
       DeleteArray(spare_);
       spare_ = NULL;
@@ -526,17 +524,17 @@ class HandleScopeImplementer {
   DeferredHandles* Detach(Object** prev_limit);
 
   Isolate* isolate_;
-  List<internal::Object**> blocks_;
+  DetachableVector<Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
-  List<Context*> entered_contexts_;
+  DetachableVector<Context*> entered_contexts_;
   // Used as a stack to keep track of saved contexts.
-  List<Context*> saved_contexts_;
+  DetachableVector<Context*> saved_contexts_;
   Context* microtask_context_;
   Object** spare_;
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
-  int entered_context_count_during_microtasks_;
+  size_t entered_context_count_during_microtasks_;
 #ifdef DEBUG
   int debug_microtasks_depth_;
 #endif
@@ -571,44 +569,42 @@ v8::MicrotasksPolicy HandleScopeImplementer::microtasks_policy() const {
 
 
 void HandleScopeImplementer::SaveContext(Context* context) {
-  saved_contexts_.Add(context);
+  saved_contexts_.push_back(context);
 }
 
 
 Context* HandleScopeImplementer::RestoreContext() {
-  return saved_contexts_.RemoveLast();
+  Context* last_context = saved_contexts_.back();
+  saved_contexts_.pop_back();
+  return last_context;
 }
 
 
 bool HandleScopeImplementer::HasSavedContexts() {
-  return !saved_contexts_.is_empty();
+  return !saved_contexts_.empty();
 }
 
 
 void HandleScopeImplementer::EnterContext(Handle<Context> context) {
-  entered_contexts_.Add(*context);
+  entered_contexts_.push_back(*context);
 }
 
-
-void HandleScopeImplementer::LeaveContext() {
-  entered_contexts_.RemoveLast();
-}
-
+void HandleScopeImplementer::LeaveContext() { entered_contexts_.pop_back(); }
 
 bool HandleScopeImplementer::LastEnteredContextWas(Handle<Context> context) {
-  return !entered_contexts_.is_empty() && entered_contexts_.last() == *context;
+  return !entered_contexts_.empty() && entered_contexts_.back() == *context;
 }
 
 
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
-  if (entered_contexts_.is_empty()) return Handle<Context>::null();
-  return Handle<Context>(entered_contexts_.last());
+  if (entered_contexts_.empty()) return Handle<Context>::null();
+  return Handle<Context>(entered_contexts_.back());
 }
 
 void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
   DCHECK(!microtask_context_);
   microtask_context_ = *context;
-  entered_context_count_during_microtasks_ = entered_contexts_.length();
+  entered_context_count_during_microtasks_ = entered_contexts_.size();
 }
 
 void HandleScopeImplementer::LeaveMicrotaskContext() {
@@ -633,8 +629,8 @@ internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
 
 
 void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
-  while (!blocks_.is_empty()) {
-    internal::Object** block_start = blocks_.last();
+  while (!blocks_.empty()) {
+    internal::Object** block_start = blocks_.back();
     internal::Object** block_limit = block_start + kHandleBlockSize;
 
     // SealHandleScope may make the prev_limit to point inside the block.
@@ -645,7 +641,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
       break;
     }
 
-    blocks_.RemoveLast();
+    blocks_.pop_back();
 #ifdef ENABLE_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
@@ -654,8 +650,8 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
     }
     spare_ = block_start;
   }
-  DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
-         (!blocks_.is_empty() && prev_limit != NULL));
+  DCHECK((blocks_.empty() && prev_limit == NULL) ||
+         (!blocks_.empty() && prev_limit != NULL));
 }
 
 // Interceptor functions called from generated inline caches to notify

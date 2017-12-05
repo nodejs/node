@@ -7,8 +7,10 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/arguments.h"
 
 namespace v8 {
 namespace internal {
@@ -151,17 +153,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   {
     // For holey JSArrays we need to check that the array prototype chain
     // protector is intact and our prototype is the Array.prototype actually.
-    Node* arguments_list_prototype = LoadMapPrototype(arguments_list_map);
-    Node* initial_array_prototype = LoadContextElement(
-        native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    GotoIfNot(WordEqual(arguments_list_prototype, initial_array_prototype),
+    GotoIfNot(IsPrototypeInitialArrayPrototype(context, arguments_list_map),
               &if_runtime);
-    Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-    DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-    Branch(
-        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
-        &if_done, &if_runtime);
+    Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done);
   }
 
   BIND(&if_arguments);
@@ -283,13 +277,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   Node* spread_map = LoadMap(spread);
   GotoIfNot(IsJSArrayMap(spread_map), &if_runtime);
 
-  Node* native_context = LoadNativeContext(context);
-
   // Check that we have the original ArrayPrototype.
-  Node* prototype = LoadMapPrototype(spread_map);
-  Node* array_prototype = LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-  GotoIfNot(WordEqual(prototype, array_prototype), &if_runtime);
+  GotoIfNot(IsPrototypeInitialArrayPrototype(context, spread_map), &if_runtime);
 
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
@@ -301,6 +290,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
       &if_runtime);
 
   // Check that the map of the initial array iterator hasn't changed.
+  Node* native_context = LoadNativeContext(context);
   Node* arr_it_proto_map = LoadMap(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX));
   Node* initial_map = LoadContextElement(
@@ -323,14 +313,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   // Check the ArrayProtector cell for holey arrays.
   BIND(&if_holey);
-  {
-    Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-    DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-    Branch(
-        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Isolate::kProtectorValid)),
-        &if_done, &if_runtime);
-  }
+  { Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done); }
 
   BIND(&if_runtime);
   {

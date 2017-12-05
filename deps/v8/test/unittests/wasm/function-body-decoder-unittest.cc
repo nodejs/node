@@ -19,9 +19,10 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-using namespace v8::internal::wasm::testing;
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace function_body_decoder_unittest {
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -522,6 +523,8 @@ TEST_F(FunctionBodyDecoderTest, Block0Block0) {
 TEST_F(FunctionBodyDecoderTest, Block0_end) {
   EXPECT_FAILURE(v_v, WASM_EMPTY_BLOCK, kExprEnd);
 }
+
+#undef WASM_EMPTY_BLOCK
 
 TEST_F(FunctionBodyDecoderTest, Block1) {
   byte code[] = {WASM_BLOCK_I(WASM_GET_LOCAL(0))};
@@ -1341,6 +1344,16 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
                   VARINT4(0x44444444));
 }
 
+#undef BYTE0
+#undef BYTE1
+#undef BYTE2
+#undef BYTE3
+
+#undef VARINT1
+#undef VARINT2
+#undef VARINT3
+#undef VARINT4
+
 TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
   TestModuleBuilder builder;
   module = builder.module();
@@ -1846,6 +1859,14 @@ TEST_F(FunctionBodyDecoderTest, BreakIfBinop_fail) {
       WASM_BLOCK_I(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO))));
 }
 
+TEST_F(FunctionBodyDecoderTest, BreakIfUnrNarrow) {
+  EXPECT_FAILURE_S(
+      sigs.f_ff(),
+      WASM_BLOCK_I(WASM_BRV_IF(0, WASM_UNREACHABLE, WASM_UNREACHABLE),
+                   WASM_RETURN0),
+      WASM_F32(0.0));
+}
+
 TEST_F(FunctionBodyDecoderTest, BreakNesting1) {
   for (int i = 0; i < 5; i++) {
     // (block[2] (loop[2] (if (get p) break[N]) (set p 1)) p)
@@ -2145,6 +2166,69 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br2) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_LOOP(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_LOOP(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_loop_block) {
+  EXPECT_VERIFIES(
+      v_v,
+      WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_block_loop) {
+  EXPECT_VERIFIES(
+      v_v,
+      WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_BLOCK_F(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_F(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch_unreachable) {
+  EXPECT_FAILURE(v_v,
+                 WASM_BLOCK_F(WASM_BLOCK_I(
+                     WASM_UNREACHABLE,
+                     WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
 TEST_F(FunctionBodyDecoderTest, BrUnreachable1) {
   EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0));
 }
@@ -2253,8 +2337,7 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   // exception index out of range.
   EXPECT_FAILURE(v_v, kExprThrow, 2);
 
-  // TODO(kschimpf): Fix when we can create exceptions with values.
-  EXPECT_FAILURE(v_v, WASM_I32V(0), kExprThrow, 1);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, 1);
 
   // TODO(kschimpf): Add more tests.
 }
@@ -2275,7 +2358,6 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
-
 #define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
@@ -2299,6 +2381,9 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   // TODO(kschimpf): Fix this to verify.
   EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(1), kExprEnd);
 }
+
+#undef WASM_TRY_OP
+#undef WASM_CATCH
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
@@ -2420,6 +2505,9 @@ TEST_F(BranchTableIteratorTest, error0) {
   CHECK_BR_TABLE_ERROR(0);
   CHECK_BR_TABLE_ERROR(1, U32V_1(33));
 }
+
+#undef CHECK_BR_TABLE_LENGTH
+#undef CHECK_BR_TABLE_ERROR
 
 class WasmOpcodeLengthTest : public TestWithZone {
  public:
@@ -2657,10 +2745,12 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
   EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xff));
-#undef TEST_SIMD
   // test for bad simd opcode
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }
+
+#undef EXPECT_LENGTH
+#undef EXPECT_LENGTH_N
 
 typedef ZoneVector<ValueType> TypesOfLocals;
 
@@ -2845,3 +2935,23 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   iter.next();
   EXPECT_FALSE(iter.has_next());
 }
+
+#undef B1
+#undef B2
+#undef B3
+#undef WASM_IF_OP
+#undef WASM_LOOP_OP
+#undef WASM_BRV_IF_ZERO
+#undef EXPECT_VERIFIES_C
+#undef EXPECT_FAILURE_C
+#undef EXPECT_VERIFIES_SC
+#undef EXPECT_FAILURE_SC
+#undef EXPECT_VERIFIES_S
+#undef EXPECT_FAILURE_S
+#undef EXPECT_VERIFIES
+#undef EXPECT_FAILURE
+
+}  // namespace function_body_decoder_unittest
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

@@ -9,6 +9,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_orderedhashtable {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -896,5 +897,6 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key2));
 }
 
+}  // namespace test_orderedhashtable
 }  // namespace internal
 }  // namespace v8

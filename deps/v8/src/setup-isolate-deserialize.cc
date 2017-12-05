@@ -12,14 +12,13 @@
 namespace v8 {
 namespace internal {
 
-void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
-                                         bool create_heap_objects) {
-  DCHECK(!create_heap_objects);
+void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
+  DCHECK(!create_heap_objects_);
   // No actual work to be done; builtins will be deserialized from the snapshot.
 }
 
 void SetupIsolateDelegate::SetupInterpreter(
-    interpreter::Interpreter* interpreter, bool create_heap_objects) {
+    interpreter::Interpreter* interpreter) {
 #if defined(V8_USE_SNAPSHOT) && !defined(V8_USE_SNAPSHOT_WITH_UNWINDING_INFO)
   if (FLAG_perf_prof_unwinding_info) {
     OFStream os(stdout);
@@ -29,6 +28,12 @@ void SetupIsolateDelegate::SetupInterpreter(
   }
 #endif
   DCHECK(interpreter->IsDispatchTableInitialized());
+}
+
+bool SetupIsolateDelegate::SetupHeap(Heap* heap) {
+  DCHECK(!create_heap_objects_);
+  // No actual work to be done; heap will be deserialized from the snapshot.
+  return true;
 }
 
 }  // namespace internal

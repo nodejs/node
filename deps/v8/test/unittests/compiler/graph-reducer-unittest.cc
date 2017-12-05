@@ -21,6 +21,7 @@ using testing::UnorderedElementsAre;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace graph_reducer_unittest {
 
 namespace {
 
@@ -872,6 +873,7 @@ TEST_F(GraphReducerTest, Order) {
   }
 }
 
+}  // namespace graph_reducer_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

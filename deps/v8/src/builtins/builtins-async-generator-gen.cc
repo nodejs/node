@@ -245,7 +245,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(Descriptor::kReceiver);
+  Node* generator = Parameter(Descriptor::kGenerator);
   Node* value = Parameter(Descriptor::kAwaited);
   Node* context = Parameter(Descriptor::kContext);
 

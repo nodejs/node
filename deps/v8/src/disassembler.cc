@@ -5,6 +5,7 @@
 #include "src/disassembler.h"
 
 #include <memory>
+#include <vector>
 
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"
@@ -116,9 +117,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; code:");
     Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
     Code::Kind kind = code->kind();
-    if (code->is_inline_cache_stub()) {
-      out->AddFormatted(" %s", Code::Kind2String(kind));
-    } else if (kind == Code::STUB || kind == Code::HANDLER) {
+    if (kind == Code::STUB) {
       // Get the STUB key and extract major and minor key.
       uint32_t key = code->stub_key();
       uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
@@ -207,27 +206,28 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Collect RelocInfo for this instruction (prev_pc .. pc-1)
-    List<const char*> comments(4);
-    List<byte*> pcs(1);
-    List<RelocInfo::Mode> rmodes(1);
-    List<intptr_t> datas(1);
+    std::vector<const char*> comments;
+    std::vector<byte*> pcs;
+    std::vector<RelocInfo::Mode> rmodes;
+    std::vector<intptr_t> datas;
     if (it != NULL) {
       while (!it->done() && it->rinfo()->pc() < pc) {
         if (RelocInfo::IsComment(it->rinfo()->rmode())) {
           // For comments just collect the text.
-          comments.Add(reinterpret_cast<const char*>(it->rinfo()->data()));
+          comments.push_back(
+              reinterpret_cast<const char*>(it->rinfo()->data()));
         } else {
           // For other reloc info collect all data.
-          pcs.Add(it->rinfo()->pc());
-          rmodes.Add(it->rinfo()->rmode());
-          datas.Add(it->rinfo()->data());
+          pcs.push_back(it->rinfo()->pc());
+          rmodes.push_back(it->rinfo()->rmode());
+          datas.push_back(it->rinfo()->data());
         }
         it->next();
       }
     }
 
     // Comments.
-    for (int i = 0; i < comments.length(); i++) {
+    for (size_t i = 0; i < comments.size(); i++) {
       out.AddFormatted("                  %s", comments[i]);
       DumpBuffer(os, &out);
     }
@@ -240,7 +240,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     out.AddFormatted("%s", decode_buffer.start());
 
     // Print all the reloc info for this instruction which are not comments.
-    for (int i = 0; i < pcs.length(); i++) {
+    for (size_t i = 0; i < pcs.size(); i++) {
       // Put together the reloc info
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], converter.code());
 
@@ -252,7 +252,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // If this is a constant pool load and we haven't found any RelocInfo
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
-    if (pcs.is_empty() && converter.code() != nullptr) {
+    if (pcs.empty() && converter.code() != nullptr) {
       RelocInfo dummy_rinfo(prev_pc, RelocInfo::NONE32, 0, nullptr);
       if (dummy_rinfo.IsInConstantPool()) {
         byte* constant_pool_entry_address =

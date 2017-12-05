@@ -72,49 +72,9 @@ class RecordWriteStub: public PlatformCodeStub {
     DCHECK(Assembler::IsBranch(masm->instr_at(pos)));
   }
 
-  static Mode GetMode(Code* stub) {
-    Instr first_instruction = Assembler::instr_at(stub->instruction_start());
-    Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
-                                                   Assembler::kInstrSize);
+  static Mode GetMode(Code* stub);
 
-    if (Assembler::IsBranch(first_instruction)) {
-      return INCREMENTAL;
-    }
-
-    DCHECK(Assembler::IsTstImmediate(first_instruction));
-
-    if (Assembler::IsBranch(second_instruction)) {
-      return INCREMENTAL_COMPACTION;
-    }
-
-    DCHECK(Assembler::IsTstImmediate(second_instruction));
-
-    return STORE_BUFFER_ONLY;
-  }
-
-  static void Patch(Code* stub, Mode mode) {
-    MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
-                        stub->instruction_size(), CodeObjectRequired::kNo);
-    switch (mode) {
-      case STORE_BUFFER_ONLY:
-        DCHECK(GetMode(stub) == INCREMENTAL ||
-               GetMode(stub) == INCREMENTAL_COMPACTION);
-        PatchBranchIntoNop(&masm, 0);
-        PatchBranchIntoNop(&masm, Assembler::kInstrSize);
-        break;
-      case INCREMENTAL:
-        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-        PatchNopIntoBranch(&masm, 0);
-        break;
-      case INCREMENTAL_COMPACTION:
-        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-        PatchNopIntoBranch(&masm, Assembler::kInstrSize);
-        break;
-    }
-    DCHECK(GetMode(stub) == mode);
-    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
-                           2 * Assembler::kInstrSize);
-  }
+  static void Patch(Code* stub, Mode mode);
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
 
@@ -124,12 +84,11 @@ class RecordWriteStub: public PlatformCodeStub {
   // the caller.
   class RegisterAllocation {
    public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch0)
+    RegisterAllocation(Register object, Register address, Register scratch0)
         : object_(object),
           address_(address),
-          scratch0_(scratch0) {
+          scratch0_(scratch0),
+          scratch1_(no_reg) {
       DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }

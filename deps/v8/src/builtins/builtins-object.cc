@@ -340,29 +340,6 @@ BUILTIN(ObjectPrototypeSetProto) {
   return isolate->heap()->undefined_value();
 }
 
-// ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
-BUILTIN(ObjectGetOwnPropertyDescriptor) {
-  HandleScope scope(isolate);
-  // 1. Let obj be ? ToObject(O).
-  Handle<Object> object = args.atOrUndefined(isolate, 1);
-  Handle<JSReceiver> receiver;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Object::ToObject(isolate, object));
-  // 2. Let key be ? ToPropertyKey(P).
-  Handle<Object> property = args.atOrUndefined(isolate, 2);
-  Handle<Name> key;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
-                                     Object::ToName(isolate, property));
-  // 3. Let desc be ? obj.[[GetOwnProperty]](key).
-  PropertyDescriptor desc;
-  Maybe<bool> found =
-      JSReceiver::GetOwnPropertyDescriptor(isolate, receiver, key, &desc);
-  MAYBE_RETURN(found, isolate->heap()->exception());
-  // 4. Return FromPropertyDescriptor(desc).
-  if (!found.FromJust()) return isolate->heap()->undefined_value();
-  return *desc.ToObject(isolate);
-}
-
 namespace {
 
 Object* GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
@@ -390,15 +367,6 @@ BUILTIN(ObjectGetOwnPropertyNames) {
 // ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
 BUILTIN(ObjectGetOwnPropertySymbols) {
   return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
-}
-
-// ES#sec-object.is Object.is ( value1, value2 )
-BUILTIN(ObjectIs) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> value1 = args.at(1);
-  Handle<Object> value2 = args.at(2);
-  return isolate->heap()->ToBoolean(value1->SameValue(*value2));
 }
 
 // ES6 section 19.1.2.11 Object.isExtensible ( O )

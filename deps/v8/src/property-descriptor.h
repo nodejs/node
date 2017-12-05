@@ -15,6 +15,7 @@ namespace internal {
 
 class Isolate;
 class Object;
+class PropertyDescriptorObject;
 
 class PropertyDescriptor {
  public:
@@ -43,6 +44,8 @@ class PropertyDescriptor {
 
   // ES6 6.2.4.4
   Handle<Object> ToObject(Isolate* isolate);
+
+  Handle<PropertyDescriptorObject> ToPropertyDescriptorObject(Isolate* isolate);
 
   // ES6 6.2.4.5
   static bool ToPropertyDescriptor(Isolate* isolate, Handle<Object> obj,

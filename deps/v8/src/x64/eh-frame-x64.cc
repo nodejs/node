@@ -29,11 +29,11 @@ void EhFrameWriter::WriteInitialStateInCie() {
 // static
 int EhFrameWriter::RegisterToDwarfCode(Register name) {
   switch (name.code()) {
-    case Register::kCode_rbp:
+    case kRegCode_rbp:
       return kRbpDwarfCode;
-    case Register::kCode_rsp:
+    case kRegCode_rsp:
       return kRspDwarfCode;
-    case Register::kCode_rax:
+    case kRegCode_rax:
       return kRaxDwarfCode;
     default:
       UNIMPLEMENTED();

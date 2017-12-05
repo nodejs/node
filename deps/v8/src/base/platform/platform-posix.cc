@@ -129,6 +129,7 @@ void OS::ProtectCode(void* address, const size_t size) {
 
 
 // Create guard pages.
+#if !V8_OS_FUCHSIA
 void OS::Guard(void* address, const size_t size) {
 #if V8_OS_CYGWIN
   DWORD oldprotect;
@@ -137,6 +138,7 @@ void OS::Guard(void* address, const size_t size) {
   mprotect(address, size, PROT_NONE);
 #endif
 }
+#endif  // !V8_OS_FUCHSIA
 
 // Make a region of memory readable and writable.
 void OS::Unprotect(void* address, const size_t size) {
@@ -148,15 +150,7 @@ void OS::Unprotect(void* address, const size_t size) {
 #endif
 }
 
-static LazyInstance<RandomNumberGenerator>::type
-    platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
-
-
-void OS::Initialize(int64_t random_seed, bool hard_abort,
-                    const char* const gc_fake_mmap) {
-  if (random_seed) {
-    platform_random_number_generator.Pointer()->SetSeed(random_seed);
-  }
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
@@ -164,72 +158,6 @@ void OS::Initialize(int64_t random_seed, bool hard_abort,
 
 const char* OS::GetGCFakeMMapFile() {
   return g_gc_fake_mmap;
-}
-
-
-void* OS::GetRandomMmapAddr() {
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
-  // Dynamic tools do not support custom mmap addresses.
-  return NULL;
-#endif
-  uintptr_t raw_addr;
-  platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
-                                                        sizeof(raw_addr));
-#if V8_TARGET_ARCH_X64
-  // Currently available CPUs have 48 bits of virtual addressing.  Truncate
-  // the hint address to 46 bits to give the kernel a fighting chance of
-  // fulfilling our placement request.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#elif V8_TARGET_ARCH_PPC64
-#if V8_OS_AIX
-  // AIX: 64 bits of virtual addressing, but we limit address range to:
-  //   a) minimize Segment Lookaside Buffer (SLB) misses and
-  raw_addr &= V8_UINT64_C(0x3ffff000);
-  // Use extra address space to isolate the mmap regions.
-  raw_addr += V8_UINT64_C(0x400000000000);
-#elif V8_TARGET_BIG_ENDIAN
-  // Big-endian Linux: 44 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x03fffffff000);
-#else
-  // Little-endian Linux: 48 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#endif
-#elif V8_TARGET_ARCH_S390X
-  // Linux on Z uses bits 22-32 for Region Indexing, which translates to 42 bits
-  // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
-  // fulfill request.
-  raw_addr &= V8_UINT64_C(0xfffffff000);
-#elif V8_TARGET_ARCH_S390
-  // 31 bits of virtual addressing.  Truncate to 29 bits to allow kernel chance
-  // to fulfill request.
-  raw_addr &= 0x1ffff000;
-#else
-  raw_addr &= 0x3ffff000;
-
-# ifdef __sun
-  // For our Solaris/illumos mmap hint, we pick a random address in the bottom
-  // half of the top half of the address space (that is, the third quarter).
-  // Because we do not MAP_FIXED, this will be treated only as a hint -- the
-  // system will not fail to mmap() because something else happens to already
-  // be mapped at our random address. We deliberately set the hint high enough
-  // to get well above the system's break (that is, the heap); Solaris and
-  // illumos will try the hint and if that fails allocate as if there were
-  // no hint at all. The high hint prevents the break from getting hemmed in
-  // at low values, ceding half of the address space to the system heap.
-  raw_addr += 0x80000000;
-#elif V8_OS_AIX
-  // The range 0x30000000 - 0xD0000000 is available on AIX;
-  // choose the upper range.
-  raw_addr += 0x90000000;
-# else
-  // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-  // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
-  // 10.6 and 10.7.
-  raw_addr += 0x20000000;
-# endif
-#endif
-  return reinterpret_cast<void*>(raw_addr);
 }
 
 
@@ -292,14 +220,13 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 
 
 // static
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name, void* hint) {
   if (FILE* file = fopen(name, "r+")) {
     if (fseek(file, 0, SEEK_END) == 0) {
       long size = ftell(file);  // NOLINT(runtime/int)
       if (size >= 0) {
-        void* const memory =
-            mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_WRITE,
-                 MAP_SHARED, fileno(file), 0);
+        void* const memory = mmap(hint, size, PROT_READ | PROT_WRITE,
+                                  MAP_SHARED, fileno(file), 0);
         if (memory != MAP_FAILED) {
           return new PosixMemoryMappedFile(file, memory, size);
         }
@@ -312,13 +239,13 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
 
 
 // static
-OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
+OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, void* hint,
                                                    size_t size, void* initial) {
   if (FILE* file = fopen(name, "w+")) {
     size_t result = fwrite(initial, 1, size, file);
     if (result == size && !ferror(file)) {
-      void* memory = mmap(OS::GetRandomMmapAddr(), result,
-                          PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      void* memory = mmap(hint, result, PROT_READ | PROT_WRITE, MAP_SHARED,
+                          fileno(file), 0);
       if (memory != MAP_FAILED) {
         return new PosixMemoryMappedFile(file, memory, result);
       }

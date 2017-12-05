@@ -75,22 +75,18 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandles const& receiver_maps,
                                 AccessMode access_mode,
-                                LanguageMode language_mode,
                                 KeyedAccessStoreMode store_mode);
   template <typename KeyedICNexus>
   Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
                               KeyedICNexus const& nexus, AccessMode access_mode,
-                              LanguageMode language_mode,
                               KeyedAccessStoreMode store_mode);
   Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
                                        FeedbackNexus const& nexus,
                                        Handle<Name> name,
-                                       AccessMode access_mode,
-                                       LanguageMode language_mode);
+                                       AccessMode access_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandles const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
-                              LanguageMode language_mode,
                               Node* index = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
@@ -117,23 +113,26 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   };
 
   // Construct the appropriate subgraph for property access.
-  ValueEffectControl BuildPropertyAccess(
-      Node* receiver, Node* value, Node* context, Node* frame_state,
-      Node* effect, Node* control, Handle<Name> name,
-      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
-      AccessMode access_mode, LanguageMode language_mode);
+  ValueEffectControl BuildPropertyAccess(Node* receiver, Node* value,
+                                         Node* context, Node* frame_state,
+                                         Node* effect, Node* control,
+                                         Handle<Name> name,
+                                         ZoneVector<Node*>* if_exceptions,
+                                         PropertyAccessInfo const& access_info,
+                                         AccessMode access_mode);
   ValueEffectControl BuildPropertyLoad(Node* receiver, Node* context,
                                        Node* frame_state, Node* effect,
                                        Node* control, Handle<Name> name,
                                        ZoneVector<Node*>* if_exceptions,
-                                       PropertyAccessInfo const& access_info,
-                                       LanguageMode language_mode);
+                                       PropertyAccessInfo const& access_info);
 
-  ValueEffectControl BuildPropertyStore(
-      Node* receiver, Node* value, Node* context, Node* frame_state,
-      Node* effect, Node* control, Handle<Name> name,
-      ZoneVector<Node*>* if_exceptions, PropertyAccessInfo const& access_info,
-      AccessMode access_mode, LanguageMode language_mode);
+  ValueEffectControl BuildPropertyStore(Node* receiver, Node* value,
+                                        Node* context, Node* frame_state,
+                                        Node* effect, Node* control,
+                                        Handle<Name> name,
+                                        ZoneVector<Node*>* if_exceptions,
+                                        PropertyAccessInfo const& access_info,
+                                        AccessMode access_mode);
 
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver, Node* context,

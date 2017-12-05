@@ -40,6 +40,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_bignum_dtoa {
 
 // Removes trailing '0' digits.
 // Can return the empty string if all digits are 0.
@@ -314,5 +315,6 @@ TEST(BignumDtoaGayPrecision) {
   }
 }
 
+}  // namespace test_bignum_dtoa
 }  // namespace internal
 }  // namespace v8

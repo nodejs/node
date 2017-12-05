@@ -139,11 +139,6 @@ bool Expression::IsValidReferenceExpression() const {
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
 }
 
-bool Expression::IsValidReferenceExpressionOrThis() const {
-  return IsValidReferenceExpression() ||
-         (IsVariableProxy() && AsVariableProxy()->is_this());
-}
-
 bool Expression::IsAnonymousFunctionDefinition() const {
   return (IsFunctionLiteral() &&
           AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
@@ -249,15 +244,13 @@ void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                          FunctionKind kind,
                                          FeedbackSlotCache* cache) {
   AssignVectorSlots(each(), spec, language_mode, &each_slot_);
-  for_in_feedback_slot_ = spec->AddGeneralSlot();
+  for_in_feedback_slot_ = spec->AddForInSlot();
 }
 
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(pos, node_type), target_(target), value_(value) {
-  bit_field_ |= IsUninitializedField::encode(false) |
-                KeyTypeField::encode(ELEMENT) |
-                StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
+  bit_field_ |= TokenField::encode(op);
 }
 
 void Assignment::AssignFeedbackSlots(FeedbackVectorSpec* spec,
@@ -290,6 +283,9 @@ bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
 }
 
+Handle<String> FunctionLiteral::name(Isolate* isolate) const {
+  return raw_name_ ? raw_name_->string() : isolate->factory()->empty_string();
+}
 
 int FunctionLiteral::start_position() const {
   return scope()->start_position();
@@ -369,10 +365,6 @@ void ClassLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
     home_object_slot_ = spec->AddStoreICSlot(language_mode);
   }
 
-  if (NeedsProxySlot()) {
-    proxy_slot_ = spec->AddStoreICSlot(language_mode);
-  }
-
   for (int i = 0; i < properties()->length(); i++) {
     ClassLiteral::Property* property = properties()->at(i);
     Expression* value = property->value();
@@ -401,6 +393,9 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                         LanguageMode language_mode,
                                         FunctionKind kind,
                                         FeedbackSlotCache* cache) {
+  // The empty object literal doesn't need any feedback vector slot.
+  if (this->IsEmptyObjectLiteral()) return;
+
   MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
 
   // This logic that computes the number of slots needed for vector store
@@ -642,12 +637,18 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 }
 
 bool ObjectLiteral::IsFastCloningSupported() const {
-  // The FastCloneShallowObject builtin doesn't copy elements, and object
+  // The CreateShallowObjectLiteratal builtin doesn't copy elements, and object
   // literals don't support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
   return fast_elements() && is_shallow() &&
          properties_count() <=
              ConstructorBuiltins::kMaximumClonedShallowObjectProperties;
+}
+
+bool ArrayLiteral::is_empty() const {
+  DCHECK(is_initialized());
+  return values()->is_empty() &&
+         (constant_elements().is_null() || constant_elements()->is_empty());
 }
 
 int ArrayLiteral::InitDepthAndFlags() {
@@ -822,6 +823,48 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   DCHECK(IsRegExpLiteral());
 }
 
+Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
+    Isolate* isolate) {
+  Handle<FixedArray> raw_strings =
+      isolate->factory()->NewFixedArray(this->raw_strings()->length(), TENURED);
+  bool raw_and_cooked_match = true;
+  for (int i = 0; i < raw_strings->length(); ++i) {
+    if (*this->raw_strings()->at(i)->value() !=
+        *this->cooked_strings()->at(i)->value()) {
+      raw_and_cooked_match = false;
+    }
+    raw_strings->set(i, *this->raw_strings()->at(i)->value());
+  }
+  Handle<FixedArray> cooked_strings = raw_strings;
+  if (!raw_and_cooked_match) {
+    cooked_strings = isolate->factory()->NewFixedArray(
+        this->cooked_strings()->length(), TENURED);
+    for (int i = 0; i < cooked_strings->length(); ++i) {
+      cooked_strings->set(i, *this->cooked_strings()->at(i)->value());
+    }
+  }
+  return isolate->factory()->NewTemplateObjectDescription(
+      this->hash(), raw_strings, cooked_strings);
+}
+
+void UnaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
+                                         LanguageMode language_mode,
+                                         FunctionKind kind,
+                                         FeedbackSlotCache* cache) {
+  switch (op()) {
+    // Only unary plus, minus, and bitwise-not currently collect feedback.
+    case Token::ADD:
+    case Token::SUB:
+    case Token::BIT_NOT:
+      // Note that the slot kind remains "BinaryOp", as the operation
+      // is transformed into a binary operation in the BytecodeGenerator.
+      feedback_slot_ = spec->AddInterpreterBinaryOpICSlot();
+      return;
+    default:
+      return;
+  }
+}
+
 void BinaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                           LanguageMode language_mode,
                                           FunctionKind kind,
@@ -957,61 +1000,6 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
-Handle<Map> SmallMapList::at(int i) const { return Handle<Map>(list_.at(i)); }
-
-SmallMapList* Expression::GetReceiverTypes() {
-  switch (node_type()) {
-#define NODE_LIST(V)    \
-  PROPERTY_NODE_LIST(V) \
-  V(Call)
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<Node*>(this)->GetReceiverTypes();
-    NODE_LIST(GENERATE_CASE)
-#undef NODE_LIST
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-KeyedAccessStoreMode Expression::GetStoreMode() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->GetStoreMode();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-IcCheckType Expression::GetKeyType() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->GetKeyType();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-bool Expression::IsMonomorphic() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->IsMonomorphic();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-    CALL_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
 void Call::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                LanguageMode language_mode, FunctionKind kind,
                                FeedbackSlotCache* cache) {
@@ -1045,9 +1033,8 @@ Call::CallType Call::GetCallType() const {
   return OTHER_CALL;
 }
 
-CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
-                       int pos)
-    : Expression(pos, kCaseClause), label_(label), statements_(statements) {}
+CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
+    : label_(label), statements_(statements) {}
 
 void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                      LanguageMode language_mode,

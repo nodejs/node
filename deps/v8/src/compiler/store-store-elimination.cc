@@ -172,7 +172,7 @@ class RedundantStoreFinder final {
 // To safely cast an offset from a FieldAccess, which has a potentially wider
 // range (namely int).
 StoreOffset ToOffset(int offset) {
-  CHECK(0 <= offset);
+  CHECK_LE(0, offset);
   return static_cast<StoreOffset>(offset);
 }
 
@@ -559,6 +559,10 @@ bool UnobservableStore::operator!=(const UnobservableStore other) const {
 bool UnobservableStore::operator<(const UnobservableStore other) const {
   return (id_ < other.id_) || (id_ == other.id_ && offset_ < other.offset_);
 }
+
+#undef TRACE
+#undef CHECK_EXTRA
+#undef DCHECK_EXTRA
 
 }  // namespace compiler
 }  // namespace internal

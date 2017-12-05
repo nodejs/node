@@ -95,14 +95,15 @@ CompilationCacheScript::CompilationCacheScript(Isolate* isolate)
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
 bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
-                                       Handle<Object> name, int line_offset,
-                                       int column_offset,
+                                       MaybeHandle<Object> maybe_name,
+                                       int line_offset, int column_offset,
                                        ScriptOriginOptions resource_options) {
   Handle<Script> script =
       Handle<Script>(Script::cast(function_info->script()), isolate());
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
-  if (name.is_null()) {
+  Handle<Object> name;
+  if (!maybe_name.ToHandle(&name)) {
     return script->name()->IsUndefined(isolate());
   }
   // Do the fast bailout checks first.
@@ -123,7 +124,7 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 // will be cached, but subsequent code from different source / line
 // won't.
 InfoVectorPair CompilationCacheScript::Lookup(
-    Handle<String> source, Handle<Object> name, int line_offset,
+    Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
   InfoVectorPair result;
@@ -263,7 +264,7 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 }
 
 InfoVectorPair CompilationCache::LookupScript(
-    Handle<String> source, Handle<Object> name, int line_offset,
+    Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
   InfoVectorPair empty_result;

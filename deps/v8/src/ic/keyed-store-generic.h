@@ -16,14 +16,12 @@ class CodeAssemblerState;
 
 class KeyedStoreGenericGenerator {
  public:
-  static void Generate(compiler::CodeAssemblerState* state,
-                       LanguageMode language_mode);
+  static void Generate(compiler::CodeAssemblerState* state);
 };
 
 class StoreICUninitializedGenerator {
  public:
-  static void Generate(compiler::CodeAssemblerState* state,
-                       LanguageMode language_mode);
+  static void Generate(compiler::CodeAssemblerState* state);
 };
 
 }  // namespace internal

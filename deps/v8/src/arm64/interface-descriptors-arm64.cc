@@ -24,9 +24,14 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
 
 void RecordWriteDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // TODO(albertnetymk): Use default for now; should call
-  // RestrictAllocatableRegisters like src/x64/interface-descriptors-x64.cc
-  DefaultInitializePlatformSpecific(data, kParameterCount);
+  const Register default_stub_registers[] = {x0, x1, x2, x3, x4};
+
+  data->RestrictAllocatableRegisters(default_stub_registers,
+                                     arraysize(default_stub_registers));
+
+  CHECK_LE(static_cast<size_t>(kParameterCount),
+           arraysize(default_stub_registers));
+  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
 const Register FastNewFunctionContextDescriptor::FunctionRegister() {
@@ -84,38 +89,6 @@ const Register TypeConversionDescriptor::ArgumentRegister() { return x0; }
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {x3};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void FastCloneRegExpDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: object literal index
-  // x1: constant properties
-  // x0: object literal flags
-  Register registers[] = {x3, x2, x1, x0};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void FastCloneShallowArrayDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: array literal index
-  // x1: constant elements
-  Register registers[] = {x3, x2, x1};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void FastCloneShallowObjectDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: object literal index
-  // x1: constant properties
-  // x0: object literal flags
-  Register registers[] = {x3, x2, x1, x0};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

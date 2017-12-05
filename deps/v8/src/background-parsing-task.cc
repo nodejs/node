@@ -26,6 +26,7 @@ BackgroundParsingTask::BackgroundParsingTask(
   // on the foreground thread.
   DCHECK(options == ScriptCompiler::kProduceParserCache ||
          options == ScriptCompiler::kProduceCodeCache ||
+         options == ScriptCompiler::kProduceFullCodeCache ||
          options == ScriptCompiler::kNoCompileOptions);
 
   VMState<PARSER> state(isolate);

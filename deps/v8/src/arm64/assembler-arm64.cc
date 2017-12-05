@@ -3498,7 +3498,7 @@ void Assembler::cmlt(const VRegister& vd, const VRegister& vn, int value) {
 NEON_3SAME_LIST(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
-#define NEON_FP3SAME_LIST(V)                    \
+#define NEON_FP3SAME_LIST_V2(V)                 \
   V(fadd, NEON_FADD, FADD)                      \
   V(fsub, NEON_FSUB, FSUB)                      \
   V(fmul, NEON_FMUL, FMUL)                      \
@@ -3538,7 +3538,7 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
     }                                                          \
     NEONFP3Same(vd, vn, vm, op);                               \
   }
-NEON_FP3SAME_LIST(DEFINE_ASM_FUNC)
+NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {

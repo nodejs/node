@@ -6518,22 +6518,115 @@ TEST(DebugCoverage) {
   CHECK_EQ(2, function_data.Count());
 }
 
+namespace {
+v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
+    v8::Isolate* isolate) {
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
+  CHECK_EQ(1u, coverage.ScriptCount());
+  return coverage.GetScriptData(0);
+}
+}  // namespace
+
+TEST(DebugCoverageWithCoverageOutOfScope) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+  v8::debug::Coverage::ScriptData script_data =
+      GetScriptDataAndDeleteCoverage(isolate);
+  v8::Local<v8::debug::Script> script = script_data.GetScript();
+  CHECK(script->Source()
+            .ToLocalChecked()
+            ->Equals(env.local(), source)
+            .FromMaybe(false));
+
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+
+  v8::debug::Location start =
+      script->GetSourceLocation(function_data.StartOffset());
+  v8::debug::Location end =
+      script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(3, end.GetLineNumber());
+  CHECK_EQ(4, end.GetColumnNumber());
+  CHECK_EQ(1, function_data.Count());
+
+  function_data = script_data.GetFunctionData(1);
+  start = script->GetSourceLocation(function_data.StartOffset());
+  end = script->GetSourceLocation(function_data.EndOffset());
+
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(16, function_data.EndOffset());
+
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(1, end.GetLineNumber());
+  CHECK_EQ(1, end.GetColumnNumber());
+  CHECK_EQ(2, function_data.Count());
+}
+
+namespace {
+v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
+    v8::Isolate* isolate) {
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
+  CHECK_EQ(1u, coverage.ScriptCount());
+
+  v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
+
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+  CHECK_EQ(1, function_data.Count());
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+  return function_data;
+}
+}  // namespace
+
+TEST(DebugCoverageWithScriptDataOutOfScope) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+
+  v8::debug::Coverage::FunctionData function_data =
+      GetFunctionDataAndDeleteCoverage(isolate);
+  CHECK_EQ(1, function_data.Count());
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+}
+
 TEST(BuiltinsExceptionPrediction) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
-  // TODO(gsathya): Fix catch prediction for the following.
-  std::set<int> whitelist(
-      {i::Builtins::kPromiseThenFinally, i::Builtins::kPromiseCatchFinally});
-
   i::Builtins* builtins = CcTest::i_isolate()->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
+    Code* builtin = builtins->builtin(i);
 
     if (builtin->kind() != Code::BUILTIN) continue;
-    if (whitelist.find(i) != whitelist.end()) continue;
 
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
@@ -6574,19 +6667,19 @@ TEST(DebugEvaluateNoSideEffect) {
   LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
-  i::List<i::Handle<i::JSFunction>> list;
+  std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapIterator iterator(isolate->heap());
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
       i::JSFunction* fun = i::JSFunction::cast(obj);
-      list.Add(i::Handle<i::JSFunction>(fun));
+      all_functions.emplace_back(fun);
     }
   }
 
   // Perform side effect check on all built-in functions. The side effect check
   // itself contains additional sanity checks.
-  for (i::Handle<i::JSFunction> fun : list) {
+  for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     {
       i::NoSideEffectScope scope(isolate, true);

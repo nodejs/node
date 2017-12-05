@@ -5,6 +5,7 @@
 #include "src/regexp/jsregexp.h"
 
 #include <memory>
+#include <vector>
 
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
@@ -25,6 +26,7 @@
 #include "src/splay-tree-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
+#include "src/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
@@ -77,8 +79,8 @@ ContainedInLattice AddRange(ContainedInLattice containment,
                             const int* ranges,
                             int ranges_length,
                             Interval new_range) {
-  DCHECK((ranges_length & 1) == 1);
-  DCHECK(ranges[ranges_length - 1] == String::kMaxCodePoint + 1);
+  DCHECK_EQ(1, ranges_length & 1);
+  DCHECK_EQ(String::kMaxCodePoint + 1, ranges[ranges_length - 1]);
   if (containment == kLatticeUnknown) return containment;
   bool inside = false;
   int last = 0;
@@ -208,8 +210,8 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
                             int output_size) {
   Isolate* isolate = regexp->GetIsolate();
 
-  DCHECK(0 <= index);
-  DCHECK(index <= subject->length());
+  DCHECK_LE(0, index);
+  DCHECK_LE(index, subject->length());
 
   subject = String::Flatten(subject);
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
@@ -430,8 +432,8 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 
   Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()), isolate);
 
-  DCHECK(index >= 0);
-  DCHECK(index <= subject->length());
+  DCHECK_LE(0, index);
+  DCHECK_LE(index, subject->length());
   DCHECK(subject->IsFlat());
 
   bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
@@ -640,7 +642,7 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
   // to the compiled regexp.
   current_match_index_ = max_matches_ - 1;
   num_matches_ = max_matches_;
-  DCHECK(registers_per_match_ >= 2);  // Each match has at least one capture.
+  DCHECK_LE(2, registers_per_match_);  // Each match has at least one capture.
   DCHECK_GE(register_array_size_, registers_per_match_);
   int32_t* last_match =
       &register_array_[current_match_index_ * registers_per_match_];
@@ -946,7 +948,7 @@ class RegExpCompiler {
   inline void AddWork(RegExpNode* node) {
     if (!node->on_work_list() && !node->label()->is_bound()) {
       node->set_on_work_list(true);
-      work_list_->Add(node);
+      work_list_->push_back(node);
     }
   }
 
@@ -997,7 +999,7 @@ class RegExpCompiler {
   int next_register_;
   int unicode_lookaround_stack_register_;
   int unicode_lookaround_position_register_;
-  List<RegExpNode*>* work_list_;
+  std::vector<RegExpNode*>* work_list_;
   int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
   JSRegExp::Flags flags_;
@@ -1049,7 +1051,7 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
       isolate_(isolate),
       zone_(zone) {
   accept_ = new(zone) EndNode(EndNode::ACCEPT, zone);
-  DCHECK(next_register_ - 1 <= RegExpMacroAssembler::kMaxRegister);
+  DCHECK_GE(RegExpMacroAssembler::kMaxRegister, next_register_ - 1);
 }
 
 
@@ -1067,7 +1069,7 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
 #endif
     macro_assembler_ = macro_assembler;
 
-  List <RegExpNode*> work_list(0);
+  std::vector<RegExpNode*> work_list;
   work_list_ = &work_list;
   Label fail;
   macro_assembler_->PushBacktrack(&fail);
@@ -1075,8 +1077,9 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
   start->Emit(this, &new_trace);
   macro_assembler_->Bind(&fail);
   macro_assembler_->Fail();
-  while (!work_list.is_empty()) {
-    RegExpNode* node = work_list.RemoveLast();
+  while (!work_list.empty()) {
+    RegExpNode* node = work_list.back();
+    work_list.pop_back();
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) node->Emit(this, &new_trace);
   }
@@ -1705,7 +1708,7 @@ static inline bool EmitAtomLetter(Isolate* isolate,
     macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
   }
   Label ok;
-  DCHECK(unibrow::Ecma262UnCanonicalize::kMaxWidth == 4);
+  DCHECK_EQ(4, unibrow::Ecma262UnCanonicalize::kMaxWidth);
   switch (length) {
     case 2: {
       if (ShortCutEmitCharacterPair(macro_assembler, one_byte, chars[0],
@@ -2925,7 +2928,7 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       bool not_at_start) {
   not_at_start = (not_at_start || not_at_start_);
   int choice_count = alternatives_->length();
-  DCHECK(choice_count > 0);
+  DCHECK_LT(0, choice_count);
   alternatives_->at(0).node()->GetQuickCheckDetails(details,
                                                     compiler,
                                                     characters_filled_in,
@@ -3253,7 +3256,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
 
 int TextNode::Length() {
   TextElement elm = elements()->last();
-  DCHECK(elm.cp_offset() >= 0);
+  DCHECK_LE(0, elm.cp_offset());
   return elm.cp_offset() + elm.length();
 }
 
@@ -3472,7 +3475,7 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     // Back edge of greedy optimized loop node graph.
     int text_length =
         GreedyLoopTextLengthForAlternative(&(alternatives_->at(0)));
-    DCHECK(text_length != kNodeIsTooComplexForGreedyLoops);
+    DCHECK_NE(kNodeIsTooComplexForGreedyLoops, text_length);
     // Update the counter-based backtracking info on the stack.  This is an
     // optimization for greedy loops (see below).
     DCHECK(trace->cp_offset() == text_length);
@@ -3793,7 +3796,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   Handle<ByteArray> boolean_skip_table = factory->NewByteArray(kSize, TENURED);
   int skip_distance = GetSkipTable(
       min_lookahead, max_lookahead, boolean_skip_table);
-  DCHECK(skip_distance != 0);
+  DCHECK_NE(0, skip_distance);
 
   Label cont, again;
   masm->Bind(&again);
@@ -4748,10 +4751,10 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
                                  const int* special_class,
                                  int length) {
   length--;  // Remove final marker.
-  DCHECK(special_class[length] == kRangeEndMarker);
-  DCHECK(ranges->length() != 0);
-  DCHECK(length != 0);
-  DCHECK(special_class[0] != 0);
+  DCHECK_EQ(kRangeEndMarker, special_class[length]);
+  DCHECK_NE(0, ranges->length());
+  DCHECK_NE(0, length);
+  DCHECK_NE(0, special_class[0]);
   if (ranges->length() != (length >> 1) + 1) {
     return false;
   }
@@ -4779,7 +4782,7 @@ static bool CompareRanges(ZoneList<CharacterRange>* ranges,
                           const int* special_class,
                           int length) {
   length--;  // Remove final marker.
-  DCHECK(special_class[length] == kRangeEndMarker);
+  DCHECK_EQ(kRangeEndMarker, special_class[length]);
   if (ranges->length() * 2 != length) {
     return false;
   }
@@ -5416,7 +5419,7 @@ class RegExpExpansionLimiter {
       : compiler_(compiler),
         saved_expansion_factor_(compiler->current_expansion_factor()),
         ok_to_expand_(saved_expansion_factor_ <= kMaxExpansionFactor) {
-    DCHECK(factor > 0);
+    DCHECK_LT(0, factor);
     if (ok_to_expand_) {
       if (factor > kMaxExpansionFactor) {
         // Avoid integer overflow of the current expansion factor.
@@ -5505,7 +5508,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
       }
     }
     if (max <= kMaxUnrolledMaxMatches && min == 0) {
-      DCHECK(max > 0);  // Due to the 'if' above.
+      DCHECK_LT(0, max);  // Due to the 'if' above.
       RegExpExpansionLimiter limiter(compiler, max);
       if (limiter.ok_to_expand()) {
         // Unroll the optional matches up to max.
@@ -5802,7 +5805,7 @@ static void AddClass(const int* elmv,
                      ZoneList<CharacterRange>* ranges,
                      Zone* zone) {
   elmc--;
-  DCHECK(elmv[elmc] == kRangeEndMarker);
+  DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(elmv[i] < elmv[i + 1]);
     ranges->Add(CharacterRange::Range(elmv[i], elmv[i + 1] - 1), zone);
@@ -5815,9 +5818,9 @@ static void AddClassNegated(const int *elmv,
                             ZoneList<CharacterRange>* ranges,
                             Zone* zone) {
   elmc--;
-  DCHECK(elmv[elmc] == kRangeEndMarker);
-  DCHECK(elmv[0] != 0x0000);
-  DCHECK(elmv[elmc - 1] != String::kMaxCodePoint);
+  DCHECK_EQ(kRangeEndMarker, elmv[elmc]);
+  DCHECK_NE(0x0000, elmv[0]);
+  DCHECK_NE(String::kMaxCodePoint, elmv[elmc - 1]);
   uc16 last = 0x0000;
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(last <= elmv[i] - 1);
@@ -5902,7 +5905,7 @@ Vector<const int> CharacterRange::GetWordBounds() {
   return Vector<const int>(kWordRanges, kWordRangeCount - 1);
 }
 
-
+// static
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
@@ -5911,12 +5914,12 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
     uc32 bottom = range.from();
-    if (bottom > String::kMaxUtf16CodeUnit) return;
+    if (bottom > String::kMaxUtf16CodeUnit) continue;
     uc32 top = Min(range.to(), String::kMaxUtf16CodeUnit);
     // Nothing to be done for surrogates.
-    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
+    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > String::kMaxOneByteCharCode) return;
+      if (bottom > String::kMaxOneByteCharCode) continue;
       if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];

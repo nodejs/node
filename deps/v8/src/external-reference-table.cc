@@ -7,9 +7,8 @@
 #include "src/accessors.h"
 #include "src/assembler.h"
 #include "src/counters.h"
-#include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
-#include "src/objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
@@ -60,6 +59,10 @@ const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #endif  // SYMBOLIZE_FUNCTION
 }
 
+void ExternalReferenceTable::Add(Address address, const char* name) {
+  refs_.emplace_back(address, name);
+}
+
 void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   // Miscellaneous
   Add(ExternalReference::roots_array_start(isolate).address(),
@@ -89,6 +92,7 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::address_of_one_half().address(),
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
+  Add(ExternalReference::builtins_address(isolate).address(), "builtins");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
   Add(ExternalReference::bytecode_size_table_address(isolate).address(),
@@ -212,6 +216,15 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "wasm::word32_popcnt");
   Add(ExternalReference::wasm_word64_popcnt(isolate).address(),
       "wasm::word64_popcnt");
+  // If the trap handler is not supported, the optimizer will remove these
+  // runtime functions. In this case, the arm simulator will break if we add
+  // them to the external reference table.
+#ifdef V8_TARGET_ARCH_X64
+  Add(ExternalReference::wasm_set_thread_in_wasm_flag(isolate).address(),
+      "wasm::set_thread_in_wasm_flag");
+  Add(ExternalReference::wasm_clear_thread_in_wasm_flag(isolate).address(),
+      "wasm::clear_thread_in_wasm_flag");
+#endif
   Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),
@@ -255,6 +268,13 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "orderedhashmap_gethash_raw");
   Add(ExternalReference::get_or_create_hash_raw(isolate).address(),
       "get_or_create_hash_raw");
+  Add(ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+          isolate)
+          .address(),
+      "copy_fast_number_jsarray_elements_to_typed_array");
+  Add(ExternalReference::copy_typed_array_elements_to_typed_array(isolate)
+          .address(),
+      "copy_typed_array_elements_to_typed_array");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

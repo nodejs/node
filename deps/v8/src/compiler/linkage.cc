@@ -12,7 +12,6 @@
 #include "src/compiler/node.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -8,6 +8,7 @@
 #include <memory>
 #include <sstream>
 
+#include "src/api.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -28,6 +29,7 @@
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/unicode-inl.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -41,7 +43,6 @@ static const char* kLogEventsNames[CodeEventListener::NUMBER_OF_LOG_EVENTS] = {
 static const char* ComputeMarker(SharedFunctionInfo* shared,
                                  AbstractCode* code) {
   switch (code->kind()) {
-    case AbstractCode::FUNCTION:
     case AbstractCode::INTERPRETED_FUNCTION:
       return shared->optimization_disabled() ? "" : "~";
     case AbstractCode::OPTIMIZED_FUNCTION:
@@ -262,8 +263,7 @@ PerfBasicLogger::~PerfBasicLogger() {
 void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (code->kind() != AbstractCode::FUNCTION &&
-       code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
+      (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
        code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
     return;
   }
@@ -739,7 +739,6 @@ Logger::Logger(Isolate* isolate)
       perf_jit_logger_(NULL),
       ll_logger_(NULL),
       jit_logger_(NULL),
-      listeners_(5),
       is_initialized_(false) {}
 
 Logger::~Logger() {
@@ -1283,7 +1282,7 @@ void Logger::CodeDisableOptEvent(AbstractCode* code,
 void Logger::CodeMovingGCEvent() {
   if (!is_logging_code_events()) return;
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
-  base::OS::SignalCodeMovingGC();
+  base::OS::SignalCodeMovingGC(GetRandomMmapAddr());
 }
 
 void Logger::RegExpCodeCreateEvent(AbstractCode* code, String* source) {
@@ -1358,7 +1357,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
   if (base::OS::GetUserTime(&sec, &usec) != -1) {
     msg.Append("%d,%d,", sec, usec);
   }
-  msg.Append("%.0f", base::OS::TimeCurrentMillis());
+  msg.Append("%.0f", V8::GetCurrentPlatform()->CurrentClockTimeMillis());
   msg.WriteToLogFile();
 }
 
@@ -1389,7 +1388,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
   // Using non-relative system time in order to be able to synchronize with
   // external memory profiling events (e.g. DOM memory size).
   msg.Append("heap-sample-begin,\"%s\",\"%s\",%.0f", space, kind,
-             base::OS::TimeCurrentMillis());
+             V8::GetCurrentPlatform()->CurrentClockTimeMillis());
   msg.WriteToLogFile();
 }
 
@@ -1509,32 +1508,6 @@ static void AddFunctionAndCode(SharedFunctionInfo* sfi,
   }
 }
 
-class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
- public:
-  EnumerateOptimizedFunctionsVisitor(Handle<SharedFunctionInfo>* sfis,
-                                     Handle<AbstractCode>* code_objects,
-                                     int* count)
-      : sfis_(sfis), code_objects_(code_objects), count_(count) {}
-
-  virtual void VisitFunction(JSFunction* function) {
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
-    Object* maybe_script = sfi->script();
-    if (maybe_script->IsScript()
-        && !Script::cast(maybe_script)->HasValidSource()) return;
-
-    DCHECK(function->abstract_code()->kind() ==
-           AbstractCode::OPTIMIZED_FUNCTION);
-    AddFunctionAndCode(sfi, function->abstract_code(), sfis_, code_objects_,
-                       *count_);
-    *count_ = *count_ + 1;
-  }
-
- private:
-  Handle<SharedFunctionInfo>* sfis_;
-  Handle<AbstractCode>* code_objects_;
-  int* count_;
-};
-
 static int EnumerateCompiledFunctions(Heap* heap,
                                       Handle<SharedFunctionInfo>* sfis,
                                       Handle<AbstractCode>* code_objects) {
@@ -1545,33 +1518,45 @@ static int EnumerateCompiledFunctions(Heap* heap,
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (!obj->IsSharedFunctionInfo()) continue;
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
-    if (sfi->is_compiled()
-        && (!sfi->script()->IsScript()
-            || Script::cast(sfi->script())->HasValidSource())) {
-      // In some cases, an SFI might have (and have executing!) both bytecode
-      // and baseline code, so check for both and add them both if needed.
-      if (sfi->HasBytecodeArray()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()), sfis,
-                           code_objects, compiled_funcs_count);
-        ++compiled_funcs_count;
-      }
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+      if (sfi->is_compiled() &&
+          (!sfi->script()->IsScript() ||
+           Script::cast(sfi->script())->HasValidSource())) {
+        // In some cases, an SFI might have (and have executing!) both bytecode
+        // and baseline code, so check for both and add them both if needed.
+        if (sfi->HasBytecodeArray()) {
+          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()),
+                             sfis, code_objects, compiled_funcs_count);
+          ++compiled_funcs_count;
+        }
 
-      if (!sfi->IsInterpreted()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
+        if (!sfi->IsInterpreted()) {
+          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
+                             code_objects, compiled_funcs_count);
+          ++compiled_funcs_count;
+        }
+      }
+    } else if (obj->IsJSFunction()) {
+      // Given that we no longer iterate over all optimized JSFunctions, we need
+      // to take care of this here.
+      JSFunction* function = JSFunction::cast(obj);
+      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
+      Object* maybe_script = sfi->script();
+      if (maybe_script->IsScript() &&
+          !Script::cast(maybe_script)->HasValidSource()) {
+        continue;
+      }
+      // TODO(jarin) This leaves out deoptimized code that might still be on the
+      // stack. Also note that we will not log optimized code objects that are
+      // only on a type feedback vector. We should make this mroe precise.
+      if (function->IsOptimized()) {
+        AddFunctionAndCode(sfi, AbstractCode::cast(function->code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
       }
     }
   }
-
-  // Iterate all optimized functions in all contexts.
-  EnumerateOptimizedFunctionsVisitor visitor(sfis,
-                                             code_objects,
-                                             &compiled_funcs_count);
-  Deoptimizer::VisitAllOptimizedFunctions(heap->isolate(), &visitor);
-
   return compiled_funcs_count;
 }
 
@@ -1581,7 +1566,6 @@ void Logger::LogCodeObject(Object* object) {
   CodeEventListener::LogEventsAndTags tag = CodeEventListener::STUB_TAG;
   const char* description = "Unknown code from the snapshot";
   switch (code_object->kind()) {
-    case AbstractCode::FUNCTION:
     case AbstractCode::INTERPRETED_FUNCTION:
     case AbstractCode::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.
@@ -1602,34 +1586,6 @@ void Logger::LogCodeObject(Object* object) {
       description =
           isolate_->builtins()->name(code_object->GetCode()->builtin_index());
       tag = CodeEventListener::BUILTIN_TAG;
-      break;
-    case AbstractCode::HANDLER:
-      description = "An IC handler from the snapshot";
-      tag = CodeEventListener::HANDLER_TAG;
-      break;
-    case AbstractCode::KEYED_LOAD_IC:
-      description = "A keyed load IC from the snapshot";
-      tag = CodeEventListener::KEYED_LOAD_IC_TAG;
-      break;
-    case AbstractCode::LOAD_IC:
-      description = "A load IC from the snapshot";
-      tag = CodeEventListener::LOAD_IC_TAG;
-      break;
-    case AbstractCode::LOAD_GLOBAL_IC:
-      description = "A load global IC from the snapshot";
-      tag = Logger::LOAD_GLOBAL_IC_TAG;
-      break;
-    case AbstractCode::STORE_IC:
-      description = "A store IC from the snapshot";
-      tag = CodeEventListener::STORE_IC_TAG;
-      break;
-    case AbstractCode::STORE_GLOBAL_IC:
-      description = "A store global IC from the snapshot";
-      tag = CodeEventListener::STORE_GLOBAL_IC_TAG;
-      break;
-    case AbstractCode::KEYED_STORE_IC:
-      description = "A keyed store IC from the snapshot";
-      tag = CodeEventListener::KEYED_STORE_IC_TAG;
       break;
     case AbstractCode::WASM_FUNCTION:
       description = "A Wasm function";
@@ -1818,7 +1774,8 @@ static void PrepareLogFileName(std::ostream& os,  // NOLINT
           break;
         case 't':
           // %t expands to the current time in milliseconds.
-          os << static_cast<int64_t>(base::OS::TimeCurrentMillis());
+          os << static_cast<int64_t>(
+              V8::GetCurrentPlatform()->CurrentClockTimeMillis());
           break;
         case '%':
           // %% expands (contracts really) to %.

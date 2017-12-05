@@ -28,9 +28,8 @@ class CodeSpecialization {
   CodeSpecialization(Isolate*, Zone*);
   ~CodeSpecialization();
 
-  // Update memory references.
-  void RelocateMemoryReferences(Address old_start, uint32_t old_size,
-                                Address new_start, uint32_t new_size);
+  // Update WasmContext references.
+  void RelocateWasmContextReferences(Address new_context);
   // Update references to global variables.
   void RelocateGlobals(Address old_start, Address new_start);
   // Update function table size.
@@ -49,10 +48,7 @@ class CodeSpecialization {
   bool ApplyToWasmCode(Code*, ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
-  Address old_mem_start = 0;
-  uint32_t old_mem_size = 0;
-  Address new_mem_start = 0;
-  uint32_t new_mem_size = 0;
+  Address new_wasm_context_address = 0;
 
   Address old_globals_start = 0;
   Address new_globals_start = 0;

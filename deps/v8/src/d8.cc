@@ -41,6 +41,10 @@
 #include "src/utils.h"
 #include "src/v8.h"
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -138,7 +142,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
-      base::VirtualMemory::ReleaseRegion(data, length);
+      base::OS::ReleaseRegion(data, length);
       return;
     }
 #endif
@@ -156,11 +160,14 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 #if USE_VM
   void* VirtualMemoryAllocate(size_t length) {
-    void* data = base::VirtualMemory::ReserveRegion(length, nullptr);
-    if (data && !base::VirtualMemory::CommitRegion(data, length, false)) {
-      base::VirtualMemory::ReleaseRegion(data, length);
+    void* data = base::OS::ReserveRegion(length, nullptr);
+    if (data && !base::OS::CommitRegion(data, length, false)) {
+      base::OS::ReleaseRegion(data, length);
       return nullptr;
     }
+#if defined(LEAK_SANITIZER)
+    __lsan_register_root_region(data, length);
+#endif
     MSAN_MEMORY_IS_INITIALIZED(data, length);
     return data;
   }
@@ -226,6 +233,10 @@ class PredictablePlatform : public Platform {
 
   double MonotonicallyIncreasingTime() override {
     return synthetic_time_in_sec_ += 0.00001;
+  }
+
+  double CurrentClockTimeMillis() override {
+    return MonotonicallyIncreasingTime() * base::Time::kMillisecondsPerSecond;
   }
 
   v8::TracingController* GetTracingController() override {
@@ -391,7 +402,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class PerIsolateData {
  public:
   explicit PerIsolateData(Isolate* isolate) : isolate_(isolate), realms_(NULL) {
-    HandleScope scope(isolate);
     isolate->SetData(0, this);
   }
 
@@ -411,6 +421,25 @@ class PerIsolateData {
     PerIsolateData* data_;
   };
 
+  inline void SetTimeout(Local<Function> callback, Local<Context> context) {
+    set_timeout_callbacks_.emplace(isolate_, callback);
+    set_timeout_contexts_.emplace(isolate_, context);
+  }
+
+  inline MaybeLocal<Function> GetTimeoutCallback() {
+    if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
+    Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
+    set_timeout_callbacks_.pop();
+    return result;
+  }
+
+  inline MaybeLocal<Context> GetTimeoutContext() {
+    if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
+    Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
+    set_timeout_contexts_.pop();
+    return result;
+  }
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -420,6 +449,8 @@ class PerIsolateData {
   int realm_switch_;
   Global<Context>* realms_;
   Global<Value> realm_shared_;
+  std::queue<Global<Function>> set_timeout_callbacks_;
+  std::queue<Global<Context>> set_timeout_contexts_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
@@ -1290,6 +1321,14 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(v8::Number::New(isolate, 0));
+  if (args.Length() == 0 || !args[0]->IsFunction()) return;
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Context> context = isolate->GetCurrentContext();
+  PerIsolateData::Get(isolate)->SetTimeout(callback, context);
+}
 
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -1513,7 +1552,7 @@ Counter* CounterCollection::GetNextCounter() {
 
 void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
   counters_file_ = base::OS::MemoryMappedFile::create(
-      name, sizeof(CounterCollection), &local_counters_);
+      name, nullptr, sizeof(CounterCollection), &local_counters_);
   void* memory = (counters_file_ == NULL) ?
       NULL : counters_file_->memory();
   if (memory == NULL) {
@@ -1641,6 +1680,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "load", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Load));
+  global_template->Set(
+      String::NewFromUtf8(isolate, "setTimeout", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, SetTimeout));
   // Some Emscripten-generated code tries to call 'quit', which in turn would
   // call C's exit(). This would lead to memory leaks, because there is no way
   // we can terminate cleanly then, so we need a way to hide 'quit'.
@@ -2229,7 +2272,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                                     v8::NewStringType::kNormal)
                 .ToLocalChecked();
         Local<Value> value = exception->Get(context, key).ToLocalChecked();
-        CHECK(value->StrictEquals(expected));
+        DCHECK(value->StrictEquals(expected));
       }
 #endif
     }
@@ -2393,9 +2436,9 @@ void SourceGroup::ExecuteInThread() {
     next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
+      PerIsolateData data(isolate);
       {
         HandleScope scope(isolate);
-        PerIsolateData data(isolate);
         Local<Context> context = Shell::CreateEvaluationContext(isolate);
         {
           Context::Scope cscope(context);
@@ -2738,6 +2781,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     }
   }
 
+// On x64 Linux we want to enable the Wasm trap handler by default. Setting
+// the flag here allows the command line argument to still override it.
+#if V8_OS_LINUX && V8_TARGET_ARCH_X64
+  SetFlagsFromString("--wasm-trap-handler");
+#endif
+
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
   // Set up isolated source groups.
@@ -2778,10 +2827,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   {
     EnsureEventLoopInitialized(isolate);
     if (options.lcov_file) {
-      debug::Coverage::Mode mode = i::FLAG_block_coverage
-                                       ? debug::Coverage::kBlockCount
-                                       : debug::Coverage::kPreciseCount;
-      debug::Coverage::SelectMode(isolate, mode);
+      debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
@@ -2844,39 +2890,48 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
   }
 }
 
-bool Shell::IsWaitUntilDone(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
-  DCHECK_GT(isolate_status_.count(isolate), 0);
-  return isolate_status_[isolate];
+namespace {
+void ProcessMessages(Isolate* isolate,
+                     std::function<platform::MessageLoopBehavior()> behavior) {
+  Platform* platform = GetDefaultPlatform();
+  while (true) {
+    while (v8::platform::PumpMessageLoop(platform, isolate, behavior())) {
+      isolate->RunMicrotasks();
+    }
+    if (platform->IdleTasksEnabled(isolate)) {
+      v8::platform::RunIdleTasks(platform, isolate,
+                                 50.0 / base::Time::kMillisecondsPerSecond);
+    }
+    HandleScope handle_scope(isolate);
+    PerIsolateData* data = PerIsolateData::Get(isolate);
+    Local<Function> callback;
+    if (!data->GetTimeoutCallback().ToLocal(&callback)) break;
+    Local<Context> context;
+    if (!data->GetTimeoutContext().ToLocal(&context)) break;
+    TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
+    Context::Scope context_scope(context);
+    if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
+      Shell::ReportException(isolate, &try_catch);
+      return;
+    }
+  }
 }
+}  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  Platform* platform = GetDefaultPlatform();
-  while (v8::platform::PumpMessageLoop(
-      platform, isolate,
-      Shell::IsWaitUntilDone(isolate)
-          ? platform::MessageLoopBehavior::kWaitForWork
-          : platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
-  }
-  if (platform->IdleTasksEnabled(isolate)) {
-    v8::platform::RunIdleTasks(platform, isolate,
-                               50.0 / base::Time::kMillisecondsPerSecond);
-  }
+  ProcessMessages(isolate, [isolate]() {
+    base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+    DCHECK_GT(isolate_status_.count(isolate), 0);
+    return isolate_status_[isolate]
+               ? platform::MessageLoopBehavior::kWaitForWork
+               : platform::MessageLoopBehavior::kDoNotWait;
+  });
 }
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  Platform* platform = GetDefaultPlatform();
-  // Pump the message loop until it is empty.
-  while (v8::platform::PumpMessageLoop(
-      platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
-  }
-  // Run the idle tasks.
-  if (platform->IdleTasksEnabled(isolate)) {
-    v8::platform::RunIdleTasks(platform, isolate,
-                               50.0 / base::Time::kMillisecondsPerSecond);
-  }
+  ProcessMessages(isolate,
+                  []() { return platform::MessageLoopBehavior::kDoNotWait; });
 }
 
 class Serializer : public ValueSerializer::Delegate {

@@ -41,6 +41,8 @@
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/builtin-deserializer.h"
+#include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-deserializer.h"
@@ -52,7 +54,15 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+
+void DisableLazyDeserialization() {
+  // UNINITIALIZED tests do not set up the isolate sufficiently for lazy
+  // deserialization to work.
+  // TODO(jgruber): Fix this. It may just be enough to set the snapshot_blob.
+  FLAG_lazy_deserialization = false;
+}
 
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
@@ -66,7 +76,7 @@ class TestIsolate : public Isolate {
  public:
   static v8::Isolate* NewInitialized(bool enable_serializer) {
     i::Isolate* isolate = new TestIsolate(enable_serializer);
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests(true);
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(NULL);
@@ -77,14 +87,16 @@ class TestIsolate : public Isolate {
   // the production Isolate class has one or the other behavior baked in.
   static v8::Isolate* New(const v8::Isolate::CreateParams& params) {
     i::Isolate* isolate = new TestIsolate(false);
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    bool create_heap_objects = params.snapshot_blob == nullptr;
+    isolate->setup_delegate_ =
+        new SetupIsolateDelegateForTests(create_heap_objects);
     return v8::IsolateNewImpl(isolate, params);
   }
   explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
   }
-  void CreateSetupDelegateForTests() {
-    setup_delegate_ = new SetupIsolateDelegateForTests();
+  void SetDeserializeFromSnapshot() {
+    setup_delegate_ = new SetupIsolateDelegateForTests(false);
   }
 };
 
@@ -95,7 +107,19 @@ static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
   return Vector<const byte>(const_cast<const byte*>(blob), length);
 }
 
-static Vector<const byte> Serialize(v8::Isolate* isolate) {
+// A convenience struct to simplify management of the two blobs required to
+// deserialize an isolate.
+struct StartupBlobs {
+  Vector<const byte> startup;
+  Vector<const byte> builtin;
+
+  void Dispose() {
+    startup.Dispose();
+    builtin.Dispose();
+  }
+};
+
+static StartupBlobs Serialize(v8::Isolate* isolate) {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from v8natives.js and their addresses can be processed.  This
   // will clear the pending fixups array, which would otherwise contain GC roots
@@ -112,9 +136,15 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
   StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
+
+  i::BuiltinSerializer builtin_serializer(internal_isolate, &ser);
+  builtin_serializer.SerializeBuiltins();
+
   ser.SerializeWeakReferencesAndDeferred();
-  SnapshotData snapshot_data(&ser);
-  return WritePayload(snapshot_data.RawData());
+  SnapshotData startup_snapshot(&ser);
+  BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
+  return {WritePayload(startup_snapshot.RawData()),
+          WritePayload(builtin_snapshot.RawData())};
 }
 
 
@@ -134,22 +164,23 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
                                source_length);
 }
 
-v8::Isolate* InitializeFromBlob(Vector<const byte> blob) {
+v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
   v8::Isolate* v8_isolate = NULL;
   {
-    SnapshotData snapshot_data(blob);
-    StartupDeserializer deserializer(&snapshot_data);
+    SnapshotData startup_snapshot(blobs.startup);
+    BuiltinSnapshotData builtin_snapshot(blobs.builtin);
+    StartupDeserializer deserializer(&startup_snapshot, &builtin_snapshot);
     TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
-    isolate->CreateSetupDelegateForTests();
+    isolate->SetDeserializeFromSnapshot();
     isolate->Init(&deserializer);
   }
   return v8_isolate;
 }
 
-static v8::Isolate* Deserialize(Vector<const byte> blob) {
-  v8::Isolate* isolate = InitializeFromBlob(blob);
+static v8::Isolate* Deserialize(StartupBlobs& blobs) {
+  v8::Isolate* isolate = InitializeFromBlob(blobs);
   CHECK(isolate);
   return isolate;
 }
@@ -168,11 +199,13 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  Vector<const byte> blob = Serialize(isolate);
-  isolate = Deserialize(blob);
-  blob.Dispose();
+  StartupBlobs blobs = Serialize(isolate);
+  isolate->Dispose();
+  isolate = Deserialize(blobs);
+  blobs.Dispose();
   {
     v8::HandleScope handle_scope(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -234,13 +267,15 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  Vector<const byte> blob1 = Serialize(isolate);
-  Vector<const byte> blob2 = Serialize(isolate);
-  blob1.Dispose();
-  isolate = Deserialize(blob2);
-  blob2.Dispose();
+  StartupBlobs blobs1 = Serialize(isolate);
+  StartupBlobs blobs2 = Serialize(isolate);
+  isolate->Dispose();
+  blobs1.Dispose();
+  isolate = Deserialize(blobs2);
+  blobs2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -254,11 +289,13 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  Vector<const byte> blob = Serialize(isolate);
-  isolate = Deserialize(blob);
-  blob.Dispose();
+  StartupBlobs blobs = Serialize(isolate);
+  isolate->Dispose();
+  isolate = Deserialize(blobs);
+  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -278,13 +315,15 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  Vector<const byte> blob1 = Serialize(isolate);
-  Vector<const byte> blob2 = Serialize(isolate);
-  blob1.Dispose();
-  isolate = Deserialize(blob2);
-  blob2.Dispose();
+  StartupBlobs blobs1 = Serialize(isolate);
+  StartupBlobs blobs2 = Serialize(isolate);
+  isolate->Dispose();
+  blobs1.Dispose();
+  isolate = Deserialize(blobs2);
+  blobs2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -303,6 +342,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
 }
 
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
+                                      Vector<const byte>* builtin_blob_out,
                                       Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -343,26 +383,35 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&raw_context, false);
+
+    i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
+    builtin_serializer.SerializeBuiltins();
+
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
+    BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
+    *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
   }
   v8_isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(PartialSerializerContext) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
+  Vector<const byte> builtin_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeContext(&startup_blob, &partial_blob);
+  PartiallySerializeContext(&startup_blob, &builtin_blob, &partial_blob);
 
-  v8::Isolate* v8_isolate = InitializeFromBlob(startup_blob);
+  StartupBlobs blobs = {startup_blob, builtin_blob};
+  v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
-  startup_blob.Dispose();
+  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -398,7 +447,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
 }
 
 static void PartiallySerializeCustomContext(
-    Vector<const byte>* startup_blob_out,
+    Vector<const byte>* startup_blob_out, Vector<const byte>* builtin_blob_out,
     Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -459,26 +508,35 @@ static void PartiallySerializeCustomContext(
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&raw_context, false);
+
+    i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
+    builtin_serializer.SerializeBuiltins();
+
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
+    BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
+    *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
   }
   v8_isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(PartialSerializerCustomContext) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
+  Vector<const byte> builtin_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeCustomContext(&startup_blob, &partial_blob);
+  PartiallySerializeCustomContext(&startup_blob, &builtin_blob, &partial_blob);
 
-  v8::Isolate* v8_isolate = InitializeFromBlob(startup_blob);
+  StartupBlobs blobs = {startup_blob, builtin_blob};
+  v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
-  startup_blob.Dispose();
+  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -732,6 +790,7 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
   v8::StartupData blob;
@@ -1021,6 +1080,7 @@ bool IsCompiled(const char* name) {
 }
 
 TEST(SnapshotDataBlobWithWarmup) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
@@ -1050,6 +1110,7 @@ TEST(SnapshotDataBlobWithWarmup) {
 }
 
 TEST(CustomSnapshotDataBlobWithWarmup) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
@@ -1143,13 +1204,13 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
-      source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
-      Handle<Context>(isolate->native_context()), NULL, cached_data, options,
-      NOT_NATIVES_CODE, Handle<FixedArray>());
+             source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
+             Handle<Context>(isolate->native_context()), NULL, cached_data,
+             options, NOT_NATIVES_CODE, Handle<FixedArray>())
+      .ToHandleChecked();
 }
 
 TEST(CodeSerializerOnePlusOne) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1199,7 +1260,6 @@ TEST(CodeSerializerOnePlusOne) {
 }
 
 TEST(CodeSerializerPromotedToCompilationCache) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
 
@@ -1229,7 +1289,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 }
 
 TEST(CodeSerializerInternalizedString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1288,7 +1347,6 @@ TEST(CodeSerializerInternalizedString) {
 }
 
 TEST(CodeSerializerLargeCodeObject) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1341,7 +1399,6 @@ TEST(CodeSerializerLargeCodeObject) {
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (FLAG_never_compact) return;
   ManualGCScope manual_gc_scope;
-  FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
@@ -1418,7 +1475,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   source.Dispose();
 }
 TEST(CodeSerializerLargeStrings) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* f = isolate->factory();
@@ -1475,7 +1531,6 @@ TEST(CodeSerializerLargeStrings) {
 }
 
 TEST(CodeSerializerThreeBigStrings) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* f = isolate->factory();
@@ -1585,7 +1640,6 @@ class SerializerTwoByteResource : public v8::String::ExternalStringResource {
 };
 
 TEST(CodeSerializerExternalString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1647,7 +1701,6 @@ TEST(CodeSerializerExternalString) {
 }
 
 TEST(CodeSerializerLargeExternalString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1705,7 +1758,6 @@ TEST(CodeSerializerLargeExternalString) {
 }
 
 TEST(CodeSerializerExternalScriptName) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1764,8 +1816,8 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
   }
 }
 
-
-v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
+v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
+                                             bool eager = false) {
   v8::ScriptCompiler::CachedData* cache;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1779,9 +1831,11 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
+    v8::ScriptCompiler::CompileOptions options =
+        eager ? v8::ScriptCompiler::kProduceFullCodeCache
+              : v8::ScriptCompiler::kProduceCodeCache;
     v8::Local<v8::UnboundScript> script =
-        v8::ScriptCompiler::CompileUnboundScript(
-            isolate1, &source, v8::ScriptCompiler::kProduceCodeCache)
+        v8::ScriptCompiler::CompileUnboundScript(isolate1, &source, options)
             .ToLocalChecked();
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
     CHECK(data);
@@ -1803,9 +1857,16 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
   return cache;
 }
 
-TEST(CodeSerializerIsolates) {
-  FLAG_serialize_toplevel = true;
+void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
+  i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
+  i::Handle<i::Script> i_script(Script::cast(sfi->script()));
+  i::SharedFunctionInfo::ScriptIterator iterator(i_script);
+  while (SharedFunctionInfo* next = iterator.Next()) {
+    CHECK_EQ(next->is_compiled(), next->deserialized());
+  }
+}
 
+TEST(CodeSerializerIsolates) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1832,6 +1893,53 @@ TEST(CodeSerializerIsolates) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
+    CheckDeserializedFlag(script);
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate2->GetCurrentContext())
+                                      .ToLocalChecked();
+    CHECK(result->ToString(isolate2->GetCurrentContext())
+              .ToLocalChecked()
+              ->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
+  }
+  CHECK(toplevel_test_code_event_found);
+  isolate2->Dispose();
+}
+
+TEST(CodeSerializerIsolatesEager) {
+  const char* source =
+      "function f() {"
+      "  return function g() {"
+      "    return 'abc';"
+      "  }"
+      "}"
+      "f()() + 'def'";
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source, true);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                   SerializerCodeEventListener);
+  toplevel_test_code_event_found = false;
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_str = v8_str(source);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> script;
+    {
+      DisallowCompilation no_compile(reinterpret_cast<Isolate*>(isolate2));
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
+    }
+    CHECK(!cache->rejected);
+    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -1845,8 +1953,6 @@ TEST(CodeSerializerIsolates) {
 }
 
 TEST(CodeSerializerFlagChange) {
-  FLAG_serialize_toplevel = true;
-
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1874,8 +1980,6 @@ TEST(CodeSerializerFlagChange) {
 }
 
 TEST(CodeSerializerBitFlip) {
-  FLAG_serialize_toplevel = true;
-
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1903,8 +2007,6 @@ TEST(CodeSerializerBitFlip) {
 }
 
 TEST(CodeSerializerWithHarmonyScoping) {
-  FLAG_serialize_toplevel = true;
-
   const char* source1 = "'use strict'; let x = 'X'";
   const char* source2 = "'use strict'; let y = 'Y'";
   const char* source3 = "'use strict'; x + y";
@@ -1969,6 +2071,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
                    isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
                    .ToLocalChecked();
     }
+    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -1991,70 +2094,18 @@ TEST(Regress503552) {
   Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
       "function f() {} function g() {}");
   ScriptData* script_data = NULL;
-  Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
-      source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
-      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
-      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
-      Handle<FixedArray>());
+  Handle<SharedFunctionInfo> shared =
+      Compiler::GetSharedFunctionInfoForScript(
+          source, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
+          MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
+          NULL, &script_data, v8::ScriptCompiler::kProduceCodeCache,
+          NOT_NATIVES_CODE, MaybeHandle<FixedArray>())
+          .ToHandleChecked();
   delete script_data;
 
   heap::SimulateIncrementalMarking(isolate->heap());
 
   script_data = CodeSerializer::Serialize(isolate, shared, source);
-  delete script_data;
-}
-
-TEST(CodeSerializerEmbeddedObject) {
-  FLAG_serialize_toplevel = true;
-  LocalContext context;
-  Isolate* isolate = CcTest::i_isolate();
-  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
-  v8::HandleScope scope(CcTest::isolate());
-
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  HandleScope handles(isolate);
-
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-  assembler.enable_serializer();
-  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(0.3);
-  CHECK(isolate->heap()->InNewSpace(*number));
-  Handle<Code> code;
-  {
-    MacroAssembler* masm = &assembler;
-    masm->Push(number);
-    CodeDesc desc;
-    masm->GetCode(isolate, &desc);
-    code = isolate->factory()->NewCode(desc, Code::ComputeFlags(Code::FUNCTION),
-                                       masm->CodeObject());
-    code->set_has_reloc_info_for_serialization(true);
-  }
-  RelocIterator rit1(*code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
-  CHECK_EQ(*number, rit1.rinfo()->target_object());
-
-  Handle<String> source = isolate->factory()->empty_string();
-  Handle<SharedFunctionInfo> sfi =
-      isolate->factory()->NewSharedFunctionInfo(source, code, false);
-  ScriptData* script_data = CodeSerializer::Serialize(isolate, sfi, source);
-
-  Handle<SharedFunctionInfo> copy =
-      CodeSerializer::Deserialize(isolate, script_data, source)
-          .ToHandleChecked();
-  RelocIterator rit2(copy->code(),
-                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
-  CHECK(rit2.rinfo()->target_object()->IsHeapNumber());
-  CHECK_EQ(0.3, HeapNumber::cast(rit2.rinfo()->target_object())->value());
-
-  CcTest::CollectAllAvailableGarbage();
-
-  RelocIterator rit3(copy->code(),
-                     RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
-  CHECK(rit3.rinfo()->target_object()->IsHeapNumber());
-  CHECK_EQ(0.3, HeapNumber::cast(rit3.rinfo()->target_object())->value());
-
   delete script_data;
 }
 
@@ -2718,3 +2769,27 @@ TEST(SerializationMemoryStats) {
   v8::StartupData blob = v8::V8::CreateSnapshotDataBlob();
   delete[] blob.data;
 }
+
+TEST(BuiltinsHaveBuiltinIdForLazyDeserialization) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CHECK(Builtins::IsLazy(Builtins::kRegExpPrototypeExec));
+  CHECK_EQ(Builtins::kRegExpPrototypeExec,
+           isolate->regexp_exec_function()
+               ->shared()
+               ->lazy_deserialization_builtin_id());
+  CHECK(Builtins::IsLazy(Builtins::kAsyncIteratorValueUnwrap));
+  CHECK_EQ(Builtins::kAsyncIteratorValueUnwrap,
+           isolate->async_iterator_value_unwrap_shared_fun()
+               ->lazy_deserialization_builtin_id());
+
+  CHECK(!Builtins::IsLazy(Builtins::kIllegal));
+  CHECK(!isolate->opaque_reference_function()
+             ->shared()
+             ->HasLazyDeserializationBuiltinId());
+}
+
+}  // namespace internal
+}  // namespace v8

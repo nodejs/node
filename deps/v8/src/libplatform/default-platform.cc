@@ -278,6 +278,10 @@ double DefaultPlatform::MonotonicallyIncreasingTime() {
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 
+double DefaultPlatform::CurrentClockTimeMillis() {
+  return base::OS::TimeCurrentMillis();
+}
+
 TracingController* DefaultPlatform::GetTracingController() {
   return tracing_controller_.get();
 }

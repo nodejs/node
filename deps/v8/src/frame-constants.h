@@ -235,13 +235,6 @@ class InternalFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(1);
 };
 
-class FrameDropperFrameConstants : public InternalFrameConstants {
- public:
-  // FP-relative.
-  static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  DEFINE_TYPED_FRAME_SIZES(2);
-};
-
 class ConstructFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
@@ -300,6 +293,11 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kBytecodeArrayExpressionIndex = -2;
   static const int kBytecodeOffsetExpressionIndex = -1;
   static const int kRegisterFileExpressionIndex = 0;
+
+  // Returns the number of stack slots needed for 'register_count' registers.
+  // This is needed because some architectures must pad the stack frame with
+  // additional stack slots to ensure the stack pointer is aligned.
+  static int RegisterStackSlotCount(int register_count);
 };
 
 inline static int FPOffsetToFrameSlot(int frame_offset) {

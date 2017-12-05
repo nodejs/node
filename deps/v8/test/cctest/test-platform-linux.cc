@@ -25,32 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Tests of the TokenLock class from lock.h
-
-#include <pthread.h>
-#include <stdlib.h>
-#include <unistd.h>  // for usleep()
-
-#include "src/v8.h"
 
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
+using OS = v8::base::OS;
+
 namespace v8 {
 namespace internal {
 
-TEST(VirtualMemory) {
-  v8::base::VirtualMemory* vm =
-      new v8::base::VirtualMemory(1 * MB, v8::base::OS::GetRandomMmapAddr());
-  CHECK(vm->IsReserved());
-  void* block_addr = vm->address();
+TEST(OSReserveMemory) {
+  size_t mem_size = 0;
+  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocateAlignment(),
+                                            GetRandomMmapAddr(), &mem_size);
+  CHECK_NE(0, mem_size);
+  CHECK_NOT_NULL(mem_addr);
   size_t block_size = 4 * KB;
-  CHECK(vm->Commit(block_addr, block_size, false));
+  CHECK(OS::CommitRegion(mem_addr, block_size, false));
   // Check whether we can write to memory.
-  int* addr = static_cast<int*>(block_addr);
-  addr[KB-1] = 2;
-  CHECK(vm->Uncommit(block_addr, block_size));
-  delete vm;
+  int* addr = static_cast<int*>(mem_addr);
+  addr[KB - 1] = 2;
+  CHECK(OS::UncommitRegion(mem_addr, block_size));
+  OS::ReleaseRegion(mem_addr, mem_size);
 }
 
 }  // namespace internal

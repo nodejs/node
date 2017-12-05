@@ -82,30 +82,30 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.
-    if (input_reg.is(rsp)) double_offset += 3 * kRegisterSize;
+    if (input_reg == rsp) double_offset += 3 * kRegisterSize;
 
     MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
     MemOperand exponent_operand(MemOperand(input_reg,
                                            double_offset + kDoubleSize / 2));
 
-    Register scratch1;
+    Register scratch1 = no_reg;
     Register scratch_candidates[3] = { rbx, rdx, rdi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+      if (final_result_reg != scratch1 && input_reg != scratch1) break;
     }
 
     // Since we must use rcx for shifts below, use some other register (rax)
     // to calculate the result if ecx is the requested return register.
-    Register result_reg = final_result_reg.is(rcx) ? rax : final_result_reg;
+    Register result_reg = final_result_reg == rcx ? rax : final_result_reg;
     // Save ecx if it isn't the return register and therefore volatile, or if it
     // is the return register, then save the temp register we use in its stead
     // for the result.
-    Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
+    Register save_reg = final_result_reg == rcx ? rax : rcx;
     __ pushq(scratch1);
     __ pushq(save_reg);
 
-    bool stash_exponent_copy = !input_reg.is(rsp);
+    bool stash_exponent_copy = input_reg != rsp;
     __ movl(scratch1, mantissa_operand);
     __ Movsd(kScratchDoubleReg, mantissa_operand);
     __ movl(rcx, exponent_operand);
@@ -146,9 +146,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     if (stash_exponent_copy) {
         __ addp(rsp, Immediate(kDoubleSize));
     }
-    if (!final_result_reg.is(result_reg)) {
-        DCHECK(final_result_reg.is(rcx));
-        __ movl(final_result_reg, result_reg);
+    if (final_result_reg != result_reg) {
+      DCHECK(final_result_reg == rcx);
+      __ movl(final_result_reg, result_reg);
     }
     __ popq(save_reg);
     __ popq(scratch1);
@@ -188,7 +188,7 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(rdx));
+  DCHECK(exponent == rdx);
   const Register scratch = rcx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;
@@ -316,7 +316,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ bind(&call_runtime);
   // Move base to the correct argument register.  Exponent is already in xmm1.
   __ Movsd(xmm0, double_base);
-  DCHECK(double_exponent.is(xmm1));
+  DCHECK(double_exponent == xmm1);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ PrepareCallCFunction(2);
@@ -429,7 +429,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ movp(kCCallArg1, r15);  // argv.
     __ Move(kCCallArg2, ExternalReference::isolate_address(isolate()));
   } else {
-    DCHECK_LE(result_size(), 3);
+    DCHECK_LE(result_size(), 2);
     // Pass a pointer to the result location as the first argument.
     __ leap(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
     // Pass a pointer to the Arguments object as the second argument.
@@ -442,14 +442,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   if (result_size() > kMaxRegisterResultSize) {
     // Read result values stored on stack. Result is stored
     // above the the two Arguments object slots on Win64.
-    DCHECK_LE(result_size(), 3);
+    DCHECK_LE(result_size(), 2);
     __ movq(kReturnRegister0, StackSpaceOperand(kArgExtraStackSpace + 0));
     __ movq(kReturnRegister1, StackSpaceOperand(kArgExtraStackSpace + 1));
-    if (result_size() > 2) {
-      __ movq(kReturnRegister2, StackSpaceOperand(kArgExtraStackSpace + 2));
-    }
   }
-  // Result is in rax, rdx:rax or r8:rdx:rax - do not destroy these registers!
+  // Result is in rax or rdx:rax - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -609,9 +606,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
   __ PushStackHandler();
-
-  // Fake a receiver (NULL).
-  __ Push(Immediate(0));  // receiver
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. We load the address from an
@@ -969,44 +963,82 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   stub2.GetCode();
 }
 
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  byte first_instruction = stub->instruction_start()[0];
+  byte second_instruction = stub->instruction_start()[2];
+
+  if (first_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL;
+  }
+
+  DCHECK(first_instruction == kTwoByteNopInstruction);
+
+  if (second_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL_COMPACTION;
+  }
+
+  DCHECK(second_instruction == kTwoByteNopInstruction);
+
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kTwoByteNopInstruction;
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteJumpInstruction;
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kTwoByteJumpInstruction;
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
 // we keep the GC informed.  The word in the object where the value has been
 // written is in the address register.
 void RecordWriteStub::Generate(MacroAssembler* masm) {
-  Label skip_to_incremental_noncompacting;
-  Label skip_to_incremental_compacting;
+  Label skip_to_incremental;
+  Label second_instr;
 
   // The first two instructions are generated with labels so as to get the
   // offset fixed up correctly by the bind(Label*) call.  We patch it back and
   // forth between a compare instructions (a nop in this position) and the
   // real branch when we start and stop incremental heap marking.
   // See RecordWriteStub::Patch for details.
-  __ jmp(&skip_to_incremental_noncompacting, Label::kNear);
-  __ jmp(&skip_to_incremental_compacting, Label::kFar);
+  __ jmp(&skip_to_incremental, Label::kNear);
+  __ bind(&second_instr);
+  __ jmp(&skip_to_incremental, Label::kNear);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
 
-  __ bind(&skip_to_incremental_noncompacting);
-  GenerateIncremental(masm, INCREMENTAL);
+  __ bind(&skip_to_incremental);
 
-  __ bind(&skip_to_incremental_compacting);
-  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
+  GenerateIncremental(masm, &second_instr);
 
   // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
   // Will be checked in IncrementalMarking::ActivateGeneratedStub.
   masm->set_byte_at(0, kTwoByteNopInstruction);
-  masm->set_byte_at(2, kFiveByteNopInstruction);
+  masm->set_byte_at(2, kTwoByteNopInstruction);
 }
 
-
-void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
+void RecordWriteStub::GenerateIncremental(MacroAssembler* masm,
+                                          Label* second_instr) {
   regs_.Save(masm);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
@@ -1023,17 +1055,17 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     // First notify the incremental marker if necessary, then update the
     // remembered set.
     CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
+        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker,
+        second_instr);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
 
     __ bind(&dont_need_remembered_set);
   }
 
   CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
+      masm, kReturnOnNoNeedToInformIncrementalMarker, second_instr);
   InformIncrementalMarker(masm);
   regs_.Restore(masm);
   __ ret(0);
@@ -1043,9 +1075,9 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   Register address =
-      arg_reg_1.is(regs_.address()) ? kScratchRegister : regs_.address();
-  DCHECK(!address.is(regs_.object()));
-  DCHECK(!address.is(arg_reg_1));
+      arg_reg_1 == regs_.address() ? kScratchRegister : regs_.address();
+  DCHECK(address != regs_.object());
+  DCHECK(address != arg_reg_1);
   __ Move(address, regs_.address());
   __ Move(arg_reg_1, regs_.object());
   // TODO(gc) Can we just set address arg2 in the beginning?
@@ -1067,9 +1099,8 @@ void RecordWriteStub::Activate(Code* code) {
 }
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
-    MacroAssembler* masm,
-    OnNoNeedToInformIncrementalMarker on_no_need,
-    Mode mode) {
+    MacroAssembler* masm, OnNoNeedToInformIncrementalMarker on_no_need,
+    Label* second_instr) {
   Label need_incremental;
   Label need_incremental_pop_object;
 
@@ -1085,8 +1116,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1097,24 +1127,22 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // Get the value from the slot.
   __ movp(regs_.scratch0(), Operand(regs_.address(), 0));
 
-  if (mode == INCREMENTAL_COMPACTION) {
-    Label ensure_not_white;
+  Label ensure_not_white;
+  // If second instruction is TwoByteNopInstruction, we're in noncompacting
+  // mode.
+  __ cmpb(Operand(second_instr), Immediate(kTwoByteNopInstruction));
+  __ j(equal, &ensure_not_white, Label::kNear);
+  __ CheckPageFlag(regs_.scratch0(),  // Contains value.
+                   regs_.scratch1(),  // Scratch.
+                   MemoryChunk::kEvacuationCandidateMask, zero,
+                   &ensure_not_white, Label::kNear);
 
-    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kEvacuationCandidateMask,
-                     zero,
-                     &ensure_not_white,
-                     Label::kNear);
+  __ CheckPageFlag(regs_.object(),
+                   regs_.scratch1(),  // Scratch.
+                   MemoryChunk::kSkipEvacuationSlotsRecordingMask, zero,
+                   &need_incremental);
 
-    __ CheckPageFlag(regs_.object(),
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
-                     zero,
-                     &need_incremental);
-
-    __ bind(&ensure_not_white);
-  }
+  __ bind(&ensure_not_white);
 
   // We need an extra register for this, so we push the object register
   // temporarily.
@@ -1127,8 +1155,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1536,7 +1563,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
 
-  DCHECK(rdx.is(function_address) || r8.is(function_address));
+  DCHECK(rdx == function_address || r8 == function_address);
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
@@ -1794,7 +1821,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // It's okay if api_function_address == callback_arg
   // but not arguments_arg
-  DCHECK(!api_function_address.is(arguments_arg));
+  DCHECK(api_function_address != arguments_arg);
 
   // v8::InvocationCallback's argument.
   __ leap(arguments_arg, StackSpaceOperand(0));
@@ -1883,8 +1910,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   // It's okay if api_function_address == getter_arg
   // but not accessor_info_arg or name_arg
-  DCHECK(!api_function_address.is(accessor_info_arg));
-  DCHECK(!api_function_address.is(name_arg));
+  DCHECK(api_function_address != accessor_info_arg);
+  DCHECK(api_function_address != name_arg);
   __ movp(scratch, FieldOperand(callback, AccessorInfo::kJsGetterOffset));
   __ movp(api_function_address,
           FieldOperand(scratch, Foreign::kForeignAddressOffset));

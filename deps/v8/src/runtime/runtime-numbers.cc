@@ -52,20 +52,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
     return isolate->heap()->nan_value();
   }
 
-  double result;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent flat = subject->GetFlatContent();
-
-    if (flat.IsOneByte()) {
-      result = StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(),
-                           radix32);
-    } else {
-      result =
-          StringToInt(isolate->unicode_cache(), flat.ToUC16Vector(), radix32);
-    }
-  }
-
+  double result = StringToInt(isolate, subject, radix32);
   return *isolate->factory()->NewNumber(result);
 }
 

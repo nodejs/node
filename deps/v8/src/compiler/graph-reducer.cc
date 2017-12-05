@@ -122,7 +122,7 @@ Reduction GraphReducer::Reduce(Node* const node) {
 void GraphReducer::ReduceTop() {
   NodeState& entry = stack_.top();
   Node* node = entry.node;
-  DCHECK(state_.Get(node) == State::kOnStack);
+  DCHECK_EQ(State::kOnStack, state_.Get(node));
 
   if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
@@ -269,7 +269,7 @@ void GraphReducer::Pop() {
 
 
 void GraphReducer::Push(Node* const node) {
-  DCHECK(state_.Get(node) != State::kOnStack);
+  DCHECK_NE(State::kOnStack, state_.Get(node));
   state_.Set(node, State::kOnStack);
   stack_.push({node, 0});
 }

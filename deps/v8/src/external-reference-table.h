@@ -22,7 +22,7 @@ class ExternalReferenceTable {
  public:
   static ExternalReferenceTable* instance(Isolate* isolate);
 
-  uint32_t size() const { return static_cast<uint32_t>(refs_.length()); }
+  uint32_t size() const { return static_cast<uint32_t>(refs_.size()); }
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
 
@@ -32,14 +32,14 @@ class ExternalReferenceTable {
   struct ExternalReferenceEntry {
     Address address;
     const char* name;
+
+    ExternalReferenceEntry(Address address, const char* name)
+        : address(address), name(name) {}
   };
 
   explicit ExternalReferenceTable(Isolate* isolate);
 
-  void Add(Address address, const char* name) {
-    ExternalReferenceEntry entry = {address, name};
-    refs_.Add(entry);
-  }
+  void Add(Address address, const char* name);
 
   void AddReferences(Isolate* isolate);
   void AddBuiltins(Isolate* isolate);
@@ -48,7 +48,7 @@ class ExternalReferenceTable {
   void AddAccessors(Isolate* isolate);
   void AddStubCache(Isolate* isolate);
 
-  List<ExternalReferenceEntry> refs_;
+  std::vector<ExternalReferenceEntry> refs_;
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
 

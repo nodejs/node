@@ -361,22 +361,22 @@ class Position {
 // Non-recursive implementation of a depth-first post-order tree traversal.
 template <typename Callback>
 void ProfileTree::TraverseDepthFirst(Callback* callback) {
-  List<Position> stack(10);
-  stack.Add(Position(root_));
-  while (stack.length() > 0) {
-    Position& current = stack.last();
+  std::vector<Position> stack;
+  stack.emplace_back(root_);
+  while (stack.size() > 0) {
+    Position& current = stack.back();
     if (current.has_current_child()) {
       callback->BeforeTraversingChild(current.node, current.current_child());
-      stack.Add(Position(current.current_child()));
+      stack.emplace_back(current.current_child());
     } else {
       callback->AfterAllChildrenTraversed(current.node);
-      if (stack.length() > 1) {
-        Position& parent = stack[stack.length() - 2];
+      if (stack.size() > 1) {
+        Position& parent = stack[stack.size() - 2];
         callback->AfterChildTraversed(parent.node, current.node);
         parent.next_child();
       }
       // Remove child from the stack.
-      stack.RemoveLast();
+      stack.pop_back();
     }
   }
 }
@@ -404,12 +404,12 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats);
   if (record_samples_ && !timestamp.IsNull()) {
-    timestamps_.Add(timestamp);
-    samples_.Add(top_frame_node);
+    timestamps_.push_back(timestamp);
+    samples_.push_back(top_frame_node);
   }
   const int kSamplesFlushCount = 100;
   const int kNodesFlushCount = 10;
-  if (samples_.length() - streaming_next_sample_ >= kSamplesFlushCount ||
+  if (samples_.size() - streaming_next_sample_ >= kSamplesFlushCount ||
       top_down_.pending_nodes_count() >= kNodesFlushCount) {
     StreamPendingTraceEvents();
   }
@@ -446,10 +446,10 @@ void BuildNodeValue(const ProfileNode* node, TracedValue* value) {
 
 void CpuProfile::StreamPendingTraceEvents() {
   std::vector<const ProfileNode*> pending_nodes = top_down_.TakePendingNodes();
-  if (pending_nodes.empty() && !samples_.length()) return;
+  if (pending_nodes.empty() && samples_.empty()) return;
   auto value = TracedValue::Create();
 
-  if (!pending_nodes.empty() || streaming_next_sample_ != samples_.length()) {
+  if (!pending_nodes.empty() || streaming_next_sample_ != samples_.size()) {
     value->BeginDictionary("cpuProfile");
     if (!pending_nodes.empty()) {
       value->BeginArray("nodes");
@@ -460,28 +460,28 @@ void CpuProfile::StreamPendingTraceEvents() {
       }
       value->EndArray();
     }
-    if (streaming_next_sample_ != samples_.length()) {
+    if (streaming_next_sample_ != samples_.size()) {
       value->BeginArray("samples");
-      for (int i = streaming_next_sample_; i < samples_.length(); ++i) {
+      for (size_t i = streaming_next_sample_; i < samples_.size(); ++i) {
         value->AppendInteger(samples_[i]->id());
       }
       value->EndArray();
     }
     value->EndDictionary();
   }
-  if (streaming_next_sample_ != samples_.length()) {
+  if (streaming_next_sample_ != samples_.size()) {
     value->BeginArray("timeDeltas");
     base::TimeTicks lastTimestamp =
         streaming_next_sample_ ? timestamps_[streaming_next_sample_ - 1]
                                : start_time();
-    for (int i = streaming_next_sample_; i < timestamps_.length(); ++i) {
+    for (size_t i = streaming_next_sample_; i < timestamps_.size(); ++i) {
       value->AppendInteger(
           static_cast<int>((timestamps_[i] - lastTimestamp).InMicroseconds()));
       lastTimestamp = timestamps_[i];
     }
     value->EndArray();
-    DCHECK(samples_.length() == timestamps_.length());
-    streaming_next_sample_ = samples_.length();
+    DCHECK_EQ(samples_.size(), timestamps_.size());
+    streaming_next_sample_ = samples_.size();
   }
 
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
@@ -547,33 +547,28 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
       profiler_(nullptr),
       current_profiles_semaphore_(1) {}
 
-static void DeleteCpuProfile(CpuProfile** profile_ptr) {
-  delete *profile_ptr;
-}
-
-
 CpuProfilesCollection::~CpuProfilesCollection() {
-  finished_profiles_.Iterate(DeleteCpuProfile);
-  current_profiles_.Iterate(DeleteCpuProfile);
+  for (CpuProfile* profile : finished_profiles_) delete profile;
+  for (CpuProfile* profile : current_profiles_) delete profile;
 }
 
 
 bool CpuProfilesCollection::StartProfiling(const char* title,
                                            bool record_samples) {
   current_profiles_semaphore_.Wait();
-  if (current_profiles_.length() >= kMaxSimultaneousProfiles) {
+  if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
     current_profiles_semaphore_.Signal();
     return false;
   }
-  for (int i = 0; i < current_profiles_.length(); ++i) {
-    if (strcmp(current_profiles_[i]->title(), title) == 0) {
+  for (CpuProfile* profile : current_profiles_) {
+    if (strcmp(profile->title(), title) == 0) {
       // Ignore attempts to start profile with the same title...
       current_profiles_semaphore_.Signal();
       // ... though return true to force it collect a sample.
       return true;
     }
   }
-  current_profiles_.Add(new CpuProfile(profiler_, title, record_samples));
+  current_profiles_.push_back(new CpuProfile(profiler_, title, record_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }
@@ -583,9 +578,11 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
   const int title_len = StrLength(title);
   CpuProfile* profile = nullptr;
   current_profiles_semaphore_.Wait();
-  for (int i = current_profiles_.length() - 1; i >= 0; --i) {
-    if (title_len == 0 || strcmp(current_profiles_[i]->title(), title) == 0) {
-      profile = current_profiles_.Remove(i);
+  for (size_t i = current_profiles_.size(); i != 0; --i) {
+    CpuProfile* current_profile = current_profiles_[i - 1];
+    if (title_len == 0 || strcmp(current_profile->title(), title) == 0) {
+      profile = current_profile;
+      current_profiles_.erase(current_profiles_.begin() + i - 1);
       break;
     }
   }
@@ -593,7 +590,7 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
 
   if (!profile) return nullptr;
   profile->FinishProfile();
-  finished_profiles_.Add(profile);
+  finished_profiles_.push_back(profile);
   return profile;
 }
 
@@ -601,7 +598,7 @@ CpuProfile* CpuProfilesCollection::StopProfiling(const char* title) {
 bool CpuProfilesCollection::IsLastProfile(const char* title) {
   // Called from VM thread, and only it can mutate the list,
   // so no locking is needed here.
-  if (current_profiles_.length() != 1) return false;
+  if (current_profiles_.size() != 1) return false;
   return StrLength(title) == 0
       || strcmp(current_profiles_[0]->title(), title) == 0;
 }
@@ -609,13 +606,10 @@ bool CpuProfilesCollection::IsLastProfile(const char* title) {
 
 void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   // Called from VM thread for a completed profile.
-  for (int i = 0; i < finished_profiles_.length(); i++) {
-    if (profile == finished_profiles_[i]) {
-      finished_profiles_.Remove(i);
-      return;
-    }
-  }
-  UNREACHABLE();
+  auto pos =
+      std::find(finished_profiles_.begin(), finished_profiles_.end(), profile);
+  DCHECK(pos != finished_profiles_.end());
+  finished_profiles_.erase(pos);
 }
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
@@ -625,8 +619,8 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
-  for (int i = 0; i < current_profiles_.length(); ++i) {
-    current_profiles_[i]->AddPath(timestamp, path, src_line, update_stats);
+  for (CpuProfile* profile : current_profiles_) {
+    profile->AddPath(timestamp, path, src_line, update_stats);
   }
   current_profiles_semaphore_.Signal();
 }

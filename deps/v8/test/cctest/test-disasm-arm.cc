@@ -40,7 +40,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 template <typename... S>
 bool DisassembleAndCompare(byte* begin, S... expected_strings) {
@@ -1577,3 +1578,6 @@ TEST(LoadStoreExclusive) {
 
   VERIFY_RUN();
 }
+
+}  // namespace internal
+}  // namespace v8

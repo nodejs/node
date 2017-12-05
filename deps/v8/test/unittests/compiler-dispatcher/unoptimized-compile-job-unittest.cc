@@ -351,7 +351,7 @@ TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   Handle<JSFunction> e =
       Handle<JSFunction>::cast(test::RunJS(isolate(), "f();"));
 
-  ASSERT_FALSE(e->shared()->HasBaselineCode());
+  ASSERT_FALSE(e->shared()->is_compiled());
 
   job->ResetOnMainThread(i_isolate());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);

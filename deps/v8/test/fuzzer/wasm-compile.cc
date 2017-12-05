@@ -23,20 +23,10 @@
 
 typedef uint8_t byte;
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-using namespace v8::internal::wasm::fuzzer;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace fuzzer {
 
 namespace {
 
@@ -123,7 +113,7 @@ class WasmGenerator {
   }
 
  public:
-  WasmGenerator(v8::internal::wasm::WasmFunctionBuilder* fn) : builder_(fn) {}
+  explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
 
   void Generate(ValueType type, DataRange data);
 
@@ -138,7 +128,7 @@ class WasmGenerator {
   }
 
  private:
-  v8::internal::wasm::WasmFunctionBuilder* builder_;
+  WasmFunctionBuilder* builder_;
   std::vector<ValueType> blocks_;
 };
 
@@ -307,10 +297,10 @@ void WasmGenerator::Generate(ValueType type, DataRange data) {
       UNREACHABLE();
   }
 }
-}
+}  // namespace
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
-  virtual bool GenerateModule(
+  bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,
@@ -319,15 +309,14 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     WasmModuleBuilder builder(zone);
 
-    v8::internal::wasm::WasmFunctionBuilder* f =
-        builder.AddFunction(sigs.i_iii());
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
 
     WasmGenerator gen(f);
     gen.Generate<kWasmI32>(DataRange(data, static_cast<uint32_t>(size)));
 
     uint8_t end_opcode = kExprEnd;
     f->EmitCode(&end_opcode, 1);
-    builder.AddExport(v8::internal::CStrVector("main"), f);
+    builder.AddExport(CStrVector("main"), f);
 
     builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
@@ -346,3 +335,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   return WasmCompileFuzzer().FuzzWasmModule(data, size);
 }
+
+}  // namespace fuzzer
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

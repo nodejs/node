@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-struct Register;
+class Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:

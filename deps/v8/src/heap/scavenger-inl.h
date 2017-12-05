@@ -11,10 +11,8 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
 // White list for objects that for sure only contain data.
-bool ContainsOnlyData(VisitorId visitor_id) {
+bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
   switch (visitor_id) {
     case kVisitSeqOneByteString:
       return true;
@@ -31,8 +29,6 @@ bool ContainsOnlyData(VisitorId visitor_id) {
   }
   return false;
 }
-
-}  // namespace
 
 void Scavenger::PageMemoryFence(Object* object) {
 #ifdef THREAD_SANITIZER

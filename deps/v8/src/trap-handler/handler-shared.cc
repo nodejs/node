@@ -34,6 +34,7 @@ static_assert(sizeof(g_thread_in_wasm_code) > 1,
 
 size_t gNumCodeObjects = 0;
 CodeProtectionInfoListEntry* gCodeObjects = nullptr;
+std::atomic_size_t gRecoveredTrapCount = {0};
 
 std::atomic_flag MetadataLock::spinlock_ = ATOMIC_FLAG_INIT;
 

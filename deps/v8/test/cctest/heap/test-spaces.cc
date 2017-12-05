@@ -30,11 +30,8 @@
 #include "src/base/platform/platform.h"
 #include "src/factory.h"
 #include "src/heap/spaces-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/heap/incremental-marking.h -> src/objects-inl.h
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -83,6 +80,7 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
+namespace test_spaces {
 
 static void VerifyMemoryChunk(Isolate* isolate,
                               Heap* heap,
@@ -242,7 +240,7 @@ TEST(MemoryAllocator) {
   Heap* heap = isolate->heap();
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator != nullptr);
+  CHECK_NOT_NULL(memory_allocator);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
@@ -706,6 +704,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(0u, shrunk);
 }
 
+}  // namespace test_spaces
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

@@ -38,7 +38,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #define __ masm.
 
@@ -71,7 +72,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Push the double argument.
   __ sub(sp, sp, Operand(kDoubleSize));
   __ vstr(d0, sp, 0);
-  if (!source_reg.is(sp)) {
+  if (source_reg != sp) {
     __ mov(source_reg, sp);
   }
 
@@ -81,7 +82,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
+      if (reg != destination_reg) {
         __ push(reg);
         source_reg_offset += kPointerSize;
       }
@@ -96,7 +97,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   if (inline_fastpath) {
     __ vldr(d0, MemOperand(source_reg));
     __ TryInlineTruncateDoubleToI(destination_reg, d0, &done);
-    if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
+    if (destination_reg == source_reg && source_reg != sp) {
       // Restore clobbered source_reg.
       __ add(source_reg, sp, Operand(source_reg_offset));
     }
@@ -110,7 +111,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (--reg_num; reg_num >= 0; --reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
+      if (reg != destination_reg) {
         __ ldr(ip, MemOperand(sp, 0));
         __ cmp(reg, ip);
         __ Assert(eq, kRegisterWasClobbered);
@@ -121,8 +122,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   __ add(sp, sp, Operand(kDoubleSize));
 
-  if (!destination_reg.is(r0))
-    __ mov(r0, destination_reg);
+  if (destination_reg != r0) __ mov(r0, destination_reg);
 
   // Restore callee save registers.
   __ Pop(lr);
@@ -188,3 +188,6 @@ TEST(ConvertDToI) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

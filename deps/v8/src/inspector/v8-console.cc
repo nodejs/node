@@ -618,7 +618,7 @@ void V8Console::queryObjectsCallback(
 
 void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
                                 int sessionId, unsigned num) {
-  DCHECK(num < V8InspectorSessionImpl::kInspectedObjectBufferSize);
+  DCHECK_GT(V8InspectorSessionImpl::kInspectedObjectBufferSize, num);
   v8::debug::ConsoleCallArguments args(info);
   ConsoleHelper helper(args, v8::debug::ConsoleContext(), m_inspector);
   if (V8InspectorSessionImpl* session = helper.session(sessionId)) {

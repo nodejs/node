@@ -12,9 +12,9 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-namespace debug = v8::debug;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 /**
  * We test the interface from Wasm compiled code to the Wasm interpreter by
@@ -257,3 +257,7 @@ TEST(TestArgumentPassing_AllTypes) {
     CheckCall(i32, i64, f32, f64);
   }
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

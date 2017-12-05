@@ -97,7 +97,7 @@ class Handle final : public HandleBase {
     static_assert(std::is_base_of<Object, T>::value, "static type violation");
   }
 
-  V8_INLINE explicit Handle(T* object) : Handle(object, object->GetIsolate()) {}
+  V8_INLINE explicit Handle(T* object);
   V8_INLINE Handle(T* object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.

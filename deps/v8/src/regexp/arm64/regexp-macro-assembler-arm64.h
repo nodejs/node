@@ -232,7 +232,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   };
 
   RegisterState GetRegisterState(int register_index) {
-    DCHECK(register_index >= 0);
+    DCHECK_LE(0, register_index);
     if (register_index >= kNumCachedRegisters) {
       return STACKED;
     } else {

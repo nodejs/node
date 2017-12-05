@@ -10,14 +10,12 @@
 
 #include <memory>
 
-#include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-info.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
 #include "src/objects-inl.h"
-#include "src/parsing/parse-info.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -69,45 +67,6 @@ UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
 
 #undef UNARY_MATH_FUNCTION
 
-void CodeGenerator::MakeCodePrologue(ParseInfo* parse_info,
-                                     CompilationInfo* info, const char* kind) {
-  bool print_ast = false;
-  const char* ftype;
-
-  if (info->isolate()->bootstrapper()->IsActive()) {
-    print_ast = FLAG_print_builtin_ast;
-    ftype = "builtin";
-  } else {
-    print_ast = FLAG_print_ast;
-    ftype = "user-defined";
-  }
-
-  if (!FLAG_trace_codegen && !print_ast) return;
-
-  // Requires internalizing the AST, so make sure we are on the main thread and
-  // allow handle dereference and allocations.
-  // TODO(rmcilroy): Make ast-printer print ast raw strings instead of
-  // internalized strings to avoid internalizing here.
-  DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
-  AllowHandleDereference allow_deref;
-  AllowHandleAllocation allow_handles;
-  AllowHeapAllocation allow_gc;
-  parse_info->ast_value_factory()->Internalize(info->isolate());
-
-  if (FLAG_trace_codegen || print_ast) {
-    std::unique_ptr<char[]> name = info->GetDebugName();
-    PrintF("[generating %s code for %s function: %s]\n", kind, ftype,
-           name.get());
-  }
-
-#ifdef DEBUG
-  if (!info->IsStub() && print_ast) {
-    PrintF("--- AST ---\n%s\n",
-           AstPrinter(info->isolate()).PrintProgram(info->literal()));
-  }
-#endif  // DEBUG
-}
-
 Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
                                              EhFrameWriter* eh_frame_writer,
                                              CompilationInfo* info,
@@ -116,12 +75,11 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
 
   // Allocate and install the code.
   CodeDesc desc;
-  Code::Flags flags = info->code_flags();
   tasm->GetCode(isolate, &desc);
   if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
 
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, flags, self_reference, false, info->prologue_offset());
+  Handle<Code> code = isolate->factory()->NewCode(desc, info->code_kind(),
+                                                  self_reference, false);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   return code;
@@ -240,12 +198,12 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
-      Handle<Script> script = info->script();
-      if (!script->IsUndefined(isolate) &&
-          !script->source()->IsUndefined(isolate)) {
+      if (shared->script()->IsScript() &&
+          !Script::cast(shared->script())->source()->IsUndefined(isolate)) {
         os << "--- Raw source ---\n";
-        StringCharacterStream stream(String::cast(script->source()),
-                                     shared->start_position());
+        StringCharacterStream stream(
+            String::cast(Script::cast(shared->script())->source()),
+            shared->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
         int source_len = shared->end_position() - shared->start_position() + 1;

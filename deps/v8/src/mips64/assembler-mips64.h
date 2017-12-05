@@ -199,9 +199,15 @@ const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
 // -----------------------------------------------------------------------------
 // Implementation of Register and FPURegister.
 
-struct Register {
-  static constexpr int kCpRegister = 23;  // cp (s7) is the 23rd register.
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kRegAfterLast
+};
 
+class Register : public RegisterBase<Register, kRegAfterLast> {
+ public:
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   static constexpr int kMantissaOffset = 0;
   static constexpr int kExponentOffset = 4;
@@ -212,45 +218,20 @@ struct Register {
 #error Unknown endianness
 #endif
 
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static constexpr int kNumRegisters = Code::kAfterLast;
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = { code };
-    return r;
-  }
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
 // s7: context register
 // s3: lithium scratch
 // s4: lithium scratch2
-#define DECLARE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+#define DECLARE_REGISTER(R) \
+  constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
-constexpr Register no_reg = {Register::kCode_no_reg};
+
+constexpr Register no_reg = Register::no_reg();
 
 int ToNumber(Register reg);
 
@@ -259,103 +240,49 @@ Register ToRegister(int num);
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-// Coprocessor register.
-struct FPURegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = kInvalidFPURegister
-  };
+      kDoubleAfterLast
+};
 
-  static constexpr int kMaxNumRegisters = Code::kAfterLast;
-
-  inline static int NumRegisters();
-
+// Coprocessor register.
+class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
+ public:
   // TODO(plind): Warning, inconsistent numbering here. kNumFPURegisters refers
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
   // number of Double regs (64-bit regs, or FPU-reg-pairs).
 
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(FPURegister reg) const { return reg_code == reg.reg_code; }
   FPURegister low() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage suspect for FR=1.
     // Find low reg of a Double-reg pair, which is the reg itself.
-    DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    FPURegister reg;
-    reg.reg_code = reg_code;
-    DCHECK(reg.is_valid());
-    return reg;
+    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    return FPURegister::from_code(code());
   }
   FPURegister high() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage illegal in FR=1.
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    FPURegister reg;
-    reg.reg_code = reg_code + 1;
-    DCHECK(reg.is_valid());
-    return reg;
+    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    return FPURegister::from_code(code() + 1);
   }
 
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
+ private:
+  friend class RegisterBase;
+  explicit constexpr FPURegister(int code) : RegisterBase(code) {}
+};
 
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  static FPURegister from_code(int code) {
-    FPURegister r = {code};
-    return r;
-  }
-  void setcode(int f) {
-    reg_code = f;
-    DCHECK(is_valid());
-  }
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+enum MSARegisterCode {
+#define REGISTER_CODE(R) kMsaCode_##R,
+  SIMD128_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kMsaAfterLast
 };
 
 // MIPS SIMD (MSA) register
-struct MSARegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    SIMD128_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = kInvalidMSARegister
-  };
-
-  static const int kMaxNumRegisters = Code::kAfterLast;
-
-  inline static int NumRegisters();
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(MSARegister reg) const { return reg_code == reg.reg_code; }
-
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  static MSARegister from_code(int code) {
-    MSARegister r = {code};
-    return r;
-  }
-  void setcode(int f) {
-    reg_code = f;
-    DCHECK(is_valid());
-  }
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+class MSARegister : public RegisterBase<MSARegister, kMsaAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr MSARegister(int code) : RegisterBase(code) {}
 };
 
 // A few double registers are reserved: one as a scratch register and one to
@@ -376,78 +303,22 @@ typedef FPURegister FloatRegister;
 
 typedef FPURegister DoubleRegister;
 
-constexpr DoubleRegister no_freg = {kInvalidFPURegister};
+#define DECLARE_DOUBLE_REGISTER(R) \
+  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
+DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
+#undef DECLARE_DOUBLE_REGISTER
 
-constexpr DoubleRegister f0 = {0};  // Return value in hard float mode.
-constexpr DoubleRegister f1 = {1};
-constexpr DoubleRegister f2 = {2};
-constexpr DoubleRegister f3 = {3};
-constexpr DoubleRegister f4 = {4};
-constexpr DoubleRegister f5 = {5};
-constexpr DoubleRegister f6 = {6};
-constexpr DoubleRegister f7 = {7};
-constexpr DoubleRegister f8 = {8};
-constexpr DoubleRegister f9 = {9};
-constexpr DoubleRegister f10 = {10};
-constexpr DoubleRegister f11 = {11};
-constexpr DoubleRegister f12 = {12};  // Arg 0 in hard float mode.
-constexpr DoubleRegister f13 = {13};
-constexpr DoubleRegister f14 = {14};  // Arg 1 in hard float mode.
-constexpr DoubleRegister f15 = {15};
-constexpr DoubleRegister f16 = {16};
-constexpr DoubleRegister f17 = {17};
-constexpr DoubleRegister f18 = {18};
-constexpr DoubleRegister f19 = {19};
-constexpr DoubleRegister f20 = {20};
-constexpr DoubleRegister f21 = {21};
-constexpr DoubleRegister f22 = {22};
-constexpr DoubleRegister f23 = {23};
-constexpr DoubleRegister f24 = {24};
-constexpr DoubleRegister f25 = {25};
-constexpr DoubleRegister f26 = {26};
-constexpr DoubleRegister f27 = {27};
-constexpr DoubleRegister f28 = {28};
-constexpr DoubleRegister f29 = {29};
-constexpr DoubleRegister f30 = {30};
-constexpr DoubleRegister f31 = {31};
+constexpr DoubleRegister no_freg = DoubleRegister::no_reg();
 
 // SIMD registers.
 typedef MSARegister Simd128Register;
 
-const Simd128Register no_msareg = {kInvalidMSARegister};
+#define DECLARE_SIMD128_REGISTER(R) \
+  constexpr Simd128Register R = Simd128Register::from_code<kMsaCode_##R>();
+SIMD128_REGISTERS(DECLARE_SIMD128_REGISTER)
+#undef DECLARE_SIMD128_REGISTER
 
-constexpr Simd128Register w0 = {0};
-constexpr Simd128Register w1 = {1};
-constexpr Simd128Register w2 = {2};
-constexpr Simd128Register w3 = {3};
-constexpr Simd128Register w4 = {4};
-constexpr Simd128Register w5 = {5};
-constexpr Simd128Register w6 = {6};
-constexpr Simd128Register w7 = {7};
-constexpr Simd128Register w8 = {8};
-constexpr Simd128Register w9 = {9};
-constexpr Simd128Register w10 = {10};
-constexpr Simd128Register w11 = {11};
-constexpr Simd128Register w12 = {12};
-constexpr Simd128Register w13 = {13};
-constexpr Simd128Register w14 = {14};
-constexpr Simd128Register w15 = {15};
-constexpr Simd128Register w16 = {16};
-constexpr Simd128Register w17 = {17};
-constexpr Simd128Register w18 = {18};
-constexpr Simd128Register w19 = {19};
-constexpr Simd128Register w20 = {20};
-constexpr Simd128Register w21 = {21};
-constexpr Simd128Register w22 = {22};
-constexpr Simd128Register w23 = {23};
-constexpr Simd128Register w24 = {24};
-constexpr Simd128Register w25 = {25};
-constexpr Simd128Register w26 = {26};
-constexpr Simd128Register w27 = {27};
-constexpr Simd128Register w28 = {28};
-constexpr Simd128Register w29 = {29};
-constexpr Simd128Register w30 = {30};
-constexpr Simd128Register w31 = {31};
+const Simd128Register no_msareg = Simd128Register::no_reg();
 
 // Register aliases.
 // cp is assumed to be a callee saved register.
@@ -523,28 +394,33 @@ class Operand BASE_EMBEDDED {
  public:
   // Immediate.
   INLINE(explicit Operand(int64_t immediate,
-         RelocInfo::Mode rmode = RelocInfo::NONE64));
-  INLINE(explicit Operand(const ExternalReference& f));
+                          RelocInfo::Mode rmode = RelocInfo::NONE64))
+      : rm_(no_reg), rmode_(rmode) {
+    value_.immediate = immediate;
+  }
+  INLINE(explicit Operand(const ExternalReference& f))
+      : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
+    value_.immediate = reinterpret_cast<int64_t>(f.address());
+  }
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
   INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
+  INLINE(explicit Operand(Smi* value))
+      : rm_(no_reg), rmode_(RelocInfo::NONE32) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+  }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Register.
-  INLINE(explicit Operand(Register rm));
+  INLINE(explicit Operand(Register rm)) : rm_(rm) {}
 
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  inline int64_t immediate() const {
-    DCHECK(!is_reg());
-    DCHECK(!IsHeapObjectRequest());
-    return value_.immediate;
-  }
+  inline int64_t immediate() const;
 
   bool IsImmediate() const { return !rm_.is_valid(); }
 
@@ -734,12 +610,7 @@ class Assembler : public AssemblerBase {
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
       Isolate* isolate, Address instruction_payload, Code* code,
-      Address target) {
-    set_target_address_at(
-        isolate,
-        instruction_payload - kInstructionsFor64BitConstant * kInstrSize, code,
-        target);
-  }
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -2429,9 +2300,7 @@ class Assembler : public AssemblerBase {
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
-  }
+  explicit inline EnsureSpace(Assembler* assembler);
 };
 
 class UseScratchRegisterScope {

@@ -255,12 +255,12 @@ Running test: testDebug
 foo (:0:16)
 (anonymous) (:0:0)
 [
-    [0] : <scriptId>:0:12:debug
+    [0] : 5:0:12:<scriptId>
 ]
 foo (:0:16)
 (anonymous) (:0:0)
 [
-    [0] : <scriptId>:0:12:debug
+    [0] : 5:0:12:<scriptId>
 ]
 
 Running test: testMonitor

@@ -11,8 +11,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/utils.h"
 
-#include "src/handles.h"
 #include "src/globals.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {
@@ -24,14 +24,15 @@ namespace wasm {
 // Base class for Result<T>.
 class V8_EXPORT_PRIVATE ResultBase {
  protected:
-  ResultBase(ResultBase&& other)
-      : error_offset_(other.error_offset_),
-        error_msg_(std::move(other.error_msg_)) {}
   ResultBase() = default;
 
   ResultBase& operator=(ResultBase&& other) = default;
 
  public:
+  ResultBase(ResultBase&& other)
+      : error_offset_(other.error_offset_),
+        error_msg_(std::move(other.error_msg_)) {}
+
   void error(uint32_t offset, std::string error_msg);
 
   void PRINTF_FORMAT(2, 3) error(const char* format, ...) {

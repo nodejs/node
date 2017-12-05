@@ -4,7 +4,6 @@
 
 #include "src/compiler/jump-threading.h"
 #include "src/compiler/code-generator-impl.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -120,7 +119,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 
 #ifdef DEBUG
   for (RpoNumber num : result) {
-    CHECK(num.IsValid());
+    DCHECK(num.IsValid());
   }
 #endif
 
