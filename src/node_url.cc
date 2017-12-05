@@ -46,11 +46,13 @@ using v8::Value;
 
 namespace url {
 
+namespace {
+
 // https://url.spec.whatwg.org/#eof-code-point
-static const char kEOL = -1;
+const char kEOL = -1;
 
 // Used in ToUSVString().
-static const char16_t kUnicodeReplacementCharacter = 0xFFFD;
+const char16_t kUnicodeReplacementCharacter = 0xFFFD;
 
 // https://url.spec.whatwg.org/#concept-host
 union url_host_value {
@@ -103,7 +105,7 @@ enum url_error_cb_args {
 
 #define CHAR_TEST(bits, name, expr)                                           \
   template <typename T>                                                       \
-  static inline bool name(const T ch) {                                       \
+  inline bool name(const T ch) {                                              \
     static_assert(sizeof(ch) >= (bits) / 8,                                   \
                   "Character must be wider than " #bits " bits");             \
     return (expr);                                                            \
@@ -111,13 +113,13 @@ enum url_error_cb_args {
 
 #define TWO_CHAR_STRING_TEST(bits, name, expr)                                \
   template <typename T>                                                       \
-  static inline bool name(const T ch1, const T ch2) {                         \
+  inline bool name(const T ch1, const T ch2) {                                \
     static_assert(sizeof(ch1) >= (bits) / 8,                                  \
                   "Character must be wider than " #bits " bits");             \
     return (expr);                                                            \
   }                                                                           \
   template <typename T>                                                       \
-  static inline bool name(const std::basic_string<T>& str) {                  \
+  inline bool name(const std::basic_string<T>& str) {                         \
     static_assert(sizeof(str[0]) >= (bits) / 8,                               \
                   "Character must be wider than " #bits " bits");             \
     return str.length() >= 2 && name(str[0], str[1]);                         \
@@ -146,7 +148,7 @@ CHAR_TEST(8, IsASCIIAlphanumeric, (IsASCIIDigit(ch) || IsASCIIAlpha(ch)))
 
 // https://infra.spec.whatwg.org/#ascii-lowercase
 template <typename T>
-static inline T ASCIILowercase(T ch) {
+inline T ASCIILowercase(T ch) {
   return IsASCIIAlpha(ch) ? (ch | 0x20) : ch;
 }
 
@@ -177,7 +179,7 @@ CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
 #undef CHAR_TEST
 #undef TWO_CHAR_STRING_TEST
 
-static const char* hex[256] = {
+const char* hex[256] = {
   "%00", "%01", "%02", "%03", "%04", "%05", "%06", "%07",
   "%08", "%09", "%0A", "%0B", "%0C", "%0D", "%0E", "%0F",
   "%10", "%11", "%12", "%13", "%14", "%15", "%16", "%17",
@@ -212,7 +214,7 @@ static const char* hex[256] = {
   "%F8", "%F9", "%FA", "%FB", "%FC", "%FD", "%FE", "%FF"
 };
 
-static const uint8_t C0_CONTROL_ENCODE_SET[32] = {
+const uint8_t C0_CONTROL_ENCODE_SET[32] = {
   // 00     01     02     03     04     05     06     07
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
   // 08     09     0A     0B     0C     0D     0E     0F
@@ -279,7 +281,7 @@ static const uint8_t C0_CONTROL_ENCODE_SET[32] = {
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 };
 
-static const uint8_t PATH_ENCODE_SET[32] = {
+const uint8_t PATH_ENCODE_SET[32] = {
   // 00     01     02     03     04     05     06     07
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
   // 08     09     0A     0B     0C     0D     0E     0F
@@ -346,7 +348,7 @@ static const uint8_t PATH_ENCODE_SET[32] = {
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 };
 
-static const uint8_t USERINFO_ENCODE_SET[32] = {
+const uint8_t USERINFO_ENCODE_SET[32] = {
   // 00     01     02     03     04     05     06     07
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
   // 08     09     0A     0B     0C     0D     0E     0F
@@ -413,7 +415,7 @@ static const uint8_t USERINFO_ENCODE_SET[32] = {
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 };
 
-static const uint8_t QUERY_ENCODE_SET[32] = {
+const uint8_t QUERY_ENCODE_SET[32] = {
   // 00     01     02     03     04     05     06     07
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
   // 08     09     0A     0B     0C     0D     0E     0F
@@ -480,15 +482,15 @@ static const uint8_t QUERY_ENCODE_SET[32] = {
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 };
 
-static inline bool BitAt(const uint8_t a[], const uint8_t i) {
+inline bool BitAt(const uint8_t a[], const uint8_t i) {
   return !!(a[i >> 3] & (1 << (i & 7)));
 }
 
 // Appends ch to str. If ch position in encode_set is set, the ch will
 // be percent-encoded then appended.
-static inline void AppendOrEscape(std::string* str,
-                                  const unsigned char ch,
-                                  const uint8_t encode_set[]) {
+inline void AppendOrEscape(std::string* str,
+                           const unsigned char ch,
+                           const uint8_t encode_set[]) {
   if (BitAt(encode_set, ch))
     *str += hex[ch];
   else
@@ -496,7 +498,7 @@ static inline void AppendOrEscape(std::string* str,
 }
 
 template <typename T>
-static inline unsigned hex2bin(const T ch) {
+inline unsigned hex2bin(const T ch) {
   if (ch >= '0' && ch <= '9')
     return ch - '0';
   if (ch >= 'A' && ch <= 'F')
@@ -544,7 +546,7 @@ inline std::string PercentDecode(const char* input, size_t len) {
   XX("ws:", 80)                                                               \
   XX("wss:", 443)
 
-static inline bool IsSpecial(std::string scheme) {
+inline bool IsSpecial(std::string scheme) {
 #define XX(name, _) if (scheme == name) return true;
   SPECIALS(XX);
 #undef XX
@@ -552,8 +554,7 @@ static inline bool IsSpecial(std::string scheme) {
 }
 
 // https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
-static inline bool StartsWithWindowsDriveLetter(const char* p,
-                                                const char* end) {
+inline bool StartsWithWindowsDriveLetter(const char* p, const char* end) {
   const size_t length = end - p;
   return length >= 2 &&
     IsWindowsDriveLetter(p[0], p[1]) &&
@@ -564,7 +565,7 @@ static inline bool StartsWithWindowsDriveLetter(const char* p,
       p[2] == '#');
 }
 
-static inline int NormalizePort(std::string scheme, int p) {
+inline int NormalizePort(std::string scheme, int p) {
 #define XX(name, port) if (scheme == name && p == port) return -1;
   SPECIALS(XX);
 #undef XX
@@ -572,7 +573,7 @@ static inline int NormalizePort(std::string scheme, int p) {
 }
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-static inline bool ToUnicode(const std::string& input, std::string* output) {
+inline bool ToUnicode(const std::string& input, std::string* output) {
   MaybeStackBuffer<char> buf;
   if (i18n::ToUnicode(&buf, input.c_str(), input.length()) < 0)
     return false;
@@ -580,7 +581,7 @@ static inline bool ToUnicode(const std::string& input, std::string* output) {
   return true;
 }
 
-static inline bool ToASCII(const std::string& input, std::string* output) {
+inline bool ToASCII(const std::string& input, std::string* output) {
   MaybeStackBuffer<char> buf;
   if (i18n::ToASCII(&buf, input.c_str(), input.length()) < 0)
     return false;
@@ -589,20 +590,18 @@ static inline bool ToASCII(const std::string& input, std::string* output) {
 }
 #else
 // Intentional non-ops if ICU is not present.
-static inline bool ToUnicode(const std::string& input, std::string* output) {
+inline bool ToUnicode(const std::string& input, std::string* output) {
   *output = input;
   return true;
 }
 
-static inline bool ToASCII(const std::string& input, std::string* output) {
+inline bool ToASCII(const std::string& input, std::string* output) {
   *output = input;
   return true;
 }
 #endif
 
-static url_host_type ParseIPv6Host(url_host* host,
-                                   const char* input,
-                                   size_t length) {
+url_host_type ParseIPv6Host(url_host* host, const char* input, size_t length) {
   url_host_type type = HOST_TYPE_FAILED;
   for (unsigned n = 0; n < 8; n++)
     host->value.ipv6[n] = 0;
@@ -720,7 +719,7 @@ static url_host_type ParseIPv6Host(url_host* host,
   return type;
 }
 
-static inline int64_t ParseNumber(const char* start, const char* end) {
+inline int64_t ParseNumber(const char* start, const char* end) {
   unsigned R = 10;
   if (end - start >= 2 && start[0] == '0' && (start[1] | 0x20) == 'x') {
     start += 2;
@@ -755,9 +754,7 @@ static inline int64_t ParseNumber(const char* start, const char* end) {
   return strtoll(start, NULL, R);
 }
 
-static url_host_type ParseIPv4Host(url_host* host,
-                                   const char* input,
-                                   size_t length) {
+url_host_type ParseIPv4Host(url_host* host, const char* input, size_t length) {
   url_host_type type = HOST_TYPE_DOMAIN;
   const char* pointer = input;
   const char* mark = input;
@@ -816,9 +813,9 @@ static url_host_type ParseIPv4Host(url_host* host,
   return type;
 }
 
-static url_host_type ParseOpaqueHost(url_host* host,
-                                     const char* input,
-                                     size_t length) {
+url_host_type ParseOpaqueHost(url_host* host,
+                              const char* input,
+                              size_t length) {
   url_host_type type = HOST_TYPE_OPAQUE;
   std::string output;
   output.reserve(length * 3);
@@ -838,11 +835,11 @@ static url_host_type ParseOpaqueHost(url_host* host,
   return type;
 }
 
-static url_host_type ParseHost(url_host* host,
-                               const char* input,
-                               size_t length,
-                               bool is_special,
-                               bool unicode = false) {
+url_host_type ParseHost(url_host* host,
+                        const char* input,
+                        size_t length,
+                        bool is_special,
+                        bool unicode = false) {
   url_host_type type = HOST_TYPE_FAILED;
   const char* pointer = input;
   std::string decoded;
@@ -895,7 +892,7 @@ static url_host_type ParseHost(url_host* host,
 // Locates the longest sequence of 0 segments in an IPv6 address
 // in order to use the :: compression when serializing
 template<typename T>
-static inline T* FindLongestZeroSequence(T* values, size_t len) {
+inline T* FindLongestZeroSequence(T* values, size_t len) {
   T* start = values;
   T* end = start + len;
   T* result = nullptr;
@@ -923,7 +920,7 @@ static inline T* FindLongestZeroSequence(T* values, size_t len) {
   return result;
 }
 
-static url_host_type WriteHost(const url_host* host, std::string* dest) {
+url_host_type WriteHost(const url_host* host, std::string* dest) {
   dest->clear();
   switch (host->type) {
     case HOST_TYPE_DOMAIN:
@@ -978,10 +975,10 @@ static url_host_type WriteHost(const url_host* host, std::string* dest) {
   return host->type;
 }
 
-static bool ParseHost(const std::string& input,
-                      std::string* output,
-                      bool is_special,
-                      bool unicode = false) {
+bool ParseHost(const std::string& input,
+               std::string* output,
+               bool is_special,
+               bool unicode = false) {
   if (input.length() == 0) {
     output->clear();
     return true;
@@ -994,9 +991,9 @@ static bool ParseHost(const std::string& input,
   return true;
 }
 
-static inline void Copy(Environment* env,
-                        Local<Array> ary,
-                        std::vector<std::string>* vec) {
+inline void Copy(Environment* env,
+                 Local<Array> ary,
+                 std::vector<std::string>* vec) {
   const int32_t len = ary->Length();
   if (len == 0)
     return;  // nothing to copy
@@ -1010,8 +1007,8 @@ static inline void Copy(Environment* env,
   }
 }
 
-static inline Local<Array> Copy(Environment* env,
-                                const std::vector<std::string>& vec) {
+inline Local<Array> Copy(Environment* env,
+                         const std::vector<std::string>& vec) {
   Isolate* isolate = env->isolate();
   Local<Array> ary = Array::New(isolate, vec.size());
   for (size_t n = 0; n < vec.size(); n++)
@@ -1019,9 +1016,9 @@ static inline Local<Array> Copy(Environment* env,
   return ary;
 }
 
-static inline void HarvestBase(Environment* env,
-                               struct url_data* base,
-                               Local<Object> base_obj) {
+inline void HarvestBase(Environment* env,
+                        struct url_data* base,
+                        Local<Object> base_obj) {
   Local<Context> context = env->context();
   Local<Value> flags = GET(env, base_obj, "flags");
   if (flags->IsInt32())
@@ -1045,9 +1042,9 @@ static inline void HarvestBase(Environment* env,
   }
 }
 
-static inline void HarvestContext(Environment* env,
-                                  struct url_data* context,
-                                  Local<Object> context_obj) {
+inline void HarvestContext(Environment* env,
+                           struct url_data* context,
+                           Local<Object> context_obj) {
   Local<Value> flags = GET(env, context_obj, "flags");
   if (flags->IsInt32()) {
     int32_t _flags = flags->Int32Value(env->context()).FromJust();
@@ -1090,7 +1087,7 @@ static inline void HarvestContext(Environment* env,
 }
 
 // Single dot segment can be ".", "%2e", or "%2E"
-static inline bool IsSingleDotSegment(const std::string& str) {
+inline bool IsSingleDotSegment(const std::string& str) {
   switch (str.size()) {
     case 1:
       return str == ".";
@@ -1106,7 +1103,7 @@ static inline bool IsSingleDotSegment(const std::string& str) {
 // Double dot segment can be:
 //   "..", ".%2e", ".%2E", "%2e.", "%2E.",
 //   "%2e%2e", "%2E%2E", "%2e%2E", or "%2E%2e"
-static inline bool IsDoubleDotSegment(const std::string& str) {
+inline bool IsDoubleDotSegment(const std::string& str) {
   switch (str.size()) {
     case 2:
       return str == "..";
@@ -1133,12 +1130,14 @@ static inline bool IsDoubleDotSegment(const std::string& str) {
   }
 }
 
-static inline void ShortenUrlPath(struct url_data* url) {
+inline void ShortenUrlPath(struct url_data* url) {
   if (url->path.empty()) return;
   if (url->path.size() == 1 && url->scheme == "file:" &&
       IsNormalizedWindowsDriveLetter(url->path[0])) return;
   url->path.pop_back();
 }
+
+}  // anonymous namespace
 
 void URL::Parse(const char* input,
                 size_t len,
