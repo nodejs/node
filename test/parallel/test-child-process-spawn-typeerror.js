@@ -114,7 +114,7 @@ assert.throws(function() { spawn(cmd, s); }, TypeError);
 assert.throws(function() { spawn(cmd, a, s); }, TypeError);
 
 
-// verify that execFile has same argument parsing behaviour as spawn
+// verify that execFile has same argument parsing behavior as spawn
 //
 // function execFile(file=f [,args=a] [, options=o] [, callback=c]) has valid
 // combinations:
@@ -174,7 +174,7 @@ assert.throws(function() { execFile(cmd, n, o, s); }, TypeError);
 assert.doesNotThrow(function() { execFile(cmd, c, s); });
 
 
-// verify that fork has same argument parsing behaviour as spawn
+// verify that fork has same argument parsing behavior as spawn
 //
 // function fork(file=f [,args=a] [, options=o]) has valid combinations:
 //   (f)

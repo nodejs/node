@@ -7,9 +7,9 @@ const assert = require('assert');
 const h2 = require('http2');
 const net = require('net');
 
-// Tests behaviour of the proxied socket in Http2ServerRequest
+// Tests behavior of the proxied socket in Http2ServerRequest
 // & Http2ServerResponse - this proxy socket should mimic the
-// behaviour of http1 but against the http2 api & model
+// behavior of http1 but against the http2 api & model
 
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',

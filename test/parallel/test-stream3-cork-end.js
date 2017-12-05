@@ -4,7 +4,7 @@ const assert = require('assert');
 const stream = require('stream');
 const Writable = stream.Writable;
 
-// Test the buffering behaviour of Writable streams.
+// Test the buffering behavior of Writable streams.
 //
 // The call to cork() triggers storing chunks which are flushed
 // on calling end() and the stream subsequently ended.

@@ -6,7 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const h2 = require('http2');
 
-// Tests behaviour of the proxied socket in Http2ServerRequest
+// Tests behavior of the proxied socket in Http2ServerRequest
 // & Http2ServerResponse - specifically property setters
 
 const errMsg = {

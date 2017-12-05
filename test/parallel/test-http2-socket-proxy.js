@@ -7,7 +7,7 @@ const assert = require('assert');
 const h2 = require('http2');
 const net = require('net');
 
-// Tests behaviour of the proxied socket on Http2Session
+// Tests behavior of the proxied socket on Http2Session
 
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',

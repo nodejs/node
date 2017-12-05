@@ -39,7 +39,7 @@ const num8 = Number.NEGATIVE_INFINITY;
 assert.strictEqual(num8, test_number.Test(num8));
 
 
-// validate documented behaviour when value is retrieved
+// validate documented behavior when value is retrieved
 // as 32 bit integer with napi_get_value_int32
 assert.strictEqual(1, test_number.TestInt32Truncation(4294967297));
 assert.strictEqual(0, test_number.TestInt32Truncation(4294967296));
