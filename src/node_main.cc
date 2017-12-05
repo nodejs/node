@@ -1,6 +1,7 @@
 #include "node.h"
 
 #ifdef _WIN32
+#include <windows.h>
 #include <VersionHelpers.h>
 
 int wmain(int argc, wchar_t *wargv[]) {
