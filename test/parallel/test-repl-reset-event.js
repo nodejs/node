@@ -44,7 +44,7 @@ function testReset(cb) {
     assert.strictEqual(
       context.foo,
       undefined,
-      'REPL emitted the previous context, and is not using global as context. ' +
+      'REPL emitted the previous context and is not using global as context. ' +
       `context.foo is ${context.foo}, expected undefined.`
     );
     context.foo = 42;
