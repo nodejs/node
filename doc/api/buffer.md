@@ -1276,7 +1276,7 @@ const buf = Buffer.allocUnsafe(5);
 console.log(buf.fill('a'));
 // Prints: <Buffer aa aa aa aa aa>
 console.log(buf.fill('aazz', 'hex'));
-// Throws a exception.
+// Throws an exception.
 console.log(buf.fill('zz', 'hex'));
 ```
 
