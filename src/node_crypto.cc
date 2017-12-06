@@ -1356,7 +1356,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   else
     cert = wrap->issuer_;
   if (cert == nullptr)
-    return args.GetReturnValue().Set(Null(env->isolate()));
+    return args.GetReturnValue().SetNull();
 
   int size = i2d_X509(cert, nullptr);
   Local<Object> buff = Buffer::New(env, size).ToLocalChecked();
