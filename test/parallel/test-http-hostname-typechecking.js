@@ -9,26 +9,26 @@ const http = require('http');
 const vals = [{}, [], NaN, Infinity, -Infinity, true, false, 1, 0, new Date()];
 
 vals.forEach((v) => {
-  assert.throws(
+  common.expectsError(
     () => http.request({ hostname: v }),
-    common.expectsError({
+    {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.hostname" property must be one of ' +
                'type string, undefined, or null. ' +
                `Received type ${typeof v}`
-    })
+    }
   );
 
-  assert.throws(
+  common.expectsError(
     () => http.request({ host: v }),
-    common.expectsError({
+    {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "options.host" property must be one of ' +
                'type string, undefined, or null. ' +
                `Received type ${typeof v}`
-    })
+    }
   );
 });
 

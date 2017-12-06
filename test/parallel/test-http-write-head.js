@@ -52,14 +52,13 @@ const s = http.createServer(common.mustCall((req, res) => {
 
   res.writeHead(200, { Test: '2' });
 
-  assert.throws(() => {
+  common.expectsError(() => {
     res.writeHead(100, {});
-  }, common.expectsError({
+  }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     type: Error,
     message: 'Cannot render headers after they are sent to the client'
-  })
-  );
+  });
 
   res.end();
 }));
