@@ -24,9 +24,9 @@ common.expectsError(
     type: TypeError
   });
 
-assert.throws(function() {
+common.expectsError(function() {
   fs.watchFile(new Object(), common.mustNotCall());
-}, common.expectsError({ code: 'ERR_INVALID_ARG_TYPE', type: TypeError }));
+}, { code: 'ERR_INVALID_ARG_TYPE', type: TypeError });
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(
