@@ -814,6 +814,8 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 <!-- YAML
 added: v8.5.0
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
