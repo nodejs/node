@@ -662,7 +662,6 @@ class ContextifyScript : public BaseObject {
     MaybeLocal<String> filename = GetFilenameArg(env, options);
     MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
     MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
-    Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
     MaybeLocal<Context> maybe_context = GetContext(env, options);
@@ -672,7 +671,6 @@ class ContextifyScript : public BaseObject {
       return;
     }
 
-    bool display_errors = maybe_display_errors.ToChecked();
     bool produce_cached_data = maybe_produce_cached_data.ToChecked();
 
     ScriptCompiler::CachedData* cached_data = nullptr;
