@@ -58,13 +58,13 @@ const bufferMaxSizeMsg = common.expectsError({
 assert.throws(function() {
   SlowBuffer(Infinity);
 }, bufferMaxSizeMsg);
-assert.throws(function() {
+common.expectsError(function() {
   SlowBuffer(-1);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_OPT_VALUE',
   type: RangeError,
   message: 'The value "-1" is invalid for option "size"'
-}));
+});
 
 assert.throws(function() {
   SlowBuffer(buffer.kMaxLength + 1);
