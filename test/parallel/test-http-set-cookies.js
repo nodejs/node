@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
-const countdown = new Countdown(2, common.mustCall(() => server.close()));
+const countdown = new Countdown(2, () => server.close());
 const server = http.createServer(function(req, res) {
   if (req.url === '/one') {
     res.writeHead(200, [['set-cookie', 'A'],
