@@ -42,8 +42,10 @@ module.exports.plugins = [
   [
     require('remark-lint-prohibited-strings'),
     [
-      { no: 'v8', yes: 'V8' },
-      { no: 'Javascript', yes: 'JavaScript' }
+      { no: 'Github', yes: 'GitHub' },
+      { no: 'Javascript', yes: 'JavaScript' },
+      { no: 'Node.JS', yes: 'Node.js' },
+      { no: 'v8', yes: 'V8' }
     ]
   ],
   [require('remark-lint-strong-marker'), '*'],
