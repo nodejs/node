@@ -2191,3 +2191,31 @@ TEST(TracingCpuProfiler) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+
+TEST(CodeEntriesMemoryLeak) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  std::string source = "function start() {}\n";
+  for (int i = 0; i < 1000; ++i) {
+    source += "function foo" + std::to_string(i) + "() { return " +
+              std::to_string(i) +
+              "; }\n"
+              "foo" +
+              std::to_string(i) + "();\n";
+  }
+  CompileRun(source.c_str());
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  ProfilerHelper helper(env);
+
+  for (int j = 0; j < 100; ++j) {
+    v8::CpuProfile* profile = helper.Run(function, nullptr, 0);
+    profile->Delete();
+  }
+  ProfilerListener* profiler_listener =
+      CcTest::i_isolate()->logger()->profiler_listener();
+
+  CHECK_GE(10000ul, profiler_listener->entries_count_for_test());
+}
