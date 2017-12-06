@@ -129,7 +129,7 @@ such a way that it is marked as deprecated.
 ```js
 const util = require('util');
 
-exports.obsoleteFunction = util.deprecate(function() {
+exports.obsoleteFunction = util.deprecate(() => {
   // Do something here.
 }, 'obsoleteFunction() is deprecated. Use newShinyFunction() instead.');
 ```
@@ -1061,7 +1061,7 @@ util.isObject(null);
 // Returns: false
 util.isObject({});
 // Returns: true
-util.isObject(function() {});
+util.isObject(() => {});
 // Returns: false
 ```
 
@@ -1093,7 +1093,7 @@ util.isPrimitive(undefined);
 // Returns: true
 util.isPrimitive({});
 // Returns: false
-util.isPrimitive(function() {});
+util.isPrimitive(() => {});
 // Returns: false
 util.isPrimitive(/^$/);
 // Returns: false
