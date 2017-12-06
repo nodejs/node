@@ -5084,7 +5084,7 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
 }
 
 void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
-                           void (*set_field)(DH*, BIGNUM*), const char* what) {
+                           int (*set_field)(DH*, BIGNUM*), const char* what) {
   Environment* env = Environment::GetCurrent(args);
 
   DiffieHellman* dh;
@@ -5107,12 +5107,13 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
       BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
                 Buffer::Length(args[0]), nullptr);
   CHECK_NE(num, nullptr);
-  set_field(dh->dh, num);
+  USE(set_field(dh->dh, num));
 }
 
 
 void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args, [](DH* dh, BIGNUM* num) { DH_set0_key(dh, num, nullptr); },
+  SetKey(args,
+         [](DH* dh, BIGNUM* num) { return DH_set0_key(dh, num, nullptr); },
          "Public key");
 }
 
@@ -5123,7 +5124,8 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 // Node. See https://github.com/openssl/openssl/pull/4384.
 #error "OpenSSL 1.1.0 revisions before 1.1.0g are not supported"
 #endif
-  SetKey(args, [](DH* dh, BIGNUM* num) { DH_set0_key(dh, nullptr, num); },
+  SetKey(args,
+         [](DH* dh, BIGNUM* num) { return DH_set0_key(dh, nullptr, num); },
          "Private key");
 }
 
