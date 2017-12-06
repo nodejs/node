@@ -416,7 +416,7 @@ const BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 // '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
 function linkManPages(text) {
   return text.replace(
-    / ([a-z.]+)\((\d)([a-z]?)\)/gm,
+    /([a-z.]+)\((\d)([a-z]?)\)/gm,
     (match, name, number, optionalCharacter) => {
       // name consists of lowercase letters, number is a single digit
       const displayAs = `${name}(${number}${optionalCharacter})`;
