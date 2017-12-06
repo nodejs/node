@@ -82,6 +82,19 @@ TLSWrap::~TLSWrap() {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   sni_context_.Reset();
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+
+  // See test/parallel/test-tls-transport-destroy-after-own-gc.js:
+  // If this TLSWrap is garbage collected, we cannot allow callbacks to be
+  // called on this stream.
+
+  if (stream_ == nullptr)
+    return;
+  stream_->set_destruct_cb({ nullptr, nullptr });
+  stream_->set_after_write_cb({ nullptr, nullptr });
+  stream_->set_alloc_cb({ nullptr, nullptr });
+  stream_->set_read_cb({ nullptr, nullptr });
+  stream_->set_destruct_cb({ nullptr, nullptr });
+  stream_->Unconsume();
 }
 
 
@@ -545,12 +558,16 @@ uint32_t TLSWrap::UpdateWriteQueueSize(uint32_t write_queue_size) {
 
 
 int TLSWrap::ReadStart() {
-  return stream_->ReadStart();
+  if (stream_ != nullptr)
+    return stream_->ReadStart();
+  return 0;
 }
 
 
 int TLSWrap::ReadStop() {
-  return stream_->ReadStop();
+  if (stream_ != nullptr)
+    return stream_->ReadStop();
+  return 0;
 }
 
 
