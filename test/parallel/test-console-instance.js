@@ -37,13 +37,13 @@ assert.strictEqual('function', typeof Console);
 
 // make sure that the Console constructor throws
 // when not given a writable stream instance
-assert.throws(
+common.expectsError(
   () => { new Console(); },
-  common.expectsError({
+  {
     code: 'ERR_CONSOLE_WRITABLE_STREAM',
     type: TypeError,
     message: /stdout/
-  })
+  }
 );
 
 // Console constructor should throw if stderr exists but is not writable
