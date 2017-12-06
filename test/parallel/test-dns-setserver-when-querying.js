@@ -12,22 +12,21 @@ const goog = [
 
 {
   // Fix https://github.com/nodejs/node/issues/14734
-  const resolver = new dns.Resolver();
-  resolver.resolve('localhost', function(err/*, ret*/) {
-    // nothing
-  });
 
-  assert.throws(() => {
-    resolver.setServers(goog);
-  }, common.expectsError({
-    code: 'ERR_DNS_SET_SERVERS_FAILED',
-    message: /^c-ares failed to set servers: "There are pending queries\." \[.+\]$/g
-  }));
+  {
+    const resolver = new dns.Resolver();
+    resolver.resolve('localhost', common.mustCall());
 
-  dns.resolve('localhost', function(err/*, ret*/) {
-    // nothing
-  });
+    common.expectsError(resolver.setServers.bind(resolver, goog), {
+      code: 'ERR_DNS_SET_SERVERS_FAILED',
+      message: /^c-ares failed to set servers: "There are pending queries\." \[.+\]$/g
+    });
+  }
 
-  // should not throw
-  dns.setServers(goog);
+  {
+    dns.resolve('localhost', common.mustCall());
+
+    // should not throw
+    dns.setServers(goog);
+  }
 }

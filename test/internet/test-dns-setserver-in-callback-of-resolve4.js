@@ -15,8 +15,4 @@ dns.resolve4(
   }));
 
 // Test https://github.com/nodejs/node/issues/14734
-dns.resolve4(
-  addresses.INET4_HOST,
-  common.mustCall(function() {
-    // DO NOTHING
-  }));
+dns.resolve4(addresses.INET4_HOST, common.mustCall());
