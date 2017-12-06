@@ -574,6 +574,15 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
+### emitter.rawListeners(eventName)
+<!-- YAML
+added: REPLACEME
+-->
+- `eventName` {any}
+
+Returns a copy of the array of listeners for the event named `eventName`,
+including any wrappers (such as those created by `.once`).
+
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
 [`domain`]: domain.html
