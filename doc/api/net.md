@@ -802,7 +802,7 @@ socket.on('timeout', () => {
 
 If `timeout` is 0, then the existing idle timeout is disabled.
 
-The optional `callback` parameter will be added as a one time listener for the
+The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
 ### socket.unref()
