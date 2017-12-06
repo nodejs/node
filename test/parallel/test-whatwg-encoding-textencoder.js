@@ -41,11 +41,11 @@ assert(TextEncoder);
   });
 
   [{}, [], true, 1, '', new TextDecoder()].forEach((i) => {
-    assert.throws(() => fn.call(i, Infinity, {}),
-                  common.expectsError({
-                    code: 'ERR_INVALID_THIS',
-                    type: TypeError,
-                    message: 'Value of "this" must be of type TextEncoder'
-                  }));
+    common.expectsError(() => fn.call(i, Infinity, {}),
+                        {
+                          code: 'ERR_INVALID_THIS',
+                          type: TypeError,
+                          message: 'Value of "this" must be of type TextEncoder'
+                        });
   });
 }

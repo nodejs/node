@@ -42,20 +42,20 @@ test(function() {
 // Tests below are not from WPT.
 {
   const params = new URLSearchParams();
-  assert.throws(() => {
+  common.expectsError(() => {
     params.getAll.call(undefined);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_THIS',
     type: TypeError,
     message: 'Value of "this" must be of type URLSearchParams'
-  }));
-  assert.throws(() => {
+  });
+  common.expectsError(() => {
     params.getAll();
-  }, common.expectsError({
+  }, {
     code: 'ERR_MISSING_ARGS',
     type: TypeError,
     message: 'The "name" argument must be specified'
-  }));
+  });
 
   const obj = {
     toString() { throw new Error('toString'); },

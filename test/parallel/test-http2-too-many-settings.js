@@ -17,11 +17,11 @@ let clients = 2;
 function doTest(session) {
   for (let n = 0; n < maxPendingAck; n++)
     assert.doesNotThrow(() => session.settings({ enablePush: false }));
-  assert.throws(() => session.settings({ enablePush: false }),
-                common.expectsError({
-                  code: 'ERR_HTTP2_MAX_PENDING_SETTINGS_ACK',
-                  type: Error
-                }));
+  common.expectsError(() => session.settings({ enablePush: false }),
+                      {
+                        code: 'ERR_HTTP2_MAX_PENDING_SETTINGS_ACK',
+                        type: Error
+                      });
 }
 
 server.on('stream', common.mustNotCall());
