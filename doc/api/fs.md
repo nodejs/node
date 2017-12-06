@@ -1954,6 +1954,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `path` parameter can be a file descriptor now.
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
 * `options` {Object|string}
