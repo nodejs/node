@@ -1170,6 +1170,8 @@ to the completion callback.
 <!-- YAML
 added: v0.4.7
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 * `uid` {integer}
