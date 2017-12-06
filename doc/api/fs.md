@@ -2039,6 +2039,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/4518
     description: The `length` parameter can now be `0`.
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 * `buffer` {string|Buffer|Uint8Array}
