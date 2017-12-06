@@ -1231,6 +1231,8 @@ except that the file to be stat-ed is specified by the file descriptor `fd`.
 <!-- YAML
 added: v0.1.95
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 
