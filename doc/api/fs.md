@@ -575,7 +575,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -644,7 +644,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `file` {string|Buffer|number} filename or file descriptor
@@ -726,7 +726,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -757,7 +757,7 @@ to the completion callback.
 added: v0.1.21
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -818,7 +818,7 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 added: v8.5.0
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `src` {string|Buffer|URL} source filename to copy
@@ -1144,7 +1144,7 @@ are given to the completion callback.
 added: v0.4.7
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1176,7 +1176,7 @@ to the completion callback.
 added: v0.4.7
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1207,7 +1207,7 @@ given to the completion callback.
 added: v0.1.96
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1238,7 +1238,7 @@ except that the file to be stat-ed is specified by the file descriptor `fd`.
 added: v0.1.95
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1267,7 +1267,7 @@ to the completion callback.
 added: v0.1.96
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1338,7 +1338,7 @@ The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 added: v0.8.6
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1382,7 +1382,7 @@ changes:
                  time specifiers.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -1416,7 +1416,7 @@ Only available on macOS.
 deprecated: v0.4.7
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer}
@@ -1488,7 +1488,7 @@ changes:
                  still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `existingPath` {string|Buffer|URL}
@@ -1530,7 +1530,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -1569,7 +1569,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -1654,7 +1654,7 @@ fs.mkdtemp(`${tmpDir}${sep}`, (err, folder) => {
 added: v5.10.0
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `prefix` {string}
@@ -1776,7 +1776,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -1869,7 +1869,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -1972,7 +1972,7 @@ changes:
     description: The `path` parameter can be a file descriptor now.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
@@ -2036,7 +2036,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2059,7 +2059,7 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -2174,7 +2174,7 @@ changes:
     description: The `cache` parameter was removed.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2258,7 +2258,7 @@ changes:
                  *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `oldPath` {string|Buffer|URL}
@@ -2300,7 +2300,7 @@ changes:
                  `file:` protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2352,7 +2352,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2402,7 +2402,7 @@ changes:
                  *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `target` {string|Buffer|URL}
@@ -2438,7 +2438,7 @@ being thrown in the future.
 added: v0.8.6
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer}
@@ -2481,7 +2481,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2563,7 +2563,7 @@ changes:
                  time specifiers.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `path` {string|Buffer|URL}
@@ -2911,7 +2911,7 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `file` {string|Buffer|integer} filename or file descriptor
@@ -2935,7 +2935,7 @@ changes:
     description: The `offset` and `length` parameters are optional now.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -2953,7 +2953,7 @@ changes:
     description: The `position` parameter is optional now.
 -->
 Note that this is a blocking call. Avoid this method in an asynchronous
-environment. See [Overview of Blocking vs Non-Blocking][blocking-vs-non-blocking]
+environment. See [Overview of Blocking vs Non-Blocking][]
 for more information.
 
 * `fd` {integer}
@@ -3236,4 +3236,4 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [inode]: https://en.wikipedia.org/wiki/Inode
 [Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 [MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
-[Blocking-Vs-Non-Blocking]: https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/
+[Overview of Blocking vs Non-Blocking]: https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/
