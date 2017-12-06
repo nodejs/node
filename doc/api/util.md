@@ -119,11 +119,9 @@ it is marked as deprecated.
 ```js
 const util = require('util');
 
-exports.puts = util.deprecate(function() {
-  for (let i = 0, len = arguments.length; i < len; ++i) {
-    process.stdout.write(arguments[i] + '\n');
-  }
-}, 'util.puts: Use console.log instead');
+exports.obsoleteFunction = util.deprecate(() => {
+  // Do something here.
+}, 'obsoleteFunction() is deprecated. Use newShinyFunction() instead.');
 ```
 
 When called, `util.deprecate()` will return a function that will emit a
@@ -1023,7 +1021,7 @@ util.isObject(null);
 // Returns: false
 util.isObject({});
 // Returns: true
-util.isObject(function() {});
+util.isObject(() => {});
 // Returns: false
 ```
 
@@ -1055,7 +1053,7 @@ util.isPrimitive(undefined);
 // Returns: true
 util.isPrimitive({});
 // Returns: false
-util.isPrimitive(function() {});
+util.isPrimitive(() => {});
 // Returns: false
 util.isPrimitive(/^$/);
 // Returns: false
