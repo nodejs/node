@@ -514,7 +514,7 @@ will be present on the object:
 | `"SRV"` | Refer to [`dns.resolveSrv()`][] |
 | `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
 
-Here is a example of the `ret` object passed to the callback:
+Here is an example of the `ret` object passed to the callback:
 
 <!-- eslint-disable semi -->
 ```js
