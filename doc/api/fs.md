@@ -575,7 +575,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Warning: this is **blocking call**, do not use in an asynchronous environment unless
-you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `path` {string|Buffer|URL}
 * `mode` {integer} **Default:** `fs.constants.F_OK`
@@ -644,7 +644,7 @@ changes:
 -->
 
 Warning: this is **blocking call**, do not use in an asynchronous environment unless
-you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `file` {string|Buffer|number} filename or file descriptor
 * `data` {string|Buffer}
@@ -725,7 +725,7 @@ changes:
                  protocol. Support is currently still *experimental*.
 -->
 Warning: this is **blocking call**, do not use in an asynchronous environment unless
-you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `path` {string|Buffer|URL}
 * `uid` {integer}
@@ -755,7 +755,7 @@ to the completion callback.
 added: v0.1.21
 -->
 Warning: this is **blocking call**, do not use in an asynchronous environment unless
-you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 
@@ -815,7 +815,7 @@ fs.copyFile('source.txt', 'destination.txt', COPYFILE_EXCL, callback);
 added: v8.5.0
 -->
 Warning: this is **blocking call**, do not use in an asynchronous environment unless
-you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking)).
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `src` {string|Buffer|URL} source filename to copy
 * `dest` {string|Buffer|URL} destination filename of the copy operation
@@ -1139,6 +1139,8 @@ are given to the completion callback.
 <!-- YAML
 added: v0.4.7
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 * `mode` {integer}
