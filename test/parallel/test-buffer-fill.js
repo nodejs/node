@@ -303,12 +303,12 @@ function testBufs(string, offset, length, encoding) {
 }
 
 // Make sure these throw.
-assert.throws(
+common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', -1),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
-assert.throws(
+  { code: 'ERR_INDEX_OUT_OF_RANGE' });
+common.expectsError(
   () => Buffer.allocUnsafe(8).fill('a', 0, 9),
-  common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' }));
+  { code: 'ERR_INDEX_OUT_OF_RANGE' });
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');
@@ -357,7 +357,7 @@ Buffer.alloc(8, '');
 // magically mangled using Symbol.toPrimitive.
 {
   let elseWasLast = false;
-  assert.throws(() => {
+  common.expectsError(() => {
     let ctr = 0;
     const start = {
       [Symbol.toPrimitive]() {
@@ -374,8 +374,9 @@ Buffer.alloc(8, '');
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), start, 1);
-  }, common.expectsError(
-    { code: undefined, type: RangeError, message: 'Index out of range' }));
+  }, {
+    code: undefined, type: RangeError, message: 'Index out of range'
+  });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
             'internal API changed, -1 no longer in correct location');
@@ -383,16 +384,17 @@ Buffer.alloc(8, '');
 
 // Testing process.binding. Make sure "start" is properly checked for -1 wrap
 // around.
-assert.throws(() => {
+common.expectsError(() => {
   process.binding('buffer').fill(Buffer.alloc(1), 1, -1, 0, 1);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, {
+  code: undefined, type: RangeError, message: 'Index out of range'
+});
 
 // Make sure "end" is properly checked, even if it's magically mangled using
 // Symbol.toPrimitive.
 {
   let elseWasLast = false;
-  assert.throws(() => {
+  common.expectsError(() => {
     let ctr = 0;
     const end = {
       [Symbol.toPrimitive]() {
@@ -409,8 +411,9 @@ assert.throws(() => {
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
-  }, common.expectsError(
-    { code: undefined, type: RangeError, message: 'Index out of range' }));
+  }, {
+    code: undefined, type: RangeError, message: 'Index out of range'
+  });
   // Make sure -1 is making it to Buffer::Fill().
   assert.ok(elseWasLast,
             'internal API changed, -1 no longer in correct location');

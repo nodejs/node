@@ -8,9 +8,11 @@ const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea, 0xcf, 0xff, 0xd9, 0x01, 0xde]);
 function read(buff, funx, args, expected) {
 
   assert.strictEqual(buff[funx](...args), expected);
-  assert.throws(
+  common.expectsError(
     () => buff[funx](-1),
-    common.expectsError({ code: 'ERR_INDEX_OUT_OF_RANGE' })
+    {
+      code: 'ERR_INDEX_OUT_OF_RANGE'
+    }
   );
 
   assert.doesNotThrow(
