@@ -2910,6 +2910,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `file` parameter can be a file descriptor now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
+for more information.
 
 * `file` {string|Buffer|integer} filename or file descriptor
 * `data` {string|Buffer|Uint8Array}
@@ -2931,6 +2934,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `offset` and `length` parameters are optional now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
+for more information.
 
 * `fd` {integer}
 * `buffer` {Buffer|Uint8Array}
@@ -2946,6 +2952,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `position` parameter is optional now.
 -->
+Note that this is a blocking call. Avoid this method in an asynchronous
+environment. See [Overview of Blocking vs Non-Blocking](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
+for more information.
 
 * `fd` {integer}
 * `string` {string}
