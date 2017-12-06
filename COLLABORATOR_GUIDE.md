@@ -89,7 +89,7 @@ change. In the case of pull requests proposed by an existing
 Collaborator, an additional Collaborator is required for sign-off.
 
 In some cases, it may be necessary to summon a qualified Collaborator
-or a Github team to a pull request for review by @-mention.
+or a GitHub team to a pull request for review by @-mention.
 [See "Who to CC in issues"](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
 If you are unsure about the modification and are not prepared to take
@@ -160,7 +160,7 @@ trivial changes that do not require being tested on all platforms.
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test`
 on a large selection of common modules. This is useful to check whether a
-change will cause breakage in the ecosystem. To test Node.JS ABI changes
+change will cause breakage in the ecosystem. To test Node.js ABI changes
 you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
@@ -408,7 +408,7 @@ Changes" section of the release notes.
 
 Collaborators may opt to elevate pull requests or issues to the [TSC][] for
 discussion by assigning the `tsc-review` label or @-mentioning the
-`@nodejs/tsc` Github team. This should be done where a pull request:
+`@nodejs/tsc` GitHub team. This should be done where a pull request:
 
 - is labeled `semver-major`, or
 - has a significant impact on the codebase, or
