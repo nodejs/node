@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -46,7 +45,7 @@ http.globalAgent.maxSockets = 5;
 
 const countdown = new Countdown(SHOULD_KEEP_ALIVE.length , () => server.close());
 
-const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining
+const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining;
 
 const server = net.createServer(function(socket) {
   socket.write(SERVER_RESPONSES[getCountdownIndex()]);
