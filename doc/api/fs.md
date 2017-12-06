@@ -3236,4 +3236,4 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [inode]: https://en.wikipedia.org/wiki/Inode
 [Naming Files, Paths, and Namespaces]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 [MSDN-Using-Streams]: https://msdn.microsoft.com/en-us/library/windows/desktop/bb540537.aspx
-[blocking-vs-non-blocking]: https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/
+[Blocking-Vs-Non-Blocking]: https://nodejs.org/en/docs/guides/blocking-vs-non-blocking/
