@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 const tests = [417, 417];
 
@@ -13,8 +14,10 @@ const s = http.createServer(function(req, res) {
   throw new Error('this should never be executed');
 });
 
-s.listen(0, nextTest);
 
+
+s.listen(0, nextTest);
+const countdown = new Countdown(tests.length, () => s.close() );
 function nextTest() {
   const options = {
     port: s.address().port,
@@ -43,6 +46,7 @@ function nextTest() {
     response.on('end', function() {
       testsComplete++;
       testIdx++;
+      countdown.dec();
       nextTest();
     });
     response.resume();

@@ -24,6 +24,8 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
+const common = require('../common');
+const Countdown = require('../common/countdown');
 
 const SERVER_RESPONSES = [
   'HTTP/1.0 200 ok\r\nContent-Length: 0\r\n\r\n',
@@ -45,6 +47,8 @@ let requests = 0;
 let responses = 0;
 http.globalAgent.maxSockets = 5;
 
+const countdown = new Countdown(SHOULD_KEEP_ALIVE.length , () => server.close());
+
 const server = net.createServer(function(socket) {
   socket.write(SERVER_RESPONSES[requests]);
   ++requests;
@@ -56,17 +60,16 @@ const server = net.createServer(function(socket) {
         `${SERVER_RESPONSES[responses]} should ${
           SHOULD_KEEP_ALIVE[responses] ? '' : 'not '}Keep-Alive`);
       ++responses;
-      if (responses < SHOULD_KEEP_ALIVE.length) {
+      countdown.dec();
+      if (countdown.remaining) {
         makeRequest();
-      } else {
-        server.close();
       }
       res.resume();
     });
   }
-
   makeRequest();
 });
+
 
 process.on('exit', function() {
   assert.strictEqual(requests, SERVER_RESPONSES.length);
