@@ -57,12 +57,12 @@ const listenOnPort = [
     const block = () => {
       net.createServer().listen(options, common.mustNotCall());
     };
-    assert.throws(block,
-                  common.expectsError({
-                    code: 'ERR_INVALID_OPT_VALUE',
-                    type: Error,
-                    message: /^The value "{.*}" is invalid for option "options"$/
-                  }));
+    common.expectsError(block,
+                        {
+                          code: 'ERR_INVALID_OPT_VALUE',
+                          type: Error,
+                          message: /^The value "{.*}" is invalid for option "options"$/
+                        });
   }
 
   shouldFailToListen(false, { port: false });

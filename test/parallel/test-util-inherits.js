@@ -80,22 +80,22 @@ assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
 // should throw with invalid arguments
-assert.throws(function() {
+common.expectsError(function() {
   inherits(A, {});
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "superCtor.prototype" property must be of type Function'
-})
+}
 );
 assert.throws(function() {
   inherits(A, null);
 }, errCheck);
-assert.throws(function() {
+common.expectsError(function() {
   inherits(null, A);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "ctor" argument must be of type Function'
-})
+}
 );

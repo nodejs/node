@@ -52,12 +52,13 @@ assert(TextDecoder);
 if (common.hasIntl) {
   ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
     const dec = new TextDecoder(i, { fatal: true });
-    assert.throws(() => dec.decode(buf.slice(0, 8)),
-                  common.expectsError({
-                    code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-                    type: TypeError,
-                    message: 'The encoded data was not valid for encoding utf-8'
-                  }));
+    common.expectsError(() => dec.decode(buf.slice(0, 8)),
+                        {
+                          code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
+                          type: TypeError,
+                          message: 'The encoded data was not valid ' +
+                          'for encoding utf-8'
+                        });
   });
 
   ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
@@ -66,13 +67,13 @@ if (common.hasIntl) {
     assert.doesNotThrow(() => dec.decode(buf.slice(8)));
   });
 } else {
-  assert.throws(
+  common.expectsError(
     () => new TextDecoder('utf-8', { fatal: true }),
-    common.expectsError({
+    {
       code: 'ERR_NO_ICU',
       type: TypeError,
       message: '"fatal" option is not supported on Node.js compiled without ICU'
-    }));
+    });
 }
 
 // Test TextDecoder, UTF-16le
@@ -96,12 +97,12 @@ if (common.hasIntl) {
   });
 
   [{}, [], true, 1, '', new TextEncoder()].forEach((i) => {
-    assert.throws(() => fn.call(i, Infinity, {}),
-                  common.expectsError({
-                    code: 'ERR_INVALID_THIS',
-                    type: TypeError,
-                    message: 'Value of "this" must be of type TextDecoder'
-                  }));
+    common.expectsError(() => fn.call(i, Infinity, {}),
+                        {
+                          code: 'ERR_INVALID_THIS',
+                          type: TypeError,
+                          message: 'Value of "this" must be of type TextDecoder'
+                        });
   });
 }
 

@@ -14,15 +14,14 @@ binding.SecureContext = function() {
   return rv;
 };
 
-const assert = require('assert');
 const tls = require('tls');
 
 {
-  assert.throws(
+  common.expectsError(
     () => { tls.createSecureContext({ clientCertEngine: 'Cannonmouth' }); },
-    common.expectsError({
+    {
       code: 'ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED',
       message: 'Custom engines not supported by this OpenSSL'
-    })
+    }
   );
 }

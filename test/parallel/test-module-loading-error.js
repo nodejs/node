@@ -59,16 +59,16 @@ assert.throws(
   }
 );
 
-assert.throws(
+common.expectsError(
   require,
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: /^missing path$/
-  }));
+  });
 
-assert.throws(
+common.expectsError(
   () => { require({}); },
-  common.expectsError({
+  {
     code: 'ERR_ASSERTION',
     message: /^path must be a string$/
-  }));
+  });

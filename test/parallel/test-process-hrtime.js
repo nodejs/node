@@ -33,34 +33,34 @@ validateTuple(tuple);
 validateTuple(process.hrtime(tuple));
 
 // test that only an Array may be passed to process.hrtime()
-assert.throws(() => {
+common.expectsError(() => {
   process.hrtime(1);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARG_TYPE',
   type: TypeError,
   message: 'The "time" argument must be of type Array. Received type number'
-}));
-assert.throws(() => {
+});
+common.expectsError(() => {
   process.hrtime([]);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
   message: 'The array "time" (length 0) must be of length 2.'
-}));
-assert.throws(() => {
+});
+common.expectsError(() => {
   process.hrtime([1]);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
   message: 'The array "time" (length 1) must be of length 2.'
-}));
-assert.throws(() => {
+});
+common.expectsError(() => {
   process.hrtime([1, 2, 3]);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_ARRAY_LENGTH',
   type: TypeError,
   message: 'The array "time" (length 3) must be of length 2.'
-}));
+});
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));

@@ -63,11 +63,11 @@ const net = require('net');
   const hintOptBlocks = doConnect([{ hints: hints }],
                                   () => common.mustNotCall());
   for (const block of hintOptBlocks) {
-    assert.throws(block, common.expectsError({
+    common.expectsError(block, {
       code: 'ERR_INVALID_OPT_VALUE',
       type: TypeError,
       message: /The value "\d+" is invalid for option "hints"/
-    }));
+    });
   }
 }
 

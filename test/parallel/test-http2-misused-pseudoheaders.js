@@ -3,7 +3,6 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const h2 = require('http2');
 
 const server = h2.createServer();
@@ -19,10 +18,10 @@ function onStream(stream, headers, flags) {
     ':method',
     ':scheme'
   ].forEach((i) => {
-    assert.throws(() => stream.respond({ [i]: '/' }),
-                  common.expectsError({
-                    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
-                  }));
+    common.expectsError(() => stream.respond({ [i]: '/' }),
+                        {
+                          code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+                        });
   });
 
   stream.respond({

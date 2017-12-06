@@ -225,13 +225,13 @@ function checkFormat(path, testCases) {
   }
 
   [null, undefined, 1, true, false, 'string'].forEach((pathObject) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       path.format(pathObject);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "pathObject" argument must be of type Object. ' +
                `Received type ${typeName(pathObject)}`
-    }));
+    });
   });
 }

@@ -73,13 +73,13 @@ assert.doesNotThrow(() => readline.cursorTo(writable, 'a', 'b'));
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
-assert.throws(
+common.expectsError(
   () => readline.cursorTo(writable, 'a', 1),
-  common.expectsError({
+  {
     type: Error,
     code: 'ERR_INVALID_CURSOR_POS',
     message: 'Cannot set cursor row without setting its column'
-  }));
+  });
 assert.strictEqual(writable.data, '');
 
 writable.data = '';
