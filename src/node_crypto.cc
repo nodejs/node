@@ -1724,26 +1724,31 @@ void SSLWrap<Base>::OnClientHello(void* arg,
   Base* w = static_cast<Base*>(arg);
   Environment* env = w->ssl_env();
   HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
 
   Local<Object> hello_obj = Object::New(env->isolate());
   Local<Object> buff = Buffer::Copy(
       env,
       reinterpret_cast<const char*>(hello.session_id()),
       hello.session_size()).ToLocalChecked();
-  hello_obj->Set(env->session_id_string(), buff);
+  hello_obj->Set(context, env->session_id_string(), buff).FromJust();
   if (hello.servername() == nullptr) {
-    hello_obj->Set(env->servername_string(), String::Empty(env->isolate()));
+    hello_obj->Set(context,
+                   env->servername_string(),
+                   String::Empty(env->isolate())).FromJust();
   } else {
     Local<String> servername = OneByteString(env->isolate(),
                                              hello.servername(),
                                              hello.servername_size());
-    hello_obj->Set(env->servername_string(), servername);
+    hello_obj->Set(context, env->servername_string(), servername).FromJust();
   }
-  hello_obj->Set(env->tls_ticket_string(),
-                 Boolean::New(env->isolate(), hello.has_ticket()));
-  hello_obj->Set(env->ocsp_request_string(),
-                 Boolean::New(env->isolate(), hello.ocsp_request()));
+  hello_obj->Set(context,
+                 env->tls_ticket_string(),
+                 Boolean::New(env->isolate(), hello.has_ticket())).FromJust();
+  hello_obj->Set(context,
+                 env->ocsp_request_string(),
+                 Boolean::New(env->isolate(), hello.ocsp_request())).FromJust();
 
   Local<Value> argv[] = { hello_obj };
   w->MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
@@ -1788,7 +1793,7 @@ static bool SafeX509ExtPrint(BIO* out, X509_EXTENSION* ext) {
 
 static Local<Object> X509ToObject(Environment* env, X509* cert) {
   EscapableHandleScope scope(env->isolate());
-
+  Local<Context> context = env->context();
   Local<Object> info = Object::New(env->isolate());
 
   BIO* bio = BIO_new(BIO_s_mem());
@@ -1798,18 +1803,20 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                          0,
                          X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->subject_string(),
+    info->Set(context, env->subject_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString, mem->length));
+                                  String::kNormalString,
+                                  mem->length)).FromJust();
   }
   USE(BIO_reset(bio));
 
   X509_NAME* issuer_name = X509_get_issuer_name(cert);
   if (X509_NAME_print_ex(bio, issuer_name, 0, X509_NAME_FLAGS) > 0) {
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->issuer_string(),
+    info->Set(context, env->issuer_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString, mem->length));
+                                  String::kNormalString,
+                                  mem->length)).FromJust();
   }
   USE(BIO_reset(bio));
 
@@ -1834,9 +1841,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     }
 
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(keys[i],
+    info->Set(context, keys[i],
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString, mem->length));
+                                  String::kNormalString,
+                                  mem->length)).FromJust();
 
     USE(BIO_reset(bio));
   }
@@ -1852,9 +1860,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     RSA_get0_key(rsa, &n, &e, nullptr);
     BN_print(bio, n);
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->modulus_string(),
+    info->Set(context, env->modulus_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString, mem->length));
+                                  String::kNormalString,
+                                  mem->length)).FromJust();
     USE(BIO_reset(bio));
 
     uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
@@ -1866,9 +1875,10 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       BIO_printf(bio, "0x%x%08x", hi, lo);
     }
     BIO_get_mem_ptr(bio, &mem);
-    info->Set(env->exponent_string(),
+    info->Set(context, env->exponent_string(),
               String::NewFromUtf8(env->isolate(), mem->data,
-                                  String::kNormalString, mem->length));
+                                  String::kNormalString,
+                                  mem->length)).FromJust();
     USE(BIO_reset(bio));
   }
 
@@ -1883,16 +1893,18 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
 
   ASN1_TIME_print(bio, X509_get_notBefore(cert));
   BIO_get_mem_ptr(bio, &mem);
-  info->Set(env->valid_from_string(),
+  info->Set(context, env->valid_from_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
-                                String::kNormalString, mem->length));
+                                String::kNormalString,
+                                mem->length)).FromJust();
   USE(BIO_reset(bio));
 
   ASN1_TIME_print(bio, X509_get_notAfter(cert));
   BIO_get_mem_ptr(bio, &mem);
-  info->Set(env->valid_to_string(),
+  info->Set(context, env->valid_to_string(),
             String::NewFromUtf8(env->isolate(), mem->data,
-                                String::kNormalString, mem->length));
+                                String::kNormalString,
+                                mem->length)).FromJust();
   BIO_free_all(bio);
 
   unsigned int md_size, i;
@@ -1913,8 +1925,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       fingerprint[0] = '\0';
     }
 
-    info->Set(env->fingerprint_string(),
-              OneByteString(env->isolate(), fingerprint));
+    info->Set(context, env->fingerprint_string(),
+              OneByteString(env->isolate(), fingerprint)).FromJust();
   }
 
   STACK_OF(ASN1_OBJECT)* eku = static_cast<STACK_OF(ASN1_OBJECT)*>(
@@ -1926,18 +1938,20 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     int j = 0;
     for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
       if (OBJ_obj2txt(buf, sizeof(buf), sk_ASN1_OBJECT_value(eku, i), 1) >= 0)
-        ext_key_usage->Set(j++, OneByteString(env->isolate(), buf));
+        ext_key_usage->Set(context,
+                           j++,
+                           OneByteString(env->isolate(), buf)).FromJust();
     }
 
     sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
-    info->Set(env->ext_key_usage_string(), ext_key_usage);
+    info->Set(context, env->ext_key_usage_string(), ext_key_usage).FromJust();
   }
 
   if (ASN1_INTEGER* serial_number = X509_get_serialNumber(cert)) {
     if (BIGNUM* bn = ASN1_INTEGER_to_BN(serial_number, nullptr)) {
       if (char* buf = BN_bn2hex(bn)) {
-        info->Set(env->serial_number_string(),
-                  OneByteString(env->isolate(), buf));
+        info->Set(context, env->serial_number_string(),
+                  OneByteString(env->isolate(), buf)).FromJust();
         OPENSSL_free(buf);
       }
       BN_free(bn);
@@ -1950,7 +1964,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   unsigned char* serialized = reinterpret_cast<unsigned char*>(
       Buffer::Data(buff));
   i2d_X509(cert, &serialized);
-  info->Set(env->raw_string(), buff);
+  info->Set(context, env->raw_string(), buff).FromJust();
 
   return scope.Escape(info);
 }
@@ -1963,6 +1977,7 @@ void SSLWrap<Base>::GetPeerCertificate(
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->ssl_env();
+  Local<Context> context = env->context();
 
   ClearErrorOnReturn clear_error_on_return;
 
@@ -2014,7 +2029,7 @@ void SSLWrap<Base>::GetPeerCertificate(
         continue;
 
       Local<Object> ca_info = X509ToObject(env, ca);
-      info->Set(env->issuercert_string(), ca_info);
+      info->Set(context, env->issuercert_string(), ca_info).FromJust();
       info = ca_info;
 
       // NOTE: Intentionally freeing cert that is not used anymore
@@ -2037,7 +2052,7 @@ void SSLWrap<Base>::GetPeerCertificate(
       break;
 
     Local<Object> ca_info = X509ToObject(env, ca);
-    info->Set(env->issuercert_string(), ca_info);
+    info->Set(context, env->issuercert_string(), ca_info).FromJust();
     info = ca_info;
 
     // NOTE: Intentionally freeing cert that is not used anymore
@@ -2049,7 +2064,7 @@ void SSLWrap<Base>::GetPeerCertificate(
 
   // Self-issued certificate
   if (X509_check_issued(cert, cert) == X509_V_OK)
-    info->Set(env->issuercert_string(), info);
+    info->Set(context, env->issuercert_string(), info).FromJust();
 
   CHECK_NE(cert, nullptr);
 
@@ -2245,6 +2260,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
 
   CHECK_NE(w->ssl_, nullptr);
 
@@ -2259,22 +2275,24 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   if (SSL_get_server_tmp_key(w->ssl_, &key)) {
     switch (EVP_PKEY_id(key)) {
       case EVP_PKEY_DH:
-        info->Set(env->type_string(),
-                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH"));
-        info->Set(env->size_string(),
-                  Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+        info->Set(context, env->type_string(),
+                  FIXED_ONE_BYTE_STRING(env->isolate(), "DH")).FromJust();
+        info->Set(context, env->size_string(),
+                  Integer::New(env->isolate(), EVP_PKEY_bits(key))).FromJust();
         break;
       case EVP_PKEY_EC:
         {
           EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
           int nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
           EC_KEY_free(ec);
-          info->Set(env->type_string(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH"));
-          info->Set(env->name_string(),
-                    OneByteString(args.GetIsolate(), OBJ_nid2sn(nid)));
-          info->Set(env->size_string(),
-                    Integer::New(env->isolate(), EVP_PKEY_bits(key)));
+          info->Set(context, env->type_string(),
+                    FIXED_ONE_BYTE_STRING(env->isolate(), "ECDH")).FromJust();
+          info->Set(context, env->name_string(),
+                    OneByteString(args.GetIsolate(),
+                                  OBJ_nid2sn(nid))).FromJust();
+          info->Set(context, env->size_string(),
+                    Integer::New(env->isolate(),
+                                 EVP_PKEY_bits(key))).FromJust();
         }
     }
     EVP_PKEY_free(key);
@@ -2312,6 +2330,7 @@ template <class Base>
 void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
+  Environment* env = Environment::GetCurrent(args);
 
   // XXX(bnoordhuis) The UNABLE_TO_GET_ISSUER_CERT error when there is no
   // peer certificate is questionable but it's compatible with what was
@@ -2367,7 +2386,8 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   Local<String> reason_string = OneByteString(isolate, reason);
   Local<Value> exception_value = Exception::Error(reason_string);
   Local<Object> exception_object = exception_value->ToObject(isolate);
-  exception_object->Set(w->env()->code_string(), OneByteString(isolate, code));
+  exception_object->Set(env->context(), w->env()->code_string(),
+                        OneByteString(isolate, code)).FromJust();
   args.GetReturnValue().Set(exception_object);
 }
 
@@ -2377,6 +2397,7 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = w->ssl_env();
+  Local<Context> context = env->context();
 
   const SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
   if (c == nullptr)
@@ -2384,9 +2405,10 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> info = Object::New(env->isolate());
   const char* cipher_name = SSL_CIPHER_get_name(c);
-  info->Set(env->name_string(), OneByteString(args.GetIsolate(), cipher_name));
-  info->Set(env->version_string(),
-            OneByteString(args.GetIsolate(), "TLSv1/SSLv3"));
+  info->Set(context, env->name_string(),
+            OneByteString(args.GetIsolate(), cipher_name)).FromJust();
+  info->Set(context, env->version_string(),
+            OneByteString(args.GetIsolate(), "TLSv1/SSLv3")).FromJust();
   args.GetReturnValue().Set(info);
 }
 
@@ -2695,19 +2717,22 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
     return -1;
 
   Environment* env = w->env();
+  Local<Context> context = env->context();
   HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+  Context::Scope context_scope(context);
   w->cert_cb_running_ = true;
 
   Local<Object> info = Object::New(env->isolate());
 
   const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
   if (servername == nullptr) {
-    info->Set(env->servername_string(), String::Empty(env->isolate()));
+    info->Set(context,
+              env->servername_string(),
+              String::Empty(env->isolate())).FromJust();
   } else {
     Local<String> str = OneByteString(env->isolate(), servername,
                                       strlen(servername));
-    info->Set(env->servername_string(), str);
+    info->Set(context, env->servername_string(), str).FromJust();
   }
 
   bool ocsp = false;
@@ -2715,7 +2740,8 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
   ocsp = SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp;
 #endif
 
-  info->Set(env->ocsp_request_string(), Boolean::New(env->isolate(), ocsp));
+  info->Set(context, env->ocsp_request_string(),
+            Boolean::New(env->isolate(), ocsp)).FromJust();
 
   Local<Value> argv[] = { info };
   w->MakeCallback(env->oncertcb_string(), arraysize(argv), argv);
@@ -4997,7 +5023,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
                         keylen));
 
   if (args[5]->IsFunction()) {
-    obj->Set(env->ondone_string(), args[5]);
+    obj->Set(env->context(), env->ondone_string(), args[5]).FromJust();
 
     uv_queue_work(env->event_loop(),
                   req.release()->work_req(),
@@ -5185,7 +5211,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
                              RandomBytesRequest::FREE_DATA));
 
   if (args[1]->IsFunction()) {
-    obj->Set(env->ondone_string(), args[1]);
+    obj->Set(env->context(), env->ondone_string(), args[1]).FromJust();
 
     uv_queue_work(env->event_loop(),
                   req.release()->work_req(),
@@ -5254,7 +5280,10 @@ void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
 
   for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); ++i) {
     const SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
-    arr->Set(i, OneByteString(args.GetIsolate(), SSL_CIPHER_get_name(cipher)));
+    arr->Set(env->context(),
+             i,
+             OneByteString(args.GetIsolate(),
+                           SSL_CIPHER_get_name(cipher))).FromJust();
   }
 
   SSL_free(ssl);
@@ -5317,7 +5346,10 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
     if (EC_get_builtin_curves(curves, num_curves)) {
       for (size_t i = 0; i < num_curves; i++) {
-        arr->Set(i, OneByteString(env->isolate(), OBJ_nid2sn(curves[i].nid)));
+        arr->Set(env->context(),
+                 i,
+                 OneByteString(env->isolate(),
+                               OBJ_nid2sn(curves[i].nid))).FromJust();
       }
     }
 
