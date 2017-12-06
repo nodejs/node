@@ -38,19 +38,19 @@ const client = dgram.createSocket('udp4').bind(0, () => {
   client.send(buf, port, onMessage);
 
   // invalid address: object
-  assert.throws(() => {
+  common.expectsError(() => {
     client.send(buf, port, []);
-  }, common.expectsError(expectedError));
+  }, expectedError);
 
   // invalid address: nonzero number
-  assert.throws(() => {
+  common.expectsError(() => {
     client.send(buf, port, 1);
-  }, common.expectsError(expectedError));
+  }, expectedError);
 
   // invalid address: true
-  assert.throws(() => {
+  common.expectsError(() => {
     client.send(buf, port, true);
-  }, common.expectsError(expectedError));
+  }, expectedError);
 });
 
 client.unref();
