@@ -1570,7 +1570,7 @@ This function allows one to transparently issue requests.
 `options` can be an object or a string. If `options` is a string, it is
 automatically parsed with [`url.parse()`][].
 
-The optional `callback` parameter will be added as a one time listener for
+The optional `callback` parameter will be added as a one-time listener for
 the [`'response'`][] event.
 
 `http.request()` returns an instance of the [`http.ClientRequest`][]

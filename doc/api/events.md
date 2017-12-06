@@ -404,7 +404,7 @@ added: v0.3.0
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
-Adds a **one time** `listener` function for the event named `eventName`. The
+Adds a **one-time** `listener` function for the event named `eventName`. The
 next time `eventName` is triggered, this listener is removed and then invoked.
 
 ```js
@@ -459,7 +459,7 @@ added: v6.0.0
 * `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
-Adds a **one time** `listener` function for the event named `eventName` to the
+Adds a **one-time** `listener` function for the event named `eventName` to the
 *beginning* of the listeners array. The next time `eventName` is triggered, this
 listener is removed, and then invoked.
 
