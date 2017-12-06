@@ -417,6 +417,8 @@ assert.strictEqual(
 // test positive/negative zero
 assert.strictEqual(util.inspect(0), '0');
 assert.strictEqual(util.inspect(-0), '-0');
+// edge case from check
+assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 
 // test for sparse array
 {
