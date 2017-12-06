@@ -23,6 +23,7 @@
 require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 // Simple test of Node's HTTP ServerResponse.statusCode
 // ServerResponse.prototype.statusCode
@@ -30,6 +31,7 @@ const http = require('http');
 let testsComplete = 0;
 const tests = [200, 202, 300, 404, 451, 500];
 let testIdx = 0;
+const countdown = new Countdown(tests.length, () => s.close());
 
 const s = http.createServer(function(req, res) {
   const t = tests[testIdx];
@@ -43,9 +45,6 @@ s.listen(0, nextTest);
 
 
 function nextTest() {
-  if (testIdx + 1 === tests.length) {
-    return s.close();
-  }
   const test = tests[testIdx];
 
   http.get({ port: s.address().port }, function(response) {
@@ -55,7 +54,8 @@ function nextTest() {
     response.on('end', function() {
       testsComplete++;
       testIdx += 1;
-      nextTest();
+      if (countdown.dec())
+        nextTest();
     });
     response.resume();
   });
@@ -63,5 +63,5 @@ function nextTest() {
 
 
 process.on('exit', function() {
-  assert.strictEqual(5, testsComplete);
+  assert.strictEqual(6, testsComplete);
 });
