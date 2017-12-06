@@ -1329,6 +1329,8 @@ The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 <!-- YAML
 added: v0.8.6
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `fd` {integer}
 * `len` {integer} **Default:** `0`
