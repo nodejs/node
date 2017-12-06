@@ -1639,6 +1639,8 @@ fs.mkdtemp(`${tmpDir}${sep}`, (err, folder) => {
 <!-- YAML
 added: v5.10.0
 -->
+Warning: this is **blocking call**, do not use in an asynchronous environment unless
+you know what you are doing. More info [here](https://nodejs.org/en/docs/guides/blocking-vs-non-blocking).
 
 * `prefix` {string}
 * `options` {string|Object}
