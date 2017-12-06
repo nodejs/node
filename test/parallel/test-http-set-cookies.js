@@ -29,12 +29,12 @@ const countdown = new Countdown(2, common.mustCall(() => server.close()));
 const server = http.createServer(function(req, res) {
   if (req.url === '/one') {
     res.writeHead(200, [['set-cookie', 'A'],
-      ['content-type', 'text/plain']]);
+                        ['content-type', 'text/plain']]);
     res.end('one\n');
   } else {
     res.writeHead(200, [['set-cookie', 'A'],
-      ['set-cookie', 'B'],
-      ['content-type', 'text/plain']]);
+                        ['set-cookie', 'B'],
+                        ['content-type', 'text/plain']]);
     res.end('two\n');
   }
 });
@@ -44,7 +44,7 @@ server.on('listening', function() {
   //
   // one set-cookie header
   //
-  http.get({port: this.address().port, path: '/one'}, function(res) {
+  http.get({ port: this.address().port, path: '/one' }, function(res) {
     // set-cookie headers are always return in an array.
     // even if there is only one.
     assert.deepStrictEqual(['A'], res.headers['set-cookie']);
@@ -61,7 +61,7 @@ server.on('listening', function() {
 
   // two set-cookie headers
 
-  http.get({port: this.address().port, path: '/two'}, function(res) {
+  http.get({ port: this.address().port, path: '/two' }, function(res) {
     assert.deepStrictEqual(['A', 'B'], res.headers['set-cookie']);
     assert.strictEqual('text/plain', res.headers['content-type']);
 
@@ -76,6 +76,3 @@ server.on('listening', function() {
 
 });
 
-process.on('exit', function() {
-  assert.strictEqual(countdown.remaining, 0);
-});
