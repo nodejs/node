@@ -197,16 +197,21 @@ inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
 // Buffer methods
 
 bool HasInstance(Local<Value> val) {
-  return val->IsArrayBufferView();
+  return val->IsArrayBufferView() || val->IsArrayBuffer();
 }
 
 
 bool HasInstance(Local<Object> obj) {
-  return obj->IsArrayBufferView();
+  return obj->IsArrayBufferView() || obj->IsArrayBuffer();
 }
 
 
 char* Data(Local<Value> val) {
+  if (val->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = val.As<v8::ArrayBuffer>();
+    ArrayBuffer::Contents ab_c = ab->GetContents();
+    return static_cast<char*>(ab_c.Data());
+  }
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
   ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
@@ -215,6 +220,11 @@ char* Data(Local<Value> val) {
 
 
 char* Data(Local<Object> obj) {
+  if (obj->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = obj.As<v8::ArrayBuffer>();
+    ArrayBuffer::Contents ab_c = ab->GetContents();
+    return static_cast<char*>(ab_c.Data());
+  }
   CHECK(obj->IsArrayBufferView());
   Local<ArrayBufferView> ui = obj.As<ArrayBufferView>();
   ArrayBuffer::Contents ab_c = ui->Buffer()->GetContents();
@@ -223,6 +233,11 @@ char* Data(Local<Object> obj) {
 
 
 size_t Length(Local<Value> val) {
+  if (val->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = val.As<v8::ArrayBuffer>();
+    ArrayBuffer::Contents ab_c = ab->GetContents();
+    return ab_c.ByteLength();
+  }
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
   return ui->ByteLength();
@@ -230,6 +245,11 @@ size_t Length(Local<Value> val) {
 
 
 size_t Length(Local<Object> obj) {
+  if (obj->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = obj.As<v8::ArrayBuffer>();
+    ArrayBuffer::Contents ab_c = ab->GetContents();
+    return ab_c.ByteLength();
+  }
   CHECK(obj->IsArrayBufferView());
   Local<ArrayBufferView> ui = obj.As<ArrayBufferView>();
   return ui->ByteLength();
