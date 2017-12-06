@@ -1,25 +1,28 @@
 {
-  "_from": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
+  "_from": "remark-preset-lint-node@latest",
   "_id": "remark-preset-lint-node@1.0.2",
   "_inBundle": false,
-  "_integrity": "sha1-UxsozHvbtJwHgKk6AYCqVPvpz8w=",
+  "_integrity": "sha1-fDwT6krIeIdfaPfBZdcoYWRCvmQ=",
   "_location": "/remark-preset-lint-node",
   "_phantomChildren": {},
   "_requested": {
-    "type": "git",
-    "raw": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "rawSpec": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "saveSpec": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-    "fetchSpec": null,
-    "gitCommittish": "859eab541e0f63839b33196f26e2bed4dfe2b194"
+    "type": "tag",
+    "registry": true,
+    "raw": "remark-preset-lint-node@latest",
+    "name": "remark-preset-lint-node",
+    "escapedName": "remark-preset-lint-node",
+    "rawSpec": "latest",
+    "saveSpec": null,
+    "fetchSpec": "latest"
   },
   "_requiredBy": [
     "#USER",
     "/"
   ],
-  "_resolved": "github:watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-  "_spec": "watilde/remark-preset-lint-node#859eab541e0f63839b33196f26e2bed4dfe2b194",
-  "_where": "/Users/trott/io.js/tools",
+  "_resolved": "https://registry.npmjs.org/remark-preset-lint-node/-/remark-preset-lint-node-1.0.2.tgz",
+  "_shasum": "7c3c13ea4ac878875f68f7c165d728616442be64",
+  "_spec": "remark-preset-lint-node@latest",
+  "_where": "/Users/mborins/code/node/master/tools/remark-preset-lint-node-tmp",
   "author": "",
   "bugs": {
     "url": "https://github.com/watilde/remark-preset-lint-node/issues"
@@ -55,7 +58,6 @@
     "remark-lint-no-table-indentation": "^1.0.0",
     "remark-lint-no-tabs": "^1.0.0",
     "remark-lint-no-unused-definitions": "^1.0.0",
-    "remark-lint-prohibited-strings": "^1.0.0",
     "remark-lint-rule-style": "^1.0.0",
     "remark-lint-strong-marker": "^1.0.0",
     "remark-lint-table-cell-padding": "^1.0.0",
