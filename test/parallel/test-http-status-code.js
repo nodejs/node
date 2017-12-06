@@ -23,19 +23,19 @@
 require('../common');
 const assert = require('assert');
 const http = require('http');
+const Countdown = require('../common/countdown');
 
 // Simple test of Node's HTTP ServerResponse.statusCode
 // ServerResponse.prototype.statusCode
 
-let testsComplete = 0;
 const tests = [200, 202, 300, 404, 451, 500];
-let testIdx = 0;
+let test;
+const countdown = new Countdown(tests.length, () => s.close());
 
 const s = http.createServer(function(req, res) {
-  const t = tests[testIdx];
-  res.writeHead(t, { 'Content-Type': 'text/plain' });
+  res.writeHead(test, { 'Content-Type': 'text/plain' });
   console.log(`--\nserver: statusCode after writeHead: ${res.statusCode}`);
-  assert.strictEqual(res.statusCode, t);
+  assert.strictEqual(res.statusCode, test);
   res.end('hello world\n');
 });
 
@@ -43,25 +43,16 @@ s.listen(0, nextTest);
 
 
 function nextTest() {
-  if (testIdx + 1 === tests.length) {
-    return s.close();
-  }
-  const test = tests[testIdx];
+  test = tests.shift();
 
   http.get({ port: s.address().port }, function(response) {
     console.log(`client: expected status: ${test}`);
     console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
     response.on('end', function() {
-      testsComplete++;
-      testIdx += 1;
-      nextTest();
+      if (countdown.dec())
+        nextTest();
     });
     response.resume();
   });
 }
-
-
-process.on('exit', function() {
-  assert.strictEqual(5, testsComplete);
-});
