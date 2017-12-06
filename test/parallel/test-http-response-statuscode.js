@@ -56,12 +56,12 @@ const server = http.Server(common.mustCall(function(req, res) {
       test(res, '404 this is not valid either', '404 this is not valid either');
       break;
     case 12:
-      assert.throws(() => { res.writeHead(); },
-                    common.expectsError({
-                      code: 'ERR_HTTP_INVALID_STATUS_CODE',
-                      type: RangeError,
-                      message: 'Invalid status code: undefined'
-                    }));
+      common.expectsError(() => { res.writeHead(); },
+                          {
+                            code: 'ERR_HTTP_INVALID_STATUS_CODE',
+                            type: RangeError,
+                            message: 'Invalid status code: undefined'
+                          });
       this.close();
       break;
     default:

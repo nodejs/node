@@ -225,9 +225,9 @@ function test_cyclic_link_protection(realpath, realpathSync, callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(() => {
+  common.expectsError(() => {
     realpathSync(entry);
-  }, common.expectsError({ code: 'ELOOP', type: Error }));
+  }, { code: 'ELOOP', type: Error });
   asynctest(
     realpath, [entry], callback, common.mustCall(function(err, result) {
       assert.strictEqual(err.path, entry);
