@@ -386,7 +386,7 @@ added: v0.1.91
   * `output` {Writable} The Writable stream to which REPL output will be
     written. Defaults to `process.stdout`.
   * `terminal` {boolean} If `true`, specifies that the `output` should be
-    treated as a a TTY terminal, and have ANSI/VT100 escape codes written to it.
+    treated as a TTY terminal, and have ANSI/VT100 escape codes written to it.
     Defaults to checking the value of the `isTTY` property on the `output`
     stream upon instantiation.
   * `eval` {Function} The function to be used when evaluating each given line
