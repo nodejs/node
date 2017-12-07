@@ -15,4 +15,5 @@ runBenchmark('es',
                'n=1',
                'encoding=ascii',
                'size=1e1'
-             ]);
+             ],
+             { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
