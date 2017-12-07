@@ -130,7 +130,7 @@ can be fast-tracked and may be landed after a shorter delay:
 * Changes that fix regressions.
 
 When a pull request is deemed suitable to be fast-tracked, label it with
-`fast-track`. The pull request can be landed once 2 or more collaborators
+`fast-track`. The pull request can be landed once 2 or more Collaborators
 approve both the pull request and the fast-tracking request, and the necessary
 CI testing is done.
 
@@ -221,15 +221,16 @@ on how to handle those types of changes.
 ### Breaking Changes
 
 Backwards-incompatible changes may land on the master branch at any time after
-sufficient review by collaborators and approval of at least two TSC members.
+sufficient review by Collaborators and approval of at least two TSC members.
 
-Examples of breaking changes include, but are not necessarily limited to,
-removal or redefinition of existing API arguments, changing return values
-(except when return values do not currently exist), removing or modifying
-existing properties on an options argument, adding or removing errors,
-changing error messages in any way, altering expected timing of an event (e.g.
-moving from sync to async responses or vice versa), and changing the
-non-internal side effects of using a particular API.
+Examples of breaking changes include:
+
+* removal or redefinition of existing API arguments
+* changing return values
+* removing or modifying existing properties on an options argument
+* adding or removing errors
+* altering expected timing of an event
+* changing the side effects of using a particular API
 
 Purely additive changes (e.g. adding new events to `EventEmitter`
 implementations, adding new arguments to a method in a way that allows
