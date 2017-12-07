@@ -153,6 +153,10 @@ which runs the `build-ci` and `test-ci` targets on all supported platforms.
 only runs the linter targets, which is useful for changes that only affect comments
 or documentation.
 
+* [`node-test-pull-request-lite`](https://ci.nodejs.org/job/node-test-pull-request-lite/)
+only runs the linter job, as well as the tests on LinuxONE. Should only be used for
+quick fixes that do not require being tested on all platforms.
+
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test`
 on a large selection of common modules. This is useful to check whether a
