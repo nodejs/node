@@ -1,5 +1,29 @@
 # Node.js ChangeLog
 
+## 2017-12-08, Version 4.8.7 'Argon' (Maintenance), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2017-15896
+* CVE-2017-3738 (from the openssl project)
+
+### Notable Changes
+
+* **deps**:
+  * openssl updated to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+
+### Commits
+
+* [[`4f8fae3493`](https://github.com/nodejs/node/commit/4f8fae3493)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`eacd090e7b`](https://github.com/nodejs/node/commit/eacd090e7b)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`3e6b0b0d13`](https://github.com/nodejs/node/commit/3e6b0b0d13)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`b0ed4c52af`](https://github.com/nodejs/node/commit/b0ed4c52af)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`dd6a2dff1e`](https://github.com/nodejs/node/commit/dd6a2dff1e)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`b3afedfbe9`](https://github.com/nodejs/node/commit/b3afedfbe9)] - **deps**: upgrade openssl sources to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`f7eb162d0d`](https://github.com/nodejs/node/commit/f7eb162d0d)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+
 ## 2017-11-07, Version 4.8.6 'Argon' (Maintenance), @MylesBorins
 
 This Maintenance release comes with 47 commits. This includes 26 commits which are updates to dependencies,
