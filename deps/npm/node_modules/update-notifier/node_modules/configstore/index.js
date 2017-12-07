@@ -10,7 +10,7 @@ const uniqueString = require('unique-string');
 
 const configDir = xdgBasedir.config || path.join(os.tmpdir(), uniqueString());
 const permissionError = 'You don\'t have access to this file.';
-const defaultPathMode = 0o0700;
+const makeDirOptions = {mode: 0o0700};
 const writeFileOptions = {mode: 0o0600};
 
 class Configstore {
@@ -30,7 +30,7 @@ class Configstore {
 		} catch (err) {
 			// Create dir if it doesn't exist
 			if (err.code === 'ENOENT') {
-				makeDir.sync(path.dirname(this.path), defaultPathMode);
+				makeDir.sync(path.dirname(this.path), makeDirOptions);
 				return {};
 			}
 
@@ -51,7 +51,7 @@ class Configstore {
 	set all(val) {
 		try {
 			// Make sure the folder exists as it could have been deleted in the meantime
-			makeDir.sync(path.dirname(this.path), defaultPathMode);
+			makeDir.sync(path.dirname(this.path), makeDirOptions);
 
 			writeFileAtomic.sync(this.path, JSON.stringify(val, null, '\t'), writeFileOptions);
 		} catch (err) {

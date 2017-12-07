@@ -8,14 +8,22 @@ Inform users of your package of updates in a non-intrusive way.
 
 #### Contents
 
-- [Examples](#examples)
+- [Install](#install)
+- [Usage](#usage)
 - [How](#how)
 - [API](#api)
 - [About](#about)
 - [Users](#users)
 
 
-## Examples
+## Install
+
+```
+$ npm install update-notifier
+```
+
+
+## Usafe
 
 ### Simple
 
@@ -168,7 +176,7 @@ There are a bunch projects using it:
 - [Pageres](https://github.com/sindresorhus/pageres) - Capture website screenshots
 - [Node GH](http://nodegh.io) - GitHub command line tool
 
-[And 1200+ more…](https://www.npmjs.org/browse/depended/update-notifier)
+[And 1600+ more…](https://www.npmjs.org/browse/depended/update-notifier)
 
 
 ## License

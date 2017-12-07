@@ -38,6 +38,11 @@ jump in if you'd like to, or even ask us questions if something isn't clear.
 
 #### <a name="lifecycle"></a> `> lifecycle(name, pkg, wd, [opts]) -> Promise`
 
+##### Arguments
+
+* `opts.stdio` - the [stdio](https://nodejs.org/api/child_process.html#child_process_options_stdio)
+passed to the child process. `[0, 1, 2]` by default.
+
 ##### Example
 
 ```javascript

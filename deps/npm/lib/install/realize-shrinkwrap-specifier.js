@@ -1,5 +1,6 @@
 'use strict'
 var npa = require('npm-package-arg')
+const isRegistry = require('../utils/is-registry.js')
 
 module.exports = function (name, sw, where) {
   try {
@@ -7,7 +8,7 @@ module.exports = function (name, sw, where) {
       return npa.resolve(name, sw.version, where)
     } else if (sw.from) {
       const spec = npa(sw.from, where)
-      if (spec.registry && sw.version) {
+      if (isRegistry(spec) && sw.version) {
         return npa.resolve(name, sw.version, where)
       } else if (!sw.resolved) {
         return spec

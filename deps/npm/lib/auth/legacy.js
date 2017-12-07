@@ -4,6 +4,8 @@ const profile = require('npm-profile')
 const log = require('npmlog')
 const npm = require('../npm.js')
 const output = require('../utils/output.js')
+const pacoteOpts = require('../config/pacote')
+const fetchOpts = require('../config/fetch-opts')
 
 module.exports.login = function login (creds, registry, scope, cb) {
   let username = creds.username || ''
@@ -22,10 +24,13 @@ module.exports.login = function login (creds, registry, scope, cb) {
     email = e
     return profile.login(username, password, {registry: registry, auth: auth}).catch((err) => {
       if (err.code === 'EOTP') throw err
-      return profile.adduser(username, email, password, {registry: registry})
+      return profile.adduser(username, email, password, {
+        registry: registry,
+        opts: fetchOpts.fromPacote(pacoteOpts())
+      })
     }).catch((err) => {
       if (err.code === 'EOTP' && !auth.otp) {
-        return read.otp('Authenicator provided OTP:').then((otp) => {
+        return read.otp('Authenticator provided OTP:').then((otp) => {
           auth.otp = otp
           return profile.login(username, password, {registry: registry, auth: auth})
         })

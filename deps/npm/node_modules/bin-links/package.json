@@ -1,0 +1,77 @@
+{
+  "_from": "bin-links@latest",
+  "_id": "bin-links@1.1.0",
+  "_inBundle": false,
+  "_integrity": "sha512-3desjIEoSt86s+BRZlkLpBPPcHhr4vyUPL/+X1cQuE96NIlkELqnb4Yq+I5gZe47gHsZztA6cm38uMrT9+FWpA==",
+  "_location": "/bin-links",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "bin-links@latest",
+    "name": "bin-links",
+    "escapedName": "bin-links",
+    "rawSpec": "latest",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/bin-links/-/bin-links-1.1.0.tgz",
+  "_shasum": "e0a92cb57f01c4dc1088bca2bae6be110b9f64f9",
+  "_spec": "bin-links@latest",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Mike Sherov"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/bin-links/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "cmd-shim": "^2.0.2",
+    "fs-write-stream-atomic": "^1.0.10",
+    "gentle-fs": "^2.0.0",
+    "graceful-fs": "^4.1.11",
+    "slide": "^1.1.6"
+  },
+  "deprecated": false,
+  "description": "JavaScript package binary linker",
+  "devDependencies": {
+    "nyc": "^11.1.0",
+    "standard": "^10.0.3",
+    "standard-version": "^4.2.0",
+    "tap": "^10.7.2",
+    "weallbehave": "^1.2.0",
+    "weallcontribute": "^1.0.8"
+  },
+  "files": [
+    "index.js"
+  ],
+  "homepage": "https://github.com/npm/bin-links#readme",
+  "keywords": [
+    "npm",
+    "gentle",
+    "fs"
+  ],
+  "license": "Artistic-2.0",
+  "main": "index.js",
+  "name": "bin-links",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/bin-links.git"
+  },
+  "scripts": {
+    "postrelease": "npm publish && git push --follow-tags",
+    "prerelease": "npm t",
+    "pretest": "standard",
+    "release": "standard-version -s",
+    "test": "tap -J --nyc-arg=--all --coverage test/*.js",
+    "update-coc": "weallbehave -o . && git add CODE_OF_CONDUCT.md && git commit -m 'docs(coc): updated CODE_OF_CONDUCT.md'",
+    "update-contrib": "weallcontribute -o . && git add CONTRIBUTING.md && git commit -m 'docs(contributing): updated CONTRIBUTING.md'"
+  },
+  "version": "1.1.0"
+}
