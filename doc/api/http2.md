@@ -344,7 +344,7 @@ frames have been acknowledged.
 
 #### http2session.ping([payload, ]callback)
 <!-- YAML
-added: REPLACEME
+added: v9.2.1
 -->
 
 * `payload` {Buffer|TypedArray|DataView} Optional ping payload.
@@ -1473,7 +1473,7 @@ not be emitted.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v9.2.1
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
                  10.
@@ -1541,7 +1541,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v9.2.1
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
                  10.
@@ -1619,7 +1619,7 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v9.2.1
     pr-url: https://github.com/nodejs/node/pull/17105
     description: Added the `maxOutstandingPings` option with a default limit of
                  10.
