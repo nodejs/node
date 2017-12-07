@@ -239,7 +239,7 @@ $code.=<<___;
 	vmovdqu		32*8-128($ap), $ACC8
 
 	lea	192(%rsp), $tp0			# 64+128=192
-	vpbroadcastq	.Land_mask(%rip), $AND_MASK
+	vmovdqu	.Land_mask(%rip), $AND_MASK
 	jmp	.LOOP_GRANDE_SQR_1024
 
 .align	32
@@ -1070,10 +1070,10 @@ $code.=<<___;
 	vpmuludq	32*6-128($np),$Yi,$TEMP1
 	vpaddq		$TEMP1,$ACC6,$ACC6
 	vpmuludq	32*7-128($np),$Yi,$TEMP2
-	 vpblendd	\$3, $ZERO, $ACC9, $ACC9	# correct $ACC3
+	 vpblendd	\$3, $ZERO, $ACC9, $TEMP1	# correct $ACC3
 	vpaddq		$TEMP2,$ACC7,$ACC7
 	vpmuludq	32*8-128($np),$Yi,$TEMP0
-	 vpaddq		$ACC9, $ACC3, $ACC3		# correct $ACC3
+	 vpaddq		$TEMP1, $ACC3, $ACC3		# correct $ACC3
 	vpaddq		$TEMP0,$ACC8,$ACC8
 
 	mov	%rbx, %rax
@@ -1086,7 +1086,9 @@ $code.=<<___;
 	 vmovdqu	-8+32*2-128($ap),$TEMP2
 
 	mov	$r1, %rax
+	 vpblendd	\$0xfc, $ZERO, $ACC9, $ACC9	# correct $ACC3
 	imull	$n0, %eax
+	 vpaddq		$ACC9,$ACC4,$ACC4		# correct $ACC3
 	and	\$0x1fffffff, %eax
 
 	 imulq	16-128($ap),%rbx
@@ -1322,15 +1324,12 @@ ___
 #	But as we underutilize resources, it's possible to correct in
 #	each iteration with marginal performance loss. But then, as
 #	we do it in each iteration, we can correct less digits, and
-#	avoid performance penalties completely. Also note that we
-#	correct only three digits out of four. This works because
-#	most significant digit is subjected to less additions.
+#	avoid performance penalties completely.
 
 $TEMP0 = $ACC9;
 $TEMP3 = $Bi;
 $TEMP4 = $Yi;
 $code.=<<___;
-	vpermq		\$0, $AND_MASK, $AND_MASK
 	vpaddq		(%rsp), $TEMP1, $ACC0
 
 	vpsrlq		\$29, $ACC0, $TEMP1
@@ -1763,7 +1762,7 @@ $code.=<<___;
 
 .align	64
 .Land_mask:
-	.quad	0x1fffffff,0x1fffffff,0x1fffffff,-1
+	.quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
 .Lscatter_permd:
 	.long	0,2,4,6,7,7,7,7
 .Lgather_permd:
