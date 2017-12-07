@@ -1,5 +1,8 @@
 'use strict';
 const common = require('../common');
+
+// Test that unlink succeeds immediately after readFile completes.
+
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
