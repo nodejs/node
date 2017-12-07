@@ -7,6 +7,51 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.0.2m and 1.0.2n [7 Dec 2017]
+
+  *) Read/write after SSL object in error state
+
+     OpenSSL 1.0.2 (starting from version 1.0.2b) introduced an "error state"
+     mechanism. The intent was that if a fatal error occurred during a handshake
+     then OpenSSL would move into the error state and would immediately fail if
+     you attempted to continue the handshake. This works as designed for the
+     explicit handshake functions (SSL_do_handshake(), SSL_accept() and
+     SSL_connect()), however due to a bug it does not work correctly if
+     SSL_read() or SSL_write() is called directly. In that scenario, if the
+     handshake fails then a fatal error will be returned in the initial function
+     call. If SSL_read()/SSL_write() is subsequently called by the application
+     for the same SSL object then it will succeed and the data is passed without
+     being decrypted/encrypted directly from the SSL/TLS record layer.
+
+     In order to exploit this issue an application bug would have to be present
+     that resulted in a call to SSL_read()/SSL_write() being issued after having
+     already received a fatal error.
+
+     This issue was reported to OpenSSL by David Benjamin (Google).
+     (CVE-2017-3737)
+     [Matt Caswell]
+
+  *) rsaz_1024_mul_avx2 overflow bug on x86_64
+
+     There is an overflow bug in the AVX2 Montgomery multiplication procedure
+     used in exponentiation with 1024-bit moduli. No EC algorithms are affected.
+     Analysis suggests that attacks against RSA and DSA as a result of this
+     defect would be very difficult to perform and are not believed likely.
+     Attacks against DH1024 are considered just feasible, because most of the
+     work necessary to deduce information about a private key may be performed
+     offline. The amount of resources required for such an attack would be
+     significant. However, for an attack on TLS to be meaningful, the server
+     would have to share the DH1024 private key among multiple clients, which is
+     no longer an option since CVE-2016-0701.
+
+     This only affects processors that support the AVX2 but not ADX extensions
+     like Intel Haswell (4th generation).
+
+     This issue was reported to OpenSSL by David Benjamin (Google). The issue
+     was originally found via the OSS-Fuzz project.
+     (CVE-2017-3738)
+     [Andy Polyakov]
+
  Changes between 1.0.2l and 1.0.2m [2 Nov 2017]
 
   *) bn_sqrx8x_internal carry bug on x86_64
