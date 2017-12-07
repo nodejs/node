@@ -44,6 +44,12 @@ instead of
 
 to run your tests.
 
+The actual shell your script is run within is platform dependent. By default,
+on Unix-like systems it is the `/bin/sh` command, on Windows it is the `cmd.exe`.
+The actual shell referred to by `/bin/sh` also depends on the system.
+As of [`npm@5.1.0`](https://github.com/npm/npm/releases/tag/v5.1.0) you can
+customize the shell with the `script-shell` configuration.
+
 Scripts are run from the root of the module, regardless of what your current
 working directory is when you call `npm run`. If you want your script to
 use different behavior based on what subdirectory you're in, you can use the
@@ -69,3 +75,4 @@ You can use the `--silent` flag to prevent showing `npm ERR!` output on error.
 * npm-start(1)
 * npm-restart(1)
 * npm-stop(1)
+* npm-config(7)

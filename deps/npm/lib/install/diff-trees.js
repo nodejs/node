@@ -6,41 +6,98 @@ var flattenTree = require('./flatten-tree.js')
 var isOnlyDev = require('./is-only-dev.js')
 var log = require('npmlog')
 var path = require('path')
+var ssri = require('ssri')
+var moduleName = require('../utils/module-name.js')
 
-function nonRegistrySource (pkg) {
-  validate('O', arguments)
-  var requested = pkg._requested || (pkg._from && npa(pkg._from))
-  if (!requested) return false
+// we don't use get-requested because we're operating on files on disk, and
+// we don't want to extropolate from what _should_ be there.
+function pkgRequested (pkg) {
+  return pkg._requested || (pkg._resolved && npa(pkg._resolved)) || (pkg._from && npa(pkg._from))
+}
 
-  if (requested.type === 'hosted') return true
-  if (requested.type === 'file' || requested.type === 'directory') return true
+function nonRegistrySource (requested) {
+  if (fromGit(requested)) return true
+  if (fromLocal(requested)) return true
+  if (fromRemote(requested)) return true
+  return false
+}
+
+function fromRemote (requested) {
+  if (requested.type === 'remote') return true
+}
+
+function fromLocal (requested) {
+  // local is an npm@3 type that meant "file"
+  if (requested.type === 'file' || requested.type === 'directory' || requested.type === 'local') return true
+  return false
+}
+
+function fromGit (requested) {
+  if (requested.type === 'hosted' || requested.type === 'git') return true
+  return false
+}
+
+function pkgIntegrity (pkg) {
+  try {
+    // dist is provided by the registry
+    var sri = (pkg.dist && pkg.dist.integrity) ||
+              // _integrity is provided by pacote
+              pkg._integrity ||
+              // _shasum is legacy
+              (pkg._shasum && ssri.fromHex(pkg._shasum, 'sha1').toString())
+    if (!sri) return
+    var integrity = ssri.parse(sri)
+    if (Object.keys(integrity).length === 0) return
+    return integrity
+  } catch (ex) {
+    return
+  }
+}
+
+function sriMatch (aa, bb) {
+  if (!aa || !bb) return false
+  for (let algo of Object.keys(aa)) {
+    if (!bb[algo]) continue
+    for (let aaHash of aa[algo]) {
+      for (let bbHash of bb[algo]) {
+        return aaHash.digest === bbHash.digest
+      }
+    }
+  }
   return false
 }
 
 function pkgAreEquiv (aa, bb) {
-  var aaSha = (aa.dist && aa.dist.integrity) || aa._integrity
-  var bbSha = (bb.dist && bb.dist.integrity) || bb._integrity
-  if (aaSha === bbSha) return true
-  if (aaSha || bbSha) return false
-  if (nonRegistrySource(aa) || nonRegistrySource(bb)) return false
-  if (aa.version === bb.version) return true
-  return false
-}
+  // coming in we know they share a path…
 
-function getUniqueId (pkg) {
-  var versionspec = pkg._integrity
+  // if they share package metadata _identity_, they're the same thing
+  if (aa.package === bb.package) return true
+  // if they share integrity information, they're the same thing
+  var aaIntegrity = pkgIntegrity(aa.package)
+  var bbIntegrity = pkgIntegrity(bb.package)
+  if (aaIntegrity || bbIntegrity) return sriMatch(aaIntegrity, bbIntegrity)
 
-  if (!versionspec && nonRegistrySource(pkg)) {
-    if (pkg._requested) {
-      versionspec = pkg._requested.fetchSpec
-    } else if (pkg._from) {
-      versionspec = npa(pkg._from).fetchSpec
-    }
+  // if they're links and they share the same target, they're the same thing
+  if (aa.isLink && bb.isLink) return aa.realpath === bb.realpath
+
+  // if we can't determine both their sources then we have no way to know
+  // if they're the same thing, so we have to assume they aren't
+  var aaReq = pkgRequested(aa.package)
+  var bbReq = pkgRequested(bb.package)
+  if (!aaReq || !bbReq) return false
+
+  if (fromGit(aaReq) && fromGit(bbReq)) {
+    // if both are git and share a _resolved specifier (one with the
+    // comittish replaced by a commit hash) then they're the same
+    return aa.package._resolved && bb.package._resolved &&
+           aa.package._resolved === bb.package._resolved
   }
-  if (!versionspec) {
-    versionspec = pkg.version
-  }
-  return pkg.name + '@' + versionspec
+
+  // we have to give up trying to find matches for non-registry sources at this point…
+  if (nonRegistrySource(aaReq) || nonRegistrySource(bbReq)) return false
+
+  // finally, if they ARE a registry source then version matching counts
+  return aa.package.version === bb.package.version
 }
 
 function pushAll (aa, bb) {
@@ -118,41 +175,56 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   var flatOldTree = flattenTree(oldTree)
   var flatNewTree = flattenTree(newTree)
   var toRemove = {}
-  var toRemoveByUniqueId = {}
-  // find differences
+  var toRemoveByName = {}
+
+  // Build our tentative remove list.  We don't add remove actions yet
+  // because we might resuse them as part of a move.
   Object.keys(flatOldTree).forEach(function (flatname) {
+    if (flatname === '/') return
     if (flatNewTree[flatname]) return
     var pkg = flatOldTree[flatname]
     if (pkg.isInLink && /^[.][.][/\\]/.test(path.relative(newTree.realpath, pkg.realpath))) return
 
     toRemove[flatname] = pkg
-    var pkgunique = getUniqueId(pkg.package)
-    if (!toRemoveByUniqueId[pkgunique]) toRemoveByUniqueId[pkgunique] = []
-    toRemoveByUniqueId[pkgunique].push(flatname)
+    var name = moduleName(pkg)
+    if (!toRemoveByName[name]) toRemoveByName[name] = []
+    toRemoveByName[name].push({flatname: flatname, pkg: pkg})
   })
-  Object.keys(flatNewTree).forEach(function (path) {
-    var pkg = flatNewTree[path]
-    pkg.oldPkg = flatOldTree[path]
-    if (pkg.oldPkg) {
-      if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
+
+  // generate our add/update/move actions
+  Object.keys(flatNewTree).forEach(function (flatname) {
+    if (flatname === '/') return
+    var pkg = flatNewTree[flatname]
+    var oldPkg = pkg.oldPkg = flatOldTree[flatname]
+    if (oldPkg) {
+      // if the versions are equivalent then we don't need to update… unless
+      // the user explicitly asked us to.
+      if (!pkg.userRequired && pkgAreEquiv(oldPkg, pkg)) return
       setAction(differences, 'update', pkg)
     } else {
-      var vername = getUniqueId(pkg.package)
-      var removing = toRemoveByUniqueId[vername] && toRemoveByUniqueId[vername].length
+      var name = moduleName(pkg)
+      // find any packages we're removing that share the same name and are equivalent
+      var removing = (toRemoveByName[name] || []).filter((rm) => pkgAreEquiv(rm.pkg, pkg))
       var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
-      if (removing && !bundlesOrFromBundle) {
-        var flatname = toRemoveByUniqueId[vername].shift()
-        pkg.fromPath = toRemove[flatname].path
+      // if we have any removes that match AND we're not working with a bundle then upgrade to a move
+      if (removing.length && !bundlesOrFromBundle) {
+        var toMv = removing.shift()
+        toRemoveByName[name] = toRemoveByName[name].filter((rm) => rm !== toMv)
+        pkg.fromPath = toMv.pkg.path
         setAction(differences, 'move', pkg)
-        delete toRemove[flatname]
+        delete toRemove[toMv.flatname]
+      // we don't generate add actions for things found in links (which already exist on disk) or
+      // for bundled modules (which will be installed when we install their parent)
       } else if (!(pkg.isInLink && pkg.fromBundle)) {
         setAction(differences, 'add', pkg)
       }
     }
   })
+
+  // finally generate our remove actions from any not consumed by moves
   Object
     .keys(toRemove)
-    .map((path) => toRemove[path])
+    .map((flatname) => toRemove[flatname])
     .forEach((pkg) => setAction(differences, 'remove', pkg))
 
   const includeDev = npm.config.get('dev') ||

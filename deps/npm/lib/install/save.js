@@ -39,6 +39,8 @@ function andWarnErrors (cb) {
   }
 }
 
+exports.saveShrinkwrap = saveShrinkwrap
+
 function saveShrinkwrap (tree, next) {
   validate('OF', arguments)
   if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {

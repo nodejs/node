@@ -67,49 +67,53 @@ function errorMessage (er) {
       break
 
     case 'EOTP':
-      short.push(['', 'This operation requires a one-time password from your authenticator.'])
-      detail.push([
-        '',
-        [
-          'You can provide a one-time password by passing --otp=<code> to the command you ran.',
-          'If you already provided a one-time password then it is likely that you either typoed',
-          'it, or it timed out. Please try again.'
-        ].join('\n')
-      ])
-      break
-
     case 'E401':
-      // npm ERR! code E401
-      // npm ERR! Unable to authenticate, need: Basic
-      if (er.headers && er.headers['www-authenticate']) {
-        const auth = er.headers['www-authenticate']
-        if (auth.indexOf('Bearer') !== -1) {
-          short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
-          detail.push([
-            '',
-            [
-              'To correct this please trying logging in again with:',
-              '    npm login'
-            ].join('\n')
-          ])
-          break
-        } else if (auth.indexOf('Basic') !== -1) {
-          short.push(['', 'Incorrect or missing password.'])
-          detail.push([
-            '',
-            [
-              'If you were trying to login, change your password, create an',
-              'authentication token or enable two-factor authentication then',
-              'that means you likely typed your password in incorectly.',
-              'Please try again, or recover your password at:',
-              '    https://www.npmjs.com/forgot',
+      // the E401 message checking is a hack till we replace npm-registry-client with something
+      // OTP aware.
+      if (er.code === 'EOTP' || (er.code === 'E401' && /one-time pass/.test(er.message))) {
+        short.push(['', 'This operation requires a one-time password from your authenticator.'])
+        detail.push([
+          '',
+          [
+            'You can provide a one-time password by passing --otp=<code> to the command you ran.',
+            'If you already provided a one-time password then it is likely that you either typoed',
+            'it, or it timed out. Please try again.'
+          ].join('\n')
+        ])
+        break
+      } else {
+        // npm ERR! code E401
+        // npm ERR! Unable to authenticate, need: Basic
+        if (er.headers && er.headers['www-authenticate']) {
+          const auth = er.headers['www-authenticate'].map((au) => au.split(/,\s*/))[0] || []
+          if (auth.indexOf('Bearer') !== -1) {
+            short.push(['', 'Unable to authenticate, your authentication token seems to be invalid.'])
+            detail.push([
               '',
-              'If you were doing some other operation then your saved credentials are',
-              'probably out of date. To correct this please try logging in again with:',
-              '    npm login'
-            ].join('\n')
-          ])
-          break
+              [
+                'To correct this please trying logging in again with:',
+                '    npm login'
+              ].join('\n')
+            ])
+            break
+          } else if (auth.indexOf('Basic') !== -1) {
+            short.push(['', 'Incorrect or missing password.'])
+            detail.push([
+              '',
+              [
+                'If you were trying to login, change your password, create an',
+                'authentication token or enable two-factor authentication then',
+                'that means you likely typed your password in incorrectly.',
+                'Please try again, or recover your password at:',
+                '    https://www.npmjs.com/forgot',
+                '',
+                'If you were doing some other operation then your saved credentials are',
+                'probably out of date. To correct this please try logging in again with:',
+                '    npm login'
+              ].join('\n')
+            ])
+            break
+          }
         }
       }
 

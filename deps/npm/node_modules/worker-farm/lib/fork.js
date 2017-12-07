@@ -15,17 +15,15 @@ function fork (forkModule) {
         , cwd: process.cwd()
       })
 
+  child.on('error', function() {
+    // this *should* be picked up by onExit and the operation requeued
+  })
+
   child.send({ module: forkModule })
 
   // return a send() function for this child
   return {
-      send  : function (data) {
-        try {
-          child.send(data)
-        } catch (e) {
-          // this *should* be picked up by onExit and the operation requeued
-        }
-      }
+      send  : child.send.bind(child)
     , child : child
   }
 }
