@@ -202,7 +202,7 @@ us a report nonetheless.
   level of privilege possible.
 
 - [#12141](https://github.com/nodejs/node/pull/12141): _buffer: zero fill
-  Buffer(num) by default_. The buffer constructor behaviour was documented,
+  Buffer(num) by default_. The buffer constructor behavior was documented,
   but found to be prone to [mis-use](https://snyk.io/blog/exploiting-buffer/).
   It has since been changed, but despite much debate, was not considered misuse
   prone enough to justify fixing in older release lines and breaking our

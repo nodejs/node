@@ -92,7 +92,7 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows
-// (for Windows, libuv maps 1 and 15 to the correct behaviour).
+// (for Windows, libuv maps 1 and 15 to the correct behavior).
 
 kill(0, 'SIGHUP', 0, 1);
 kill(0, undefined, 0, 15);
