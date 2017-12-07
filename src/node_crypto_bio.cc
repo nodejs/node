@@ -51,8 +51,6 @@ void NodeBIO::AssignEnvironment(Environment* env) {
 int NodeBIO::New(BIO* bio) {
   bio->ptr = new NodeBIO();
 
-  // XXX Why am I doing it?!
-  bio->shutdown = 1;
   bio->init = 1;
   bio->num = -1;
 
