@@ -368,7 +368,7 @@ terminal programs.
 
 It is important to take note of the following:
 
-* `SIGUSR1` is reserved by Node.js to start the debugger.  It's possible to
+* `SIGUSR1` is reserved by Node.js to start the [debugger][]. It's possible to
   install a listener but doing so will _not_ stop the debugger from starting.
 * `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
   resets the terminal mode before exiting with code `128 + signal number`. If
@@ -1860,6 +1860,7 @@ cases:
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
 [Child Process]: child_process.html
 [Cluster]: cluster.html
+[debugger]: debugger.html
 [Duplex]: stream.html#stream_duplex_and_transform_streams
 [LTS]: https://github.com/nodejs/LTS/
 [note on process I/O]: process.html#process_a_note_on_process_i_o
