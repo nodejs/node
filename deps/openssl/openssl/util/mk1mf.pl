@@ -765,7 +765,7 @@ foreach (split(/\s+/,$test))
 	{
 	$t=&bname($_);
 	$tt="\$(OBJ_D)${o}$t${obj}";
-	$tt.=" \$(OBJ_D)${o}ssltestlib${obj}" if $t eq "dtlstest";
+	$tt.=" \$(OBJ_D)${o}ssltestlib${obj}" if $t eq "dtlstest" or $t eq "fatalerrtest";
 	$rules.=&do_link_rule("\$(TEST_D)$o$t$exep",$tt,"\$(LIBS_DEP)","\$(L_LIBS) \$(EX_LIBS)");
 	}
 
