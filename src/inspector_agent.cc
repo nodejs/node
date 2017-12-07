@@ -30,6 +30,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::Persistent;
 using v8::Value;
 
 using v8_inspector::StringBuffer;
@@ -613,8 +614,7 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
 
 void Agent::EnableAsyncHook() {
   if (!enable_async_hook_function_.IsEmpty()) {
-    Isolate* isolate = parent_env_->isolate();
-    ToggleAsyncHook(isolate, enable_async_hook_function_.Get(isolate));
+    ToggleAsyncHook(parent_env_->isolate(), enable_async_hook_function_);
   } else if (pending_disable_async_hook_) {
     CHECK(!pending_enable_async_hook_);
     pending_disable_async_hook_ = false;
@@ -625,8 +625,7 @@ void Agent::EnableAsyncHook() {
 
 void Agent::DisableAsyncHook() {
   if (!disable_async_hook_function_.IsEmpty()) {
-    Isolate* isolate = parent_env_->isolate();
-    ToggleAsyncHook(isolate, disable_async_hook_function_.Get(isolate));
+    ToggleAsyncHook(parent_env_->isolate(), disable_async_hook_function_);
   } else if (pending_enable_async_hook_) {
     CHECK(!pending_disable_async_hook_);
     pending_enable_async_hook_ = false;
@@ -635,10 +634,11 @@ void Agent::DisableAsyncHook() {
   }
 }
 
-void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
+void Agent::ToggleAsyncHook(Isolate* isolate, const Persistent<Function>& fn) {
   HandleScope handle_scope(isolate);
+  CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
-  auto result = fn->Call(context, Undefined(isolate), 0, nullptr);
+  auto result = fn.Get(isolate)->Call(context, Undefined(isolate), 0, nullptr);
   if (result.IsEmpty()) {
     FatalError(
         "node::inspector::Agent::ToggleAsyncHook",
