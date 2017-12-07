@@ -57,6 +57,8 @@ for the N-API C based functions exported by Node.js. These wrappers are not
 part of N-API, nor will they be maintained as part of Node.js. One such
 example is: [node-addon-api](https://github.com/nodejs/node-addon-api).
 
+## Usage
+
 In order to use the N-API functions, include the file
 [node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
 which is located in the src directory in the node development tree.
@@ -64,6 +66,41 @@ For example:
 ```C
 #include <node_api.h>
 ```
+
+This will opt into the default `NAPI_VERSION` for the given release of Node.js.
+In order to ensure compatibility with specific versions of N-API, the version
+can be specified explicitly when including the header:
+
+```C
+#define NAPI_VERSION 3
+#include <node_api.h>
+```
+
+This restricts the N-API surface to just the functionality that was available in
+the specified (and earlier) versions.
+
+Some of the N-API surface is considered experimental and requires explicit
+opt-in to access those APIs:
+
+```C
+#define NAPI_EXPERIMENTAL
+#include <node_api.h>
+```
+
+In this case the entire API surface, including any experimental APIs, will be
+available to the module code.
+
+## N-API Version Matrix
+
+|       | 1       | 2        | 3        |
+|:-----:|:-------:|:--------:|:--------:|
+| v4.x  |         |          |          |
+| v6.x  |         |          | v6.14.2* |
+| v8.x  | v8.0.0* | v8.10.0* |          |
+| v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |
+| v10.x |         |          | v10.0.0  |
+
+\* Indicates that the N-API version was released as experimental
 
 ## Basic N-API Data Types
 
@@ -337,6 +374,7 @@ It is intended only for logging purposes.
 #### napi_get_last_error_info
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status
@@ -436,6 +474,7 @@ TypeError [ERR_ERROR_1]
 #### napi_throw
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_throw(napi_env env, napi_value error);
@@ -451,6 +490,7 @@ This API throws the JavaScript Error provided.
 #### napi_throw_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_throw_error(napi_env env,
@@ -469,6 +509,7 @@ This API throws a JavaScript Error with the text provided.
 #### napi_throw_type_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_throw_type_error(napi_env env,
@@ -487,6 +528,7 @@ This API throws a JavaScript TypeError with the text provided.
 #### napi_throw_range_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_throw_range_error(napi_env env,
@@ -506,6 +548,7 @@ This API throws a JavaScript RangeError with the text provided.
 #### napi_is_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_is_error(napi_env env,
@@ -525,6 +568,7 @@ This API queries a `napi_value` to check if it represents an error object.
 #### napi_create_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_create_error(napi_env env,
@@ -546,6 +590,7 @@ This API returns a JavaScript Error with the text provided.
 #### napi_create_type_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_create_type_error(napi_env env,
@@ -568,6 +613,7 @@ This API returns a JavaScript TypeError with the text provided.
 #### napi_create_range_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_create_range_error(napi_env env,
@@ -589,6 +635,7 @@ This API returns a JavaScript RangeError with the text provided.
 #### napi_get_and_clear_last_exception
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_and_clear_last_exception(napi_env env,
@@ -607,6 +654,7 @@ This API can be called even if there is a pending JavaScript exception.
 #### napi_is_exception_pending
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_exception_pending(napi_env env, bool* result);
@@ -624,7 +672,9 @@ This API can be called even if there is a pending JavaScript exception.
 #### napi_fatal_exception
 <!-- YAML
 added: v8.11.2
+napiVersion: 3
 -->
+
 ```C
 napi_status napi_fatal_exception(napi_env env, napi_value err);
 ```
@@ -643,6 +693,7 @@ thrown to immediately terminate the process.
 #### napi_fatal_error
 <!-- YAML
 added: v8.2.0
+napiVersion: 1
 -->
 ```C
 NAPI_NO_RETURN void napi_fatal_error(const char* location,
@@ -755,6 +806,7 @@ can only be called once.
 #### napi_open_handle_scope
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_open_handle_scope(napi_env env,
@@ -770,6 +822,7 @@ This API open a new scope.
 #### napi_close_handle_scope
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_close_handle_scope(napi_env env,
@@ -788,6 +841,7 @@ This API can be called even if there is a pending JavaScript exception.
 #### napi_open_escapable_handle_scope
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status
@@ -805,6 +859,7 @@ to the outer scope.
 #### napi_close_escapable_handle_scope
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status
@@ -824,6 +879,7 @@ This API can be called even if there is a pending JavaScript exception.
 #### napi_escape_handle
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_escape_handle(napi_env env,
@@ -888,6 +944,7 @@ individual count.
 #### napi_create_reference
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_create_reference(napi_env env,
@@ -910,6 +967,7 @@ to the Object passed in.
 #### napi_delete_reference
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
@@ -927,6 +985,7 @@ This API can be called even if there is a pending JavaScript exception.
 #### napi_reference_ref
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_reference_ref(napi_env env,
@@ -945,6 +1004,7 @@ passed in and returns the resulting reference count.
 #### napi_reference_unref
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_reference_unref(napi_env env,
@@ -963,6 +1023,7 @@ passed in and returns the resulting reference count.
 #### napi_get_reference_value
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 NODE_EXTERN napi_status napi_get_reference_value(napi_env env,
@@ -996,7 +1057,9 @@ should be freed up.
 #### napi_add_env_cleanup_hook
 <!-- YAML
 added: v8.12.0
+napiVersion: 3
 -->
+
 ```C
 NODE_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
                                                   void (*fun)(void* arg),
@@ -1021,7 +1084,9 @@ is being torn down anyway.
 #### napi_remove_env_cleanup_hook
 <!-- YAML
 added: v8.12.0
+napiVersion: 3
 -->
+
 ```C
 NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
                                                      void (*fun)(void* arg),
@@ -1183,6 +1248,7 @@ of the [ECMAScript Language Specification][].
 #### napi_create_array
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_array(napi_env env, napi_value* result)
@@ -1201,6 +1267,7 @@ ECMAScript Language Specification.
 #### napi_create_array_with_length
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_array_with_length(napi_env env,
@@ -1230,6 +1297,7 @@ ECMAScript Language Specification.
 #### napi_create_arraybuffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_arraybuffer(napi_env env,
@@ -1262,6 +1330,7 @@ of the ECMAScript Language Specification.
 #### napi_create_buffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_buffer(napi_env env,
@@ -1283,6 +1352,7 @@ fully-supported data structure, in most cases using a TypedArray will suffice.
 #### napi_create_buffer_copy
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_buffer_copy(napi_env env,
@@ -1308,6 +1378,7 @@ structure, in most cases using a TypedArray will suffice.
 #### napi_create_external
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_external(napi_env env,
@@ -1340,6 +1411,7 @@ additional properties. It is considered a distinct value type: calling
 #### napi_create_external_arraybuffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status
@@ -1375,6 +1447,7 @@ of the ECMAScript Language Specification.
 #### napi_create_external_buffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_external_buffer(napi_env env,
@@ -1406,6 +1479,7 @@ structure, in most cases using a TypedArray will suffice.
 #### napi_create_function
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_function(napi_env env,
@@ -1439,6 +1513,7 @@ of the ECMAScript Language Specification.
 #### napi_create_object
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_object(napi_env env, napi_value* result)
@@ -1459,6 +1534,7 @@ ECMAScript Language Specification.
 #### napi_create_symbol
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_symbol(napi_env env,
@@ -1482,6 +1558,7 @@ of the ECMAScript Language Specification.
 #### napi_create_typedarray
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_typedarray(napi_env env,
@@ -1518,6 +1595,7 @@ of the ECMAScript Language Specification.
 #### napi_create_dataview
 <!-- YAML
 added: v8.3.0
+napiVersion: 1
 -->
 
 ```C
@@ -1552,6 +1630,7 @@ JavaScript DataView Objects are described in
 #### napi_create_int32
 <!-- YAML
 added: v8.4.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_int32(napi_env env, int32_t value, napi_value* result)
@@ -1573,6 +1652,7 @@ of the ECMAScript Language Specification.
 #### napi_create_uint32
 <!-- YAML
 added: v8.4.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_uint32(napi_env env, uint32_t value, napi_value* result)
@@ -1594,6 +1674,7 @@ of the ECMAScript Language Specification.
 #### napi_create_int64
 <!-- YAML
 added: v8.4.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_int64(napi_env env, int64_t value, napi_value* result)
@@ -1621,6 +1702,7 @@ outside the range of
 #### napi_create_double
 <!-- YAML
 added: v8.4.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_double(napi_env env, double value, napi_value* result)
@@ -1642,6 +1724,7 @@ of the ECMAScript Language Specification.
 #### napi_create_string_latin1
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_string_latin1(napi_env env,
@@ -1667,6 +1750,7 @@ of the ECMAScript Language Specification.
 #### napi_create_string_utf16
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_string_utf16(napi_env env,
@@ -1692,6 +1776,7 @@ of the ECMAScript Language Specification.
 #### napi_create_string_utf8
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_string_utf8(napi_env env,
@@ -1718,6 +1803,7 @@ of the ECMAScript Language Specification.
 #### napi_get_array_length
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_array_length(napi_env env,
@@ -1741,6 +1827,7 @@ of the ECMAScript Language Specification.
 #### napi_get_arraybuffer_info
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_arraybuffer_info(napi_env env,
@@ -1769,6 +1856,7 @@ callback as long as there are no calls to other APIs that might trigger a GC.
 #### napi_get_buffer_info
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_buffer_info(napi_env env,
@@ -1793,6 +1881,7 @@ lifetime is not guaranteed if it's managed by the VM.
 #### napi_get_prototype
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_prototype(napi_env env,
@@ -1811,6 +1900,7 @@ Returns `napi_ok` if the API succeeded.
 #### napi_get_typedarray_info
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_typedarray_info(napi_env env,
@@ -1841,6 +1931,7 @@ is managed by the VM
 #### napi_get_dataview_info
 <!-- YAML
 added: v8.3.0
+napiVersion: 1
 -->
 
 ```C
@@ -1868,6 +1959,7 @@ This API returns various properties of a DataView.
 #### napi_get_value_bool
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result)
@@ -1887,6 +1979,7 @@ Boolean.
 #### napi_get_value_double
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_double(napi_env env,
@@ -1908,6 +2001,7 @@ Number.
 #### napi_get_value_external
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_external(napi_env env,
@@ -1928,6 +2022,7 @@ This API retrieves the external data pointer that was previously passed to
 #### napi_get_value_int32
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_int32(napi_env env,
@@ -1955,6 +2050,7 @@ result to zero.
 #### napi_get_value_int64
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_int64(napi_env env,
@@ -1984,6 +2080,7 @@ result to zero.
 #### napi_get_value_string_latin1
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_string_latin1(napi_env env,
@@ -2011,6 +2108,7 @@ in.
 #### napi_get_value_string_utf8
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_string_utf8(napi_env env,
@@ -2037,6 +2135,7 @@ This API returns the UTF8-encoded string corresponding the value passed in.
 #### napi_get_value_string_utf16
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_string_utf16(napi_env env,
@@ -2063,6 +2162,7 @@ This API returns the UTF16-encoded string corresponding the value passed in.
 #### napi_get_value_uint32
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_value_uint32(napi_env env,
@@ -2085,6 +2185,7 @@ This API returns the C primitive equivalent of the given `napi_value` as a
 #### napi_get_boolean
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_boolean(napi_env env, bool value, napi_value* result)
@@ -2103,6 +2204,7 @@ represent the given boolean value
 #### napi_get_global
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_global(napi_env env, napi_value* result)
@@ -2118,6 +2220,7 @@ This API returns the global Object.
 #### napi_get_null
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_null(napi_env env, napi_value* result)
@@ -2133,6 +2236,7 @@ This API returns the null Object.
 #### napi_get_undefined
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_undefined(napi_env env, napi_value* result)
@@ -2161,6 +2265,7 @@ These APIs support doing one of the following:
 ### napi_coerce_to_bool
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_coerce_to_bool(napi_env env,
@@ -2182,6 +2287,7 @@ This API can be re-entrant if getters are defined on the passed-in Object.
 ### napi_coerce_to_number
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_coerce_to_number(napi_env env,
@@ -2203,6 +2309,7 @@ This API can be re-entrant if getters are defined on the passed-in Object.
 ### napi_coerce_to_object
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_coerce_to_object(napi_env env,
@@ -2224,6 +2331,7 @@ This API can be re-entrant if getters are defined on the passed-in Object.
 ### napi_coerce_to_string
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_coerce_to_string(napi_env env,
@@ -2245,6 +2353,7 @@ This API can be re-entrant if getters are defined on the passed-in Object.
 ### napi_typeof
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_typeof(napi_env env, napi_value value, napi_valuetype* result)
@@ -2266,6 +2375,7 @@ If `value` has a type that is invalid, an error is returned.
 ### napi_instanceof
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_instanceof(napi_env env,
@@ -2291,6 +2401,7 @@ of the ECMAScript Language Specification.
 ### napi_is_array
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_array(napi_env env, napi_value value, bool* result)
@@ -2309,6 +2420,7 @@ of the ECMAScript Language Specification.
 ### napi_is_arraybuffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_arraybuffer(napi_env env, napi_value value, bool* result)
@@ -2325,6 +2437,7 @@ This API checks if the Object passed in is an array buffer.
 ### napi_is_buffer
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_buffer(napi_env env, napi_value value, bool* result)
@@ -2342,6 +2455,7 @@ This API checks if the Object passed in is a buffer.
 ### napi_is_error
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_error(napi_env env, napi_value value, bool* result)
@@ -2358,6 +2472,7 @@ This API checks if the Object passed in is an Error.
 ### napi_is_typedarray
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result)
@@ -2374,6 +2489,7 @@ This API checks if the Object passed in is a typed array.
 ### napi_is_dataview
 <!-- YAML
 added: v8.3.0
+napiVersion: 1
 -->
 
 ```C
@@ -2391,6 +2507,7 @@ This API checks if the Object passed in is a DataView.
 ### napi_strict_equals
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_strict_equals(napi_env env,
@@ -2625,6 +2742,7 @@ this function is invoked.
 #### napi_get_property_names
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_property_names(napi_env env,
@@ -2646,6 +2764,7 @@ This API returns the array of properties for the Object passed in
 #### napi_set_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_set_property(napi_env env,
@@ -2666,6 +2785,7 @@ This API set a property on the Object passed in.
 #### napi_get_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_property(napi_env env,
@@ -2687,6 +2807,7 @@ This API gets the requested property from the Object passed in.
 #### napi_has_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_has_property(napi_env env,
@@ -2708,6 +2829,7 @@ This API checks if the Object passed in has the named property.
 #### napi_delete_property
 <!-- YAML
 added: v8.2.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_delete_property(napi_env env,
@@ -2730,6 +2852,7 @@ This API attempts to delete the `key` own property from `object`.
 #### napi_has_own_property
 <!-- YAML
 added: v8.2.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_has_own_property(napi_env env,
@@ -2753,6 +2876,7 @@ conversion between data types.
 #### napi_set_named_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_set_named_property(napi_env env,
@@ -2774,6 +2898,7 @@ created from the string passed in as `utf8Name`
 #### napi_get_named_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_named_property(napi_env env,
@@ -2795,6 +2920,7 @@ created from the string passed in as `utf8Name`
 #### napi_has_named_property
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_has_named_property(napi_env env,
@@ -2816,6 +2942,7 @@ created from the string passed in as `utf8Name`
 #### napi_set_element
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_set_element(napi_env env,
@@ -2836,6 +2963,7 @@ This API sets and element on the Object passed in.
 #### napi_get_element
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_element(napi_env env,
@@ -2856,6 +2984,7 @@ This API gets the element at the requested index.
 #### napi_has_element
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_has_element(napi_env env,
@@ -2877,6 +3006,7 @@ requested index.
 #### napi_delete_element
 <!-- YAML
 added: v8.2.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_delete_element(napi_env env,
@@ -2898,6 +3028,7 @@ This API attempts to delete the specified `index` from `object`.
 #### napi_define_properties
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_define_properties(napi_env env,
@@ -2941,6 +3072,7 @@ function.
 ### napi_call_function
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_call_function(napi_env env,
@@ -3007,6 +3139,7 @@ if (status != napi_ok) return;
 ### napi_create_function
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_function(napi_env env,
@@ -3075,6 +3208,7 @@ responsible for creating the `.node` file.
 ### napi_get_cb_info
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_cb_info(napi_env env,
@@ -3105,6 +3239,7 @@ call like the arguments and the `this` pointer from a given callback info.
 ### napi_get_new_target
 <!-- YAML
 added: v8.6.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_new_target(napi_env env,
@@ -3124,6 +3259,7 @@ callback is not a constructor call, the result is `NULL`.
 ### napi_new_instance
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_new_instance(napi_env env,
@@ -3219,6 +3355,7 @@ The reference must be freed once it is no longer needed.
 ### napi_define_class
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_define_class(napi_env env,
@@ -3275,6 +3412,7 @@ reference count is kept >= 1.
 ### napi_wrap
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_wrap(napi_env env,
@@ -3334,6 +3472,7 @@ another native instance with the object, use napi_remove_wrap() first.
 ### napi_unwrap
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_unwrap(napi_env env,
@@ -3359,6 +3498,7 @@ then by calling `napi_unwrap()` on the wrapper object.
 ### napi_remove_wrap
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_remove_wrap(napi_env env,
@@ -3429,6 +3569,7 @@ callback invocation, even when it was cancelled.
 ### napi_create_async_work
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 changes:
   - version: v8.6.0
     pr-url: https://github.com/nodejs/node/pull/14697
@@ -3477,6 +3618,7 @@ for more information.
 ### napi_delete_async_work
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_delete_async_work(napi_env env,
@@ -3495,6 +3637,7 @@ This API can be called even if there is a pending JavaScript exception.
 ### napi_queue_async_work
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_queue_async_work(napi_env env,
@@ -3512,6 +3655,7 @@ for execution.
 ### napi_cancel_async_work
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_cancel_async_work(napi_env env,
@@ -3541,6 +3685,7 @@ the runtime.
 ### napi_async_init
 <!-- YAML
 added: v8.6.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_async_init(napi_env env,
@@ -3562,6 +3707,7 @@ Returns `napi_ok` if the API succeeded.
 ### napi_async_destroy
 <!-- YAML
 added: v8.6.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_async_destroy(napi_env env,
@@ -3578,6 +3724,7 @@ This API can be called even if there is a pending JavaScript exception.
 ### napi_make_callback
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 changes:
   - version: v8.6.0
     description: Added `async_context` parameter.
@@ -3624,6 +3771,7 @@ may be required when implementing custom async behavior that does not use
 ### *napi_open_callback_scope*
 <!-- YAML
 added: v8.11.2
+napiVersion: 3
 -->
 ```C
 NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
@@ -3649,6 +3797,7 @@ the required scope.
 ### *napi_close_callback_scope*
 <!-- YAML
 added: v8.11.2
+napiVersion: 3
 -->
 ```C
 NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
@@ -3664,6 +3813,7 @@ This API can be called even if there is a pending JavaScript exception.
 ### napi_get_node_version
 <!-- YAML
 added: v8.4.0
+napiVersion: 1
 -->
 
 ```C
@@ -3692,6 +3842,7 @@ The returned buffer is statically allocated and does not need to be freed.
 ### napi_get_version
 <!-- YAML
 added: v8.0.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_get_version(napi_env env,
@@ -3722,6 +3873,7 @@ support it:
 ### napi_adjust_external_memory
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 NAPI_EXTERN napi_status napi_adjust_external_memory(napi_env env,
@@ -3801,6 +3953,7 @@ deferred = NULL;
 ### napi_create_promise
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_create_promise(napi_env env,
@@ -3821,6 +3974,7 @@ This API creates a deferred object and a JavaScript promise.
 ### napi_resolve_deferred
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_resolve_deferred(napi_env env,
@@ -3844,6 +3998,7 @@ The deferred object is freed upon successful completion.
 ### napi_reject_deferred
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_reject_deferred(napi_env env,
@@ -3867,6 +4022,7 @@ The deferred object is freed upon successful completion.
 ### napi_is_promise
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 napi_status napi_is_promise(napi_env env,
@@ -3887,6 +4043,7 @@ underlying JavaScript engine.
 ### napi_run_script
 <!-- YAML
 added: v8.5.0
+napiVersion: 1
 -->
 ```C
 NAPI_EXTERN napi_status napi_run_script(napi_env env,
@@ -3906,6 +4063,7 @@ a specific `napi_env`.
 ### napi_get_uv_event_loop
 <!-- YAML
 added: v8.10.0
+napiVersion: 2
 -->
 ```C
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
