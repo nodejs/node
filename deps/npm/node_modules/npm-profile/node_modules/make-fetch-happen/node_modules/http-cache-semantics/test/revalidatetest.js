@@ -106,6 +106,7 @@ describe('Can be revalidated?', function() {
         const headers = cache.revalidationHeaders(simpleRequest);
         assertHeadersPassed(headers);
         assert.equal(headers['if-modified-since'], 'Tue, 15 Nov 1994 12:45:26 GMT');
+        assert(!/113/.test(headers.warning));
     });
 
     it('not without validators', function() {
@@ -113,6 +114,20 @@ describe('Can be revalidated?', function() {
         const headers = cache.revalidationHeaders(simpleRequest);
         assertHeadersPassed(headers);
         assertNoValidators(headers);
+        assert(!/113/.test(headers.warning));
+    })
+
+    it('113 added', function() {
+        const veryOldResponse = {
+            headers: {
+                age: 3600*72,
+                'last-modified': 'Tue, 15 Nov 1994 12:45:26 GMT',
+            },
+        };
+
+        const cache = new CachePolicy(simpleRequest, veryOldResponse);
+        const headers = cache.responseHeaders(simpleRequest);
+        assert(/113/.test(headers.warning));
     })
 
 });

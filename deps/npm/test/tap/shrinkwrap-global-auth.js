@@ -1,3 +1,6 @@
+'use strict'
+
+var fs = require('fs')
 var path = require('path')
 var writeFileSync = require('graceful-fs').writeFileSync
 
@@ -5,6 +8,7 @@ var mkdirp = require('mkdirp')
 var mr = require('npm-registry-mock')
 var osenv = require('osenv')
 var rimraf = require('rimraf')
+var ssri = require('ssri')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -16,6 +20,7 @@ var modules = path.resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 var tarballURL = common.registry + tarballPath
 var tarball = path.resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
+var tarballIntegrity = ssri.fromData(fs.readFileSync(tarball)).toString()
 
 var server
 
@@ -41,10 +46,11 @@ test('authed npm install with shrinkwrapped global package', function (t) {
   common.npm(
     [
       'install',
-      '--loglevel', 'warn',
+      '--loglevel', 'error',
       '--json',
       '--fetch-retries', 0,
-      '--userconfig', outfile
+      '--userconfig', outfile,
+      '--registry', common.registry
     ],
     {cwd: pkg, stdio: [0, 'pipe', 2]},
     function (err, code, stdout) {
@@ -84,9 +90,11 @@ var json = {
 var shrinkwrap = {
   name: 'test-package-install',
   version: '1.0.0',
+  lockfileVersion: 1,
   dependencies: {
     '@scoped/underscore': {
       resolved: tarballURL,
+      integrity: tarballIntegrity,
       version: '1.3.1'
     }
   }

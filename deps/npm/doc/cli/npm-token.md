@@ -5,11 +5,11 @@ npm-token(1) -- Manage your authentication tokens
 
     npm token list [--json|--parseable]
     npm token create [--read-only] [--cidr=1.1.1.1/24,2.2.2.2/16]
-    npm token delete <id|token>
+    npm token revoke <id|token>
 
 ## DESCRIPTION
 
-This list you list, create and delete authentication tokens.
+This list you list, create and revoke authentication tokens.
 
 * `npm token list`:
   Shows a table of all active authentication tokens. You can request this as
@@ -52,7 +52,7 @@ This list you list, create and delete authentication tokens.
 +----------------+--------------------------------------+
 ```
 
-* `npm token delete <token|id>`:
+* `npm token revoke <token|id>`:
   This removes an authentication token, making it immediately unusable. This can accept
   both complete tokens (as you get back from `npm token create` and will
   find in your `.npmrc`) and ids as seen in the `npm token list` output.

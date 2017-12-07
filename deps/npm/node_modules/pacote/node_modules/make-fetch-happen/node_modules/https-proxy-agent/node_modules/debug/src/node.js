@@ -85,7 +85,9 @@ function useColors() {
 exports.formatters.o = function(v) {
   this.inspectOpts.colors = this.useColors;
   return util.inspect(v, this.inspectOpts)
-    .replace(/\s*\n\s*/g, ' ');
+    .split('\n').map(function(str) {
+      return str.trim()
+    }).join(' ');
 };
 
 /**

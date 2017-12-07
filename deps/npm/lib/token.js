@@ -15,17 +15,17 @@ module.exports = token
 
 token.usage =
   'npm token list\n' +
-  'npm token delete <tokenKey>\n' +
+  'npm token revoke <tokenKey>\n' +
   'npm token create [--read-only] [--cidr=list]\n'
 
-token.subcommands = ['list', 'delete', 'create']
+token.subcommands = ['list', 'revoke', 'create']
 
 token.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
 
   switch (argv[2]) {
     case 'list':
-    case 'delete':
+    case 'revoke':
     case 'create':
       return cb(null, [])
     default:
@@ -46,7 +46,7 @@ function token (args, cb) {
       withCb(list(), cb)
       break
     case 'delete':
-    case 'rel':
+    case 'revoke':
     case 'remove':
     case 'rm':
       withCb(rm(args.slice(1)), cb)
@@ -127,7 +127,7 @@ function list (args) {
 
 function rm (args) {
   if (args.length === 0) {
-    throw new Error('npm token delete <tokenKey>')
+    throw new Error('npm token revoke <tokenKey>')
   }
   const conf = config()
   const toRemove = []

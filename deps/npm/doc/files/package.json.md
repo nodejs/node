@@ -373,11 +373,13 @@ shortcut syntax you use for `npm install`:
 
     "repository": "npm/npm"
 
+    "repository": "github:user/repo"
+
     "repository": "gist:11081aaa281"
 
-    "repository": "bitbucket:example/repo"
+    "repository": "bitbucket:user/repo"
 
-    "repository": "gitlab:another/repo"
+    "repository": "gitlab:user/repo"
 
 ## scripts
 
@@ -618,7 +620,7 @@ If we define a package.json like this:
   "name": "awesome-web-framework",
   "version": "1.0.0",
   "bundledDependencies": [
-    'renderized', 'super-streams'
+    "renderized", "super-streams"
   ]
 }
 ```
@@ -678,7 +680,7 @@ are capable of properly installing your program.  For example:
     { "engines" : { "npm" : "~1.0.20" } }
 
 Unless the user has set the `engine-strict` config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency.
+field is advisory only and will only produce warnings when your package is installed as a dependency.
 
 ## engineStrict
 

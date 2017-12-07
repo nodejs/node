@@ -37,7 +37,8 @@ function getManifest (uri, registry, spec, opts) {
   return fetchPackument(uri, spec, registry, opts).then(packument => {
     try {
       return pickManifest(packument, spec.fetchSpec, {
-        defaultTag: opts.defaultTag
+        defaultTag: opts.defaultTag,
+        includeDeprecated: opts.includeDeprecated
       })
     } catch (err) {
       if (err.code === 'ETARGET' && packument._cached && !opts.offline) {

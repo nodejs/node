@@ -281,11 +281,13 @@ html project page that you put in your browser.  It&#39;s for computers.</p>
 shortcut syntax you use for <code>npm install</code>:</p>
 <pre><code>&quot;repository&quot;: &quot;npm/npm&quot;
 
+&quot;repository&quot;: &quot;github:user/repo&quot;
+
 &quot;repository&quot;: &quot;gist:11081aaa281&quot;
 
-&quot;repository&quot;: &quot;bitbucket:example/repo&quot;
+&quot;repository&quot;: &quot;bitbucket:user/repo&quot;
 
-&quot;repository&quot;: &quot;gitlab:another/repo&quot;
+&quot;repository&quot;: &quot;gitlab:user/repo&quot;
 </code></pre><h2 id="scripts">scripts</h2>
 <p>The &quot;scripts&quot; property is a dictionary containing script commands that are run
 at various times in the lifecycle of your package.  The key is the lifecycle
@@ -470,7 +472,7 @@ array and executing <code>npm pack</code>.</p>
   &quot;name&quot;: &quot;awesome-web-framework&quot;,
   &quot;version&quot;: &quot;1.0.0&quot;,
   &quot;bundledDependencies&quot;: [
-    &#39;renderized&#39;, &#39;super-streams&#39;
+    &quot;renderized&quot;, &quot;super-streams&quot;
   ]
 }
 </code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
@@ -515,7 +517,7 @@ that it works on node.</p>
 are capable of properly installing your program.  For example:</p>
 <pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
 </code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
-field is advisory only will produce warnings when your package is installed as a dependency.</p>
+field is advisory only and will only produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
 <p><strong>This feature was removed in npm 3.0.0</strong></p>
 <p>Prior to npm 3.0.0, this feature was used to treat this package as if the
@@ -601,5 +603,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@5.5.1</p>
+<p id="footer">package.json &mdash; npm@5.6.0</p>
 

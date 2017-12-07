@@ -24,6 +24,16 @@
   var npm = module.exports = new EventEmitter()
   var npmconf = require('./config/core.js')
   var log = require('npmlog')
+  var inspect = require('util').inspect
+
+  // capture global logging
+  process.on('log', function (level) {
+    try {
+      return log[level].apply(log, [].slice.call(arguments, 1))
+    } catch (ex) {
+      log.verbose('attempt to log ' + inspect(arguments) + ' crashed: ' + ex.message)
+    }
+  })
 
   var path = require('path')
   var abbrev = require('abbrev')

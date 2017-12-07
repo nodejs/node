@@ -30,6 +30,7 @@ var childPackageJSON = JSON.stringify({
 })
 
 test('setup', function (t) {
+  cleanup()
   setup(function (err, result) {
     t.ifError(err, 'git started up successfully')
 
