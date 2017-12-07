@@ -21,18 +21,23 @@
 
 'use strict';
 require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 
 const http = require('http');
+let response;
 
-let serverRequests = 0;
-let clientRequests = 0;
+const serverReqCountdown = new Countdown(1, () => {
+  response.writeHead(200, { 'Content-Type': 'text/plain' });
+  response.end('OK');
+});
 
 const server = http.createServer(function(req, res) {
-  serverRequests++;
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('OK');
+  response = res;
+  serverReqCountdown.dec();
 });
+
+const clientReqCountdown = new Countdown(1, () => server.close());
 
 server.listen(0, function() {
   function callback() {}
@@ -45,8 +50,7 @@ server.listen(0, function() {
     req.clearTimeout(callback);
 
     res.on('end', function() {
-      clientRequests++;
-      server.close();
+      clientReqCountdown.dec();
     });
 
     res.resume();
@@ -58,6 +62,6 @@ server.listen(0, function() {
 });
 
 process.once('exit', function() {
-  assert.strictEqual(clientRequests, 1);
-  assert.strictEqual(serverRequests, 1);
+  assert.strictEqual(clientReqCountdown.remaining, 0);
+  assert.strictEqual(serverReqCountdown.remaining, 0);
 });
