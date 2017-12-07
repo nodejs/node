@@ -327,6 +327,9 @@ int MAIN(int argc, char **argv)
     } else if (outformat == FORMAT_MSBLOB || outformat == FORMAT_PVK) {
         EVP_PKEY *pk;
         pk = EVP_PKEY_new();
+        if (pk == NULL)
+           goto end;
+
         EVP_PKEY_set1_DSA(pk, dsa);
         if (outformat == FORMAT_PVK)
             i = i2b_PVK_bio(out, pk, pvk_encr, 0, passout);
