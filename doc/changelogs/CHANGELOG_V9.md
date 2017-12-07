@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#9.2.1">9.2.1</a><br/>
 <a href="#9.2.0">9.2.0</a><br/>
 <a href="#9.1.0">9.1.0</a><br/>
 <a href="#9.0.0">9.0.0</a><br/>
@@ -25,6 +26,40 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="9.2.1"></a>
+## 2017-12-08, Version 9.2.1 (Current), @evanlucas
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2017-15896
+* CVE-2017-15897
+* CVE-2017-3738 (from the openssl project)
+
+### Notable Changes
+
+* **buffer**:
+  * buffer allocated with an invalid content will now be zero filled (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* **deps**:
+  * openssl updated to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+
+### Commits
+
+* [[`15bf640668`](https://github.com/nodejs/node/commit/15bf640668)] - **buffer**: zero-fill buffer allocated with invalid content (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* [[`c0954f4ba1`](https://github.com/nodejs/node/commit/c0954f4ba1)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`dfd7cd3038`](https://github.com/nodejs/node/commit/dfd7cd3038)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`76e7ff2915`](https://github.com/nodejs/node/commit/76e7ff2915)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`593f21ee9c`](https://github.com/nodejs/node/commit/593f21ee9c)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`235c78f968`](https://github.com/nodejs/node/commit/235c78f968)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`b0ebe5cb4b`](https://github.com/nodejs/node/commit/b0ebe5cb4b)] - **deps**: upgrade openssl sources to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`99fc75e9bc`](https://github.com/nodejs/node/commit/99fc75e9bc)] - **doc**: warn against filling buffer with invalid data (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* [[`f0f9e1abf0`](https://github.com/nodejs/node/commit/f0f9e1abf0)] - **http2**: use correct connect event for TLS Socket (James M Snell) [#17328](https://github.com/nodejs/node/pull/17328)
+* [[`65f209ccf1`](https://github.com/nodejs/node/commit/65f209ccf1)] - **http2**: use 'close' event instead of 'streamClosed' (James M Snell) [#17328](https://github.com/nodejs/node/pull/17328)
+* [[`d3e2bf0c8d`](https://github.com/nodejs/node/commit/d3e2bf0c8d)] - **http2**: general cleanups in core.js (James M Snell) [#17209](https://github.com/nodejs/node/pull/17209)
+* [[`6a76097fad`](https://github.com/nodejs/node/commit/6a76097fad)] - **http2**: major update to internals (James M Snell) [#17105](https://github.com/nodejs/node/pull/17105)
+* [[`e14c0babe0`](https://github.com/nodejs/node/commit/e14c0babe0)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 
 <a id="9.2.0"></a>
 ## 2017-11-14, Version 9.2.0 (Current), @evanlucas
