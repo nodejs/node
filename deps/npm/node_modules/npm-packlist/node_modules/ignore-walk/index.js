@@ -100,8 +100,7 @@ class Walker extends EE {
       .filter(line => !/^#|^$/.test(line.trim()))
       .map(r => new Minimatch(r, mmopt))
 
-    if (rules.length)
-      this.ignoreRules[file] = rules
+    this.ignoreRules[file] = rules
 
     then()
   }
