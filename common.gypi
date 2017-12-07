@@ -186,10 +186,12 @@
             ],
           },
           'VCLinkerTool': {
-            'LinkTimeCodeGeneration': 1, # link-time code generation
             'OptimizeReferences': 2, # /OPT:REF
             'EnableCOMDATFolding': 2, # /OPT:ICF
             'LinkIncremental': 1, # disable incremental linking
+            'AdditionalOptions': [
+              '/LTCG:INCREMENTAL', # incremental link-time code generation
+            ],
           },
         },
       }
