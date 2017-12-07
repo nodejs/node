@@ -34,22 +34,18 @@ function moveFile (src, dest) {
   }).then(() => {
     // content should never change for any reason, so make it read-only
     return BB.join(unlink(src), process.platform !== 'win32' && chmod(dest, '0444'))
-  }).catch(err => {
-    if (process.platform !== 'win32') {
-      throw err
-    } else {
-      if (!pinflight) { pinflight = require('promise-inflight') }
-      return pinflight('cacache-move-file:' + dest, () => {
-        return BB.promisify(fs.stat)(dest).catch(err => {
-          if (err !== 'ENOENT') {
-            // Something else is wrong here. Bail bail bail
-            throw err
-          }
-          // file doesn't already exist! let's try a rename -> copy fallback
-          if (!move) { move = require('move-concurrently') }
-          return move(src, dest, { BB, fs })
-        })
+  }).catch(() => {
+    if (!pinflight) { pinflight = require('promise-inflight') }
+    return pinflight('cacache-move-file:' + dest, () => {
+      return BB.promisify(fs.stat)(dest).catch(err => {
+        if (err.code !== 'ENOENT') {
+          // Something else is wrong here. Bail bail bail
+          throw err
+        }
+        // file doesn't already exist! let's try a rename -> copy fallback
+        if (!move) { move = require('move-concurrently') }
+        return move(src, dest, { BB, fs })
       })
-    }
+    })
   })
 }

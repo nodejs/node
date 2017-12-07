@@ -28,7 +28,7 @@ function SocksProxyAgent(opts) {
     throw new Error(
       'a SOCKS proxy server `host` and `port` must be specified!'
     );
-  Agent.call(this, connect);
+  Agent.call(this, opts);
 
   var proxy = Object.assign({}, opts);
 
@@ -86,7 +86,7 @@ inherits(SocksProxyAgent, Agent);
  * @api public
  */
 
-function connect(req, opts, fn) {
+SocksProxyAgent.prototype.callback = function connect(req, opts, fn) {
   var proxy = this.proxy;
 
   // called once the SOCKS proxy has connected to the specified remote endpoint

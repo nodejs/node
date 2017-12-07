@@ -12,6 +12,7 @@ const qrcodeTerminal = require('qrcode-terminal')
 const url = require('url')
 const queryString = require('query-string')
 const pulseTillDone = require('./utils/pulse-till-done.js')
+const inspect = require('util').inspect
 
 module.exports = profileCmd
 
@@ -87,11 +88,11 @@ function config () {
 }
 
 const knownProfileKeys = qw`
-  name email ${'two factor auth'} fullname homepage
+  name email ${'two-factor auth'} fullname homepage
   freenode twitter github created updated`
 
 function get (args) {
-  const tfa = 'two factor auth'
+  const tfa = 'two-factor auth'
   const conf = config()
   return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
     if (!info.cidr_whitelist) delete info.cidr_whitelist
@@ -188,8 +189,10 @@ function set (args) {
           output(JSON.stringify({[prop]: result[prop]}, null, 2))
         } else if (conf.parseable) {
           output(prop + '\t' + result[prop])
-        } else {
+        } else if (result[prop] != null) {
           output('Set', prop, 'to', result[prop])
+        } else {
+          output('Set', prop)
         }
       })
     }))
@@ -202,7 +205,7 @@ function enable2fa (args) {
   }
   const mode = args[0] || 'auth-and-writes'
   if (mode !== 'auth-only' && mode !== 'auth-and-writes') {
-    return Promise.reject(new Error(`Invalid two factor authentication mode "${mode}".\n` +
+    return Promise.reject(new Error(`Invalid two-factor authentication mode "${mode}".\n` +
       'Valid modes are:\n' +
       '  auth-only - Require two-factor authentication only when logging in\n' +
       '  auth-and-writes - Require two-factor authentication when logging in AND when publishing'))
@@ -210,16 +213,31 @@ function enable2fa (args) {
   const conf = config()
   if (conf.json || conf.parseable) {
     return Promise.reject(new Error(
-      'Enabling two-factor authentication is an interactive opperation and ' +
-      (conf.json ? 'JSON' : 'parseable') + 'output mode is not available'))
+      'Enabling two-factor authentication is an interactive operation and ' +
+      (conf.json ? 'JSON' : 'parseable') + ' output mode is not available'))
   }
-  log.notice('profile', 'Enabling two factor authentication for ' + mode)
+
   const info = {
     tfa: {
       mode: mode
     }
   }
-  return readUserInfo.password().then((password) => {
+
+  return Bluebird.try(() => {
+    // if they're using legacy auth currently then we have to update them to a
+    // bearer token before continuing.
+    if (conf.auth.basic) {
+      log.info('profile', 'Updating authentication to bearer token')
+      return profile.login(conf.auth.basic.username, conf.auth.basic.password, conf).then((result) => {
+        if (!result.token) throw new Error('Your registry ' + conf.registry + 'does not seem to support bearer tokens. Bearer tokens are required for two-factor authentication')
+        npm.config.setCredentialsByURI(conf.registry, {token: result.token})
+        return Bluebird.fromNode((cb) => npm.config.save('user', cb))
+      })
+    }
+  }).then(() => {
+    log.notice('profile', 'Enabling two factor authentication for ' + mode)
+    return readUserInfo.password()
+  }).then((password) => {
     info.tfa.password = password
     log.info('profile', 'Determine if tfa is pending')
     return pulseTillDone.withPromise(profile.get(conf)).then((info) => {
@@ -235,7 +253,7 @@ function enable2fa (args) {
       }
     })
   }).then(() => {
-    log.info('profile', 'Setting two factor authentication to ' + mode)
+    log.info('profile', 'Setting two-factor authentication to ' + mode)
     return pulseTillDone.withPromise(profile.set(info, conf))
   }).then((challenge) => {
     if (challenge.tfa === null) {
@@ -243,7 +261,7 @@ function enable2fa (args) {
       return
     }
     if (typeof challenge.tfa !== 'string' || !/^otpauth:[/][/]/.test(challenge.tfa)) {
-      throw new Error('Unknown error enabling two-factor authentication. Expected otpauth URL, got: ' + challenge.tfa)
+      throw new Error('Unknown error enabling two-factor authentication. Expected otpauth URL, got: ' + inspect(challenge.tfa))
     }
     const otpauth = url.parse(challenge.tfa)
     const opts = queryString.parse(otpauth.query)
@@ -252,10 +270,10 @@ function enable2fa (args) {
     }).then((code) => {
       return readUserInfo.otp('And an OTP code from your authenticator: ')
     }).then((otp1) => {
-      log.info('profile', 'Finalizing two factor authentication')
+      log.info('profile', 'Finalizing two-factor authentication')
       return profile.set({tfa: [otp1]}, conf)
     }).then((result) => {
-      output('TFA successfully enabled. Below are your recovery codes, please print these out.')
+      output('2FA successfully enabled. Below are your recovery codes, please print these out.')
       output('You will need these to recover access to your account if you lose your authentication device.')
       result.tfa.forEach((c) => output('\t' + c))
     })

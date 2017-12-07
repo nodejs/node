@@ -34,6 +34,10 @@ dotProp.set(obj, 'foo.bar', 'b');
 console.log(obj);
 //=> {foo: {bar: 'b'}}
 
+const foo = dotProp.set({}, 'foo.bar', 'c');
+console.log(foo);
+//=> {foo: {bar: 'c'}}
+
 dotProp.set(obj, 'foo.baz', 'x');
 console.log(obj);
 //=> {foo: {bar: 'b', baz: 'x'}}
@@ -60,6 +64,8 @@ console.log(obj);
 ### get(obj, path, [defaultValue])
 
 ### set(obj, path, value)
+
+Returns the object.
 
 ### has(obj, path)
 

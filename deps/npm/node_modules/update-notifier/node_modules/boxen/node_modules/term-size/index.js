@@ -20,7 +20,7 @@ module.exports = () => {
 		return create(stderr.columns, stderr.rows);
 	}
 
-	// these values are static, so not the first choice
+	// These values are static, so not the first choice
 	if (env.COLUMNS && env.LINES) {
 		return create(env.COLUMNS, env.LINES);
 	}
@@ -28,7 +28,7 @@ module.exports = () => {
 	if (process.platform === 'win32') {
 		try {
 			// Binary: https://github.com/sindresorhus/win-term-size
-			const size = execa.sync(path.join(__dirname, 'vendor/win-term-size.exe')).stdout.split(/\r?\n/);
+			const size = execa.sync(path.join(__dirname, 'vendor/windows/term-size.exe')).stdout.split(/\r?\n/);
 
 			if (size.length === 2) {
 				return create(size[0], size[1]);
@@ -37,8 +37,8 @@ module.exports = () => {
 	} else {
 		if (process.platform === 'darwin') {
 			try {
-				// Binary is from https://www.xquartz.org
-				const size = execa.shellSync(path.join(__dirname, 'vendor/resize'), ['-u']).stdout.match(/\d+/g);
+				// Binary: https://github.com/sindresorhus/macos-term-size
+				const size = execa.shellSync(path.join(__dirname, 'vendor/macos/term-size')).stdout.split(/\r?\n/);
 
 				if (size.length === 2) {
 					return create(size[0], size[1]);
