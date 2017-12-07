@@ -13,7 +13,7 @@ const rimraf = BB.promisify(require('rimraf'))
 module.exports = extract
 function extract (spec, dest, opts) {
   opts = optCheck(opts)
-  spec = typeof spec === 'string' ? npa(spec, opts.where) : spec
+  spec = npa(spec, opts.where)
   const startTime = Date.now()
   if (opts.integrity && opts.cache && !opts.preferOnline) {
     opts.log.silly('pacote', `trying ${spec} by hash: ${opts.integrity}`)

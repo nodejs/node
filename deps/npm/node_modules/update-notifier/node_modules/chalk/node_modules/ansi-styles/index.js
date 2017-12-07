@@ -1,10 +1,28 @@
 'use strict';
+const colorConvert = require('color-convert');
 
-function assembleStyles () {
-	var styles = {
-		modifiers: {
+const wrapAnsi16 = (fn, offset) => function () {
+	const code = fn.apply(colorConvert, arguments);
+	return `\u001B[${code + offset}m`;
+};
+
+const wrapAnsi256 = (fn, offset) => function () {
+	const code = fn.apply(colorConvert, arguments);
+	return `\u001B[${38 + offset};5;${code}m`;
+};
+
+const wrapAnsi16m = (fn, offset) => function () {
+	const rgb = fn.apply(colorConvert, arguments);
+	return `\u001B[${38 + offset};2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+};
+
+function assembleStyles() {
+	const codes = new Map();
+	const styles = {
+		modifier: {
 			reset: [0, 0],
-			bold: [1, 22], // 21 isn't widely supported and 22 does the same thing
+			// 21 isn't widely supported and 22 does the same thing
+			bold: [1, 22],
 			dim: [2, 22],
 			italic: [3, 23],
 			underline: [4, 24],
@@ -12,7 +30,7 @@ function assembleStyles () {
 			hidden: [8, 28],
 			strikethrough: [9, 29]
 		},
-		colors: {
+		color: {
 			black: [30, 39],
 			red: [31, 39],
 			green: [32, 39],
@@ -21,9 +39,18 @@ function assembleStyles () {
 			magenta: [35, 39],
 			cyan: [36, 39],
 			white: [37, 39],
-			gray: [90, 39]
+			gray: [90, 39],
+
+			// Bright color
+			redBright: [91, 39],
+			greenBright: [92, 39],
+			yellowBright: [93, 39],
+			blueBright: [94, 39],
+			magentaBright: [95, 39],
+			cyanBright: [96, 39],
+			whiteBright: [97, 39]
 		},
-		bgColors: {
+		bgColor: {
 			bgBlack: [40, 49],
 			bgRed: [41, 49],
 			bgGreen: [42, 49],
@@ -31,34 +58,94 @@ function assembleStyles () {
 			bgBlue: [44, 49],
 			bgMagenta: [45, 49],
 			bgCyan: [46, 49],
-			bgWhite: [47, 49]
+			bgWhite: [47, 49],
+
+			// Bright color
+			bgBlackBright: [100, 49],
+			bgRedBright: [101, 49],
+			bgGreenBright: [102, 49],
+			bgYellowBright: [103, 49],
+			bgBlueBright: [104, 49],
+			bgMagentaBright: [105, 49],
+			bgCyanBright: [106, 49],
+			bgWhiteBright: [107, 49]
 		}
 	};
 
-	// fix humans
-	styles.colors.grey = styles.colors.gray;
+	// Fix humans
+	styles.color.grey = styles.color.gray;
 
-	Object.keys(styles).forEach(function (groupName) {
-		var group = styles[groupName];
+	for (const groupName of Object.keys(styles)) {
+		const group = styles[groupName];
 
-		Object.keys(group).forEach(function (styleName) {
-			var style = group[styleName];
+		for (const styleName of Object.keys(group)) {
+			const style = group[styleName];
 
-			styles[styleName] = group[styleName] = {
-				open: '\u001b[' + style[0] + 'm',
-				close: '\u001b[' + style[1] + 'm'
+			styles[styleName] = {
+				open: `\u001B[${style[0]}m`,
+				close: `\u001B[${style[1]}m`
 			};
-		});
+
+			group[styleName] = styles[styleName];
+
+			codes.set(style[0], style[1]);
+		}
 
 		Object.defineProperty(styles, groupName, {
 			value: group,
 			enumerable: false
 		});
-	});
+
+		Object.defineProperty(styles, 'codes', {
+			value: codes,
+			enumerable: false
+		});
+	}
+
+	const rgb2rgb = (r, g, b) => [r, g, b];
+
+	styles.color.close = '\u001B[39m';
+	styles.bgColor.close = '\u001B[49m';
+
+	styles.color.ansi = {};
+	styles.color.ansi256 = {};
+	styles.color.ansi16m = {
+		rgb: wrapAnsi16m(rgb2rgb, 0)
+	};
+
+	styles.bgColor.ansi = {};
+	styles.bgColor.ansi256 = {};
+	styles.bgColor.ansi16m = {
+		rgb: wrapAnsi16m(rgb2rgb, 10)
+	};
+
+	for (const key of Object.keys(colorConvert)) {
+		if (typeof colorConvert[key] !== 'object') {
+			continue;
+		}
+
+		const suite = colorConvert[key];
+
+		if ('ansi16' in suite) {
+			styles.color.ansi[key] = wrapAnsi16(suite.ansi16, 0);
+			styles.bgColor.ansi[key] = wrapAnsi16(suite.ansi16, 10);
+		}
+
+		if ('ansi256' in suite) {
+			styles.color.ansi256[key] = wrapAnsi256(suite.ansi256, 0);
+			styles.bgColor.ansi256[key] = wrapAnsi256(suite.ansi256, 10);
+		}
+
+		if ('rgb' in suite) {
+			styles.color.ansi16m[key] = wrapAnsi16m(suite.rgb, 0);
+			styles.bgColor.ansi16m[key] = wrapAnsi16m(suite.rgb, 10);
+		}
+	}
 
 	return styles;
 }
 
+// Make the export immutable
 Object.defineProperty(module, 'exports', {
 	enumerable: true,
 	get: assembleStyles

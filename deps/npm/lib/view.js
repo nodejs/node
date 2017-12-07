@@ -264,7 +264,7 @@ function printData (data, name, cb) {
         if (npm.config.get('json')) {
           msgJson[msgJson.length - 1][f] = d
         } else {
-          d = util.inspect(d, false, 5, npm.color)
+          d = util.inspect(d, { showHidden: false, depth: 5, colors: npm.color, maxArrayLength: null })
         }
       } else if (typeof d === 'string' && npm.config.get('json')) {
         d = JSON.stringify(d)

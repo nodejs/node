@@ -16,6 +16,7 @@ let pacoteOpts
 const path = require('path')
 const localWorker = require('./extract-worker.js')
 const workerFarm = require('worker-farm')
+const isRegistry = require('../../utils/is-registry.js')
 
 const WORKER_PATH = require.resolve('./extract-worker.js')
 let workers
@@ -72,7 +73,7 @@ function extract (staging, pkg, log) {
     let msg = args
     const spec = typeof args[0] === 'string' ? npa(args[0]) : args[0]
     args[0] = spec.raw
-    if (ENABLE_WORKERS && (spec.registry || spec.type === 'remote')) {
+    if (ENABLE_WORKERS && (isRegistry(spec) || spec.type === 'remote')) {
       // We can't serialize these options
       opts.loglevel = opts.log.level
       opts.log = null

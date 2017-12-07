@@ -1,10 +1,14 @@
+'use strict'
+
+var fs = require('fs')
 var path = require('path')
 var writeFileSync = require('graceful-fs').writeFileSync
 
 var mkdirp = require('mkdirp')
-var mr = require('npm-registry-mock')
 var osenv = require('osenv')
+var http = require('http')
 var rimraf = require('rimraf')
+var ssri = require('ssri')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
@@ -16,26 +20,33 @@ var modules = path.resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 var tarballURL = common.registry + tarballPath
 var tarball = path.resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
+var tarballIntegrity = ssri.fromData(fs.readFileSync(tarball)).toString()
 
 var _auth = '0xabad1dea'
-
-var server
-
-function mocks (server) {
-  var auth = 'Basic ' + _auth
-  server.get(tarballPath, { authorization: auth }).replyWithFile(200, tarball)
-  server.get(tarballPath).reply(401, {
-    error: 'unauthorized',
-    reason: 'You are not authorized to access this db.'
-  })
-}
+var server = http.createServer()
+const errors = []
+server.on('request', (req, res) => {
+  const auth = 'Basic ' + _auth
+  if (req.method === 'GET' && req.url === tarballPath) {
+    if (req.headers.authorization === auth) {
+      res.writeHead(200, 'ok')
+      res.end(fs.readFileSync(tarball))
+    } else {
+      res.writeHead(403, 'unauthorized')
+      errors.push("Got authorization of '" + req.headers.authorization + "' expected '" + auth + "'")
+      res.end()
+    }
+  } else {
+    res.writeHead(500)
+    errors.push('Unknown request: ' + req.method + ' ' + req.url)
+    res.end()
+  }
+})
 
 test('setup', function (t) {
-  mr({ port: common.port, plugin: mocks }, function (er, s) {
-    server = s
-    t.ok(s, 'set up mock registry')
+  server.listen(common.port, () => {
     setup()
-    t.end()
+    t.done()
   })
 })
 
@@ -43,15 +54,17 @@ test('authed npm install with shrinkwrapped global package using _auth', functio
   common.npm(
     [
       'install',
-      '--loglevel', 'warn',
+      '--loglevel', 'error',
       '--json',
       '--fetch-retries', 0,
+      '--registry', common.registry,
       '--userconfig', outfile
     ],
     {cwd: pkg, stdio: [0, 'pipe', 2]},
     function (err, code, stdout) {
       if (err) throw err
       t.equal(code, 0, 'npm install exited OK')
+      errors.forEach((err) => t.comment('Error: ' + err))
       try {
         var results = JSON.parse(stdout)
         t.match(results, {added: [{name: '@scoped/underscore', version: '1.3.1'}]}, '@scoped/underscore installed')
@@ -66,13 +79,13 @@ test('authed npm install with shrinkwrapped global package using _auth', functio
 })
 
 test('cleanup', function (t) {
-  server.close()
-  cleanup()
-  t.end()
+  server.close(() => {
+    cleanup()
+    t.end()
+  })
 })
 
-var contents = 'registry=' + common.registry + '\n' +
-               '_auth=' + _auth + '\n' +
+var contents = '_auth=' + _auth + '\n' +
                '\'always-auth\'=true\n'
 
 var json = {
@@ -86,9 +99,11 @@ var json = {
 var shrinkwrap = {
   name: 'test-package-install',
   version: '1.0.0',
+  lockfileVersion: 1,
   dependencies: {
     '@scoped/underscore': {
       resolved: tarballURL,
+      integrity: tarballIntegrity,
       version: '1.3.1'
     }
   }

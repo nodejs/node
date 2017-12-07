@@ -13,8 +13,6 @@ module.exports = {
     utf16le: "ucs2",
 
     binary: { type: "_internal" },
-    iso88591: "binary",
-
     base64: { type: "_internal" },
     hex:    { type: "_internal" },
 

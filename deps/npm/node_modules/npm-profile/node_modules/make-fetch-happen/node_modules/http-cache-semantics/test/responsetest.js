@@ -34,6 +34,12 @@ describe('Response headers', function() {
         assert.equal(cache.maxAge(), 678);
     });
 
+    it('IIS', function() {
+        const cache = new CachePolicy(req, {headers:{'cache-control': 'private, public, max-age=259200'}}, {shared:false});
+        assert(!cache.stale());
+        assert.equal(cache.maxAge(), 259200);
+    });
+
     it('pre-check tolerated', function() {
         const cc = 'pre-check=0, post-check=0, no-store, no-cache, max-age=100';
         const cache = new CachePolicy(req, {headers:{'cache-control': cc}});

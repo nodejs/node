@@ -1,4 +1,11 @@
 
+# 0.4.19 / 2017-09-09
+
+  * Fixed iso8859-1 codec regression in handling untranslatable characters (#162, caused by #147)
+  * Re-generated windows1255 codec, because it was updated in iconv project
+  * Fixed grammar in error message when iconv-lite is loaded with encoding other than utf8
+
+
 # 0.4.18 / 2017-06-13
 
   * Fixed CESU-8 regression in Node v8.

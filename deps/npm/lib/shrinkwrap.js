@@ -21,6 +21,7 @@ const ssri = require('ssri')
 const validate = require('aproba')
 const writeFileAtomic = require('write-file-atomic')
 const unixFormatPath = require('./utils/unix-format-path.js')
+const isRegistry = require('./utils/is-registry.js')
 
 const PKGLOCK = 'package-lock.json'
 const SHRINKWRAP = 'npm-shrinkwrap.json'
@@ -113,7 +114,7 @@ function shrinkwrapDeps (deps, top, tree, seen) {
     if (child.fromBundle || child.isInLink) {
       pkginfo.bundled = true
     } else {
-      if (requested.registry) {
+      if (isRegistry(requested)) {
         pkginfo.resolved = child.package._resolved
       }
       // no integrity for git deps as integirty hashes are based on the
@@ -153,7 +154,7 @@ function sortModules (modules) {
 function childVersion (top, child, req) {
   if (req.type === 'directory' || req.type === 'file') {
     return 'file:' + unixFormatPath(path.relative(top.path, child.package._resolved || req.fetchSpec))
-  } else if (!req.registry && !child.fromBundle) {
+  } else if (!isRegistry(req) && !child.fromBundle) {
     return child.package._resolved || req.saveSpec || req.rawSpec
   } else {
     return child.package.version

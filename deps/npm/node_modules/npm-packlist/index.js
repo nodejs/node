@@ -76,7 +76,11 @@ const npmWalker = Class => class Walker extends Class {
     // get the partial path from the root of the walk
     const p = this.path.substr(this.root.length + 1)
     const pkgre = /^node_modules\/(@[^\/]+\/?[^\/]+|[^\/]+)(\/.*)?$/
-    const pkg = pkgre.test(entry) ? entry.replace(pkgre, '$1') : null
+    const isRoot = !this.parent
+    const pkg = isRoot && pkgre.test(entry) ?
+      entry.replace(pkgre, '$1') : null
+    const rootNM = isRoot && entry === 'node_modules'
+    const rootPJ = isRoot && entry === 'package.json'
 
     return (
       // if we're in a bundled package, check with the parent.
@@ -86,14 +90,17 @@ const npmWalker = Class => class Walker extends Class {
       // if package is bundled, all files included
       // also include @scope dirs for bundled scoped deps
       // they'll be ignored if no files end up in them.
+      // However, this only matters if we're in the root.
+      // node_modules folders elsewhere, like lib/node_modules,
+      // should be included normally unless ignored.
       : pkg ? -1 !== this.bundled.indexOf(pkg) ||
         -1 !== this.bundledScopes.indexOf(pkg)
 
       // only walk top node_modules if we want to bundle something
-      : entry === 'node_modules' && !this.parent ? !!this.bundled.length
+      : rootNM ? !!this.bundled.length
 
       // always include package.json at the root.
-      : entry === 'package.json' && !this.parent ? true
+      : rootPJ ? true
 
       // otherwise, follow ignore-walk's logic
       : super.filterEntry(entry, partial)
