@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#8.9.3">8.9.3</a><br/>
 <a href="#8.9.2">8.9.2</a><br/>
 <a href="#8.9.1">8.9.1</a><br/>
 <a href="#8.9.0">8.9.0</a><br/>
@@ -44,6 +45,46 @@
 *Note*: Node.js v8 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2019 and maintained until December 2019.
+
+<a id="8.9.3"></a>
+## 2017-12-08, Version 8.9.3 'Carbon' (LTS), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2017-15896
+* CVE-2017-15897
+* CVE-2017-3738 (from the openssl project)
+
+### Notable Changes
+
+* **buffer**:
+  * buffer allocated with an invalid content will now be zero filled (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* **deps**:
+  * openssl updated to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+
+### Commits
+
+* [[`b05ef978d3`](https://github.com/nodejs/node/commit/b05ef978d3)] - **buffer**: zero-fill buffer allocated with invalid content (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* [[`18652b6860`](https://github.com/nodejs/node/commit/18652b6860)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`e6c308e237`](https://github.com/nodejs/node/commit/e6c308e237)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`a85f94bd59`](https://github.com/nodejs/node/commit/a85f94bd59)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`b5552c854c`](https://github.com/nodejs/node/commit/b5552c854c)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`afad1f23a2`](https://github.com/nodejs/node/commit/afad1f23a2)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`9fdd3bddf5`](https://github.com/nodejs/node/commit/9fdd3bddf5)] - **deps**: upgrade openssl sources to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`db09f245bf`](https://github.com/nodejs/node/commit/db09f245bf)] - **doc**: warn against filling buffer with invalid data (Anna Henningsen) [#17428](https://github.com/nodejs/node/pull/17428)
+* [[`42f09ed461`](https://github.com/nodejs/node/commit/42f09ed461)] - **http2**: use correct connect event for TLS Socket (James M Snell) [#17328](https://github.com/nodejs/node/pull/17328)
+* [[`aba3544b50`](https://github.com/nodejs/node/commit/aba3544b50)] - **http2**: use 'close' event instead of 'streamClosed' (James M Snell) [#17328](https://github.com/nodejs/node/pull/17328)
+* [[`bd035d75bd`](https://github.com/nodejs/node/commit/bd035d75bd)] - **http2**: general cleanups in core.js (James M Snell) [#17209](https://github.com/nodejs/node/pull/17209)
+* [[`a5e3ba2cb3`](https://github.com/nodejs/node/commit/a5e3ba2cb3)] - **http2**: major update to internals (James M Snell) [#17105](https://github.com/nodejs/node/pull/17105)
+* [[`d7f37cebed`](https://github.com/nodejs/node/commit/d7f37cebed)] - **http2**: simplify subsequent rstStream calls (Anatoli Papirovski) [#16753](https://github.com/nodejs/node/pull/16753)
+* [[`22ee960775`](https://github.com/nodejs/node/commit/22ee960775)] - **http2**: refactor multiple internals (James M Snell) [#16676](https://github.com/nodejs/node/pull/16676)
+* [[`319beaf45b`](https://github.com/nodejs/node/commit/319beaf45b)] - **http2**: allocate on every chunk send (James M Snell) [#16669](https://github.com/nodejs/node/pull/16669)
+* [[`7d68488524`](https://github.com/nodejs/node/commit/7d68488524)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`8e8fac29de`](https://github.com/nodejs/node/commit/8e8fac29de)] - **src**: fix -Winconsistent-missing-override warning (Ben Noordhuis) [#16726](https://github.com/nodejs/node/pull/16726)
+* [[`26b43c87ee`](https://github.com/nodejs/node/commit/26b43c87ee)] - **src**: add method to compute storage in WriteWrap (Anna Henningsen) [#16727](https://github.com/nodejs/node/pull/16727)
+* [[`99d775ca07`](https://github.com/nodejs/node/commit/99d775ca07)] - **test**: fix flaky test-http2-create-client-connect (David Benjamin) [#16130](https://github.com/nodejs/node/pull/16130)
 
 <a id="8.9.2"></a>
 ## 2017-12-05, Version 8.9.2 'Carbon' (LTS), @gibfahn
