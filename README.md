@@ -116,11 +116,11 @@ documentation of the latest stable version.
 
 ### Verifying Binaries
 
-Current, LTS, and Nightly download directories all contain a _SHASUMS256.txt_
+Current, LTS, and Nightly download directories all contain a SHASUMS256.txt
 file that lists the SHA checksums for each file available for
 download.
 
-The _SHASUMS256.txt_ can be downloaded using curl.
+The SHASUMS256.txt can be downloaded using `curl`.
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
@@ -133,12 +133,9 @@ it through `sha256sum` with a command such as:
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
-_(Where "node-vx.y.z.tar.gz" is the name of the file you have
-downloaded)_
-
-Additionally, Current and LTS releases (not Nightlies) have the GPG
-detached signature of SHASUMS256.txt available as SHASUMS256.txt.sig.
-You can use `gpg` to verify that SHASUMS256.txt has not been tampered with.
+Current and LTS releases (but not Nightlies) also have the GPG detached
+signature of SHASUMS256.txt available as SHASUMS256.txt.sig. You can use `gpg`
+to verify that SHASUMS256.txt has not been tampered with.
 
 To verify SHASUMS256.txt has not been altered, you will first need to import
 all of the GPG keys of individuals authorized to create releases. They are
@@ -149,8 +146,7 @@ Use a command such as this to import the keys:
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
-_(See the bottom of this README for a full script to import active
-release keys)_
+See the bottom of this README for a full script to import active release keys.
 
 Next, download the SHASUMS256.txt.sig for the release:
 
