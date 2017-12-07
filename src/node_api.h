@@ -7,6 +7,16 @@
 
 struct uv_loop_s;  // Forward declaration.
 
+#ifndef NAPI_VERSION
+#ifdef NAPI_EXPERIMENTAL
+// Use INT_MAX, this should only be consumed by the pre-processor anyway.
+#define NAPI_VERSION 2147483647
+#else
+// The baseline version for N-API
+#define NAPI_VERSION 3
+#endif
+#endif
+
 #ifdef _WIN32
   #ifdef BUILDING_NODE_EXTENSION
     #ifdef EXTERNAL_NAPI
@@ -118,18 +128,9 @@ EXTERN_C_START
 
 NAPI_EXTERN void napi_module_register(napi_module* mod);
 
-NAPI_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
-                                                  void (*fun)(void* arg),
-                                                  void* arg);
-NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
-                                                     void (*fun)(void* arg),
-                                                     void* arg);
-
 NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
-
-NAPI_EXTERN napi_status napi_fatal_exception(napi_env env, napi_value err);
 
 NAPI_EXTERN NAPI_NO_RETURN void napi_fatal_error(const char* location,
                                                  size_t location_len,
@@ -443,14 +444,6 @@ NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
                                            napi_value escapee,
                                            napi_value* result);
 
-NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
-                                                 napi_value resource_object,
-                                                 napi_async_context context,
-                                                 napi_callback_scope* result);
-
-NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
-                                                  napi_callback_scope scope);
-
 // Methods to support error handling
 NAPI_EXTERN napi_status napi_throw(napi_env env, napi_value error);
 NAPI_EXTERN napi_status napi_throw_error(napi_env env,
@@ -610,11 +603,38 @@ NAPI_EXTERN napi_status napi_run_script(napi_env env,
                                         napi_value script,
                                         napi_value* result);
 
+#if NAPI_VERSION >= 2
+
 // Return the current libuv event loop for a given environment
 NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
                                                struct uv_loop_s** loop);
 
+#endif  // NAPI_VERSION >= 2
+
+#if NAPI_VERSION >= 3
+
+NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
+                                                 napi_value resource_object,
+                                                 napi_async_context context,
+                                                 napi_callback_scope* result);
+
+NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
+                                                  napi_callback_scope scope);
+
+NAPI_EXTERN napi_status napi_fatal_exception(napi_env env, napi_value err);
+
+NAPI_EXTERN napi_status napi_add_env_cleanup_hook(napi_env env,
+                                                  void (*fun)(void* arg),
+                                                  void* arg);
+
+NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(napi_env env,
+                                                     void (*fun)(void* arg),
+                                                     void* arg);
+
+#endif  // NAPI_VERSION >= 3
+
 #ifdef NAPI_EXPERIMENTAL
+
 // Calling into JS from other threads
 NAPI_EXTERN napi_status
 napi_create_threadsafe_function(napi_env env,
@@ -652,6 +672,7 @@ NAPI_EXTERN napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 #endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_

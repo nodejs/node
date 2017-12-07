@@ -261,6 +261,10 @@ function parseYAML(text) {
     html += `${added.description}${deprecated.description}\n`;
   }
 
+  if (meta.napiVersion) {
+    html += `<span>N-API version: ${meta.napiVersion.join(', ')}</span>\n`;
+  }
+
   html += '</div>';
   return html;
 }
