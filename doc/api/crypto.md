@@ -1556,7 +1556,7 @@ higher the number of iterations, the more secure the derived key will be,
 but will take a longer amount of time to complete.
 
 The `salt` should also be as unique as possible. It is recommended that the
-salts are random and their lengths are greater than 16 bytes. See
+salts are random and their lengths are at least 16 bytes. See
 [NIST SP 800-132][] for details.
 
 Example:
@@ -1608,7 +1608,7 @@ higher the number of iterations, the more secure the derived key will be,
 but will take a longer amount of time to complete.
 
 The `salt` should also be as unique as possible. It is recommended that the
-salts are random and their lengths are greater than 16 bytes. See
+salts are random and their lengths are at least 16 bytes. See
 [NIST SP 800-132][] for details.
 
 Example:
