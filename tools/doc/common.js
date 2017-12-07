@@ -25,6 +25,10 @@ function extractAndParseYAML(text) {
     meta.added = arrify(meta.added);
   }
 
+  if (meta.napiVersion) {
+    meta.napiVersion = arrify(meta.napiVersion);
+  }
+
   if (meta.deprecated) {
     // Treat deprecated like added for consistency.
     meta.deprecated = arrify(meta.deprecated);
