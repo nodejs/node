@@ -1,5 +1,8 @@
 'use strict';
 require('../common');
+
+// Trivial test of fs.readFile on an empty file.
+
 const assert = require('assert');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
