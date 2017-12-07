@@ -28,7 +28,7 @@ const { inspect } = require('util');
 
 const is = {
   number: (value, key) => {
-    assert(!isNaN(value), `${key} should not be NaN`);
+    assert(!Number.isNaN(value), `${key} should not be NaN`);
     assert.strictEqual(typeof value, 'number');
   },
   string: (value) => { assert.strictEqual(typeof value, 'string'); },
