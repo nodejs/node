@@ -4417,7 +4417,8 @@ EC_GROUP_get_mont_data                  4772	EXIST::FUNCTION:EC
 i2d_re_X509_tbs                         4773	EXIST::FUNCTION:
 EVP_PKEY_asn1_set_item                  4774	EXIST::FUNCTION:
 EVP_PKEY_meth_get_init                  4775	EXIST::FUNCTION:
-EVP_PKEY_meth_get_verify_recover        4776	EXIST::FUNCTION:
+EVP_PKEY_meth_get_verify_recover        4776	EXIST:!VMS:FUNCTION:
+EVP_PKEY_meth_get_vrfy_recover          4776	EXIST:VMS:FUNCTION:
 EVP_PKEY_meth_get_keygen                4777	EXIST::FUNCTION:
 EVP_PKEY_meth_get_derive                4778	EXIST::FUNCTION:
 EVP_PKEY_meth_get_verifyctx             4779	EXIST::FUNCTION:
