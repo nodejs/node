@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.12.2">6.12.2</a><br/>
 <a href="#6.12.1">6.12.1</a><br/>
 <a href="#6.12.0">6.12.0</a><br/>
 <a href="#6.11.5">6.11.5</a><br/>
@@ -55,6 +56,31 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.12.2"></a>
+## 2017-12-08, Version 6.12.2 'Boron' (LTS), @MylesBorins
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/december-2017-security-releases/ for details on patched vulnerabilities.
+
+Fixes for the following CVEs are included in this release:
+
+* CVE-2017-15896
+* CVE-2017-3738 (from the openssl project)
+
+### Notable Changes
+
+* **deps**:
+  * openssl updated to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+
+### Commits
+
+* [[`6314a46c48`](https://github.com/nodejs/node/commit/6314a46c48)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`f2121a8583`](https://github.com/nodejs/node/commit/f2121a8583)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`741651cc4b`](https://github.com/nodejs/node/commit/741651cc4b)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`5956aead33`](https://github.com/nodejs/node/commit/5956aead33)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`ac53d01646`](https://github.com/nodejs/node/commit/ac53d01646)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`03651ad9d6`](https://github.com/nodejs/node/commit/03651ad9d6)] - **deps**: upgrade openssl sources to 1.0.2n (Shigeki Ohtsu) [#17526](https://github.com/nodejs/node/pull/17526)
+* [[`eb30387c6d`](https://github.com/nodejs/node/commit/eb30387c6d)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 
 <a id="6.12.1"></a>
 ## 2017-12-05, Version 6.12.1 'Boron' (LTS), @MylesBorins
