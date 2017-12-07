@@ -5107,7 +5107,7 @@ void DiffieHellman::SetKey(const v8::FunctionCallbackInfo<v8::Value>& args,
       BN_bin2bn(reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
                 Buffer::Length(args[0]), nullptr);
   CHECK_NE(num, nullptr);
-  USE(set_field(dh->dh, num));
+  CHECK_EQ(1, set_field(dh->dh, num));
 }
 
 
