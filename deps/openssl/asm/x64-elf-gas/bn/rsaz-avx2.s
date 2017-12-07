@@ -66,7 +66,7 @@ rsaz_1024_sqr_avx2:
 	vmovdqu	256-128(%rsi),%ymm8
 
 	leaq	192(%rsp),%rbx
-	vpbroadcastq	.Land_mask(%rip),%ymm15
+	vmovdqu	.Land_mask(%rip),%ymm15
 	jmp	.LOOP_GRANDE_SQR_1024
 
 .align	32
@@ -799,10 +799,10 @@ rsaz_1024_mul_avx2:
 	vpmuludq	192-128(%rcx),%ymm11,%ymm12
 	vpaddq	%ymm12,%ymm6,%ymm6
 	vpmuludq	224-128(%rcx),%ymm11,%ymm13
-	vpblendd	$3,%ymm14,%ymm9,%ymm9
+	vpblendd	$3,%ymm14,%ymm9,%ymm12
 	vpaddq	%ymm13,%ymm7,%ymm7
 	vpmuludq	256-128(%rcx),%ymm11,%ymm0
-	vpaddq	%ymm9,%ymm3,%ymm3
+	vpaddq	%ymm12,%ymm3,%ymm3
 	vpaddq	%ymm0,%ymm8,%ymm8
 
 	movq	%rbx,%rax
@@ -815,7 +815,9 @@ rsaz_1024_mul_avx2:
 	vmovdqu	-8+64-128(%rsi),%ymm13
 
 	movq	%r10,%rax
+	vpblendd	$0xfc,%ymm14,%ymm9,%ymm9
 	imull	%r8d,%eax
+	vpaddq	%ymm9,%ymm4,%ymm4
 	andl	$0x1fffffff,%eax
 
 	imulq	16-128(%rsi),%rbx
@@ -1044,7 +1046,6 @@ rsaz_1024_mul_avx2:
 
 	decl	%r14d
 	jnz	.Loop_mul_1024
-	vpermq	$0,%ymm15,%ymm15
 	vpaddq	(%rsp),%ymm12,%ymm0
 
 	vpsrlq	$29,%ymm0,%ymm12
@@ -1684,7 +1685,7 @@ rsaz_avx2_eligible:
 
 .align	64
 .Land_mask:
-.quad	0x1fffffff,0x1fffffff,0x1fffffff,-1
+.quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
 .Lscatter_permd:
 .long	0,2,4,6,7,7,7,7
 .Lgather_permd:
