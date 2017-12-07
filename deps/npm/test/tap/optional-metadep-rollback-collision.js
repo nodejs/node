@@ -158,7 +158,7 @@ test('setup', function (t) {
   })
 })
 test('go go test racer', function (t) {
-  common.npm(
+  return common.npm(
     [
       '--prefix', pkg,
       '--fetch-retries', '0',
@@ -175,19 +175,13 @@ test('go go test racer', function (t) {
         PATH: process.env.PATH,
         Path: process.env.Path
       },
-      stdio: [ 0, 'pipe', 2 ]
-    },
-    function (er, code, stdout, stderr) {
-      t.ifError(er, 'install ran to completion without error')
-      t.is(code, 0, 'npm install exited with code 0')
+      stdio: 'pipe'
+    }).spread((code, stdout, stderr) => {
+      t.comment(stdout.trim())
       t.comment(stderr.trim())
-      // stdout should be empty, because we only have one, optional, dep and
-      // if it fails we shouldn't try installing anything
-      t.equal(stdout, '')
+      t.is(code, 0, 'npm install exited with code 0')
       t.notOk(/not ok/.test(stdout), 'should not contain the string \'not ok\'')
-      t.end()
-    }
-  )
+    })
 })
 
 test('verify results', function (t) {

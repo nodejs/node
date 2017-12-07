@@ -4,7 +4,6 @@ var common = require('./00-config-setup.js')
 var path = require('path')
 
 var projectData = {
-  'save-prefix': '~',
   'legacy-bundling': true
 }
 
