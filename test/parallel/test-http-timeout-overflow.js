@@ -20,24 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const Countdown = require('../common/countdown');
-const assert = require('assert');
-
+const common = require('../common');
 const http = require('http');
-let response;
 
-const serverReqCountdown = new Countdown(1, () => {
-  response.writeHead(200, { 'Content-Type': 'text/plain' });
-  response.end('OK');
-});
-
-const server = http.createServer(function(req, res) {
-  response = res;
-  serverReqCountdown.dec();
-});
-
-const clientReqCountdown = new Countdown(1, () => server.close());
+const server = http.createServer(common.mustCall(function(req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('OK');
+}));
 
 server.listen(0, function() {
   function callback() {}
@@ -49,9 +38,9 @@ server.listen(0, function() {
   }, function(res) {
     req.clearTimeout(callback);
 
-    res.on('end', function() {
-      clientReqCountdown.dec();
-    });
+    res.on('end', common.mustCall(function() {
+      server.close();
+    }));
 
     res.resume();
   });
@@ -59,9 +48,4 @@ server.listen(0, function() {
   // Overflow signed int32
   req.setTimeout(0xffffffff, callback);
   req.end();
-});
-
-process.once('exit', function() {
-  assert.strictEqual(clientReqCountdown.remaining, 0);
-  assert.strictEqual(serverReqCountdown.remaining, 0);
 });
