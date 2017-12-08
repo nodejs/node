@@ -620,6 +620,10 @@ pipes between the parent and child. The value is one of the following:
    will enable [`process.send()`][], [`process.disconnect()`][],
    [`process.on('disconnect')`][], and [`process.on('message')`] within the
    child.
+
+   Accessing the IPC channel fd in any way other than [`process.send()`][]
+   or using the IPC channel with a child process that is not a Node.js instance
+   is not supported.
 3. `'ignore'` - Instructs Node.js to ignore the fd in the child. While Node.js
    will always open fds 0 - 2 for the processes it spawns, setting the fd to
    `'ignore'` will cause Node.js to open `/dev/null` and attach it to the
