@@ -488,6 +488,7 @@ common.expectsError(
 );
 
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
+  const buf = Buffer.alloc(10);
   common.expectsError(
     () => crypto.randomFillSync(i),
     {
@@ -500,6 +501,24 @@ common.expectsError(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError
+    }
+  );
+  common.expectsError(
+    () => crypto.randomFill(buf, 0, 10, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function',
+    });
+});
+
+[1, true, NaN, null, {}, []].forEach((i) => {
+  common.expectsError(
+    () => crypto.randomBytes(1, i),
+    {
+      code: 'ERR_INVALID_CALLBACK',
+      type: TypeError,
+      message: 'Callback must be a function',
     }
   );
 });
