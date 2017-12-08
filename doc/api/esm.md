@@ -147,9 +147,9 @@ be written:
 import url from 'url';
 import path from 'path';
 import process from 'process';
-import module from 'module';
+import Module from 'module';
 
-const builtins = module.builtinModules;
+const builtins = Module.builtinModules;
 const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 
 export function resolve(specifier, parentModuleURL/*, defaultResolve */) {
