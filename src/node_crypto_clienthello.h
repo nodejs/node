@@ -24,9 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "node.h"
-
 #include <stddef.h>  // size_t
+#include <stdint.h>
 #include <stdlib.h>  // nullptr
 
 namespace node {
