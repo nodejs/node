@@ -25,6 +25,7 @@ const Countdown = require('../common/countdown');
 
 const http = require('http');
 const net = require('net');
+
 const seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
 const countdown = new Countdown(seeds.length, () => server.close());
 
