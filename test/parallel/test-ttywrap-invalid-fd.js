@@ -4,14 +4,13 @@ const assert = require('assert');
 const fs = require('fs');
 const tty = require('tty');
 
-assert.throws(() => {
+common.expectsError(() => {
   new tty.WriteStream(-1);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_FD',
   type: RangeError,
   message: '"fd" must be a positive integer: -1'
-})
-);
+});
 
 const err_regex = common.isWindows ?
   /^Error: EBADF: bad file descriptor, uv_tty_init$/ :
@@ -25,14 +24,13 @@ assert.throws(() => {
   new tty.WriteStream(fd);
 }, err_regex);
 
-assert.throws(() => {
+common.expectsError(() => {
   new tty.ReadStream(-1);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_FD',
   type: RangeError,
   message: '"fd" must be a positive integer: -1'
-})
-);
+});
 
 assert.throws(() => {
   let fd = 2;

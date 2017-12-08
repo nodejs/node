@@ -205,20 +205,20 @@ assert.doesNotThrow(() => {
   }, common.mustCall());
 });
 
-assert.throws(() => dns.lookupService('0.0.0.0'), common.expectsError({
+common.expectsError(() => dns.lookupService('0.0.0.0'), {
   code: 'ERR_MISSING_ARGS',
   type: TypeError,
   message: 'The "host", "port", and "callback" arguments must be specified'
-}));
+});
 
 const invalidHost = 'fasdfdsaf';
-assert.throws(() => {
+common.expectsError(() => {
   dns.lookupService(invalidHost, 0, common.mustNotCall());
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_OPT_VALUE',
   type: TypeError,
   message: `The value "${invalidHost}" is invalid for option "host"`
-}));
+});
 
 const portErr = (port) => {
   common.expectsError(
@@ -238,9 +238,9 @@ portErr(undefined);
 portErr(65538);
 portErr('test');
 
-assert.throws(() => {
+common.expectsError(() => {
   dns.lookupService('0.0.0.0', 80, null);
-}, common.expectsError({
+}, {
   code: 'ERR_INVALID_CALLBACK',
   type: TypeError
-}));
+});
