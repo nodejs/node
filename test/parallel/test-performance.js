@@ -68,12 +68,13 @@ assert.strictEqual(typeof performance.timeOrigin, 'number');
   });
 
   [undefined, null, 'foo', 1].forEach((i) => {
-    assert.throws(() => performance.measure('test', 'A', i),
-                  common.expectsError({
-                    code: 'ERR_INVALID_PERFORMANCE_MARK',
-                    type: Error,
-                    message: `The "${i}" performance mark has not been set`
-                  }));
+    common.expectsError(
+      () => performance.measure('test', 'A', i),
+      {
+        code: 'ERR_INVALID_PERFORMANCE_MARK',
+        type: Error,
+        message: `The "${i}" performance mark has not been set`
+      });
   });
 
   performance.clearMeasures();

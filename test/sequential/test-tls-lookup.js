@@ -13,12 +13,12 @@ const tls = require('tls');
     lookup: input
   };
 
-  assert.throws(function() {
+  common.expectsError(function() {
     tls.connect(opts);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError
-  }));
+  });
 });
 
 connectDoesNotThrow(common.mustCall(() => {}));
