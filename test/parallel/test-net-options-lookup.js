@@ -13,12 +13,12 @@ function connectThrows(input) {
     lookup: input
   };
 
-  assert.throws(() => {
+  common.expectsError(() => {
     net.connect(opts);
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError
-  }));
+  });
 }
 
 connectDoesNotThrow(() => {});

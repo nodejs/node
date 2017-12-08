@@ -1136,22 +1136,22 @@ if (typeof Symbol !== 'undefined') {
     JSON.stringify(oldOptions)
   );
 
-  assert.throws(() => {
+  common.expectsError(() => {
     util.inspect.defaultOptions = null;
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options" argument must be of type Object'
-  })
+  }
   );
 
-  assert.throws(() => {
+  common.expectsError(() => {
     util.inspect.defaultOptions = 'bad';
-  }, common.expectsError({
+  }, {
     code: 'ERR_INVALID_ARG_TYPE',
     type: TypeError,
     message: 'The "options" argument must be of type Object'
-  })
+  }
   );
 }
 

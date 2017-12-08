@@ -229,13 +229,13 @@ const values = [
 {
   // Verify that non-function inputs throw.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
-    assert.throws(() => {
+    common.expectsError(() => {
       callbackify(value);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The "original" argument must be of type Function'
-    }));
+    });
   });
 }
 
@@ -250,12 +250,12 @@ const values = [
   // Verify that the last argument to the callbackified function is a function.
   ['foo', null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
     args.push(value);
-    assert.throws(() => {
+    common.expectsError(() => {
       cb(...args);
-    }, common.expectsError({
+    }, {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
       message: 'The last argument must be of type Function'
-    }));
+    });
   });
 }
