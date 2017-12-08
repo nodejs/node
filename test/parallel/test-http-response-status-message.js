@@ -20,12 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
-
-let testsComplete = 0;
 
 const testCases = [
   { path: '/200', statusMessage: 'OK',
@@ -49,6 +48,7 @@ testCases.findByPath = function(path) {
   return matching[0];
 };
 
+const countdown = new Countdown(testCases.length, common.mustCall(() => {}));
 const server = net.createServer(function(connection) {
   connection.on('data', function(data) {
     const path = data.toString().match(/GET (.*) HTTP\/1\.1/)[1];
@@ -71,7 +71,7 @@ function runTest(testCaseIndex) {
     assert.strictEqual(testCase.statusMessage, response.statusMessage);
 
     response.on('end', function() {
-      testsComplete++;
+      countdown.dec();
 
       if (testCaseIndex + 1 < testCases.length) {
         runTest(testCaseIndex + 1);
@@ -85,7 +85,3 @@ function runTest(testCaseIndex) {
 }
 
 server.listen(0, function() { runTest(0); });
-
-process.on('exit', function() {
-  assert.strictEqual(testCases.length, testsComplete);
-});
