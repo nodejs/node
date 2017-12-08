@@ -325,10 +325,12 @@ class NodeInspectorClient : public V8InspectorClient {
   }
 
   void maxAsyncCallStackDepthChanged(int depth) override {
-    if (depth == 0) {
-      env_->inspector_agent()->DisableAsyncHook();
-    } else {
-      env_->inspector_agent()->EnableAsyncHook();
+    if (auto agent = env_->inspector_agent()) {
+      if (depth == 0) {
+        agent->DisableAsyncHook();
+      } else {
+        agent->EnableAsyncHook();
+      }
     }
   }
 
