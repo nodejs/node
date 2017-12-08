@@ -28,33 +28,34 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
 
 {
   [1, null, undefined, {}, [], Infinity].forEach((i) => {
-    assert.throws(() => new PerformanceObserver(i),
-                  common.expectsError({
-                    code: 'ERR_INVALID_CALLBACK',
-                    type: TypeError,
-                    message: 'Callback must be a function'
-                  }));
+    common.expectsError(() => new PerformanceObserver(i),
+                        {
+                          code: 'ERR_INVALID_CALLBACK',
+                          type: TypeError,
+                          message: 'Callback must be a function'
+                        });
   });
   const observer = new PerformanceObserver(common.mustNotCall());
 
   [1, null, undefined].forEach((i) => {
     //observer.observe(i);
-    assert.throws(() => observer.observe(i),
-                  common.expectsError({
-                    code: 'ERR_INVALID_ARG_TYPE',
-                    type: TypeError,
-                    message: 'The "options" argument must be of type Object'
-                  }));
+    common.expectsError(
+      () => observer.observe(i),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: 'The "options" argument must be of type Object'
+      });
   });
 
   [1, undefined, null, {}, Infinity].forEach((i) => {
-    assert.throws(() => observer.observe({ entryTypes: i }),
-                  common.expectsError({
-                    code: 'ERR_INVALID_OPT_VALUE',
-                    type: TypeError,
-                    message: 'The value "[object Object]" is invalid for ' +
-                             'option "entryTypes"'
-                  }));
+    common.expectsError(() => observer.observe({ entryTypes: i }),
+                        {
+                          code: 'ERR_INVALID_OPT_VALUE',
+                          type: TypeError,
+                          message: 'The value "[object Object]" is invalid ' +
+                                   'for option "entryTypes"'
+                        });
   });
 }
 

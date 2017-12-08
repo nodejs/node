@@ -21,16 +21,16 @@ server.on('stream', common.mustCall((stream) => {
   // and pushStream() must throw.
   assert.strictEqual(stream.pushAllowed, false);
 
-  assert.throws(() => {
+  common.expectsError(() => {
     stream.pushStream({
       ':scheme': 'http',
       ':path': '/foobar',
       ':authority': `localhost:${server.address().port}`,
     }, common.mustNotCall());
-  }, common.expectsError({
+  }, {
     code: 'ERR_HTTP2_PUSH_DISABLED',
     type: Error
-  }));
+  });
 
   stream.respond({ ':status': 200 });
   stream.end('test');

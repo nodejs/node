@@ -357,46 +357,46 @@ function isWarned(emitter) {
   // constructor throws if completer is not a function or undefined
   {
     const fi = new FakeInput();
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi,
         completer: 'string is not valid'
       });
-    }, common.expectsError({
+    }, {
       type: TypeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
   }
 
   // constructor throws if historySize is not a positive number
   {
     const fi = new FakeInput();
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: 'not a number'
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
 
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: -1
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
 
-    assert.throws(function() {
+    common.expectsError(function() {
       readline.createInterface({
         input: fi, historySize: NaN
       });
-    }, common.expectsError({
+    }, {
       type: RangeError,
       code: 'ERR_INVALID_OPT_VALUE'
-    }));
+    });
   }
 
   // duplicate lines are removed from history when
