@@ -72,12 +72,12 @@ function test(clazz) {
   buffer[5] = 0xff;
   buffer[6] = 0x0f;
   buffer[7] = 0x00;
-  assert.ok(isNaN(buffer.readDoubleBE(0)));
+  assert.ok(Number.isNaN(buffer.readDoubleBE(0)));
   assert.strictEqual(2.225073858507201e-308, buffer.readDoubleLE(0));
 
   buffer[6] = 0xef;
   buffer[7] = 0x7f;
-  assert.ok(isNaN(buffer.readDoubleBE(0)));
+  assert.ok(Number.isNaN(buffer.readDoubleBE(0)));
   assert.strictEqual(1.7976931348623157e+308, buffer.readDoubleLE(0));
 
   buffer[0] = 0;
