@@ -498,6 +498,15 @@ common.expectsError(
   }
 );
 
+common.expectsError(
+  () => crypto.randomBytes(1, null),
+  {
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError,
+    message: 'Callback must be a function',
+  }
+);
+
 [1, true, NaN, null, undefined, {}, []].forEach((i) => {
   common.expectsError(
     () => crypto.randomFillSync(i),
