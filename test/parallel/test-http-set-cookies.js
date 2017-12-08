@@ -20,11 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 const http = require('http');
 
-let nresponses = 0;
+const countdown = new Countdown(2, common.mustCall(() => {
+  server.close();
+}));
 
 const server = http.createServer(function(req, res) {
   if (req.url === '/one') {
@@ -55,9 +58,7 @@ server.on('listening', function() {
     });
 
     res.on('end', function() {
-      if (++nresponses === 2) {
-        server.close();
-      }
+      countdown.dec();
     });
   });
 
@@ -72,14 +73,8 @@ server.on('listening', function() {
     });
 
     res.on('end', function() {
-      if (++nresponses === 2) {
-        server.close();
-      }
+      countdown.dec();
     });
   });
 
-});
-
-process.on('exit', function() {
-  assert.strictEqual(2, nresponses);
 });
