@@ -1311,4 +1311,31 @@ assert.doesNotThrow(() => util.inspect(process));
     '  \'0\''
   ].join('\n');
   assert.strictEqual(out, expect);
+
+  o.a = () => {};
+  o.b = new Number(3);
+  out = util.inspect(
+    o,
+    { structured: true, breakLength: 3 });
+  expect = [
+    '{',
+    '  a: [Function],',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    o,
+    { structured: true, breakLength: 3, showHidden: 3 });
+  expect = [
+    '{',
+    '  a: [Function] {',
+    '    [length]: 0,',
+    "    [name]: ''",
+    '  },',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
 }
