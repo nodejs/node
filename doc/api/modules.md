@@ -38,7 +38,7 @@ In this example, the variable `PI` is private to `circle.js`.
 The `module.exports` property can be assigned a new value (such as a function
 or object).
 
-Below, `bar.js` makes use of the `square` module, which exports a constructor:
+Below, `bar.js` makes use of the `square` module, which exports a Square class:
 
 ```js
 const Square = require('./square.js');
@@ -50,10 +50,14 @@ The `square` module is defined in `square.js`:
 
 ```js
 // assigning to exports will not modify module, must use module.exports
-module.exports = (width) => {
-  return {
-    area: () => width ** 2
-  };
+module.exports = class Square {
+  constructor(width) {
+    this.width = width;
+  }
+
+  area() {
+    return this.width ** 2;
+  }
 };
 ```
 
