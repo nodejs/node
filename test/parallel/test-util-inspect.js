@@ -1213,3 +1213,102 @@ assert.doesNotThrow(() => util.inspect(process));
   assert.strictEqual(util.inspect(new NotStringClass()),
                      'NotStringClass {}');
 }
+
+{
+  const o = {
+    a: [1, 2, [[
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do ' +
+        'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'test',
+      'foo']], 4],
+    b: new Map([['za', 1], ['zb', 'test']])
+  };
+
+  let out = util.inspect(o, { structured: false, depth: 5, breakLength: 80 });
+  let expect = [
+    '{ a: ',
+    '   [ 1,',
+    '     2,',
+    "     [ [ 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed " +
+      "do eiusmod tempor incididunt ut labore et dolore magna aliqua.',",
+    "         'test',",
+    "         'foo' ] ],",
+    '     4 ],',
+    "  b: Map { 'za' => 1, 'zb' => 'test' } }",
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o, { structured: true, depth: 5, breakLength: 60 });
+  expect = [
+    '{',
+    '  a: [',
+    '    1,',
+    '    2,',
+    '    [',
+    '      [',
+    '        \'Lorem ipsum dolor sit amet, consectetur \' +',
+    '          \'adipiscing elit, sed do eiusmod tempor \' +',
+    '          \'incididunt ut labore et dolore magna \' +',
+    '          \'aliqua.\',',
+    '        \'test\',',
+    '        \'foo\'',
+    '      ]',
+    '    ],',
+    '    4',
+    '  ],',
+    '  b: Map {',
+    '    \'za\' => 1,',
+    '    \'zb\' => \'test\'',
+    '  }',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o.a[2][0][0], { structured: true, breakLength: 30 });
+  expect = [
+    '\'Lorem ipsum dolor sit \' +',
+    '  \'amet, consectetur \' +',
+    '  \'adipiscing elit, sed do \' +',
+    '  \'eiusmod tempor incididunt \' +',
+    '  \'ut labore et dolore magna \' +',
+    '  \'aliqua.\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12345678901234567890123456789012345678901234567890',
+    { structured: true, breakLength: 3 });
+  expect = '\'12345678901234567890123456789012345678901234567890\'';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
+    { structured: true, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'123456789012345678901234567890\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 1234567890123 0',
+    { structured: true, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'1234567890123 0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 12345678901234567 0',
+    { structured: true, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'12345678901234567 \' +',
+    '  \'0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+}
