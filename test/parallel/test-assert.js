@@ -710,7 +710,8 @@ assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
 }, common.expectsError({
   code: 'ERR_ASSERTION',
-  message: new RegExp(`^'${'A'.repeat(127)} === ''$`) }));
+  message: /^'A{124}\.\.\. === ''$/
+}));
 
 {
   // bad args to AssertionError constructor should throw TypeError
@@ -751,7 +752,6 @@ common.expectsError(
   assert.equal(assert.notEqual, assert.notStrictEqual);
   assert.equal(assert.notDeepEqual, assert.notDeepStrictEqual);
   assert.equal(Object.keys(assert).length, Object.keys(a).length);
-  /* eslint-enable no-restricted-properties */
   assert(7);
   common.expectsError(
     () => assert(),
@@ -761,6 +761,145 @@ common.expectsError(
       message: 'undefined == true'
     }
   );
+
+  // Test error diffs
+  const start = 'Input A expected to deepStrictEqual input B:';
+  const actExp = '\u001b[32m+ expected\u001b[39m \u001b[31m- actual\u001b[39m';
+  const plus = '\u001b[32m+\u001b[39m';
+  const minus = '\u001b[31m-\u001b[39m';
+  let message = [
+    start,
+    `${actExp} ... Lines skipped`,
+    '',
+    '  [',
+    '    [',
+    '...',
+    '        2,',
+    `${minus}       3`,
+    `${plus}       '3'`,
+    '      ]',
+    '...',
+    '    5',
+    '  ]'].join('\n');
+  assert.throws(
+    () => assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]),
+    { message });
+
+  message = [
+    start,
+    `${actExp} ... Lines skipped`,
+    '',
+    '  [',
+    '    1,',
+    '...',
+    '    0,',
+    `${plus}   1,`,
+    '    1,',
+    '...',
+    '    1',
+    '  ]'
+  ].join('\n');
+  assert.throws(
+    () => assert.deepEqual(
+      [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1]),
+    { message });
+
+  message = [
+    start,
+    `${actExp} ... Lines skipped`,
+    '',
+    '  [',
+    '    1,',
+    '...',
+    '    0,',
+    `${minus}   1,`,
+    '    1,',
+    '...',
+    '    1',
+    '  ]'
+  ].join('\n');
+  assert.throws(
+    () => assert.deepEqual(
+      [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1]),
+    { message });
+
+  message = [
+    start,
+    actExp,
+    '',
+    '  [',
+    '    1,',
+    `${minus}   2,`,
+    `${plus}   1,`,
+    '    1,',
+    '    1,',
+    '    0,',
+    `${minus}   1,`,
+    '    1',
+    '  ]'
+  ].join('\n');
+  assert.throws(
+    () => assert.deepEqual(
+      [1, 2, 1, 1, 0, 1, 1],
+      [1, 1, 1, 1, 0, 1]),
+    { message });
+
+  message = [
+    start,
+    actExp,
+    '',
+    `${minus} [`,
+    `${minus}   1,`,
+    `${minus}   2,`,
+    `${minus}   1`,
+    `${minus} ]`,
+    `${plus} undefined`,
+  ].join('\n');
+  assert.throws(
+    () => assert.deepEqual([1, 2, 1]),
+    { message });
+
+  message = [
+    start,
+    actExp,
+    '',
+    '  [',
+    `${minus}   1,`,
+    '    2,',
+    '    1',
+    '  ]'
+  ].join('\n');
+  assert.throws(
+    () => assert.deepEqual([1, 2, 1], [2, 1]),
+    { message });
+
+  message = `${start}\n` +
+    `${actExp} ... Lines skipped\n` +
+    '\n' +
+    '  [\n' +
+    `${minus}   1,\n`.repeat(10) +
+    '...\n' +
+    `${plus}   2,\n`.repeat(10) +
+    '...';
+  assert.throws(
+    () => assert.deepEqual(Array(12).fill(1), Array(12).fill(2)),
+    { message });
+
+  // notDeepEqual tests
+  message = 'Identical input passed to notDeepStrictEqual:\n[\n  1\n]';
+  assert.throws(
+    () => assert.notDeepEqual([1], [1]),
+    { message });
+
+  message = 'Identical input passed to notDeepStrictEqual:' +
+        `\n[${'\n  1,'.repeat(18)}\n...`;
+  const data = Array(21).fill(1);
+  assert.throws(
+    () => assert.notDeepEqual(data, data),
+    { message });
+  /* eslint-enable no-restricted-properties */
 }
 
 common.expectsError(
