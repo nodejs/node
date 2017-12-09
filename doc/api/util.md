@@ -342,8 +342,7 @@ changes:
     codes. Defaults to `false`. Colors are customizable, see
     [Customizing `util.inspect` colors][].
   * `customInspect` {boolean} If `false`, then custom `inspect(depth, opts)`
-    functions exported on the `object` being inspected will not be called.
-    Defaults to `true`.
+    functions will not be called. Defaults to `true`.
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `handler`
     objects. Defaults to `false`.
