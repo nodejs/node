@@ -40,7 +40,16 @@ const noop = () => {};
 // gets tools to ignore it by default or by simple rules, especially eslint.
 let tmpDirName = '.tmp';
 
-exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
+Object.defineProperty(exports, 'PORT', {
+  get: () => {
+    if (+process.env.TEST_PARALLEL) {
+      throw new Error('common.PORT cannot be used in a parallelized test');
+    }
+    return +process.env.NODE_COMMON_PORT || 12346;
+  },
+  enumerable: true
+});
+
 
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
