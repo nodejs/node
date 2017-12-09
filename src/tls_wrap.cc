@@ -347,7 +347,7 @@ void TLSWrap::EncOut() {
 
 
 void TLSWrap::EncOutCb(WriteWrap* req_wrap, int status) {
-  TLSWrap* wrap = req_wrap->wrap()->Cast<TLSWrap>();
+  TLSWrap* wrap = static_cast<TLSWrap*>(req_wrap->wrap());
   req_wrap->Dispose();
 
   // We should not be getting here after `DestroySSL`, because all queued writes
@@ -531,11 +531,6 @@ bool TLSWrap::ClearIn() {
   }
 
   return false;
-}
-
-
-void* TLSWrap::Cast() {
-  return reinterpret_cast<void*>(this);
 }
 
 

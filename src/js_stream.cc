@@ -74,11 +74,6 @@ void JSStream::OnReadImpl(ssize_t nread,
 }
 
 
-void* JSStream::Cast() {
-  return static_cast<void*>(this);
-}
-
-
 AsyncWrap* JSStream::GetAsyncWrap() {
   return static_cast<AsyncWrap*>(this);
 }

@@ -657,8 +657,7 @@ class Http2Stream : public AsyncWrap,
     return false;
   }
 
-  AsyncWrap* GetAsyncWrap() override { return static_cast<AsyncWrap*>(this); }
-  void* Cast() override { return reinterpret_cast<void*>(this); }
+  AsyncWrap* GetAsyncWrap() override { return this; }
 
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;

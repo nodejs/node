@@ -231,7 +231,6 @@ class StreamBase : public StreamResource {
                                 v8::Local<v8::FunctionTemplate> target,
                                 int flags = kFlagNone);
 
-  virtual void* Cast() = 0;
   virtual bool IsAlive() = 0;
   virtual bool IsClosing() = 0;
   virtual bool IsIPCPipe();
@@ -249,9 +248,6 @@ class StreamBase : public StreamResource {
     CHECK_EQ(consumed_, true);
     consumed_ = false;
   }
-
-  template <class Outer>
-  inline Outer* Cast() { return static_cast<Outer*>(Cast()); }
 
   void EmitData(ssize_t nread,
                 v8::Local<v8::Object> buf,
