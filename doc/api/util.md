@@ -552,8 +552,11 @@ If there is an `original[util.promisify.custom]` property present, `promisify`
 will return its value, see [Custom promisified functions][].
 
 `promisify()` assumes that `original` is a function taking a callback as its
-final argument in all cases, and the returned function will result in undefined
-behavior if it does not.
+final argument in all cases unless a non function is passed or the passed
+function's `promisify.custom` is a non function in which case it throws.
+If the passed function's last argument is not a node style callback - it will 
+treat it 'as if' its last argument is a node style callback - and will pass one 
+to it as the last argument.
 
 ### Custom promisified functions
 
