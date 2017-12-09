@@ -532,7 +532,8 @@ class TestCase(object):
 
     try:
       result = self.RunCommand(self.GetCommand(), {
-        "TEST_THREAD_ID": "%d" % self.thread_id
+        "TEST_THREAD_ID": "%d" % self.thread_id,
+        "TEST_PARALLEL" : "%d" % self.parallel
       })
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
