@@ -143,15 +143,19 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+inline void ShutdownWrap::OnDone(int status) {
+  stream()->AfterShutdown(this, status);
+}
+
+
 WriteWrap* WriteWrap::New(Environment* env,
                           Local<Object> obj,
                           StreamBase* wrap,
-                          DoneCb cb,
                           size_t extra) {
   size_t storage_size = ROUND_UP(sizeof(WriteWrap), kAlignSize) + extra;
   char* storage = new char[storage_size];
 
-  return new(storage) WriteWrap(env, obj, wrap, cb, storage_size);
+  return new(storage) WriteWrap(env, obj, wrap, storage_size);
 }
 
 
@@ -169,6 +173,10 @@ char* WriteWrap::Extra(size_t offset) {
 
 size_t WriteWrap::ExtraSize() const {
   return storage_size_ - ROUND_UP(sizeof(*this), kAlignSize);
+}
+
+inline void WriteWrap::OnDone(int status) {
+  stream()->AfterWrite(this, status);
 }
 
 }  // namespace node
