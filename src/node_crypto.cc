@@ -3525,8 +3525,16 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
+  // Restrict GCM tag lengths according to NIST 800-38d, page 9.
+  unsigned int tag_len = Buffer::Length(buf);
+  if (tag_len > 16 || (tag_len < 12 && tag_len != 8 && tag_len != 4)) {
+    ProcessEmitWarning(cipher->env(),
+        "Permitting authentication tag lengths of %u bytes is deprecated. "
+        "Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.",
+        tag_len);
+  }
 
-  if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
+  if (!cipher->SetAuthTag(Buffer::Data(buf), tag_len))
     env->ThrowError("Attempting to set auth tag in unsupported state");
 }
 
