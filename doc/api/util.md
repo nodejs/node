@@ -316,6 +316,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `compact` option is supported now.
   - version: v6.6.0
     pr-url: https://github.com/nodejs/node/pull/8174
     description: Custom inspection functions can now return `this`.
@@ -353,6 +356,13 @@ changes:
   * `breakLength` {number} The length at which an object's keys are split
     across multiple lines. Set to `Infinity` to format an object as a single
     line. Defaults to 60 for legacy compatibility.
+  * `compact` {boolean} Setting this to `false` changes the default indentation
+    to use a line break for each object key instead of lining up multiple
+    properties in one line. It will also break text that is above the
+    `breakLength` size into smaller and better readable chunks and indents
+    objects the same as arrays. Note that no text will be reduced below 16
+    characters, no matter the `breakLength` size. For more information, see the
+    example below. Defaults to `true`.
 
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
@@ -369,6 +379,63 @@ console.log(util.inspect(util, { showHidden: true, depth: null }));
 Values may supply their own custom `inspect(depth, opts)` functions, when
 called these receive the current `depth` in the recursive inspection, as well as
 the options object passed to `util.inspect()`.
+
+The following example highlights the difference with the `compact` option:
+
+```js
+const util = require('util');
+
+const o = {
+  a: [1, 2, [[
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do ' +
+      'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    'test',
+    'foo']], 4],
+  b: new Map([['za', 1], ['zb', 'test']])
+};
+console.log(util.inspect(o, { compact: true, depth: 5, breakLength: 80 }));
+
+// This will print
+
+// { a:
+//   [ 1,
+//     2,
+//     [ [ 'Lorem ipsum dolor sit amet, consectetur [...]', // A long line
+//           'test',
+//           'foo' ] ],
+//     4 ],
+//   b: Map { 'za' => 1, 'zb' => 'test' } }
+
+// Setting `compact` to false changes the output to be more reader friendly.
+console.log(util.inspect(o, { compact: false, depth: 5, breakLength: 80 }));
+
+// {
+//   a: [
+//     1,
+//     2,
+//     [
+//       [
+//         'Lorem ipsum dolor sit amet, consectetur ' +
+//           'adipiscing elit, sed do eiusmod tempor ' +
+//           'incididunt ut labore et dolore magna ' +
+//           'aliqua.,
+//         'test',
+//         'foo'
+//       ]
+//     ],
+//     4
+//   ],
+//   b: Map {
+//     'za' => 1,
+//     'zb' => 'test'
+//   }
+// }
+
+// Setting `breakLength` to e.g. 150 will print the "Lorem ipsum" text in a
+// single line.
+// Reducing the `breakLength` will split the "Lorem ipsum" text in smaller
+// chunks.
+```
 
 ### Customizing `util.inspect` colors
 

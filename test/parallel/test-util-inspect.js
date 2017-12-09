@@ -1160,3 +1160,146 @@ if (typeof Symbol !== 'undefined') {
 
 assert.doesNotThrow(() => util.inspect(process));
 /* eslint-enable accessor-pairs */
+
+// Setting custom inspect property to a non-function should do nothing.
+{
+  const obj = { inspect: 'fhqwhgads' };
+  assert.strictEqual(util.inspect(obj), "{ inspect: 'fhqwhgads' }");
+}
+
+{
+  const o = {
+    a: [1, 2, [[
+      'Lorem ipsum dolor\nsit amet,\tconsectetur adipiscing elit, sed do ' +
+        'eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+      'test',
+      'foo']], 4],
+    b: new Map([['za', 1], ['zb', 'test']])
+  };
+
+  let out = util.inspect(o, { compact: true, depth: 5, breakLength: 80 });
+  let expect = [
+    '{ a: ',
+    '   [ 1,',
+    '     2,',
+    "     [ [ 'Lorem ipsum dolor\\nsit amet,\\tconsectetur adipiscing elit, " +
+      "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',",
+    "         'test',",
+    "         'foo' ] ],",
+    '     4 ],',
+    "  b: Map { 'za' => 1, 'zb' => 'test' } }",
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o, { compact: false, depth: 5, breakLength: 60 });
+  expect = [
+    '{',
+    '  a: [',
+    '    1,',
+    '    2,',
+    '    [',
+    '      [',
+    '        \'Lorem ipsum dolor\\nsit amet,\\tconsectetur \' +',
+    '          \'adipiscing elit, sed do eiusmod tempor \' +',
+    '          \'incididunt ut labore et dolore magna \' +',
+    '          \'aliqua.\',',
+    '        \'test\',',
+    '        \'foo\'',
+    '      ]',
+    '    ],',
+    '    4',
+    '  ],',
+    '  b: Map {',
+    '    \'za\' => 1,',
+    '    \'zb\' => \'test\'',
+    '  }',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o.a[2][0][0], { compact: false, breakLength: 30 });
+  expect = [
+    '\'Lorem ipsum dolor\\nsit \' +',
+    '  \'amet,\\tconsectetur \' +',
+    '  \'adipiscing elit, sed do \' +',
+    '  \'eiusmod tempor incididunt \' +',
+    '  \'ut labore et dolore magna \' +',
+    '  \'aliqua.\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12345678901234567890123456789012345678901234567890',
+    { compact: false, breakLength: 3 });
+  expect = '\'12345678901234567890123456789012345678901234567890\'';
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 123456789012345678901234567890',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'123456789012345678901234567890\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 1234567890123 0',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'1234567890123 0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(
+    '12 45 78 01 34 67 90 23 56 89 12345678901234567 0',
+    { compact: false, breakLength: 3 });
+  expect = [
+    '\'12 45 78 01 34 \' +',
+    '  \'67 90 23 56 89 \' +',
+    '  \'12345678901234567 \' +',
+    '  \'0\''
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  o.a = () => {};
+  o.b = new Number(3);
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = [
+    '{',
+    '  a: [Function],',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  out = util.inspect(o, { compact: false, breakLength: 3, showHidden: true });
+  expect = [
+    '{',
+    '  a: [Function] {',
+    '    [length]: 0,',
+    "    [name]: ''",
+    '  },',
+    '  b: [Number: 3]',
+    '}'
+  ].join('\n');
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => 42;
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '42';
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => '12 45 78 01 34 67 90 23';
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '12 45 78 01 34 67 90 23';
+  assert.strictEqual(out, expect);
+
+  o[util.inspect.custom] = () => ({ a: '12 45 78 01 34 67 90 23' });
+  out = util.inspect(o, { compact: false, breakLength: 3 });
+  expect = '{\n  a: \'12 45 78 01 34 \' +\n    \'67 90 23\'\n}';
+  assert.strictEqual(out, expect);
+}
