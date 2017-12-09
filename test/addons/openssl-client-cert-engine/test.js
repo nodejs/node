@@ -21,8 +21,6 @@ const agentKey = fs.readFileSync(fixture.path('/keys/agent1-key.pem'));
 const agentCert = fs.readFileSync(fixture.path('/keys/agent1-cert.pem'));
 const agentCa = fs.readFileSync(fixture.path('/keys/ca1-cert.pem'));
 
-const port = common.PORT;
-
 const serverOptions = {
   key: agentKey,
   cert: agentCert,
@@ -34,11 +32,11 @@ const serverOptions = {
 const server = https.createServer(serverOptions, (req, res) => {
   res.writeHead(200);
   res.end('hello world');
-}).listen(port, common.localhostIPv4, () => {
+}).listen(0, common.localhostIPv4, () => {
   const clientOptions = {
     method: 'GET',
     host: common.localhostIPv4,
-    port: port,
+    port: server.address().port,
     path: '/test',
     clientCertEngine: engine,  // engine will provide key+cert
     rejectUnauthorized: false, // prevent failing on self-signed certificates
