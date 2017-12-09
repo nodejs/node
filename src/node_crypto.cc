@@ -508,34 +508,29 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
   t->SetClassName(secureContextString);
 
-  env->SetProtoMethod(t, "init", SecureContext::Init);
-  env->SetProtoMethod(t, "setKey", SecureContext::SetKey);
-  env->SetProtoMethod(t, "setCert", SecureContext::SetCert);
-  env->SetProtoMethod(t, "addCACert", SecureContext::AddCACert);
-  env->SetProtoMethod(t, "addCRL", SecureContext::AddCRL);
-  env->SetProtoMethod(t, "addRootCerts", SecureContext::AddRootCerts);
-  env->SetProtoMethod(t, "setCiphers", SecureContext::SetCiphers);
-  env->SetProtoMethod(t, "setECDHCurve", SecureContext::SetECDHCurve);
-  env->SetProtoMethod(t, "setDHParam", SecureContext::SetDHParam);
-  env->SetProtoMethod(t, "setOptions", SecureContext::SetOptions);
-  env->SetProtoMethod(t, "setSessionIdContext",
-                      SecureContext::SetSessionIdContext);
-  env->SetProtoMethod(t, "setSessionTimeout",
-                      SecureContext::SetSessionTimeout);
-  env->SetProtoMethod(t, "close", SecureContext::Close);
-  env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
+  env->SetProtoMethod(t, "init", Init);
+  env->SetProtoMethod(t, "setKey", SetKey);
+  env->SetProtoMethod(t, "setCert", SetCert);
+  env->SetProtoMethod(t, "addCACert", AddCACert);
+  env->SetProtoMethod(t, "addCRL", AddCRL);
+  env->SetProtoMethod(t, "addRootCerts", AddRootCerts);
+  env->SetProtoMethod(t, "setCiphers", SetCiphers);
+  env->SetProtoMethod(t, "setECDHCurve", SetECDHCurve);
+  env->SetProtoMethod(t, "setDHParam", SetDHParam);
+  env->SetProtoMethod(t, "setOptions", SetOptions);
+  env->SetProtoMethod(t, "setSessionIdContext", SetSessionIdContext);
+  env->SetProtoMethod(t, "setSessionTimeout", SetSessionTimeout);
+  env->SetProtoMethod(t, "close", Close);
+  env->SetProtoMethod(t, "loadPKCS12", LoadPKCS12);
 #ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setClientCertEngine",
-                      SecureContext::SetClientCertEngine);
+  env->SetProtoMethod(t, "setClientCertEngine", SetClientCertEngine);
 #endif  // !OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
-  env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
-  env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
-  env->SetProtoMethod(t,
-                      "enableTicketKeyCallback",
-                      SecureContext::EnableTicketKeyCallback);
-  env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
-  env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
+  env->SetProtoMethod(t, "getTicketKeys", GetTicketKeys);
+  env->SetProtoMethod(t, "setTicketKeys", SetTicketKeys);
+  env->SetProtoMethod(t, "setFreeListLength", SetFreeListLength);
+  env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
+  env->SetProtoMethod(t, "getCertificate", GetCertificate<true>);
+  env->SetProtoMethod(t, "getIssuer", GetCertificate<false>);
 
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
@@ -3008,21 +3003,21 @@ void Connection::Initialize(Environment* env, Local<Object> target) {
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"));
 
   AsyncWrap::AddWrapMethods(env, t);
-  env->SetProtoMethod(t, "encIn", Connection::EncIn);
-  env->SetProtoMethod(t, "clearOut", Connection::ClearOut);
-  env->SetProtoMethod(t, "clearIn", Connection::ClearIn);
-  env->SetProtoMethod(t, "encOut", Connection::EncOut);
-  env->SetProtoMethod(t, "clearPending", Connection::ClearPending);
-  env->SetProtoMethod(t, "encPending", Connection::EncPending);
-  env->SetProtoMethod(t, "start", Connection::Start);
-  env->SetProtoMethod(t, "close", Connection::Close);
+  env->SetProtoMethod(t, "encIn", EncIn);
+  env->SetProtoMethod(t, "clearOut", ClearOut);
+  env->SetProtoMethod(t, "clearIn", ClearIn);
+  env->SetProtoMethod(t, "encOut", EncOut);
+  env->SetProtoMethod(t, "clearPending", ClearPending);
+  env->SetProtoMethod(t, "encPending", EncPending);
+  env->SetProtoMethod(t, "start", Start);
+  env->SetProtoMethod(t, "close", Close);
 
   SSLWrap<Connection>::AddMethods(env, t);
 
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  env->SetProtoMethod(t, "getServername", Connection::GetServername);
-  env->SetProtoMethod(t, "setSNICallback",  Connection::SetSNICallback);
+  env->SetProtoMethod(t, "getServername", GetServername);
+  env->SetProtoMethod(t, "setSNICallback",  SetSNICallback);
 #endif
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Connection"),
