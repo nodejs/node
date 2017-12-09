@@ -780,3 +780,12 @@ common.expectsError(
   /* eslint-enable no-restricted-properties */
   assert(7);
 }
+
+common.expectsError(
+  () => assert.ok(null),
+  {
+    code: 'ERR_ASSERTION',
+    type: assert.AssertionError,
+    message: 'null == true'
+  }
+);
