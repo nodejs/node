@@ -126,11 +126,6 @@ bool LibuvStreamWrap::IsClosing() {
 }
 
 
-void* LibuvStreamWrap::Cast() {
-  return reinterpret_cast<void*>(this);
-}
-
-
 AsyncWrap* LibuvStreamWrap::GetAsyncWrap() {
   return static_cast<AsyncWrap*>(this);
 }
