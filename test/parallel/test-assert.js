@@ -640,7 +640,7 @@ try {
       common.expectsError({
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "block" argument must be of type function. Received ' +
+        message: 'The "block" argument must be of type Function. Received ' +
                  `type ${typeName(block)}`
       })(e);
     }
@@ -729,5 +729,16 @@ common.expectsError(
     code: 'ERR_ASSERTION',
     type: assert.AssertionError,
     message: 'null == true'
+  }
+);
+
+common.expectsError(
+  // eslint-disable-next-line no-restricted-syntax
+  () => assert.throws(() => {}, 'Error message', 'message'),
+  {
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "error" argument must be one of type Function or RegExp. ' +
+             'Received type string'
   }
 );
