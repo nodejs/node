@@ -18,7 +18,6 @@ class JSStream : public AsyncWrap, public StreamBase {
 
   ~JSStream();
 
-  void* Cast() override;
   bool IsAlive() override;
   bool IsClosing() override;
   int ReadStart() override;

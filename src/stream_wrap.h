@@ -40,7 +40,6 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
                          v8::Local<v8::Context> context);
 
   int GetFD() override;
-  void* Cast() override;
   bool IsAlive() override;
   bool IsClosing() override;
   bool IsIPCPipe() override;

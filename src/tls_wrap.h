@@ -56,7 +56,6 @@ class TLSWrap : public AsyncWrap,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context);
 
-  void* Cast() override;
   int GetFD() override;
   bool IsAlive() override;
   bool IsClosing() override;
