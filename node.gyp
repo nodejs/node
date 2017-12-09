@@ -344,6 +344,7 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
+        'src/node_contextify.h',
         'src/node_debug_options.h',
         'src/node_http2.h',
         'src/node_http2_state.h',
