@@ -1198,7 +1198,7 @@ function createSearchParamsIterator(target, kind) {
 // https://heycam.github.io/webidl/#dfn-iterator-prototype-object
 const URLSearchParamsIteratorPrototype = Object.create(IteratorPrototype);
 
-defineIDLClass(URLSearchParamsIteratorPrototype, 'URLSearchParams Iterator', {
+defineIDLClass(URLSearchParamsIteratorPrototype, 'URLSearchParamsIterator', {
   next() {
     if (!this ||
         Object.getPrototypeOf(this) !== URLSearchParamsIteratorPrototype) {
