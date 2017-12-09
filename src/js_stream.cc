@@ -176,7 +176,7 @@ void JSStream::DoAfterWrite(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   ASSIGN_OR_RETURN_UNWRAP(&w, args[0].As<Object>());
 
-  wrap->OnAfterWrite(w);
+  w->Done(0);
 }
 
 

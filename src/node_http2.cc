@@ -975,9 +975,6 @@ inline void Http2Session::SetChunksSinceLastWrite(size_t n) {
 
 WriteWrap* Http2Session::AllocateSend() {
   HandleScope scope(env()->isolate());
-  auto AfterWrite = [](WriteWrap* req, int status) {
-    req->Dispose();
-  };
   Local<Object> obj =
       env()->write_wrap_constructor_function()
           ->NewInstance(env()->context()).ToLocalChecked();
@@ -987,7 +984,7 @@ WriteWrap* Http2Session::AllocateSend() {
           session(),
           NGHTTP2_SETTINGS_MAX_FRAME_SIZE);
   // Max frame size + 9 bytes for the header
-  return WriteWrap::New(env(), obj, stream_, AfterWrite, size + 9);
+  return WriteWrap::New(env(), obj, stream_, size + 9);
 }
 
 void Http2Session::Send(WriteWrap* req, char* buf, size_t length) {
