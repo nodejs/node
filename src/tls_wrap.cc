@@ -658,7 +658,6 @@ int TLSWrap::DoWrite(WriteWrap* w,
 void TLSWrap::OnAfterWriteImpl(WriteWrap* w, int status, void* ctx) {
   TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
   wrap->EncOutAfterWrite(w, status);
-  wrap->UpdateWriteQueueSize();
 }
 
 
