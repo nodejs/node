@@ -55,8 +55,7 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   AsyncHooks::DefaultTriggerAsyncIdScope(env, wrap->get_async_id());
   ShutdownWrap* req_wrap = new ShutdownWrap(env,
                                             req_wrap_obj,
-                                            this,
-                                            AfterShutdown);
+                                            this);
 
   int err = DoShutdown(req_wrap);
   if (err)
@@ -66,7 +65,6 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
-  StreamBase* wrap = req_wrap->wrap();
   Environment* env = req_wrap->env();
 
   // The wrap and request objects should still be there.
@@ -78,7 +76,7 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
   Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[3] = {
     Integer::New(env->isolate(), status),
-    wrap->GetObject(),
+    GetObject(),
     req_wrap_obj
   };
 
@@ -159,8 +157,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     CHECK_NE(wrap, nullptr);
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(env,
                                                          wrap->get_async_id());
-    req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite,
-                              storage_size);
+    req_wrap = WriteWrap::New(env, req_wrap_obj, this, storage_size);
   }
 
   offset = 0;
@@ -252,7 +249,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     CHECK_NE(wrap, nullptr);
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(env,
                                                          wrap->get_async_id());
-    req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite);
+    req_wrap = WriteWrap::New(env, req_wrap_obj, this);
   }
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
@@ -338,8 +335,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_NE(wrap, nullptr);
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(env,
                                                          wrap->get_async_id());
-    req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite,
-                              storage_size);
+    req_wrap = WriteWrap::New(env, req_wrap_obj, this, storage_size);
   }
 
   data = req_wrap->Extra();
@@ -401,7 +397,6 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
 
 void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
-  StreamBase* wrap = req_wrap->wrap();
   Environment* env = req_wrap->env();
 
   HandleScope handle_scope(env->isolate());
@@ -413,19 +408,19 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
   // Unref handle property
   Local<Object> req_wrap_obj = req_wrap->object();
   req_wrap_obj->Delete(env->context(), env->handle_string()).FromJust();
-  wrap->OnAfterWrite(req_wrap);
+  OnAfterWrite(req_wrap, status);
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),
-    wrap->GetObject(),
+    GetObject(),
     req_wrap_obj,
     Undefined(env->isolate())
   };
 
-  const char* msg = wrap->Error();
+  const char* msg = Error();
   if (msg != nullptr) {
     argv[3] = OneByteString(env->isolate(), msg);
-    wrap->ClearError();
+    ClearError();
   }
 
   if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
