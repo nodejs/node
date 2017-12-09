@@ -44,7 +44,7 @@ const SHOULD_KEEP_ALIVE = [
 ];
 http.globalAgent.maxSockets = 5;
 
-const countdown = new Countdown(SHOULD_KEEP_ALIVE.length , () => server.close());
+const countdown = new Countdown(SHOULD_KEEP_ALIVE.length, () => server.close());
 
 const getCountdownIndex = () => SERVER_RESPONSES.length - countdown.remaining;
 
