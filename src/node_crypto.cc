@@ -1062,13 +1062,14 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
                                            root_cert_store,
                                            extra_root_certs_file.c_str());
       if (err) {
-        if (ProcessEmitWarning(sc->env(),
-                               "Ignoring extra certs from `%s`, "
-                               "load failed: %s\n",
-                               extra_root_certs_file.c_str(),
-                               ERR_error_string(err, nullptr)).IsNothing()) {
-          return;
-        }
+        // We do not call back into JS after this line anyway, so ignoring
+        // the return value of ProcessEmitWarning does not affect how a
+        // possible exception would be propagated.
+        ProcessEmitWarning(sc->env(),
+                           "Ignoring extra certs from `%s`, "
+                           "load failed: %s\n",
+                           extra_root_certs_file.c_str(),
+                           ERR_error_string(err, nullptr));
       }
     }
   }
