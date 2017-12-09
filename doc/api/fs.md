@@ -469,12 +469,58 @@ no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
-argument will be populated. The following example checks if the file
-`/etc/passwd` can be read and written by the current process.
+argument will be populated. 
+
+Assume that we have to check if `package.json` file exists in our current nodejs project.
+
+The following example illustrate that
 
 ```js
-fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
-  console.log(err ? 'no access!' : 'can read/write');
+fs.access('./package.json', fs.constants.F_OK, (err) => {
+  console.log(err ? 'No package.json file!' : 'package.json exists!');
+});
+```
+
+Now if we want to check whether we can READ this file or not, we can do something like
+
+```js
+fs.access('./package.json', fs.constants.R_OK, (err) => {
+  console.log(err ? 'Can\'t read package.json!' : 'Ready to read!');
+});
+```
+
+We can also check if we can write to that file
+
+```js
+fs.access('./package.json', fs.constants.W_OK, (err) => {
+  console.log(err ? 'You cannot write to package.json.' : 'You can write to package.json.');
+});
+``` 
+
+And what about the combination?
+The following examples checks if the file exists and can be written.
+
+```js
+fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  if(err) {
+    if(err.code === 'ENOENT') 
+      console.error("File does not exist.");
+      if(err.code === 'EPERM') 
+        console.error("File is read-only.");
+        return;
+    }
+    console.log("The file exists. You can write to the file.");
+});
+```
+
+OR simply
+
+```js
+fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  if(err)
+    console.error("Either the file does not exist or it is read-only.");
+  else
+    console.log("The file exists. You can write to the file.");
 });
 ```
 
