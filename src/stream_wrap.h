@@ -102,16 +102,17 @@ class LibuvStreamWrap : public HandleWrap, public StreamBase {
   static void OnRead(uv_stream_t* handle,
                      ssize_t nread,
                      const uv_buf_t* buf);
-  static void AfterWrite(uv_write_t* req, int status);
-  static void AfterShutdown(uv_shutdown_t* req, int status);
+  static void AfterUvWrite(uv_write_t* req, int status);
+  static void AfterUvShutdown(uv_shutdown_t* req, int status);
 
   // Resource interface implementation
-  static void OnAfterWriteImpl(WriteWrap* w, void* ctx);
   static void OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx);
   static void OnReadImpl(ssize_t nread,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+
+  void AfterWrite(WriteWrap* req_wrap, int status) override;
 
   uv_stream_t* const stream_;
 };
