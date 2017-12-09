@@ -765,16 +765,41 @@ assert.throws(
 
 Note that `error` can not be a string. If a string is provided as the second
 argument, then `error` is assumed to be omitted and the string will be used for
-`message` instead. This can lead to easy-to-miss mistakes:
+`message` instead. This can lead to easy-to-miss mistakes. Please read the
+example below carefully if using a string as the second argument gets
+considered:
 
 <!-- eslint-disable no-restricted-syntax -->
 ```js
-// THIS IS A MISTAKE! DO NOT DO THIS!
-assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
+function throwingFirst() {
+  throw new Error('First');
+}
+function throwingSecond() {
+  throw new Error('Second');
+}
+function notThrowing() {}
 
-// Do this instead.
-assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
+// The second argument is a string and the input function threw an Error.
+// In that case both cases do not throw as neither is going to try to
+// match for the error message thrown by the input function!
+assert.throws(throwingFirst, 'Second');
+assert.throws(throwingSecond, 'Second');
+
+// The string is only used (as message) in case the function does not throw:
+assert.throws(notThrowing, 'Second');
+// AssertionError [ERR_ASSERTION]: Missing expected exception: Second
+
+// If it was intended to match for the error message do this instead:
+assert.throws(throwingSecond, /Second$/);
+// Does not throw because the error messages match.
+assert.throws(throwingFirst, /Second$/);
+// Throws a error:
+// Error: First
+//     at throwingFirst (repl:2:9)
 ```
+
+Due to the confusing notation, it is recommended not to use a string as the
+second argument. This might lead to difficult-to-spot errors.
 
 ## Caveats
 
