@@ -141,7 +141,7 @@ testCipher2(Buffer.from('0123456789abcdef'));
 // setAutoPadding/setAuthTag/setAAD should return `this`
 {
   const key = '0123456789';
-  const tagbuf = Buffer.from('tagbuf');
+  const tagbuf = Buffer.from('auth_tag');
   const aadbuf = Buffer.from('aadbuf');
   const decipher = crypto.createDecipher('aes-256-gcm', key);
   assert.strictEqual(decipher.setAutoPadding(), decipher);
