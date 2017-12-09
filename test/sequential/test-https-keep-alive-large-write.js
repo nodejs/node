@@ -41,7 +41,9 @@ const server = https.createServer({
   });
 
   serverConnectionHandle = res.socket._handle;
-  res.write(content);
+  res.write(content, () => {
+    assert.strictEqual(serverConnectionHandle.writeQueueSize, 0);
+  });
   res.end();
 }));
 server.setTimeout(serverTimeout);
