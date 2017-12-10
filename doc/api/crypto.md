@@ -1847,7 +1847,7 @@ added: v7.10.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
-    description: The `buffer` argument may be any ArrayBufferView
+    description: The `buffer` argument may be any `ArrayBufferView`
 -->
 
 * `buffer` {Buffer|Uint8Array|ArrayBufferView} Must be supplied.
@@ -1889,7 +1889,7 @@ added: v7.10.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
-    description: The `buffer` argument may be any ArrayBufferView
+    description: The `buffer` argument may be any `ArrayBufferView`
 -->
 
 * `buffer` {Buffer|Uint8Array|ArrayBufferView} Must be supplied.
