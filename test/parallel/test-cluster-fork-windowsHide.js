@@ -2,21 +2,25 @@
 const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
-
-let patchedFork = child_process.fork;
-child_process.fork = (...args) => patchedFork.apply(this, args);
 const cluster = require('cluster');
 
 if (!process.argv[2]) {
+  /* It seems Windows only allocate new console window for
+   * attaching processes spawned by detached processes. i.e.
+   * - If process D is spawned by process C with `detached: true`,
+   *   and process W is spawned by process D with `detached: false`,
+   *   W will get a new black console window popped up.
+   * - If D is spawned by C with `detached: false` or W is spawned
+   *   by D with `detached: true`, no console window will pop up for W.
+   *
+   * So, we have to spawn a detached process first to run the actual test.
+   */
   const master = child_process.spawn(
     process.argv[0],
     [process.argv[1], '--cluster'],
     { detached: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
 
   const messageHandlers = {
-    windowsHide: common.mustCall((msg) => {
-      assert.strictEqual(msg.value, true);
-    }),
     workerOnline: common.mustCall((msg) => {
     }),
     mainWindowHandle: common.mustCall((msg) => {
@@ -40,12 +44,6 @@ if (!process.argv[2]) {
   }));
 
 } else if (cluster.isMaster) {
-  const originalFork = patchedFork;
-  patchedFork = common.mustCall((...args) => {
-    process.send({ type: 'windowsHide', value: args[2].windowsHide });
-    return originalFork.apply(this, args);
-  });
-
   cluster.setupMaster({
     silient: true,
     windowsHide: true
