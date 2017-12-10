@@ -1,11 +1,20 @@
 'use strict';
 const common = require('../common');
+
+// On some OS X versions, when passing fd's between processes:
+// When the handle associated to a specific file descriptor is closed by the
+// sender process before it's received in the destination, the handle is indeed
+// closed while it should remain opened. In order to fix this behavior, don't
+// close the handle until the `NODE_HANDLE_ACK` is received by the sender.
+// This test is basically `test-cluster-net-send` but creating lots of workers
+// so the issue reproduces on OS X consistently.
+
 if ((process.config.variables.arm_version === '6') ||
     (process.config.variables.arm_version === '7'))
   common.skip('Too slow for armv6 and armv7 bots');
 
 const assert = require('assert');
-const fork = require('child_process').fork;
+const { fork } = require('child_process');
 const net = require('net');
 
 const N = 80;
@@ -46,14 +55,14 @@ if (process.argv[2] !== 'child') {
   process.on('message', common.mustCall());
 
   const server = net.createServer((c) => {
-    process.once('message', function(msg) {
+    process.once('message', (msg) => {
       assert.strictEqual(msg, 'got');
       c.end('hello');
     });
     socketConnected();
   }).unref();
   server.listen(0, common.localhostIPv4, () => {
-    const port = server.address().port;
+    const { port } = server.address();
     socket = net.connect(port, common.localhostIPv4, socketConnected).unref();
   });
 }
