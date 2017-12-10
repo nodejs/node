@@ -335,9 +335,9 @@ const errMessages = {
 
 const ciphers = crypto.getCiphers();
 
-common.expectWarning('Warning', common.hasFipsCrypto ? [] : [
+common.expectWarning('Warning', (common.hasFipsCrypto ? [] : [
   'Use Cipheriv for counter mode of aes-192-gcm'
-].concat(
+]).concat(
   [0, 1, 2, 6, 9, 10, 11, 17]
   .map((i) => `Permitting authentication tag lengths of ${i} bytes is ` +
             'deprecated. Valid GCM tag lengths are 4, 8, 12, 13, 14, 15, 16.')
