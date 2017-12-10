@@ -471,44 +471,42 @@ The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
 argument will be populated. 
 
-Assume that we have to check if `package.json` file exists in our current nodejs project.
-
-The following example illustrate that
+The following examples explains the use of different fs.constants.
 
 ```js
+// Check if `package.json` exists in the current directory.
 fs.access('./package.json', fs.constants.F_OK, (err) => {
   console.log(err ? 'No package.json file!' : 'package.json exists!');
 });
 ```
 
-Now if we want to check whether we can READ this file or not, we can do something like
-
 ```js
+// Check if we can read `package.json` file.
 fs.access('./package.json', fs.constants.R_OK, (err) => {
   console.log(err ? 'Can\'t read package.json!' : 'Ready to read!');
 });
 ```
 
-We can also check if we can write to that file
-
 ```js
+// Check if we can write to `package.json` file.
 fs.access('./package.json', fs.constants.W_OK, (err) => {
   console.log(err ? 'You cannot write to package.json.' : 'You can write to package.json.');
 });
 ``` 
 
-And what about the combination?
-The following examples checks if the file exists and can be written.
-
 ```js
+// Check if `package.json` exists in the current directory and is writeable.
 fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
+  
+  // If there is an error, print the error in console and exit.
   if(err) {
     if(err.code === 'ENOENT') 
       console.error("File does not exist.");
-      if(err.code === 'EPERM') 
-        console.error("File is read-only.");
-        return;
+    if(err.code === 'EPERM') 
+      console.error("File is read-only.");
+      return;
     }
+
     console.log("The file exists. You can write to the file.");
 });
 ```
@@ -516,6 +514,7 @@ fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
 OR simply
 
 ```js
+// Check if `package.json` exists in the current directory and is writeable.
 fs.access('./package.json', fs.constants.F_OK | fs.constants.W_OK, (err) => {
   if(err)
     console.error("Either the file does not exist or it is read-only.");
