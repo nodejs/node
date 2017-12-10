@@ -335,7 +335,7 @@ const errMessages = {
 
 const ciphers = crypto.getCiphers();
 
-common.expectWarning('Warning', [
+common.expectWarning('Warning', common.hasFipsCrypto ? [] : [
   'Use Cipheriv for counter mode of aes-192-gcm'
 ].concat(
   [0, 1, 2, 6, 9, 10, 11, 17]
