@@ -709,18 +709,21 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: The `error` parameter can now be an object as well.
   - version: v4.2.0
     pr-url: https://github.com/nodejs/node/pull/3276
     description: The `error` parameter can now be an arrow function.
 -->
 * `block` {Function}
-* `error` {RegExp|Function}
+* `error` {RegExp|Function|object}
 * `message` {any}
 
 Expects the function `block` to throw an error.
 
-If specified, `error` can be a constructor, [`RegExp`][], or validation
-function.
+If specified, `error` can be a constructor, [`RegExp`][], a validation
+function, or an object where each property will be tested for.
 
 If specified, `message` will be the message provided by the `AssertionError` if
 the block fails to throw.
@@ -763,6 +766,23 @@ assert.throws(
     }
   },
   'unexpected error'
+);
+```
+
+Custom error object / error instance:
+
+```js
+assert.throws(
+  () => {
+    const err = new TypeError('Wrong value');
+    err.code = 404;
+    throw err;
+  },
+  {
+    name: 'TypeError',
+    message: 'Wrong value'
+    // Note that only properties on the error object will be tested!
+  }
 );
 ```
 
