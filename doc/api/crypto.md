@@ -1837,10 +1837,10 @@ added: v7.10.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
-    description: The `buffer` argument may be any ArrayBufferView
+    description: The `buffer` argument may be any `TypedArray` or `DataView`.
 -->
 
-* `buffer` {Buffer|Uint8Array|ArrayBufferView} Must be supplied.
+* `buffer` {Buffer|TypedArray|DataView} Must be supplied.
 * `offset` {number} Defaults to `0`.
 * `size` {number} Defaults to `buffer.length - offset`.
 
@@ -1879,10 +1879,10 @@ added: v7.10.0
 changes:
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
-    description: The `buffer` argument may be any ArrayBufferView
+    description: The `buffer` argument may be any `TypedArray` or `DataView`.
 -->
 
-* `buffer` {Buffer|Uint8Array|ArrayBufferView} Must be supplied.
+* `buffer` {Buffer|TypedArray|DataView} Must be supplied.
 * `offset` {number} Defaults to `0`.
 * `size` {number} Defaults to `buffer.length - offset`.
 * `callback` {Function} `function(err, buf) {}`.
