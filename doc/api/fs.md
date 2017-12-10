@@ -471,8 +471,6 @@ The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
 argument will be populated. 
 
-The following examples explains the use of different fs.constants.
-
 ```js
 // Check if `package.json` exists in the current directory.
 fs.access('./package.json', fs.constants.F_OK, (err) => {
