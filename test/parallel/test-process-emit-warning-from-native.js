@@ -4,6 +4,8 @@ const assert = require('assert');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
+if (common.hasFipsCrypto)
+  common.skip('crypto.createCipher() is not supported in FIPS mode');
 
 const crypto = require('crypto');
 const key = '0123456789';
