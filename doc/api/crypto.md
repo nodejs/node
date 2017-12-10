@@ -1782,6 +1782,11 @@ be passed instead of a public key.
 ### crypto.randomBytes(size[, callback])
 <!-- YAML
 added: v0.5.8
+changes:
+  - version: v9.0.0
+    pr-url: https://github.com/nodejs/node/pull/16454
+    description: Passing `null` as the `callback` argument now throws
+                 `ERR_INVALID_CALLBACK`.
 -->
 - `size` {number}
 - `callback` {Function}
