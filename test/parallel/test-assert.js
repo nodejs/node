@@ -39,16 +39,6 @@ assert.ok(a.AssertionError.prototype instanceof Error,
 
 assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
 
-// Using a object as second arg results in a failure
-assert.throws(
-  () => { assert.throws(() => { throw new Error(); }, { foo: 'bar' }); },
-  common.expectsError({
-    type: TypeError,
-    message: 'expected.test is not a function'
-  })
-);
-
-
 assert.doesNotThrow(makeBlock(a, true), a.AssertionError, 'ok(true)');
 
 assert.doesNotThrow(makeBlock(a, 'test', 'ok(\'test\')'));
@@ -784,3 +774,79 @@ common.expectsError(
              'Received type string'
   }
 );
+
+{
+  const errFn = () => {
+    const err = new TypeError('Wrong value');
+    err.code = 404;
+    throw err;
+  };
+  const errObj = {
+    name: 'TypeError',
+    message: 'Wrong value'
+  };
+  assert.throws(errFn, errObj);
+
+  errObj.code = 404;
+  assert.throws(errFn, errObj);
+
+  errObj.code = '404';
+  common.expectsError(
+  // eslint-disable-next-line no-restricted-syntax
+    () => assert.throws(errFn, errObj),
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: 'code: expected \'404\', not 404'
+    }
+  );
+
+  errObj.code = 404;
+  errObj.foo = 'bar';
+  common.expectsError(
+  // eslint-disable-next-line no-restricted-syntax
+    () => assert.throws(errFn, errObj),
+    {
+      code: 'ERR_ASSERTION',
+      type: assert.AssertionError,
+      message: 'foo: expected \'bar\', not undefined'
+    }
+  );
+
+  common.expectsError(
+    () => assert.throws(() => { throw new Error(); }, { foo: 'bar' }, 'foobar'),
+    {
+      type: assert.AssertionError,
+      code: 'ERR_ASSERTION',
+      message: 'foobar'
+    }
+  );
+
+  common.expectsError(
+    () => assert.doesNotThrow(() => { throw new Error(); }, { foo: 'bar' }),
+    {
+      type: TypeError,
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "expected" argument must be one of type Function or ' +
+               'RegExp. Received type object'
+    }
+  );
+
+  assert.throws(() => { throw new Error('e'); }, new Error('e'));
+  common.expectsError(
+    () => assert.throws(() => { throw new TypeError('e'); }, new Error('e')),
+    {
+      type: assert.AssertionError,
+      code: 'ERR_ASSERTION',
+      message: "name: expected 'Error', not 'TypeError'"
+    }
+  );
+  common.expectsError(
+    () => assert.throws(() => { throw new Error('foo'); }, new Error('')),
+    {
+      type: assert.AssertionError,
+      code: 'ERR_ASSERTION',
+      message: "message: expected '', not 'foo'"
+    }
+  );
+}
