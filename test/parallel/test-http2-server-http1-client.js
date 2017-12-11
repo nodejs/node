@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 
@@ -7,6 +8,7 @@ if (!common.hasCrypto)
 
 const http = require('http');
 const http2 = require('http2');
+const { NghttpError } = require('internal/http2/util');
 
 const server = http2.createServer();
 server.on('stream', common.mustNotCall());
@@ -14,7 +16,7 @@ server.on('session', common.mustCall((session) => {
   session.on('close', common.mustCall());
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    type: Error,
+    type: NghttpError,
     message: 'Received bad client magic byte string'
   }));
 }));

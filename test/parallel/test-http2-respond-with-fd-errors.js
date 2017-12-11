@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 
@@ -14,6 +15,7 @@ const {
   Http2Stream,
   nghttp2ErrorString
 } = process.binding('http2');
+const { NghttpError } = require('internal/http2/util');
 
 // tests error handling within processRespondWithFD
 // (called by respondWithFD & respondWithFile)
@@ -32,7 +34,8 @@ const genericTests = Object.getOwnPropertyNames(constants)
     ngError: constants[key],
     error: {
       code: 'ERR_HTTP2_ERROR',
-      type: Error,
+      type: NghttpError,
+      name: 'Error [ERR_HTTP2_ERROR]',
       message: nghttp2ErrorString(constants[key])
     },
     type: 'stream'
