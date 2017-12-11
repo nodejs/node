@@ -413,6 +413,14 @@ session.ping(Buffer.from('abcdefgh'), (err, duration, payload) => {
 If the `payload` argument is not specified, the default payload will be the
 64-bit timestamp (little endian) marking the start of the `PING` duration.
 
+#### http2session.ref()
+<!-- YAML
+added: REPLACEME
+-->
+
+Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
+instance's underlying [`net.Socket`].
+
 #### http2session.remoteSettings
 <!-- YAML
 added: v8.4.0
@@ -422,69 +430,6 @@ added: v8.4.0
 
 A prototype-less object describing the current remote settings of this
 `Http2Session`. The remote settings are set by the *connected* HTTP/2 peer.
-
-#### http2session.request(headers[, options])
-<!-- YAML
-added: v8.4.0
--->
-
-* `headers` {[Headers Object][]}
-* `options` {Object}
-  * `endStream` {boolean} `true` if the `Http2Stream` *writable* side should
-    be closed initially, such as when sending a `GET` request that should not
-    expect a payload body.
-  * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
-    the created stream is made the sole direct dependency of the parent, with
-    all other existing dependents made a dependent of the newly created stream.
-    **Default:** `false`
-  * `parent` {number} Specifies the numeric identifier of a stream the newly
-    created stream is dependent on.
-  * `weight` {number} Specifies the relative dependency of a stream in relation
-    to other streams with the same `parent`. The value is a number between `1`
-    and `256` (inclusive).
-  * `getTrailers` {Function} Callback function invoked to collect trailer
-    headers.
-
-* Returns: {ClientHttp2Stream}
-
-For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
-creates and returns an `Http2Stream` instance that can be used to send an
-HTTP/2 request to the connected server.
-
-This method is only available if `http2session.type` is equal to
-`http2.constants.NGHTTP2_SESSION_CLIENT`.
-
-```js
-const http2 = require('http2');
-const clientSession = http2.connect('https://localhost:1234');
-const {
-  HTTP2_HEADER_PATH,
-  HTTP2_HEADER_STATUS
-} = http2.constants;
-
-const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
-req.on('response', (headers) => {
-  console.log(headers[HTTP2_HEADER_STATUS]);
-  req.on('data', (chunk) => { /** .. **/ });
-  req.on('end', () => { /** .. **/ });
-});
-```
-
-When set, the `options.getTrailers()` function is called immediately after
-queuing the last chunk of payload data to be sent. The callback is passed a
-single object (with a `null` prototype) that the listener may used to specify
-the trailing header fields to send to the peer.
-
-*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
-"pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
-will be emitted if the `getTrailers` callback attempts to set such header
-fields.
-
-The the `:method` and `:path` pseudoheaders are not specified within `headers`,
-they respectively default to:
-
-* `:method` = `'GET'`
-* `:path` = `/`
 
 #### http2session.setTimeout(msecs, callback)
 <!-- YAML
@@ -604,6 +549,82 @@ The `http2session.type` will be equal to
 `http2.constants.NGHTTP2_SESSION_SERVER` if this `Http2Session` instance is a
 server, and `http2.constants.NGHTTP2_SESSION_CLIENT` if the instance is a
 client.
+
+#### http2session.unref()
+<!-- YAML
+added: REPLACEME
+-->
+
+Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
+instance's underlying [`net.Socket`].
+
+### Class: ClientHttp2Session
+<!-- YAML
+added: v8.4.0
+-->
+
+#### clienthttp2session.request(headers[, options])
+<!-- YAML
+added: v8.4.0
+-->
+
+* `headers` {[Headers Object][]}
+* `options` {Object}
+  * `endStream` {boolean} `true` if the `Http2Stream` *writable* side should
+    be closed initially, such as when sending a `GET` request that should not
+    expect a payload body.
+  * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
+    the created stream is made the sole direct dependency of the parent, with
+    all other existing dependents made a dependent of the newly created stream.
+    **Default:** `false`
+  * `parent` {number} Specifies the numeric identifier of a stream the newly
+    created stream is dependent on.
+  * `weight` {number} Specifies the relative dependency of a stream in relation
+    to other streams with the same `parent`. The value is a number between `1`
+    and `256` (inclusive).
+  * `getTrailers` {Function} Callback function invoked to collect trailer
+    headers.
+
+* Returns: {ClientHttp2Stream}
+
+For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
+creates and returns an `Http2Stream` instance that can be used to send an
+HTTP/2 request to the connected server.
+
+This method is only available if `http2session.type` is equal to
+`http2.constants.NGHTTP2_SESSION_CLIENT`.
+
+```js
+const http2 = require('http2');
+const clientSession = http2.connect('https://localhost:1234');
+const {
+  HTTP2_HEADER_PATH,
+  HTTP2_HEADER_STATUS
+} = http2.constants;
+
+const req = clientSession.request({ [HTTP2_HEADER_PATH]: '/' });
+req.on('response', (headers) => {
+  console.log(headers[HTTP2_HEADER_STATUS]);
+  req.on('data', (chunk) => { /** .. **/ });
+  req.on('end', () => { /** .. **/ });
+});
+```
+
+When set, the `options.getTrailers()` function is called immediately after
+queuing the last chunk of payload data to be sent. The callback is passed a
+single object (with a `null` prototype) that the listener may used to specify
+the trailing header fields to send to the peer.
+
+*Note*: The HTTP/1 specification forbids trailers from containing HTTP/2
+"pseudo-header" fields (e.g. `':method'`, `':path'`, etc). An `'error'` event
+will be emitted if the `getTrailers` callback attempts to set such header
+fields.
+
+The `:method` and `:path` pseudoheaders are not specified within `headers`,
+they respectively default to:
+
+* `:method` = `'GET'`
+* `:path` = `/`
 
 ### Class: Http2Stream
 <!-- YAML
@@ -1669,9 +1690,9 @@ changes:
     [`Duplex`][] stream that is to be used as the connection for this session.
   * ...: Any [`net.connect()`][] or [`tls.connect()`][] options can be provided.
 * `listener` {Function}
-* Returns {Http2Session}
+* Returns {ClientHttp2Session}
 
-Returns a HTTP/2 client `Http2Session` instance.
+Returns a `ClientHttp2Session` instance.
 
 ```js
 const http2 = require('http2');
@@ -2806,6 +2827,8 @@ if the stream is closed.
 [`http2.createServer()`]: #http2_http2_createserver_options_onrequesthandler
 [`http2stream.pushStream()`]: #http2_http2stream_pushstream_headers_options_callback
 [`net.Socket`]: net.html#net_class_net_socket
+[`net.Socket.prototype.ref`]: net.html#net_socket_ref
+[`net.Socket.prototype.unref`]: net.html#net_socket_unref
 [`net.connect()`]: net.html#net_net_connect
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
