@@ -28,7 +28,6 @@ expect('--perf-basic-prof', 'B\n');
 
 if (common.isLinux) {
   // PerfJitLogger is only implemented in Linux.
-  // https://github.com/nodejs/node/pull/17600#issuecomment-350664113
   expect('--perf-prof', 'B\n');
 }
 
