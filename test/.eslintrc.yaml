@@ -8,6 +8,7 @@ rules:
 
   # Custom rules in tools/eslint-rules
   prefer-common-mustnotcall: 2
+  number-isnan: error
 
   ## common module is mandatory in tests
   required-modules: [error, common]
