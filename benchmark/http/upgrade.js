@@ -19,22 +19,22 @@ const resData = 'HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                 'Connection: Upgrade\r\n' +
                 '\r\n\r\n';
 
-function main(conf) {
+function main({ n }) {
   process.env.PORT = PORT;
   var server = require('../fixtures/simple-http-server.js')
-  .listen(process.env.PORT || common.PORT)
-  .on('listening', function() {
-    bench.start();
-    doBench(server.address(), +conf.n, function() {
-      bench.end(+conf.n);
-      server.close();
+    .listen(common.PORT)
+    .on('listening', function() {
+      bench.start();
+      doBench(server.address(), n, function() {
+        bench.end(n);
+        server.close();
+      });
+    })
+    .on('upgrade', function(req, socket, upgradeHead) {
+      socket.resume();
+      socket.write(resData);
+      socket.end();
     });
-  })
-  .on('upgrade', function(req, socket, upgradeHead) {
-    socket.resume();
-    socket.write(resData);
-    socket.end();
-  });
 }
 
 function doBench(address, count, done) {
