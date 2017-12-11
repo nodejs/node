@@ -24,6 +24,8 @@ expect('--throw-deprecation', 'B\n');
 expect('--zero-fill-buffers', 'B\n');
 expect('--v8-pool-size=10', 'B\n');
 expect('--trace-event-categories node', 'B\n');
+expect('--perf-prof', 'B\n');
+expect('--perf-basic-prof', 'B\n');
 
 if (common.hasCrypto) {
   expect('--use-openssl-ca', 'B\n');
