@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 
@@ -7,6 +8,7 @@ if (!common.hasCrypto)
 
 const h2 = require('http2');
 const net = require('net');
+const { NghttpError } = require('internal/http2/util');
 const h2test = require('../common/http2');
 let client;
 
@@ -25,7 +27,7 @@ server.on('stream', common.mustCall((stream) => {
 server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
-    type: Error,
+    type: NghttpError,
     message: 'Stream was already closed or invalid'
   }));
 }));
