@@ -163,7 +163,11 @@ assert.doesNotThrow(() => {
 assert.doesNotThrow(() => {
   common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, { code: 'TEST_ERROR_1', type: Error });
+  }, {
+    code: 'TEST_ERROR_1',
+    type: TypeError,
+    message: 'Error for testing purposes: a'
+  });
 });
 
 common.expectsError(() => {
