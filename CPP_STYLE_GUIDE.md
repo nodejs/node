@@ -4,6 +4,7 @@
 
 * [Formatting](#formatting)
   * [Left-leaning (C++ style) asterisks for pointer declarations](#left-leaning-c-style-asterisks-for-pointer-declarations)
+  * [C++ style comments](#c-style-comments)
   * [2 spaces of indentation for blocks or bodies of conditionals](#2-spaces-of-indentation-for-blocks-or-bodies-of-conditionals)
   * [4 spaces of indentation for statement continuations](#4-spaces-of-indentation-for-statement-continuations)
   * [Align function arguments vertically](#align-function-arguments-vertically)
@@ -32,6 +33,26 @@ these rules:
 ## Left-leaning (C++ style) asterisks for pointer declarations
 
 `char* buffer;` instead of `char *buffer;`
+
+## C++ style comments
+
+Use C++ style comments (`//`) for both single-line and multi-line comments.
+Comments should also start with uppercase and finish with a dot.
+
+Examples:
+
+```c++
+// A single-line comment.
+
+// Multi-line comments
+// should also use C++
+// style comments.
+```
+
+The codebase may contain old C style comments (`/* */`) from before this was the
+preferred style. Feel free to update old comments to the preferred style when
+working on code in the immediate vicinity or when changing/improving those
+comments.
 
 ## 2 spaces of indentation for blocks or bodies of conditionals
 
