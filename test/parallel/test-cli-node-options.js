@@ -24,8 +24,13 @@ expect('--throw-deprecation', 'B\n');
 expect('--zero-fill-buffers', 'B\n');
 expect('--v8-pool-size=10', 'B\n');
 expect('--trace-event-categories node', 'B\n');
-expect('--perf-prof', 'B\n');
 expect('--perf-basic-prof', 'B\n');
+
+if (common.isLinux) {
+  // PerfJitLogger is only implemented in Linux.
+  // https://github.com/nodejs/node/pull/17600#issuecomment-350664113
+  expect('--perf-prof', 'B\n');
+}
 
 if (common.hasCrypto) {
   expect('--use-openssl-ca', 'B\n');
