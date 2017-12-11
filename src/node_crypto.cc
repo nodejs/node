@@ -3767,7 +3767,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
-  // Restrict GCM tag lengths according to NIST 800-38d, page 9
+  // Restrict GCM tag lengths according to NIST 800-38d, page 9.
   unsigned int tag_len = Buffer::Length(args[0]);
   if (tag_len > 16 || (tag_len < 12 && tag_len != 8 && tag_len != 4)) {
     ProcessEmitWarning(cipher->env(),
