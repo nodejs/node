@@ -738,12 +738,15 @@ assert.throws(
 
 Validate error message using [`RegExp`][]:
 
+Using a regular expression runs `.toString` on the error object, and will
+therefore also include the error name.
+
 ```js
 assert.throws(
   () => {
     throw new Error('Wrong value');
   },
-  /value/
+  /^Error: Wrong value$/
 );
 ```
 
