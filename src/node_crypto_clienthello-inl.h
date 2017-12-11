@@ -55,6 +55,7 @@ inline void ClientHelloParser::Reset() {
   tls_ticket_ = nullptr;
   servername_size_ = 0;
   servername_ = nullptr;
+  ocsp_request_ = 0;
 }
 
 inline void ClientHelloParser::Start(ClientHelloParser::OnHelloCb onhello_cb,
