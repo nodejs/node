@@ -26,6 +26,15 @@ expect('--zero-fill-buffers', 'B\n');
 expect('--v8-pool-size=10', 'B\n');
 expect('--trace-event-categories node', 'B\n');
 
+if (!common.isWindows) {
+  expect('--perf-basic-prof', 'B\n');
+}
+
+if (common.isLinux && ['arm', 'x64', 'mips'].includes(process.arch)) {
+  // PerfJitLogger is only implemented in Linux.
+  expect('--perf-prof', 'B\n');
+}
+
 if (common.hasCrypto) {
   expect('--use-openssl-ca', 'B\n');
   expect('--use-bundled-ca', 'B\n');
