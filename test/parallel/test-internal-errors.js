@@ -141,29 +141,29 @@ common.expectsError(
 
 // Tests for common.expectsError
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1' }));
+  }, { code: 'TEST_ERROR_1' });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1',
-                           type: TypeError,
-                           message: /^Error for testing/ }));
+  }, { code: 'TEST_ERROR_1',
+       type: TypeError,
+       message: /^Error for testing/ });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1', type: TypeError }));
+  }, { code: 'TEST_ERROR_1', type: TypeError });
 });
 
 assert.doesNotThrow(() => {
-  assert.throws(() => {
+  common.expectsError(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError({ code: 'TEST_ERROR_1', type: Error }));
+  }, { code: 'TEST_ERROR_1', type: Error });
 });
 
 common.expectsError(() => {

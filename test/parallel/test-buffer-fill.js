@@ -424,21 +424,19 @@ common.expectsError(() => {
 
 // Testing process.binding. Make sure "end" is properly checked for -1 wrap
 // around.
-assert.throws(() => {
+common.expectsError(() => {
   process.binding('buffer').fill(Buffer.alloc(1), 1, 1, -2, 1);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 // Test that bypassing 'length' won't cause an abort.
-assert.throws(() => {
+common.expectsError(() => {
   const buf = new Buffer('w00t');
   Object.defineProperty(buf, 'length', {
     value: 1337,
     enumerable: true
   });
   buf.fill('');
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 assert.deepStrictEqual(
   Buffer.allocUnsafeSlow(16).fill('ab', 'utf16le'),

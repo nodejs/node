@@ -14,15 +14,15 @@ server.on('stream', common.mustCall(onStream));
 function onStream(stream, headers, flags) {
   stream.rstStream();
 
-  assert.throws(() => {
+  common.expectsError(() => {
     stream.additionalHeaders({
       ':status': 123,
       abc: 123
     });
-  }, common.expectsError({
+  }, {
     code: 'ERR_HTTP2_INVALID_STREAM',
     message: /^The stream has been destroyed$/
-  }));
+  });
 }
 
 server.listen(0);

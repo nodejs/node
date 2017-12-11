@@ -974,12 +974,11 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 }
 
 // ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
-assert.throws(() => {
+common.expectsError(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, common.expectsError(
-  { code: undefined, type: RangeError, message: 'Index out of range' }));
+}, { code: undefined, type: RangeError, message: 'Index out of range' });
 
 // Unpooled buffer (replaces SlowBuffer)
 {
