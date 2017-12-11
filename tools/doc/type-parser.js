@@ -49,6 +49,7 @@ const typeMap = {
   'Stream': 'stream.html#stream_stream',
   'stream.Readable': 'stream.html#stream_class_stream_readable',
   'stream.Writable': 'stream.html#stream_class_stream_writable',
+  'stream.Duplex': 'stream.html#stream_class_stream_duplex',
 
   'tls.TLSSocket': 'tls.html#tls_class_tls_tlssocket',
 
