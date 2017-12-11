@@ -28,6 +28,15 @@ expect('--trace-event-categories node', 'B\n');
 // eslint-disable-next-line no-template-curly-in-string
 expect('--trace-event-file-pattern {pid}-${rotation}.trace_events', 'B\n');
 
+if (!common.isWindows) {
+  expect('--perf-basic-prof', 'B\n');
+}
+
+if (common.isLinux && ['arm', 'x64', 'mips'].includes(process.arch)) {
+  // PerfJitLogger is only implemented in Linux.
+  expect('--perf-prof', 'B\n');
+}
+
 if (common.hasCrypto) {
   expect('--use-openssl-ca', 'B\n');
   expect('--use-bundled-ca', 'B\n');
