@@ -35,14 +35,16 @@ namespace node {
 using crypto::SecureContext;
 using crypto::SSLWrap;
 using v8::Context;
+using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::ReadOnly;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -309,7 +311,6 @@ void TLSWrap::EncOut() {
 
   // No data to write
   if (BIO_pending(enc_out_) == 0) {
-    UpdateWriteQueueSize();
     if (clear_in_->Length() == 0)
       InvokeQueued(0);
     return;
@@ -555,17 +556,6 @@ bool TLSWrap::IsClosing() {
 }
 
 
-uint32_t TLSWrap::UpdateWriteQueueSize(uint32_t write_queue_size) {
-  HandleScope scope(env()->isolate());
-  if (write_queue_size == 0)
-    write_queue_size = BIO_pending(enc_out_);
-  object()->Set(env()->context(),
-                env()->write_queue_size_string(),
-                Integer::NewFromUnsigned(env()->isolate(),
-                                         write_queue_size)).FromJust();
-  return write_queue_size;
-}
-
 
 int TLSWrap::ReadStart() {
   if (stream_ != nullptr)
@@ -612,9 +602,6 @@ int TLSWrap::DoWrite(WriteWrap* w,
     // However, if there is any data that should be written to the socket,
     // the callback should not be invoked immediately
     if (BIO_pending(enc_out_) == 0) {
-      // net.js expects writeQueueSize to be > 0 if the write isn't
-      // immediately flushed
-      UpdateWriteQueueSize(1);
       return stream_->DoWrite(w, bufs, count, send_handle);
     }
   }
@@ -666,7 +653,6 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   // Try writing data immediately
   EncOut();
-  UpdateWriteQueueSize();
 
   return 0;
 }
@@ -938,12 +924,17 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
 
-void TLSWrap::UpdateWriteQueueSize(const FunctionCallbackInfo<Value>& args) {
+void TLSWrap::GetWriteQueueSize(const FunctionCallbackInfo<Value>& info) {
   TLSWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, info.This());
 
-  uint32_t write_queue_size = wrap->UpdateWriteQueueSize();
-  args.GetReturnValue().Set(write_queue_size);
+  if (wrap->clear_in_ == nullptr) {
+    info.GetReturnValue().Set(0);
+    return;
+  }
+
+  uint32_t write_queue_size = BIO_pending(wrap->enc_out_);
+  info.GetReturnValue().Set(write_queue_size);
 }
 
 
@@ -966,6 +957,17 @@ void TLSWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(tlsWrapString);
 
+  Local<FunctionTemplate> get_write_queue_size =
+      FunctionTemplate::New(env->isolate(),
+                            GetWriteQueueSize,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+  t->PrototypeTemplate()->SetAccessorProperty(
+      env->write_queue_size_string(),
+      get_write_queue_size,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
+
   AsyncWrap::AddWrapMethods(env, t, AsyncWrap::kFlagHasReset);
   env->SetProtoMethod(t, "receive", Receive);
   env->SetProtoMethod(t, "start", Start);
@@ -973,7 +975,6 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
   env->SetProtoMethod(t, "destroySSL", DestroySSL);
   env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
-  env->SetProtoMethod(t, "updateWriteQueueSize", UpdateWriteQueueSize);
 
   StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
