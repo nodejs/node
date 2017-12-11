@@ -3595,6 +3595,8 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--force-fips",
     "--openssl-config",
     "--icu-data-dir",
+    "--perf-prof",
+    "--perf-basic-prof",
 
     // V8 options (define with '_', which allows '-' or '_')
     "--abort_on_uncaught_exception",
