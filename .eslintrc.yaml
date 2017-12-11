@@ -146,6 +146,9 @@ rules:
   }, {
     selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
     message: "Use new keyword when throwing an Error."
+  }, {
+    selector: "CallExpression[callee.name='isNaN']",
+    message: "Please use Number.isNaN instead of the global isNaN function"
   }]
   no-tabs: error
   no-trailing-spaces: error
