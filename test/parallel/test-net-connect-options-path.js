@@ -20,9 +20,8 @@ const CLIENT_VARIANTS = 12;
   }, CLIENT_VARIANTS))
   .listen(serverPath, common.mustCall(function() {
     const getConnectCb = () => common.mustCall(function() {
-      const client = this;
-      client.end();
-      client.on('close', common.mustCall(function() {
+      this.end();
+      this.on('close', common.mustCall(function() {
         counter++;
         if (counter === CLIENT_VARIANTS) {
           server.close();
