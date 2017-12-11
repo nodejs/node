@@ -5,11 +5,23 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const url = require('url');
+const { URL, parse: parseURL } = require('url');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
 const TIMEOUT = common.platformTimeout(15 * 1000);
+
+function normalizeToFileUrl(path) {
+  const url = new URL(path, 'file:');
+  if (url.protocol === 'file:')
+    return url.toString();
+  // Windows workaround - URL consider 'drive:' (e.g. 'c:'') to be a protocol
+  return new URL(`/${path}`, 'file:').toString();
+}
+
+function sameScriptPath(script1, script2) {
+  return normalizeToFileUrl(script1) === normalizeToFileUrl(script2);
+}
 
 function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
   const args = [].concat(inspectorFlags);
@@ -169,9 +181,8 @@ class InspectorSession {
       if (message.method === 'Debugger.scriptParsed') {
         const script = message['params'];
         const scriptId = script['scriptId'];
-        const url = script['url'];
-        this._scriptsIdsByUrl.set(scriptId, url);
-        if (url === _MAINSCRIPT)
+        this._scriptsIdsByUrl.set(scriptId, script['url']);
+        if (sameScriptPath(script['url'], this.scriptURL()))
           this.mainScriptId = scriptId;
       }
 
@@ -238,11 +249,13 @@ class InspectorSession {
     return notification;
   }
 
-  _isBreakOnLineNotification(message, line, url) {
+  _isBreakOnLineNotification(message, line, expectedScriptPath) {
     if ('Debugger.paused' === message['method']) {
       const callFrame = message['params']['callFrames'][0];
       const location = callFrame['location'];
-      assert.strictEqual(url, this._scriptsIdsByUrl.get(location['scriptId']));
+      const scriptPath = this._scriptsIdsByUrl.get(location['scriptId']);
+      assert(sameScriptPath(scriptPath, expectedScriptPath),
+             `${scriptPath} !== ${expectedScriptPath}`);
       assert.strictEqual(line, location['lineNumber']);
       return true;
     }
@@ -291,12 +304,26 @@ class InspectorSession {
               'Waiting for the debugger to disconnect...');
     await this.disconnect();
   }
+
+  scriptPath() {
+    return this._instance.scriptPath();
+  }
+
+  script() {
+    return this._instance.script();
+  }
+
+  scriptURL() {
+    return new URL(this.scriptPath(), 'file:').toString();
+  }
 }
 
 class NodeInstance {
   constructor(inspectorFlags = ['--inspect-brk=0'],
               scriptContents = '',
               scriptFile = _MAINSCRIPT) {
+    this._scriptPath = scriptFile;
+    this._script = scriptFile ? null : scriptContents;
     this._portCallback = null;
     this.portPromise = new Promise((resolve) => this._portCallback = resolve);
     this._process = spawnChildProcess(inspectorFlags, scriptContents,
@@ -373,7 +400,7 @@ class NodeInstance {
     return this.portPromise.then((port) => new Promise((resolve) => {
       http.get({
         port,
-        path: url.parse(devtoolsUrl).path,
+        path: parseURL(devtoolsUrl).path,
         headers: {
           'Connection': 'Upgrade',
           'Upgrade': 'websocket',
@@ -406,10 +433,16 @@ class NodeInstance {
   kill() {
     this._process.kill();
   }
-}
 
-function readMainScriptSource() {
-  return fs.readFileSync(_MAINSCRIPT, 'utf8');
+  scriptPath() {
+    return this._scriptPath;
+  }
+
+  script() {
+    if (this._script === null)
+      this._script = fs.readFileSync(this.scriptPath(), 'utf8');
+    return this._script;
+  }
 }
 
 function onResolvedOrRejected(promise, callback) {
@@ -450,7 +483,5 @@ function fires(promise, error, timeoutMs) {
 }
 
 module.exports = {
-  mainScriptPath: _MAINSCRIPT,
-  readMainScriptSource,
   NodeInstance
 };
