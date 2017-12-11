@@ -7,17 +7,17 @@ const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
 const iter = 10;
-const overhead = 30;
 
 const server = tls.createServer({
   key: fixtures.readKey('agent2-key.pem'),
   cert: fixtures.readKey('agent2-cert.pem')
 }, common.mustCall((socket) => {
-  socket.on('readable', common.mustCallAtLeast(() => {
-    socket.read();
-  }, 1));
+  let str = '';
+  socket.setEncoding('utf-8');
+  socket.on('data', (chunk) => { str += chunk; });
 
   socket.on('end', common.mustCall(() => {
+    assert.strictEqual(str, 'a'.repeat(iter - 1));
     server.close();
   }));
 }));
@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(() => {
 
     for (let i = 1; i < iter; i++) {
       client.write('a');
-      assert.strictEqual(client.bufferSize, i + overhead);
+      assert.strictEqual(client.bufferSize, i + 1);
     }
 
     client.on('finish', common.mustCall(() => {

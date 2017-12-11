@@ -40,13 +40,15 @@
 namespace node {
 
 using v8::Context;
+using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::Integer;
 using v8::Local;
 using v8::Object;
+using v8::ReadOnly;
+using v8::Signature;
 using v8::Value;
 
 
@@ -99,7 +101,16 @@ LibuvStreamWrap::LibuvStreamWrap(Environment* env,
 void LibuvStreamWrap::AddMethods(Environment* env,
                                  v8::Local<v8::FunctionTemplate> target,
                                  int flags) {
-  env->SetProtoMethod(target, "updateWriteQueueSize", UpdateWriteQueueSize);
+  Local<FunctionTemplate> get_write_queue_size =
+      FunctionTemplate::New(env->isolate(),
+                            GetWriteQueueSize,
+                            env->as_external(),
+                            Signature::New(env->isolate(), target));
+  target->PrototypeTemplate()->SetAccessorProperty(
+      env->write_queue_size_string(),
+      get_write_queue_size,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
   StreamBase::AddMethods<LibuvStreamWrap>(env, target, flags);
 }
@@ -132,17 +143,6 @@ AsyncWrap* LibuvStreamWrap::GetAsyncWrap() {
 
 bool LibuvStreamWrap::IsIPCPipe() {
   return is_named_pipe_ipc();
-}
-
-
-uint32_t LibuvStreamWrap::UpdateWriteQueueSize() {
-  HandleScope scope(env()->isolate());
-  uint32_t write_queue_size = stream()->write_queue_size;
-  object()->Set(env()->context(),
-                env()->write_queue_size_string(),
-                Integer::NewFromUnsigned(env()->isolate(),
-                                         write_queue_size)).FromJust();
-  return write_queue_size;
 }
 
 
@@ -267,13 +267,18 @@ void LibuvStreamWrap::OnRead(uv_stream_t* handle,
 }
 
 
-void LibuvStreamWrap::UpdateWriteQueueSize(
-    const FunctionCallbackInfo<Value>& args) {
+void LibuvStreamWrap::GetWriteQueueSize(
+    const FunctionCallbackInfo<Value>& info) {
   LibuvStreamWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, info.This());
 
-  uint32_t write_queue_size = wrap->UpdateWriteQueueSize();
-  args.GetReturnValue().Set(write_queue_size);
+  if (wrap->stream() == nullptr) {
+    info.GetReturnValue().Set(0);
+    return;
+  }
+
+  uint32_t write_queue_size = wrap->stream()->write_queue_size;
+  info.GetReturnValue().Set(write_queue_size);
 }
 
 
@@ -370,9 +375,13 @@ int LibuvStreamWrap::DoWrite(WriteWrap* w,
   }
 
   w->Dispatched();
-  UpdateWriteQueueSize();
 
   return r;
+}
+
+
+bool LibuvStreamWrap::HasWriteQueue() {
+  return stream()->write_queue_size > 0;
 }
 
 
@@ -387,7 +396,6 @@ void LibuvStreamWrap::AfterUvWrite(uv_write_t* req, int status) {
 
 void LibuvStreamWrap::AfterWrite(WriteWrap* w, int status) {
   StreamBase::AfterWrite(w, status);
-  UpdateWriteQueueSize();
 }
 
 }  // namespace node

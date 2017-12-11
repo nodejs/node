@@ -195,7 +195,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   }
 
   err = DoWrite(req_wrap, buf_list, count, nullptr);
-  req_wrap_obj->Set(env->async(), True(env->isolate()));
+  if (HasWriteQueue())
+    req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err)
     req_wrap->Dispose();
@@ -253,7 +254,8 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
-  req_wrap_obj->Set(env->async(), True(env->isolate()));
+  if (HasWriteQueue())
+    req_wrap_obj->Set(env->async(), True(env->isolate()));
   req_wrap_obj->Set(env->buffer_string(), args[1]);
 
   if (err)
@@ -379,7 +381,8 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
         reinterpret_cast<uv_stream_t*>(send_handle));
   }
 
-  req_wrap_obj->Set(env->async(), True(env->isolate()));
+  if (HasWriteQueue())
+    req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err)
     req_wrap->Dispose();
@@ -471,6 +474,10 @@ Local<Object> StreamBase::GetObject() {
 int StreamResource::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   // No TryWrite by default
   return 0;
+}
+
+bool StreamResource::HasWriteQueue() {
+  return true;
 }
 
 

@@ -153,11 +153,9 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   int err = 0;
-  TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
+  new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
   if (err != 0)
-    return env->ThrowUVException(err, "uv_tty_init");
-
-  wrap->UpdateWriteQueueSize();
+    env->ThrowUVException(err, "uv_tty_init");
 }
 
 
