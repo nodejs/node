@@ -19,11 +19,13 @@ and implementation is ready. Error messages are still being polished.
 The `--experimental-modules` flag can be used to enable features for loading
 ESM modules.
 
-Once this has been set, files ending with `.mjs` will be able to be loaded
+Once this has been set, files ending with `.mjs` or `.m.js` will be able to be loaded
 as ES Modules.
 
 ```sh
 node --experimental-modules my-app.mjs
+
+node --experimental-modules other-app.m.js
 ```
 
 ## Features
@@ -41,6 +43,7 @@ points into ESM graphs at run time.
 | Feature | Reason |
 | --- | --- |
 | `require('./foo.mjs')` | ES Modules have differing resolution and timing, use language standard `import()` |
+| `require('./foo.m.js')` | same as above, use language standard `import()` |
 | `import()` | pending newer V8 release used in Node.js |
 | `import.meta` | pending V8 implementation |
 
