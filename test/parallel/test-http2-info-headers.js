@@ -88,7 +88,7 @@ server.on('listening', common.mustCall(() => {
 
   req.on('end', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 

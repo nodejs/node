@@ -57,7 +57,7 @@ server.on('stream', common.mustCall(function(stream, headers) {
   assert.strictEqual(socket.writable, 0);
   assert.strictEqual(socket.readable, 0);
 
-  stream.session.destroy();
+  stream.end();
 
   socket.setTimeout = undefined;
   assert.strictEqual(session.setTimeout, undefined);
@@ -71,18 +71,11 @@ server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   const url = `http://localhost:${port}`;
   const client = h2.connect(url, common.mustCall(() => {
-    const headers = {
-      ':path': '/',
-      ':method': 'GET',
-      ':scheme': 'http',
-      ':authority': `localhost:${port}`
-    };
-    const request = client.request(headers);
+    const request = client.request();
     request.on('end', common.mustCall(() => {
-      client.destroy();
+      client.close();
       server.close();
     }));
-    request.end();
     request.resume();
   }));
 }));

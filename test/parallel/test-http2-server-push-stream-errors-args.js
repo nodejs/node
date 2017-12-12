@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(() => {
   req.on('end', common.mustCall(() => {
     assert.strictEqual(data, 'test');
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 }));

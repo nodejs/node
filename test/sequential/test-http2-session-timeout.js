@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
         setTimeout(() => makeReq(attempts - 1), callTimeout);
       } else {
         server.removeListener('timeout', mustNotCall);
-        client.destroy();
+        client.close();
         server.close();
       }
     });

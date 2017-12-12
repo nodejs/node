@@ -29,7 +29,7 @@ server.listen(0, common.mustCall(() => {
   req.on('end', () => {
     assert.strictEqual(body, data);
     server.close();
-    client.destroy();
+    client.close();
   });
   req.end();
 }));

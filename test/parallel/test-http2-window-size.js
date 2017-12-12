@@ -67,7 +67,7 @@ function run(buffers, initialWindowSize) {
             const actualBuffer = Buffer.concat(responses);
             assert.strictEqual(Buffer.compare(actualBuffer, expectedBuffer), 0);
             // shut down
-            client.destroy();
+            client.close();
             server.close(() => {
               resolve();
             });

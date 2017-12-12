@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const Countdown = require('../common/countdown');
 
 // Check that pushStream handles method HEAD correctly
 // - stream should end immediately (no body)
@@ -17,8 +18,10 @@ server.on('stream', common.mustCall((stream, headers) => {
       ':scheme': 'http',
       ':method': 'HEAD',
       ':authority': `localhost:${port}`,
-    }, common.mustCall((push, headers) => {
+    }, common.mustCall((err, push, headers) => {
       assert.strictEqual(push._writableState.ended, true);
+      push.respond();
+      assert(!push.write('test'));
       stream.end('test');
     }));
   }
@@ -30,15 +33,26 @@ server.on('stream', common.mustCall((stream, headers) => {
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
-  const headers = { ':path': '/' };
   const client = http2.connect(`http://localhost:${port}`);
-  const req = client.request(headers);
+
+  const countdown = new Countdown(2, () => {
+    server.close();
+    client.close();
+  });
+
+  const req = client.request();
   req.setEncoding('utf8');
 
   client.on('stream', common.mustCall((stream, headers) => {
+    assert.strictEqual(headers[':method'], 'HEAD');
     assert.strictEqual(headers[':scheme'], 'http');
     assert.strictEqual(headers[':path'], '/');
     assert.strictEqual(headers[':authority'], `localhost:${port}`);
+    stream.on('push', common.mustCall(() => {
+      stream.on('data', common.mustNotCall());
+      stream.on('end', common.mustCall());
+    }));
+    stream.on('close', common.mustCall(() => countdown.dec()));
   }));
 
   let data = '';
@@ -46,8 +60,7 @@ server.listen(0, common.mustCall(() => {
   req.on('data', common.mustCall((d) => data += d));
   req.on('end', common.mustCall(() => {
     assert.strictEqual(data, 'test');
-    server.close();
-    client.destroy();
   }));
+  req.on('close', common.mustCall(() => countdown.dec()));
   req.end();
 }));

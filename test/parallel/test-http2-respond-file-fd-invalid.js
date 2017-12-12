@@ -31,7 +31,7 @@ server.listen(0, () => {
   req.on('data', common.mustNotCall());
   req.on('end', common.mustCall(() => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
-    client.destroy();
+    client.close();
     server.close();
   }));
   req.end();

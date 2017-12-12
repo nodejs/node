@@ -62,7 +62,7 @@ server.listen(0, common.mustCall(function() {
     request.resume();
     request.on('end', common.mustCall(function() {
       server.close();
-      client.destroy();
+      client.close();
     }));
     request.write('test\n');
     request.end('test');
