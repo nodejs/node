@@ -151,7 +151,7 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 added: v0.3.6
 changes:
   - version: v9.3.0
-    pr-url: https://github.com/nodejs/node/pull/6569
+    pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.5.0
     pr-url: https://github.com/nodejs/node/pull/10638

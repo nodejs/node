@@ -962,7 +962,7 @@ port or host argument.
 added: v0.11.13
 changes:
   - version: v9.3.0
-    pr-url: https://github.com/nodejs/node/pull/6569
+    pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.3.0
     pr-url: https://github.com/nodejs/node/pull/10294
@@ -1077,7 +1077,7 @@ publicly trusted list of CAs as given in
 added: v0.3.2
 changes:
   - version: v9.3.0
-    pr-url: https://github.com/nodejs/node/pull/6569
+    pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11984
