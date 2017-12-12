@@ -598,9 +598,13 @@ logFnWrapper.listener();
 // logs "log once" to the console and removes the listener
 logFnWrapper();
 
-// will return an empty array
+emitter.on('log', () => console.log('log persistently'));
+// will return a new Array with a single function bound by `on` above
 const newListeners = emitter.rawListeners('log');
-assert.strictEqual(newListeners.length, 0);
+
+// logs "log persistently" twice
+newListeners[0]();
+emitter.emit('log');
 ```
 
 [`--trace-warnings`]: cli.html#cli_trace_warnings
