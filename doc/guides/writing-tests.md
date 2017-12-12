@@ -133,10 +133,11 @@ platforms.
 
 ### The *common* API
 
-Make use of the helpers from the `common` module as much as possible.
+Make use of the helpers from the `common` module as much as possible. Please refer to the [common file documentation](https://github.com/nodejs/node/tree/master/test/common) for the full details of the helpers.
 
-One interesting case is `common.mustCall`. The use of `common.mustCall` may
-avoid the use of extra variables and the corresponding assertions. Let's explain
+#### common.mustCall
+
+One interesting case is `common.mustCall`. The use of `common.mustCall` may avoid the use of extra variables and the corresponding assertions. Let's explain
 this with a real test from the test suite.
 
 ```javascript
@@ -189,6 +190,21 @@ const server = http.createServer(common.mustCall(function(req, res) {
 });
 
 ```
+#### Countdown Module
+
+The common [Countdown module](https://github.com/nodejs/node/tree/master/test/common#countdown-module) provides a simple countdown mechanism for tests that require a particular action to be taken after a given number of completed tasks (for instance, shutting down an HTTP server after a specific number of requests).
+
+```
+const Countdown = require('../common/countdown');
+
+const countdown = new Countdown(2, function() {
+  console.log('.');
+});
+
+countdown.dec();
+countdown.dec(); // The countdown callback will be invoked now.
+```
+
 
 ### Flags
 
