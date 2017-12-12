@@ -1137,7 +1137,7 @@ or Android).
 
 ## process.hasUncaughtExceptionCaptureCallback()
 <!-- YAML
-added: REPLACEME
+added: v9.3.0
 -->
 
 * Returns: {boolean}
@@ -1647,7 +1647,7 @@ or Android).
 
 ## process.setUncaughtExceptionCaptureCallback(fn)
 <!-- YAML
-added: REPLACEME
+added: v9.3.0
 -->
 
 * `fn` {Function|null}

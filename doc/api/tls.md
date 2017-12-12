@@ -961,7 +961,7 @@ port or host argument.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v7.3.0
@@ -1076,7 +1076,7 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v9.3.0
     pr-url: https://github.com/nodejs/node/pull/14903
     description: The `options` parameter can now include `clientCertEngine`.
   - version: v8.0.0
