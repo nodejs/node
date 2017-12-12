@@ -758,6 +758,11 @@ Status code was outside the regular status code range (100-999).
 The `Trailer` header was set even though the transfer encoding does not support
 that.
 
+<a id="ERR_HTTP2_ALREADY_SHUTDOWN"></a>
+### ERR_HTTP2_ALREADY_SHUTDOWN
+
+Occurs with multiple attempts to shutdown an HTTP/2 session.
+
 <a id="ERR_HTTP2_CONNECT_AUTHORITY"></a>
 ### ERR_HTTP2_CONNECT_AUTHORITY
 
@@ -780,6 +785,12 @@ forbidden.
 ### ERR_HTTP2_FRAME_ERROR
 
 A failure occurred sending an individual frame on the HTTP/2 session.
+
+<a id="ERR_HTTP2_GOAWAY_SESSION"></a>
+### ERR_HTTP2_GOAWAY_SESSION
+
+New HTTP/2 Streams may not be opened after the `Http2Session` has received a
+`GOAWAY` frame from the connected peer.
 
 <a id="ERR_HTTP2_HEADER_REQUIRED"></a>
 ### ERR_HTTP2_HEADER_REQUIRED
@@ -920,6 +931,11 @@ client.
 An attempt was made to use the `Http2Stream.prototype.responseWithFile()` API to
 send something other than a regular file.
 
+<a id="ERR_HTTP2_SESSION_ERROR"></a>
+### ERR_HTTP2_SESSION_ERROR
+
+The `Http2Session` closed with a non-zero error code.
+
 <a id="ERR_HTTP2_SOCKET_BOUND"></a>
 ### ERR_HTTP2_SOCKET_BOUND
 
@@ -937,10 +953,11 @@ Use of the `101` Informational status code is forbidden in HTTP/2.
 An invalid HTTP status code has been specified. Status codes must be an integer
 between `100` and `599` (inclusive).
 
-<a id="ERR_HTTP2_STREAM_CLOSED"></a>
-### ERR_HTTP2_STREAM_CLOSED
+<a id="ERR_HTTP2_STREAM_CANCEL"></a>
+### ERR_HTTP2_STREAM_CANCEL
 
-An action was performed on an HTTP/2 Stream that had already been closed.
+An `Http2Stream` was destroyed before any data was transmitted to the connected
+peer.
 
 <a id="ERR_HTTP2_STREAM_ERROR"></a>
 ### ERR_HTTP2_STREAM_ERROR

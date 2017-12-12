@@ -16,26 +16,17 @@ const server = h2.createServer(common.mustCall((req, res) => {
 
   req.on('close', common.mustCall());
   res.on('close', common.mustCall());
+  req.on('error', common.mustNotCall());
 }));
 server.listen(0);
 
-server.on('listening', function() {
-  const port = server.address().port;
-
-  const url = `http://localhost:${port}`;
-  const client = h2.connect(url, common.mustCall(function() {
-    const headers = {
-      ':path': '/foobar',
-      ':method': 'GET',
-      ':scheme': 'http',
-      ':authority': `localhost:${port}`,
-    };
-    const request = client.request(headers);
+server.on('listening', () => {
+  const url = `http://localhost:${server.address().port}`;
+  const client = h2.connect(url, common.mustCall(() => {
+    const request = client.request();
     request.on('data', common.mustCall(function(chunk) {
-      // cause an error on the server side
       client.destroy();
       server.close();
     }));
-    request.end();
   }));
 });

@@ -43,7 +43,7 @@ const server = h2.createServer((request, response) => {
         ':path': '/pushed',
         ':method': 'GET'
       }, common.mustCall((error) => {
-        assert.strictEqual(error.code, 'ERR_HTTP2_STREAM_CLOSED');
+        assert.strictEqual(error.code, 'ERR_HTTP2_INVALID_STREAM');
       }));
     });
   }));
@@ -61,7 +61,7 @@ server.listen(0, common.mustCall(() => {
     let remaining = 2;
     function maybeClose() {
       if (--remaining === 0) {
-        client.destroy();
+        client.close();
         server.close();
       }
     }

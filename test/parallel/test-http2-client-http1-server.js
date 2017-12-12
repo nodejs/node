@@ -7,6 +7,7 @@ if (!common.hasCrypto)
 const http = require('http');
 const http2 = require('http2');
 
+// Creating an http1 server here...
 const server = http.createServer(common.mustNotCall());
 
 server.listen(0, common.mustCall(() => {
@@ -15,13 +16,17 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
   req.on('close', common.mustCall());
 
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_ERROR',
+    type: Error,
+    message: 'Protocol error'
+  }));
+
   client.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     type: Error,
     message: 'Protocol error'
   }));
 
-  client.on('close', (...args) => {
-    server.close();
-  });
+  client.on('close', common.mustCall(() => server.close()));
 }));

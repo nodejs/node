@@ -7,11 +7,7 @@ const h2 = require('http2');
 
 const server = h2.createServer();
 
-// we use the lower-level API here
-server.on('stream', common.mustCall(onStream));
-
-function onStream(stream, headers, flags) {
-
+server.on('stream', common.mustCall((stream) => {
   [
     ':path',
     ':authority',
@@ -24,10 +20,7 @@ function onStream(stream, headers, flags) {
                         });
   });
 
-  stream.respond({
-    'content-type': 'text/html',
-    ':status': 200
-  }, {
+  stream.respond({}, {
     getTrailers: common.mustCall((trailers) => {
       trailers[':status'] = 'bar';
     })
@@ -38,22 +31,24 @@ function onStream(stream, headers, flags) {
   }));
 
   stream.end('hello world');
-}
+}));
 
-server.listen(0);
 
-server.on('listening', common.mustCall(() => {
-
+server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
+  const req = client.request();
 
-  const req = client.request({ ':path': '/' });
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code 2'
+  }));
 
   req.on('response', common.mustCall());
   req.resume();
-  req.on('end', common.mustCall(() => {
+  req.on('end', common.mustCall());
+  req.on('close', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
-  req.end();
-
 }));

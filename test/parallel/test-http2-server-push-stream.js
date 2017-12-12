@@ -14,7 +14,8 @@ server.on('stream', common.mustCall((stream, headers) => {
       ':scheme': 'http',
       ':path': '/foobar',
       ':authority': `localhost:${port}`,
-    }, common.mustCall((push, headers) => {
+    }, common.mustCall((err, push, headers) => {
+      assert.ifError(err);
       push.respond({
         'content-type': 'text/html',
         ':status': 200,
@@ -53,7 +54,7 @@ server.listen(0, common.mustCall(() => {
   req.on('end', common.mustCall(() => {
     assert.strictEqual(data, 'test');
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 }));

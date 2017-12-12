@@ -30,7 +30,7 @@ const URL = url.URL;
                                       () => setImmediate(() => server.close()));
 
     const maybeClose = common.mustCall((client) => {
-      client.destroy();
+      client.close();
       serverClose.dec();
     }, items.length);
 
@@ -42,7 +42,7 @@ const URL = url.URL;
 
     // Will fail because protocol does not match the server.
     h2.connect({ port: port, protocol: 'https:' })
-      .on('socketError', common.mustCall(() => serverClose.dec()));
+      .on('error', common.mustCall(() => serverClose.dec()));
   }));
 }
 
@@ -55,10 +55,8 @@ const URL = url.URL;
   };
 
   const server = h2.createSecureServer(options);
-  server.listen(0);
-
-  server.on('listening', common.mustCall(function() {
-    const port = this.address().port;
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
 
     const opts = { rejectUnauthorized: false };
 
@@ -74,7 +72,7 @@ const URL = url.URL;
                                       () => setImmediate(() => server.close()));
 
     const maybeClose = common.mustCall((client) => {
-      client.destroy();
+      client.close();
       serverClose.dec();
     }, items.length);
 

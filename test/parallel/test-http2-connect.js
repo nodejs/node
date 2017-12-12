@@ -20,7 +20,7 @@ const { createServer, connect } = require('http2');
 
     for (const client of clients) {
       client.once('connect', mustCall((headers) => {
-        client.destroy();
+        client.close();
         clients.delete(client);
         if (clients.size === 0) {
           server.close();
@@ -33,7 +33,11 @@ const { createServer, connect } = require('http2');
 // check for https as protocol
 {
   const authority = 'https://localhost';
-  doesNotThrow(() => connect(authority));
+  doesNotThrow(() => {
+    // A socket error may or may not be reported, keep this as a non-op
+    // instead of a mustCall or mustNotCall
+    connect(authority).on('error', () => {});
+  });
 }
 
 // check for error for an invalid protocol (not http or https)
