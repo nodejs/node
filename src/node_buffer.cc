@@ -1304,4 +1304,4 @@ void Initialize(Local<Object> target,
 }  // namespace Buffer
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(buffer, node::Buffer::Initialize)
+NODE_BUILTIN_MODULE_CONTEXT_AWARE(buffer, node::Buffer::Initialize)
