@@ -10,32 +10,23 @@ const server = http2.createServer();
 const data = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5]);
 
 server.on('stream', common.mustCall((stream) => {
-  stream.session.shutdown({
-    errorCode: 1,
-    opaqueData: data
-  });
+  stream.session.goaway(0, 0, data);
+  stream.respond();
   stream.end();
-  stream.on('error', common.mustCall(common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
-    type: Error,
-    message: 'Stream closed with error code 7'
-  })));
 }));
 
 server.listen(0, () => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
-  client.on('goaway', common.mustCall((code, lastStreamID, buf) => {
-    assert.deepStrictEqual(code, 1);
-    assert.deepStrictEqual(lastStreamID, 0);
+  client.once('goaway', common.mustCall((code, lastStreamID, buf) => {
+    assert.deepStrictEqual(code, 0);
+    assert.deepStrictEqual(lastStreamID, 1);
     assert.deepStrictEqual(data, buf);
-    // Call shutdown() here so that emitGoaway calls destroy()
-    client.shutdown();
     server.close();
   }));
-  const req = client.request({ ':path': '/' });
+  const req = client.request();
   req.resume();
   req.on('end', common.mustCall());
+  req.on('close', common.mustCall());
   req.end();
-
 });

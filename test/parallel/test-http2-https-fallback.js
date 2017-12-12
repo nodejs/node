@@ -52,7 +52,7 @@ function onSession(session) {
     strictEqual(alpnProtocol, 'h2');
     strictEqual(httpVersion, '2.0');
 
-    session.destroy();
+    session.close();
     this.cleanup();
   }));
   request.end();

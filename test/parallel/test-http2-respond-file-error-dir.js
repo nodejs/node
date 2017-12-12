@@ -6,14 +6,10 @@ if (!common.hasCrypto)
 const http2 = require('http2');
 const assert = require('assert');
 
-const {
-  HTTP2_HEADER_CONTENT_TYPE
-} = http2.constants;
-
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile(process.cwd(), {
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    'content-type': 'text/plain'
   }, {
     onError(err) {
       common.expectsError({
@@ -38,7 +34,7 @@ server.listen(0, () => {
   }));
   req.on('data', common.mustNotCall());
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
     server.close();
   }));
   req.end();

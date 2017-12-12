@@ -6,15 +6,9 @@ const { mustCall,
         hasCrypto, skip } = require('../common');
 if (!hasCrypto)
   skip('missing crypto');
-const { throws } = require('assert');
 const { createServer, connect } = require('http2');
 
 // Http2ServerResponse.write does not imply there is a callback
-
-const expectedError = expectsError({
-  code: 'ERR_HTTP2_STREAM_CLOSED',
-  message: 'The stream is already closed'
-}, 2);
 
 {
   const server = createServer();
@@ -22,28 +16,23 @@ const expectedError = expectsError({
     const port = server.address().port;
     const url = `http://localhost:${port}`;
     const client = connect(url, mustCall(() => {
-      const headers = {
-        ':path': '/',
-        ':method': 'GET',
-        ':scheme': 'http',
-        ':authority': `localhost:${port}`
-      };
-      const request = client.request(headers);
-      request.end();
+      const request = client.request();
       request.resume();
+      request.on('end', mustCall());
+      request.on('close', mustCall(() => {
+        client.close();
+      }));
     }));
 
     server.once('request', mustCall((request, response) => {
       client.destroy();
       response.stream.session.on('close', mustCall(() => {
         response.on('error', mustNotCall());
-        throws(
+        expectsError(
           () => { response.write('muahaha'); },
-          expectsError({
-            code: 'ERR_HTTP2_STREAM_CLOSED',
-            type: Error,
-            message: 'The stream is already closed'
-          })
+          {
+            code: 'ERR_HTTP2_INVALID_STREAM'
+          }
         );
         server.close();
       }));
@@ -57,21 +46,21 @@ const expectedError = expectsError({
     const port = server.address().port;
     const url = `http://localhost:${port}`;
     const client = connect(url, mustCall(() => {
-      const headers = {
-        ':path': '/',
-        ':method': 'get',
-        ':scheme': 'http',
-        ':authority': `localhost:${port}`
-      };
-      const request = client.request(headers);
-      request.end();
+      const request = client.request();
       request.resume();
+      request.on('end', mustCall());
+      request.on('close', mustCall(() => client.close()));
     }));
 
     server.once('request', mustCall((request, response) => {
       client.destroy();
       response.stream.session.on('close', mustCall(() => {
-        response.write('muahaha', mustCall(expectedError));
+        expectsError(
+          () => response.write('muahaha'),
+          {
+            code: 'ERR_HTTP2_INVALID_STREAM'
+          }
+        );
         server.close();
       }));
     }));
@@ -84,20 +73,20 @@ const expectedError = expectsError({
     const port = server.address().port;
     const url = `http://localhost:${port}`;
     const client = connect(url, mustCall(() => {
-      const headers = {
-        ':path': '/',
-        ':method': 'get',
-        ':scheme': 'http',
-        ':authority': `localhost:${port}`
-      };
-      const request = client.request(headers);
-      request.end();
+      const request = client.request();
       request.resume();
+      request.on('end', mustCall());
+      request.on('close', mustCall(() => client.close()));
     }));
 
     server.once('request', mustCall((request, response) => {
       response.stream.session.on('close', mustCall(() => {
-        response.write('muahaha', 'utf8', mustCall(expectedError));
+        expectsError(
+          () => response.write('muahaha', 'utf8'),
+          {
+            code: 'ERR_HTTP2_INVALID_STREAM'
+          }
+        );
         server.close();
       }));
       client.destroy();
