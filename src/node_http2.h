@@ -70,7 +70,13 @@ void inline debug_vfprintf(const char* format, ...) {
 #define DEBUG_HTTP2STREAM2(...) do {} while (0)
 #endif
 
+// We strictly limit the number of outstanding unacknowledged PINGS a user
+// may send in order to prevent abuse. The current default cap is 10. The
+// user may set a different limit using a per Http2Session configuration
+// option.
 #define DEFAULT_MAX_PINGS 10
+
+// These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
 #define DEFAULT_SETTINGS_ENABLE_PUSH 1
 #define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
@@ -83,9 +89,9 @@ void inline debug_vfprintf(const char* format, ...) {
 #define MAX_MAX_HEADER_LIST_SIZE 16777215u
 #define DEFAULT_MAX_HEADER_LIST_PAIRS 128u
 
-struct nghttp2_stream_write_t;
-
 #define MAX_BUFFER_COUNT 16
+
+struct nghttp2_stream_write_t;
 
 enum nghttp2_session_type {
   NGHTTP2_SESSION_SERVER,
@@ -109,11 +115,15 @@ enum nghttp2_stream_flags {
   // Stream is destroyed
   NGHTTP2_STREAM_FLAG_DESTROYED = 0x10,
   // Stream has trailers
-  NGHTTP2_STREAM_FLAG_TRAILERS = 0x20
+  NGHTTP2_STREAM_FLAG_TRAILERS = 0x20,
+  // Stream has received all the data it can
+  NGHTTP2_STREAM_FLAG_EOS = 0x40
 };
 
 enum nghttp2_stream_options {
+  // Stream is not going to have any DATA frames
   STREAM_OPTION_EMPTY_PAYLOAD = 0x1,
+  // Stream might have trailing headers
   STREAM_OPTION_GET_TRAILERS = 0x2,
 };
 
@@ -134,7 +144,6 @@ struct nghttp2_header {
   nghttp2_rcbuf* value = nullptr;
   uint8_t flags = 0;
 };
-
 
 
 struct nghttp2_stream_write_t {
@@ -417,9 +426,10 @@ const char* nghttp2_errname(int rv) {
 
 enum session_state_flags {
   SESSION_STATE_NONE = 0x0,
-  SESSION_STATE_DESTROYING = 0x1,
-  SESSION_STATE_HAS_SCOPE = 0x2,
-  SESSION_STATE_WRITE_SCHEDULED = 0x4
+  SESSION_STATE_HAS_SCOPE = 0x1,
+  SESSION_STATE_WRITE_SCHEDULED = 0x2,
+  SESSION_STATE_CLOSED = 0x4,
+  SESSION_STATE_SENDING = 0x8,
 };
 
 // This allows for 4 default-sized frames with their frame headers
@@ -555,6 +565,8 @@ class Http2Stream : public AsyncWrap,
       unsigned int nbufs,
       nghttp2_stream_write_cb cb);
 
+  inline bool HasDataChunks(bool ignore_eos = false);
+
   inline void AddChunk(const uint8_t* data, size_t len);
 
   inline void FlushDataChunks();
@@ -592,7 +604,7 @@ class Http2Stream : public AsyncWrap,
                             bool silent = false);
 
   // Submits an RST_STREAM frame using the given code
-  inline int SubmitRstStream(const uint32_t code);
+  inline void SubmitRstStream(const uint32_t code);
 
   // Submits a PUSH_PROMISE frame with this stream as the parent.
   inline Http2Stream* SubmitPushPromise(
@@ -799,9 +811,11 @@ class Http2Session : public AsyncWrap {
 
   void Start();
   void Stop();
-  void Close();
+  void Close(uint32_t code = NGHTTP2_NO_ERROR,
+             bool socket_closed = false);
   void Consume(Local<External> external);
   void Unconsume();
+  void Goaway(uint32_t code, int32_t lastStreamID, uint8_t* data, size_t len);
 
   bool Ping(v8::Local<v8::Function> function);
 
@@ -827,8 +841,9 @@ class Http2Session : public AsyncWrap {
 
   inline const char* TypeName();
 
-  inline void MarkDestroying() { flags_ |= SESSION_STATE_DESTROYING; }
-  inline bool IsDestroying() { return flags_ & SESSION_STATE_DESTROYING; }
+  inline bool IsDestroyed() {
+    return (flags_ & SESSION_STATE_CLOSED) || session_ == nullptr;
+  }
 
   // Schedule a write if nghttp2 indicates it wants to write to the socket.
   void MaybeScheduleWrite();
@@ -841,9 +856,6 @@ class Http2Session : public AsyncWrap {
 
   // Removes a stream instance from this session
   inline void RemoveStream(int32_t id);
-
-  // Sends a notice to the connected peer that the session is shutting down.
-  inline void SubmitShutdownNotice();
 
   // Submits a SETTINGS frame to the connected peer.
   inline void Settings(const nghttp2_settings_entry iv[], size_t niv);
@@ -868,6 +880,7 @@ class Http2Session : public AsyncWrap {
                                const uv_buf_t* bufs,
                                uv_handle_type pending,
                                void* ctx);
+  static void OnStreamDestructImpl(void* ctx);
 
   // The JavaScript API
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -878,7 +891,6 @@ class Http2Session : public AsyncWrap {
   static void Settings(const FunctionCallbackInfo<Value>& args);
   static void Request(const FunctionCallbackInfo<Value>& args);
   static void SetNextStreamID(const FunctionCallbackInfo<Value>& args);
-  static void ShutdownNotice(const FunctionCallbackInfo<Value>& args);
   static void Goaway(const FunctionCallbackInfo<Value>& args);
   static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
   static void RefreshState(const FunctionCallbackInfo<Value>& args);

@@ -56,6 +56,6 @@ server.listen(0, common.mustCall(() => {
   req.on('response', common.mustCall(checkHeaders));
   req.on('close', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
 }));

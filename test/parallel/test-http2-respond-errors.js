@@ -74,13 +74,18 @@ function runTest(test) {
 
   const client = http2.connect(url);
   const req = client.request(headers);
+  req.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    type: Error,
+    message: 'Stream closed with error code 2'
+  }));
 
   currentError = test;
   req.resume();
   req.end();
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
 
     if (!tests.length) {
       server.close();

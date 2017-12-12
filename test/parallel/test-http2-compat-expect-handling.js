@@ -39,7 +39,7 @@ function nextTest(testsToRun) {
   }));
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
     nextTest(testsToRun - 1);
   }));
 }

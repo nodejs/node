@@ -43,7 +43,7 @@ server.on('listening', common.mustCall(() => {
   client.on('close', closeServer);
   client.on('localSettings', common.mustCall(() => {
     if (--remaining <= 0) {
-      client.destroy();
+      client.close();
     }
   }, maxPendingAck + 1));
   client.on('connect', common.mustCall(() => doTest(client)));
@@ -56,6 +56,6 @@ server.on('listening', common.mustCall(() => {
 
   client.on('close', closeServer);
   client.on('localSettings', common.mustCall(() => {
-    client.destroy();
+    client.close();
   }));
 }));
