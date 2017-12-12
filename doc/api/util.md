@@ -517,7 +517,7 @@ added: v8.0.0
 * `original` {Function}
 * Returns: {Function}
 
-Takes a function following the common Node.js callback style, i.e. taking a
+Takes a function following the common error-first style callback, i.e. taking a
 `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
@@ -554,9 +554,9 @@ will return its value, see [Custom promisified functions][].
 
 `promisify()` assumes that `original` is a function taking a callback as its
 final argument in all cases. If `original` is not a function, `promisify()`
-will throw an error. If `original` is a function but its last argument is not a
-Node.js style callback, it will still be passed a Node.js style callback
-as its last argument.
+will throw an error. If `original` is a function but its last argument is not 
+an error-first style callback, it will still be passed an error-first style 
+callback as its last argument.
 
 ### Custom promisified functions
 
