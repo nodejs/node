@@ -36,7 +36,7 @@ server.listen(0, common.mustCall(() => {
   function maybeClose() {
     if (--remaining === 0) {
       server.close();
-      client.destroy();
+      client.close();
     }
   }
 

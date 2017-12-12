@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(() => {
     req.on('close', common.mustCall((code) => {
       assert.strictEqual(code, NGHTTP2_ENHANCE_YOUR_CALM);
       server.close();
-      client.destroy();
+      client.close();
     }));
   });
 

@@ -48,7 +48,7 @@ server.listen(0, () => {
   let remaining = 2;
   function maybeClose() {
     if (--remaining === 0) {
-      client.destroy();
+      client.close();
       server.close();
     }
   }

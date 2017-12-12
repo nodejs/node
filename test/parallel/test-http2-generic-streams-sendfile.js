@@ -20,7 +20,7 @@ const makeDuplexPair = require('../common/duplexpair');
     createConnection: common.mustCall(() => clientSide)
   });
 
-  const req = client.request({ ':path': '/' });
+  const req = client.request();
 
   req.on('response', common.mustCall((headers) => {
     assert.strictEqual(headers[':status'], 200);
@@ -28,9 +28,7 @@ const makeDuplexPair = require('../common/duplexpair');
 
   req.setEncoding('utf8');
   let data = '';
-  req.on('data', (chunk) => {
-    data += chunk;
-  });
+  req.on('data', (chunk) => data += chunk);
   req.on('end', common.mustCall(() => {
     assert.strictEqual(data, fs.readFileSync(__filename, 'utf8'));
     clientSide.destroy();

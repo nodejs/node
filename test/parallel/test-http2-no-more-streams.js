@@ -25,7 +25,7 @@ server.listen(0, common.mustCall(() => {
 
     const countdown = new Countdown(2, common.mustCall(() => {
       server.close();
-      client.destroy();
+      client.close();
     }));
 
     {

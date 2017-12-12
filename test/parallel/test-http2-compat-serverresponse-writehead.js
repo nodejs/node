@@ -23,7 +23,7 @@ server.listen(0, common.mustCall(function() {
       server.close();
       process.nextTick(common.mustCall(() => {
         common.expectsError(() => { response.writeHead(300); }, {
-          code: 'ERR_HTTP2_STREAM_CLOSED'
+          code: 'ERR_HTTP2_INVALID_STREAM'
         });
       }));
     }));
@@ -44,7 +44,7 @@ server.listen(0, common.mustCall(function() {
       assert.strictEqual(headers[':status'], 418);
     }, 1));
     request.on('end', common.mustCall(function() {
-      client.destroy();
+      client.close();
     }));
     request.end();
     request.resume();

@@ -52,7 +52,7 @@ const {
       request.on('data', (chunk) => (data += chunk));
       request.on('end', mustCall(() => {
         strictEqual(data, 'end');
-        client.destroy();
+        client.close();
       }));
       request.end();
       request.resume();
@@ -83,7 +83,7 @@ const {
       request.on('data', (chunk) => (data += chunk));
       request.on('end', mustCall(() => {
         strictEqual(data, 'test\uD83D\uDE00');
-        client.destroy();
+        client.close();
       }));
       request.end();
       request.resume();
@@ -110,7 +110,7 @@ const {
       };
       const request = client.request(headers);
       request.on('data', mustNotCall());
-      request.on('end', mustCall(() => client.destroy()));
+      request.on('end', mustCall(() => client.close()));
       request.end();
       request.resume();
     }));
@@ -143,7 +143,7 @@ const {
       }));
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();
@@ -172,7 +172,7 @@ const {
       const request = client.request(headers);
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();
@@ -208,7 +208,7 @@ const {
       }));
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();
@@ -243,7 +243,7 @@ const {
       }));
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();
@@ -283,7 +283,7 @@ const {
       }));
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();
@@ -315,7 +315,7 @@ const {
       }));
       request.on('data', mustNotCall());
       request.on('end', mustCall(() => {
-        client.destroy();
+        client.close();
         server.close();
       }));
       request.end();

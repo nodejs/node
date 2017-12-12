@@ -57,7 +57,7 @@ server.on('listening', common.mustCall(() => {
   const req = client.request(headers);
 
   // State will only be valid after connect event is emitted
-  req.on('connect', common.mustCall(() => {
+  req.on('ready', common.mustCall(() => {
 
     // Test Stream State.
     {
@@ -91,7 +91,7 @@ server.on('listening', common.mustCall(() => {
   req.resume();
   req.on('end', common.mustCall(() => {
     server.close();
-    client.destroy();
+    client.close();
   }));
   req.end();
 
