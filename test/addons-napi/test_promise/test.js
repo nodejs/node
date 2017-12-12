@@ -7,6 +7,8 @@ const common = require('../../common');
 const assert = require('assert');
 const test_promise = require(`./build/${common.buildType}/test_promise`);
 
+common.crashOnUnhandledRejection();
+
 // A resolution
 {
   const expected_result = 42;
@@ -44,7 +46,14 @@ const test_promise = require(`./build/${common.buildType}/test_promise`);
 }
 
 assert.strictEqual(test_promise.isPromise(test_promise.createPromise()), true);
-assert.strictEqual(test_promise.isPromise(Promise.reject(-1)), true);
+
+const rejectPromise = Promise.reject(-1);
+const expected_reason = -1;
+assert.strictEqual(test_promise.isPromise(rejectPromise), true);
+rejectPromise.catch((reason) => {
+  assert.strictEqual(reason, expected_reason);
+});
+
 assert.strictEqual(test_promise.isPromise(2.4), false);
 assert.strictEqual(test_promise.isPromise('I promise!'), false);
 assert.strictEqual(test_promise.isPromise(undefined), false);
