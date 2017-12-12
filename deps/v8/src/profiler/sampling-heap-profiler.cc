@@ -109,6 +109,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   Sample* sample = new Sample(size, node, loc, this);
   samples_.insert(sample);
   sample->global.SetWeak(sample, OnWeakCallback, WeakCallbackType::kParameter);
+  sample->global.MarkIndependent();
 }
 
 void SamplingHeapProfiler::OnWeakCallback(
