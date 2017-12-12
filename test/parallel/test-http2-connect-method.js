@@ -13,7 +13,8 @@ const {
   HTTP2_HEADER_AUTHORITY,
   HTTP2_HEADER_SCHEME,
   HTTP2_HEADER_PATH,
-  NGHTTP2_CONNECT_ERROR
+  NGHTTP2_CONNECT_ERROR,
+  NGHTTP2_REFUSED_STREAM
 } = http2.constants;
 
 const server = net.createServer(common.mustCall((socket) => {
@@ -34,7 +35,7 @@ server.listen(0, common.mustCall(() => {
   const proxy = http2.createServer();
   proxy.on('stream', common.mustCall((stream, headers) => {
     if (headers[HTTP2_HEADER_METHOD] !== 'CONNECT') {
-      stream.rstWithRefused();
+      stream.close(NGHTTP2_REFUSED_STREAM);
       return;
     }
     const auth = new URL(`tcp://${headers[HTTP2_HEADER_AUTHORITY]}`);
@@ -47,7 +48,7 @@ server.listen(0, common.mustCall(() => {
     });
     socket.on('close', common.mustCall());
     socket.on('error', (error) => {
-      stream.rstStream(NGHTTP2_CONNECT_ERROR);
+      stream.close(NGHTTP2_CONNECT_ERROR);
     });
   }));
 
@@ -99,7 +100,7 @@ server.listen(0, common.mustCall(() => {
     req.on('data', (chunk) => data += chunk);
     req.on('end', common.mustCall(() => {
       assert.strictEqual(data, 'hello');
-      client.destroy();
+      client.close();
       proxy.close();
       server.close();
     }));

@@ -10,26 +10,20 @@ const checkWeight = (actual, expect) => {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {
     assert.strictEqual(stream.state.weight, expect);
-    stream.respond({
-      'content-type': 'text/html',
-      ':status': 200
-    });
+    stream.respond();
     stream.end('test');
   }));
 
   server.listen(0, common.mustCall(() => {
-    const port = server.address().port;
-    const client = http2.connect(`http://localhost:${port}`);
+    const client = http2.connect(`http://localhost:${server.address().port}`);
+    const req = client.request({}, { weight: actual });
 
-    const headers = { ':path': '/' };
-    const req = client.request(headers, { weight: actual });
-
-    req.on('data', common.mustCall(() => {}));
-    req.on('end', common.mustCall(() => {
+    req.on('data', common.mustCall());
+    req.on('end', common.mustCall());
+    req.on('close', common.mustCall(() => {
       server.close();
-      client.destroy();
+      client.close();
     }));
-    req.end();
   }));
 };
 

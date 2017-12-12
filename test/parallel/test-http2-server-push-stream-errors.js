@@ -34,9 +34,8 @@ const specificTests = [
   {
     ngError: constants.NGHTTP2_ERR_STREAM_CLOSED,
     error: {
-      code: 'ERR_HTTP2_STREAM_CLOSED',
-      type: Error,
-      message: 'The stream is already closed'
+      code: 'ERR_HTTP2_INVALID_STREAM',
+      type: Error
     },
     type: 'stream'
   },
@@ -66,47 +65,25 @@ Http2Stream.prototype.pushPromise = () => currentError.ngError;
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
-  const errorMustCall = common.expectsError(currentError.error);
-  const errorMustNotCall = common.mustNotCall(
-    `${currentError.error.code} should emit on ${currentError.type}`
-  );
-
-  if (currentError.type === 'stream') {
-    stream.session.on('error', errorMustNotCall);
-    stream.on('error', errorMustCall);
-    stream.on('error', common.mustCall(() => {
-      stream.respond();
-      stream.end();
-    }));
-  } else {
-    stream.session.once('error', errorMustCall);
-    stream.on('error', errorMustNotCall);
-  }
-
-  stream.pushStream({}, () => {});
+  stream.pushStream({}, common.expectsError(currentError.error));
+  stream.respond();
+  stream.end();
 }, tests.length));
 
 server.listen(0, common.mustCall(() => runTest(tests.shift())));
 
 function runTest(test) {
-  const port = server.address().port;
-  const url = `http://localhost:${port}`;
-  const headers = {
-    ':path': '/',
-    ':method': 'POST',
-    ':scheme': 'http',
-    ':authority': `localhost:${port}`
-  };
+  const url = `http://localhost:${server.address().port}`;
 
   const client = http2.connect(url);
-  const req = client.request(headers);
+  const req = client.request();
 
   currentError = test;
   req.resume();
   req.end();
 
-  req.on('end', common.mustCall(() => {
-    client.destroy();
+  req.on('close', common.mustCall(() => {
+    client.close();
 
     if (!tests.length) {
       server.close();

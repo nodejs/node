@@ -1,13 +1,14 @@
 'use strict';
 
+const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const {
   constants,
   Http2Session,
   nghttp2ErrorString
 } = process.binding('http2');
-const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 const http2 = require('http2');
 
 // tests error handling within requestOnConnect
@@ -69,6 +70,8 @@ server.listen(0, common.mustCall(() => runTest(tests.shift())));
 
 function runTest(test) {
   const client = http2.connect(`http://localhost:${server.address().port}`);
+  client.on('close', common.mustCall());
+
   const req = client.request({ ':method': 'POST' });
 
   currentError = test.ngError;
@@ -83,15 +86,15 @@ function runTest(test) {
   if (test.type === 'stream') {
     client.on('error', errorMustNotCall);
     req.on('error', errorMustCall);
-    req.on('error', common.mustCall(() => {
-      client.destroy();
-    }));
   } else {
     client.on('error', errorMustCall);
-    req.on('error', errorMustNotCall);
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_CANCEL'
+    }));
   }
 
-  req.on('end', common.mustCall(() => {
+  req.on('end', common.mustCall());
+  req.on('close', common.mustCall(() => {
     client.destroy();
 
     if (!tests.length) {

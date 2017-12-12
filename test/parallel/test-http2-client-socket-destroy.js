@@ -14,38 +14,27 @@ const body =
 const server = h2.createServer();
 
 // we use the lower-level API here
-server.on('stream', common.mustCall(onStream));
-
-function onStream(stream) {
-  // The stream aborted event must have been triggered
+server.on('stream', common.mustCall((stream) => {
   stream.on('aborted', common.mustCall());
-
-  stream.respond({
-    'content-type': 'text/html',
-    ':status': 200
-  });
+  stream.on('close', common.mustCall());
+  stream.respond();
   stream.write(body);
-}
+  // purposefully do not end()
+}));
 
-server.listen(0);
-
-server.on('listening', common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   const client = h2.connect(`http://localhost:${this.address().port}`);
-
-  const req = client.request({ ':path': '/' });
+  const req = client.request();
 
   req.on('response', common.mustCall(() => {
     // send a premature socket close
     client[kSocket].destroy();
   }));
-  req.on('data', common.mustNotCall());
 
-  req.on('end', common.mustCall(() => {
-    server.close();
-  }));
+  req.resume();
+  req.on('end', common.mustCall());
+  req.on('close', common.mustCall(() => server.close()));
 
   // On the client, the close event must call
   client.on('close', common.mustCall());
-  req.end();
-
 }));

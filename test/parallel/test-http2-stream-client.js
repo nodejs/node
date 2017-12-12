@@ -22,7 +22,7 @@ server.listen(0, common.mustCall(() => {
   const req = client.request();
   req.resume();
   req.on('close', common.mustCall(() => {
-    client.destroy();
+    client.close();
     server.close();
   }));
 }));

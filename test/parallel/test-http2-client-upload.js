@@ -9,6 +9,7 @@ const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
+const Countdown = require('../common/countdown');
 
 const loc = fixtures.path('person.jpg');
 let fileData;
@@ -34,20 +35,21 @@ fs.readFile(loc, common.mustCall((err, data) => {
   server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
 
-    let remaining = 2;
-    function maybeClose() {
-      if (--remaining === 0) {
-        server.close();
-        client.shutdown();
-      }
-    }
+    const countdown = new Countdown(2, () => {
+      server.close();
+      client.close();
+    });
 
     const req = client.request({ ':method': 'POST' });
     req.on('response', common.mustCall());
+
     req.resume();
-    req.on('end', common.mustCall(maybeClose));
+    req.on('end', common.mustCall());
+
+    req.on('finish', () => countdown.dec());
     const str = fs.createReadStream(loc);
-    req.on('finish', common.mustCall(maybeClose));
+    str.on('end', common.mustCall());
+    str.on('close', () => countdown.dec());
     str.pipe(req);
   }));
 }));
