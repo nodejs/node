@@ -2382,7 +2382,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == nullptr) return nullptr;
-  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   int bytes_left = new_node_size - size_in_bytes;
   DCHECK(bytes_left >= 0);
@@ -2427,6 +2426,8 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     owner_->SetTopAndLimit(new_node->address() + size_in_bytes,
                            new_node->address() + new_node_size);
   }
+
+  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   return new_node;
 }
