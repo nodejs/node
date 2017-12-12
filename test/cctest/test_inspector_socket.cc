@@ -186,7 +186,6 @@ class TestInspectorDelegate : public InspectorSocket::Delegate {
 
   void process(inspector_handshake_event event, const std::string& path);
 
-  bool disposed_ = false;
   delegate_fn handshake_delegate_;
   InspectorSocket::Pointer socket_;
   std::string ws_key_;
