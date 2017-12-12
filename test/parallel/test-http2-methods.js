@@ -41,7 +41,7 @@ server.on('listening', common.mustCall(() => {
     req.on('end', common.mustCall(() => {
       if (--expected === 0) {
         server.close();
-        client.destroy();
+        client.close();
       }
     }));
     req.end();

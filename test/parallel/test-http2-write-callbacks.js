@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(() => {
   req.on('data', (chunk) => actual += chunk);
   req.on('end', common.mustCall(() => assert.strictEqual(actual, 'abcxyz')));
   req.on('close', common.mustCall(() => {
-    client.destroy();
+    client.close();
     server.close();
   }));
 }));

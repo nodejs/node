@@ -80,7 +80,7 @@ server.listen(0, common.mustCall(() => {
     const req = client.request();
     req.resume();
     req.on('end', common.mustCall(() => {
-      client.destroy();
+      client.close();
       server.close();
     }));
   }));

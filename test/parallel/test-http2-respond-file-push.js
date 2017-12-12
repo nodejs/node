@@ -29,7 +29,8 @@ server.on('stream', (stream) => {
   stream.pushStream({
     ':path': '/file.txt',
     ':method': 'GET'
-  }, (stream) => {
+  }, (err, stream) => {
+    assert.ifError(err);
     stream.respondWithFD(fd, {
       [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain',
       [HTTP2_HEADER_CONTENT_LENGTH]: stat.size,
@@ -50,7 +51,7 @@ server.listen(0, () => {
   function maybeClose() {
     if (--expected === 0) {
       server.close();
-      client.destroy();
+      client.close();
     }
   }
 

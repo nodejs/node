@@ -12,7 +12,6 @@ const server = http2.createServer();
 server.on('request', (req, res) => {
   req.setTimeout(msecs, common.mustCall(() => {
     res.end();
-    req.setTimeout(msecs, common.mustNotCall());
   }));
   res.on('finish', common.mustCall(() => {
     req.setTimeout(msecs, common.mustNotCall());
@@ -35,7 +34,7 @@ server.listen(0, common.mustCall(() => {
     ':authority': `localhost:${port}`
   });
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
   }));
   req.resume();
   req.end();

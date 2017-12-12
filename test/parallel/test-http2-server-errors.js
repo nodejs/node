@@ -6,7 +6,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-const { Http2Stream } = require('internal/http2/core');
 
 // Errors should not be reported both in Http2ServerRequest
 // and Http2ServerResponse
@@ -27,11 +26,6 @@ const { Http2Stream } = require('internal/http2/core');
     expected = new Error('kaboom');
     stream.destroy(expected);
     server.close();
-  }));
-
-  server.on('streamError', common.mustCall(function(err, stream) {
-    assert.strictEqual(err, expected);
-    assert.strictEqual(stream instanceof Http2Stream, true);
   }));
 
   server.listen(0, common.mustCall(function() {
@@ -68,11 +62,6 @@ const { Http2Stream } = require('internal/http2/core');
     expected = new Error('kaboom');
     stream.destroy(expected);
     server.close();
-  }));
-
-  server.on('streamError', common.mustCall(function(err, stream) {
-    assert.strictEqual(err, expected);
-    assert.strictEqual(stream instanceof Http2Stream, true);
   }));
 
   server.listen(0, common.mustCall(function() {

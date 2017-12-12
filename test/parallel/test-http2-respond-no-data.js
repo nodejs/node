@@ -27,7 +27,7 @@ function makeRequest() {
   req.resume();
 
   req.on('end', common.mustCall(() => {
-    client.destroy();
+    client.close();
 
     if (!status.length) {
       server.close();
