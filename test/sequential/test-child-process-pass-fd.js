@@ -18,26 +18,42 @@ const { fork } = require('child_process');
 const net = require('net');
 
 const N = 80;
+let messageCallbackCount = 0;
+
+function forkWorker() {
+  const messageCallback = (msg, handle) => {
+    messageCallbackCount++;
+    assert.strictEqual(msg, 'handle');
+    assert.ok(handle);
+    worker.send('got');
+
+    let recvData = '';
+    handle.on('data', common.mustCall((data) => {
+      recvData += data;
+    }));
+
+    handle.on('end', () => {
+      assert.strictEqual(recvData, 'hello');
+      worker.kill();
+    });
+  };
+
+  const worker = fork(__filename, ['child']);
+  worker.on('error', (err) => {
+    if (/\bEAGAIN\b/.test(err.message)) {
+      forkWorker();
+      return;
+    }
+    throw err;
+  });
+  worker.once('message', messageCallback);
+}
 
 if (process.argv[2] !== 'child') {
   for (let i = 0; i < N; ++i) {
-    const worker = fork(__filename, ['child']);
-    worker.once('message', common.mustCall((msg, handle) => {
-      assert.strictEqual(msg, 'handle');
-      assert.ok(handle);
-      worker.send('got');
-
-      let recvData = '';
-      handle.on('data', common.mustCall((data) => {
-        recvData += data;
-      }));
-
-      handle.on('end', () => {
-        assert.strictEqual(recvData, 'hello');
-        worker.kill();
-      });
-    }));
+    forkWorker();
   }
+  process.on('exit', () => { assert.strictEqual(messageCallbackCount, N); });
 } else {
   let socket;
   let cbcalls = 0;
