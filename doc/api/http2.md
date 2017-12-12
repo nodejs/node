@@ -549,7 +549,7 @@ added: v8.4.0
 
 #### clienthttp2session.ref()
 <!-- YAML
-added: ??? (TODO)
+added: REPLACEME
 -->
 
 Calls [`ref()`][`net.Socket.prototype.ref`] on this `ClientHttp2Session`
@@ -620,7 +620,7 @@ they respectively default to:
 
 #### clienthttp2session.unref()
 <!-- YAML
-added: ??? (TODO)
+added: REPLACEME
 -->
 
 Calls [`unref()`][`net.Socket.prototype.unref`] on this `ClientHttp2Session`
