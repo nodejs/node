@@ -1,6 +1,10 @@
 'use strict';
 // Flags: --expose-internals
 
+// Tests that calling unref() on Http2Session:
+// (1) Prevents it from keeping the process alive
+// (2) Doesn't crash
+
 const common = require('../common');
 const { kSocket } = require('internal/http2/util');
 if (!common.hasCrypto)
@@ -14,31 +18,35 @@ function isActiveHandle(h) {
 }
 
 const server = http2.createServer();
+
+// 'session' event should be emitted 3 times:
+// - the vanilla client
+// - the destroyed client
+// - manual 'connection' event emission with generic Duplex stream
+server.on('session', common.mustCallAtLeast((session) => {
+  session.unref();
+}, 3));
+
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
 
+  // unref new client
   let client = http2.connect(`http://localhost:${port}`);
-  assert.ok(isActiveHandle(client[kSocket]));
   client.unref();
-  assert.ok(!isActiveHandle(client[kSocket]));
-  client.ref();
-  assert.ok(isActiveHandle(client[kSocket]));
+
+  // unref destroyed client
+  client = http2.connect(`http://localhost:${port}`);
   client.destroy();
-  assert.ok(!isActiveHandle(client[kSocket]));
-  // Ensure that calling these methods don't throw after session is destroyed.
-  assert.doesNotThrow(client.unref.bind(client));
-  assert.doesNotThrow(client.ref.bind(client));
-  assert.ok(!isActiveHandle(client[kSocket]));
+  client.unref();
 
-  server.close();
-
-  // Try with generic DuplexStream
+  // unref client with generic Duplex stream
   client = http2.connect(`http://localhost:${port}`, {
     createConnection: common.mustCall(() => PassThrough())
   });
-  assert.doesNotThrow(client.unref.bind(client));
-  assert.doesNotThrow(client.ref.bind(client));
-  client.destroy();
-  assert.doesNotThrow(client.unref.bind(client));
-  assert.doesNotThrow(client.ref.bind(client));
+  client.unref();
 }));
+server.unref();
+
+server.emit('connection', PassThrough());
+
+setTimeout(common.mustNotCall(() => {}), 1000).unref();

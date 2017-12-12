@@ -413,6 +413,14 @@ session.ping(Buffer.from('abcdefgh'), (err, duration, payload) => {
 If the `payload` argument is not specified, the default payload will be the
 64-bit timestamp (little endian) marking the start of the `PING` duration.
 
+#### http2session.ref()
+<!-- YAML
+added: REPLACEME
+-->
+
+Calls [`ref()`][`net.Socket.prototype.ref`] on this `Http2Session`
+instance's underlying [`net.Socket`].
+
 #### http2session.remoteSettings
 <!-- YAML
 added: v8.4.0
@@ -542,18 +550,18 @@ The `http2session.type` will be equal to
 server, and `http2.constants.NGHTTP2_SESSION_CLIENT` if the instance is a
 client.
 
-### Class: ClientHttp2Session
-<!-- YAML
-added: v8.4.0
--->
-
-#### clienthttp2session.ref()
+#### http2session.unref()
 <!-- YAML
 added: REPLACEME
 -->
 
-Calls [`ref()`][`net.Socket.prototype.ref`] on this `ClientHttp2Session`
+Calls [`unref()`][`net.Socket.prototype.unref`] on this `Http2Session`
 instance's underlying [`net.Socket`].
+
+### Class: ClientHttp2Session
+<!-- YAML
+added: v8.4.0
+-->
 
 #### clienthttp2session.request(headers[, options])
 <!-- YAML
@@ -612,19 +620,11 @@ the trailing header fields to send to the peer.
 will be emitted if the `getTrailers` callback attempts to set such header
 fields.
 
-The the `:method` and `:path` pseudoheaders are not specified within `headers`,
+The `:method` and `:path` pseudoheaders are not specified within `headers`,
 they respectively default to:
 
 * `:method` = `'GET'`
 * `:path` = `/`
-
-#### clienthttp2session.unref()
-<!-- YAML
-added: REPLACEME
--->
-
-Calls [`unref()`][`net.Socket.prototype.unref`] on this `ClientHttp2Session`
-instance's underlying [`net.Socket`].
 
 ### Class: Http2Stream
 <!-- YAML
