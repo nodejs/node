@@ -133,6 +133,7 @@ class ModuleWrap;
   V(dns_txt_string, "TXT")                                                    \
   V(domain_string, "domain")                                                  \
   V(emit_string, "emit")                                                      \
+  V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
   V(enumerable_string, "enumerable")                                          \
   V(idle_string, "idle")                                                      \
