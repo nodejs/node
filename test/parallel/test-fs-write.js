@@ -86,3 +86,20 @@ fs.open(fn3, 'w', 0o644, common.mustCall(function(err, fd) {
 
   fs.write(fd, expected, done);
 }));
+
+[false, 'test', {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.write(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.writeSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

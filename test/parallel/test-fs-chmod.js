@@ -113,7 +113,7 @@ fs.open(file2, 'w', common.mustCall((err, fd) => {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         type: TypeError,
-        message: 'The "mode" argument must be of type number'
+        message: 'The "mode" argument must be of type integer'
       }
     );
 
@@ -151,7 +151,7 @@ if (fs.lchmod) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type number'
+      message: 'The "fd" argument must be of type integer'
     }
   );
   common.expectsError(
@@ -159,26 +159,24 @@ if (fs.lchmod) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       type: TypeError,
-      message: 'The "fd" argument must be of type number'
+      message: 'The "fd" argument must be of type integer'
     }
   );
 });
 
-[-1, 0xFFFFFFFF + 1].forEach((i) => {
+[false, 1, {}, [], null, undefined].forEach((i) => {
   common.expectsError(
-    () => fs.fchmod(i, 0o000),
+    () => fs.chmod(i, 1, common.mustNotCall()),
     {
-      code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
-      message: 'The "fd" argument is out of range'
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
     }
   );
   common.expectsError(
-    () => fs.fchmodSync(i, 0o000),
+    () => fs.chmodSync(i, 1),
     {
-      code: 'ERR_OUT_OF_RANGE',
-      type: RangeError,
-      message: 'The "fd" argument is out of range'
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
     }
   );
 });

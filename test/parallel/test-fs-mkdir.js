@@ -53,6 +53,23 @@ common.refreshTmpDir();
   assert.strictEqual(exists, true);
 }
 
+[false, 1, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.mkdir(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.mkdirSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});
+
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
 process.nextTick(() => {});

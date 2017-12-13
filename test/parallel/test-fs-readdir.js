@@ -33,3 +33,20 @@ assert.throws(function() {
 fs.readdir(__filename, common.mustCall(function(e) {
   assert.strictEqual(e.code, 'ENOTDIR');
 }));
+
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.readdir(i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.readdirSync(i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});
