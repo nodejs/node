@@ -102,6 +102,10 @@ TLSWrap::~TLSWrap() {
   sni_context_.Reset();
 #endif  // SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
 
+  // See test/parallel/test-tls-transport-destroy-after-own-gc.js:
+  // If this TLSWrap is garbage collected, we cannot allow callbacks to be
+  // called on this stream.
+
   if (stream_ == nullptr)
     return;
   stream_->set_destruct_cb({ nullptr, nullptr });
