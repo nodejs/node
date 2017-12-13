@@ -126,6 +126,9 @@ typedef int mode_t;
 #elif !defined(_MSC_VER)
 extern char **environ;
 #endif
+#ifdef NODE_SHARED_MODE
+  #include "node_lib.h"
+#endif
 
 namespace node {
 
@@ -4802,7 +4805,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   HandleScope handle_scope(isolate);
   Local<Context> context = NewContext(isolate);
   Context::Scope context_scope(context);
-  Environment env(isolate_data, context);
+  #ifdef NODE_SHARED_MODE
+    static Environment env(isolate_data, context);
+  #else
+    Environment env(isolate_data, context);
+  #endif
   CHECK_EQ(0, uv_key_create(&thread_local_env));
   uv_key_set(&thread_local_env, &env);
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
@@ -4827,42 +4834,45 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
+  #ifdef NODE_SHARED_MODE
+    node_lib_exec_env.env = &env;
+    return 0;
+  #else
+    {
+      SealHandleScope seal(isolate);
+      bool more;
+      PERFORMANCE_MARK(&env, LOOP_START);
+      do {
+        uv_run(env.event_loop(), UV_RUN_DEFAULT);
 
-  {
-    SealHandleScope seal(isolate);
-    bool more;
-    PERFORMANCE_MARK(&env, LOOP_START);
-    do {
-      uv_run(env.event_loop(), UV_RUN_DEFAULT);
+        v8_platform.DrainVMTasks();
 
-      v8_platform.DrainVMTasks();
+        more = uv_loop_alive(env.event_loop());
+        if (more)
+          continue;
 
-      more = uv_loop_alive(env.event_loop());
-      if (more)
-        continue;
+        EmitBeforeExit(&env);
 
-      EmitBeforeExit(&env);
+        // Emit `beforeExit` if the loop became alive either after emitting
+        // event, or after running some callbacks.
+        more = uv_loop_alive(env.event_loop());
+      } while (more == true);
+      PERFORMANCE_MARK(&env, LOOP_EXIT);
+    }
 
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
-      more = uv_loop_alive(env.event_loop());
-    } while (more == true);
-    PERFORMANCE_MARK(&env, LOOP_EXIT);
-  }
+    env.set_trace_sync_io(false);
 
-  env.set_trace_sync_io(false);
+    const int exit_code = EmitExit(&env);
+    RunAtExit(&env);
+    uv_key_delete(&thread_local_env);
 
-  const int exit_code = EmitExit(&env);
-  RunAtExit(&env);
-  uv_key_delete(&thread_local_env);
-
-  v8_platform.DrainVMTasks();
-  WaitForInspectorDisconnect(&env);
-#if defined(LEAK_SANITIZER)
-  __lsan_do_leak_check();
-#endif
-
-  return exit_code;
+    v8_platform.DrainVMTasks();
+    WaitForInspectorDisconnect(&env);
+    #if defined(LEAK_SANITIZER)
+      __lsan_do_leak_check();
+    #endif
+    return exit_code;
+  #endif
 }
 
 inline int Start(uv_loop_t* event_loop,
@@ -4878,7 +4888,9 @@ inline int Start(uv_loop_t* event_loop,
   Isolate* const isolate = Isolate::New(params);
   if (isolate == nullptr)
     return 12;  // Signal internal error.
-
+  #ifdef NODE_SHARED_MODE
+    node_lib_exec_env.isolate = isolate;
+  #endif
   isolate->AddMessageListener(OnMessage);
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
   isolate->SetAutorunMicrotasks(false);
@@ -4902,15 +4914,15 @@ inline int Start(uv_loop_t* event_loop,
     IsolateData isolate_data(isolate, event_loop, allocator.zero_fill_field());
     exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
+  #ifndef NODE_SHARED_MODE
+    {
+      Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+      CHECK_EQ(node_isolate, isolate);
+      node_isolate = nullptr;
+    }
 
-  {
-    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-    CHECK_EQ(node_isolate, isolate);
-    node_isolate = nullptr;
-  }
-
-  isolate->Dispose();
-
+    isolate->Dispose();
+  #endif
   return exit_code;
 }
 
@@ -4928,6 +4940,9 @@ int Start(int argc, char** argv) {
   // optional, in case you're wondering.
   int exec_argc;
   const char** exec_argv;
+  #ifdef NODE_SHARED_MODE
+    node_lib_exec_env.exec_argv = exec_argv;
+  #endif
   Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
 
 #if HAVE_OPENSSL
@@ -4958,26 +4973,99 @@ int Start(int argc, char** argv) {
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
-  if (trace_enabled) {
-    v8_platform.StopTracingAgent();
-  }
-  v8_initialized = false;
-  V8::Dispose();
+  
+  #ifndef NODE_SHARED_MODE
+    if (trace_enabled) {
+      v8_platform.StopTracingAgent();
+    }
+    v8_initialized = false;
+    V8::Dispose();
 
-  // uv_run cannot be called from the time before the beforeExit callback
-  // runs until the program exits unless the event loop has any referenced
-  // handles after beforeExit terminates. This prevents unrefed timers
-  // that happen to terminate during shutdown from being run unsafely.
-  // Since uv_run cannot be called, uv_async handles held by the platform
-  // will never be fully cleaned up.
-  v8_platform.Dispose();
+    // uv_run cannot be called from the time before the beforeExit callback
+    // runs until the program exits unless the event loop has any referenced
+    // handles after beforeExit terminates. This prevents unrefed timers
+    // that happen to terminate during shutdown from being run unsafely.
+    // Since uv_run cannot be called, uv_async handles held by the platform
+    // will never be fully cleaned up.
+    v8_platform.Dispose();
 
-  delete[] exec_argv;
-  exec_argv = nullptr;
-
+    delete[] exec_argv;
+    exec_argv = nullptr;
+  #endif
   return exit_code;
 }
 
+bool initialize(std::string script) {
+	auto start_string = "node.exe\0" + script;
+	int argc = 2;
+	auto c = start_string.c_str();
+	char *argv[2];
+	argv[0] = const_cast<char *>(c);
+	argv[1] = argv[0] + 10;
+	node::Start(argc, argv);
+}
+
+bool process_events() {
+	auto env = node_lib_exec_env.env;
+	v8::SealHandleScope seal(node_lib_exec_env.isolate);
+	bool more;
+	PERFORMANCE_MARK(env, LOOP_START);
+	do {
+	uv_run(env->event_loop(), UV_RUN_DEFAULT);
+ 
+	node::v8_platform.DrainVMTasks();
+
+	more = uv_loop_alive(env->event_loop());
+	if (more)
+		continue;
+
+	EmitBeforeExit(env);
+
+	// Emit `beforeExit` if the loop became alive either after emitting
+	// event, or after running some callbacks.
+	more = uv_loop_alive(env->event_loop());
+	} while (more == true);
+	PERFORMANCE_MARK(env, LOOP_EXIT);
+}
+
+bool tear_down(int exitCode) {
+	auto env = node_lib_exec_env.env;
+	auto isolate = node_lib_exec_env.isolate;
+	env->set_trace_sync_io(false);
+
+    const int exit_code = EmitExit(env);
+    RunAtExit(env);
+    uv_key_delete(&node::thread_local_env);
+
+    v8_platform.DrainVMTasks();
+    WaitForInspectorDisconnect(env);
+    #if defined(LEAK_SANITIZER)
+      __lsan_do_leak_check();
+    #endif
+	{
+      Mutex::ScopedLock scoped_lock(node::node_isolate_mutex);
+      CHECK_EQ(node::node_isolate, isolate);
+      node_isolate = nullptr;
+    }
+
+    isolate->Dispose();
+
+	if (node::trace_enabled) {
+      v8_platform.StopTracingAgent();
+    }
+    v8_initialized = false;
+    V8::Dispose();
+
+    // uv_run cannot be called from the time before the beforeExit callback
+    // runs until the program exits unless the event loop has any referenced
+    // handles after beforeExit terminates. This prevents unrefed timers
+    // that happen to terminate during shutdown from being run unsafely.
+    // Since uv_run cannot be called, uv_async handles held by the platform
+    // will never be fully cleaned up.
+    node::v8_platform.Dispose();
+
+    delete[] node_lib_exec_env.exec_argv;
+}
 
 }  // namespace node
 
