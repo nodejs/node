@@ -165,9 +165,24 @@ async function ctrlCTest() {
   ]);
 }
 
+async function awaitBackgroundingTest() {
+  putIn.run(['.backgrounding']);
+
+  console.log('Testing await backgrounding');
+
+  assert.deepStrictEqual(await runAndWait([
+    'await timeout(10000)'
+  ]), [
+    'await timeout(10000)\r',
+    'AWAIT01 (pending)',
+    PROMPT
+  ]);
+}
+
 async function main() {
   await ordinaryTests();
   await ctrlCTest();
+  await awaitBackgroundingTest();
 }
 
 main();

@@ -142,6 +142,35 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 > fs.createReadStream('./some/file');
 ```
 
+#### Top-Level Await
+
+The default evaluator will run top-level await expressions.
+
+You can also enable await backgrounding using the `.backgrounding` command,
+which will allow top-level awaited promises to enter the background if they
+will take more than a tick to complete.
+
+<!-- eslint-skip -->
+```js
+> await Promise.resolve(5);
+5
+```
+
+<!-- eslint-skip -->
+```js
+> .backgrounding
+Top-level await backgrounding has been enabled
+> await new Promise(resolve => setTimeout(() => resolve(true), 5000))
+AWAIT01 (pending)
+> 5 + 5
+10
+> AWAIT01 (resolved) => true
+> await new Promise((_, reject) => setTimeout(() => reject(false), 5000))
+AWAIT02 (pending)
+> AWAIT02 (rejected) => false
+>
+```
+
 #### Assignment of the `_` (underscore) variable
 
 The default evaluator will, by default, assign the result of the most recently
