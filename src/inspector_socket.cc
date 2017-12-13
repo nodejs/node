@@ -116,6 +116,7 @@ class WriteRequest {
   WriteRequest(ProtocolHandler* handler, const std::vector<char>& buffer)
       : handler(handler)
       , storage(buffer)
+      , req(uv_write_t())
       , buf(uv_buf_init(storage.data(), storage.size())) {}
 
   static WriteRequest* from_write_req(uv_write_t* req) {
