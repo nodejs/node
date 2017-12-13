@@ -3446,6 +3446,42 @@ is sufficient and appropriate. Use of the `napi_make_callback` function
 may be required when implementing custom async behavior that does not use
 `napi_create_async_work`.
 
+### *napi_open_callback_scope*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_open_callback_scope(napi_env env,
+                                                 napi_value resource_object,
+                                                 napi_async_context context,
+                                                 napi_callback_scope* result)
+```
+- `[in] env`: The environment that the API is invoked under.
+- `[in] resource_object`: An optional object associated with the async work
+  that will be passed to possible async_hooks [`init` hooks][].
+- `[in] context`: Context for the async operation that is
+invoking the callback. This should be a value previously obtained
+from [`napi_async_init`][].
+- `[out] result`: The newly created scope.
+
+There are cases(for example resolving promises) where it is
+necessary to have the equivalent of the scope associated with a callback
+in place when making certain N-API calls.  If there is no other script on
+the stack the [`napi_open_callback_scope`][] and
+[`napi_close_callback_scope`][] functions can be used to open/close
+the required scope.
+
+### *napi_close_callback_scope*
+<!-- YAML
+added: REPLACEME
+-->
+```C
+NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
+                                                  napi_callback_scope scope)
+```
+- `[in] env`: The environment that the API is invoked under.
+- `[in] scope`: The scope to be closed.
+
 ## Version Management
 
 ### napi_get_node_version
@@ -3725,6 +3761,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
+[`napi_close_callback_scope`]: #n_api_napi_close_callback_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
 [`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
@@ -3750,6 +3787,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 [`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
 [`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
 [`napi_make_callback`]: #n_api_napi_make_callback
+[`napi_open_callback_scope`]: #n_api_napi_open_callback_scope
 [`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
 [`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
 [`napi_property_descriptor`]: #n_api_napi_property_descriptor
