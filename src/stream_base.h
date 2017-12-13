@@ -265,16 +265,13 @@ class StreamBase : public StreamResource {
   int WriteString(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base>
-  static void GetFD(v8::Local<v8::String> key,
-                    const v8::PropertyCallbackInfo<v8::Value>& args);
+  static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base>
-  static void GetExternal(v8::Local<v8::String> key,
-                          const v8::PropertyCallbackInfo<v8::Value>& args);
+  static void GetExternal(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base>
-  static void GetBytesRead(v8::Local<v8::String> key,
-                           const v8::PropertyCallbackInfo<v8::Value>& args);
+  static void GetBytesRead(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <class Base,
             int (StreamBase::*Method)(
