@@ -27,17 +27,17 @@ const TTY = process.binding('tty_wrap').TTY;
 
   // Should not throw for Object.getOwnPropertyDescriptor
   assert.strictEqual(
-    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, 'bytesRead')),
+    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'bytesRead'),
     'object'
   );
 
   assert.strictEqual(
-    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, 'fd')),
+    typeof Object.getOwnPropertyDescriptor(TTY.prototype, 'fd'),
     'object'
   );
 
   assert.strictEqual(
-    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, '_externalStream')),
+    typeof Object.getOwnPropertyDescriptor(TTY.prototype, '_externalStream'),
     'object'
   );
 }
