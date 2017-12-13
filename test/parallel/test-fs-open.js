@@ -43,3 +43,20 @@ fs.open(__filename, 'r', common.mustCall((err) => {
 fs.open(__filename, 'rs', common.mustCall((err) => {
   assert.ifError(err);
 }));
+
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.open(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.openSync(i, 'r', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

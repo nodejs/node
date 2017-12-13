@@ -1028,6 +1028,8 @@ void DefineOpenSSLConstants(Local<Object> target) {
 }
 
 void DefineSystemConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
+  NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);

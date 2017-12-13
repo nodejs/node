@@ -783,6 +783,12 @@ Encoding provided to `util.TextDecoder()` API was not one of the
 A `Promise` that was callbackified via `util.callbackify()` was rejected with a
 falsy value.
 
+<a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
+### ERR_FS_INVALID_SYMLINK_TYPE
+
+An invalid symlink type was passed to the [`fs.symlink()`][] or
+[`fs.symlinkSync()`][] methods.
+
 <a id="ERR_HTTP_HEADERS_SENT"></a>
 ### ERR_HTTP_HEADERS_SENT
 
@@ -1609,6 +1615,8 @@ Creation of a [`zlib`][] object failed due to incorrect configuration.
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`fs.symlink()`]: fs.html#fs_symlink
+[`fs.symlinkSync()`]: fs.html#fs_symlinksync
 [`hash.digest()`]: crypto.html#crypto_hash_digest_encoding
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`readable._read()`]: stream.html#stream_readable_read_size_1

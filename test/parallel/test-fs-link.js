@@ -21,16 +21,33 @@ fs.link(srcPath, dstPath, common.mustCall(callback));
 
 // test error outputs
 
-assert.throws(
-  function() {
-    fs.link();
-  },
-  /src must be a string or Buffer/
-);
-
-assert.throws(
-  function() {
-    fs.link('abc');
-  },
-  /dest must be a string or Buffer/
-);
+[false, 1, [], {}, null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.link(i, '', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.link('', i, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.linkSync(i, ''),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.linkSync('', i),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});

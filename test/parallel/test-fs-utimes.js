@@ -100,9 +100,8 @@ function testIt(atime, mtime, callback) {
     common.expectsError(
       () => fs.futimesSync(-1, atime, mtime),
       {
-        code: 'ERR_OUT_OF_RANGE',
-        type: RangeError,
-        message: 'The "fd" argument is out of range'
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError
       }
     );
     tests_run++;
@@ -130,9 +129,8 @@ function testIt(atime, mtime, callback) {
         common.expectsError(
           () => fs.futimes(-1, atime, mtime, common.mustNotCall()),
           {
-            code: 'ERR_OUT_OF_RANGE',
-            type: RangeError,
-            message: 'The "fd" argument is out of range'
+            code: 'ERR_INVALID_ARG_TYPE',
+            type: TypeError,
           }
         );
 
@@ -206,3 +204,20 @@ if (common.isWindows) {
   const overflow_stats = fs.statSync(path);
   assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
 }
+
+[false, 0, {}, [], null, undefined].forEach((i) => {
+  common.expectsError(
+    () => fs.utimes(i, new Date(), new Date(), common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+  common.expectsError(
+    () => fs.utimesSync(i, new Date(), new Date()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      type: TypeError
+    }
+  );
+});
