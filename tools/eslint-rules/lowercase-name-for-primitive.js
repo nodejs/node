@@ -9,41 +9,38 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+const astSelector = 'NewExpression[callee.property.name="TypeError"]' +
+                    '[arguments.0.value="ERR_INVALID_ARG_TYPE"]';
+
 const primitives = [
   'number', 'string', 'boolean', 'null', 'undefined'
 ];
 
 module.exports = function(context) {
-  return {
-    NewExpression(node) {
-      if (
-        node.callee.property &&
-        node.callee.property.name === 'TypeError' &&
-        node.arguments[0].value === 'ERR_INVALID_ARG_TYPE'
-      ) {
-        checkNamesArgument(node.arguments[2]);
-      }
+  function checkNamesArgument(node) {
+    const names = node.arguments[2];
 
-      function checkNamesArgument(names) {
-        switch (names.type) {
-          case 'Literal':
-            checkName(names.value);
-            break;
-          case 'ArrayExpression':
-            names.elements.forEach((name) => {
-              checkName(name.value);
-            });
-            break;
-        }
-      }
-
-      function checkName(name) {
-        const lowercaseName = name.toLowerCase();
-        if (primitives.includes(lowercaseName) && !primitives.includes(name)) {
-          const msg = `primitive should use lowercase: ${name}`;
-          context.report(node, msg);
-        }
-      }
+    switch (names.type) {
+      case 'Literal':
+        checkName(node, names.value);
+        break;
+      case 'ArrayExpression':
+        names.elements.forEach((name) => {
+          checkName(node, name.value);
+        });
+        break;
     }
+  }
+
+  function checkName(node, name) {
+    const lowercaseName = name.toLowerCase();
+    if (primitives.includes(lowercaseName) && !primitives.includes(name)) {
+      const msg = `primitive should use lowercase: ${name}`;
+      context.report(node, msg);
+    }
+  }
+
+  return {
+    [astSelector]: (node) => checkNamesArgument(node)
   };
 };
