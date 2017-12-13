@@ -253,8 +253,6 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-extern intptr_t kRuntimeCallStatsTracingEnabled;
-
 class TraceEventHelper {
  public:
   static v8::TracingController* GetTracingController();

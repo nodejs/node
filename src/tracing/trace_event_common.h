@@ -258,6 +258,12 @@
       TRACE_EVENT_PHASE_INSTANT, category_group, name, timestamp,        \
       TRACE_EVENT_FLAG_NONE | scope)
 
+#define TRACE_EVENT_INSTANT_WITH_TIMESTAMP1(category_group, name, scope,  \
+                                            timestamp, arg_name, arg_val) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                \
+      TRACE_EVENT_PHASE_INSTANT, category_group, name, timestamp,         \
+      TRACE_EVENT_FLAG_NONE | scope, arg_name, arg_val)
+
 // Records a single BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
@@ -352,6 +358,12 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                \
       TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,            \
       TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
+
+#define TRACE_EVENT_MARK_WITH_TIMESTAMP2(                                      \
+    category_group, name, timestamp, arg1_name, arg1_val, arg2_name, arg2_val) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                     \
+      TRACE_EVENT_PHASE_MARK, category_group, name, timestamp,                 \
+      TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val, arg2_name, arg2_val)
 
 #define TRACE_EVENT_COPY_MARK(category_group, name)                      \
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_MARK, category_group, name, \
@@ -771,13 +783,22 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN, category_group, name, id,        \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE)
-
 #define TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(category_group, name, \
                                                        id, timestamp)        \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                        \
       TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, category_group, name, id,        \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE)
-
+#define TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP1(                    \
+    category_group, name, id, timestamp, arg1_name, arg1_val)              \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                      \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, category_group, name, id,      \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE, \
+      arg1_name, arg1_val)
+#define TRACE_EVENT_NESTABLE_ASYNC_INSTANT_WITH_TIMESTAMP0(               \
+    category_group, name, id, timestamp)                                  \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                     \
+      TRACE_EVENT_PHASE_NESTABLE_ASYNC_INSTANT, category_group, name, id, \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE)
 #define TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(          \
     category_group, name, id, timestamp)                                \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                   \
