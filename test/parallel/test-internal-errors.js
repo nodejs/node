@@ -281,8 +281,18 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  errors.message('ERR_VALUE_OUT_OF_RANGE', ['A', 'some values', 'B']),
-  'The value of "A" must be some values. Received "B"'
+  errors.message('ERR_OUT_OF_RANGE', ['A']),
+  'The value of "A" is out of range.'
+);
+
+assert.strictEqual(
+  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values']),
+  'The value of "A" is out of range. It must be some values.'
+);
+
+assert.strictEqual(
+  errors.message('ERR_OUT_OF_RANGE', ['A', 'some values', 'B']),
+  'The value of "A" is out of range. It must be some values. Received B'
 );
 
 assert.strictEqual(

@@ -27,10 +27,11 @@ const timers = require('timers');
   common.expectsError(
     () => timers.enroll({}, val),
     {
-      code: 'ERR_VALUE_OUT_OF_RANGE',
+      code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The value of "msecs" must be a non-negative ' +
-               `finite number. Received "${val}"`
+      message: 'The value of "msecs" is out of range. ' +
+               'It must be a non-negative finite number. ' +
+               `Received ${val}`
     }
   );
 });

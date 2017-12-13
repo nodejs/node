@@ -15,7 +15,7 @@ if (common.isWindows) {
 }
 
 const invalidRangeError =
-  common.expectsError({ code: 'ERR_VALUE_OUT_OF_RANGE', type: RangeError }, 20);
+  common.expectsError({ code: 'ERR_OUT_OF_RANGE', type: RangeError }, 20);
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,

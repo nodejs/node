@@ -1340,7 +1340,7 @@ An operation caused an out-of-memory condition.
 <a id="ERR_OUT_OF_RANGE"></a>
 ### ERR_OUT_OF_RANGE
 
-An input argument value was outside an acceptable range.
+A given value is out of the accepted range.
 
 <a id="ERR_PARSE_HISTORY_DATA"></a>
 ### ERR_PARSE_HISTORY_DATA
@@ -1609,7 +1609,7 @@ entry types were found.
 <a id="ERR_VALUE_OUT_OF_RANGE"></a>
 ### ERR_VALUE_OUT_OF_RANGE
 
-A given value is out of the accepted range.
+Superseded by `ERR_OUT_OF_RANGE`
 
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED

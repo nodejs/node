@@ -145,9 +145,9 @@ common.expectsError(
     fs.createReadStream(rangeFile, { start: 10, end: 2 });
   },
   {
-    code: 'ERR_VALUE_OUT_OF_RANGE',
-    message:
-      'The value of "start" must be <= "end". Received "{start: 10, end: 2}"',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "start" is out of range. It must be <= "end". ' +
+             'Received {start: 10, end: 2}',
     type: RangeError
   });
 
