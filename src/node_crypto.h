@@ -148,8 +148,7 @@ class SecureContext : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTicketKeyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CtxGetter(v8::Local<v8::String> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void CtxGetter(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   template <bool primary>
   static void GetCertificate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -329,8 +328,7 @@ class SSLWrap {
                                 void* arg);
   static int TLSExtStatusCallback(SSL* s, void* arg);
   static int SSLCertCallback(SSL* s, void* arg);
-  static void SSLGetter(v8::Local<v8::String> property,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void SSLGetter(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   void DestroySSL();
   void WaitForCertCb(CertCb cb, void* arg);
@@ -684,8 +682,7 @@ class DiffieHellman : public BaseObject {
   static void SetPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPrivateKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void VerifyErrorGetter(
-      v8::Local<v8::String> property,
-      const v8::PropertyCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   DiffieHellman(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
