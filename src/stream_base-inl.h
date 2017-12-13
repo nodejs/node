@@ -11,7 +11,7 @@
 
 namespace node {
 
-using v8::AccessorSignature;
+using v8::Signature;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -34,31 +34,42 @@ void StreamBase::AddMethods(Environment* env,
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(
           v8::ReadOnly | v8::DontDelete | v8::DontEnum);
-  Local<AccessorSignature> signature =
-      AccessorSignature::New(env->isolate(), t);
-  t->PrototypeTemplate()->SetAccessor(env->fd_string(),
-                                      GetFD<Base>,
-                                      nullptr,
-                                      env->as_external(),
-                                      v8::DEFAULT,
-                                      attributes,
-                                      signature);
 
-  t->PrototypeTemplate()->SetAccessor(env->external_stream_string(),
-                                      GetExternal<Base>,
-                                      nullptr,
-                                      env->as_external(),
-                                      v8::DEFAULT,
-                                      attributes,
-                                      signature);
+  Local<Signature> signature =
+      Signature::New(env->isolate(), t);
 
-  t->PrototypeTemplate()->SetAccessor(env->bytes_read_string(),
-                                      GetBytesRead<Base>,
-                                      nullptr,
-                                      env->as_external(),
-                                      v8::DEFAULT,
-                                      attributes,
-                                      signature);
+  Local<FunctionTemplate> get_fd_templ = FunctionTemplate::New(
+    env->isolate(),
+    GetFD<Base>,
+    Local<Value>(),
+    signature);
+
+  Local<FunctionTemplate> get_external_templ = FunctionTemplate::New(
+    env->isolate(),
+    GetExternal<Base>,
+    Local<Value>(),
+    signature);
+
+  Local<FunctionTemplate> get_bytes_read = FunctionTemplate::New(
+    env->isolate(),
+    GetBytesRead<Base>,
+    Local<Value>(),
+    signature);
+
+  t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
+                                              get_fd_templ,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
+
+  t->PrototypeTemplate()->SetAccessorProperty(env->external_stream_string(),
+                                              get_external_templ,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
+
+  t->PrototypeTemplate()->SetAccessorProperty(env->bytes_read_string(),
+                                              get_bytes_read,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
 
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStart>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStop>);
@@ -85,8 +96,7 @@ void StreamBase::AddMethods(Environment* env,
 
 
 template <class Base>
-void StreamBase::GetFD(Local<String> key,
-                       const PropertyCallbackInfo<Value>& args) {
+void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
   // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
   Base* handle;
   ASSIGN_OR_RETURN_UNWRAP(&handle,
@@ -100,10 +110,8 @@ void StreamBase::GetFD(Local<String> key,
   args.GetReturnValue().Set(wrap->GetFD());
 }
 
-
 template <class Base>
-void StreamBase::GetBytesRead(Local<String> key,
-                              const PropertyCallbackInfo<Value>& args) {
+void StreamBase::GetBytesRead(const FunctionCallbackInfo<Value>& args) {
   // The handle instance hasn't been set. So no bytes could have been read.
   Base* handle;
   ASSIGN_OR_RETURN_UNWRAP(&handle,
@@ -115,10 +123,8 @@ void StreamBase::GetBytesRead(Local<String> key,
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
 }
 
-
 template <class Base>
-void StreamBase::GetExternal(Local<String> key,
-                             const PropertyCallbackInfo<Value>& args) {
+void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
   Base* handle;
   ASSIGN_OR_RETURN_UNWRAP(&handle, args.This());
 

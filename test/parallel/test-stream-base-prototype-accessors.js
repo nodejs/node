@@ -10,9 +10,9 @@ const assert = require('assert');
 // Or anything that calls StreamBase::AddMethods when setting up its prototype
 const TTY = process.binding('tty_wrap').TTY;
 
-// Should throw instead of raise assertions
 {
-  const msg = /TypeError: Method \w+ called on incompatible receiver/;
+  // Should throw instead of raise assertions
+  const msg = /TypeError: Illegal invocation/;
   assert.throws(() => {
     TTY.prototype.bytesRead;
   }, msg);
@@ -24,4 +24,20 @@ const TTY = process.binding('tty_wrap').TTY;
   assert.throws(() => {
     TTY.prototype._externalStream;
   }, msg);
+
+  // Should not throw for Object.getOwnPropertyDescriptor
+  assert.strictEqual(
+    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, 'bytesRead')),
+    'object'
+  );
+
+  assert.strictEqual(
+    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, 'fd')),
+    'object'
+  );
+
+  assert.strictEqual(
+    typeof (Object.getOwnPropertyDescriptor(TTY.prototype, '_externalStream')),
+    'object'
+  );
 }
