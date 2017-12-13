@@ -6,16 +6,10 @@
 // (2) Doesn't crash
 
 const common = require('../common');
-const { kSocket } = require('internal/http2/util');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const http2 = require('http2');
 const { PassThrough } = require('stream');
-
-function isActiveHandle(h) {
-  return process._getActiveHandles().indexOf(h) !== -1;
-}
 
 const server = http2.createServer();
 
