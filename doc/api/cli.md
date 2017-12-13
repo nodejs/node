@@ -473,10 +473,10 @@ Node options that are allowed are:
 - `--zero-fill-buffers`
 
 V8 options that are allowed are:
-- `--perf-prof`
-- `--perf-basic-prof`
 - `--abort-on-uncaught-exception`
 - `--max-old-space-size`
+- `--perf-basic-prof`
+- `--perf-prof`
 - `--stack-trace-limit`
 
 ### `NODE_PENDING_DEPRECATION=1`
