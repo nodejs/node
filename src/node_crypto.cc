@@ -2856,6 +2856,24 @@ int SSLWrap<Base>::SetCACerts(SecureContext* sc) {
 }
 
 
+Connection::Connection(Environment* env,
+                       v8::Local<v8::Object> wrap,
+                       SecureContext* sc,
+                       SSLWrap<Connection>::Kind kind)
+    : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_SSLCONNECTION),
+      SSLWrap<Connection>(env, sc, kind),
+      bio_read_(nullptr),
+      bio_write_(nullptr),
+      hello_offset_(0) {
+  MakeWeak<Connection>(this);
+  Wrap(wrap, this);
+  hello_parser_.Start(SSLWrap<Connection>::OnClientHello,
+                      OnClientHelloParseEnd,
+                      this);
+  enable_session_callbacks();
+}
+
+
 void Connection::OnClientHelloParseEnd(void* arg) {
   Connection* conn = static_cast<Connection*>(arg);
 
