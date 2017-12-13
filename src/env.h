@@ -107,7 +107,6 @@ class ModuleWrap;
   V(cached_data_string, "cachedData")                                         \
   V(cached_data_produced_string, "cachedDataProduced")                        \
   V(cached_data_rejected_string, "cachedDataRejected")                        \
-  V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(channel_string, "channel")                                                \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")          \
@@ -115,10 +114,8 @@ class ModuleWrap;
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
-  V(configurable_string, "configurable")                                      \
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
-  V(destroy_string, "destroy")                                                \
   V(destroyed_string, "destroyed")                                            \
   V(detached_string, "detached")                                              \
   V(dns_a_string, "A")                                                        \
@@ -132,13 +129,8 @@ class ModuleWrap;
   V(dns_srv_string, "SRV")                                                    \
   V(dns_txt_string, "TXT")                                                    \
   V(domain_string, "domain")                                                  \
-  V(emit_string, "emit")                                                      \
   V(emit_warning_string, "emitWarning")                                       \
   V(exchange_string, "exchange")                                              \
-  V(enumerable_string, "enumerable")                                          \
-  V(idle_string, "idle")                                                      \
-  V(irq_string, "irq")                                                        \
-  V(enablepush_string, "enablePush")                                          \
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(entries_string, "entries")                                                \
@@ -159,16 +151,12 @@ class ModuleWrap;
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
   V(flags_string, "flags")                                                    \
-  V(get_string, "get")                                                        \
   V(get_data_clone_error_string, "_getDataCloneError")                        \
   V(get_shared_array_buffer_id_string, "_getSharedArrayBufferId")             \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
-  V(heap_total_string, "heapTotal")                                           \
-  V(heap_used_string, "heapUsed")                                             \
   V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
-  V(id_string, "id")                                                          \
   V(ignore_string, "ignore")                                                  \
   V(immediate_callback_string, "_immediateCallback")                          \
   V(infoaccess_string, "infoAccess")                                          \
@@ -182,19 +170,15 @@ class ModuleWrap;
   V(issuer_string, "issuer")                                                  \
   V(issuercert_string, "issuerCertificate")                                   \
   V(kill_signal_string, "killSignal")                                         \
-  V(length_string, "length")                                                  \
   V(mac_string, "mac")                                                        \
   V(main_string, "main")                                                      \
   V(max_buffer_string, "maxBuffer")                                           \
   V(message_string, "message")                                                \
   V(minttl_string, "minttl")                                                  \
-  V(model_string, "model")                                                    \
   V(modulus_string, "modulus")                                                \
   V(name_string, "name")                                                      \
   V(netmask_string, "netmask")                                                \
-  V(nice_string, "nice")                                                      \
   V(nsname_string, "nsname")                                                  \
-  V(nexttick_string, "nextTick")                                              \
   V(ocsp_request_string, "OCSPRequest")                                       \
   V(onchange_string, "onchange")                                              \
   V(onclienthello_string, "onclienthello")                                    \
@@ -254,26 +238,20 @@ class ModuleWrap;
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
-  V(set_string, "set")                                                        \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
   V(sni_context_string, "sni_context")                                        \
-  V(speed_string, "speed")                                                    \
   V(stack_string, "stack")                                                    \
   V(status_string, "status")                                                  \
   V(stdio_string, "stdio")                                                    \
-  V(stream_string, "stream")                                                  \
   V(subject_string, "subject")                                                \
   V(subjectaltname_string, "subjectaltname")                                  \
-  V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
-  V(tick_callback_string, "_tickCallback")                                    \
   V(tick_domain_cb_string, "_tickDomainCallback")                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
-  V(times_string, "times")                                                    \
   V(tls_ticket_string, "tlsTicket")                                           \
   V(ttl_string, "ttl")                                                        \
   V(type_string, "type")                                                      \
