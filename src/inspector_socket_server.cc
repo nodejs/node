@@ -84,11 +84,6 @@ const char* MatchPathSegment(const char* path, const char* expected) {
   return nullptr;
 }
 
-void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
-  buf->base = new char[len];
-  buf->len = len;
-}
-
 void PrintDebuggerReadyMessage(const std::string& host,
                                int port,
                                const std::vector<std::string>& ids,
@@ -235,7 +230,6 @@ class SocketSession {
  private:
   const int id_;
   InspectorSocket::Pointer ws_socket_;
-  InspectorSocketServer* server_;
   const int server_port_;
   std::string ws_key_;
 };
@@ -531,10 +525,7 @@ void InspectorSocketServer::Send(int session_id, const std::string& message) {
 // InspectorSession tracking
 SocketSession::SocketSession(InspectorSocketServer* server, int id,
                              int server_port)
-                             : id_(id),
-                               server_(server),
-                               server_port_(server_port) { }
-
+    : id_(id), server_port_(server_port) {}
 
 void SocketSession::Send(const std::string& message) {
   ws_socket_->Write(message.data(), message.length());
