@@ -291,7 +291,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -300,7 +300,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -309,7 +309,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -318,7 +318,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "offset" argument is out of range'
+        message: 'The value of "offset" is out of range.'
       }
     );
 
@@ -421,7 +421,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -430,7 +430,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -439,7 +439,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 
@@ -448,7 +448,7 @@ process.setMaxListeners(256);
       {
         code: 'ERR_OUT_OF_RANGE',
         type: RangeError,
-        message: 'The "size" argument is out of range'
+        message: 'The value of "size" is out of range.'
       }
     );
 

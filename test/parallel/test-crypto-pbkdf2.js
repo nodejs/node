@@ -70,7 +70,8 @@ common.expectsError(
   {
     code: 'ERR_OUT_OF_RANGE',
     type: RangeError,
-    message: 'The "iterations" argument is out of range'
+    message: 'The value of "iterations" is out of range. ' +
+             'It must be a non-negative number. Received -1'
   }
 );
 
@@ -93,7 +94,7 @@ common.expectsError(
     }, {
       code: 'ERR_OUT_OF_RANGE',
       type: RangeError,
-      message: 'The "keylen" argument is out of range'
+      message: 'The value of "keylen" is out of range.'
     });
 });
 
