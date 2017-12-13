@@ -142,7 +142,7 @@ the first argument will be passed as `null`.
 ```js
 const fs = require('fs');
 
-function errorFirstStyleCallback(err, data) {
+function errorFirstCallback(err, data) {
   if (err) {
     console.error('There was an error', err);
     return;
@@ -150,8 +150,8 @@ function errorFirstStyleCallback(err, data) {
   console.log(data);
 }
 
-fs.readFile('/some/file/that/does-not-exist', errorFirstStyleCallback);
-fs.readFile('/some/file/that/does-exist', errorFirstStyleCallback);
+fs.readFile('/some/file/that/does-not-exist', errorFirstCallback);
+fs.readFile('/some/file/that/does-exist', errorFirstCallback);
 ```
 
 The JavaScript `try / catch` mechanism **cannot** be used to intercept errors
