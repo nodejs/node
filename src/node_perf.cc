@@ -19,7 +19,7 @@ using v8::Local;
 using v8::Name;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyCallbackInfo;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -120,8 +120,7 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(obj);
 }
 
-void GetPerformanceEntryName(const Local<String> prop,
-                             const PropertyCallbackInfo<Value>& info) {
+void GetPerformanceEntryName(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   PerformanceEntry* entry;
   ASSIGN_OR_RETURN_UNWRAP(&entry, info.Holder());
@@ -129,8 +128,7 @@ void GetPerformanceEntryName(const Local<String> prop,
     String::NewFromUtf8(isolate, entry->name().c_str(), String::kNormalString));
 }
 
-void GetPerformanceEntryType(const Local<String> prop,
-                             const PropertyCallbackInfo<Value>& info) {
+void GetPerformanceEntryType(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   PerformanceEntry* entry;
   ASSIGN_OR_RETURN_UNWRAP(&entry, info.Holder());
@@ -138,15 +136,13 @@ void GetPerformanceEntryType(const Local<String> prop,
     String::NewFromUtf8(isolate, entry->type().c_str(), String::kNormalString));
 }
 
-void GetPerformanceEntryStartTime(const Local<String> prop,
-                                  const PropertyCallbackInfo<Value>& info) {
+void GetPerformanceEntryStartTime(const FunctionCallbackInfo<Value>& info) {
   PerformanceEntry* entry;
   ASSIGN_OR_RETURN_UNWRAP(&entry, info.Holder());
   info.GetReturnValue().Set(entry->startTime());
 }
 
-void GetPerformanceEntryDuration(const Local<String> prop,
-                                 const PropertyCallbackInfo<Value>& info) {
+void GetPerformanceEntryDuration(const FunctionCallbackInfo<Value>& info) {
   PerformanceEntry* entry;
   ASSIGN_OR_RETURN_UNWRAP(&entry, info.Holder());
   info.GetReturnValue().Set(entry->duration());
@@ -336,14 +332,50 @@ void Init(Local<Object> target,
   Local<FunctionTemplate> pe = env->NewFunctionTemplate(PerformanceEntry::New);
   pe->InstanceTemplate()->SetInternalFieldCount(1);
   pe->SetClassName(performanceEntryString);
+
+  Local<Signature> signature = Signature::New(env->isolate(), pe);
+
+  Local<FunctionTemplate> get_performance_entry_name_templ =
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryName,
+                            env->as_external(),
+                            signature);
+
+  Local<FunctionTemplate> get_performance_entry_type_templ =
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryType,
+                            env->as_external(),
+                            signature);
+
+  Local<FunctionTemplate> get_performance_entry_start_time_templ =
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryStartTime,
+                            env->as_external(),
+                            signature);
+
+  Local<FunctionTemplate> get_performance_entry_duration_templ =
+      FunctionTemplate::New(env->isolate(),
+                            GetPerformanceEntryDuration,
+                            env->as_external(),
+                            signature);
+
   Local<ObjectTemplate> ot = pe->InstanceTemplate();
-  ot->SetAccessor(env->name_string(), GetPerformanceEntryName);
-  ot->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "entryType"),
-                  GetPerformanceEntryType);
-  ot->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "startTime"),
-                  GetPerformanceEntryStartTime);
-  ot->SetAccessor(FIXED_ONE_BYTE_STRING(isolate, "duration"),
-                  GetPerformanceEntryDuration);
+  ot->SetAccessorProperty(env->name_string(),
+                          get_performance_entry_name_templ,
+                          Local<FunctionTemplate>());
+
+  ot->SetAccessorProperty(FIXED_ONE_BYTE_STRING(isolate, "entryType"),
+                          get_performance_entry_type_templ,
+                          Local<FunctionTemplate>());
+
+  ot->SetAccessorProperty(FIXED_ONE_BYTE_STRING(isolate, "startTime"),
+                          get_performance_entry_start_time_templ,
+                          Local<FunctionTemplate>());
+
+  ot->SetAccessorProperty(FIXED_ONE_BYTE_STRING(isolate, "duration"),
+                          get_performance_entry_duration_templ,
+                          Local<FunctionTemplate>());
+
   Local<Function> fn = pe->GetFunction();
   target->Set(performanceEntryString, fn);
   env->set_performance_entry_template(fn);

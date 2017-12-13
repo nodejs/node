@@ -87,7 +87,6 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
 namespace node {
 namespace crypto {
 
-using v8::AccessorSignature;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -110,8 +109,8 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyAttribute;
-using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -551,14 +550,18 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
 
-  t->PrototypeTemplate()->SetAccessor(
+  Local<FunctionTemplate> ctx_getter_templ =
+      FunctionTemplate::New(env->isolate(),
+                            CtxGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+
+
+  t->PrototypeTemplate()->SetAccessorProperty(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      CtxGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
+      ctx_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 
   target->Set(secureContextString, t->GetFunction());
   env->set_secure_context_constructor_template(t);
@@ -1572,8 +1575,7 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 #endif
 
 
-void SecureContext::CtxGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
+void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
   Local<External> ext = External::New(info.GetIsolate(), sc->ctx_);
@@ -1643,14 +1645,17 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
 
-  t->PrototypeTemplate()->SetAccessor(
+  Local<FunctionTemplate> ssl_getter_templ =
+      FunctionTemplate::New(env->isolate(),
+                            SSLGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+
+  t->PrototypeTemplate()->SetAccessorProperty(
       FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      SSLGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
+      ssl_getter_templ,
+      Local<FunctionTemplate>(),
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete));
 }
 
 
@@ -2811,8 +2816,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
 
 
 template <class Base>
-void SSLWrap<Base>::SSLGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
+void SSLWrap<Base>::SSLGetter(const FunctionCallbackInfo<Value>& info) {
   Base* base;
   ASSIGN_OR_RETURN_UNWRAP(&base, info.This());
   SSL* ssl = base->ssl_;
@@ -4828,14 +4832,17 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
   env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
 
-  t->InstanceTemplate()->SetAccessor(
+  Local<FunctionTemplate> verify_error_getter_templ =
+      FunctionTemplate::New(env->isolate(),
+                            DiffieHellman::VerifyErrorGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t));
+
+  t->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
-      DiffieHellman::VerifyErrorGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      attributes,
-      AccessorSignature::New(env->isolate(), t));
+      verify_error_getter_templ,
+      Local<FunctionTemplate>(),
+      attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"),
               t->GetFunction());
@@ -4850,14 +4857,17 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t2, "getPublicKey", GetPublicKey);
   env->SetProtoMethod(t2, "getPrivateKey", GetPrivateKey);
 
-  t2->InstanceTemplate()->SetAccessor(
+  Local<FunctionTemplate> verify_error_getter_templ2 =
+      FunctionTemplate::New(env->isolate(),
+                            DiffieHellman::VerifyErrorGetter,
+                            env->as_external(),
+                            Signature::New(env->isolate(), t2));
+
+  t2->InstanceTemplate()->SetAccessorProperty(
       env->verify_error_string(),
-      DiffieHellman::VerifyErrorGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      attributes,
-      AccessorSignature::New(env->isolate(), t2));
+      verify_error_getter_templ2,
+      Local<FunctionTemplate>(),
+      attributes);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
               t2->GetFunction());
@@ -5173,8 +5183,7 @@ void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void DiffieHellman::VerifyErrorGetter(Local<String> property,
-                                      const PropertyCallbackInfo<Value>& args) {
+void DiffieHellman::VerifyErrorGetter(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(args.GetIsolate());
 
   DiffieHellman* diffieHellman;

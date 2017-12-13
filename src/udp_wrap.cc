@@ -41,7 +41,7 @@ using v8::Integer;
 using v8::Local;
 using v8::Object;
 using v8::PropertyAttribute;
-using v8::PropertyCallbackInfo;
+using v8::Signature;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -110,12 +110,19 @@ void UDPWrap::Initialize(Local<Object> target,
 
   enum PropertyAttribute attributes =
       static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->PrototypeTemplate()->SetAccessor(env->fd_string(),
-                                      UDPWrap::GetFD,
-                                      nullptr,
-                                      env->as_external(),
-                                      v8::DEFAULT,
-                                      attributes);
+
+  Local<Signature> signature = Signature::New(env->isolate(), t);
+
+  Local<FunctionTemplate> get_fd_templ =
+      FunctionTemplate::New(env->isolate(),
+                            UDPWrap::GetFD,
+                            env->as_external(),
+                            signature);
+
+  t->PrototypeTemplate()->SetAccessorProperty(env->fd_string(),
+                                              get_fd_templ,
+                                              Local<FunctionTemplate>(),
+                                              attributes);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "send", Send);
@@ -163,7 +170,7 @@ void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
+void UDPWrap::GetFD(const FunctionCallbackInfo<Value>& args) {
   int fd = UV_EBADF;
 #if !defined(_WIN32)
   UDPWrap* wrap = Unwrap<UDPWrap>(args.This());
