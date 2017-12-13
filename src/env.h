@@ -297,7 +297,7 @@ class Environment {
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
 
-    inline bool in_makecallback();
+    inline bool in_makecallback() const;
 
    private:
     Environment* env_;

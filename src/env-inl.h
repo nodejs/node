@@ -111,7 +111,7 @@ inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
   env_->makecallback_cntr_--;
 }
 
-inline bool Environment::AsyncCallbackScope::in_makecallback() {
+inline bool Environment::AsyncCallbackScope::in_makecallback() const {
   return env_->makecallback_cntr_ > 1;
 }
 

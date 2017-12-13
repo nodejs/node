@@ -49,6 +49,7 @@ struct napi_env__ {
   bool has_instance_available;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
+  int open_callback_scopes = 0;
   uv_loop_t* loop = nullptr;
 };
 
@@ -259,6 +260,18 @@ EscapableHandleScopeWrapper*
 V8EscapableHandleScopeFromJsEscapableHandleScope(
     napi_escapable_handle_scope s) {
   return reinterpret_cast<EscapableHandleScopeWrapper*>(s);
+}
+
+static
+napi_callback_scope JsCallbackScopeFromV8CallbackScope(
+    node::CallbackScope* s) {
+  return reinterpret_cast<napi_callback_scope>(s);
+}
+
+static
+node::CallbackScope* V8CallbackScopeFromJsCallbackScope(
+    napi_callback_scope s) {
+  return reinterpret_cast<node::CallbackScope*>(s);
 }
 
 //=== Conversion between V8 Handles and napi_value ========================
@@ -552,6 +565,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_clear_last_error(env);
 
     int open_handle_scopes = env->open_handle_scopes;
+    int open_callback_scopes = env->open_callback_scopes;
 
     napi_value result = cb(env, cbinfo_wrapper);
 
@@ -560,6 +574,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     }
 
     CHECK_EQ(env->open_handle_scopes, open_handle_scopes);
+    CHECK_EQ(env->open_callback_scopes, open_callback_scopes);
 
     if (!env->last_exception.IsEmpty()) {
       isolate->ThrowException(
@@ -917,7 +932,8 @@ const char* error_messages[] = {nullptr,
                                 "An exception is pending",
                                 "The async work item was cancelled",
                                 "napi_escape_handle already called on scope",
-                                "Invalid handle scope usage"};
+                                "Invalid handle scope usage",
+                                "Invalid callback scope usage"};
 
 static inline napi_status napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
@@ -948,9 +964,9 @@ napi_status napi_get_last_error_info(napi_env env,
   // We don't have a napi_status_last as this would result in an ABI
   // change each time a message was added.
   static_assert(
-      node::arraysize(error_messages) == napi_handle_scope_mismatch + 1,
+      node::arraysize(error_messages) == napi_callback_scope_mismatch + 1,
       "Count of error messages must match count of error values");
-  CHECK_LE(env->last_error.error_code, napi_handle_scope_mismatch);
+  CHECK_LE(env->last_error.error_code, napi_callback_scope_mismatch);
 
   // Wait until someone requests the last error information to fetch the error
   // message string
@@ -2637,6 +2653,46 @@ napi_status napi_escape_handle(napi_env env,
     return napi_clear_last_error(env);
   }
   return napi_set_last_error(env, napi_escape_called_twice);
+}
+
+napi_status napi_open_callback_scope(napi_env env,
+                                     napi_value resource_object,
+                                     napi_async_context async_context_handle,
+                                     napi_callback_scope* result) {
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Context> context = env->isolate->GetCurrentContext();
+
+  node::async_context* node_async_context =
+      reinterpret_cast<node::async_context*>(async_context_handle);
+
+  v8::Local<v8::Object> resource;
+  CHECK_TO_OBJECT(env, context, resource, resource_object);
+
+  *result = v8impl::JsCallbackScopeFromV8CallbackScope(
+      new node::CallbackScope(env->isolate,
+                              resource,
+                              *node_async_context));
+
+  env->open_callback_scopes++;
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_close_callback_scope(napi_env env, napi_callback_scope scope) {
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
+  CHECK_ARG(env, scope);
+  if (env->open_callback_scopes == 0) {
+    return napi_callback_scope_mismatch;
+  }
+
+  env->open_callback_scopes--;
+  delete v8impl::V8CallbackScopeFromJsCallbackScope(scope);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_new_instance(napi_env env,
