@@ -29,7 +29,7 @@
  * converter, you can get its properties, set options, convert your data and
  * close the converter.</p>
  *
- * <p>Since many software programs recogize different converter names for
+ * <p>Since many software programs recognize different converter names for
  * different types of converters, there are other functions in this API to
  * iterate over the converter aliases. The functions {@link ucnv_getAvailableName() },
  * {@link ucnv_getAlias() } and {@link ucnv_getStandardName() } are some of the
@@ -184,7 +184,7 @@ typedef enum {
 
 /**
  * Function pointer for error callback in the codepage to unicode direction.
- * Called when an error has occured in conversion to unicode, or on open/close of the callback (see reason).
+ * Called when an error has occurred in conversion to unicode, or on open/close of the callback (see reason).
  * @param context Pointer to the callback's private data
  * @param args Information about the conversion in progress
  * @param codeUnits Points to 'length' bytes of the concerned codepage sequence
@@ -452,7 +452,7 @@ ucnv_openU(const UChar *name,
  * @param platform the platform in which the codepage number exists
  * @param err error status <TT>U_MEMORY_ALLOCATION_ERROR, U_FILE_ACCESS_ERROR</TT>
  * @return the created Unicode converter object, or <TT>NULL</TT> if an error
- *   occured.
+ *   occurred.
  * @see ucnv_open
  * @see ucnv_openU
  * @see ucnv_close
@@ -596,7 +596,7 @@ U_NAMESPACE_END
  * stateful, then subChars will be an empty string.
  *
  * @param converter the Unicode converter
- * @param subChars the subsitution characters
+ * @param subChars the substitution characters
  * @param len on input the capacity of subChars, on output the number
  * of bytes copied to it
  * @param  err the outgoing error status code.
@@ -832,7 +832,7 @@ ucnv_getMinCharSize(const UConverter *converter);
  * name will be filled in.
  *
  * @param converter the Unicode converter.
- * @param displayLocale is the specific Locale we want to localised for
+ * @param displayLocale is the specific Locale we want to localized for
  * @param displayName user provided buffer to be filled in
  * @param displayNameCapacity size of displayName Buffer
  * @param err error status code
@@ -877,7 +877,7 @@ ucnv_getName(const UConverter *converter, UErrorCode *err);
  *
  * @param converter the Unicode converter
  * @param err the error status code.
- * @return If any error occurrs, -1 will be returned otherwise, the codepage number
+ * @return If any error occurs, -1 will be returned otherwise, the codepage number
  * will be returned
  * @see ucnv_openCCSID
  * @see ucnv_getPlatform
