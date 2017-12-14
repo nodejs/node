@@ -121,7 +121,7 @@ class RuleBasedBreakIterator::BreakCache: public UMemory {
      * If the requested position is a break boundary, leave the iteration
      * position on it.
      * If the requested position is not a boundary, leave the iteration
-     * position on the preceding boundary and include both the the
+     * position on the preceding boundary and include both the
      * preceding and following boundaries in the cache.
      * Additional boundaries, either preceding or following, may be added
      * to the cache as a side effect.

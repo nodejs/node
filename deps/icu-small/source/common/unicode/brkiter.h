@@ -292,7 +292,7 @@ public:
      * does nothing.  Negative values move to previous boundaries
      * and positive values move to later boundaries.
      * @return The new iterator position, or
-     * DONE if there are fewer than |n| boundaries in the specfied direction.
+     * DONE if there are fewer than |n| boundaries in the specified direction.
      * @stable ICU 2.0
      */
     virtual int32_t next(int32_t n) = 0;
