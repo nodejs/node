@@ -81,7 +81,6 @@ namespace node {
 namespace crypto {
 
 using v8::AccessorSignature;
-using v8::Signature;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -106,6 +105,7 @@ using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
