@@ -4786,7 +4786,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> verify_error_getter_templ =
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
-                            Local<Value>(),
+                            env->as_external(),
                             Signature::New(env->isolate(), t));
 
   t->InstanceTemplate()->SetAccessorProperty(
@@ -4811,7 +4811,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> verify_error_getter_templ2 =
       FunctionTemplate::New(env->isolate(),
                             DiffieHellman::VerifyErrorGetter,
-                            Local<Value>(),
+                            env->as_external(),
                             Signature::New(env->isolate(), t2));
 
   t2->InstanceTemplate()->SetAccessorProperty(
