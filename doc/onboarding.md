@@ -38,6 +38,10 @@ onboarding session.
       * Branches in the nodejs/node repository are only for release lines
     * [See "Updating Node.js from Upstream"](./onboarding-extras.md#updating-nodejs-from-upstream)
     * Make a new branch for each PR you submit.
+    * Membership: Consider making your membership in the Node.js GitHub organization
+      public. This makes it easier to identify Collaborators. Instructions on how to
+      do that are available at
+      [Publicizing or hiding organization membership](https://help.github.com/articles/publicizing-or-hiding-organization-membership/).
 
   * Notifications:
     * Use [https://github.com/notifications](https://github.com/notifications) or set up email
