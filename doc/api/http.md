@@ -734,6 +734,11 @@ changes:
     description: The default action of calling `.destroy()` on the `socket`
                  will no longer take place if there are listeners attached
                  for `clientError`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/17672
+    description: The rawPacket is the current buffer that just parsed. Adding
+                 this buffer to the error object of clientError event is to make
+                 it possible that developers can log the broken packet.
 -->
 
 * `exception` {Error}
@@ -764,6 +769,12 @@ When the `'clientError'` event occurs, there is no `request` or `response`
 object, so any HTTP response sent, including response headers and payload,
 *must* be written directly to the `socket` object. Care must be taken to
 ensure the response is a properly formatted HTTP response message.
+
+`err` is an instance of `Error` with two extra columns:
+
++ `bytesParsed`: the bytes count of request packet that Node.js may have parsed
+  correctly;
++ `rawPacket`: the raw packet of current request.
 
 ### Event: 'close'
 <!-- YAML
